@@ -580,15 +580,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("Found subcategory:", subcategory.name);
 
-      // Get all products and filter by subcategory name
+      // Get all products and filter by subcategory name with exact matching
       const allProducts = await storage.getProducts();
       const filteredProducts = allProducts.filter(product => {
         if (!product.subcategory) return false;
         
-        const productSubcategory = product.subcategory.toLowerCase().trim();
-        const targetSubcategory = subcategory.name.toLowerCase().trim();
+        // Normalize both strings for comparison
+        const productSubcategory = product.subcategory.toLowerCase().trim().replace(/\s+/g, ' ');
+        const targetSubcategory = subcategory.name.toLowerCase().trim().replace(/\s+/g, ' ');
         
-        return productSubcategory === targetSubcategory;
+        // Exact match
+        if (productSubcategory === targetSubcategory) return true;
+        
+        // Also check if the product subcategory matches common variations
+        const variations = [
+          targetSubcategory.replace(/\s/g, ''),  // No spaces
+          targetSubcategory.replace(/\s/g, '-'), // Dashes instead of spaces
+          targetSubcategory.replace(/-/g, ' '),  // Spaces instead of dashes
+        ];
+        
+        return variations.some(variation => 
+          productSubcategory === variation ||
+          productSubcategory.replace(/\s/g, '') === variation.replace(/\s/g, '')
+        );
       });
 
       console.log(`Found ${filteredProducts.length} products for subcategory "${subcategory.name}"`);

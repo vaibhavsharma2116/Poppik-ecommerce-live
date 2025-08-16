@@ -17,6 +17,18 @@ export default function CategoryPage() {
   const [sortBy, setSortBy] = useState("popular");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
+  // Get category data
+  const { data: category, isLoading: categoryLoading } = useQuery<Category>({
+    queryKey: [`/api/categories/${categorySlug}`],
+    enabled: !!categorySlug,
+  });
+
+  // Get subcategories for this category
+  const { data: subcategories = [], isLoading: subcategoriesLoading } = useQuery<Subcategory[]>({
+    queryKey: [`/api/categories/${categorySlug}/subcategories`],
+    enabled: !!categorySlug,
+  });
+
   // Handle URL subcategory parameter
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -35,19 +47,45 @@ export default function CategoryPage() {
     } else if (!subcategoryParam) {
       setSelectedSubcategoryId("");
     }
+  }, [subcategories, window.location.search]);
+
+  // Listen for URL changes
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const subcategoryParam = urlParams.get('subcategory');
+      
+      if (subcategoryParam && subcategories.length > 0) {
+        const subcategory = subcategories.find(sub => 
+          sub.slug === subcategoryParam || 
+          sub.name.toLowerCase().replace(/\s+/g, '-') === subcategoryParam
+        );
+        
+        if (subcategory) {
+          setSelectedSubcategoryId(subcategory.id.toString());
+        }
+      } else if (!subcategoryParam) {
+        setSelectedSubcategoryId("");
+      }
+      
+      // Force re-render by updating a state
+      window.dispatchEvent(new Event('subcategory-change'));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, [subcategories]);
 
-  // Get category data
-  const { data: category, isLoading: categoryLoading } = useQuery<Category>({
-    queryKey: [`/api/categories/${categorySlug}`],
-    enabled: !!categorySlug,
-  });
+  // Force refresh when subcategory changes via URL
+  useEffect(() => {
+    const handleSubcategoryChange = () => {
+      // Force query invalidation instead of page reload
+      window.dispatchEvent(new Event('force-refetch'));
+    };
 
-  // Get subcategories for this category
-  const { data: subcategories = [], isLoading: subcategoriesLoading } = useQuery<Subcategory[]>({
-    queryKey: [`/api/categories/${categorySlug}/subcategories`],
-    enabled: !!categorySlug,
-  });
+    window.addEventListener('subcategory-change', handleSubcategoryChange);
+    return () => window.removeEventListener('subcategory-change', handleSubcategoryChange);
+  }, []);
 
   // Get all products initially
   const { data: allProducts = [], isLoading: productsLoading } = useQuery<Product[]>({
@@ -56,10 +94,25 @@ export default function CategoryPage() {
   });
 
   // Get products by subcategory when subcategory is selected
-  const { data: subcategoryProducts = [], isLoading: subcategoryProductsLoading } = useQuery<Product[]>({
-    queryKey: [`/api/products/subcategory/id/${selectedSubcategoryId}`],
+  const { data: subcategoryProducts = [], isLoading: subcategoryProductsLoading, refetch: refetchSubcategoryProducts } = useQuery<Product[]>({
+    queryKey: [`/api/products/subcategory/id/${selectedSubcategoryId}`, selectedSubcategoryId],
     enabled: !!selectedSubcategoryId,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
+    refetchOnMount: true,
   });
+
+  // Force refetch when URL changes
+  useEffect(() => {
+    const handleForceRefetch = () => {
+      if (selectedSubcategoryId) {
+        refetchSubcategoryProducts();
+      }
+    };
+
+    window.addEventListener('force-refetch', handleForceRefetch);
+    return () => window.removeEventListener('force-refetch', handleForceRefetch);
+  }, [selectedSubcategoryId, refetchSubcategoryProducts]);
 
   // Determine which products to show
   const productsToShow = selectedSubcategoryId ? subcategoryProducts : allProducts;
@@ -234,7 +287,7 @@ export default function CategoryPage() {
               }>
                 {sortedProducts.map((product) => (
                   <ProductCard 
-                    key={product.id} 
+                    key={`${product.id}-${selectedSubcategoryId || 'all'}-${Date.now()}`} 
                     product={product} 
                     viewMode={viewMode}
                   />

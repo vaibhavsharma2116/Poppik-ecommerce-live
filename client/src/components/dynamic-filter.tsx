@@ -69,6 +69,7 @@ export default function DynamicFilter({
 
   // Apply filters whenever filters change
   useEffect(() => {
+    // Force a fresh computation every time
     const filteredProducts = products.filter(product => {
       // Category filter
       if (filters.categories.length > 0 && !filters.categories.includes(product.category)) {
@@ -118,7 +119,8 @@ export default function DynamicFilter({
       return true;
     });
 
-    onFilterChange(filteredProducts, filters);
+    // Force the callback to trigger even if the products array looks the same
+    onFilterChange([...filteredProducts], { ...filters });
   }, [filters, products, onFilterChange]);
 
   const handleCategoryChange = (category: string, checked: boolean) => {

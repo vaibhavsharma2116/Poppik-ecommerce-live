@@ -21,8 +21,9 @@ export default function ProductsPage() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [activeFilters, setActiveFilters] = useState<any>({});
 
-  const { data: allProducts, isLoading: productsLoading } = useQuery<Product[]>({
+  const { data: allProducts, isLoading: productsLoading, refetch: refetchProducts } = useQuery<Product[]>({
     queryKey: ["/api/products"],
+    staleTime: 0,
   });
 
   const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>({
