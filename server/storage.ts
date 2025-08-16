@@ -415,6 +415,12 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getSubcategoryById(id: number): Promise<Subcategory | undefined> {
+    const db = await getDb();
+    const result = await db.select().from(subcategories).where(eq(subcategories.id, id)).limit(1);
+    return result[0];
+  }
+
   async getSubcategories(): Promise<Subcategory[]> {
     const db = await getDb();
     return await db.select().from(subcategories);

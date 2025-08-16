@@ -1,270 +1,264 @@
-import { useState, useEffect, useMemo } from "react";
-import { useParams, Link, useLocation } from "wouter";
+
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Grid, List, SlidersHorizontal } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
+import { useRoute, Link } from "wouter";
+import { ChevronRight, Grid3X3, List } from "lucide-react";
 import ProductCard from "@/components/product-card";
-import DynamicFilter from "@/components/dynamic-filter";
-import type { Product, Category } from "@/lib/types";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import type { Product, Category, Subcategory } from "@/lib/types";
 
 export default function CategoryPage() {
-  const params = useParams();
-  const [location] = useLocation();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [sortBy, setSortBy] = useState('name');
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilters, setActiveFilters] = useState({});
+  const [match, params] = useRoute("/category/:slug");
+  const categorySlug = params?.slug;
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string>("");
+  const [sortBy, setSortBy] = useState("popular");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  // Get subcategory from URL params
-  const urlParams = new URLSearchParams(location.split('?')[1] || '');
-  const subcategorySlug = urlParams.get('subcategory');
-
-  // Fetch all products
-  const { data: allProducts = [], isLoading: productsLoading } = useQuery<Product[]>({
-    queryKey: ["/api/products"],
-    queryFn: async () => {
-      const response = await fetch("/api/products");
-      if (!response.ok) throw new Error("Failed to fetch products");
-      return response.json();
-    },
-  });
-
-  // Fetch all categories for filter component
-  const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
-    queryFn: async () => {
-      const response = await fetch("/api/categories");
-      if (!response.ok) throw new Error("Failed to fetch categories");
-      return response.json();
-    },
-  });
-
-  // Fetch subcategories for current category
-  const { data: subcategories = [] } = useQuery({
-    queryKey: [`/api/categories/${params.slug}/subcategories`],
-    queryFn: async () => {
-      const response = await fetch(`/api/categories/${params.slug}/subcategories`);
-      if (!response.ok) return [];
-      return response.json();
-    },
-  });
-
-  // Filter products based on category and subcategory
-  const categoryFilteredProducts = useMemo(() => {
-    if (!allProducts.length) return [];
-
-    // Get category from URL params
-    const categoryFromUrl = params.slug?.replace('-', ' ').toLowerCase();
-
-    // If subcategory is selected, filter directly by subcategory only
-    if (subcategorySlug) {
-      const subcategoryFromUrl = subcategorySlug.replace('-', ' ').toLowerCase().trim();
-      return allProducts.filter(product => {
-        if (!product.subcategory) return false;
-
-        const productSubcategory = product.subcategory.toLowerCase().trim();
-
-        // Only exact matches allowed - no partial matching
-        if (productSubcategory === subcategoryFromUrl) return true;
-
-        // Handle normalization for hyphens and spaces for exact matches only
-        const normalizedProductSub = productSubcategory.replace(/[-\s]+/g, ' ').trim();
-        const normalizedUrlSub = subcategoryFromUrl.replace(/[-\s]+/g, ' ').trim();
-
-        return normalizedProductSub === normalizedUrlSub;
-      });
+  // Handle URL subcategory parameter
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subcategoryParam = urlParams.get('subcategory');
+    
+    if (subcategoryParam && subcategories.length > 0) {
+      // Find subcategory by slug
+      const subcategory = subcategories.find(sub => 
+        sub.slug === subcategoryParam || 
+        sub.name.toLowerCase().replace(/\s+/g, '-') === subcategoryParam
+      );
+      
+      if (subcategory) {
+        setSelectedSubcategoryId(subcategory.id.toString());
+      }
+    } else if (!subcategoryParam) {
+      setSelectedSubcategoryId("");
     }
+  }, [subcategories]);
 
-    // If no subcategory, filter by category only
-    let filtered = allProducts.filter(product => {
-      if (!product.category) return false;
+  // Get category data
+  const { data: category, isLoading: categoryLoading } = useQuery<Category>({
+    queryKey: [`/api/categories/${categorySlug}`],
+    enabled: !!categorySlug,
+  });
 
-      const productCategory = product.category.toLowerCase();
+  // Get subcategories for this category
+  const { data: subcategories = [], isLoading: subcategoriesLoading } = useQuery<Subcategory[]>({
+    queryKey: [`/api/categories/${categorySlug}/subcategories`],
+    enabled: !!categorySlug,
+  });
 
-      // Check for exact match first
-      if (productCategory === categoryFromUrl) return true;
+  // Get all products initially
+  const { data: allProducts = [], isLoading: productsLoading } = useQuery<Product[]>({
+    queryKey: [`/api/products/category/${categorySlug}`],
+    enabled: !!categorySlug,
+  });
 
-      // Check for partial matches
-      if (productCategory.includes(categoryFromUrl) || categoryFromUrl?.includes(productCategory)) return true;
+  // Get products by subcategory when subcategory is selected
+  const { data: subcategoryProducts = [], isLoading: subcategoryProductsLoading } = useQuery<Product[]>({
+    queryKey: [`/api/products/subcategory/id/${selectedSubcategoryId}`],
+    enabled: !!selectedSubcategoryId,
+  });
 
-      // Special category mappings for common variations
-      const categoryMappings: Record<string, string[]> = {
-        'skincare': ['skin', 'face', 'facial'],
-        'haircare': ['hair'],
-        'makeup': ['cosmetics', 'beauty'],
-        'bodycare': ['body'],
-        'eyecare': ['eye', 'eyes', 'eyecare'],
-        'eye drama': ['eye', 'eyes', 'eyecare'],
-        'beauty': ['makeup', 'cosmetics', 'skincare'],
-      };
+  // Determine which products to show
+  const productsToShow = selectedSubcategoryId ? subcategoryProducts : allProducts;
+  const isLoadingProducts = selectedSubcategoryId ? subcategoryProductsLoading : productsLoading;
 
-      const mappedCategories = categoryMappings[categoryFromUrl || ''] || [];
-      return mappedCategories.some(mapped => productCategory.includes(mapped));
-    });
+  // Sort products
+  const sortedProducts = [...productsToShow].sort((a, b) => {
+    switch (sortBy) {
+      case "price-low":
+        return parseFloat(a.price.toString()) - parseFloat(b.price.toString());
+      case "price-high":
+        return parseFloat(b.price.toString()) - parseFloat(a.price.toString());
+      case "newest":
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      case "rating":
+        return (b.rating || 0) - (a.rating || 0);
+      default: // popular
+        return (b.reviewCount || 0) - (a.reviewCount || 0);
+    }
+  });
 
-    return filtered;
-  }, [allProducts, params.slug, subcategorySlug]);
-
-  // Handle filter changes - now working with category/subcategory filtered products
-  const handleFilterChange = (filtered: Product[], filters: any) => {
-    setFilteredProducts(filtered);
-    setActiveFilters(filters);
+  const handleSubcategoryChange = (subcategoryId: string) => {
+    if (subcategoryId === "all") {
+      setSelectedSubcategoryId("");
+      // Update URL to remove subcategory parameter
+      const url = new URL(window.location.href);
+      url.searchParams.delete('subcategory');
+      window.history.pushState({}, '', url.toString());
+    } else {
+      setSelectedSubcategoryId(subcategoryId);
+      // Update URL with subcategory parameter
+      const subcategory = subcategories.find(sub => sub.id.toString() === subcategoryId);
+      if (subcategory) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('subcategory', subcategory.slug || subcategory.name.toLowerCase().replace(/\s+/g, '-'));
+        window.history.pushState({}, '', url.toString());
+      }
+    }
   };
 
-  // Apply search and sort to filtered products
-  const searchedProducts = filteredProducts.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const sortedProducts = [...searchedProducts].sort((a, b) => {
-    switch (sortBy) {
-      case 'price-low':
-        return a.price - b.price;
-      case 'price-high':
-        return b.price - a.price;
-      case 'rating':
-        return b.rating - a.rating;
-      case 'name':
-      default:
-        return a.name.localeCompare(b.name);
-    }
-  });
-
-  // Initialize filtered products when category filtered products load or URL changes
-  useEffect(() => {
-    if (categoryFilteredProducts.length >= 0) {
-      setFilteredProducts(categoryFilteredProducts);
-      // Reset other filters when category/subcategory changes
-      setSearchTerm("");
-      setActiveFilters({});
-    }
-  }, [categoryFilteredProducts, subcategorySlug]);
-
-  // Get current category and subcategory names for display
-  const currentCategory = categories.find(cat => cat.slug === params.slug);
-  const currentSubcategory = subcategories.find(sub => sub.slug === subcategorySlug);
+  if (!match) {
+    return <div>Category not found</div>;
+  }
 
   return (
-    <div className="container mx-auto py-12">
-      <Link href="/" className="flex items-center gap-2 text-blue-500 hover:text-blue-700 mb-4">
-        <ArrowLeft className="h-4 w-4" />
-        Back to Home
-      </Link>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Breadcrumb */}
+        <nav className="flex items-center space-x-2 text-sm mb-8">
+          <Link href="/" className="text-gray-500 hover:text-gray-700">
+            Home
+          </Link>
+          <ChevronRight className="h-4 w-4 text-gray-400" />
+          <span className="text-gray-900 font-medium">
+            {categoryLoading ? "Loading..." : category?.name}
+          </span>
+        </nav>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 capitalize">
-              {currentCategory?.name || params.slug?.replace('-', ' ')} Products
-              {currentSubcategory && (
-                <span className="text-red-500 font-normal"> - {currentSubcategory.name}</span>
-              )}
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 max-w-4xl mx-auto">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
+              {categoryLoading ? "Loading..." : category?.name}
             </h1>
-            <p className="text-gray-600 mt-1">
-              {subcategorySlug ? (
-                <>
-                  {sortedProducts.length} products in {currentSubcategory?.name || subcategorySlug.replace('-', ' ')}
-                  <span className="ml-2 text-sm bg-red-100 text-red-700 px-2 py-1 rounded">
-                    {currentSubcategory?.name || subcategorySlug.replace('-', ' ')}
-                  </span>
-                </>
-              ) : (
-                <>
-                  {sortedProducts.length} of {categoryFilteredProducts.length} products
-                </>
-              )}
-            </p>
+            {category?.description && (
+              <p className="text-xl text-gray-700 font-medium">{category.description}</p>
+            )}
           </div>
+        </div>
 
-          <div className="flex gap-2 items-center flex-wrap">
-            <Input
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-48"
-            />
+        {/* Controls */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 space-y-4 lg:space-y-0">
+          <div className="flex items-center space-x-4">
+            {/* Subcategory Filter */}
+            {subcategories.length > 0 && (
+              <Select value={selectedSubcategoryId || "all"} onValueChange={handleSubcategoryChange}>
+                <SelectTrigger className="w-64 bg-white/70 backdrop-blur-md border border-white/20 rounded-xl shadow-lg">
+                  <SelectValue placeholder="Select subcategory" />
+                </SelectTrigger>
+                <SelectContent className="bg-white/90 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl">
+                  <SelectItem value="all" className="rounded-lg">
+                    All Products ({allProducts.length})
+                  </SelectItem>
+                  {subcategories.map((subcategory) => {
+                    const actualCount = allProducts.filter(product => 
+                      product.subcategory && 
+                      product.subcategory.toLowerCase() === subcategory.name.toLowerCase()
+                    ).length;
+                    
+                    return (
+                      <SelectItem key={subcategory.id} value={subcategory.id.toString()} className="rounded-lg">
+                        {subcategory.name} ({actualCount})
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            )}
 
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Name (A-Z)</SelectItem>
-                <SelectItem value="price-low">Price (Low to High)</SelectItem>
-                <SelectItem value="price-high">Price (High to Low)</SelectItem>
-                <SelectItem value="rating">Rating (High to Low)</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="flex border rounded-lg">
+            {/* View Mode Toggle */}
+            <div className="flex items-center bg-white/70 backdrop-blur-md border border-white/20 rounded-2xl p-1 shadow-lg">
               <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                variant={viewMode === "grid" ? "default" : "ghost"}
                 size="sm"
-                onClick={() => setViewMode('grid')}
+                onClick={() => setViewMode("grid")}
+                className={`rounded-xl transition-all duration-200 ${viewMode === "grid" ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg" : "hover:bg-gray-100"}`}
               >
-                <Grid className="h-4 w-4" />
+                <Grid3X3 className="h-4 w-4" />
               </Button>
               <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                variant={viewMode === "list" ? "default" : "ghost"}
                 size="sm"
-                onClick={() => setViewMode('list')}
+                onClick={() => setViewMode("list")}
+                className={`rounded-xl transition-all duration-200 ${viewMode === "list" ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg" : "hover:bg-gray-100"}`}
               >
                 <List className="h-4 w-4" />
               </Button>
             </div>
+          </div>
 
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <SlidersHorizontal className="h-4 w-4 mr-2" />
-                  Filters
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="w-96 overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Filter Products</SheetTitle>
-                  <SheetDescription>
-                    Narrow down your search with these filters.
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="mt-6">
-                  <DynamicFilter
-                    products={categoryFilteredProducts}
-                    categories={categories}
-                    onFilterChange={handleFilterChange}
-                    currentSubcategory={subcategorySlug ? subcategorySlug.replace('-', ' ') : undefined}
-                  />
-                </div>
-              </SheetContent>
-            </Sheet>
+          <div className="flex items-center gap-4">
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-64 bg-white/70 backdrop-blur-md border border-white/20 rounded-xl shadow-lg">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent className="bg-white/90 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl">
+                <SelectItem value="popular" className="rounded-lg">Most Popular</SelectItem>
+                <SelectItem value="price-low" className="rounded-lg">Price: Low to High</SelectItem>
+                <SelectItem value="price-high" className="rounded-lg">Price: High to Low</SelectItem>
+                <SelectItem value="newest" className="rounded-lg">Newest First</SelectItem>
+                <SelectItem value="rating" className="rounded-lg">Highest Rated</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        {sortedProducts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No products match your current filters.</p>
-            <p className="text-gray-400 text-sm mt-2">Try adjusting your search or filter criteria.</p>
-          </div>
-        ) : (
-          <div className={`
-            ${viewMode === 'grid'
-              ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-              : 'space-y-4'
-            }
-          `}>
-            {sortedProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                viewMode={viewMode}
-              />
+        {/* Products Display */}
+        {isLoadingProducts || categoryLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Card key={i} className="overflow-hidden bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20">
+                <Skeleton className="h-64 w-full rounded-t-3xl" />
+                <CardContent className="p-6">
+                  <Skeleton className="h-6 w-3/4 mb-3 rounded-xl" />
+                  <Skeleton className="h-5 w-1/2 mb-3 rounded-xl" />
+                  <Skeleton className="h-8 w-1/4 rounded-xl" />
+                </CardContent>
+              </Card>
             ))}
           </div>
+        ) : (
+          <>
+            {/* Results Count */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="bg-white/70 backdrop-blur-md rounded-2xl px-6 py-4 shadow-lg border border-white/20">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {sortedProducts.length} Products Found
+                  {selectedSubcategoryId && (
+                    <span className="text-base font-normal text-gray-600 ml-2">
+                      in {subcategories.find(s => s.id.toString() === selectedSubcategoryId)?.name}
+                    </span>
+                  )}
+                </h2>
+              </div>
+            </div>
+
+            {/* Products Grid/List */}
+            {sortedProducts.length > 0 ? (
+              <div className={viewMode === "grid" 
+                ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8" 
+                : "space-y-6"
+              }>
+                {sortedProducts.map((product) => (
+                  <ProductCard 
+                    key={product.id} 
+                    product={product} 
+                    viewMode={viewMode}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20">
+                <div className="max-w-md mx-auto bg-white/70 backdrop-blur-md rounded-3xl p-12 shadow-2xl border border-white/20">
+                  <div className="w-32 h-32 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-8">
+                    <div className="w-16 h-16 bg-gradient-to-br from-purple-300 to-pink-300 rounded-full"></div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">No products found</h3>
+                  <p className="text-gray-600 text-lg font-medium">
+                    {selectedSubcategoryId 
+                      ? "No products available in this subcategory" 
+                      : "No products available in this category"
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
+          </>
         )}
+      </div>
     </div>
   );
 }

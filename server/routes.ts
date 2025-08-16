@@ -521,7 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get products by subcategory
+  // Get products by subcategory (by slug)
   app.get("/api/products/subcategory/:subcategory", async (req, res) => {
     try {
       const { subcategory } = req.params;
@@ -562,6 +562,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(filteredSampleProducts);
+    }
+  });
+
+  // Get products by subcategory ID
+  app.get("/api/products/subcategory/id/:subcategoryId", async (req, res) => {
+    try {
+      const { subcategoryId } = req.params;
+      console.log("Fetching products for subcategory ID:", subcategoryId);
+      
+      // Get subcategory details first
+      const subcategory = await storage.getSubcategoryById(parseInt(subcategoryId));
+      if (!subcategory) {
+        console.log("Subcategory not found:", subcategoryId);
+        return res.status(404).json({ error: "Subcategory not found" });
+      }
+
+      console.log("Found subcategory:", subcategory.name);
+
+      // Get all products and filter by subcategory name
+      const allProducts = await storage.getProducts();
+      const filteredProducts = allProducts.filter(product => {
+        if (!product.subcategory) return false;
+        
+        const productSubcategory = product.subcategory.toLowerCase().trim();
+        const targetSubcategory = subcategory.name.toLowerCase().trim();
+        
+        return productSubcategory === targetSubcategory;
+      });
+
+      console.log(`Found ${filteredProducts.length} products for subcategory "${subcategory.name}"`);
+      res.json(filteredProducts);
+    } catch (error) {
+      console.error("Error fetching products by subcategory ID:", error);
+      res.status(500).json({ error: "Failed to fetch products" });
     }
   });
 
@@ -820,16 +854,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/categories/:slug/subcategories", async (req, res) => {
     try {
       const { slug } = req.params;
+      console.log("Fetching subcategories for category:", slug);
       
       // First get the category by slug
       const category = await storage.getCategoryBySlug(slug);
       if (!category) {
+        console.log("Category not found:", slug);
         return res.status(404).json({ error: "Category not found" });
       }
 
-      // Then get subcategories for this category
+      console.log("Found category:", category.name);
+
+      // Get subcategories for this category
       const subcategories = await storage.getSubcategoriesByCategory(category.id);
-      res.json(subcategories);
+      
+      // Get all products to calculate accurate product counts
+      const allProducts = await storage.getProducts();
+      
+      // Update product count for each subcategory
+      const subcategoriesWithCount = subcategories.map(subcategory => {
+        const productCount = allProducts.filter(product => 
+          product.subcategory && 
+          product.subcategory.toLowerCase().trim() === subcategory.name.toLowerCase().trim()
+        ).length;
+        
+        return {
+          ...subcategory,
+          productCount
+        };
+      });
+
+      console.log(`Found ${subcategoriesWithCount.length} subcategories for category "${category.name}"`);
+      res.json(subcategoriesWithCount);
     } catch (error) {
       console.error("Error fetching subcategories for category:", error);
       

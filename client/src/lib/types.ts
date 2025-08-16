@@ -41,6 +41,12 @@ export interface Subcategory {
   productCount: number;
 }
 
+export interface Subcategory {
+  id: number;
+  name: string;
+  slug: string;
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;

@@ -136,7 +136,74 @@ export default function OrderHistory() {
   // Set sample orders for demo
   const setSampleOrders = (userId: number) => {
     const user = getCurrentUser();
-    const sampleOrders: Order[] = [];
+    const sampleOrders: Order[] = [
+      {
+        id: 'ORD-001',
+        date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'delivered',
+        total: '₹1,299',
+        items: [
+          {
+            id: 1,
+            name: 'Vitamin C Face Serum',
+            quantity: 1,
+            price: '₹699',
+            image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300'
+          },
+          {
+            id: 2,
+            name: 'Hair Growth Serum',
+            quantity: 1,
+            price: '₹599',
+            image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300'
+          }
+        ],
+        trackingNumber: 'TRK001234567',
+        estimatedDelivery: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        shippingAddress: '123 Beauty Street, Mumbai, Maharashtra 400001',
+        paymentMethod: 'Credit Card',
+        userId: userId
+      },
+      {
+        id: 'ORD-002',
+        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'shipped',
+        total: '₹899',
+        items: [
+          {
+            id: 3,
+            name: 'Anti-Aging Night Cream',
+            quantity: 1,
+            price: '₹899',
+            image: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300'
+          }
+        ],
+        trackingNumber: 'TRK001234568',
+        estimatedDelivery: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        shippingAddress: '456 Glow Avenue, Delhi, Delhi 110001',
+        paymentMethod: 'UPI',
+        userId: userId
+      },
+      {
+        id: 'ORD-003',
+        date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'processing',
+        total: '₹1,599',
+        items: [
+          {
+            id: 4,
+            name: 'Hyaluronic Acid Serum',
+            quantity: 2,
+            price: '₹799',
+            image: 'https://images.unsplash.com/photo-1598662779094-110c2bad80b5?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300'
+          }
+        ],
+        estimatedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        shippingAddress: '789 Skincare Lane, Bangalore, Karnataka 560001',
+        paymentMethod: 'Net Banking',
+        userId: userId
+      }
+    ];
 
     setOrders(sampleOrders);
   };

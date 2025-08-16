@@ -45,6 +45,16 @@ export default function Layout({ children }: LayoutProps) {
     enabled: searchQuery.trim().length > 0,
   });
 
+  // Fetch all products for subcategory count
+  const { data: products = [] } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+    queryFn: async () => {
+      const response = await fetch('/api/products');
+      if (!response.ok) throw new Error("Failed to fetch products");
+      return response.json();
+    },
+  });
+
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
@@ -333,12 +343,12 @@ export default function Layout({ children }: LayoutProps) {
                         {item.name}
                       </Link>
                     ))}
-                    
+
                     {/* Categories with Submenus */}
                     <Accordion type="single" collapsible className="w-full mobile-accordion">
                       {categories.map((category) => {
                         const categorySubcategories = getSubcategoriesForCategory(category.id);
-                        
+
                         if (categorySubcategories.length > 0) {
                           return (
                             <AccordionItem key={category.id} value={`category-${category.id}`}>
@@ -545,114 +555,64 @@ export default function Layout({ children }: LayoutProps) {
                   {!loading && categories.map((category) => {
                     const categorySubcategories = getSubcategoriesForCategory(category.id);
 
-                    if (categorySubcategories.length > 0) {
-                      return (
-                        <NavigationMenuItem key={category.id}>
-                          <NavigationMenuTrigger className={`text-sm font-medium transition-colors px-4 py-2 ${
-                            isActiveLink(`/category/${category.slug}`)
-                              ? "text-yellow-300 bg-white/20 rounded-full"
-                              : "text-black text-white-300 bg-white/20 rounded-full"
-                          }`}>
-                            {category.name}
-                          </NavigationMenuTrigger>
-                          <NavigationMenuContent>
-                            <div className="grid gap-4 p-8 w-[500px] grid-cols-3">
-                              <div className="space-y-4">
-                                <div className="border-b border-gray-200 pb-2">
-                                  <h4 className="text-sm font-semibold text-red-500 uppercase tracking-wider">
-                                    {category.name}
-                                  </h4>
-                                </div>
-                                {categorySubcategories.slice(0, 4).map((subcategory) => (
+                    return (
+                      <NavigationMenuItem key={category.id}>
+                        <NavigationMenuTrigger className={`text-sm font-medium transition-colors px-4 py-2 ${
+                          isActiveLink(`/category/${category.slug}`)
+                            ? "text-yellow-300 bg-white/20 rounded-full"
+                            : "text-black text-white-300 bg-white/20 rounded-full"
+                        }`}>
+                          {category.name}
+                        </NavigationMenuTrigger>
+                        <NavigationMenuContent>
+                          <div className="p-4 w-[300px]">
+                            <div className="space-y-2">
+                              <div className="border-b border-gray-200 pb-2 mb-3">
+                                <h4 className="text-sm font-semibold text-red-500 uppercase tracking-wider">
+                                  {category.name}
+                                </h4>
+                              </div>
+
+                              {/* All Products Link */}
+                              <NavigationMenuLink asChild>
+                                <Link 
+                                  href={`/category/${category.slug}`}
+                                  className="flex items-center justify-between px-3 py-2 text-sm rounded-lg hover:bg-red-50 transition-colors"
+                                >
+                                  <span className="font-medium text-gray-900 hover:text-red-600">All Products</span>
+                                  <span className="text-xs text-gray-500">
+                                    ({products.filter(p => p.category?.toLowerCase().replace('-', ' ').includes(category.slug.replace('-', ' '))).length})
+                                  </span>
+                                </Link>
+                              </NavigationMenuLink>
+
+                              {/* Subcategory Links */}
+                              {categorySubcategories.map((subcategory) => {
+                                const subcategoryProducts = products.filter(p => 
+                                  p.subcategory?.toLowerCase() === subcategory.name.toLowerCase()
+                                );
+
+                                return (
                                   <NavigationMenuLink key={subcategory.id} asChild>
                                     <Link 
                                       href={`/category/${category.slug}?subcategory=${subcategory.slug}`}
-                                      className="group block select-none rounded-lg p-3 leading-none no-underline outline-none transition-all hover:bg-red-50 hover:shadow-sm border border-transparent hover:border-red-100"
-                                      
+                                      className="flex items-center justify-between px-3 py-2 text-sm rounded-lg hover:bg-red-50 transition-colors"
                                     >
-                                      <div className="text-sm font-medium transition-colors px-4 py-2 text-gray-900 group-hover:text-red-600">
+                                      <span className="text-gray-700 hover:text-red-600">
                                         {subcategory.name}
-                                      </div>
-                                      <p className="text-xs text-gray-500 mt-1 group-hover:text-red-500">
-                                        {subcategory.description.length > 50 
-                                          ? `${subcategory.description.substring(0, 50)}...` 
-                                          : subcategory.description
-                                        }
-                                      </p>
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        ({subcategoryProducts.length})
+                                      </span>
                                     </Link>
                                   </NavigationMenuLink>
-                                ))}
-                              </div>
-
-                              {categorySubcategories.length > 4 && (
-                                <div className="space-y-4">
-                                  <div className="border-b border-gray-200 pb-2">
-                                    <h4 className="text-sm font-semibold text-red-500 uppercase tracking-wider">More</h4>
-                                  </div>
-                                  {categorySubcategories.slice(4, 8).map((subcategory) => (
-                                    <NavigationMenuLink key={subcategory.id} asChild>
-                                      <Link 
-                                        href={`/category/${category.slug}?subcategory=${subcategory.slug}`}
-                                        className="group block select-none rounded-lg p-3 leading-none no-underline outline-none transition-all hover:bg-red-50 hover:shadow-sm border border-transparent hover:border-red-100"
-                                        
-                                      >
-                                        <div className="text-sm font-medium transition-colors px-4 py-2 text-gray-900 group-hover:text-red-600">
-                                          {subcategory.name}
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-1 group-hover:text-red-500">
-                                          {subcategory.description.length > 50 
-                                            ? `${subcategory.description.substring(0, 50)}...` 
-                                            : subcategory.description
-                                          }
-                                        </p>
-                                      </Link>
-                                    </NavigationMenuLink>
-                                  ))}
-                                </div>
-                              )}
-
-                              <div className="space-y-4">
-                                <div className="border-b border-gray-200 pb-2">
-                                  <h4 className="text-sm font-semibold text-red-500 uppercase tracking-wider">Featured</h4>
-                                </div>
-
-                                <div className="bg-gradient-to-br from-red-50 to-pink-50 p-4 rounded-lg border border-red-100">
-                                  <NavigationMenuLink asChild>
-                                    <Link href={`/category/${category.slug}`} className="block">
-                                      <div className="text-sm font-semibold text-red-600 mb-2">View All</div>
-                                      <div className="text-xs text-gray-600 mb-3">
-                                        Complete {category.name.toLowerCase()} collection
-                                      </div>
-                                      <div className="text-xs bg-red-500 text-white px-2 py-1 rounded-full inline-block">
-                                        Shop Now →
-                                      </div>
-                                    </Link>
-                                  </NavigationMenuLink>
-                                </div>
-                              </div>
+                                );
+                              })}
                             </div>
-                          </NavigationMenuContent>
-                        </NavigationMenuItem>
-                      );
-                    } else {
-                      // Category without subcategories - simple link
-                      return (
-                        <NavigationMenuItem key={category.id}>
-                          <NavigationMenuLink asChild>
-                            <Link
-                              href={`/category/${category.slug}`}
-                              className={`text-sm font-medium transition-colors px-4 py-2 transition-colors px-4 py-2 ${
-                                isActiveLink(`/category/${category.slug}`)
-                                  ? "text-yellow-300 bg-white/20 rounded-full"
-                                  : "text-white text-yellow-300 bg-white/20 rounded-full"
-                              }`}
-                            >
-                              {category.name}
-                            </Link>
-                          </NavigationMenuLink>
-                        </NavigationMenuItem>
-                      );
-                    }
+                          </div>
+                        </NavigationMenuContent>
+                      </NavigationMenuItem>
+                    );
                   })}
 
                   <NavigationMenuItem>

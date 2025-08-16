@@ -223,15 +223,13 @@ export default function CheckoutPage() {
       const script = document.createElement('script');
       script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
       script.onload = () => {
-        // Use production mode if we detect production credentials
-        const isProduction = orderData.paymentSessionId && orderData.paymentSessionId.length > 0;
         const cashfree = window.Cashfree({
-          mode: 'production' // Since you're using production credentials
+          mode: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
         });
 
         cashfree.checkout({
           paymentSessionId: orderData.paymentSessionId,
-          returnUrl: `https://${window.location.host}/checkout?payment=processing&orderId=${orderData.orderId}`,
+          returnUrl: `${window.location.origin}/checkout?payment=processing&orderId=${orderData.orderId}`,
         });
       };
       document.head.appendChild(script);
