@@ -47,45 +47,7 @@ export default function CategoryPage() {
     } else if (!subcategoryParam) {
       setSelectedSubcategoryId("");
     }
-  }, [subcategories, window.location.search]);
-
-  // Listen for URL changes
-  useEffect(() => {
-    const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const subcategoryParam = urlParams.get('subcategory');
-      
-      if (subcategoryParam && subcategories.length > 0) {
-        const subcategory = subcategories.find(sub => 
-          sub.slug === subcategoryParam || 
-          sub.name.toLowerCase().replace(/\s+/g, '-') === subcategoryParam
-        );
-        
-        if (subcategory) {
-          setSelectedSubcategoryId(subcategory.id.toString());
-        }
-      } else if (!subcategoryParam) {
-        setSelectedSubcategoryId("");
-      }
-      
-      // Force re-render by updating a state
-      window.dispatchEvent(new Event('subcategory-change'));
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
   }, [subcategories]);
-
-  // Force refresh when subcategory changes via URL
-  useEffect(() => {
-    const handleSubcategoryChange = () => {
-      // Force query invalidation instead of page reload
-      window.dispatchEvent(new Event('force-refetch'));
-    };
-
-    window.addEventListener('subcategory-change', handleSubcategoryChange);
-    return () => window.removeEventListener('subcategory-change', handleSubcategoryChange);
-  }, []);
 
   // Get all products initially
   const { data: allProducts = [], isLoading: productsLoading } = useQuery<Product[]>({
@@ -94,25 +56,12 @@ export default function CategoryPage() {
   });
 
   // Get products by subcategory when subcategory is selected
-  const { data: subcategoryProducts = [], isLoading: subcategoryProductsLoading, refetch: refetchSubcategoryProducts } = useQuery<Product[]>({
-    queryKey: [`/api/products/subcategory/id/${selectedSubcategoryId}`, selectedSubcategoryId],
+  const { data: subcategoryProducts = [], isLoading: subcategoryProductsLoading } = useQuery<Product[]>({
+    queryKey: [`/api/products/subcategory/id/${selectedSubcategoryId}`],
     enabled: !!selectedSubcategoryId,
     refetchOnWindowFocus: false,
     staleTime: 0,
-    refetchOnMount: true,
   });
-
-  // Force refetch when URL changes
-  useEffect(() => {
-    const handleForceRefetch = () => {
-      if (selectedSubcategoryId) {
-        refetchSubcategoryProducts();
-      }
-    };
-
-    window.addEventListener('force-refetch', handleForceRefetch);
-    return () => window.removeEventListener('force-refetch', handleForceRefetch);
-  }, [selectedSubcategoryId, refetchSubcategoryProducts]);
 
   // Determine which products to show
   const productsToShow = selectedSubcategoryId ? subcategoryProducts : allProducts;
@@ -135,6 +84,7 @@ export default function CategoryPage() {
   });
 
   const handleSubcategoryChange = (subcategoryId: string) => {
+    console.log("subcategory",subcategoryId)
     if (subcategoryId === "all") {
       setSelectedSubcategoryId("");
       // Update URL to remove subcategory parameter
@@ -142,9 +92,12 @@ export default function CategoryPage() {
       url.searchParams.delete('subcategory');
       window.history.pushState({}, '', url.toString());
     } else {
+      // Force immediate state update
+       console.log("subcategory",subcategory)
       setSelectedSubcategoryId(subcategoryId);
       // Update URL with subcategory parameter
       const subcategory = subcategories.find(sub => sub.id.toString() === subcategoryId);
+      console.log("subcategory",subcategory)
       if (subcategory) {
         const url = new URL(window.location.href);
         url.searchParams.set('subcategory', subcategory.slug || subcategory.name.toLowerCase().replace(/\s+/g, '-'));
@@ -171,18 +124,7 @@ export default function CategoryPage() {
           </span>
         </nav>
 
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 max-w-4xl mx-auto">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
-              {categoryLoading ? "Loading..." : category?.name}
-            </h1>
-            {category?.description && (
-              <p className="text-xl text-gray-700 font-medium">{category.description}</p>
-            )}
-          </div>
-        </div>
-
+      
         {/* Controls */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 space-y-4 lg:space-y-0">
           <div className="flex items-center space-x-4">
@@ -266,18 +208,7 @@ export default function CategoryPage() {
         ) : (
           <>
             {/* Results Count */}
-            <div className="flex items-center justify-between mb-8">
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl px-6 py-4 shadow-lg border border-white/20">
-                <h2 className="text-xl font-bold text-gray-900">
-                  {sortedProducts.length} Products Found
-                  {selectedSubcategoryId && (
-                    <span className="text-base font-normal text-gray-600 ml-2">
-                      in {subcategories.find(s => s.id.toString() === selectedSubcategoryId)?.name}
-                    </span>
-                  )}
-                </h2>
-              </div>
-            </div>
+            
 
             {/* Products Grid/List */}
             {sortedProducts.length > 0 ? (
@@ -287,7 +218,7 @@ export default function CategoryPage() {
               }>
                 {sortedProducts.map((product) => (
                   <ProductCard 
-                    key={`${product.id}-${selectedSubcategoryId || 'all'}-${Date.now()}`} 
+                    key={`${product.id}-${selectedSubcategoryId || 'all'}`} 
                     product={product} 
                     viewMode={viewMode}
                   />

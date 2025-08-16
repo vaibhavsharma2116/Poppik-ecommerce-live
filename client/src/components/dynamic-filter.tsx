@@ -9,8 +9,6 @@ import { Filter, X, RotateCcw } from "lucide-react";
 import type { Product, Category } from "@/lib/types";
 
 interface FilterState {
-  categories: string[];
-  subcategories: string[];
   priceRange: [number, number];
   rating: number;
   inStock: boolean;
@@ -34,8 +32,6 @@ export default function DynamicFilter({
   className = "" 
 }: DynamicFilterProps) {
   const [filters, setFilters] = useState<FilterState>({
-    categories: [],
-    subcategories: [],
     priceRange: [0, 2000],
     rating: 0,
     inStock: false,
@@ -54,8 +50,6 @@ export default function DynamicFilter({
       const roundedMax = Math.ceil(max / 100) * 100;
       setMaxPrice(roundedMax);
       setFilters({
-        categories: [],
-        subcategories: [],
         priceRange: [0, roundedMax],
         rating: 0,
         inStock: false,
@@ -71,16 +65,6 @@ export default function DynamicFilter({
   useEffect(() => {
     // Force a fresh computation every time
     const filteredProducts = products.filter(product => {
-      // Category filter
-      if (filters.categories.length > 0 && !filters.categories.includes(product.category)) {
-        return false;
-      }
-
-      // Subcategory filter
-      if (filters.subcategories.length > 0 && !filters.subcategories.includes(product.subcategory)) {
-        return false;
-      }
-
       // Price range filter
       if (product.price < filters.priceRange[0] || product.price > filters.priceRange[1]) {
         return false;
@@ -123,15 +107,6 @@ export default function DynamicFilter({
     onFilterChange([...filteredProducts], { ...filters });
   }, [filters, products, onFilterChange]);
 
-  const handleCategoryChange = (category: string, checked: boolean) => {
-    setFilters(prev => ({
-      ...prev,
-      categories: checked 
-        ? [...prev.categories, category]
-        : prev.categories.filter(c => c !== category)
-    }));
-  };
-
   const handlePriceRangeChange = (value: number[]) => {
     setFilters(prev => ({
       ...prev,
@@ -148,8 +123,6 @@ export default function DynamicFilter({
 
   const resetFilters = () => {
     setFilters({
-      categories: [],
-      subcategories: [],
       priceRange: [0, maxPrice],
       rating: 0,
       inStock: false,
@@ -162,8 +135,6 @@ export default function DynamicFilter({
 
   const getActiveFilterCount = () => {
     let count = 0;
-    if (filters.categories.length > 0) count++;
-    if (filters.subcategories.length > 0) count++;
     if (filters.priceRange[0] > 0 || filters.priceRange[1] < maxPrice) count++;
     if (filters.rating > 0) count++;
     if (filters.inStock) count++;
@@ -176,19 +147,6 @@ export default function DynamicFilter({
 
   const removeFilter = (filterType: string, value?: string) => {
     switch (filterType) {
-      case 'category':
-        if (value) {
-          handleCategoryChange(value, false);
-        }
-        break;
-      case 'subcategory':
-        if (value) {
-          setFilters(prev => ({
-            ...prev,
-            subcategories: prev.subcategories.filter(s => s !== value)
-          }));
-        }
-        break;
       case 'price':
         setFilters(prev => ({ ...prev, priceRange: [0, maxPrice] }));
         break;
@@ -232,24 +190,6 @@ export default function DynamicFilter({
       {/* Active Filters */}
       {getActiveFilterCount() > 0 && (
         <div className="flex flex-wrap gap-2">
-          {filters.categories.map(category => (
-            <Badge key={category} variant="outline" className="flex items-center gap-1">
-              {category}
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => removeFilter('category', category)}
-              />
-            </Badge>
-          ))}
-          {filters.subcategories?.map(subcategory => (
-            <Badge key={subcategory} variant="outline" className="flex items-center gap-1">
-              {subcategory}
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => removeFilter('subcategory', subcategory)}
-              />
-            </Badge>
-          ))}
           {(filters.priceRange[0] > 0 || filters.priceRange[1] < maxPrice) && (
             <Badge variant="outline" className="flex items-center gap-1">
               ₹{filters.priceRange[0]} - ₹{filters.priceRange[1]}
@@ -306,84 +246,6 @@ export default function DynamicFilter({
           )}
         </div>
       )}
-
-      {/* Categories Filter - Only show if there are multiple categories in filtered products */}
-      {(() => {
-        const availableCategories = [...new Set(products.map(p => p.category))];
-        const relevantCategories = categories.filter(cat => 
-          availableCategories.includes(cat.name)
-        );
-
-        return relevantCategories.length > 1 ? (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Categories</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {relevantCategories.map(category => {
-                const productCount = products.filter(p => p.category === category.name).length;
-                return (
-                  <div key={category.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`category-${category.id}`}
-                      checked={filters.categories.includes(category.name)}
-                      onCheckedChange={(checked) => 
-                        handleCategoryChange(category.name, checked as boolean)
-                      }
-                    />
-                    <label 
-                      htmlFor={`category-${category.id}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      {category.name} ({productCount})
-                    </label>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        ) : null;
-      })()}
-
-      {/* Subcategories Filter - Only show if there are multiple subcategories */}
-      {(() => {
-        const availableSubcategories = [...new Set(products.map(p => p.subcategory).filter(Boolean))];
-
-        return availableSubcategories.length > 1 ? (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Subcategories</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {availableSubcategories.map(subcategory => {
-                const productCount = products.filter(p => p.subcategory === subcategory).length;
-                return (
-                  <div key={subcategory} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`subcategory-${subcategory}`}
-                      checked={filters.subcategories?.includes(subcategory) || false}
-                      onCheckedChange={(checked) => {
-                        setFilters(prev => ({
-                          ...prev,
-                          subcategories: checked 
-                            ? [...(prev.subcategories || []), subcategory]
-                            : (prev.subcategories || []).filter(s => s !== subcategory)
-                        }));
-                      }}
-                    />
-                    <label 
-                      htmlFor={`subcategory-${subcategory}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      {subcategory} ({productCount})
-                    </label>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        ) : null;
-      })()}
 
       {/* Price Range Filter */}
       <Card>
