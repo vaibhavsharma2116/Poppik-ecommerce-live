@@ -1,40 +1,6 @@
 
-import { db } from './storage';
-import { users } from '../shared/schema';
-import { eq } from 'drizzle-orm';
-
-export interface CreateUserData {
-  uid: string;
-  email?: string;
-  phoneNumber?: string;
-  displayName?: string;
-  provider: 'google' | 'phone';
-  photoURL?: string;
-}
-
-export class UserService {
-  static async createOrUpdateUser(userData: CreateUserData) {
-    try {
-      // Check if user already exists
-      const existingUser = await db
-        .select()
-        .from(users)
-        .where(eq(users.uid, userData.uid))
-        .limit(1);
-
-      if (existingUser.length > 0) {
-        // Update existing user
-        const updated = await db
-          .update(users)
-          .set({
-            email: userData.email || existingUser[0].email,
-            phoneNumber: userData.phoneNumber || existingUser[0].phoneNumber,
-            displayName: userData.displayName || existingUser[0].displayName,
-            photoURL: userData.photoURL || existingUser[0].photoURL,
-            updatedAt: new Date(),
-          })
-          .where(eq(users.uid, userData.uid))
-          .returning();
+// Firebase user service has been removed
+// All user management is now handled through the regular authentication system
 
         return { success: true, user: updated[0], isNew: false };
       } else {

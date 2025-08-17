@@ -245,25 +245,3 @@ CREATE INDEX IF NOT EXISTS "idx_product_images_product_id" ON "product_images" (
 CREATE INDEX IF NOT EXISTS "idx_product_images_is_primary" ON "product_images" ("is_primary");
 CREATE INDEX IF NOT EXISTS "idx_product_images_sort_order" ON "product_images" ("sort_order");
 
-
-
-
-CREATE TABLE "cashfree_payments" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"cashfree_order_id" text NOT NULL,
-	"user_id" integer NOT NULL,
-	"amount" integer NOT NULL,
-	"status" text DEFAULT 'created' NOT NULL,
-	"order_data" jsonb NOT NULL,
-	"customer_info" jsonb NOT NULL,
-	"payment_id" text,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"completed_at" timestamp,
-	CONSTRAINT "cashfree_payments_cashfree_order_id_unique" UNIQUE("cashfree_order_id")
-);
-
-DO $$ BEGIN
- ALTER TABLE "cashfree_payments" ADD CONSTRAINT "cashfree_payments_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE no action ON UPDATE no action;
-EXCEPTION
- WHEN duplicate_object THEN null;
-END $$;
