@@ -86,68 +86,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Firebase auth verification middleware
-  const verifyFirebaseToken = async (req: any, res: any, next: any) => {
-    try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: "No Firebase token provided" });
-      }
+  // Firebase authentication has been removed
+  // Only email/password authentication is now supported
 
-      const token = authHeader.substring(7);
-
-      // In a real implementation, you would verify the Firebase token here
-      // For now, we'll just decode and trust it
-      console.log("Firebase token received:", token.substring(0, 20) + "...");
-
-      // Store user info in request for later use
-      req.firebaseUser = { token };
-      next();
-    } catch (error) {
-      console.error("Firebase token verification error:", error);
-      res.status(401).json({ error: "Invalid Firebase token" });
-    }
-  };
-
-  // Firebase authentication endpoint
-  app.post("/api/auth/firebase", verifyFirebaseToken, async (req, res) => {
-    try {
-      const { uid, email, displayName, phoneNumber, photoURL } = req.body;
-
-      // Check if user exists in our database
-      let user = await storage.getUserByEmail(email || `${uid}@firebase.user`);
-
-      if (!user) {
-        // Create new user from Firebase data
-        user = await storage.createUser({
-          firstName: displayName ? displayName.split(' ')[0] : 'Firebase',
-          lastName: displayName ? displayName.split(' ').slice(1).join(' ') || 'User' : 'User',
-          email: email || `${uid}@firebase.user`,
-          phone: phoneNumber || null,
-          password: 'firebase_auth', // Placeholder since Firebase handles auth
-          firebaseUid: uid
-        });
-      }
-
-      // Generate JWT token for our app
-      const token = jwt.sign(
-        { userId: user.id, email: user.email, role: user.role },
-        process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "24h" }
-      );
-
-      // Return user data and token
-      const { password: _, ...userWithoutPassword } = user;
-      res.json({
-        message: "Firebase authentication successful",
-        user: userWithoutPassword,
-        token
-      });
-    } catch (error) {
-      console.error("Firebase auth error:", error);
-      res.status(500).json({ error: "Failed to authenticate with Firebase" });
-    }
-  });
+      
 
   // Authentication routes
   app.post("/api/auth/signup", async (req, res) => {
