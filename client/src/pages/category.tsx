@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -38,11 +39,25 @@ export default function CategoryPage() {
     enabled: !!categorySlug,
   });
 
-  // Initialize subcategory selection when component mounts
+  // Handle URL subcategory parameter
   useEffect(() => {
-    // Reset subcategory selection when changing categories
-    setSelectedSubcategoryId("");
-  }, [categorySlug]);
+    const urlParams = new URLSearchParams(window.location.search);
+    const subcategoryParam = urlParams.get('subcategory');
+    
+    if (subcategoryParam && subcategories.length > 0) {
+      // Find subcategory by slug
+      const subcategory = subcategories.find(sub => 
+        sub.slug === subcategoryParam || 
+        sub.name.toLowerCase().replace(/\s+/g, '-') === subcategoryParam
+      );
+      
+      if (subcategory) {
+        setSelectedSubcategoryId(subcategory.id.toString());
+      }
+    } else if (!subcategoryParam && selectedSubcategoryId) {
+      setSelectedSubcategoryId("");
+    }
+  }, [subcategories, selectedSubcategoryId]);
 
   // Get all products initially
   const { data: allProducts = [], isLoading: productsLoading } = useQuery<Product[]>({
@@ -59,14 +74,8 @@ export default function CategoryPage() {
   });
 
   // Determine which products to show
-  // If subcategories exist and one is selected, show subcategory products
-  // If no subcategories exist OR no subcategory is selected, show all category products
-  const productsToShow = selectedSubcategoryId && subcategories.length > 0
-    ? (subcategoryProducts.length > 0 ? subcategoryProducts : allProducts)
-    : allProducts;
-  
-  // Show loading state based on what we're actually loading
-  const isLoadingProducts = selectedSubcategoryId && subcategories.length > 0 ? subcategoryProductsLoading : productsLoading;
+  const productsToShow = selectedSubcategoryId ? subcategoryProducts : allProducts;
+  const isLoadingProducts = selectedSubcategoryId ? subcategoryProductsLoading : productsLoading;
 
   // Handle dynamic filter changes with debouncing to prevent excessive updates
   const handleFilterChange = React.useCallback((products: Product[], filters: any) => {
@@ -94,31 +103,29 @@ export default function CategoryPage() {
   });
 
   const handleSubcategoryChange = (subcategoryId: string) => {
-    // Handle change smoothly without URL updates to prevent refresh
+    // Prevent default behavior and handle change smoothly
     if (subcategoryId === "all") {
       setSelectedSubcategoryId("");
+      // Update URL without triggering a page refresh
+      const url = new URL(window.location.href);
+      url.searchParams.delete('subcategory');
+      window.history.replaceState(null, '', url.toString());
     } else {
+      // Update state immediately
       setSelectedSubcategoryId(subcategoryId);
+      // Update URL with subcategory parameter
+      const subcategory = subcategories.find(sub => sub.id.toString() === subcategoryId);
+      if (subcategory) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('subcategory', subcategory.slug || subcategory.name.toLowerCase().replace(/\s+/g, '-'));
+        window.history.replaceState(null, '', url.toString());
+      }
     }
   };
 
   if (!match) {
     return <div>Category not found</div>;
   }
-
-  // Debug logging
-  React.useEffect(() => {
-    console.log('Category Products Debug:', {
-      categorySlug,
-      allProductsCount: allProducts.length,
-      subcategoriesCount: subcategories.length,
-      selectedSubcategoryId,
-      subcategoryProductsCount: subcategoryProducts.length,
-      productsToShowCount: productsToShow.length,
-      filteredProductsCount: filteredProducts.length,
-      activeFilters
-    });
-  }, [categorySlug, allProducts, subcategories, selectedSubcategoryId, subcategoryProducts, productsToShow, filteredProducts, activeFilters]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
@@ -149,19 +156,11 @@ export default function CategoryPage() {
         {/* Controls */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 space-y-4 lg:space-y-0">
           <div className="flex items-center space-x-4">
-            {/* Always show category info */}
-            <div className="bg-white/70 backdrop-blur-md rounded-xl px-4 py-2 shadow-lg border border-white/20">
-              <span className="text-sm font-medium text-gray-700">
-                {category?.name} ({allProducts.length} products)
-                {subcategories.length === 0 && <span className="ml-2 text-xs text-gray-500">(No subcategories)</span>}
-              </span>
-            </div>
-
-            {/* Subcategory Filter - only show if subcategories exist */}
+            {/* Subcategory Filter */}
             {subcategories.length > 0 && (
               <Select value={selectedSubcategoryId || "all"} onValueChange={handleSubcategoryChange}>
                 <SelectTrigger className="w-64 bg-white/70 backdrop-blur-md border border-white/20 rounded-xl shadow-lg">
-                  <SelectValue placeholder="Filter by subcategory" />
+                  <SelectValue placeholder="Select subcategory" />
                 </SelectTrigger>
                 <SelectContent className="bg-white/90 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl">
                   <SelectItem value="all" className="rounded-lg">
@@ -172,7 +171,7 @@ export default function CategoryPage() {
                       product.subcategory && 
                       product.subcategory.toLowerCase() === subcategory.name.toLowerCase()
                     ).length;
-
+                    
                     return (
                       <SelectItem key={subcategory.id} value={subcategory.id.toString()} className="rounded-lg">
                         {subcategory.name} ({actualCount})
@@ -283,21 +282,6 @@ export default function CategoryPage() {
                   <div className="bg-white/70 backdrop-blur-md rounded-2xl px-6 py-4 shadow-lg border border-white/20">
                     <h2 className="text-xl font-bold text-gray-900">
                       {sortedProducts.length} Products Found
-                      {selectedSubcategoryId && subcategories.length > 0 ? (
-                        subcategoryProducts.length === 0 && allProducts.length > 0 ? (
-                          <span className="text-sm font-normal text-gray-600 ml-2">
-                            (No products in subcategory, showing all category products)
-                          </span>
-                        ) : (
-                          <span className="text-sm font-normal text-gray-600 ml-2">
-                            (Filtered by subcategory)
-                          </span>
-                        )
-                      ) : (
-                        <span className="text-sm font-normal text-gray-600 ml-2">
-                          {subcategories.length === 0 ? '(All category products)' : '(All products)'}
-                        </span>
-                      )}
                     </h2>
                   </div>
                 </div>
@@ -324,11 +308,9 @@ export default function CategoryPage() {
                       </div>
                       <h3 className="text-2xl font-bold text-gray-900 mb-4">No products found</h3>
                       <p className="text-gray-600 text-lg font-medium">
-                        {allProducts.length === 0
-                          ? `No products available in ${category?.name} category`
-                          : selectedSubcategoryId && subcategories.length > 0
-                            ? "No products match the current subcategory and filters"
-                            : "No products match the current filters"
+                        {selectedSubcategoryId 
+                          ? "No products available in this subcategory with current filters" 
+                          : "No products available in this category with current filters"
                         }
                       </p>
                     </div>
