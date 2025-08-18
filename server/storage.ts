@@ -1,10 +1,9 @@
-
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, sql, and, asc, desc } from "drizzle-orm";
 import { Pool } from "pg";
-import { 
-  products, 
-  categories, 
+import {
+  products,
+  categories,
   subcategories,
   users,
   contactSubmissions,
@@ -12,14 +11,14 @@ import {
   reviews,
   ordersTable,
   orderItemsTable,
-  type Product, 
-  type Category, 
+  type Product,
+  type Category,
   type Subcategory,
   type User,
   type Shade,
   type Review,
-  type InsertProduct, 
-  type InsertCategory, 
+  type InsertProduct,
+  type InsertCategory,
   type InsertSubcategory,
   type InsertUser,
   type InsertShade,
@@ -230,45 +229,61 @@ export class DatabaseStorage implements IStorage {
 
   async createProduct(productData: any): Promise<Product> {
     const db = await getDb();
-    console.log("Creating product with data:", productData);
-
-    // Validate only essential required fields
-    const { name, price, category, description } = productData;
-    if (!name || !price || !category || !description) {
-      throw new Error("Missing required fields: name, price, category, and description are required");
-    }
-
-    // Generate slug from name if not provided
-    const slug = productData.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-
-    const productToInsert = {
-      name: String(name).trim(),
-      slug,
-      description: String(description).trim(),
-      shortDescription: productData.shortDescription ? String(productData.shortDescription).trim() : description.slice(0, 100),
-      price: Number(price),
-      originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
-      category: String(category).trim(),
-      subcategory: productData.subcategory ? String(productData.subcategory).trim() : null,
-      imageUrl: productData.imageUrl ? String(productData.imageUrl).trim() : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400',
-      rating: Number(productData.rating) || 4.0,
-      reviewCount: Number(productData.reviewCount) || 0,
-      inStock: Boolean(productData.inStock ?? true),
-      featured: Boolean(productData.featured ?? false),
-      bestseller: Boolean(productData.bestseller ?? false),
-      newLaunch: Boolean(productData.newLaunch ?? false),
-      saleOffer: productData.saleOffer ? String(productData.saleOffer).trim() : null,
-      variants: productData.variants ? String(productData.variants).trim() : null,
-      ingredients: productData.ingredients ? String(productData.ingredients).trim() : null,
-      benefits: productData.benefits ? String(productData.benefits).trim() : null,
-      howToUse: productData.howToUse ? String(productData.howToUse).trim() : null,
-      size: productData.size ? String(productData.size).trim() : null,
-      tags: productData.tags ? String(productData.tags).trim() : null,
-    };
-
-    console.log("Inserting product:", productToInsert);
 
     try {
+      console.log("Creating product with data:", productData);
+
+      // Validate only essential required fields
+      const { name, price, category, description } = productData;
+      if (!name || !price || !category || !description) {
+        throw new Error("Missing required fields: name, price, category, and description are required");
+      }
+
+      // Validate types
+      if (typeof name !== 'string' || name.trim().length === 0) {
+        throw new Error("Product name must be a non-empty string");
+      }
+
+      if (isNaN(Number(price)) || Number(price) <= 0) {
+        throw new Error("Price must be a valid positive number");
+      }
+
+      if (typeof category !== 'string' || category.trim().length === 0) {
+        throw new Error("Category must be a non-empty string");
+      }
+
+      if (typeof description !== 'string' || description.trim().length === 0) {
+        throw new Error("Description must be a non-empty string");
+      }
+
+      // Generate slug from name if not provided
+      const slug = productData.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+      const productToInsert = {
+        name: String(name).trim(),
+        slug,
+        description: String(description).trim(),
+        shortDescription: productData.shortDescription ? String(productData.shortDescription).trim() : String(description).slice(0, 100),
+        price: Number(price),
+        originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
+        category: String(category).trim(),
+        subcategory: productData.subcategory ? String(productData.subcategory).trim() : null,
+        imageUrl: productData.imageUrl ? String(productData.imageUrl).trim() : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400',
+        rating: Number(productData.rating) || 4.0,
+        reviewCount: Number(productData.reviewCount) || 0,
+        inStock: Boolean(productData.inStock ?? true),
+        featured: Boolean(productData.featured ?? false),
+        bestseller: Boolean(productData.bestseller ?? false),
+        newLaunch: Boolean(productData.newLaunch ?? false),
+        saleOffer: productData.saleOffer ? String(productData.saleOffer).trim() : null,
+        variants: productData.variants ? String(productData.variants).trim() : null,
+        ingredients: productData.ingredients ? String(productData.ingredients).trim() : null,
+        benefits: productData.benefits ? String(productData.benefits).trim() : null,
+        howToUse: productData.howToUse ? String(productData.howToUse).trim() : null,
+        size: productData.size ? String(productData.size).trim() : null,
+        tags: productData.tags ? String(productData.tags).trim() : null,
+      };
+
       console.log("Inserting product data:", productToInsert);
       const result = await db.insert(products).values(productToInsert).returning();
 
@@ -278,10 +293,17 @@ export class DatabaseStorage implements IStorage {
 
       console.log("Product created successfully:", result[0]);
       return result[0];
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating product:", error);
-      console.error("Product data that failed:", productToInsert);
-      throw new Error(`Failed to create product: ${error.message}`);
+
+      // Provide more specific error messages
+      if (error.message.includes('unique constraint')) {
+        throw new Error("A product with this name or slug already exists");
+      } else if (error.message.includes('not null constraint')) {
+        throw new Error("Missing required product information");
+      } else {
+        throw new Error(error.message || "Failed to create product");
+      }
     }
   }
 
@@ -455,8 +477,8 @@ export class DatabaseStorage implements IStorage {
 
     // Using SQL LIKE for case-insensitive search
     const result = await db.select().from(products).where(
-      sql`LOWER(${products.name}) LIKE ${searchTerm} 
-          OR LOWER(${products.category}) LIKE ${searchTerm} 
+      sql`LOWER(${products.name}) LIKE ${searchTerm}
+          OR LOWER(${products.category}) LIKE ${searchTerm}
           OR LOWER(${products.subcategory}) LIKE ${searchTerm}
           OR LOWER(${products.tags}) LIKE ${searchTerm}`
     ).limit(10);

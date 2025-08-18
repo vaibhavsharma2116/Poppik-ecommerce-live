@@ -256,6 +256,102 @@
   }
   
   .mobile-category-description {
+    @apply text-xs sm:text-sm text-gray-600 line-clamp-2;
+  }
+  
+  /* Enhanced Mobile Menu Styles */
+  .mobile-menu-header {
+    @apply px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-red-50 to-pink-50;
+  }
+  
+  .mobile-menu-content {
+    @apply flex-1 px-4 py-6 space-y-2 overflow-y-auto;
+  }
+  
+  .mobile-nav-section-title {
+    @apply px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3;
+  }
+  
+  .mobile-nav-link {
+    @apply block px-4 py-3 rounded-lg font-medium transition-all duration-200;
+  }
+  
+  .mobile-nav-link-active {
+    @apply bg-red-500 text-white shadow-md;
+  }
+  
+  .mobile-nav-link-inactive {
+    @apply text-gray-700 hover:bg-red-50 hover:text-red-600;
+  }
+  
+  .mobile-submenu-container {
+    @apply ml-4 pl-4 border-l-2 border-red-100 space-y-1;
+  }
+  
+  .mobile-submenu-link {
+    @apply block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-md transition-colors duration-200;
+  }
+  
+  .mobile-submenu-link-main {
+    @apply block px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors duration-200;
+  }
+  
+  .mobile-menu-footer {
+    @apply border-t border-gray-100 bg-gray-50 px-4 py-4 space-y-2;
+  }
+  
+  .mobile-menu-card {
+    @apply flex items-center space-x-3 px-3 py-3 rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100;
+  }
+  
+  .mobile-menu-icon-wrapper {
+    @apply p-2 rounded-full;
+  }
+  
+  .mobile-menu-content-text {
+    @apply flex-1;
+  }
+  
+  .mobile-menu-title {
+    @apply text-sm font-medium text-gray-900;
+  }
+  
+  .mobile-menu-subtitle {
+    @apply text-xs text-gray-500;
+  }
+  
+  /* Mobile Accordion Customization */
+  .mobile-accordion [data-state=open] {
+    @apply bg-red-50 text-red-600;
+  }
+  
+  .mobile-accordion .accordion-trigger {
+    @apply hover:bg-gray-50 rounded-lg transition-all duration-200;
+  }
+  
+  /* Mobile Sheet Content Scrolling */
+  .mobile-sheet-content {
+    @apply overflow-hidden flex flex-col h-full;
+  }
+  
+  .mobile-categories-section {
+    @apply pt-4 flex-1 overflow-y-auto;
+  }
+  
+  /* Mobile Search Enhancements */
+  .mobile-search-container {
+    @apply md:hidden px-2 pb-3;
+  }
+  
+  .mobile-search-input-wrapper {
+    @apply relative max-w-xs mx-auto;
+  }
+  
+  .mobile-search-results {
+    @apply absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto;
+  }
+
+  .mobile-category-description {
     @apply text-xs sm:text-sm text-gray-500 line-clamp-1;
   }
   

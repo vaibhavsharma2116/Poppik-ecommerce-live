@@ -436,6 +436,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/products", async (req, res) => {
+    try {
+      console.log("Received product data:", req.body);
+
+      // Set content type to ensure JSON response
+      res.setHeader('Content-Type', 'application/json');
+
+      // Validate required fields
+      const { name, price, category, description } = req.body;
+      if (!name || !price || !category || !description) {
+        return res.status(400).json({ 
+          error: "Missing required fields: name, price, category, and description are required" 
+        });
+      }
+
+      if (name.trim().length === 0 || description.trim().length === 0) {
+        return res.status(400).json({ 
+          error: "Name and description cannot be empty" 
+        });
+      }
+
+      if (isNaN(Number(price)) || Number(price) <= 0) {
+        return res.status(400).json({ 
+          error: "Price must be a valid positive number" 
+        });
+      }
+
+      const productData = {
+        ...req.body,
+        price: Number(price),
+        rating: Number(req.body.rating) || 4.0,
+        reviewCount: Number(req.body.reviewCount) || 0,
+        inStock: Boolean(req.body.inStock ?? true),
+        featured: Boolean(req.body.featured ?? false),
+        bestseller: Boolean(req.body.bestseller ?? false),
+        newLaunch: Boolean(req.body.newLaunch ?? false)
+      };
+
+      console.log("Creating product with processed data:", productData);
+
+      const product = await storage.createProduct(productData);
+      console.log("Product created successfully:", product);
+
+      res.status(201).json(product);
+    } catch (error) {
+      console.error("Product creation error:", error);
+      res.status(500).json({ 
+        error: "Failed to create product", 
+        details: error.message || "Unknown error",
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  });
+
   app.get("/api/products/featured", async (req, res) => {
     try {
       const products = await storage.getFeaturedProducts();
