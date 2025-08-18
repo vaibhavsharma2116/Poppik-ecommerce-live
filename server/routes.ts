@@ -21,10 +21,16 @@ const db = drizzle(pool);
 // Cashfree configuration
 const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID || 'cashfree_app_id';
 const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY || 'cashfree_secret_key';
-// Use production URL if using production credentials (detected by 'prod' in secret key)
-const CASHFREE_BASE_URL = (process.env.CASHFREE_SECRET_KEY && process.env.CASHFREE_SECRET_KEY.includes('prod'))
+
+// Determine environment based on credentials or explicit env variable
+const isProduction = process.env.CASHFREE_BASE_URL === 'production' || 
+                    (process.env.CASHFREE_SECRET_KEY && process.env.CASHFREE_SECRET_KEY.includes('prod'));
+
+const CASHFREE_BASE_URL = isProduction 
   ? 'https://api.cashfree.com' 
   : 'https://sandbox.cashfree.com';
+
+const CASHFREE_MODE = isProduction ? 'production' : 'sandbox';
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -89,7 +95,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Firebase authentication has been removed
   // Only email/password authentication is now supported
 
-      
+
 
   // Authentication routes
   app.post("/api/auth/signup", async (req, res) => {
@@ -467,22 +473,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products/subcategory/:subcategory", async (req, res) => {
     try {
       const { subcategory } = req.params;
-      
+
       // Get all products first
       const allProducts = await storage.getProducts();
 
       // Filter products by subcategory with exact matching
       const subcategorySlug = subcategory.toLowerCase().replace(/[-\s]+/g, ' ').trim();
-      
+
       // Use Map to ensure unique products by ID
       const uniqueProducts = new Map();
-      
+
       allProducts.forEach(product => {
         if (!product.subcategory) return;
-        
+
         const productSubcategory = product.subcategory.toLowerCase().trim();
         const normalizedProductSub = productSubcategory.replace(/[-\s]+/g, ' ').trim();
-        
+
         // Exact match only
         if (normalizedProductSub === subcategorySlug) {
           uniqueProducts.set(product.id, product);
@@ -512,7 +518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { subcategoryId } = req.params;
       console.log("Fetching products for subcategory ID:", subcategoryId);
-      
+
       // Get subcategory details first
       const subcategory = await storage.getSubcategoryById(parseInt(subcategoryId));
       if (!subcategory) {
@@ -526,21 +532,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allProducts = await storage.getProducts();
       const filteredProducts = allProducts.filter(product => {
         if (!product.subcategory) return false;
-        
+
         // Normalize both strings for comparison
         const productSubcategory = product.subcategory.toLowerCase().trim().replace(/\s+/g, ' ');
         const targetSubcategory = subcategory.name.toLowerCase().trim().replace(/\s+/g, ' ');
-        
+
         // Exact match
         if (productSubcategory === targetSubcategory) return true;
-        
+
         // Also check if the product subcategory matches common variations
         const variations = [
           targetSubcategory.replace(/\s/g, ''),  // No spaces
           targetSubcategory.replace(/\s/g, '-'), // Dashes instead of spaces
           targetSubcategory.replace(/-/g, ' '),  // Spaces instead of dashes
         ];
-        
+
         return variations.some(variation => 
           productSubcategory === variation ||
           productSubcategory.replace(/\s/g, '') === variation.replace(/\s/g, '')
@@ -658,65 +664,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/products", async (req, res) => {
-    try {
-      console.log("Received product data:", req.body);
-
-      // Ensure we always return JSON
-      res.setHeader('Content-Type', 'application/json');
-
-      // Validate only essential required fields
-      const { name, price, category, description } = req.body;
-      if (!name || !price || !category || !description) {
-        return res.status(400).json({ 
-          error: "Missing required fields: name, price, category, and description are required" 
-        });
-      }
-
-      const product = await storage.createProduct(req.body);
-      console.log("Product created successfully:", product);
-      res.status(201).json(product);
-    } catch (error) {
-      console.error("Product creation error:", error);
-      res.status(500).json({ 
-        error: "Failed to create product", 
-        details: error.message || "Unknown error"
-      });
-    }
-  });
-
-  app.put("/api/products/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log(`Updating product ${id} with data:`, req.body);
-
-      const product = await storage.updateProduct(parseInt(id), req.body);
-      if (!product) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-      res.json(product);
-    } catch (error) {
-      console.error("Product update error:", error);
-      res.status(500).json({ 
-        error: "Failed to update product", 
-        details: error.message 
-      });
-    }
-  });
-
-  app.delete("/api/products/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const success = await storage.deleteProduct(parseInt(id));
-      if (!success) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete product" });
-    }
-  });
-
   app.post("/api/categories", async (req, res) => {
     try {
       console.log("Received category data:", req.body);
@@ -811,7 +758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { slug } = req.params;
       console.log("Fetching subcategories for category:", slug);
-      
+
       // First get the category by slug
       const category = await storage.getCategoryBySlug(slug);
       if (!category) {
@@ -823,17 +770,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get subcategories for this category
       const subcategories = await storage.getSubcategoriesByCategory(category.id);
-      
+
       // Get all products to calculate accurate product counts
       const allProducts = await storage.getProducts();
-      
+
       // Update product count for each subcategory
       const subcategoriesWithCount = subcategories.map(subcategory => {
         const productCount = allProducts.filter(product => 
           product.subcategory && 
           product.subcategory.toLowerCase().trim() === subcategory.name.toLowerCase().trim()
         ).length;
-        
+
         return {
           ...subcategory,
           productCount
@@ -844,7 +791,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(subcategoriesWithCount);
     } catch (error) {
       console.error("Error fetching subcategories for category:", error);
-      
+
       // Fallback: return sample subcategories based on category
       const { slug } = req.params;
       const sampleSubcategories = generateSampleSubcategoriesForCategory(slug);
@@ -1191,7 +1138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create sample order items
       const sampleItems = [
-       
+
       ];
 
       await db.insert(orderItemsTable).values(sampleItems);
@@ -1214,8 +1161,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Valid amount is required" });
       }
 
+      if (!customerInfo || !customerInfo.customerName || !customerInfo.customerEmail) {
+        return res.status(400).json({ error: "Customer information is required" });
+      }
+
+      // Validate customer name and email format
+      if (!customerInfo.customerName.trim() || customerInfo.customerName.trim().length < 2) {
+        return res.status(400).json({ error: "Valid customer name is required" });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(customerInfo.customerEmail.trim())) {
+        return res.status(400).json({ error: "Valid email address is required" });
+      }
+
       // Check Cashfree configuration
-      if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
+      if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY) {
         console.error("Cashfree credentials not configured properly");
         return res.status(500).json({ 
           error: "Cashfree payment is not configured. Please use Cash on Delivery instead.",
@@ -1226,16 +1187,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
       // Store payment data in database for tracking
-      const paymentData = {
-        cashfreeOrderId: orderId,
-        userId: orderData.userId,
-        amount: amount,
-        status: 'created',
-        orderData: JSON.stringify(orderData),
-        customerInfo: JSON.stringify(customerInfo),
-        createdAt: new Date()
-      };
-
       try {
         await db.insert(sql`
           INSERT INTO cashfree_payments (cashfree_order_id, user_id, amount, status, order_data, customer_info, created_at)
@@ -1246,22 +1197,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Continue with payment creation even if DB storage fails
       }
 
+      // Validate and format phone number properly for Cashfree
+      let phoneNumber = customerInfo.customerPhone || '9999999999';
+
+      // Clean the phone number - remove all non-digit characters except +
+      phoneNumber = phoneNumber.replace(/[^\d+]/g, '');
+
+      // Remove country code if present to normalize
+      phoneNumber = phoneNumber.replace(/^(\+91|91)/, '');
+
+      // Validate Indian mobile number format
+      if (phoneNumber.length === 10 && phoneNumber.match(/^[6-9]\d{9}$/)) {
+        phoneNumber = '+91' + phoneNumber;
+      } else {
+        // Use a valid default for testing
+        phoneNumber = '+919999999999';
+      }
+
       const cashfreeOrderData = {
         order_id: orderId,
-        order_amount: amount,
+        order_amount: parseFloat(amount).toFixed(2),
         order_currency: currency,
         order_note: orderNote || 'Beauty Store Purchase',
         customer_details: {
-          customer_id: customerInfo.customerId,
+          customer_id: String(customerInfo.customerId || 'guest'),
           customer_name: customerInfo.customerName,
           customer_email: customerInfo.customerEmail,
-          customer_phone: customerInfo.customerPhone,
+          customer_phone: phoneNumber,
         },
         order_meta: {
-          return_url: `https://${req.get('host')}/api/payments/cashfree/success?order_id=${orderId}`,
+          return_url: `https://${req.get('host')}/checkout?payment=processing&orderId=${orderId}`,
           notify_url: `https://${req.get('host')}/api/payments/cashfree/webhook`,
         }
       };
+
+      console.log("Creating Cashfree order with data:", JSON.stringify(cashfreeOrderData, null, 2));
 
       const response = await fetch(`${CASHFREE_BASE_URL}/pg/orders`, {
         method: 'POST',
@@ -1275,6 +1245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const result = await response.json();
+      console.log("Cashfree API response:", JSON.stringify(result, null, 2));
 
       if (!response.ok) {
         console.error("Cashfree API error:", result);
@@ -1282,9 +1253,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (result.message) {
           errorMessage = result.message;
+        } else if (result.error_description) {
+          errorMessage = result.error_description;
         }
 
-        return res.status(500).json({ 
+        return res.status(response.status).json({ 
           error: errorMessage,
           cashfreeError: true,
           details: result
@@ -1295,7 +1268,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("No payment session ID found in Cashfree response:", result);
         return res.status(500).json({ 
           error: "Cashfree response missing payment session ID. Please try again.",
-          cashfreeError: true
+          cashfreeError: true,
+          details: result
         });
       }
 
@@ -1304,6 +1278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentSessionId: result.payment_session_id,
         amount: result.order_amount,
         currency: result.order_currency,
+        environment: CASHFREE_MODE,
       });
     } catch (error) {
       console.error("Cashfree order creation error:", error);
@@ -1679,7 +1654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Create sample order items
         const sampleItems = [
-         
+
         ];
 
         await db.insert(orderItemsTable).values(sampleItems);
@@ -1920,7 +1895,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate sample subcategories for a specific category
   function generateSampleSubcategoriesForCategory(categorySlug: string) {
     const allSubcategories = generateSampleSubcategories();
-    
+
     // Map category slugs to subcategories
     const categorySubcategoryMap: Record<string, string[]> = {
       'lips': ['matte-liquid-lipstick', 'gloss-liquid-lipstick', 'lip-liner', 'lip-balm'],
@@ -1965,7 +1940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       email: customer.email,
       phone: customer.phone,
       orders: Math.floor(Math.random() * 10) + 1,
-      spent: `₹${(Math.random() * 8080 + 500).toFixed(2)}`,
+      spent: `₹${(Math.random() * 8000 + 500).toFixed(2)}`,
       status: Math.random() > 0.7 ? 'VIP' : Math.random() > 0.4 ? 'Active' : 'New',
       joinedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       firstName: customer.firstName,
@@ -1976,7 +1951,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate sample products for development
   function generateSampleProducts() {
     return [
-      
+
     ];
   }
 
@@ -3039,7 +3014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "User authentication required" });
       }
 
-      const result = await storage.checkUserCanReview(parseInt(userId as string), parseInt(productId));
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
       res.json(result);
     } catch (error) {
       console.error("Error checking review eligibility:", error);

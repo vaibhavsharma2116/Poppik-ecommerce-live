@@ -99,7 +99,7 @@ export default function CheckoutPage() {
           description: "Your payment could not be processed. Please try again.",
           variant: "destructive",
         });
-        
+
         // Restore cart from session
         const pendingOrder = sessionStorage.getItem('pendingOrder');
         if (pendingOrder) {
@@ -147,22 +147,67 @@ export default function CheckoutPage() {
 
   const processCashfreePayment = async () => {
     try {
+      const user = getCurrentUser();
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to continue with payment",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Validate form data
+      if (!formData.email || !formData.firstName || !formData.lastName) {
+        toast({
+          title: "Missing Information",
+          description: "Please fill in all required fields",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Validate phone number if provided
+      if (formData.phone && formData.phone.trim()) {
+        const phoneRegex = /^(\+91|91)?[6-9]\d{9}$/;
+        const cleanPhone = formData.phone.replace(/[\s-()]/g, '');
+        if (!phoneRegex.test(cleanPhone)) {
+          toast({
+            title: "Invalid Phone Number",
+            description: "Please enter a valid 10-digit Indian mobile number starting with 6-9",
+            variant: "destructive",
+          });
+          return false;
+        }
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        toast({
+          title: "Invalid Email",
+          description: "Please enter a valid email address",
+          variant: "destructive",
+        });
+        return false;
+      }
+
       // Create Cashfree order
       const response = await fetch('/api/payments/cashfree/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          amount: total, 
+        body: JSON.stringify({
+          amount: total,
           currency: 'INR',
           customerInfo: {
-            customerId: String(getCurrentUser()?.id || 'guest'),
-            customerName: `${formData.firstName} ${formData.lastName}`,
-            customerEmail: formData.email,
-            customerPhone: formData.phone || '9999999999',
+            customerId: String(user.id),
+            customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+            customerEmail: formData.email.trim(),
+            customerPhone: formData.phone?.trim() || '9999999999',
           },
           orderNote: 'Beauty Store Purchase',
           orderData: {
-            userId: getCurrentUser()?.id,
+            userId: user.id,
             totalAmount: total,
             shippingAddress: `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`,
             items: cartItems.map(item => ({
@@ -180,21 +225,19 @@ export default function CheckoutPage() {
 
       if (!response.ok) {
         console.error('Cashfree API error:', orderData);
-        
+
         let errorMessage = "Payment processing failed";
-        
+
         if (orderData.configError) {
           errorMessage = "Cashfree is not configured. Please use Cash on Delivery.";
-        } else if (orderData.authError) {
-          errorMessage = "Cashfree authentication failed. Please try Cash on Delivery.";
         } else if (orderData.cashfreeError) {
           errorMessage = orderData.error || "Cashfree service error. Please try again.";
         } else {
           errorMessage = orderData.error || `Payment setup failed (${response.status})`;
         }
-        
+
         toast({
-          title: "Payment Error", 
+          title: "Payment Error",
           description: errorMessage,
           variant: "destructive",
         });
@@ -202,9 +245,10 @@ export default function CheckoutPage() {
       }
 
       if (!orderData.paymentSessionId) {
+        console.error("Missing payment session ID:", orderData);
         toast({
           title: "Configuration Error",
-          description: "Cashfree is not properly configured. Please use Cash on Delivery.",
+          description: "Invalid payment session. Please try Cash on Delivery.",
           variant: "destructive",
         });
         return false;
@@ -220,25 +264,54 @@ export default function CheckoutPage() {
       }));
 
       // Load Cashfree SDK and redirect to payment
-      const script = document.createElement('script');
-      script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
-      script.onload = () => {
-        const cashfree = window.Cashfree({
-          mode: process.env.NODE_ENV === 'production' ? 'production' : 'sandbox'
-        });
+      return new Promise((resolve) => {
+        const existingScript = document.querySelector('script[src="https://sdk.cashfree.com/js/v3/cashfree.js"]');
+        if (existingScript) {
+          existingScript.remove();
+        }
 
-        cashfree.checkout({
-          paymentSessionId: orderData.paymentSessionId,
-          returnUrl: `${window.location.origin}/checkout?payment=processing&orderId=${orderData.orderId}`,
-        });
-      };
-      document.head.appendChild(script);
+        const script = document.createElement('script');
+        script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+        script.onload = () => {
+          try {
+            const cashfree = window.Cashfree({
+              mode: orderData.environment || 'sandbox'
+            });
 
-      return true;
+            console.log("Initiating Cashfree checkout with session ID:", orderData.paymentSessionId);
+            console.log("Using environment mode:", orderData.environment || 'sandbox');
+
+            cashfree.checkout({
+              paymentSessionId: orderData.paymentSessionId,
+              returnUrl: `${window.location.origin}/checkout?payment=processing&orderId=${orderData.orderId}`,
+            });
+
+            resolve(true);
+          } catch (checkoutError) {
+            console.error("Cashfree checkout error:", checkoutError);
+            toast({
+              title: "Payment Error",
+              description: "Failed to initialize payment. Please try again.",
+              variant: "destructive",
+            });
+            resolve(false);
+          }
+        };
+        script.onerror = () => {
+          console.error("Failed to load Cashfree SDK");
+          toast({
+            title: "Payment Error",
+            description: "Failed to load payment system. Please try again.",
+            variant: "destructive",
+          });
+          resolve(false);
+        };
+        document.head.appendChild(script);
+      });
     } catch (error) {
       console.error('Cashfree payment error:', error);
       toast({
-        title: "Payment Error", 
+        title: "Payment Error",
         description: error instanceof Error ? error.message : "Payment processing failed",
         variant: "destructive",
       });
@@ -268,6 +341,32 @@ export default function CheckoutPage() {
       });
       return;
     }
+
+    // Validate phone number if provided
+    if (formData.phone && formData.phone.trim()) {
+      const phoneRegex = /^(\+91|91)?[6-9]\d{9}$/;
+      const cleanPhone = formData.phone.replace(/[\s-()]/g, '');
+      if (!phoneRegex.test(cleanPhone)) {
+        toast({
+          title: "Invalid Phone Number",
+          description: "Please enter a valid 10-digit Indian mobile number starting with 6-9",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return false;
+    }
+
 
     try {
       let paymentSuccessful = false;
