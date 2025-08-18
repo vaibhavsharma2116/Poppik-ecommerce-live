@@ -618,16 +618,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products/category/:category", async (req, res) => {
     try {
       const { category } = req.params;
+      console.log("Fetching products for category:", category);
 
       // Get all products first
       const allProducts = await storage.getProducts();
+      console.log("Total products available:", allProducts.length);
 
       // Filter products by category with flexible matching
       const filteredProducts = allProducts.filter(product => {
         if (!product.category) return false;
 
-        const productCategory = product.category.toLowerCase();
-        const searchCategory = category.toLowerCase();
+        const productCategory = product.category.toLowerCase().trim();
+        const searchCategory = category.toLowerCase().trim();
+
+        console.log(`Comparing product category "${productCategory}" with search "${searchCategory}"`);
 
         // Exact match
         if (productCategory === searchCategory) return true;
@@ -635,36 +639,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Partial match
         if (productCategory.includes(searchCategory) || searchCategory.includes(productCategory)) return true;
 
-        // Special category mappings
+        // Handle common variations and special cases
         const categoryMappings: Record<string, string[]> = {
           'skincare': ['skin', 'face', 'facial'],
           'haircare': ['hair'],
           'makeup': ['cosmetics', 'beauty'],
           'bodycare': ['body'],
-          'eyecare': ['eye', 'eyes', 'eyecare'],
-          'eye-drama': ['eye', 'eyes', 'eyecare'],
+          'eyecare': ['eye', 'eyes', 'eyecare', 'eye care', 'eye-care'],
+          'eye-care': ['eye', 'eyes', 'eyecare', 'eye care'],
+          'eyes-care': ['eye', 'eyes', 'eyecare', 'eye care'],
+          'eye care': ['eye', 'eyes', 'eyecare', 'eye-care'],
+          'eyes': ['eye', 'eyecare', 'eye care', 'eye-care'],
           'beauty': ['makeup', 'cosmetics', 'skincare'],
         };
 
+        // Check if search category has mappings
         const mappedCategories = categoryMappings[searchCategory] || [];
-        return mappedCategories.some(mapped => productCategory.includes(mapped));
+        if (mappedCategories.some(mapped => productCategory.includes(mapped))) return true;
+
+        // Check if product category has mappings to search category
+        const reverseMappings = Object.entries(categoryMappings).find(([key, values]) => 
+          values.includes(searchCategory)
+        );
+        if (reverseMappings && productCategory.includes(reverseMappings[0])) return true;
+
+        return false;
       });
 
+      console.log(`Found ${filteredProducts.length} products for category "${category}"`);
       res.json(filteredProducts);
     } catch (error) {
       console.log("Database unavailable, using sample product data with category filter");
       const sampleProducts = generateSampleProducts();
       const { category } = req.params;
-      const searchCategory = category.toLowerCase();
+      const searchCategory = category.toLowerCase().trim();
 
       const filteredSampleProducts = sampleProducts.filter(product => {
-        const productCategory = product.category.toLowerCase();
-        return productCategory.includes(searchCategory) || 
-               searchCategory.includes(productCategory) ||
-               (searchCategory.includes('eye') && productCategory.includes('makeup')) ||
-               (searchCategory.includes('beauty') && ['skincare', 'makeup'].some(cat => productCategory.includes(cat)));
+        if (!product.category) return false;
+        
+        const productCategory = product.category.toLowerCase().trim();
+        
+        // Exact match
+        if (productCategory === searchCategory) return true;
+        
+        // Partial match
+        if (productCategory.includes(searchCategory) || searchCategory.includes(productCategory)) return true;
+        
+        // Special mappings for common variations
+        const categoryMappings: Record<string, string[]> = {
+          'lips': ['lip'],
+          'eyes': ['eye', 'eyecare', 'eye care', 'eye-care'],
+          'eye-care': ['eye', 'eyes', 'eyecare'],
+          'eyecare': ['eye', 'eyes', 'eye care', 'eye-care'],
+          'face': ['facial', 'foundation', 'concealer'],
+          'skincare': ['skin', 'serum', 'cleanser'],
+        };
+
+        const mappedCategories = categoryMappings[searchCategory] || [];
+        if (mappedCategories.some(mapped => productCategory.includes(mapped))) return true;
+
+        // Reverse mapping check
+        const reverseMappings = Object.entries(categoryMappings).find(([key, values]) => 
+          values.includes(searchCategory)
+        );
+        if (reverseMappings && productCategory.includes(reverseMappings[0])) return true;
+
+        return false;
       });
 
+      console.log(`Sample data: Found ${filteredSampleProducts.length} products for category "${category}"`);
       res.json(filteredSampleProducts);
     }
   });
@@ -1968,7 +2011,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const sampleProducts = generateSampleProducts();
 
     const baseCategories = [
-
+      {
+        id: 1,
+        name: "Lips",
+        slug: "lips",
+        description: "Beautiful lip products for every occasion",
+        imageUrl: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        status: "Active"
+      },
+      {
+        id: 2,
+        name: "Face",
+        slug: "face",
+        description: "Foundation, concealer and face makeup",
+        imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        status: "Active"
+      },
+      {
+        id: 3,
+        name: "Eyes",
+        slug: "eyes",
+        description: "Eye makeup for stunning looks",
+        imageUrl: "https://images.unsplash.com/photo-1512207846215-2a4d0e8b6b9f?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        status: "Active"
+      },
+      {
+        id: 4,
+        name: "Skincare",
+        slug: "skincare",
+        description: "Premium skincare products",
+        imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        status: "Active"
+      },
+      {
+        id: 5,
+        name: "Eyes Care",
+        slug: "eyes-care",
+        description: "Specialized eye care products",
+        imageUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        status: "Active"
+      }
     ];
 
     // Calculate dynamic product count for each category
@@ -2005,7 +2087,266 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate sample products for development
   function generateSampleProducts() {
     return [
-
+      {
+        id: 1,
+        name: "Matte Liquid Lipstick - Ruby Red",
+        slug: "matte-liquid-lipstick-ruby-red",
+        description: "Long-lasting matte liquid lipstick in stunning ruby red",
+        shortDescription: "Long-lasting matte finish",
+        price: 899,
+        originalPrice: 1200,
+        category: "Lips",
+        subcategory: "Matte Liquid Lipstick",
+        imageUrl: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.5,
+        reviewCount: 125,
+        inStock: true,
+        featured: true,
+        bestseller: false,
+        newLaunch: false,
+        createdAt: new Date('2024-01-01'),
+        tags: "matte, long-lasting, red"
+      },
+      {
+        id: 2,
+        name: "Gloss Liquid Lipstick - Pink Shine",
+        slug: "gloss-liquid-lipstick-pink-shine",
+        description: "High-shine glossy liquid lipstick in beautiful pink",
+        shortDescription: "High-shine glossy finish",
+        price: 799,
+        originalPrice: 999,
+        category: "Lips",
+        subcategory: "Gloss Liquid Lipstick",
+        imageUrl: "https://images.unsplash.com/photo-1631214540127-41f301318769?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.3,
+        reviewCount: 89,
+        inStock: true,
+        featured: false,
+        bestseller: true,
+        newLaunch: false,
+        createdAt: new Date('2024-01-15'),
+        tags: "gloss, shine, pink"
+      },
+      {
+        id: 3,
+        name: "HD Foundation - Ivory",
+        slug: "hd-foundation-ivory",
+        description: "Full coverage HD foundation for flawless skin",
+        shortDescription: "Full coverage foundation",
+        price: 1299,
+        originalPrice: 1599,
+        category: "Face",
+        subcategory: "Foundation",
+        imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.7,
+        reviewCount: 203,
+        inStock: true,
+        featured: true,
+        bestseller: true,
+        newLaunch: false,
+        createdAt: new Date('2024-02-01'),
+        tags: "foundation, coverage, ivory"
+      },
+      {
+        id: 4,
+        name: "Waterproof Mascara",
+        slug: "waterproof-mascara",
+        description: "Long-lasting waterproof mascara for dramatic lashes",
+        shortDescription: "Waterproof dramatic lashes",
+        price: 649,
+        originalPrice: 799,
+        category: "Eyes",
+        subcategory: "Mascara",
+        imageUrl: "https://images.unsplash.com/photo-1512207846215-2a4d0e8b6b9f?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.4,
+        reviewCount: 156,
+        inStock: true,
+        featured: false,
+        bestseller: false,
+        newLaunch: true,
+        createdAt: new Date('2024-02-15'),
+        tags: "mascara, waterproof, lashes"
+      },
+      {
+        id: 5,
+        name: "Hydrating Face Serum",
+        slug: "hydrating-face-serum",
+        description: "Intensive hydrating serum with hyaluronic acid",
+        shortDescription: "Hyaluronic acid serum",
+        price: 1599,
+        originalPrice: 1999,
+        category: "Skincare",
+        subcategory: "Serum",
+        imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.8,
+        reviewCount: 287,
+        inStock: true,
+        featured: true,
+        bestseller: true,
+        newLaunch: false,
+        createdAt: new Date('2024-01-20'),
+        tags: "serum, hydrating, hyaluronic"
+      },
+      {
+        id: 6,
+        name: "Lip Liner - Nude Rose",
+        slug: "lip-liner-nude-rose",
+        description: "Precise lip liner in nude rose shade",
+        shortDescription: "Precise lip definition",
+        price: 449,
+        originalPrice: 599,
+        category: "Lips",
+        subcategory: "Lip Liner",
+        imageUrl: "https://images.unsplash.com/photo-1583241800519-6da18d585928?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.2,
+        reviewCount: 78,
+        inStock: true,
+        featured: false,
+        bestseller: false,
+        newLaunch: false,
+        createdAt: new Date('2024-01-10'),
+        tags: "liner, nude, rose"
+      },
+      {
+        id: 7,
+        name: "Nourishing Lip Balm",
+        slug: "nourishing-lip-balm",
+        description: "Moisturizing lip balm with natural ingredients",
+        shortDescription: "Natural moisturizing balm",
+        price: 299,
+        originalPrice: 399,
+        category: "Lips",
+        subcategory: "Lip Balm",
+        imageUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.6,
+        reviewCount: 134,
+        inStock: true,
+        featured: false,
+        bestseller: true,
+        newLaunch: false,
+        createdAt: new Date('2024-01-05'),
+        tags: "balm, moisturizing, natural"
+      },
+      {
+        id: 8,
+        name: "Eyeshadow Palette - Sunset",
+        slug: "eyeshadow-palette-sunset",
+        description: "12-shade eyeshadow palette in sunset colors",
+        shortDescription: "12-shade sunset palette",
+        price: 1899,
+        originalPrice: 2299,
+        category: "Eyes",
+        subcategory: "Eyeshadow",
+        imageUrl: "https://images.unsplash.com/photo-1615397587950-3cfd4d96b742?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.9,
+        reviewCount: 312,
+        inStock: true,
+        featured: true,
+        bestseller: true,
+        newLaunch: true,
+        createdAt: new Date('2024-02-20'),
+        tags: "eyeshadow, palette, sunset"
+      },
+      {
+        id: 9,
+        name: "Vitamin C Cleanser",
+        slug: "vitamin-c-cleanser",
+        description: "Brightening cleanser with vitamin C",
+        shortDescription: "Brightening face cleanser",
+        price: 799,
+        originalPrice: 999,
+        category: "Skincare",
+        subcategory: "Cleanser",
+        imageUrl: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.4,
+        reviewCount: 189,
+        inStock: true,
+        featured: false,
+        bestseller: false,
+        newLaunch: false,
+        createdAt: new Date('2024-01-25'),
+        tags: "cleanser, vitamin-c, brightening"
+      },
+      {
+        id: 10,
+        name: "Concealer - Medium",
+        slug: "concealer-medium",
+        description: "High coverage concealer for medium skin tones",
+        shortDescription: "High coverage concealer",
+        price: 899,
+        originalPrice: 1199,
+        category: "Face",
+        subcategory: "Concealer",
+        imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.5,
+        reviewCount: 167,
+        inStock: true,
+        featured: false,
+        bestseller: true,
+        newLaunch: false,
+        createdAt: new Date('2024-02-05'),
+        tags: "concealer, coverage, medium"
+      },
+      {
+        id: 11,
+        name: "Eye Cream - Anti Aging",
+        slug: "eye-cream-anti-aging",
+        description: "Powerful anti-aging eye cream with retinol and peptides",
+        shortDescription: "Anti-aging eye treatment",
+        price: 1299,
+        originalPrice: 1599,
+        category: "Eyes Care",
+        subcategory: null,
+        imageUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.6,
+        reviewCount: 89,
+        inStock: true,
+        featured: true,
+        bestseller: false,
+        newLaunch: false,
+        createdAt: new Date('2024-01-15'),
+        tags: "eye cream, anti-aging, retinol"
+      },
+      {
+        id: 12,
+        name: "Under Eye Gel",
+        slug: "under-eye-gel",
+        description: "Cooling under eye gel to reduce puffiness and dark circles",
+        shortDescription: "Cooling under eye treatment",
+        price: 799,
+        originalPrice: 999,
+        category: "Eyes Care",
+        subcategory: null,
+        imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.3,
+        reviewCount: 156,
+        inStock: true,
+        featured: false,
+        bestseller: true,
+        newLaunch: false,
+        createdAt: new Date('2024-01-20'),
+        tags: "under eye, gel, puffiness"
+      },
+      {
+        id: 13,
+        name: "Eye Serum - Vitamin C",
+        slug: "eye-serum-vitamin-c",
+        description: "Brightening eye serum with vitamin C and hyaluronic acid",
+        shortDescription: "Brightening eye serum",
+        price: 1099,
+        originalPrice: 1399,
+        category: "Eyes Care",
+        subcategory: null,
+        imageUrl: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        rating: 4.7,
+        reviewCount: 203,
+        inStock: true,
+        featured: false,
+        bestseller: false,
+        newLaunch: true,
+        createdAt: new Date('2024-02-10'),
+        tags: "eye serum, vitamin c, brightening"
+      }
     ];
   }
 

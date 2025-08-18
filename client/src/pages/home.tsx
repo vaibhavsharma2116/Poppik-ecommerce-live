@@ -155,18 +155,18 @@ export default function Home() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent rounded-xl sm:rounded-2xl group-hover:from-black/5 transition-all duration-300 sm:duration-500"></div>
 
                         {/* Product count badge - Responsive sizing */}
-                        <div className="absolute top-2 sm:top-3 md:top-4 lg:top-6 left-2 sm:left-3 md:left-4 lg:left-6 bg-white/90 backdrop-blur-sm px-2 sm:px-3 py-1 rounded-full shadow-sm sm:shadow-md md:shadow-lg">
+                        {/* <div className="absolute top-2 sm:top-3 md:top-4 lg:top-6 left-2 sm:left-3 md:left-4 lg:left-6 bg-white/90 backdrop-blur-sm px-2 sm:px-3 py-1 rounded-full shadow-sm sm:shadow-md md:shadow-lg">
                           <span className="text-xs sm:text-xs md:text-sm font-semibold text-gray-700">{category.productCount}</span>
-                        </div>
+                        </div> */}
                       </div>
                     </div>
                     <div className="p-3 sm:p-4 md:p-6 lg:p-8 text-center relative">
                       <h3 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 mb-1 sm:mb-2 md:mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-pink-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-1">
                         {category.name}
                       </h3>
-                      <p className="text-xs sm:text-sm text-gray-500 group-hover:text-gray-600 transition-colors mb-2 sm:mb-3 md:mb-4 line-clamp-1">
+                      {/* <p className="text-xs sm:text-sm text-gray-500 group-hover:text-gray-600 transition-colors mb-2 sm:mb-3 md:mb-4 line-clamp-1">
                         {category.productCount} products
-                      </p>
+                      </p> */}
                       <div className="hidden sm:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
                         <span className="text-xs sm:text-sm font-medium text-gray-700">Shop Now</span>
                         <svg className="w-3 sm:w-4 h-3 sm:h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
