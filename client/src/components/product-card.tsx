@@ -10,11 +10,6 @@ import type { Product } from "@/lib/types";
 interface ProductCardProps {
   product: Product;
   className?: string;
-}
-
-interface ProductCardProps {
-  product: Product;
-  className?: string;
   viewMode?: 'grid' | 'list';
 }
 
@@ -161,9 +156,22 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <Link href={`/product/${product.slug}`}>
             <div className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50 h-48 rounded-lg">
               <img
-                src={product.imageUrl}
+                src={`${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=400&h=400&q=80&fit=crop' : ''}`}
                 alt={product.name}
                 className="w-full h-full object-cover cursor-pointer group-hover:scale-110 transition-transform duration-700 rounded-lg"
+                loading="lazy"
+                decoding="async"
+                width="400"
+                height="400"
+                onLoad={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.opacity = '1';
+                }}
+                style={{ opacity: 0, transition: 'opacity 0.3s ease' }}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
             </div>
@@ -253,11 +261,11 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
   return (
     <Card 
-      className={`product-card group bg-gradient-to-br from-white via-pink-50 to-purple-50 border-2 border-transparent hover:border-pink-200 hover:shadow-2xl transition-all duration-500 transform hover:scale-105 ${className}`}
+      className={`group hover:shadow-lg transition-all duration-300 overflow-hidden bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 border border-pink-100/50 hover:border-pink-200 hover:shadow-pink-100/20 mobile-product-card w-full ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative overflow-hidden rounded-t-2xl">
+      <div className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
         {product.saleOffer && (
           <Badge className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 text-xs animate-pulse shadow-lg font-bold">
             {product.saleOffer}
@@ -272,13 +280,22 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         <Link href={`/product/${product.slug}`}>
           <div className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50">
             <img
-              src={product.imageUrl}
+              src={`${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=300&h=300&q=75&fit=crop' : ''}`}
               alt={product.name}
-              className="w-full h-36 sm:h-48 md:h-64 lg:h-72 object-cover cursor-pointer group-hover:scale-110 transition-transform duration-700"
+              className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-cover"
+              loading="lazy"
+              decoding="async"
+              width="300"
+              height="300"
+              style={{ backgroundColor: '#f3f4f6' }}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
+              }}
             />
             <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
             <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
-            
+
             {/* Shade indicator if product has shades */}
             {(product.variants?.colors || product.variants?.shades) && (
               <div className="absolute bottom-2 left-2 flex space-x-1">
@@ -324,18 +341,18 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
           {product.variants?.colors || product.variants?.shades ? (
             <Link href={`/product/${product.slug}`}>
-              <Button size="sm" className="w-full text-xs py-1.5 sm:py-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105">
-                Select
+              <Button size="sm" className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target">
+                Select Shade
               </Button>
             </Link>
           ) : (
             <Button 
               size="sm" 
-              className="w-full text-xs py-1.5 sm:py-2 flex items-center justify-center gap-1 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+              className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
               onClick={addToCart}
             >
-              <ShoppingCart className="h-3 w-3" />
-              <span className="hidden sm:inline">Add to</span> Cart
+              <ShoppingCart className="h-3.5 w-3.5" />
+              <span className="hidden xs:inline">Add to</span> Cart
             </Button>
           )}
         </div>

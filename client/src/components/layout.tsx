@@ -318,147 +318,248 @@ export default function Layout({ children }: LayoutProps) {
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-80">
-                  <div className="flex flex-col space-y-4 mt-8">
-                    {staticNavItems.map((item) => (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className={`mobile-nav-item ${
-                          isActiveLink(item.href)
-                            ? "text-red-500"
-                            : "text-gray-600 hover:text-red-500"
-                        }`}
-                      >
-                        {item.name}
-                      </Link>
-                    ))}
-                    
-                    {/* Categories with Submenus */}
-                    <Accordion type="single" collapsible className="w-full mobile-accordion">
-                      {categories.map((category) => {
-                        const categorySubcategories = getSubcategoriesForCategory(category.id);
-                        
-                        if (categorySubcategories.length > 0) {
-                          return (
-                            <AccordionItem key={category.id} value={`category-${category.id}`}>
-                              <AccordionTrigger className="responsive-nav-trigger">
-                                <div className="flex items-center justify-between w-full">
-                                  <span className={isActiveLink(`/category/${category.slug}`) ? "text-red-500" : "text-gray-700"}>
-                                    {category.name}
-                                  </span>
-                                  <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 mobile-nav-chevron" />
-                                </div>
-                              </AccordionTrigger>
-                              <AccordionContent>
-                                <div className="responsive-submenu">
-                                  <Link
-                                    href={`/category/${category.slug}`}
-                                    className="responsive-submenu-item font-medium text-red-600"
-                                  >
-                                    View All {category.name}
-                                  </Link>
-                                  {categorySubcategories.map((subcategory) => (
-                                    <Link
-                                      key={subcategory.id}
-                                      href={`/category/${category.slug}?subcategory=${subcategory.slug}`}
-                                      className="responsive-submenu-item"
-                                      onClick={() => {
-                                        setTimeout(() => {
-                                          window.location.href = `/category/${category.slug}?subcategory=${subcategory.slug}`;
-                                        }, 100);
-                                      }}
-                                    >
-                                      {subcategory.name}
-                                    </Link>
-                                  ))}
-                                </div>
-                              </AccordionContent>
-                            </AccordionItem>
-                          );
-                        } else {
-                          // Category without subcategories - simple link
-                          return (
-                            <div key={category.id} className="mobile-menu-container border-b border-gray-100 last:border-b-0">
-                              <Link
-                                href={`/category/${category.slug}`}
-                                className={`mobile-nav-item ${
-                                  isActiveLink(`/category/${category.slug}`)
-                                    ? "text-red-500"
-                                    : "text-gray-600 hover:text-red-500"
-                                }`}
-                              >
-                                {category.name}
-                              </Link>
-                            </div>
-                          );
-                        }
-                      })}
-                    </Accordion>
-                  </div>
-                  <div className="flex flex-col space-y-3 pt-4 border-t border-gray-200">
-                {user ? (
-                  <>
-                    <Link href="/profile">
-                      <Button variant="ghost" className="w-full justify-start py-3 px-4 hover:bg-gray-50 transition-colors">
-                        <User className="h-5 w-5 mr-3 text-gray-600" />
-                        <span className="text-gray-700">My Profile ({user.firstName})</span>
-                      </Button>
-                    </Link>
-                    <Link href="/wishlist">
-                      <Button variant="ghost" className="w-full justify-start py-3 px-4 hover:bg-gray-50 transition-colors">
-                        <Heart className="h-5 w-5 mr-3 text-gray-600" />
-                        <span className="text-gray-700">
-                          Wishlist {wishlistCount > 0 && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs ml-1">({wishlistCount})</span>}
-                        </span>
-                      </Button>
-                    </Link>
-                    <Link href="/cart">
-                      <Button variant="ghost" className="w-full justify-start py-3 px-4 hover:bg-gray-50 transition-colors">
-                        <ShoppingCart className="h-5 w-5 mr-3 text-gray-600" />
-                        <span className="text-gray-700">
-                          Cart {cartCount > 0 && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs ml-1">({cartCount})</span>}
-                        </span>
-                      </Button>
-                    </Link>
-                    <div className="border-t border-gray-200 pt-3 mt-3">
-                      <Button 
-                        variant="ghost" 
-                        className="w-full justify-start py-3 px-4 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
-                        onClick={handleLogout}
-                      >
-                        <LogOut className="h-5 w-5 mr-3" />
-                        <span>Logout</span>
-                      </Button>
+                <SheetContent side="right" className="w-80 p-0 overflow-hidden">
+                  {/* Mobile Menu Header */}
+                  <div className="px-6 py-4 bg-gradient-to-r from-red-50 to-pink-50 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={logo} 
+                        alt="POPPIK Logo" 
+                        className="h-8 w-auto object-contain"
+                      />
+                      <h2 className="font-semibold text-gray-800">Menu</h2>
                     </div>
-                  </>
-                ) : (
-                  <>
-                    <Link href="/auth/login">
-                      <Button variant="ghost" className="w-full justify-start py-3 px-4 hover:bg-gray-50 transition-colors">
-                        <User className="h-5 w-5 mr-3 text-gray-600" />
-                        <span className="text-gray-700">Login / Signup</span>
-                      </Button>
-                    </Link>
-                    <Link href="/wishlist">
-                      <Button variant="ghost" className="w-full justify-start py-3 px-4 hover:bg-gray-50 transition-colors">
-                        <Heart className="h-5 w-5 mr-3 text-gray-600" />
-                        <span className="text-gray-700">
-                          Wishlist {wishlistCount > 0 && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs ml-1">({wishlistCount})</span>}
-                        </span>
-                      </Button>
-                    </Link>
-                    <Link href="/cart">
-                      <Button variant="ghost" className="w-full justify-start py-3 px-4 hover:bg-gray-50 transition-colors">
-                        <ShoppingCart className="h-5 w-5 mr-3 text-gray-600" />
-                        <span className="text-gray-700">
-                          Cart {cartCount > 0 && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs ml-1">({cartCount})</span>}
-                        </span>
-                      </Button>
-                    </Link>
-                  </>
-                )}
-              </div>
+                  </div>
+
+                  {/* Mobile Menu Content */}
+                  <div className="flex-1 overflow-y-auto">
+                    {/* Static Navigation Items */}
+                    <div className="px-4 py-4 space-y-1">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
+                        Navigation
+                      </div>
+                      {staticNavItems.map((item) => (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                            isActiveLink(item.href)
+                              ? "bg-red-500 text-white shadow-md"
+                              : "text-gray-700 hover:bg-red-50 hover:text-red-600"
+                          }`}
+                        >
+                          {item.name}
+                        </Link>
+                      ))}
+                    </div>
+                    
+                    {/* Categories Section */}
+                    <div className="px-4 pb-4">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
+                        Categories
+                      </div>
+                      
+                      <Accordion type="single" collapsible className="w-full space-y-2">
+                        {categories.map((category) => {
+                          const categorySubcategories = getSubcategoriesForCategory(category.id);
+                          
+                          if (categorySubcategories.length > 0) {
+                            return (
+                              <AccordionItem 
+                                key={category.id} 
+                                value={`category-${category.id}`}
+                                className="border-0 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
+                              >
+                                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-50 rounded-xl">
+                                  <div className="flex items-center justify-between w-full">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                      <span className={`font-medium ${
+                                        isActiveLink(`/category/${category.slug}`) 
+                                          ? "text-red-600" 
+                                          : "text-gray-800"
+                                      }`}>
+                                        {category.name}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-4 pb-3">
+                                  <div className="space-y-1 ml-5 pl-3 border-l-2 border-red-100">
+                                    <Link
+                                      href={`/category/${category.slug}`}
+                                      className="block px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                      View All {category.name}
+                                    </Link>
+                                    {categorySubcategories.map((subcategory) => (
+                                      <Link
+                                        key={subcategory.id}
+                                        href={`/category/${category.slug}?subcategory=${subcategory.slug}`}
+                                        className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
+                                        onClick={() => {
+                                          setTimeout(() => {
+                                            window.location.href = `/category/${category.slug}?subcategory=${subcategory.slug}`;
+                                          }, 100);
+                                        }}
+                                      >
+                                        {subcategory.name}
+                                      </Link>
+                                    ))}
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+                            );
+                          } else {
+                            // Category without subcategories - simple link
+                            return (
+                              <div key={category.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                                <Link
+                                  href={`/category/${category.slug}`}
+                                  className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                                    isActiveLink(`/category/${category.slug}`)
+                                      ? "bg-red-500 text-white shadow-md"
+                                      : "text-gray-700 hover:bg-red-50 hover:text-red-600"
+                                  }`}
+                                >
+                                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                  {category.name}
+                                </Link>
+                              </div>
+                            );
+                          }
+                        })}
+                      </Accordion>
+                    </div>
+                  </div>
+                  {/* User Actions Section */}
+                  <div className="border-t border-gray-100 bg-gray-50 px-4 py-4">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
+                      Account
+                    </div>
+                    <div className="space-y-2">
+                      {user ? (
+                        <>
+                          <Link href="/profile">
+                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
+                              <div className="p-2 bg-blue-100 rounded-full">
+                                <User className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">My Profile</div>
+                                <div className="text-xs text-gray-500">{user.firstName}</div>
+                              </div>
+                            </div>
+                          </Link>
+                          
+                          <Link href="/wishlist">
+                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
+                              <div className="p-2 bg-pink-100 rounded-full">
+                                <Heart className="h-4 w-4 text-pink-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">Wishlist</div>
+                                <div className="text-xs text-gray-500">
+                                  {wishlistCount} items saved
+                                </div>
+                              </div>
+                              {wishlistCount > 0 && (
+                                <span className="bg-pink-100 text-pink-600 px-2 py-1 rounded-full text-xs font-medium">
+                                  {wishlistCount}
+                                </span>
+                              )}
+                            </div>
+                          </Link>
+                          
+                          <Link href="/cart">
+                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
+                              <div className="p-2 bg-green-100 rounded-full">
+                                <ShoppingCart className="h-4 w-4 text-green-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">Shopping Cart</div>
+                                <div className="text-xs text-gray-500">
+                                  {cartCount} items in cart
+                                </div>
+                              </div>
+                              {cartCount > 0 && (
+                                <span className="bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs font-medium">
+                                  {cartCount}
+                                </span>
+                              )}
+                            </div>
+                          </Link>
+                          
+                          <div className="pt-3 mt-3 border-t border-gray-200">
+                            <button
+                              onClick={handleLogout}
+                              className="flex items-center gap-3 px-3 py-3 rounded-xl bg-red-50 hover:bg-red-100 transition-all duration-200 border border-red-100 w-full"
+                            >
+                              <div className="p-2 bg-red-100 rounded-full">
+                                <LogOut className="h-4 w-4 text-red-600" />
+                              </div>
+                              <div className="flex-1 text-left">
+                                <div className="text-sm font-medium text-red-700">Logout</div>
+                                <div className="text-xs text-red-500">Sign out of your account</div>
+                              </div>
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Link href="/auth/login">
+                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
+                              <div className="p-2 bg-blue-100 rounded-full">
+                                <User className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">Login / Signup</div>
+                                <div className="text-xs text-gray-500">Access your account</div>
+                              </div>
+                            </div>
+                          </Link>
+                          
+                          <Link href="/wishlist">
+                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
+                              <div className="p-2 bg-pink-100 rounded-full">
+                                <Heart className="h-4 w-4 text-pink-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">Wishlist</div>
+                                <div className="text-xs text-gray-500">
+                                  {wishlistCount} items saved
+                                </div>
+                              </div>
+                              {wishlistCount > 0 && (
+                                <span className="bg-pink-100 text-pink-600 px-2 py-1 rounded-full text-xs font-medium">
+                                  {wishlistCount}
+                                </span>
+                              )}
+                            </div>
+                          </Link>
+                          
+                          <Link href="/cart">
+                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
+                              <div className="p-2 bg-green-100 rounded-full">
+                                <ShoppingCart className="h-4 w-4 text-green-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">Shopping Cart</div>
+                                <div className="text-xs text-gray-500">
+                                  {cartCount} items in cart
+                                </div>
+                              </div>
+                              {cartCount > 0 && (
+                                <span className="bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs font-medium">
+                                  {cartCount}
+                                </span>
+                              )}
+                            </div>
+                          </Link>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </SheetContent>
               </Sheet>
             </div>

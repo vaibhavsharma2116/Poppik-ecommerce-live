@@ -6,6 +6,6 @@ export default defineConfig({
   out: "./migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL || "postgresql://127.0.0.1:5432/test_db",
+    url: process.env.DATABASE_URL || "postgresql://127.0.0.1:5432/my_pgdb",
   },
 });

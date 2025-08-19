@@ -451,14 +451,14 @@ export default function Home() {
           {bestsellersLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i} className="overflow-hidden">
-                  <Skeleton className="h-72 w-full" />
-                  <CardContent className="p-6 space-y-3">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-6 w-1/2" />
-                  </CardContent>
-                </Card>
+                <div key={i} className="overflow-hidden bg-gray-100 rounded-lg animate-pulse">
+                  <div className="h-72 w-full bg-gray-200" />
+                  <div className="p-6 space-y-3">
+                    <div className="h-4 w-full bg-gray-200 rounded" />
+                    <div className="h-4 w-3/4 bg-gray-200 rounded" />
+                    <div className="h-6 w-1/2 bg-gray-200 rounded" />
+                  </div>
+                </div>
               ))}
             </div>
           ) : bestsellerProducts && bestsellerProducts.length > 0 ? (

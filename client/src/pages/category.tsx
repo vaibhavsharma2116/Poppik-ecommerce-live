@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -43,14 +42,14 @@ export default function CategoryPage() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const subcategoryParam = urlParams.get('subcategory');
-    
+
     if (subcategoryParam && subcategories.length > 0) {
       // Find subcategory by slug
       const subcategory = subcategories.find(sub => 
         sub.slug === subcategoryParam || 
         sub.name.toLowerCase().replace(/\s+/g, '-') === subcategoryParam
       );
-      
+
       if (subcategory) {
         setSelectedSubcategoryId(subcategory.id.toString());
       }
@@ -142,104 +141,24 @@ export default function CategoryPage() {
         </nav>
 
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 max-w-4xl mx-auto">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
+        <div className="text-center mb-8 sm:mb-10 md:mb-12 px-2 sm:px-0">
+          <div className="bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-xl sm:shadow-2xl border border-white/20 max-w-4xl mx-auto">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-3 sm:mb-4 md:mb-6 leading-tight">
               {categoryLoading ? "Loading..." : category?.name}
             </h1>
-            <p className="text-xl text-gray-700 font-medium">
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-700 font-medium">
               Discover our amazing {category?.name?.toLowerCase()} collection
             </p>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 space-y-4 lg:space-y-0">
-          <div className="flex items-center space-x-4">
-            {/* Subcategory Filter */}
-            {subcategories.length > 0 && (
-              <Select value={selectedSubcategoryId || "all"} onValueChange={handleSubcategoryChange}>
-                <SelectTrigger className="w-64 bg-white/70 backdrop-blur-md border border-white/20 rounded-xl shadow-lg">
-                  <SelectValue placeholder="Select subcategory" />
-                </SelectTrigger>
-                <SelectContent className="bg-white/90 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl">
-                  <SelectItem value="all" className="rounded-lg">
-                    All Products ({allProducts.length})
-                  </SelectItem>
-                  {subcategories.map((subcategory) => {
-                    const actualCount = allProducts.filter(product => 
-                      product.subcategory && 
-                      product.subcategory.toLowerCase() === subcategory.name.toLowerCase()
-                    ).length;
-                    
-                    return (
-                      <SelectItem key={subcategory.id} value={subcategory.id.toString()} className="rounded-lg">
-                        {subcategory.name} ({actualCount})
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* View Mode Toggle */}
-            <div className="flex items-center bg-white/70 backdrop-blur-md border border-white/20 rounded-2xl p-1 shadow-lg">
-              <Button
-                variant={viewMode === "grid" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("grid")}
-                className={`rounded-xl transition-all duration-200 ${viewMode === "grid" ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg" : "hover:bg-gray-100"}`}
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "list" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-                className={`rounded-xl transition-all duration-200 ${viewMode === "list" ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg" : "hover:bg-gray-100"}`}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-64 bg-white/70 backdrop-blur-md border border-white/20 rounded-xl shadow-lg">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent className="bg-white/90 backdrop-blur-md border border-white/20 rounded-xl shadow-2xl">
-                <SelectItem value="popular" className="rounded-lg">Most Popular</SelectItem>
-                <SelectItem value="price-low" className="rounded-lg">Price: Low to High</SelectItem>
-                <SelectItem value="price-high" className="rounded-lg">Price: High to Low</SelectItem>
-                <SelectItem value="newest" className="rounded-lg">Newest First</SelectItem>
-                <SelectItem value="rating" className="rounded-lg">Highest Rated</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Filter and Products Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Desktop Filter Sidebar */}
-          <div className="hidden lg:block">
-            <div className="sticky top-4">
-              <DynamicFilter
-                products={productsToShow || []}
-                categories={categories || []}
-                onFilterChange={handleFilterChange}
-                className="bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20 p-6"
-              />
-            </div>
-          </div>
-
-          {/* Mobile Filter Sheet */}
-          <div className="lg:hidden mb-6">
+         <div className="lg:hidden mb-4 sm:mb-6 order-last lg:order-first">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" className="w-full bg-white/70 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200">
+                <Button variant="outline" className="w-full bg-white/70 backdrop-blur-md border border-white/20 rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 py-3 sm:py-4 min-h-[48px] touch-target">
                   <SlidersHorizontal className="h-4 w-4 mr-2" />
-                  Filters
+                  <span className="text-sm sm:text-base font-medium">Filters</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-80 bg-white/90 backdrop-blur-md">
@@ -259,6 +178,23 @@ export default function CategoryPage() {
               </SheetContent>
             </Sheet>
           </div>
+
+        {/* Filter and Products Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Desktop Filter Sidebar */}
+          <div className="hidden lg:block">
+            <div className="sticky top-4">
+              <DynamicFilter
+                products={productsToShow || []}
+                categories={categories || []}
+                onFilterChange={handleFilterChange}
+                className="bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20 p-6"
+              />
+            </div>
+          </div>
+
+          {/* Mobile Filter Sheet */}
+        
 
           {/* Products Display */}
           <div className="lg:col-span-3">
@@ -289,14 +225,15 @@ export default function CategoryPage() {
                 {/* Products Grid/List */}
                 {sortedProducts.length > 0 ? (
                   <div className={viewMode === "grid" 
-                    ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8" 
-                    : "space-y-6"
+                    ? "mobile-category-grid grid grid-cols-2 " 
+                    : "space-y-4 sm:space-y-6"
                   }>
                     {sortedProducts.map((product) => (
                       <ProductCard 
                         key={product.id} 
                         product={product} 
                         viewMode={viewMode}
+                        className="mobile-category-product-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300" 
                       />
                     ))}
                   </div>

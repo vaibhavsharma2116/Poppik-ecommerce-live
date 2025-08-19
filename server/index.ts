@@ -1,5 +1,6 @@
 
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { config } from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -7,9 +8,25 @@ import { setupVite, serveStatic, log } from "./vite";
 // Load environment variables
 config();
 
+// Optimize for production
+if (process.env.NODE_ENV === 'production') {
+  process.env.NODE_OPTIONS = '--max-old-space-size=512';
+}
+
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Enable compression for better performance
+app.use(compression());
+
+// Trust proxy for load balancer
+app.set('trust proxy', 1);
+
+// Optimize JSON parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+
+// Disable X-Powered-By header for security
+app.disable('x-powered-by');
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -64,7 +81,7 @@ app.use((req, res, next) => {
   // ALWAYS serve the app on port 8000
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = 8000;
+  const port = 8080;
   server.listen({
     port,
     host: "0.0.0.0",

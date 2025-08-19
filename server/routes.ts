@@ -7,13 +7,40 @@ import path from "path";
 import fs from "fs";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import sharp from "sharp";
+
+// Simple rate limiting
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX = 100; // 100 requests per minute
+
+function rateLimit(req: any, res: any, next: any) {
+  const clientIP = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW;
+
+  if (!rateLimitMap.has(clientIP)) {
+    rateLimitMap.set(clientIP, []);
+  }
+
+  const requests = rateLimitMap.get(clientIP);
+  const recentRequests = requests.filter((time: number) => time > windowStart);
+  
+  if (recentRequests.length >= RATE_LIMIT_MAX) {
+    return res.status(429).json({ error: "Too many requests" });
+  }
+
+  recentRequests.push(now);
+  rateLimitMap.set(clientIP, recentRequests);
+  next();
+}
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, gte, lte, like, isNull, asc, or, sql } from "drizzle-orm";
 import { Pool } from "pg";
 import { ordersTable, orderItemsTable, users, sliders, reviews } from "../shared/schema";
 // Database connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/test_db",
+  connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/my_pgdb",
 });
 
 const db = drizzle(pool);
@@ -65,12 +92,25 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Health check endpoint
-  app.get("/api/health", (req, res) => {
+  // Apply rate limiting to all API routes
+  app.use("/api", rateLimit);
+
+  // Health check endpoint with database status
+  app.get("/api/health", async (req, res) => {
+    let dbStatus = "disconnected";
+    try {
+      await db.select().from(users).limit(1);
+      dbStatus = "connected";
+    } catch (error) {
+      dbStatus = "disconnected";
+    }
+
     res.json({ 
       status: "OK", 
       message: "API server is running",
-      timestamp: new Date().toISOString()
+      database: dbStatus,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
     });
   });
 
@@ -366,18 +406,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Serve uploaded images
+  // Serve uploaded images with optimization
   app.use("/api/images", (req, res, next) => {
-    const imagePath = path.join(uploadsDir, req.path);
+    const imagePath = path.join(uploadsDir, req.path.split('?')[0]);
 
     // Check if file exists
     if (!fs.existsSync(imagePath)) {
       return res.status(404).json({ error: "Image not found" });
     }
 
-    // Set appropriate content type based on file extension
+    // Parse query parameters for optimization
+    const { w: width, h: height, q: quality, format } = req.query;
+    
+    // Set appropriate content type based on format or file extension
     const extension = path.extname(imagePath).toLowerCase();
-    const contentType = {
+    let contentType = {
       '.png': 'image/png',
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
@@ -385,8 +428,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '.webp': 'image/webp'
     }[extension] || 'image/jpeg';
 
-    res.set('Content-Type', contentType);
-    res.sendFile(imagePath);
+    // Override content type if format is specified
+    if (format === 'webp') contentType = 'image/webp';
+    if (format === 'jpeg') contentType = 'image/jpeg';
+    if (format === 'png') contentType = 'image/png';
+
+    // Create cache key based on file and parameters
+    const params = `${width || ''}-${height || ''}-${quality || ''}-${format || ''}`;
+    const cacheKey = `${req.path}-${params}`;
+    const fileStats = fs.statSync(imagePath);
+
+    // Set optimized caching headers
+    res.set({
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=31536000, immutable', // 1 year with immutable
+      'ETag': `"${cacheKey}-${fileStats.mtime.getTime()}"`,
+      'Last-Modified': fileStats.mtime.toUTCString(),
+      'Vary': 'Accept-Encoding'
+    });
+
+    // Handle conditional requests
+    const ifNoneMatch = req.headers['if-none-match'];
+    const ifModifiedSince = req.headers['if-modified-since'];
+    const etag = res.getHeader('ETag');
+    const lastModified = res.getHeader('Last-Modified');
+
+    if ((ifNoneMatch && ifNoneMatch === etag) || 
+        (ifModifiedSince && new Date(ifModifiedSince) >= new Date(lastModified))) {
+      return res.status(304).end();
+    }
+
+    // Process image with Sharp if parameters are provided
+    if (width || height || quality || format) {
+      try {
+        let pipeline = sharp(imagePath);
+
+        // Resize if width or height specified
+        if (width || height) {
+          pipeline = pipeline.resize(
+            width ? parseInt(width as string) : undefined,
+            height ? parseInt(height as string) : undefined,
+            { 
+              fit: 'cover', 
+              position: 'center',
+              withoutEnlargement: true
+            }
+          );
+        }
+
+        // Set quality and format
+        const qual = quality ? parseInt(quality as string) : 80;
+        
+        if (format === 'webp') {
+          pipeline = pipeline.webp({ quality: qual });
+        } else if (format === 'jpeg' || extension === '.jpg' || extension === '.jpeg') {
+          pipeline = pipeline.jpeg({ quality: qual, progressive: true });
+        } else if (format === 'png' || extension === '.png') {
+          pipeline = pipeline.png({ quality: qual, progressive: true });
+        }
+
+        // Stream the processed image
+        pipeline.pipe(res);
+      } catch (error) {
+        console.error('Image processing error:', error);
+        res.sendFile(imagePath);
+      }
+    } else {
+      res.sendFile(imagePath);
+    }
   });
 
   // Image upload API
