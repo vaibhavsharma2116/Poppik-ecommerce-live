@@ -122,18 +122,31 @@ export default function AdminCategories() {
   // Subcategory mutations
   const createSubcategoryMutation = useMutation({
     mutationFn: async (subcategory: Omit<Subcategory, 'id' | 'productCount'>) => {
+      console.log('Creating subcategory:', subcategory);
       const response = await fetch('/api/subcategories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(subcategory)
       });
-      if (!response.ok) throw new Error('Failed to create subcategory');
-      return response.json();
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Subcategory creation failed:', data);
+        throw new Error(data.error || 'Failed to create subcategory');
+      }
+      
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subcategories'] });
       setIsAddSubcategoryModalOpen(false);
       setSubcategoryFormData({ name: '', slug: '', description: '', categoryId: '', status: 'Active' });
+    },
+    onError: (error: Error) => {
+      console.error('Subcategory creation error:', error);
+      // You can add a toast notification here if you have a toast system
+      alert(`Error creating subcategory: ${error.message}`);
     }
   });
 
@@ -275,11 +288,34 @@ export default function AdminCategories() {
   };
 
   const handleAddSubcategory = () => {
+    // Validation
+    if (!subcategoryFormData.name.trim()) {
+      alert('Subcategory name is required');
+      return;
+    }
+    
+    if (!subcategoryFormData.description.trim()) {
+      alert('Subcategory description is required');
+      return;
+    }
+    
+    if (!subcategoryFormData.categoryId) {
+      alert('Please select a parent category');
+      return;
+    }
+    
+    const categoryId = parseInt(subcategoryFormData.categoryId);
+    if (isNaN(categoryId) || categoryId <= 0) {
+      alert('Please select a valid parent category');
+      return;
+    }
+    
     const slug = subcategoryFormData.slug || subcategoryFormData.name.toLowerCase().replace(/\s+/g, '-');
+    
     createSubcategoryMutation.mutate({
       ...subcategoryFormData,
       slug,
-      categoryId: parseInt(subcategoryFormData.categoryId)
+      categoryId
     });
   };
 

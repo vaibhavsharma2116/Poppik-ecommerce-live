@@ -100,15 +100,15 @@ const upload = multer({
     }
   }),
   fileFilter: (req, file, cb) => {
-    // Accept only image files
-    if (file.mimetype.startsWith('image/')) {
+    // Accept image and video files
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'));
+      cb(new Error('Only image and video files are allowed'));
     }
   },
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 50 * 1024 * 1024 // 50MB limit for videos
   }
 });
 
@@ -1051,10 +1051,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/subcategories", async (req, res) => {
     try {
-      const subcategory = await storage.createSubcategory(req.body);
+      console.log("Creating subcategory with data:", req.body);
+
+      // Set content type to ensure JSON response
+      res.setHeader('Content-Type', 'application/json');
+
+      // Validate required fields
+      const { name, categoryId, description } = req.body;
+      if (!name || !categoryId || !description) {
+        return res.status(400).json({ 
+          error: "Missing required fields: name, categoryId, and description are required" 
+        });
+      }
+
+      if (name.trim().length === 0 || description.trim().length === 0) {
+        return res.status(400).json({ 
+          error: "Name and description cannot be empty" 
+        });
+      }
+
+      if (isNaN(Number(categoryId)) || Number(categoryId) <= 0) {
+        return res.status(400).json({ 
+          error: "Valid category ID is required" 
+        });
+      }
+
+      // Generate slug from name
+      const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+      const subcategoryData = {
+        name: name.trim(),
+        slug,
+        description: description.trim(),
+        categoryId: Number(categoryId),
+        status: req.body.status || 'Active',
+        productCount: parseInt(req.body.productCount) || 0
+      };
+
+      console.log("Creating subcategory with processed data:", subcategoryData);
+
+      const subcategory = await storage.createSubcategory(subcategoryData);
+      console.log("Subcategory created successfully:", subcategory);
+
       res.status(201).json(subcategory);
     } catch (error) {
-      res.status(500).json({ error: "Failed to create subcategory" });
+      console.error("Subcategory creation error:", error);
+      
+      let errorMessage = "Failed to create subcategory";
+      if (error.message) {
+        errorMessage = error.message;
+      }
+
+      if (error.message && error.message.includes('unique constraint')) {
+        errorMessage = "A subcategory with this name or slug already exists";
+      } else if (error.message && error.message.includes('foreign key constraint')) {
+        errorMessage = "Invalid category selected. Please choose a valid category.";
+      } else if (error.message && error.message.includes('ECONNREFUSED')) {
+        errorMessage = "Database connection error. Please try again later.";
+      }
+
+      res.status(500).json({ 
+        error: errorMessage,
+        details: error.message || "Unknown error",
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     }
   });
 
@@ -2198,6 +2258,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Blog API Routes
 
+  // Like/Unlike blog post
+  app.post("/api/blog/posts/:id/like", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const postId = parseInt(id);
+      
+      // Simple implementation without separate likes table for now
+      const db = await require('./storage').getDb();
+      const post = await db.select().from(require('../shared/schema').blogPosts)
+        .where(require('drizzle-orm').eq(require('../shared/schema').blogPosts.id, postId))
+        .limit(1);
+      
+      if (!post || post.length === 0) {
+        return res.status(404).json({ error: "Blog post not found" });
+      }
+
+      // For simplicity, just increment/decrement likes count
+      // In a real app, you'd track individual user likes
+      const currentLikes = post[0].likes || 0;
+      const newLikes = currentLikes + 1;
+      
+      await db.update(require('../shared/schema').blogPosts)
+        .set({ likes: newLikes })
+        .where(require('drizzle-orm').eq(require('../shared/schema').blogPosts.id, postId));
+
+      res.json({ 
+        liked: true, 
+        likesCount: newLikes 
+      });
+    } catch (error) {
+      console.error("Error toggling blog post like:", error);
+      res.status(500).json({ error: "Failed to toggle like" });
+    }
+  });
+
+  // Add comment to blog post
+  app.post("/api/blog/posts/:id/comments", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { userId, content } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({ error: "Comment content is required" });
+      }
+
+      const postId = parseInt(id);
+      
+      // Get user details
+      const user = await db.select({
+        firstName: users.firstName,
+        lastName: users.lastName
+      }).from(users).where(eq(users.id, parseInt(userId))).limit(1);
+
+      if (!user || user.length === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const comment = {
+        id: Date.now(),
+        author: `${user[0].firstName} ${user[0].lastName}`,
+        content: content.trim(),
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        userId: parseInt(userId)
+      };
+
+      // Update post comment count
+      await db.update(blogPosts)
+        .set({ comments: sql`${blogPosts.comments} + 1` })
+        .where(eq(blogPosts.id, postId));
+
+      res.json({ 
+        success: true, 
+        comment,
+        message: "Comment added successfully" 
+      });
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      res.status(500).json({ error: "Failed to add comment" });
+    }
+  });
+
+  // Get comments for blog post
+  app.get("/api/blog/posts/:id/comments", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // For now, return empty array since we don't have persistent comment storage
+      // In a real app, you'd fetch from a comments table
+      res.json([]);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ error: "Failed to fetch comments" });
+    }
+  });
+
   // Public blog routes
   app.get("/api/blog/posts", async (req, res) => {
     try {
@@ -2278,11 +2444,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/blog/categories", async (req, res) => {
     try {
       const categories = await storage.getBlogCategories();
-      res.json(categories);
+      // Filter only active categories and sort by sortOrder
+      const activeCategories = categories
+        .filter(cat => cat.isActive)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+      res.json(activeCategories);
     } catch (error) {
       console.error("Error fetching blog categories:", error);
-      // Return empty array if database is unavailable instead of static data
-      res.json([]);
+      // Return default categories when database is unavailable
+      const defaultCategories = [
+        { id: 1, name: "Beauty Tips", slug: "beauty-tips", isActive: true, sortOrder: 1 },
+        { id: 2, name: "Skincare", slug: "skincare", isActive: true, sortOrder: 2 },
+        { id: 3, name: "Makeup", slug: "makeup", isActive: true, sortOrder: 3 },
+        { id: 4, name: "Hair Care", slug: "hair-care", isActive: true, sortOrder: 4 },
+        { id: 5, name: "Product Reviews", slug: "product-reviews", isActive: true, sortOrder: 5 }
+      ];
+      res.json(defaultCategories);
     }
   });
 

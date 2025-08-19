@@ -1,4 +1,4 @@
-import { pgTable, text, integer, numeric, boolean, serial, jsonb, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, numeric, boolean, serial, jsonb, varchar, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -205,24 +205,24 @@ export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
 
 // Blog Posts Table
-export const blogPosts = pgTable("blog_posts", {
-  id: serial("id").primaryKey(),
-  title: varchar("title", { length: 255 }).notNull(),
-  slug: varchar("slug", { length: 255 }).notNull().unique(),
-  excerpt: text("excerpt").notNull(),
-  content: text("content").notNull(),
-  author: varchar("author", { length: 255 }).notNull(),
-  category: varchar("category", { length: 100 }).notNull(),
-  tags: text("tags"), // JSON string array
-  imageUrl: text("image_url"),
-  videoUrl: text("video_url"),
-  featured: boolean("featured").default(false),
-  published: boolean("published").default(true),
-  likes: integer("likes").default(0),
-  comments: integer("comments").default(0),
-  readTime: varchar("read_time", { length: 50 }).default("5 min read"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const blogPosts = pgTable('blog_posts', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  slug: varchar('slug', { length: 255 }).notNull().unique(),
+  excerpt: text('excerpt'),
+  content: text('content').notNull(),
+  author: varchar('author', { length: 100 }).notNull(),
+  category: varchar('category', { length: 100 }).notNull(),
+  tags: text('tags').default('[]'), // Store as JSON string
+  imageUrl: varchar('image_url', { length: 500 }),
+  videoUrl: varchar('video_url', { length: 500 }),
+  featured: boolean('featured').default(false),
+  published: boolean('published').default(true),
+  likes: integer('likes').default(0),
+  comments: integer('comments').default(0),
+  readTime: varchar('read_time', { length: 50 }).default('5 min read'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // Blog Categories Table
@@ -240,4 +240,3 @@ export type BlogPost = typeof blogPosts.$inferSelect;
 export type InsertBlogPost = typeof blogPosts.$inferInsert;
 export type BlogCategory = typeof blogCategories.$inferSelect;
 export type InsertBlogCategory = typeof blogCategories.$inferInsert;
-

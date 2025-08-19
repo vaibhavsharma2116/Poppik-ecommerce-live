@@ -38,6 +38,7 @@ import Contact from "@/pages/contact";
 import NotFound from "@/pages/not-found";
 import { lazy, Suspense, startTransition } from 'react';
 import AdminShades from "./pages/admin/shades";
+import BlogPost from "./pages/blog-post";
 
 const AdminBlog = lazy(() => import("./pages/admin/blog"));
 const AdminReports = lazy(() => import("./pages/admin/reports"));
@@ -93,6 +94,7 @@ function Router() {
             <Route path="/product/:slug" component={ProductDetail} />
             <Route path="/about" component={About} />
             <Route path="/blog" component={Blog} />
+          <Route path="/blog/:slug" component={BlogPost} />
             <Route path="/contact" component={Contact} />
             <Route path="/auth/login" component={Login} />
             <Route path="/auth/signup" component={Signup} />

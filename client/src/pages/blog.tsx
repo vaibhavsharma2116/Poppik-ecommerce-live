@@ -1,11 +1,10 @@
-
 import { useState, useEffect, startTransition } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, User, Search, Tag, ArrowRight, Heart, MessageCircle, Share2, Play } from "lucide-react";
+import { Calendar, Clock, User, Search, Tag, ArrowRight, Share2, Play } from "lucide-react";
 import { Link } from "wouter";
 
 interface BlogPost {
@@ -44,6 +43,10 @@ export default function Blog() {
   const [categories, setCategories] = useState<BlogCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  
+
 
   // Fetch blog posts
   useEffect(() => {
@@ -60,13 +63,13 @@ export default function Blog() {
       startTransition(() => {
         setLoading(true);
       });
-      
+
       const params = new URLSearchParams();
-      
+
       if (selectedCategory && selectedCategory !== "All") {
         params.append("category", selectedCategory);
       }
-      
+
       if (searchQuery.trim()) {
         params.append("search", searchQuery.trim());
       }
@@ -96,27 +99,35 @@ export default function Blog() {
       if (response.ok) {
         const data = await response.json();
         startTransition(() => {
-          setCategories(data);
+          setCategories(data.filter(cat => cat.isActive));
         });
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
+      // Fallback categories if API fails
+      startTransition(() => {
+        setCategories([
+          { id: 1, name: "Beauty Tips", slug: "beauty-tips", isActive: true, sortOrder: 1 },
+          { id: 2, name: "Skincare", slug: "skincare", isActive: true, sortOrder: 2 },
+          { id: 3, name: "Makeup", slug: "makeup", isActive: true, sortOrder: 3 }
+        ]);
+      });
     }
   };
 
   const filteredPosts = blogPosts.filter(post => {
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       post.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
       post.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+
     const matchesCategory = selectedCategory === "All" || post.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
   const featuredPosts = blogPosts.filter(post => post.featured);
 
-  const allCategories = ["All", ...categories.filter(cat => cat.isActive).map(cat => cat.name)];
+  const allCategories = ["All", ...categories.map(cat => cat.name)];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
@@ -138,8 +149,9 @@ export default function Blog() {
                   placeholder="Search articles..."
                   value={searchQuery}
                   onChange={(e) => {
+                    const value = e.target.value;
                     startTransition(() => {
-                      setSearchQuery(e.target.value);
+                      setSearchQuery(value);
                     });
                   }}
                   className="pl-10 py-3 text-gray-900"
@@ -208,9 +220,15 @@ export default function Blog() {
                     />
                     {post.videoUrl && (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="bg-black/60 rounded-full p-3 group-hover:scale-110 transition-transform duration-300">
-                          <Play className="h-6 w-6 text-white fill-white" />
-                        </div>
+                        <video
+                          className="w-full h-full object-cover"
+                          controls
+                          preload="metadata"
+                          poster={post.imageUrl}
+                        >
+                          <source src={post.videoUrl} type="video/mp4" />
+                          Your browser does not support the video tag.
+                        </video>
                       </div>
                     )}
                     <div className="absolute top-4 left-4">
@@ -248,12 +266,8 @@ export default function Blog() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <div className="flex items-center gap-1">
-                          <Heart className="h-4 w-4" />
-                          <span>{post.likes}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MessageCircle className="h-4 w-4" />
-                          <span>{post.comments}</span>
+                          <Share2 className="h-4 w-4" />
+                          <span>Share</span>
                         </div>
                       </div>
                       <Link href={`/blog/${post.slug}`}>
@@ -286,18 +300,18 @@ export default function Blog() {
                 <div className="text-6xl mb-4">📝</div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No articles found</h3>
                 <p className="text-gray-600 mb-4">
-                  {searchQuery 
+                  {searchQuery
                     ? `No articles match "${searchQuery}". Try different keywords.`
                     : "No articles available in this category yet."
                   }
                 </p>
                 {searchQuery && (
-                  <Button 
+                  <Button
                     onClick={() => {
                       startTransition(() => {
                         setSearchQuery("");
                       });
-                    }} 
+                    }}
                     variant="outline"
                   >
                     Clear Search
@@ -316,9 +330,15 @@ export default function Blog() {
                       />
                       {post.videoUrl && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="bg-black/60 rounded-full p-2 group-hover:scale-110 transition-transform duration-300">
-                            <Play className="h-5 w-5 text-white fill-white" />
-                          </div>
+                          <video
+                            className="w-full h-full object-cover"
+                            controls
+                            preload="metadata"
+                            poster={post.imageUrl}
+                          >
+                            <source src={post.videoUrl} type="video/mp4" />
+                            Your browser does not support the video tag.
+                          </video>
                         </div>
                       )}
                     </div>
@@ -365,12 +385,8 @@ export default function Blog() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 text-sm text-gray-500">
                           <div className="flex items-center gap-1">
-                            <Heart className="h-4 w-4" />
-                            <span>{post.likes}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MessageCircle className="h-4 w-4" />
-                            <span>{post.comments}</span>
+                            <Share2 className="h-4 w-4" />
+                            <span>Share</span>
                           </div>
                         </div>
                         <Link href={`/blog/${post.slug}`}>

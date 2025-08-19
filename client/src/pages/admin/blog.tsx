@@ -40,7 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 
@@ -62,6 +62,21 @@ interface BlogPost {
   readTime: string;
   createdAt: string;
   updatedAt: string;
+}
+
+// Assuming InsertBlogPost is a type used for creating new posts in the database
+interface InsertBlogPost {
+  title: string;
+  excerpt?: string;
+  content: string;
+  author: string;
+  category: string;
+  tags?: string[] | string;
+  imageUrl?: string;
+  videoUrl?: string;
+  featured?: boolean;
+  published?: boolean;
+  readTime?: string;
 }
 
 interface BlogCategory {
@@ -150,7 +165,11 @@ export default function AdminBlog() {
     try {
       // Validate required fields
       if (!formData.title || !formData.content || !formData.author || !formData.category) {
-        alert('Please fill in all required fields (Title, Content, Author, Category)');
+        toast({ 
+          title: 'Validation Error',
+          description: 'Please fill in all required fields (Title, Content, Author, Category)',
+          variant: "destructive" 
+        });
         return;
       }
 
@@ -165,7 +184,7 @@ export default function AdminBlog() {
         }
       });
 
-      // Add files
+      // Add files if they exist
       if (files.image) {
         submitFormData.append('image', files.image);
       }
@@ -189,13 +208,16 @@ export default function AdminBlog() {
         resetForm();
         setShowAddModal(false);
         setEditingPost(null);
-        toast({ title: editingPost ? 'Blog post updated successfully!' : 'Blog post created successfully!' });
+        toast({ 
+          title: 'Success',
+          description: editingPost ? 'Blog post updated successfully!' : 'Blog post created successfully!' 
+        });
       } else {
         const error = await response.json();
         console.error('Server error:', error);
         toast({ 
           title: 'Failed to save blog post', 
-          description: error.error || 'Please check your input and try again.',
+          description: error.message || error.error || 'Please check your input and try again.',
           variant: "destructive" 
         });
       }
@@ -463,10 +485,16 @@ export default function AdminBlog() {
                       className="w-full h-48 object-cover"
                     />
                     {post.videoUrl && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="bg-black/60 rounded-full p-2">
-                          <Play className="h-5 w-5 text-white fill-white" />
-                        </div>
+                      <div className="absolute inset-0">
+                        <video 
+                          className="w-full h-full object-cover"
+                          controls
+                          preload="metadata"
+                          poster={post.imageUrl}
+                        >
+                          <source src={post.videoUrl} type="video/mp4" />
+                          Your browser does not support the video tag.
+                        </video>
                       </div>
                     )}
                     <div className="absolute top-2 right-2 flex gap-2">
@@ -650,7 +678,7 @@ export default function AdminBlog() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteCategory(category.id)}
+                          onClick={() => deleteCategoryMutation.mutate(category.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -727,7 +755,7 @@ export default function AdminBlog() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {blogCategories.map((category) => (
+                    {categories.map((category) => (
                       <SelectItem key={category.id} value={category.name}>
                         {category.name}
                       </SelectItem>

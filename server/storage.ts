@@ -35,8 +35,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/my_pgdb",
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
   max: 20,
   min: 2, // Keep minimum 2 connections alive
   idleTimeoutMillis: 300000, // 5 minutes instead of 30 seconds
@@ -509,10 +509,44 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(subcategories).where(eq(subcategories.categoryId, categoryId));
   }
 
-  async createSubcategory(subcategory: InsertSubcategory): Promise<Subcategory> {
-    const db = await getDb();
-    const result = await db.insert(subcategories).values(subcategory).returning();
-    return result[0];
+  async createSubcategory(subcategoryData: InsertSubcategory): Promise<Subcategory> {
+    try {
+      const db = await getDb();
+      console.log("Creating subcategory with data:", subcategoryData);
+
+      // Validate required fields
+      if (!subcategoryData.name || !subcategoryData.categoryId || !subcategoryData.description) {
+        throw new Error("Missing required fields: name, categoryId, and description are required");
+      }
+
+      // Check if slug already exists
+      const existingSubcategory = await db.select().from(subcategories).where(eq(subcategories.slug, subcategoryData.slug)).limit(1);
+      if (existingSubcategory.length > 0) {
+        throw new Error(`Subcategory with slug '${subcategoryData.slug}' already exists`);
+      }
+
+      const result = await db.insert(subcategories).values(subcategoryData).returning();
+
+      if (!result || result.length === 0) {
+        throw new Error("Failed to insert subcategory into database");
+      }
+
+      console.log("Subcategory created successfully:", result[0]);
+      return result[0];
+    } catch (error) {
+      console.error("Error creating subcategory:", error);
+
+      // Provide more specific error messages
+      if (error.message.includes('unique constraint')) {
+        throw new Error("A subcategory with this name or slug already exists");
+      } else if (error.message.includes('foreign key constraint')) {
+        throw new Error("Invalid category selected. Please choose a valid category.");
+      } else if (error.message.includes('not null constraint')) {
+        throw new Error("Missing required subcategory information");
+      } else {
+        throw new Error(error.message || "Failed to create subcategory");
+      }
+    }
   }
 
   async updateSubcategory(id: number, subcategory: Partial<InsertSubcategory>): Promise<Subcategory | undefined> {
@@ -954,27 +988,40 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Create blog post
-  async createBlogPost(post: InsertBlogPost): Promise<BlogPost> {
+  async createBlogPost(postData: InsertBlogPost): Promise<BlogPost> {
     try {
       const db = await getDb();
-      const result = await db.insert(blogPosts).values(post).returning();
+      
+      // Generate slug from title
+      const slug = postData.title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim();
+
+      // Ensure tags is properly formatted
+      const tags = Array.isArray(postData.tags) ? 
+        JSON.stringify(postData.tags) : 
+        typeof postData.tags === 'string' ? postData.tags : '[]';
+
+      const postToInsert = {
+        ...postData,
+        slug,
+        tags,
+        likes: 0,
+        comments: 0,
+        published: postData.published ?? true,
+        featured: postData.featured ?? false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const result = await db.insert(blogPosts).values(postToInsert).returning();
       return result[0];
     } catch (error) {
       console.error("Database error in createBlogPost:", error);
-      // If database is not available, create a mock response for development
-      const mockPost: BlogPost = {
-        id: Date.now(),
-        title: post.title,
-        excerpt: post.excerpt || "",
-        content: post.content,
-        category: post.category,
-        imageUrl: post.imageUrl || "",
-        tags: post.tags || [],
-        featured: post.featured || false,
-        author: post.author || "Admin",
-        createdAt: new Date().toISOString(),
-      };
-      return mockPost;
+      throw error;
     }
   }
 
@@ -1138,6 +1185,51 @@ export class DatabaseStorage implements IStorage {
       return result.length > 0;
     } catch (error) {
       console.error("Error deleting blog category:", error);
+      throw error;
+    }
+  }
+
+  // Toggle blog post like
+  async toggleBlogPostLike(postId: number, userId: number): Promise<{ liked: boolean; likesCount: number }> {
+    try {
+      const db = await getDb();
+      
+      // Check if user already liked this post
+      const existingLike = await db
+        .select()
+        .from(sql`blog_post_likes`)
+        .where(sql`post_id = ${postId} AND user_id = ${userId}`)
+        .limit(1);
+
+      let liked = false;
+      
+      if (existingLike.length > 0) {
+        // Unlike - remove the like
+        await db.delete(sql`blog_post_likes`).where(sql`post_id = ${postId} AND user_id = ${userId}`);
+        await db.update(blogPosts).set({
+          likes: sql`${blogPosts.likes} - 1`
+        }).where(eq(blogPosts.id, postId));
+        liked = false;
+      } else {
+        // Like - add the like
+        await db.insert(sql`blog_post_likes`).values({
+          post_id: postId,
+          user_id: userId,
+          created_at: new Date()
+        });
+        await db.update(blogPosts).set({
+          likes: sql`${blogPosts.likes} + 1`
+        }).where(eq(blogPosts.id, postId));
+        liked = true;
+      }
+
+      // Get updated likes count
+      const post = await db.select({ likes: blogPosts.likes }).from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
+      const likesCount = post[0]?.likes || 0;
+
+      return { liked, likesCount };
+    } catch (error) {
+      console.error("Error toggling blog post like:", error);
       throw error;
     }
   }
