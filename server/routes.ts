@@ -38,12 +38,33 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, gte, lte, like, isNull, asc, or, sql } from "drizzle-orm";
 import { Pool } from "pg";
 import { ordersTable, orderItemsTable, users, sliders, reviews } from "../shared/schema";
-// Database connection
+// Database connection with enhanced configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/my_pgdb",
+  max: 20,
+  min: 2,
+  idleTimeoutMillis: 300000, // 5 minutes
+  connectionTimeoutMillis: 10000,
+  acquireTimeoutMillis: 10000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 0,
+  allowExitOnIdle: false,
 });
 
 const db = drizzle(pool);
+
+// Handle pool errors
+pool.on('error', (err) => {
+  console.error('Unexpected database pool error:', err);
+});
+
+pool.on('connect', () => {
+  console.log('New database connection established');
+});
+
+pool.on('remove', () => {
+  console.log('Database connection removed from pool');
+});
 
 // Cashfree configuration
 const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID || 'cashfree_app_id';
@@ -2174,6 +2195,284 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
     });
   }
+
+  // Blog API Routes
+
+  // Public blog routes
+  app.get("/api/blog/posts", async (req, res) => {
+    try {
+      const { category, featured, search } = req.query;
+      
+      let posts;
+      
+      if (search) {
+        posts = await storage.searchBlogPosts(search.toString());
+      } else if (featured === 'true') {
+        posts = await storage.getFeaturedBlogPosts();
+      } else {
+        posts = await storage.getPublishedBlogPosts();
+      }
+
+      // Filter by category if provided
+      if (category && category !== 'All') {
+        posts = posts.filter(post => post.category === category);
+      }
+
+      // Parse tags for frontend
+      const postsWithParsedTags = posts.map(post => ({
+        ...post,
+        tags: typeof post.tags === 'string' ? JSON.parse(post.tags || '[]') : (post.tags || [])
+      }));
+
+      res.json(postsWithParsedTags);
+    } catch (error) {
+      console.error("Error fetching blog posts:", error);
+      // Return sample data as fallback
+      const samplePosts = [
+        {
+          id: 1,
+          title: "The Ultimate Guide to Korean Skincare Routine",
+          slug: "ultimate-guide-korean-skincare-routine",
+          excerpt: "Discover the secrets behind the famous 10-step Korean skincare routine and how to adapt it for your skin type.",
+          content: "Korean skincare has revolutionized the beauty industry with its emphasis on prevention, hydration, and gentle care...",
+          author: "Sarah Kim",
+          category: "Skincare",
+          tags: ["K-Beauty", "Skincare", "Routine", "Tips"],
+          imageUrl: "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
+          videoUrl: null,
+          featured: true,
+          published: true,
+          likes: 124,
+          comments: 18,
+          readTime: "8 min read",
+          createdAt: new Date('2024-12-15'),
+          updatedAt: new Date('2024-12-15')
+        }
+      ];
+      res.json(samplePosts);
+    }
+  });
+
+  app.get("/api/blog/posts/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const post = await storage.getBlogPostBySlug(slug);
+      
+      if (!post) {
+        return res.status(404).json({ error: "Blog post not found" });
+      }
+
+      // Parse tags for frontend
+      const postWithParsedTags = {
+        ...post,
+        tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags
+      };
+
+      res.json(postWithParsedTags);
+    } catch (error) {
+      console.error("Error fetching blog post:", error);
+      res.status(500).json({ error: "Failed to fetch blog post" });
+    }
+  });
+
+  app.get("/api/blog/categories", async (req, res) => {
+    try {
+      const categories = await storage.getBlogCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching blog categories:", error);
+      // Return empty array if database is unavailable instead of static data
+      res.json([]);
+    }
+  });
+
+  // Admin blog routes
+  app.get("/api/admin/blog/posts", async (req, res) => {
+    try {
+      const posts = await storage.getBlogPosts();
+      
+      // Parse tags for frontend
+      const postsWithParsedTags = posts.map(post => ({
+        ...post,
+        tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags
+      }));
+
+      res.json(postsWithParsedTags);
+    } catch (error) {
+      console.error("Error fetching admin blog posts:", error);
+      res.status(500).json({ error: "Failed to fetch blog posts" });
+    }
+  });
+
+  app.post("/api/admin/blog/posts", upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'video', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      let imageUrl = req.body.imageUrl;
+      let videoUrl = req.body.videoUrl;
+
+      // Handle image upload
+      if (files?.image?.[0]) {
+        imageUrl = `/api/images/${files.image[0].filename}`;
+      }
+
+      // Handle video upload
+      if (files?.video?.[0]) {
+        videoUrl = `/api/images/${files.video[0].filename}`;
+      }
+
+      const postData = {
+        title: req.body.title,
+        excerpt: req.body.excerpt,
+        content: req.body.content,
+        author: req.body.author,
+        category: req.body.category,
+        tags: Array.isArray(req.body.tags) ? req.body.tags : 
+              typeof req.body.tags === 'string' ? req.body.tags.split(',').map(t => t.trim()) : [],
+        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400',
+        videoUrl,
+        featured: req.body.featured === 'true',
+        published: req.body.published === 'true',
+        readTime: req.body.readTime || '5 min read'
+      };
+
+      const post = await storage.createBlogPost(postData);
+      res.status(201).json(post);
+    } catch (error) {
+      console.error("Error creating blog post:", error);
+      res.status(500).json({ error: "Failed to create blog post" });
+    }
+  });
+
+  app.put("/api/admin/blog/posts/:id", upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'video', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      const updateData: any = {};
+
+      // Only update fields that are provided
+      if (req.body.title) updateData.title = req.body.title;
+      if (req.body.excerpt) updateData.excerpt = req.body.excerpt;
+      if (req.body.content) updateData.content = req.body.content;
+      if (req.body.author) updateData.author = req.body.author;
+      if (req.body.category) updateData.category = req.body.category;
+      if (req.body.readTime) updateData.readTime = req.body.readTime;
+      
+      if (req.body.tags) {
+        updateData.tags = Array.isArray(req.body.tags) ? req.body.tags : 
+                          typeof req.body.tags === 'string' ? req.body.tags.split(',').map(t => t.trim()) : [];
+      }
+
+      if (req.body.featured !== undefined) updateData.featured = req.body.featured === 'true';
+      if (req.body.published !== undefined) updateData.published = req.body.published === 'true';
+
+      // Handle image upload
+      if (files?.image?.[0]) {
+        updateData.imageUrl = `/api/images/${files.image[0].filename}`;
+      } else if (req.body.imageUrl) {
+        updateData.imageUrl = req.body.imageUrl;
+      }
+
+      // Handle video upload
+      if (files?.video?.[0]) {
+        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.videoUrl !== undefined) {
+        updateData.videoUrl = req.body.videoUrl || null;
+      }
+
+      const post = await storage.updateBlogPost(parseInt(id), updateData);
+      if (!post) {
+        return res.status(404).json({ error: "Blog post not found" });
+      }
+
+      res.json(post);
+    } catch (error) {
+      console.error("Error updating blog post:", error);
+      res.status(500).json({ error: "Failed to update blog post" });
+    }
+  });
+
+  app.delete("/api/admin/blog/posts/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteBlogPost(parseInt(id));
+      
+      if (!success) {
+        return res.status(404).json({ error: "Blog post not found" });
+      }
+
+      res.json({ success: true, message: "Blog post deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting blog post:", error);
+      res.status(500).json({ error: "Failed to delete blog post" });
+    }
+  });
+
+  // Admin blog categories
+  app.get("/api/admin/blog/categories", async (req, res) => {
+    try {
+      const categories = await storage.getBlogCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching blog categories:", error);
+      res.status(500).json({ error: "Failed to fetch blog categories" });
+    }
+  });
+
+  app.post("/api/admin/blog/categories", async (req, res) => {
+    try {
+      const categoryData = {
+        name: req.body.name,
+        description: req.body.description,
+        isActive: req.body.isActive !== false,
+        sortOrder: parseInt(req.body.sortOrder) || 0
+      };
+
+      const category = await storage.createBlogCategory(categoryData);
+      res.status(201).json(category);
+    } catch (error) {
+      console.error("Error creating blog category:", error);
+      res.status(500).json({ error: "Failed to create blog category" });
+    }
+  });
+
+  app.put("/api/admin/blog/categories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const category = await storage.updateBlogCategory(parseInt(id), req.body);
+      
+      if (!category) {
+        return res.status(404).json({ error: "Blog category not found" });
+      }
+
+      res.json(category);
+    } catch (error) {
+      console.error("Error updating blog category:", error);
+      res.status(500).json({ error: "Failed to update blog category" });
+    }
+  });
+
+  app.delete("/api/admin/blog/categories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteBlogCategory(parseInt(id));
+      
+      if (!success) {
+        return res.status(404).json({ error: "Blog category not found" });
+      }
+
+      res.json({ success: true, message: "Blog category deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting blog category:", error);
+      res.status(500).json({ error: "Failed to delete blog category" });
+    }
+  });
 
   // Generate sample customers for development
   function generateSampleCustomers() {

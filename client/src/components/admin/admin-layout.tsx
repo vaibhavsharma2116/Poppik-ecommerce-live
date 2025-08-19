@@ -18,7 +18,9 @@ import {
   Sun,
   Moon,
   Activity,
-  ChevronDown
+  ChevronDown,
+  FileText,
+  Images
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +37,6 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import AdminSearchCommand from "./admin-search-command";
 import { cn } from "@/lib/utils";
-import { Images } from 'lucide-react';
 import { Mail } from "lucide-react";
 import { Palette } from "lucide-react";
 
@@ -88,6 +89,12 @@ const sidebarItems = [
     title: "Contact Submissions",
     href: "/contact-submissions",
     icon: Mail,
+    badge: null,
+  },
+  {
+    title: "Blog",
+    href: "/blog",
+    icon: FileText,
     badge: null,
   },
   {

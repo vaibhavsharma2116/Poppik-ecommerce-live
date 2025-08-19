@@ -203,3 +203,41 @@ export const reviews = pgTable("reviews", {
 
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
+
+// Blog Posts Table
+export const blogPosts = pgTable("blog_posts", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  excerpt: text("excerpt").notNull(),
+  content: text("content").notNull(),
+  author: varchar("author", { length: 255 }).notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  tags: text("tags"), // JSON string array
+  imageUrl: text("image_url"),
+  videoUrl: text("video_url"),
+  featured: boolean("featured").default(false),
+  published: boolean("published").default(true),
+  likes: integer("likes").default(0),
+  comments: integer("comments").default(0),
+  readTime: varchar("read_time", { length: 50 }).default("5 min read"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Blog Categories Table
+export const blogCategories = pgTable("blog_categories", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull().unique(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type BlogPost = typeof blogPosts.$inferSelect;
+export type InsertBlogPost = typeof blogPosts.$inferInsert;
+export type BlogCategory = typeof blogCategories.$inferSelect;
+export type InsertBlogCategory = typeof blogCategories.$inferInsert;
+

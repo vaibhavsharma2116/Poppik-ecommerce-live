@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { Link, useLocation } from "wouter";
 import { Search, ShoppingCart, Menu, X, User, Heart, LogOut, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,25 +47,35 @@ export default function Layout({ children }: LayoutProps) {
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setSearchQuery(value);
-    setShowSearchResults(value.trim().length > 0);
+    startTransition(() => {
+      setSearchQuery(value);
+      setShowSearchResults(value.trim().length > 0);
+    });
   };
 
   const handleSearchResultClick = (productSlug: string) => {
-    setSearchQuery("");
-    setShowSearchResults(false);
+    startTransition(() => {
+      setSearchQuery("");
+      setShowSearchResults(false);
+    });
     window.location.href = `/product/${productSlug}`;
   };
 
   const handleSearchInputFocus = () => {
     if (searchQuery.trim().length > 0) {
-      setShowSearchResults(true);
+      startTransition(() => {
+        setShowSearchResults(true);
+      });
     }
   };
 
   const handleSearchInputBlur = () => {
     // Delay hiding results to allow clicking on them
-    setTimeout(() => setShowSearchResults(false), 200);
+    setTimeout(() => {
+      startTransition(() => {
+        setShowSearchResults(false);
+      });
+    }, 200);
   };
 
   useEffect(() => {
@@ -171,6 +181,7 @@ export default function Layout({ children }: LayoutProps) {
   const staticNavItems = [
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
+    { name: "Blog", href: "/blog" },
     { name: "Contact", href: "/contact" },
   ];
 
@@ -784,6 +795,21 @@ export default function Layout({ children }: LayoutProps) {
                   <NavigationMenuItem>
                     <NavigationMenuLink asChild>
                       <Link
+                        href="/blog"
+                        className={`text-sm font-medium transition-colors px-4 py-2 transition-colors px-4 py-2 ${
+                          isActiveLink("/blog")
+                            ? "text-yellow-300 bg-white/20 rounded-full"
+                            : "text-white text-yellow-300 bg-white/20 rounded-full"
+                        }`}
+                      >
+                        Blog
+                      </Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+
+                  <NavigationMenuItem>
+                    <NavigationMenuLink asChild>
+                      <Link
                         href="/contact"
                         className={`text-sm font-medium transition-colors px-4 py-2 transition-colors px-4 py-2 ${
                           isActiveLink("/contact")
@@ -917,6 +943,11 @@ export default function Layout({ children }: LayoutProps) {
                 <li>
                   <Link href="/about" className="text-gray-400 hover:text-white transition-colors">
                     About Us
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/blog" className="text-gray-400 hover:text-white transition-colors">
+                    Blog
                   </Link>
                 </li>
                 <li>

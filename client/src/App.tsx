@@ -10,6 +10,7 @@ import Category from "@/pages/category";
 import ProductsPage from "@/pages/product";
 import ProductDetail from "@/pages/product-detail";
 import About from "@/pages/about";
+import Blog from "@/pages/blog";
 // import Contact from "@/pages/contact";
 import Login from "./pages/auth/login";
 import Signup from "./pages/auth/signup";
@@ -35,10 +36,19 @@ import AdminSliders from "@/pages/admin/sliders";
 import AdminContactSubmissions from "@/pages/admin/contact-submissions";
 import Contact from "@/pages/contact";
 import NotFound from "@/pages/not-found";
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, startTransition } from 'react';
 import AdminShades from "./pages/admin/shades";
 
+const AdminBlog = lazy(() => import("./pages/admin/blog"));
 const AdminReports = lazy(() => import("./pages/admin/reports"));
+
+// Loading component for better UX
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center h-64">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div>
+    <span className="ml-2 text-gray-600">Loading...</span>
+  </div>
+);
 
 function Router() {
   return (
@@ -53,13 +63,18 @@ function Router() {
             <Route path="/orders" component={AdminOrders} />
             <Route path="/customers" component={AdminCustomers} />
             <Route path="/sliders" component={AdminSliders} />
+            <Route path="/blog">
+              <Suspense fallback={<LoadingSpinner />}>
+                <AdminBlog />
+              </Suspense>
+            </Route>
             <Route path="/settings" component={AdminSettings} />
             <Route path="/profile" component={AdminProfile} />
             <Route path="/shades" component={AdminShades} />
             <Route path="/change-password" component={AdminChangePassword} />
              <Route path="/contact-submissions" component={AdminContactSubmissions} />
             <Route path="/reports">
-              <Suspense fallback={<div className="flex items-center justify-center h-64">Loading reports...</div>}>
+              <Suspense fallback={<LoadingSpinner />}>
                 <AdminReports />
               </Suspense>
             </Route>
@@ -77,6 +92,7 @@ function Router() {
             <Route path="/products" component={ProductsPage} />
             <Route path="/product/:slug" component={ProductDetail} />
             <Route path="/about" component={About} />
+            <Route path="/blog" component={Blog} />
             <Route path="/contact" component={Contact} />
             <Route path="/auth/login" component={Login} />
             <Route path="/auth/signup" component={Signup} />

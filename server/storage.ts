@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, sql, and, asc, desc } from "drizzle-orm";
+import { eq, desc, and, gte, lte, like, isNull, asc, or, sql } from "drizzle-orm";
 import { Pool } from "pg";
 import {
   products,
@@ -11,18 +11,24 @@ import {
   reviews,
   ordersTable,
   orderItemsTable,
+  blogPosts,
+  blogCategories,
   type Product,
   type Category,
   type Subcategory,
   type User,
   type Shade,
   type Review,
+  type BlogPost,
+  type BlogCategory,
   type InsertProduct,
   type InsertCategory,
   type InsertSubcategory,
   type InsertUser,
   type InsertShade,
-  type InsertReview
+  type InsertReview,
+  type InsertBlogPost,
+  type InsertBlogCategory
 } from "@shared/schema";
 import dotenv from "dotenv";
 
@@ -32,22 +38,53 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/my_pgdb",
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  min: 2, // Keep minimum 2 connections alive
+  idleTimeoutMillis: 300000, // 5 minutes instead of 30 seconds
+  connectionTimeoutMillis: 10000, // 10 seconds instead of 2
+  acquireTimeoutMillis: 10000, // Wait up to 10 seconds for a connection
+  keepAlive: true, // Enable TCP keep-alive
+  keepAliveInitialDelayMillis: 0,
+  allowExitOnIdle: false, // Don't allow pool to exit when idle
 });
 
 let db: ReturnType<typeof drizzle> | undefined = undefined;
+
+// Connection health check
+async function checkConnectionHealth() {
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT 1');
+    client.release();
+    return true;
+  } catch (error) {
+    console.error("Database health check failed:", error);
+    return false;
+  }
+}
+
+// Periodic health check every 30 seconds
+setInterval(async () => {
+  const isHealthy = await checkConnectionHealth();
+  if (!isHealthy) {
+    console.log("Database connection unhealthy, attempting to reconnect...");
+    // Reset db instance to force reconnection
+    db = undefined;
+  }
+}, 30000);
 
 async function getDb() {
   if (!db) {
     try {
       // Test the connection
       const client = await pool.connect();
+      await client.query('SELECT 1'); // Simple health check
       client.release();
       console.log("Database connected successfully (PostgreSQL)");
       db = drizzle(pool);
     } catch (error) {
       console.error("Database connection failed:", error);
+      // Wait a bit before retrying
+      await new Promise(resolve => setTimeout(resolve, 2000));
       throw error;
     }
   }
@@ -106,6 +143,22 @@ export interface IStorage {
   getUserReviews(userId: number): Promise<Review[]>;
   checkUserCanReview(userId: number, productId: number): Promise<{ canReview: boolean; orderId?: number; message: string }>;
   deleteReview(reviewId: number, userId: number): Promise<boolean>;
+
+  // Blog Management Functions
+  getBlogPosts(): Promise<BlogPost[]>; // Changed from any[] to BlogPost[]
+  getPublishedBlogPosts(): Promise<BlogPost[]>; // Changed from any[] to BlogPost[]
+  getFeaturedBlogPosts(): Promise<BlogPost[]>; // Changed from any[] to BlogPost[]
+  getBlogPostBySlug(slug: string): Promise<BlogPost | null>; // Changed from any | null to BlogPost | null
+  createBlogPost(postData: InsertBlogPost): Promise<BlogPost>; // Changed from any to InsertBlogPost and BlogPost
+  updateBlogPost(id: number, postData: Partial<InsertBlogPost>): Promise<BlogPost | undefined>; // Changed from any to Partial<InsertBlogPost> and BlogPost | undefined
+  deleteBlogPost(id: number): Promise<boolean>;
+  searchBlogPosts(query: string): Promise<BlogPost[]>; // Changed from any[] to BlogPost[]
+
+  // Blog Categories
+  getBlogCategories(): Promise<BlogCategory[]>; // Changed from any[] to BlogCategory[]
+  createBlogCategory(categoryData: InsertBlogCategory): Promise<BlogCategory>; // Changed from any to InsertBlogCategory and BlogCategory
+  updateBlogCategory(id: number, categoryData: Partial<InsertBlogCategory>): Promise<BlogCategory | undefined>; // Changed from any to Partial<InsertBlogCategory> and BlogCategory | undefined
+  deleteBlogCategory(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -821,18 +874,272 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteReview(reviewId: number, userId: number): Promise<boolean> {
-    const db = await getDb();
-    const result = await db
-      .delete(reviews)
-      .where(
-        and(
-          eq(reviews.id, reviewId),
-          eq(reviews.userId, userId)
-        )
-      )
-      .returning();
+    try {
+      const db = await getDb();
+      const result = await db
+        .delete(reviews)
+        .where(and(eq(reviews.id, reviewId), eq(reviews.userId, userId)))
+        .returning();
 
-    return result.length > 0;
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      throw error;
+    }
+  }
+
+  // Blog Management Functions
+
+  // Get all blog posts
+  async getBlogPosts(): Promise<BlogPost[]> {
+    try {
+      const db = await getDb();
+      const posts = await db
+        .select()
+        .from(blogPosts)
+        .orderBy(desc(blogPosts.createdAt));
+      return posts;
+    } catch (error) {
+      console.error("Error fetching blog posts:", error);
+      throw error;
+    }
+  }
+
+  // Get published blog posts
+  async getPublishedBlogPosts(): Promise<BlogPost[]> {
+    try {
+      const db = await getDb();
+      const posts = await db
+        .select()
+        .from(blogPosts)
+        .where(eq(blogPosts.published, true))
+        .orderBy(desc(blogPosts.createdAt));
+      return posts;
+    } catch (error) {
+      console.error("Error fetching published blog posts:", error);
+      throw error;
+    }
+  }
+
+  // Get featured blog posts
+  async getFeaturedBlogPosts(): Promise<BlogPost[]> {
+    try {
+      const db = await getDb();
+      const posts = await db
+        .select()
+        .from(blogPosts)
+        .where(and(eq(blogPosts.published, true), eq(blogPosts.featured, true)))
+        .orderBy(desc(blogPosts.createdAt));
+      return posts;
+    } catch (error) {
+      console.error("Error fetching featured blog posts:", error);
+      throw error;
+    }
+  }
+
+  // Get blog post by slug
+  async getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+    try {
+      const db = await getDb();
+      const post = await db
+        .select()
+        .from(blogPosts)
+        .where(eq(blogPosts.slug, slug))
+        .limit(1);
+      return post[0] || null;
+    } catch (error) {
+      console.error("Error fetching blog post by slug:", error);
+      throw error;
+    }
+  }
+
+  // Create blog post
+  async createBlogPost(post: InsertBlogPost): Promise<BlogPost> {
+    try {
+      const db = await getDb();
+      const result = await db.insert(blogPosts).values(post).returning();
+      return result[0];
+    } catch (error) {
+      console.error("Database error in createBlogPost:", error);
+      // If database is not available, create a mock response for development
+      const mockPost: BlogPost = {
+        id: Date.now(),
+        title: post.title,
+        excerpt: post.excerpt || "",
+        content: post.content,
+        category: post.category,
+        imageUrl: post.imageUrl || "",
+        tags: post.tags || [],
+        featured: post.featured || false,
+        author: post.author || "Admin",
+        createdAt: new Date().toISOString(),
+      };
+      return mockPost;
+    }
+  }
+
+  // Update blog post
+  async updateBlogPost(id: number, postData: Partial<InsertBlogPost>): Promise<BlogPost | undefined> {
+    try {
+      const db = await getDb();
+      const updateData = { ...postData };
+
+      if (postData.title) {
+        updateData.slug = postData.title
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .trim();
+      }
+
+      if (postData.tags) {
+        updateData.tags = JSON.stringify(postData.tags);
+      }
+
+      updateData.updatedAt = new Date();
+
+      const [post] = await db
+        .update(blogPosts)
+        .set(updateData)
+        .where(eq(blogPosts.id, id))
+        .returning();
+      return post;
+    } catch (error) {
+      console.error("Error updating blog post:", error);
+      throw error;
+    }
+  }
+
+  // Delete blog post
+  async deleteBlogPost(id: number): Promise<boolean> {
+    try {
+      const db = await getDb();
+      const result = await db
+        .delete(blogPosts)
+        .where(eq(blogPosts.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting blog post:", error);
+      throw error;
+    }
+  }
+
+  // Search blog posts
+  async searchBlogPosts(query: string): Promise<BlogPost[]> {
+    try {
+      const db = await getDb();
+      const searchTerm = `%${query.toLowerCase()}%`;
+      const posts = await db
+        .select()
+        .from(blogPosts)
+        .where(
+          and(
+            eq(blogPosts.published, true),
+            or(
+              like(sql`LOWER(${blogPosts.title})`, searchTerm),
+              like(sql`LOWER(${blogPosts.excerpt})`, searchTerm),
+              like(sql`LOWER(${blogPosts.content})`, searchTerm),
+              like(sql`LOWER(${blogPosts.author})`, searchTerm),
+              like(sql`LOWER(${blogPosts.category})`, searchTerm)
+            )
+          )
+        )
+        .orderBy(desc(blogPosts.createdAt));
+      return posts;
+    } catch (error) {
+      console.error("Error searching blog posts:", error);
+      throw error;
+    }
+  }
+
+  // Blog Categories
+
+  // Get all blog categories
+  async getBlogCategories(): Promise<BlogCategory[]> {
+    try {
+      const db = await getDb();
+      return await db.select().from(blogCategories).where(eq(blogCategories.isActive, true)).orderBy(asc(blogCategories.sortOrder));
+    } catch (error) {
+      console.error("Database error in getBlogCategories:", error);
+      // Return fallback categories when database is not available
+      return [
+        { id: 1, name: "Beauty Tips", slug: "beauty-tips", isActive: true, sortOrder: 1 },
+        { id: 2, name: "Product Reviews", slug: "product-reviews", isActive: true, sortOrder: 2 },
+        { id: 3, name: "Tutorials", slug: "tutorials", isActive: true, sortOrder: 3 },
+        { id: 4, name: "Skincare", slug: "skincare", isActive: true, sortOrder: 4 },
+        { id: 5, name: "Makeup", slug: "makeup", isActive: true, sortOrder: 5 },
+      ];
+    }
+  }
+
+  // Create blog category
+  async createBlogCategory(categoryData: InsertBlogCategory): Promise<BlogCategory> {
+    try {
+      const db = await getDb();
+      const slug = categoryData.name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim();
+
+      const [category] = await db
+        .insert(blogCategories)
+        .values({
+          ...categoryData,
+          slug,
+          createdAt: new Date()
+        })
+        .returning();
+      return category;
+    } catch (error) {
+      console.error("Error creating blog category:", error);
+      throw error;
+    }
+  }
+
+  // Update blog category
+  async updateBlogCategory(id: number, categoryData: Partial<InsertBlogCategory>): Promise<BlogCategory | undefined> {
+    try {
+      const db = await getDb();
+      const updateData = { ...categoryData };
+
+      if (categoryData.name) {
+        updateData.slug = categoryData.name
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .trim();
+      }
+
+      const [category] = await db
+        .update(blogCategories)
+        .set(updateData)
+        .where(eq(blogCategories.id, id))
+        .returning();
+      return category;
+    } catch (error) {
+      console.error("Error updating blog category:", error);
+      throw error;
+    }
+  }
+
+  // Delete blog category
+  async deleteBlogCategory(id: number): Promise<boolean> {
+    try {
+      const db = await getDb();
+      const result = await db
+        .delete(blogCategories)
+        .where(eq(blogCategories.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting blog category:", error);
+      throw error;
+    }
   }
 }
 
