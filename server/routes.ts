@@ -25,7 +25,7 @@ function rateLimit(req: any, res: any, next: any) {
 
   const requests = rateLimitMap.get(clientIP);
   const recentRequests = requests.filter((time: number) => time > windowStart);
-  
+
   if (recentRequests.length >= RATE_LIMIT_MAX) {
     return res.status(429).json({ error: "Too many requests" });
   }
@@ -37,10 +37,11 @@ function rateLimit(req: any, res: any, next: any) {
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, gte, lte, like, isNull, asc, or, sql } from "drizzle-orm";
 import { Pool } from "pg";
-import { ordersTable, orderItemsTable, users, sliders, reviews } from "../shared/schema";
+import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts } from "../shared/schema";
 // Database connection with enhanced configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/my_pgdb",
+  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
   max: 20,
   min: 2,
   idleTimeoutMillis: 300000, // 5 minutes
@@ -255,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", (res) => {
     res.json({ message: "Logged out successfully" });
   });
 
@@ -438,7 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Parse query parameters for optimization
     const { w: width, h: height, q: quality, format } = req.query;
-    
+
     // Set appropriate content type based on format or file extension
     const extension = path.extname(imagePath).toLowerCase();
     let contentType = {
@@ -499,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Set quality and format
         const qual = quality ? parseInt(quality as string) : 80;
-        
+
         if (format === 'webp') {
           pipeline = pipeline.webp({ quality: qual });
         } else if (format === 'jpeg' || extension === '.jpg' || extension === '.jpeg') {
@@ -806,15 +807,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const filteredSampleProducts = sampleProducts.filter(product => {
         if (!product.category) return false;
-        
+
         const productCategory = product.category.toLowerCase().trim();
-        
+
         // Exact match
         if (productCategory === searchCategory) return true;
-        
+
         // Partial match
         if (productCategory.includes(searchCategory) || searchCategory.includes(productCategory)) return true;
-        
+
         // Special mappings for common variations
         const categoryMappings: Record<string, string[]> = {
           'lips': ['lip'],
@@ -1070,12 +1071,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      if (isNaN(Number(categoryId)) || Number(categoryId) <= 0) {
-        return res.status(400).json({ 
-          error: "Valid category ID is required" 
-        });
-      }
-
       // Generate slug from name
       const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
@@ -1096,7 +1091,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(subcategory);
     } catch (error) {
       console.error("Subcategory creation error:", error);
-      
+
       let errorMessage = "Failed to create subcategory";
       if (error.message) {
         errorMessage = error.message;
@@ -1829,8 +1824,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("Order created:", order);
 
-      // Validate and create order items
-      const orderItems = items.map((item: any, index: number) => {
+      // Validate and create order items with proper product ID handling
+      const orderItems = [];
+      
+      for (let index = 0; index < items.length; index++) {
+        const item = items[index];
+        
         if (!item.productName && !item.name) {
           throw new Error(`Item ${index + 1} is missing product name`);
         }
@@ -1841,15 +1840,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error(`Item ${index + 1} is missing price`);
         }
 
-        return {
+        let productId = Number(item.productId || item.id || 0);
+        
+        // Verify that the product exists in the database
+        if (productId && productId > 0) {
+          try {
+            const existingProduct = await storage.getProduct(productId);
+            if (!existingProduct) {
+              console.log(`Product with ID ${productId} not found, setting to null`);
+              productId = null;
+            }
+          } catch (error) {
+            console.log(`Error checking product ${productId}, setting to null:`, error);
+            productId = null;
+          }
+        } else {
+          productId = null;
+        }
+
+        orderItems.push({
           orderId: order.id,
-          productId: Number(item.productId || item.id || 0),
+          productId: productId,
           productName: item.productName || item.name,
           productImage: item.productImage || item.image || '',
           quantity: Number(item.quantity),
           price: item.price.toString(),
-        };
-      });
+        });
+      }
 
       console.log("Creating order items:", orderItems);
 
@@ -1958,6 +1975,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to create sample orders" });
     }
   });
+
 
 
         // Update order status (for admin)
@@ -2269,13 +2287,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const postId = parseInt(id);
-      
+
       // Simple implementation without separate likes table for now
       const db = await require('./storage').getDb();
       const post = await db.select().from(require('../shared/schema').blogPosts)
         .where(require('drizzle-orm').eq(require('../shared/schema').blogPosts.id, postId))
         .limit(1);
-      
+
       if (!post || post.length === 0) {
         return res.status(404).json({ error: "Blog post not found" });
       }
@@ -2284,7 +2302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // In a real app, you'd track individual user likes
       const currentLikes = post[0].likes || 0;
       const newLikes = currentLikes + 1;
-      
+
       await db.update(require('../shared/schema').blogPosts)
         .set({ likes: newLikes })
         .where(require('drizzle-orm').eq(require('../shared/schema').blogPosts.id, postId));
@@ -2314,7 +2332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const postId = parseInt(id);
-      
+
       // Get user details
       const user = await db.select({
         firstName: users.firstName,
@@ -2354,7 +2372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/blog/posts/:id/comments", async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       // For now, return empty array since we don't have persistent comment storage
       // In a real app, you'd fetch from a comments table
       res.json([]);
@@ -2368,9 +2386,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/blog/posts", async (req, res) => {
     try {
       const { category, featured, search } = req.query;
-      
+
       let posts;
-      
+
       if (search) {
         posts = await storage.searchBlogPosts(search.toString());
       } else if (featured === 'true') {
@@ -2423,7 +2441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { slug } = req.params;
       const post = await storage.getBlogPostBySlug(slug);
-      
+
       if (!post) {
         return res.status(404).json({ error: "Blog post not found" });
       }
@@ -2467,7 +2485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/blog/posts", async (req, res) => {
     try {
       const posts = await storage.getBlogPosts();
-      
+
       // Parse tags for frontend
       const postsWithParsedTags = posts.map(post => ({
         ...post,
@@ -2530,7 +2548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      
+
       const updateData: any = {};
 
       // Only update fields that are provided
@@ -2540,7 +2558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.body.author) updateData.author = req.body.author;
       if (req.body.category) updateData.category = req.body.category;
       if (req.body.readTime) updateData.readTime = req.body.readTime;
-      
+
       if (req.body.tags) {
         updateData.tags = Array.isArray(req.body.tags) ? req.body.tags : 
                           typeof req.body.tags === 'string' ? req.body.tags.split(',').map(t => t.trim()) : [];
@@ -2579,7 +2597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const success = await storage.deleteBlogPost(parseInt(id));
-      
+
       if (!success) {
         return res.status(404).json({ error: "Blog post not found" });
       }
@@ -2623,7 +2641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const category = await storage.updateBlogCategory(parseInt(id), req.body);
-      
+
       if (!category) {
         return res.status(404).json({ error: "Blog category not found" });
       }
@@ -2639,7 +2657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const success = await storage.deleteBlogCategory(parseInt(id));
-      
+
       if (!success) {
         return res.status(404).json({ error: "Blog category not found" });
       }
@@ -2862,7 +2880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         originalPrice: 1199,
         category: "Face",
         subcategory: "Concealer",
-        imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+        imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc4030348?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
         rating: 4.5,
         reviewCount: 167,
         inStock: true,
@@ -3584,7 +3602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const query = req.query.q;
 
-      if (!query || query.toString().trim().length === 0) {
+      if (!query || query.trim().length === 0) {
         return res.json({ products: [], customers: [], orders: [] });
       }
 
@@ -4084,6 +4102,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting review:", error);
       res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const product = await storage.updateProduct(parseInt(id), req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      res.json(product);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      if (isNaN(productId)) {
+        return res.status(400).json({ error: "Invalid product ID" });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      const existingProduct = await storage.getProduct(productId);
+      if (!existingProduct) {
+        return res.status(404).json({ 
+          error: "Product not found",
+          success: false 
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      const success = await storage.deleteProduct(productId);
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({ 
+          error: "Failed to delete product from database",
+          success: false 
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      const verifyDelete = await storage.getProduct(productId);
+      if (verifyDelete) {
+        console.log(`Product ${productId} still exists after delete operation`);
+        return res.status(500).json({ 
+          error: "Product deletion verification failed",
+          success: false 
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Product deleted successfully",
+        productId: productId
+      });
+    } catch (error) {
+      console.error("Product deletion error:", error);
+      res.status(500).json({ 
+        error: "Failed to delete product", 
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false 
+      });
     }
   });
 

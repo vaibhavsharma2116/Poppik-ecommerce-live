@@ -245,3 +245,90 @@ CREATE INDEX IF NOT EXISTS "idx_product_images_product_id" ON "product_images" (
 CREATE INDEX IF NOT EXISTS "idx_product_images_is_primary" ON "product_images" ("is_primary");
 CREATE INDEX IF NOT EXISTS "idx_product_images_sort_order" ON "product_images" ("sort_order");
 
+
+-- Fix missing columns in orders table
+DO $$ 
+BEGIN
+    -- Add cashfree_order_id column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='cashfree_order_id') THEN
+        ALTER TABLE orders ADD COLUMN cashfree_order_id text;
+        RAISE NOTICE 'Added cashfree_order_id column';
+    ELSE
+        RAISE NOTICE 'cashfree_order_id column already exists';
+    END IF;
+    
+    -- Add payment_session_id column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='payment_session_id') THEN
+        ALTER TABLE orders ADD COLUMN payment_session_id text;
+        RAISE NOTICE 'Added payment_session_id column';
+    ELSE
+        RAISE NOTICE 'payment_session_id column already exists';
+    END IF;
+    
+    -- Add payment_id column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='orders' AND column_name='payment_id') THEN
+        ALTER TABLE orders ADD COLUMN payment_id text;
+        RAISE NOTICE 'Added payment_id column';
+    ELSE
+        RAISE NOTICE 'payment_id column already exists';
+    END IF;
+    
+    -- Create cashfree_payments table if it doesn't exist
+    CREATE TABLE IF NOT EXISTS cashfree_payments (
+        id serial PRIMARY KEY NOT NULL,
+        cashfree_order_id text NOT NULL UNIQUE,
+        user_id integer NOT NULL,
+        amount integer NOT NULL,
+        status text DEFAULT 'created' NOT NULL,
+        order_data jsonb NOT NULL,
+        customer_info jsonb NOT NULL,
+        payment_id text,
+        created_at timestamp DEFAULT now() NOT NULL,
+        completed_at timestamp
+    );
+    
+    -- Add foreign key constraint if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='cashfree_payments_user_id_users_id_fk') THEN
+        ALTER TABLE cashfree_payments ADD CONSTRAINT cashfree_payments_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES users(id);
+        RAISE NOTICE 'Added foreign key constraint for cashfree_payments';
+    ELSE
+        RAISE NOTICE 'Foreign key constraint already exists';
+    END IF;
+END
+$$;
+
+CREATE TABLE IF NOT EXISTS public.blog_categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    sort_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+-- Table: public.blog_posts
+
+-- DROP TABLE IF EXISTS public.blog_posts;
+CREATE SEQUENCE IF NOT EXISTS blog_posts_id_seq;
+
+CREATE TABLE IF NOT EXISTS blog_posts
+(
+    id INTEGER NOT NULL DEFAULT nextval('blog_posts_id_seq'),
+    title VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) NOT NULL UNIQUE,
+    excerpt TEXT NOT NULL,
+    content TEXT NOT NULL,
+    author VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    tags TEXT,
+    image_url TEXT,
+    video_url TEXT,
+    featured BOOLEAN DEFAULT false,
+    published BOOLEAN DEFAULT true,
+    likes INTEGER DEFAULT 0,
+    comments INTEGER DEFAULT 0,
+    read_time VARCHAR(50) DEFAULT '5 min read',
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+    CONSTRAINT blog_posts_pkey PRIMARY KEY (id)
+);

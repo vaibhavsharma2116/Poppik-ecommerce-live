@@ -120,7 +120,7 @@ export const selectOrderSchema = createSelectSchema(ordersTable);
 export const orderItemsTable = pgTable("order_items", {
   id: serial("id").primaryKey(),
   orderId: integer("order_id").references(() => ordersTable.id).notNull(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  productId: integer("product_id").references(() => products.id),
   productName: text("product_name").notNull(),
   productImage: text("product_image").notNull(),
   quantity: integer("quantity").notNull(),

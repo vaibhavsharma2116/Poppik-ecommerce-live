@@ -288,14 +288,45 @@ export default function AdminProducts() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to delete product');
+          const errorText = await response.text();
+          let errorMessage = 'Failed to delete product';
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch {
+            errorMessage = errorText || errorMessage;
+          }
+          throw new Error(errorMessage);
         }
 
+        // Verify deletion was successful
+        const result = await response.json();
+        if (result.success === false) {
+          throw new Error(result.message || 'Product deletion failed');
+        }
+
+        // Update states to remove the deleted product
         setProducts(prev => prev.filter(p => p.id !== selectedProduct.id));
+        setFilteredProducts(prev => prev.filter(p => p.id !== selectedProduct.id));
+        
         setIsDeleteModalOpen(false);
         setSelectedProduct(null);
+        setError(null);
+
+        console.log(`Product ${selectedProduct.id} deleted successfully from database`);
+
+        // Refresh data after a short delay to ensure consistency
+        setTimeout(() => {
+          fetchData();
+        }, 1000);
+
       } catch (err) {
+        console.error('Delete error:', err);
         setError(err instanceof Error ? err.message : 'Failed to delete product');
+        
+        // Don't close modal if there's an error, let user try again
+        // setIsDeleteModalOpen(false);
+        // setSelectedProduct(null);
       }
     }
   };
@@ -1081,6 +1112,13 @@ export default function AdminProducts() {
               This action cannot be undone. Are you sure you want to delete this product?
             </DialogDescription>
           </DialogHeader>
+          
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+          
           {selectedProduct && (
             <div className="flex items-center space-x-3 p-4 bg-red-50 rounded-lg border border-red-200">
               <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center overflow-hidden">
@@ -1101,7 +1139,13 @@ export default function AdminProducts() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setError(null);
+              }}
+            >
               Cancel
             </Button>
             <Button variant="destructive" onClick={confirmDelete}>

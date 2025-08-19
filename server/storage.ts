@@ -35,7 +35,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/my_pgdb",
   ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
   max: 20,
   min: 2, // Keep minimum 2 connections alive
@@ -407,9 +407,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProduct(id: number): Promise<boolean> {
-    const db = await getDb();
-    const result = await db.delete(products).where(eq(products.id, id)).returning();
-    return result.length > 0;
+    try {
+      console.log(`DatabaseStorage: Attempting to delete product with ID: ${id}`);
+      const db = await getDb();
+      
+      // First check if product exists
+      const existingProduct = await db.select().from(products).where(eq(products.id, id)).limit(1);
+      if (existingProduct.length === 0) {
+        console.log(`Product with ID ${id} not found in database`);
+        return false;
+      }
+
+      console.log(`Found product to delete: ${existingProduct[0].name}`);
+      
+      const result = await db.delete(products).where(eq(products.id, id)).returning();
+      const success = result.length > 0;
+      
+      if (success) {
+        console.log(`Successfully deleted product ${id} from database`);
+      } else {
+        console.log(`Failed to delete product ${id} - no rows affected`);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error(`Error deleting product ${id}:`, error);
+      throw error;
+    }
   }
 
   // Categories
