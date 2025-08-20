@@ -209,7 +209,7 @@ export default function Layout({ children }: LayoutProps) {
 
 
       {/* Main Header */}
-      <header className="bg-black shadow-lg">
+      <header className="bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
