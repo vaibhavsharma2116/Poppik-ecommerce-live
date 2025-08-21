@@ -781,6 +781,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'eyes-care': ['eye', 'eyes', 'eyecare', 'eye care'],
           'eye care': ['eye', 'eyes', 'eyecare', 'eye-care'],
           'eyes': ['eye', 'eyecare', 'eye care', 'eye-care'],
+          'lipcare': ['lip', 'lips', 'lip care', 'lip-care'],
+          'lip-care': ['lip', 'lips', 'lipcare', 'lip care'],
+          'lip care': ['lip', 'lips', 'lipcare', 'lip-care'],
+          'lips': ['lip', 'lipcare', 'lip care', 'lip-care'],
           'beauty': ['makeup', 'cosmetics', 'skincare'],
         };
 
@@ -818,7 +822,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Special mappings for common variations
         const categoryMappings: Record<string, string[]> = {
-          'lips': ['lip'],
+          'lips': ['lip', 'lipcare', 'lip care', 'lip-care'],
+          'lip': ['lips', 'lipcare', 'lip care', 'lip-care'],
+          'lipcare': ['lip', 'lips', 'lip care', 'lip-care'],
+          'lip-care': ['lip', 'lips', 'lipcare', 'lip care'],
+          'lip care': ['lip', 'lips', 'lipcare', 'lip-care'],
           'eyes': ['eye', 'eyecare', 'eye care', 'eye-care'],
           'eye-care': ['eye', 'eyes', 'eyecare'],
           'eyecare': ['eye', 'eyes', 'eye care', 'eye-care'],
@@ -4123,52 +4131,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const productId = parseInt(id);
 
+      console.log(`DELETE /api/products/${id} - Request received`);
+
       if (isNaN(productId)) {
-        return res.status(400).json({ error: "Invalid product ID" });
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({ 
+          error: "Invalid product ID",
+          success: false 
+        });
       }
 
       console.log(`Attempting to delete product with ID: ${productId}`);
 
       // Check if product exists before deletion
-      const existingProduct = await storage.getProduct(productId);
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({ 
+          error: "Database error while checking product",
+          success: false 
+        });
+      }
+
       if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
         return res.status(404).json({ 
           error: "Product not found",
-          success: false 
+          success: false,
+          productId 
         });
       }
 
       console.log(`Found product to delete: ${existingProduct.name}`);
 
-      const success = await storage.deleteProduct(productId);
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({ 
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
 
       if (!success) {
         console.log(`Failed to delete product ${productId} from database`);
         return res.status(500).json({ 
           error: "Failed to delete product from database",
-          success: false 
+          success: false,
+          productId 
         });
       }
 
       console.log(`Successfully deleted product ${productId} from database`);
 
       // Verify deletion by trying to fetch the product again
-      const verifyDelete = await storage.getProduct(productId);
-      if (verifyDelete) {
-        console.log(`Product ${productId} still exists after delete operation`);
-        return res.status(500).json({ 
-          error: "Product deletion verification failed",
-          success: false 
-        });
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({ 
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId 
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
       }
 
-      res.json({ 
+      res.status(200).json({ 
         success: true, 
         message: "Product deleted successfully",
         productId: productId
       });
+
     } catch (error) {
-      console.error("Product deletion error:", error);
+      console.error("Unexpected product deletion error:", error);
       res.status(500).json({ 
         error: "Failed to delete product", 
         details: error instanceof Error ? error.message : "Unknown error",

@@ -35,8 +35,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/my_pgdb",
-  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
+  connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb",
+  ssl: process.env.DATABASE_URL?.includes('31.97.226.116') ? false : { rejectUnauthorized: false },
   max: 20,
   min: 2, // Keep minimum 2 connections alive
   idleTimeoutMillis: 300000, // 5 minutes instead of 30 seconds
@@ -420,11 +420,26 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`Found product to delete: ${existingProduct[0].name}`);
       
+      // Delete related data first (reviews, order items, etc.)
+      try {
+        // Delete reviews for this product
+        await db.delete(reviews).where(eq(reviews.productId, id));
+        console.log(`Deleted reviews for product ${id}`);
+        
+        // Note: We don't delete order items as they are historical records
+        // Just the product itself will be deleted
+      } catch (relatedError) {
+        console.warn(`Warning: Failed to delete related data for product ${id}:`, relatedError);
+        // Continue with product deletion even if related data deletion fails
+      }
+      
+      // Delete the product
       const result = await db.delete(products).where(eq(products.id, id)).returning();
       const success = result.length > 0;
       
       if (success) {
-        console.log(`Successfully deleted product ${id} from database`);
+        console.log(`Successfully deleted product ${id} from database. Deleted ${result.length} rows.`);
+        console.log(`Deleted product details:`, result[0]);
       } else {
         console.log(`Failed to delete product ${id} - no rows affected`);
       }
@@ -432,6 +447,7 @@ export class DatabaseStorage implements IStorage {
       return success;
     } catch (error) {
       console.error(`Error deleting product ${id}:`, error);
+      console.error(`Error details:`, error.message);
       throw error;
     }
   }

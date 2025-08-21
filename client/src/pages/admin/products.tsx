@@ -141,6 +141,9 @@ export default function AdminProducts() {
       setProducts(productsData);
       setCategories(categoriesData);
       setSubcategories(subcategoriesData);
+      
+      // Initialize filtered products with all products
+      setFilteredProducts(productsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -283,8 +286,13 @@ export default function AdminProducts() {
   const confirmDelete = async () => {
     if (selectedProduct) {
       try {
+        console.log(`Attempting to delete product: ${selectedProduct.name} (ID: ${selectedProduct.id})`);
+        
         const response = await fetch(`/api/products/${selectedProduct.id}`, {
           method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
 
         if (!response.ok) {
@@ -299,34 +307,27 @@ export default function AdminProducts() {
           throw new Error(errorMessage);
         }
 
-        // Verify deletion was successful
         const result = await response.json();
+
         if (result.success === false) {
           throw new Error(result.message || 'Product deletion failed');
         }
 
-        // Update states to remove the deleted product
-        setProducts(prev => prev.filter(p => p.id !== selectedProduct.id));
-        setFilteredProducts(prev => prev.filter(p => p.id !== selectedProduct.id));
-        
+        console.log(`Product ${selectedProduct.id} deleted successfully`);
+
+        // Close modal and clear states first
         setIsDeleteModalOpen(false);
         setSelectedProduct(null);
         setError(null);
 
-        console.log(`Product ${selectedProduct.id} deleted successfully from database`);
-
-        // Refresh data after a short delay to ensure consistency
-        setTimeout(() => {
-          fetchData();
-        }, 1000);
+        // Refresh data from server to ensure consistency
+        await fetchData();
 
       } catch (err) {
         console.error('Delete error:', err);
         setError(err instanceof Error ? err.message : 'Failed to delete product');
         
         // Don't close modal if there's an error, let user try again
-        // setIsDeleteModalOpen(false);
-        // setSelectedProduct(null);
       }
     }
   };
@@ -353,31 +354,23 @@ export default function AdminProducts() {
 
     // Handle dynamic filter changes
   const handleFilterChange = (filteredProducts: Product[], activeFilters: any) => {
-    // Apply search term filter on top of dynamic filters
-    let finalFiltered = filteredProducts;
-    
-    if (searchTerm) {
-      finalFiltered = filteredProducts.filter(product => 
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    setFilteredProducts(finalFiltered);
+    setFilteredProducts(filteredProducts);
   };
 
   // Update filtered products when search term changes
   useEffect(() => {
-    if (searchTerm && filteredProducts.length > 0) {
-      const searchFiltered = filteredProducts.filter(product => 
+    let filtered = products;
+    
+    if (searchTerm) {
+      filtered = products.filter(product => 
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredProducts(searchFiltered);
     }
-  }, [searchTerm]);
+    
+    setFilteredProducts(filtered);
+  }, [searchTerm, products]);
 
   const lowStockCount = products.filter(p => !p.inStock).length;
   const bestSeller = products.find(p => p.bestseller);
