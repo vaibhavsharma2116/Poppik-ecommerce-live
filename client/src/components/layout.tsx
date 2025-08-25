@@ -209,7 +209,7 @@ export default function Layout({ children }: LayoutProps) {
 
 
       {/* Main Header */}
-      <header className="bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 shadow-lg">
+      <header className="sticky top-0 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 shadow-lg z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -633,7 +633,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         {/* Navigation - Desktop */}
-        <nav className="bg-blac hidden md:block shadow-md">
+        <nav className="gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hidden md:block shadow-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-center h-12">
               <NavigationMenu>
@@ -642,10 +642,10 @@ export default function Layout({ children }: LayoutProps) {
                     <NavigationMenuLink asChild>
                       <Link
                         href="/"
-                        className={`text-sm font-medium transition-colors px-4 py-2 transition-colors px-4 py-2 ${
+                        className={`text-sm font-medium transition-colors px-4 py-2 ${
                           isActiveLink("/")
                             ? "text-yellow-300 bg-white/20 rounded-full"
-                            : "text-white text-yellow-300 bg-white/20 rounded-full"
+                            : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
                         }`}
                       >
                         Home
@@ -663,7 +663,7 @@ export default function Layout({ children }: LayoutProps) {
                           <NavigationMenuTrigger className={`text-sm font-medium transition-colors px-4 py-2 ${
                             isActiveLink(`/category/${category.slug}`)
                               ? "text-yellow-300 bg-white/20 rounded-full"
-                              : "text-black text-white-300 bg-white/20 rounded-full"
+                              : "text-white hover:text-yellow-300 hover:bg-white/20 rounded-full"
                           }`}>
                             {category.name}
                           </NavigationMenuTrigger>
@@ -687,7 +687,7 @@ export default function Layout({ children }: LayoutProps) {
                                         }, 100);
                                       }}
                                     >
-                                      <div className="text-sm font-medium transition-colors px-4 py-2 text-gray-900 group-hover:text-red-600">
+                                      <div className="text-sm font-medium transition-colors text-gray-900 group-hover:text-red-600">
                                         {subcategory.name}
                                       </div>
                                       <p className="text-xs text-gray-500 mt-1 group-hover:text-red-500">
@@ -718,7 +718,7 @@ export default function Layout({ children }: LayoutProps) {
                                           }, 100);
                                         }}
                                       >
-                                        <div className="text-sm font-medium transition-colors px-4 py-2 text-gray-900 group-hover:text-red-600">
+                                        <div className="text-sm font-medium transition-colors text-gray-900 group-hover:text-red-600">
                                           {subcategory.name}
                                         </div>
                                         <p className="text-xs text-gray-500 mt-1 group-hover:text-red-500">
@@ -732,26 +732,6 @@ export default function Layout({ children }: LayoutProps) {
                                   ))}
                                 </div>
                               )}
-
-                              {/* <div className="space-y-4">
-                                <div className="border-b border-gray-200 pb-2">
-                                  <h4 className="text-sm font-semibold text-red-500 uppercase tracking-wider">Featured</h4>
-                                </div>
-
-                                <div className="bg-gradient-to-br from-red-50 to-pink-50 p-4 rounded-lg border border-red-100">
-                                  <NavigationMenuLink asChild>
-                                    <Link href={`/category/${category.slug}`} className="block">
-                                      <div className="text-sm font-semibold text-red-600 mb-2">View All</div>
-                                      <div className="text-xs text-gray-600 mb-3">
-                                        Complete {category.name.toLowerCase()} collection
-                                      </div>
-                                      <div className="text-xs bg-red-500 text-white px-2 py-1 rounded-full inline-block">
-                                        Shop Now →
-                                      </div>
-                                    </Link>
-                                  </NavigationMenuLink>
-                                </div>
-                              </div> */}
                             </div>
                           </NavigationMenuContent>
                         </NavigationMenuItem>
@@ -763,10 +743,10 @@ export default function Layout({ children }: LayoutProps) {
                           <NavigationMenuLink asChild>
                             <Link
                               href={`/category/${category.slug}`}
-                              className={`text-sm font-medium transition-colors px-4 py-2 transition-colors px-4 py-2 ${
+                              className={`text-sm font-medium transition-colors px-4 py-2 ${
                                 isActiveLink(`/category/${category.slug}`)
                                   ? "text-yellow-300 bg-white/20 rounded-full"
-                                  : "text-white text-yellow-300 bg-white/20 rounded-full"
+                                  : "text-white hover:text-yellow-300 hover:bg-white/20 rounded-full"
                               }`}
                             >
                               {category.name}
@@ -781,10 +761,10 @@ export default function Layout({ children }: LayoutProps) {
                     <NavigationMenuLink asChild>
                       <Link
                         href="/about"
-                        className={`text-sm font-medium transition-colors px-4 py-2 transition-colors px-4 py-2 ${
+                        className={`text-sm font-medium transition-colors px-4 py-2 ${
                           isActiveLink("/about")
                             ? "text-yellow-300 bg-white/20 rounded-full"
-                            : "text-white text-yellow-300 bg-white/20 rounded-full"
+                            : "text-white hover:text-yellow-300 hover:bg-white/20 rounded-full"
                         }`}
                       >
                         About
@@ -796,10 +776,10 @@ export default function Layout({ children }: LayoutProps) {
                     <NavigationMenuLink asChild>
                       <Link
                         href="/blog"
-                        className={`text-sm font-medium transition-colors px-4 py-2 transition-colors px-4 py-2 ${
+                        className={`text-sm font-medium transition-colors px-4 py-2 ${
                           isActiveLink("/blog")
                             ? "text-yellow-300 bg-white/20 rounded-full"
-                            : "text-white text-yellow-300 bg-white/20 rounded-full"
+                            : "text-white hover:text-yellow-300 hover:bg-white/20 rounded-full"
                         }`}
                       >
                         Blog
@@ -811,10 +791,10 @@ export default function Layout({ children }: LayoutProps) {
                     <NavigationMenuLink asChild>
                       <Link
                         href="/contact"
-                        className={`text-sm font-medium transition-colors px-4 py-2 transition-colors px-4 py-2 ${
+                        className={`text-sm font-medium transition-colors px-4 py-2 ${
                           isActiveLink("/contact")
                             ? "text-yellow-300 bg-white/20 rounded-full"
-                            : "text-white text-yellow-300 bg-white/20 rounded-full"
+                            : "text-white hover:text-yellow-300 hover:bg-white/20 rounded-full"
                         }`}
                       >
                         Contact

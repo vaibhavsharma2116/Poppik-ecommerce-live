@@ -27,13 +27,6 @@ export default function Cart() {
 
   // Load cart from localStorage on component mount
   useEffect(() => {
-    // Check if user is logged in
-    const user = localStorage.getItem("user");
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
     const savedCart = localStorage.getItem("cart");
     if (savedCart) {
       try {

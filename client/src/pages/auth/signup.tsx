@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import OTPVerification from "./otp-verification";
 import PhoneOTPVerification from "./phone-otp-verification";
@@ -28,6 +29,11 @@ export default function Signup() {
     phone: "",
     password: "",
     confirmPassword: "",
+    dateOfBirth: "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
     agreeToTerms: false,
     subscribeNewsletter: false
   });
@@ -54,6 +60,33 @@ export default function Signup() {
   };
 
   
+  const verifyPhoneOTP = async () => {
+    if (phoneOtp.length !== 6) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid 6-digit OTP",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Verify OTP logic here
+      setPhoneVerified(true);
+      await createAccount();
+    } catch (error) {
+      console.error("OTP verification error:", error);
+      toast({
+        title: "Error",
+        description: "Invalid OTP. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const createAccount = async () => {
     setIsLoading(true);
     try {
@@ -101,10 +134,20 @@ export default function Signup() {
     e.preventDefault();
 
     // Basic validation
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password || !formData.dateOfBirth || !formData.address || !formData.city || !formData.state || !formData.pincode) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate PIN code
+    if (formData.pincode && (formData.pincode.length !== 6 || !/^\d{6}$/.test(formData.pincode))) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid 6-digit PIN code",
         variant: "destructive",
       });
       return;
@@ -256,6 +299,133 @@ export default function Signup() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <Input
+                      id="dateOfBirth"
+                      name="dateOfBirth"
+                      type="date"
+                      value={formData.dateOfBirth}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+
+                  {/* Address Section */}
+                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
+                    <Label className="text-base font-semibold text-gray-700">Address Information</Label>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Street Address *</Label>
+                      <Input
+                        id="address"
+                        name="address"
+                        type="text"
+                        placeholder="Enter your full address"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city">City *</Label>
+                        <select
+                          id="city"
+                          name="city"
+                          value={formData.city || ''}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                          required
+                        >
+                          <option value="">Select City</option>
+                          <option value="mumbai">Mumbai</option>
+                          <option value="delhi">Delhi</option>
+                          <option value="bangalore">Bangalore</option>
+                          <option value="hyderabad">Hyderabad</option>
+                          <option value="ahmedabad">Ahmedabad</option>
+                          <option value="chennai">Chennai</option>
+                          <option value="kolkata">Kolkata</option>
+                          <option value="pune">Pune</option>
+                          <option value="jaipur">Jaipur</option>
+                          <option value="lucknow">Lucknow</option>
+                          <option value="kanpur">Kanpur</option>
+                          <option value="nagpur">Nagpur</option>
+                          <option value="indore">Indore</option>
+                          <option value="thane">Thane</option>
+                          <option value="bhopal">Bhopal</option>
+                          <option value="visakhapatnam">Visakhapatnam</option>
+                          <option value="pimpri-chinchwad">Pimpri-Chinchwad</option>
+                          <option value="patna">Patna</option>
+                          <option value="vadodara">Vadodara</option>
+                          <option value="ghaziabad">Ghaziabad</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="state">State *</Label>
+                        <select
+                          id="state"
+                          name="state"
+                          value={formData.state || ''}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                          required
+                        >
+                          <option value="">Select State</option>
+                          <option value="andhra-pradesh">Andhra Pradesh</option>
+                          <option value="arunachal-pradesh">Arunachal Pradesh</option>
+                          <option value="assam">Assam</option>
+                          <option value="bihar">Bihar</option>
+                          <option value="chhattisgarh">Chhattisgarh</option>
+                          <option value="goa">Goa</option>
+                          <option value="gujarat">Gujarat</option>
+                          <option value="haryana">Haryana</option>
+                          <option value="himachal-pradesh">Himachal Pradesh</option>
+                          <option value="jharkhand">Jharkhand</option>
+                          <option value="karnataka">Karnataka</option>
+                          <option value="kerala">Kerala</option>
+                          <option value="madhya-pradesh">Madhya Pradesh</option>
+                          <option value="maharashtra">Maharashtra</option>
+                          <option value="manipur">Manipur</option>
+                          <option value="meghalaya">Meghalaya</option>
+                          <option value="mizoram">Mizoram</option>
+                          <option value="nagaland">Nagaland</option>
+                          <option value="odisha">Odisha</option>
+                          <option value="punjab">Punjab</option>
+                          <option value="rajasthan">Rajasthan</option>
+                          <option value="sikkim">Sikkim</option>
+                          <option value="tamil-nadu">Tamil Nadu</option>
+                          <option value="telangana">Telangana</option>
+                          <option value="tripura">Tripura</option>
+                          <option value="uttar-pradesh">Uttar Pradesh</option>
+                          <option value="uttarakhand">Uttarakhand</option>
+                          <option value="west-bengal">West Bengal</option>
+                          <option value="delhi">Delhi</option>
+                          <option value="chandigarh">Chandigarh</option>
+                          <option value="puducherry">Puducherry</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="pincode">PIN Code *</Label>
+                      <Input
+                        id="pincode"
+                        name="pincode"
+                        type="text"
+                        placeholder="Enter PIN code"
+                        value={formData.pincode || ''}
+                        onChange={handleInputChange}
+                        maxLength={6}
+                        pattern="[0-9]{6}"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -303,32 +473,42 @@ export default function Signup() {
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="agreeToTerms"
-                        name="agreeToTerms"
-                        checked={formData.agreeToTerms}
-                        onChange={handleInputChange}
-                        className="rounded border-gray-300"
-                        required
-                      />
-                      <Label htmlFor="agreeToTerms" className="text-sm">
-                        I agree to the <Link href="/terms" className="text-red-600 hover:text-red-700">Terms of Service</Link> and <Link href="/privacy" className="text-red-600 hover:text-red-700">Privacy Policy</Link>
-                      </Label>
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center h-5 pt-0.5">
+                        <Checkbox
+                          id="agreeToTerms"
+                          checked={formData.agreeToTerms}
+                          onCheckedChange={(checked) => 
+                            setFormData(prev => ({
+                              ...prev,
+                              agreeToTerms: checked === true
+                            }))
+                          }
+                          className="w-5 h-5 text-red-600 bg-white border-red-300 focus:ring-red-500 focus:ring-2 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
+                          required
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <Label htmlFor="agreeToTerms" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
+                          I agree to the <Link href="/terms" className="text-red-600 hover:text-red-700 font-medium underline">Terms of Service</Link> and <Link href="/privacy" className="text-red-600 hover:text-red-700 font-medium underline">Privacy Policy</Link>
+                        </Label>
+                      </div>
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         id="subscribeNewsletter"
-                        name="subscribeNewsletter"
                         checked={formData.subscribeNewsletter}
-                        onChange={handleInputChange}
-                        className="rounded border-gray-300"
+                        onCheckedChange={(checked) => 
+                          setFormData(prev => ({
+                            ...prev,
+                            subscribeNewsletter: checked === true
+                          }))
+                        }
+                        className="w-4 h-4"
                       />
-                      <Label htmlFor="subscribeNewsletter" className="text-sm">
+                      <Label htmlFor="subscribeNewsletter" className="text-sm cursor-pointer">
                         Subscribe to our newsletter for exclusive offers
                       </Label>
                     </div>

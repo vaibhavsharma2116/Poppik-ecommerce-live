@@ -167,7 +167,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   const target = e.target as HTMLImageElement;
                   target.style.opacity = '1';
                 }}
-                style={{ opacity: 0, transition: 'opacity 0.3s ease' }}
+                style={{ opacity: 0, transition: 'opacity 0.3s ease', width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
@@ -287,7 +287,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               decoding="async"
               width="300"
               height="300"
-              style={{ backgroundColor: '#f3f4f6' }}
+              style={{ backgroundColor: '#f3f4f6', width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
@@ -357,24 +357,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           )}
         </div>
 
-        {/* Product badges */}
-        <div className="flex flex-wrap gap-1.5">
-          {product.bestseller && (
-            <Badge variant="secondary" className="text-xs bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 hover:from-yellow-200 hover:to-orange-200 border border-yellow-300 shadow-sm font-semibold">
-              ⭐ Bestseller
-            </Badge>
-          )}
-          {product.newLaunch && (
-            <Badge variant="secondary" className="text-xs bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-800 hover:from-emerald-200 hover:to-teal-200 border border-emerald-300 font-semibold animate-pulse shadow-md">
-              🚀 New Launch
-            </Badge>
-          )}
-          {product.featured && (
-            <Badge variant="secondary" className="text-xs bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 hover:from-blue-200 hover:to-indigo-200 border border-blue-300 shadow-sm font-semibold">
-              ✨ Featured
-            </Badge>
-          )}
-        </div>
+      
       </CardContent>
     </Card>
   );

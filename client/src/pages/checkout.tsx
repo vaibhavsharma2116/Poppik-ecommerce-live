@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface CartItem {
@@ -26,6 +27,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [showAuthRequired, setShowAuthRequired] = useState(false);
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -39,6 +41,8 @@ export default function CheckoutPage() {
     phone: "",
     paymentMethod: "cashfree",
   });
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -49,6 +53,23 @@ export default function CheckoutPage() {
       // Verify payment status
       verifyPayment(orderIdParam);
     } else {
+      // Check if user is authenticated
+      const user = getCurrentUser();
+      if (!user) {
+        setShowAuthRequired(true);
+        setLoading(false);
+        return;
+      }
+
+      // Store user profile and show confirmation dialog
+      setUserProfile(user);
+      
+      // Check if user has profile data to fill
+      const hasProfileData = user.firstName || user.lastName || user.email || user.phone || user.address;
+      if (hasProfileData) {
+        setShowProfileDialog(true);
+      }
+
       const savedCart = localStorage.getItem("cart");
       if (savedCart) {
         try {
@@ -141,6 +162,68 @@ export default function CheckoutPage() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleUseProfileData = () => {
+    if (userProfile) {
+      // Parse address to extract city, state, zipCode from profile
+      let city = "";
+      let state = "";
+      let zipCode = "";
+      let streetAddress = userProfile.address || "";
+
+      // Try to extract city, state, zipCode from full address if they exist
+      const addressParts = streetAddress.split(',').map(part => part.trim());
+      if (addressParts.length >= 3) {
+        // Last part might contain state and pin code
+        const lastPart = addressParts[addressParts.length - 1];
+        const pinCodeMatch = lastPart.match(/\d{6}$/);
+        if (pinCodeMatch) {
+          zipCode = pinCodeMatch[0];
+          state = lastPart.replace(/\d{6}$/, '').trim();
+        } else {
+          state = lastPart;
+        }
+        
+        // Second last part might be city
+        if (addressParts.length >= 2) {
+          city = addressParts[addressParts.length - 2];
+        }
+        
+        // Remove city and state from full address to get street address
+        streetAddress = addressParts.slice(0, -2).join(', ');
+      } else if (addressParts.length === 2) {
+        // If only 2 parts, assume first is address and second is city
+        city = addressParts[1];
+        streetAddress = addressParts[0];
+      } else if (addressParts.length === 1) {
+        // If only 1 part, use it as street address
+        streetAddress = addressParts[0];
+      }
+
+      // Fill both contact information and shipping address
+      setFormData({
+        email: userProfile.email || "",
+        firstName: userProfile.firstName || "",
+        lastName: userProfile.lastName || "",
+        address: streetAddress,
+        city: city,
+        state: state,
+        zipCode: zipCode,
+        phone: userProfile.phone || "",
+        paymentMethod: "cashfree",
+      });
+
+      toast({
+        title: "Profile Information Loaded",
+        description: "Your contact information and shipping address have been filled automatically.",
+      });
+    }
+    setShowProfileDialog(false);
+  };
+
+  const handleSkipProfileData = () => {
+    setShowProfileDialog(false);
   };
 
 
@@ -487,6 +570,37 @@ export default function CheckoutPage() {
     );
   }
 
+  if (showAuthRequired) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-16">
+            <User className="mx-auto h-24 w-24 text-gray-300 mb-6" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h2>
+            <p className="text-gray-600 mb-8">Please login or create an account to proceed with checkout.</p>
+            <div className="flex gap-4 justify-center">
+              <Link href="/auth/login">
+                <Button className="bg-red-600 hover:bg-red-700">
+                  Login
+                </Button>
+              </Link>
+              <Link href="/auth/signup">
+                <Button variant="outline">
+                  Create Account
+                </Button>
+              </Link>
+            </div>
+            <div className="mt-6">
+              <Link href="/cart" className="text-red-600 hover:text-red-700">
+                ← Back to Cart
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
@@ -508,6 +622,56 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      {/* Profile Data Confirmation Dialog */}
+      <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Use Profile Information?
+            </DialogTitle>
+            <DialogDescription>
+              Would you like to use the information from your profile to fill both contact information and shipping address in this checkout form?
+            </DialogDescription>
+          </DialogHeader>
+          
+          {userProfile && (
+            <div className="space-y-3 py-4">
+              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                <div>
+                  <h4 className="font-semibold text-sm text-gray-700 mb-2">Contact Information:</h4>
+                  <p><strong>Name:</strong> {userProfile.firstName} {userProfile.lastName}</p>
+                  <p><strong>Email:</strong> {userProfile.email}</p>
+                  {userProfile.phone && <p><strong>Phone:</strong> {userProfile.phone}</p>}
+                </div>
+                {userProfile.address && (
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2">Shipping Address:</h4>
+                    <p>{userProfile.address}</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <Button 
+                  onClick={handleUseProfileData}
+                  className="flex-1 bg-red-600 hover:bg-red-700"
+                >
+                  Yes, Use Profile Data
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={handleSkipProfileData}
+                  className="flex-1"
+                >
+                  No, I'll Enter Manually
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">

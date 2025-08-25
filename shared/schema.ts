@@ -9,6 +9,8 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   phone: varchar("phone", { length: 20 }),
   password: varchar("password", { length: 255 }).notNull(),
+  dateOfBirth: varchar("date_of_birth", { length: 10 }),
+  address: text("address"),
   role: varchar("role", { length: 20 }).notNull().default("user"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()

@@ -70,7 +70,7 @@ export default function ProductDetail() {
     queryKey: [`/api/products/${product?.id}/shades`],
     queryFn: async () => {
       if (!product?.id) return [];
-      
+
       const response = await fetch(`/api/products/${product.id}/shades`);
       if (!response.ok) {
         return [];
@@ -85,7 +85,7 @@ export default function ProductDetail() {
     queryKey: [`/api/products/${product?.id}/reviews`],
     queryFn: async () => {
       if (!product?.id) return [];
-      
+
       const response = await fetch(`/api/products/${product.id}/reviews`);
       if (!response.ok) {
         return [];
@@ -100,10 +100,10 @@ export default function ProductDetail() {
     queryKey: [`/api/products/${product?.id}/can-review`],
     queryFn: async () => {
       if (!product?.id) return { canReview: false, message: "" };
-      
+
       const user = localStorage.getItem("user");
       if (!user) return { canReview: false, message: "Please login to review" };
-      
+
       const userData = JSON.parse(user);
       const response = await fetch(`/api/products/${product.id}/can-review?userId=${userData.id}`);
       if (!response.ok) {
@@ -201,7 +201,7 @@ export default function ProductDetail() {
     // Allow adding to cart without selecting a shade (None option available)
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    
+
     // Create unique item ID based on product and shade
     const itemKey = selectedShade ? `${product.id}-${selectedShade.id}` : `${product.id}`;
     const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
@@ -249,9 +249,9 @@ export default function ProductDetail() {
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!product) return;
-    
+
     const user = localStorage.getItem("user");
     if (!user) {
       toast({
@@ -276,15 +276,15 @@ export default function ProductDetail() {
     try {
       const userData = JSON.parse(user);
       const formData = new FormData();
-      
+
       formData.append('userId', userData.id.toString());
       formData.append('rating', reviewRating.toString());
       formData.append('orderId', canReview.orderId?.toString() || '');
-      
+
       if (reviewText.trim()) {
         formData.append('reviewText', reviewText.trim());
       }
-      
+
       if (reviewImage) {
         formData.append('image', reviewImage);
       }
@@ -299,13 +299,13 @@ export default function ProductDetail() {
           title: "Review Submitted",
           description: "Thank you for your review!",
         });
-        
+
         // Reset form
         setReviewRating(0);
         setReviewText("");
         setReviewImage(null);
         setShowReviewForm(false);
-        
+
         // Refresh reviews
         refetchReviews();
       } else {
@@ -903,7 +903,7 @@ export default function ProductDetail() {
                   const totalReviews = reviews.length || 1; // Prevent division by zero
                   const starCount = reviews.filter(review => review.rating === stars).length;
                   const percentage = Math.round((starCount / totalReviews) * 100);
-                  
+
                   return (
                     <div key={stars} className="flex items-center space-x-2">
                       <span className="text-sm font-medium w-8">{stars}★</span>

@@ -332,3 +332,8 @@ CREATE TABLE IF NOT EXISTS blog_posts
     updated_at TIMESTAMP DEFAULT now(),
     CONSTRAINT blog_posts_pkey PRIMARY KEY (id)
 );
+
+
+-- Add dateOfBirth and address columns to users table
+ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth VARCHAR(10);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT;

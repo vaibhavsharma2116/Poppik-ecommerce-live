@@ -162,10 +162,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.post("/api/auth/signup", async (req, res) => {
     try {
-      const { firstName, lastName, email, phone, password, confirmPassword } = req.body;
+      const { firstName, lastName, email, phone, password, confirmPassword, dateOfBirth, address } = req.body;
 
       // Validation
-      if (!firstName || !lastName || !email || !password) {
+      if (!firstName || !lastName || !email || !password || !dateOfBirth || !address) {
         return res.status(400).json({ error: "All required fields must be provided" });
       }
 
@@ -192,7 +192,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName,
         email,
         phone,
-        password: hashedPassword
+        password: hashedPassword,
+        dateOfBirth,
+        address
       });
 
       // Generate JWT token
@@ -346,7 +348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Content-Type', 'application/json');
 
       const { id } = req.params;
-      const { firstName, lastName, phone } = req.body;
+      const { firstName, lastName, phone, dateOfBirth, address } = req.body;
 
       console.log(`Updating user ${id} with:`, { firstName, lastName, phone });
 
@@ -365,7 +367,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedUser = await storage.updateUser(userId, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        phone: phone ? phone.trim() : null
+        phone: phone ? phone.trim() : null,
+        dateOfBirth: dateOfBirth ? dateOfBirth.trim() : null,
+        address: address ? address.trim() : null
       });
 
       if (!updatedUser) {

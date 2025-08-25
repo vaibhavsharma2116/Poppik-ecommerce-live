@@ -216,7 +216,7 @@ export default function Blog() {
                     <img
                       src={post.imageUrl}
                       alt={post.title}
-                      className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300"
+                      className="w-full h-68  object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                     {post.videoUrl && (
                       <div className="absolute inset-0 flex items-center justify-center">
@@ -326,7 +326,7 @@ export default function Blog() {
                       <img
                         src={post.imageUrl}
                         alt={post.title}
-                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-68  object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       {post.videoUrl && (
                         <div className="absolute inset-0 flex items-center justify-center">

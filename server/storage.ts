@@ -410,7 +410,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`DatabaseStorage: Attempting to delete product with ID: ${id}`);
       const db = await getDb();
-      
+
       // First check if product exists
       const existingProduct = await db.select().from(products).where(eq(products.id, id)).limit(1);
       if (existingProduct.length === 0) {
@@ -419,31 +419,31 @@ export class DatabaseStorage implements IStorage {
       }
 
       console.log(`Found product to delete: ${existingProduct[0].name}`);
-      
+
       // Delete related data first (reviews, order items, etc.)
       try {
         // Delete reviews for this product
         await db.delete(reviews).where(eq(reviews.productId, id));
         console.log(`Deleted reviews for product ${id}`);
-        
+
         // Note: We don't delete order items as they are historical records
         // Just the product itself will be deleted
       } catch (relatedError) {
         console.warn(`Warning: Failed to delete related data for product ${id}:`, relatedError);
         // Continue with product deletion even if related data deletion fails
       }
-      
+
       // Delete the product
       const result = await db.delete(products).where(eq(products.id, id)).returning();
       const success = result.length > 0;
-      
+
       if (success) {
         console.log(`Successfully deleted product ${id} from database. Deleted ${result.length} rows.`);
         console.log(`Deleted product details:`, result[0]);
       } else {
         console.log(`Failed to delete product ${id} - no rows affected`);
       }
-      
+
       return success;
     } catch (error) {
       console.error(`Error deleting product ${id}:`, error);
@@ -1031,7 +1031,7 @@ export class DatabaseStorage implements IStorage {
   async createBlogPost(postData: InsertBlogPost): Promise<BlogPost> {
     try {
       const db = await getDb();
-      
+
       // Generate slug from title
       const slug = postData.title
         .toLowerCase()
@@ -1233,7 +1233,7 @@ export class DatabaseStorage implements IStorage {
   async toggleBlogPostLike(postId: number, userId: number): Promise<{ liked: boolean; likesCount: number }> {
     try {
       const db = await getDb();
-      
+
       // Check if user already liked this post
       const existingLike = await db
         .select()
@@ -1242,7 +1242,7 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
 
       let liked = false;
-      
+
       if (existingLike.length > 0) {
         // Unlike - remove the like
         await db.delete(sql`blog_post_likes`).where(sql`post_id = ${postId} AND user_id = ${userId}`);

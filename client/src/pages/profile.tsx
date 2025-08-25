@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { User, Mail, Phone, Calendar, LogOut, Edit } from "lucide-react";
@@ -18,6 +17,8 @@ interface UserProfile {
   email: string;
   phone?: string;
   createdAt: string;
+  address?: string;
+  dateOfBirth?: string;
 }
 
 export default function Profile() {
@@ -27,7 +28,9 @@ export default function Profile() {
   const [editFormData, setEditFormData] = useState({
     firstName: '',
     lastName: '',
-    phone: ''
+    phone: '',
+    dateOfBirth: '',
+    address: ''
   });
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -39,6 +42,14 @@ export default function Profile() {
       try {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
+        // Initialize form data with user data
+        setEditFormData({
+          firstName: parsedUser.firstName || '',
+          lastName: parsedUser.lastName || '',
+          phone: parsedUser.phone || '',
+          dateOfBirth: parsedUser.dateOfBirth || '',
+          address: parsedUser.address || ''
+        });
       } catch (error) {
         console.error("Error parsing user data:", error);
         // Redirect to login if user data is invalid
@@ -76,7 +87,9 @@ export default function Profile() {
       setEditFormData({
         firstName: user.firstName,
         lastName: user.lastName,
-        phone: user.phone || ''
+        phone: user.phone || '',
+        dateOfBirth: user.dateOfBirth || '',
+        address: user.address || ''
       });
       setIsEditModalOpen(true);
     }
@@ -84,7 +97,7 @@ export default function Profile() {
 
   const handleSaveProfile = async () => {
     if (!user) return;
-    
+
     setIsSaving(true);
     try {
       // First, test if the API is reachable
@@ -95,18 +108,20 @@ export default function Profile() {
       }
       const healthData = await healthResponse.json();
       console.log('API health check:', healthData);
-      
+
       console.log('Updating profile for user:', user.id);
       console.log('Profile data:', editFormData);
       const requestData = {
         firstName: editFormData.firstName,
         lastName: editFormData.lastName,
-        phone: editFormData.phone
+        phone: editFormData.phone,
+        dateOfBirth: editFormData.dateOfBirth,
+        address: editFormData.address
       };
-      
+
       console.log('Sending PUT request to:', `/api/users/${user.id}`);
       console.log('Request data:', requestData);
-      
+
       const response = await fetch(`/api/users/${user.id}`, {
         method: 'PUT',
         headers: {
@@ -135,15 +150,15 @@ export default function Profile() {
 
       const data = await response.json();
       const updatedUser = data.user || data;
-      
+
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
-      
+
       toast({
         title: "Profile Updated",
         description: "Your profile has been successfully updated.",
       });
-      
+
       setIsEditModalOpen(false);
     } catch (error) {
       console.error("Profile update error:", error);
@@ -218,16 +233,16 @@ export default function Profile() {
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full"
                   onClick={handleEditProfile}
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Profile
                 </Button>
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   className="w-full bg-red-600 hover:bg-red-700"
                   onClick={handleLogout}
                 >
@@ -254,7 +269,7 @@ export default function Profile() {
                       <span className="text-gray-900">{user.firstName}</span>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Last Name</label>
                     <div className="flex items-center p-3 bg-gray-50 rounded-lg">
@@ -262,7 +277,7 @@ export default function Profile() {
                       <span className="text-gray-900">{user.lastName}</span>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Email Address</label>
                     <div className="flex items-center p-3 bg-gray-50 rounded-lg">
@@ -270,7 +285,7 @@ export default function Profile() {
                       <span className="text-gray-900">{user.email}</span>
                     </div>
                   </div>
-                  
+
                   {user.phone && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700">Phone Number</label>
@@ -280,7 +295,27 @@ export default function Profile() {
                       </div>
                     </div>
                   )}
-                  
+
+                  {user.dateOfBirth && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Date of Birth</label>
+                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <Calendar className="h-4 w-4 text-gray-400 mr-3" />
+                        <span className="text-gray-900">{new Date(user.dateOfBirth).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {user.address && (
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm font-medium text-gray-700">Address</label>
+                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <User className="h-4 w-4 text-gray-400 mr-3" />
+                        <span className="text-gray-900">{user.address}</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-sm font-medium text-gray-700">Member Since</label>
                     <div className="flex items-center p-3 bg-gray-50 rounded-lg">
@@ -366,17 +401,38 @@ export default function Profile() {
                 placeholder="Enter your phone number"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                value={editFormData.dateOfBirth}
+                onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
+                placeholder="Select your date of birth"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={editFormData.address}
+                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                placeholder="Enter your address"
+              />
+            </div>
           </div>
           <div className="flex justify-end space-x-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setIsEditModalOpen(false)}
               disabled={isSaving}
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleSaveProfile} 
+            <Button
+              onClick={handleSaveProfile}
               disabled={isSaving}
               className="bg-red-600 hover:bg-red-700"
             >
