@@ -97,6 +97,7 @@ export default function OptimizedImage({
       className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className}`}
       style={{
         backgroundColor: '#f3f4f6',
+        objectFit: 'contain',
         ...style
       }}
       onLoad={handleLoad}

@@ -129,7 +129,7 @@ export default function HeroBanner({
   }
 
   return (
-    <section className="relative w-full" aria-label="Hero banner carousel">
+    <section className="relative w-full -mt-4" aria-label="Hero banner carousel">
       <Carousel
         setApi={setApi}
         className="w-full"
@@ -155,7 +155,7 @@ export default function HeroBanner({
                 <img 
                   src={slide.imageUrl} 
                   alt={`Slide ${slide.id}`}
-                  className="mobile-slider-image w-full h-full object-cover"
+                  className="mobile-slider-image w-full h-full object-contain bg-gray-100"
                 />
               </div>
             </CarouselItem>
@@ -182,45 +182,7 @@ export default function HeroBanner({
           </>
         )}
 
-        <button
-          onClick={togglePlayPause}
-          className="absolute bottom-4 right-4 z-20 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition-all"
-          aria-label={isPlaying ? "Pause autoplay" : "Play autoplay"}
-        >
-          {isPlaying ? (
-            <Pause className="w-4 h-4 text-gray-800" />
-          ) : (
-            <Play className="w-4 h-4 text-gray-800" />
-          )}
-        </button>
-
-        {showIndicators && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-            <div className="flex space-x-3 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
-              {slides.map((_, index) => (
-                <button
-                  key={index}
-                  className={`relative w-3 h-3 rounded-full transition-all duration-300 ${
-                    index === current ? 'bg-red-500 scale-125' : 'bg-white/60 hover:bg-white/80'
-                  }`}
-                  onClick={() => goToSlide(index)}
-                  aria-label={`Go to slide ${index + 1}`}
-                  aria-current={index === current ? "true" : "false"}
-                >
-                  {index === current && (
-                    <div 
-                      className="absolute inset-0 bg-red-500 rounded-full transition-all duration-100"
-                      style={{ 
-                        clipPath: `inset(0 ${100 - progress}% 0 0)`,
-                      }}
-                      aria-hidden="true"
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        
 
         <div className="absolute top-6 right-6 z-20 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-white text-sm font-medium">
           {current + 1} / {slides.length}

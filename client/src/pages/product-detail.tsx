@@ -417,8 +417,10 @@ export default function ProductDetail() {
               <img
                 src={selectedShade?.imageUrl || product.imageUrl}
                 alt={selectedShade ? `${product.name} - ${selectedShade.name}` : product.name}
-                className="w-full h-auto rounded-3xl transition-all duration-500 group-hover:scale-105"
+                className="w-full rounded-3xl transition-all duration-500 group-hover:scale-105"
                 style={{
+                  objectFit: 'contain',
+                  display: 'block',
                   transition: 'opacity 0.3s ease-in-out'
                 }}
                 onLoad={(e) => {

@@ -158,7 +158,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               <img
                 src={`${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=400&h=400&q=80&fit=crop' : ''}`}
                 alt={product.name}
-                className="w-full h-full object-cover cursor-pointer group-hover:scale-110 transition-transform duration-700 rounded-lg"
+                className="w-full h-full object-contain cursor-pointer group-hover:scale-110 transition-transform duration-700 rounded-lg"
                 loading="lazy"
                 decoding="async"
                 width="400"
@@ -167,7 +167,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   const target = e.target as HTMLImageElement;
                   target.style.opacity = '1';
                 }}
-                style={{ opacity: 0, transition: 'opacity 0.3s ease', width: '100%', height: '100%', objectFit: 'cover' }}
+                style={{ opacity: 0, transition: 'opacity 0.3s ease', width: '100%', height: '100%', objectFit: 'contain' }}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
@@ -273,21 +273,20 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         )}
         <button
           onClick={toggleWishlist}
-          className="absolute top-2 right-2 p-2 bg-white/95 backdrop-blur-sm rounded-full shadow-lg hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50 hover:scale-110 transition-all duration-300 z-10 border border-pink-100"
+          className="absolute top-2 right-2 p-2 hover:from-red-50 hover:to-pink-50 hover:scale-110 transition-all duration-300 z-10 "
         >
-          <Heart className={`h-4 w-4 transition-all duration-300 ${isInWishlist ? "text-red-500 fill-current animate-pulse" : "text-gray-400 hover:text-pink-500"}`} />
+          <Heart className={`h-6 w-6 transition-all duration-300 ${isInWishlist ? "text-red-500 fill-current animate-pulse" : "text-gray-400 hover:text-pink-500"}`} />
         </button>
         <Link href={`/product/${product.slug}`}>
-          <div className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50">
+          <div className="relative overflow-hidden bg-gradient-to-br from-black-50 to-purple-50">
             <img
               src={`${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=300&h=300&q=75&fit=crop' : ''}`}
               alt={product.name}
-              className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-cover"
+              className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
               loading="lazy"
               decoding="async"
-              width="300"
-              height="300"
-              style={{ backgroundColor: '#f3f4f6', width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+             
+              style={{ width: '100%', height: '70%', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';

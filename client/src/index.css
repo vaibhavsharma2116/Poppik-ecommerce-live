@@ -1211,10 +1211,16 @@ body {
   }
 
   .mobile-slider-image {
-    @apply h-56 sm:h-64 md:h-72 lg:h-80 object-cover w-full;
-    min-height: 224px;
+    @apply h-44 sm:h-52 md:h-64 lg:h-72 object-contain sm:object-cover w-full;
+    min-height: 176px;
     object-position: center;
-    object-fit: cover;
+    object-fit: contain;
+  }
+
+  @media (min-width: 640px) {
+    .mobile-slider-image {
+      object-fit: cover;
+    }
   }
 
   .mobile-slider-content {
@@ -1563,6 +1569,19 @@ img {
 
 .webp .jpeg-fallback {
   display: none;
+}
+
+/* Full width image fixes */
+.mobile-product-image {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+
+.mobile-product-card .relative {
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* Android Browser Specific Fixes */
