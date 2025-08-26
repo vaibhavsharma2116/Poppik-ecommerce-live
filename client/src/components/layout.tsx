@@ -16,6 +16,7 @@ import {
 import type { Category, Subcategory, Product } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import logo from "@assets/logo.png";
+import headerLogo from "@assets/typo_Poppik_Black-01.png";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 interface LayoutProps {
   children: React.ReactNode;
@@ -216,8 +217,8 @@ export default function Layout({ children }: LayoutProps) {
             <Link href="/">
               <div className="flex items-center cursor-pointer hover:scale-105 transition-transform duration-300">
                 <img 
-                  src={logo} 
-                  alt="POPPIK Logo" 
+                  src={headerLogo} 
+                  alt="Fresh Look Everyday - POPPIK" 
                   className="h-12 w-auto sm:h-14 md:h-16 lg:h-20 xl:h-24 object-contain"
                 />
               </div>
@@ -309,7 +310,7 @@ export default function Layout({ children }: LayoutProps) {
                     size="sm"
                     onClick={handleLogout}
                     title="Logout"
-                    className="text-white hover:text-red-300 hover:bg-white/20 transition-all duration-300"
+                    className="text-black hover:text-red-300 hover:bg-white/20 transition-all duration-300"
                   >
                     <LogOut className="h-5 w-5" />
                   </Button>
@@ -355,7 +356,7 @@ export default function Layout({ children }: LayoutProps) {
                           href={item.href}
                           className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                             isActiveLink(item.href)
-                              ? "bg-red-500 text-white shadow-md"
+                              ? "bg-red-500 text-black shadow-md"
                               : "text-gray-700 hover:bg-red-50 hover:text-red-600"
                           }`}
                         >
@@ -429,7 +430,7 @@ export default function Layout({ children }: LayoutProps) {
                                   href={`/category/${category.slug}`}
                                   className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                                     isActiveLink(`/category/${category.slug}`)
-                                      ? "bg-red-500 text-white shadow-md"
+                                      ? "bg-red-500 text-black shadow-md"
                                       : "text-gray-700 hover:bg-red-50 hover:text-red-600"
                                   }`}
                                 >
@@ -663,7 +664,7 @@ export default function Layout({ children }: LayoutProps) {
                           <NavigationMenuTrigger className={`text-sm font-medium transition-colors px-4 py-2 ${
                             isActiveLink(`/category/${category.slug}`)
                               ? "text-yellow-300 bg-white/20 rounded-full"
-                              : "text-white hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                              : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
                           }`}>
                             {category.name}
                           </NavigationMenuTrigger>
@@ -746,7 +747,7 @@ export default function Layout({ children }: LayoutProps) {
                               className={`text-sm font-medium transition-colors px-4 py-2 ${
                                 isActiveLink(`/category/${category.slug}`)
                                   ? "text-yellow-300 bg-white/20 rounded-full"
-                                  : "text-white hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                                  : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
                               }`}
                             >
                               {category.name}
@@ -764,7 +765,7 @@ export default function Layout({ children }: LayoutProps) {
                         className={`text-sm font-medium transition-colors px-4 py-2 ${
                           isActiveLink("/about")
                             ? "text-yellow-300 bg-white/20 rounded-full"
-                            : "text-white hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                            : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
                         }`}
                       >
                         About
@@ -779,7 +780,7 @@ export default function Layout({ children }: LayoutProps) {
                         className={`text-sm font-medium transition-colors px-4 py-2 ${
                           isActiveLink("/blog")
                             ? "text-yellow-300 bg-white/20 rounded-full"
-                            : "text-white hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                            : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
                         }`}
                       >
                         Blog
@@ -794,7 +795,7 @@ export default function Layout({ children }: LayoutProps) {
                         className={`text-sm font-medium transition-colors px-4 py-2 ${
                           isActiveLink("/contact")
                             ? "text-yellow-300 bg-white/20 rounded-full"
-                            : "text-white hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                            : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
                         }`}
                       >
                         Contact
@@ -814,7 +815,7 @@ export default function Layout({ children }: LayoutProps) {
       </main>
 
       {/* Footer */}
-      <footer className="bg-black text-white py-16">
+      <footer className="bg-black text-black py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* Company Info */}
@@ -916,32 +917,32 @@ export default function Layout({ children }: LayoutProps) {
               <h4 className="font-semibold mb-4">Quick Links</h4>
               <ul className="space-y-2">
                 <li>
-                  <Link href="/" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/" className="text-gray-400 hover:text-black transition-colors">
                     Home
                   </Link>
                 </li>
                 <li>
-                  <Link href="/about" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/about" className="text-gray-400 hover:text-black transition-colors">
                     About Us
                   </Link>
                 </li>
                 <li>
-                  <Link href="/blog" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/blog" className="text-gray-400 hover:text-black transition-colors">
                     Blog
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/contact" className="text-gray-400 hover:text-black transition-colors">
                     Contact
                   </Link>
                 </li>
                 {/* <li>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                  <a href="#" className="text-gray-400 hover:text-black transition-colors">
                     Blog
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                  <a href="#" className="text-gray-400 hover:text-black transition-colors">
                     FAQ
                   </a>
                 </li> */}
@@ -956,7 +957,7 @@ export default function Layout({ children }: LayoutProps) {
                   <li key={category.id}>
                     <Link 
                       href={`/category/${category.slug}`} 
-                      className="text-gray-400 hover:text-white transition-colors"
+                      className="text-gray-400 hover:text-black transition-colors"
                     >
                       {category.name}
                     </Link>
@@ -966,7 +967,7 @@ export default function Layout({ children }: LayoutProps) {
                   <li>
                     <Link 
                       href="/categories" 
-                      className="text-gray-400 hover:text-white transition-colors font-medium"
+                      className="text-gray-400 hover:text-black transition-colors font-medium"
                     >
                       View All Categories →
                     </Link>
@@ -981,34 +982,34 @@ export default function Layout({ children }: LayoutProps) {
               <ul className="space-y-2">
                 {user && (
                   <li>
-                    <Link href="/order-history" className="text-gray-400 hover:text-white transition-colors">
+                    <Link href="/order-history" className="text-gray-400 hover:text-black transition-colors">
                       Order History
                     </Link>
                   </li>
                 )}
                 <li>
-                  <Link href="/track-order" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/track-order" className="text-gray-400 hover:text-black transition-colors">
                     Track Your Order
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/contact" className="text-gray-400 hover:text-black transition-colors">
                     Contact Support
                   </Link>
                 </li>
                 <li>
-                  <Link href="/about" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/about" className="text-gray-400 hover:text-black transition-colors">
                     About Us
                   </Link>
                 </li>
 
                 <li>
-                  <Link href="/terms" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/terms" className="text-gray-400 hover:text-black transition-colors">
                     Terms & Conditions
                   </Link>
                 </li>
                 <li>
-                  <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/privacy" className="text-gray-400 hover:text-black transition-colors">
                     Privacy Policy
                   </Link>
                 </li>

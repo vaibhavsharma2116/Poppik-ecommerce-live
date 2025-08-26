@@ -35,8 +35,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb",
-  ssl: process.env.DATABASE_URL?.includes('31.97.226.116') ? false : { rejectUnauthorized: false },
+  connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/my_pgdb",
+  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
   max: 20,
   min: 2, // Keep minimum 2 connections alive
   idleTimeoutMillis: 300000, // 5 minutes instead of 30 seconds

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Phone, RefreshCw } from "lucide-react";
@@ -22,6 +21,10 @@ export default function MobileOTPVerification({ phoneNumber: propPhoneNumber, on
   const [otpSent, setOtpSent] = useState(false);
   const { toast } = useToast();
 
+  // Development mode flag and current OTP display state (added for context, but not fully implemented by provided changes)
+  const showDevOTP = process.env.NODE_ENV === 'development'; // Example: Use environment variable
+  const [currentOTP, setCurrentOTP] = useState<string | null>(null); // State to hold OTP in dev mode
+
   // Countdown timer for resend
   useEffect(() => {
     if (countdown > 0) {
@@ -33,18 +36,18 @@ export default function MobileOTPVerification({ phoneNumber: propPhoneNumber, on
   const formatPhoneNumber = (phone: string) => {
     // Remove all non-digits
     const cleaned = phone.replace(/\D/g, '');
-    
+
     // If it starts with 91, remove it (assuming Indian numbers)
     if (cleaned.startsWith('91') && cleaned.length === 12) {
       return cleaned.substring(2);
     }
-    
+
     return cleaned;
   };
 
   const sendOTP = async () => {
     const cleanedPhone = formatPhoneNumber(phoneNumber);
-    
+
     if (!cleanedPhone || cleanedPhone.length !== 10) {
       toast({
         title: "Error",
@@ -73,6 +76,8 @@ export default function MobileOTPVerification({ phoneNumber: propPhoneNumber, on
         });
         setOtpSent(true);
         setCountdown(60); // 60 seconds countdown
+        // In a real dev scenario, you'd get the OTP here if available
+        // setCurrentOTP(result.otp); // Assuming API returns OTP in dev
       } else {
         toast({
           title: "Error",
@@ -203,22 +208,37 @@ export default function MobileOTPVerification({ phoneNumber: propPhoneNumber, on
             {/* OTP Input (when OTP sent) */}
             {otpSent && (
               <div className="space-y-4">
-                <Label htmlFor="otp">Enter OTP</Label>
-                <div className="flex justify-center">
-                  <InputOTP
-                    value={otp}
-                    onChange={(value) => setOtp(value)}
-                    maxLength={6}
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Enter OTP</Label>
+                  <div className="flex justify-center">
+                    <InputOTP
+                      value={otp}
+                      onChange={(value) => setOtp(value)}
+                      maxLength={6}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  <p className="text-sm text-gray-600 text-center">
+                    Enter the 6-digit code sent to +91 {phoneNumber}
+                  </p>
+                  {showDevOTP && currentOTP && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-3">
+                      <p className="text-sm text-yellow-800 text-center">
+                        <strong>Development Mode:</strong> Your OTP is <span className="font-mono font-bold">{currentOTP}</span>
+                      </p>
+                      <p className="text-xs text-yellow-600 text-center mt-1">
+                        (This will not be visible in production)
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -277,6 +297,6 @@ export default function MobileOTPVerification({ phoneNumber: propPhoneNumber, on
           </CardContent>
         </Card>
       </div>
-  
+
   );
 }

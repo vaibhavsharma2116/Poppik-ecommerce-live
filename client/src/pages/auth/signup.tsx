@@ -72,9 +72,35 @@ export default function Signup() {
 
     setIsLoading(true);
     try {
-      // Verify OTP logic here
-      setPhoneVerified(true);
-      await createAccount();
+      const cleanedPhone = formatPhoneNumber(formData.phone);
+      const response = await fetch("/api/auth/verify-mobile-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          phoneNumber: cleanedPhone, 
+          otp: phoneOtp 
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.verified) {
+        toast({
+          title: "Success",
+          description: "Mobile number verified successfully",
+        });
+        setPhoneVerified(true);
+        // Now create the account
+        await createAccount();
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Invalid OTP",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("OTP verification error:", error);
       toast({
@@ -123,6 +149,57 @@ export default function Signup() {
       toast({
         title: "Error",
         description: "Failed to create account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const sendOTP = async () => {
+    const cleanedPhone = formatPhoneNumber(formData.phone);
+    
+    if (!cleanedPhone || cleanedPhone.length !== 10) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid 10-digit phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/auth/send-mobile-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phoneNumber: cleanedPhone }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        toast({
+          title: "Success",
+          description: "OTP sent to your mobile number!",
+        });
+        setPhoneOtpSent(true);
+        setStep(2);
+        setCountdown(60);
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to send OTP",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Send OTP error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send OTP. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -191,7 +268,8 @@ export default function Signup() {
       return;
     }
 
-    
+    // Send OTP for mobile verification
+    await sendOTP();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -518,9 +596,8 @@ export default function Signup() {
                     type="submit" 
                     className="w-full bg-red-600 hover:bg-red-700"
                     disabled={isLoading}
-                    onClick={createAccount}
                   >
-                    {isLoading ? "Sending OTP..." : "Send Verification Code"}
+                    {isLoading ? "Sending OTP..." : "Send Mobile OTP"}
                   </Button>
                 </form>
 

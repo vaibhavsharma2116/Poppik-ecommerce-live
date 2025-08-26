@@ -321,19 +321,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test SMS service connectivity with real SMS sending
+  app.get("/api/auth/test-sms-service", async (req, res) => {
+    try {
+      // Check configuration
+      if (!process.env.MDSSEND_API_KEY || !process.env.MDSSEND_SENDER_ID) {
+        return res.status(400).json({
+          success: false,
+          message: "SMS service not configured",
+          issues: [
+            "Missing MDSSEND_API_KEY environment variable",
+            "Missing MDSSEND_SENDER_ID environment variable"
+          ]
+        });
+      }
+
+      const testPhone = req.query.phone || '9999999999';
+      console.log('🧪 Testing SMS service with phone:', testPhone);
+
+      // Test actual SMS sending
+      const result = await OTPService.sendMobileOTP(testPhone.toString());
+
+      res.json({
+        success: result.success,
+        message: result.message,
+        testPhone,
+        details: {
+          apiUrl: 'https://api.mdssend.in/v1/sms/send',
+          configured: true,
+          apiKeyLength: process.env.MDSSEND_API_KEY?.length,
+          senderId: process.env.MDSSEND_SENDER_ID,
+          templateId: process.env.MDSSEND_TEMPLATE_ID || 'Not set'
+        }
+      });
+
+    } catch (error) {
+      console.error('SMS test error:', error);
+      res.status(500).json({
+        success: false,
+        message: "SMS service test failed",
+        error: error.message,
+        details: {
+          configured: !!process.env.MDSSEND_API_KEY && !!process.env.MDSSEND_SENDER_ID,
+          possibleIssues: [
+            "Invalid API credentials",
+            "Network connectivity issues", 
+            "MDSSEND.IN API is down",
+            "Incorrect API endpoint URL",
+            "Phone number format issues"
+          ]
+        }
+      });
+    }
+  });
+
   // Get current mobile OTP for development
   app.get("/api/auth/get-mobile-otp/:phoneNumber", async (req, res) => {
     try {
       const { phoneNumber } = req.params;
-      const otpData = OTPService.otpStorage.get(phoneNumber);
+      
+      // Clean phone number the same way as in sendMobileOTP
+      const cleanedPhone = phoneNumber.replace(/\D/g, '');
+      const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12 
+        ? cleanedPhone.substring(2) 
+        : cleanedPhone;
+      
+      const otpData = OTPService.otpStorage.get(formattedPhone);
 
       if (otpData && new Date() <= otpData.expiresAt) {
-        res.json({ otp: otpData.otp });
+        res.json({ 
+          otp: otpData.otp,
+          phoneNumber: formattedPhone,
+          expiresAt: otpData.expiresAt,
+          remainingTime: Math.max(0, Math.floor((otpData.expiresAt.getTime() - Date.now()) / 1000))
+        });
       } else {
         res.status(404).json({ error: "No valid OTP found" });
       }
     } catch (error) {
       res.status(500).json({ error: "Failed to get OTP" });
+    }
+  });
+
+  // Direct SMS test endpoint
+  app.post("/api/auth/test-direct-sms", async (req, res) => {
+    try {
+      const { phoneNumber, message } = req.body;
+
+      if (!phoneNumber) {
+        return res.status(400).json({ error: "Phone number is required" });
+      }
+
+      console.log('🧪 Direct SMS Test - Phone:', phoneNumber);
+      console.log('🧪 Direct SMS Test - Message:', message || 'Test message');
+
+      // Check configuration
+      if (!process.env.MDSSEND_API_KEY || !process.env.MDSSEND_SENDER_ID) {
+        return res.status(400).json({
+          error: "SMS service not configured properly",
+          details: {
+            apiKey: !!process.env.MDSSEND_API_KEY,
+            senderId: !!process.env.MDSSEND_SENDER_ID
+          }
+        });
+      }
+
+      const apiKey = process.env.MDSSEND_API_KEY;
+      const senderId = process.env.MDSSEND_SENDER_ID;
+      const templateId = process.env.MDSSEND_TEMPLATE_ID || '';
+
+      // Format phone number
+      const cleanedPhone = phoneNumber.replace(/\D/g, '');
+      const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : `91${cleanedPhone}`;
+
+      const testMessage = message || `Test SMS from Poppik Beauty Store at ${new Date().toLocaleString('en-IN')}`;
+
+      const requestData = {
+        apikey: apiKey,
+        sender: senderId,
+        message: testMessage,
+        numbers: formattedPhone,
+        ...(templateId && { templateid: templateId })
+      };
+
+      console.log('🔗 Sending to:', `https://api.mdssend.in/v1/sms/send`);
+      console.log('📝 Request payload:', JSON.stringify(requestData, null, 2));
+
+      const response = await fetch('https://api.mdssend.in/v1/sms/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Poppik-Beauty-Store-Test/1.0',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      const result = await response.json();
+      
+      console.log('📱 MDSSEND.IN Response Status:', response.status);
+      console.log('📱 MDSSEND.IN Response:', JSON.stringify(result, null, 2));
+
+      res.json({
+        success: response.ok,
+        status: response.status,
+        response: result,
+        requestData: {
+          ...requestData,
+          apikey: `${apiKey.substring(0, 8)}****` // Hide full API key
+        },
+        formattedPhone,
+        message: testMessage
+      });
+
+    } catch (error) {
+      console.error('Direct SMS test error:', error);
+      res.status(500).json({
+        error: error.message,
+        details: 'Failed to send direct SMS test'
+      });
     }
   });
 
