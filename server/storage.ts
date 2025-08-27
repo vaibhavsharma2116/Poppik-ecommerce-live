@@ -13,6 +13,7 @@ import {
   orderItemsTable,
   blogPosts,
   blogCategories,
+  productImages,
   type Product,
   type Category,
   type Subcategory,
@@ -21,6 +22,7 @@ import {
   type Review,
   type BlogPost,
   type BlogCategory,
+  type ProductImage,
   type InsertProduct,
   type InsertCategory,
   type InsertSubcategory,
@@ -28,7 +30,8 @@ import {
   type InsertShade,
   type InsertReview,
   type InsertBlogPost,
-  type InsertBlogCategory
+  type InsertBlogCategory,
+  type InsertProductImage
 } from "@shared/schema";
 import dotenv from "dotenv";
 
@@ -110,6 +113,12 @@ export interface IStorage {
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product | undefined>;
   deleteProduct(id: number): Promise<boolean>;
+
+  // Product Images
+  createProductImages(productId: number, imageUrls: string[]): Promise<ProductImage[]>;
+  getProductImages(productId: number): Promise<ProductImage[]>;
+  updateProductImages(productId: number, imageUrls: string[]): Promise<ProductImage[]>;
+  deleteProductImages(productId: number): Promise<boolean>;
 
   // Categories
   getCategory(id: number): Promise<Category | undefined>;
@@ -347,8 +356,22 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Product was not created - no result returned");
       }
 
-      console.log("Product created successfully:", result[0]);
-      return result[0];
+      const createdProduct = result[0];
+      console.log("Product created successfully:", createdProduct);
+
+      // If images array is provided, create product images
+      if (productData.images && Array.isArray(productData.images) && productData.images.length > 0) {
+        await this.createProductImages(createdProduct.id, productData.images);
+
+        // Update main imageUrl to be the first image
+        await this.db.update(products)
+          .set({ imageUrl: productData.images[0] })
+          .where(eq(products.id, createdProduct.id));
+
+        createdProduct.imageUrl = productData.images[0];
+      }
+
+      return createdProduct;
     } catch (error: any) {
       console.error("Error creating product:", error);
 
@@ -393,13 +416,30 @@ export class DatabaseStorage implements IStorage {
         cleanData.slug = cleanData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       }
 
-      const [updatedProduct] = await db
+      // Extract images array from productData
+      const { images, ...productInfo } = cleanData;
+
+      const [product] = await db
         .update(products)
-        .set(cleanData)
+        .set(productInfo)
         .where(eq(products.id, id))
         .returning();
 
-      return updatedProduct || null;
+      // Handle multiple images if provided
+      if (images && Array.isArray(images)) {
+        await this.updateProductImages(id, images);
+
+        // Update main imageUrl to be the first image if images exist
+        if (images.length > 0) {
+          await this.db.update(products)
+            .set({ imageUrl: images[0] })
+            .where(eq(products.id, id));
+
+          if (product) product.imageUrl = images[0];
+        }
+      }
+
+      return product || null;
     } catch (error) {
       console.error("Error updating product:", error);
       throw error;
@@ -425,6 +465,10 @@ export class DatabaseStorage implements IStorage {
         // Delete reviews for this product
         await db.delete(reviews).where(eq(reviews.productId, id));
         console.log(`Deleted reviews for product ${id}`);
+
+        // Delete associated images first
+        await this.deleteProductImages(id);
+        console.log(`Deleted product images for product ${id}`);
 
         // Note: We don't delete order items as they are historical records
         // Just the product itself will be deleted
@@ -840,6 +884,53 @@ export class DatabaseStorage implements IStorage {
     return false;
   }
 
+  // Product Images Methods
+  async createProductImages(productId: number, imageUrls: string[]): Promise<ProductImage[]> {
+    const db = await getDb();
+
+    const imageData = imageUrls.map((url, index) => ({
+      productId,
+      imageUrl: url,
+      isPrimary: index === 0, // First image is primary
+      sortOrder: index,
+      altText: `Product image ${index + 1}`
+    }));
+
+    const result = await db.insert(productImages).values(imageData).returning();
+    return result;
+  }
+
+  async getProductImages(productId: number): Promise<ProductImage[]> {
+    const db = await getDb();
+    const result = await db
+      .select()
+      .from(productImages)
+      .where(eq(productImages.productId, productId))
+      .orderBy(asc(productImages.sortOrder));
+    return result;
+  }
+
+  async updateProductImages(productId: number, imageUrls: string[]): Promise<ProductImage[]> {
+    // Delete existing images
+    await this.db.delete(productImages).where(eq(productImages.productId, productId));
+
+    // Create new images
+    if (imageUrls && imageUrls.length > 0) {
+      return await this.createProductImages(productId, imageUrls);
+    }
+
+    return [];
+  }
+
+  async deleteProductImages(productId: number): Promise<boolean> {
+    const db = await getDb();
+    const result = await db
+      .delete(productImages)
+      .where(eq(productImages.productId, productId))
+      .returning();
+    return result.length > 0;
+  }
+
   // Review Management Functions
   async createReview(reviewData: InsertReview): Promise<Review> {
     const db = await getDb();
@@ -1041,8 +1132,8 @@ export class DatabaseStorage implements IStorage {
         .trim();
 
       // Ensure tags is properly formatted
-      const tags = Array.isArray(postData.tags) ? 
-        JSON.stringify(postData.tags) : 
+      const tags = Array.isArray(postData.tags) ?
+        JSON.stringify(postData.tags) :
         typeof postData.tags === 'string' ? postData.tags : '[]';
 
       const postToInsert = {

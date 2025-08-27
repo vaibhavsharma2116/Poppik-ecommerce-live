@@ -12,13 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import AddProductModal from "@/components/admin/add-product-modal";
 import DynamicFilter from "@/components/dynamic-filter";
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  Filter, 
-  Grid3X3, 
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Filter,
+  Grid3X3,
   List,
   Star,
   Eye,
@@ -27,7 +27,9 @@ import {
   TrendingUp,
   AlertTriangle,
   Image as ImageIcon,
-  Loader2
+  Loader2,
+  Upload,
+  X
 } from "lucide-react";
 
 interface Product {
@@ -41,6 +43,7 @@ interface Product {
   category: string;
   subcategory?: string;
   imageUrl: string;
+  images?: { url: string }[]; // Added for multiple images
   rating: number;
   reviewCount: number;
   inStock: boolean;
@@ -99,6 +102,7 @@ export default function AdminProducts() {
     category: '',
     subcategory: '',
     imageUrl: '',
+    images: [],
     rating: '',
     reviewCount: '',
     inStock: true,
@@ -113,6 +117,9 @@ export default function AdminProducts() {
     tags: '',
     skinType: ''
   });
+
+  const [editImages, setEditImages] = useState<File[]>([]);
+  const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
 
   // Fetch data from API
   useEffect(() => {
@@ -141,7 +148,7 @@ export default function AdminProducts() {
       setProducts(productsData);
       setCategories(categoriesData);
       setSubcategories(subcategoriesData);
-      
+
       // Initialize filtered products with all products
       setFilteredProducts(productsData);
     } catch (err) {
@@ -184,6 +191,7 @@ export default function AdminProducts() {
         category: categoryValue,
         subcategory: product.subcategory || '',
         imageUrl: product.imageUrl,
+        images: product.images || [],
         rating: product.rating.toString(),
         reviewCount: product.reviewCount.toString(),
         inStock: product.inStock,
@@ -198,6 +206,17 @@ export default function AdminProducts() {
         tags: product.tags || '',
         skinType: product.skinType || ''
       });
+
+      // Set existing images for preview
+      if (product.images && Array.isArray(product.images)) {
+        const imageUrls = product.images.map(img => typeof img === 'string' ? img : img.url);
+        setEditImagePreviews(imageUrls);
+      } else if (product.imageUrl) {
+        setEditImagePreviews([product.imageUrl]);
+      } else {
+        setEditImagePreviews([]);
+      }
+      setEditImages([]);
       setIsEditModalOpen(true);
     }
   };
@@ -205,6 +224,31 @@ export default function AdminProducts() {
   const handleSaveEdit = async () => {
     if (selectedProduct) {
       try {
+        // Upload new images if any
+        let finalImages = editImagePreviews;
+        
+        if (editImages.length > 0) {
+          const uploadPromises = editImages.map(async (image) => {
+            const formData = new FormData();
+            formData.append('image', image);
+
+            const response = await fetch('/api/upload/image', {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (!response.ok) {
+              throw new Error(`Failed to upload image: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.imageUrl;
+          });
+
+          const newImageUrls = await Promise.all(uploadPromises);
+          finalImages = [...editImagePreviews, ...newImageUrls];
+        }
+
         // Find the category name from the category ID
         const selectedCategory = categories.find(cat => cat.id === parseInt(editFormData.category));
         const categoryName = selectedCategory ? selectedCategory.name : editFormData.category;
@@ -223,7 +267,9 @@ export default function AdminProducts() {
           benefits: editFormData.benefits || null,
           howToUse: editFormData.howToUse || null,
           tags: editFormData.tags || null,
-          skinType: editFormData.skinType || null
+          skinType: editFormData.skinType || null,
+          images: finalImages,
+          imageUrl: finalImages[0] || editFormData.imageUrl
         };
 
         console.log('Updating product with data:', updateData);
@@ -249,7 +295,7 @@ export default function AdminProducts() {
         }
 
         const updatedProduct = await response.json();
-        setProducts(prev => prev.map(p => 
+        setProducts(prev => prev.map(p =>
           p.id === selectedProduct.id ? updatedProduct : p
         ));
         setIsEditModalOpen(false);
@@ -287,7 +333,7 @@ export default function AdminProducts() {
     if (selectedProduct) {
       try {
         console.log(`Attempting to delete product: ${selectedProduct.name} (ID: ${selectedProduct.id})`);
-        
+
         const response = await fetch(`/api/products/${selectedProduct.id}`, {
           method: 'DELETE',
           headers: {
@@ -326,7 +372,7 @@ export default function AdminProducts() {
       } catch (err) {
         console.error('Delete error:', err);
         setError(err instanceof Error ? err.message : 'Failed to delete product');
-        
+
         // Don't close modal if there's an error, let user try again
       }
     }
@@ -352,6 +398,35 @@ export default function AdminProducts() {
     return subcategories.filter(sub => sub.categoryId === categoryId);
   };
 
+  // Handle edit image selection
+  const handleEditImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      setEditImages(files);
+      
+      // Create previews for new images
+      const previewPromises = files.map(file => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.readAsDataURL(file);
+        });
+      });
+
+      Promise.all(previewPromises).then(newPreviews => {
+        setEditImagePreviews(prev => [...prev, ...newPreviews]);
+      });
+    }
+  };
+
+  // Remove edit image
+  const removeEditImage = (index: number) => {
+    setEditImagePreviews(prev => prev.filter((_, i) => i !== index));
+    if (index < editImages.length) {
+      setEditImages(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
     // Handle dynamic filter changes
   const handleFilterChange = (filteredProducts: Product[], activeFilters: any) => {
     setFilteredProducts(filteredProducts);
@@ -360,15 +435,15 @@ export default function AdminProducts() {
   // Update filtered products when search term changes
   useEffect(() => {
     let filtered = products;
-    
+
     if (searchTerm) {
-      filtered = products.filter(product => 
+      filtered = products.filter(product =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-    
+
     setFilteredProducts(filtered);
   }, [searchTerm, products]);
 
@@ -472,7 +547,7 @@ export default function AdminProducts() {
         </CardContent>
       </Card>
 
-      {/* Dynamic Filters and Products Layout */}
+      {/* Dynamic Filters and Products Display */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Dynamic Filter Sidebar */}
         <div className="lg:col-span-1">
@@ -502,8 +577,8 @@ export default function AdminProducts() {
               <div className="relative">
                 <div className="aspect-square bg-slate-100 rounded-t-lg flex items-center justify-center overflow-hidden">
                   {product.imageUrl ? (
-                    <img 
-                      src={product.imageUrl} 
+                    <img
+                      src={product.imageUrl}
                       alt={product.name}
                       className="w-full h-full object-cover"
                     />
@@ -516,7 +591,7 @@ export default function AdminProducts() {
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </div>
-                <Badge 
+                <Badge
                   className={`absolute top-2 left-2 ${
                     product.inStock ? 'bg-green-500' : 'bg-red-500'
                   }`}
@@ -541,25 +616,25 @@ export default function AdminProducts() {
                   {product.bestseller && <Badge variant="secondary">Bestseller</Badge>}
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="h-9 transition-all hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
                     onClick={() => handleViewProduct(product.id)}
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="h-9 transition-all hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-300"
                     onClick={() => handleEditProduct(product.id)}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="h-9 transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-300"
                     onClick={() => handleDeleteProduct(product.id)}
                   >
@@ -591,16 +666,37 @@ export default function AdminProducts() {
               <TableBody>
                 {filteredProducts.map((product) => (
                   <TableRow key={product.id} className="border-b border-slate-100 hover:bg-slate-50/60 transition-all duration-200 group">
-                    <TableCell className="p-6">
-                      <div className="w-20 h-20 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl flex items-center justify-center overflow-hidden shadow-sm group-hover:shadow-md transition-shadow">
-                        {product.imageUrl ? (
-                          <img 
-                            src={product.imageUrl} 
-                            alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          />
+                    <TableCell className="py-6">
+                      <div className="flex space-x-2">
+                        {product.images && product.images.length > 0 ? (
+                          <>
+                            <div className="relative w-20 h-20 bg-slate-100 rounded-lg overflow-hidden group">
+                              <img
+                                src={product.images[0].url}
+                                alt={product.name}
+                                loading="lazy"
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              />
+                              {product.images.length > 1 && (
+                                <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1 rounded">
+                                  +{product.images.length - 1}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        ) : product.imageUrl ? (
+                          <div className="relative w-20 h-20 bg-slate-100 rounded-lg overflow-hidden group">
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              loading="lazy"
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            />
+                          </div>
                         ) : (
-                          <ImageIcon className="h-8 w-8 text-slate-400" />
+                          <div className="relative w-20 h-20 bg-slate-100 rounded-lg overflow-hidden flex items-center justify-center">
+                            <ImageIcon className="h-8 w-8 text-slate-400" />
+                          </div>
                         )}
                       </div>
                     </TableCell>
@@ -613,8 +709,8 @@ export default function AdminProducts() {
                             <Star
                               key={i}
                               className={`w-3.5 h-3.5 ${
-                                i < Math.floor(parseFloat(product.rating)) 
-                                  ? "fill-yellow-400 text-yellow-400" 
+                                i < Math.floor(parseFloat(product.rating))
+                                  ? "fill-yellow-400 text-yellow-400"
                                   : "text-slate-300"
                               }`}
                             />
@@ -649,11 +745,11 @@ export default function AdminProducts() {
                       </div>
                     </TableCell>
                     <TableCell className="py-6">
-                      <Badge 
+                      <Badge
                         variant={product.inStock ? "default" : "destructive"}
                         className={`text-xs font-medium px-3 py-1 ${
-                          product.inStock 
-                            ? "bg-green-100 text-green-800 border border-green-200" 
+                          product.inStock
+                            ? "bg-green-100 text-green-800 border border-green-200"
                             : "bg-red-100 text-red-800 border border-red-200"
                         }`}
                       >
@@ -662,8 +758,8 @@ export default function AdminProducts() {
                     </TableCell>
                     <TableCell className="text-right py-6 pr-6">
                       <div className="flex justify-end space-x-2">
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           className="h-9 w-9 p-0 rounded-lg transition-all hover:bg-blue-50 hover:text-blue-600 hover:shadow-sm border border-transparent hover:border-blue-200"
                           onClick={() => handleViewProduct(product.id)}
@@ -671,8 +767,8 @@ export default function AdminProducts() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           className="h-9 w-9 p-0 rounded-lg transition-all hover:bg-emerald-50 hover:text-emerald-600 hover:shadow-sm border border-transparent hover:border-emerald-200"
                           onClick={() => handleEditProduct(product.id)}
@@ -680,8 +776,8 @@ export default function AdminProducts() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           className="h-9 w-9 p-0 rounded-lg transition-all hover:bg-red-50 hover:text-red-600 hover:shadow-sm border border-transparent hover:border-red-200"
                           onClick={() => handleDeleteProduct(product.id)}
@@ -721,8 +817,8 @@ export default function AdminProducts() {
               <div className="flex flex-col lg:flex-row lg:items-start gap-6">
                 <div className="w-32 h-32 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center shadow-inner overflow-hidden">
                   {selectedProduct.imageUrl ? (
-                    <img 
-                      src={selectedProduct.imageUrl} 
+                    <img
+                      src={selectedProduct.imageUrl}
                       alt={selectedProduct.name}
                       className="w-full h-full object-cover rounded-xl"
                     />
@@ -743,7 +839,7 @@ export default function AdminProducts() {
                           {selectedProduct.subcategory}
                         </Badge>
                       )}
-                      <Badge 
+                      <Badge
                         className={`text-sm px-3 py-1 ${
                           selectedProduct.inStock ? 'bg-green-100 text-green-800 border-green-200' :
                           'bg-red-100 text-red-800 border-red-200'
@@ -768,13 +864,13 @@ export default function AdminProducts() {
                       <div className="flex items-center gap-2">
                         <div className="flex">
                           {Array.from({ length: 5 }, (_, i) => (
-                            <Star 
-                              key={i} 
+                            <Star
+                              key={i}
                               className={`h-5 w-5 ${
-                                i < Math.floor(selectedProduct.rating) 
-                                  ? "fill-yellow-400 text-yellow-400" 
+                                i < Math.floor(selectedProduct.rating)
+                                  ? "fill-yellow-400 text-yellow-400"
                                   : "text-slate-300"
-                              }`} 
+                              }`}
                             />
                           ))}
                         </div>
@@ -1070,8 +1166,60 @@ export default function AdminProducts() {
                 />
               </div>
 
+              {/* Product Images */}
               <div className="space-y-2">
-                <Label htmlFor="edit-imageUrl">Image URL</Label>
+                <Label>Product Images</Label>
+                <div className="space-y-3">
+                  {editImagePreviews.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {editImagePreviews.map((preview, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={preview}
+                            alt={`Product preview ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg border"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-1 right-1 h-6 w-6 p-0"
+                            onClick={() => removeEditImage(index)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                          {index === 0 && (
+                            <div className="absolute bottom-1 left-1 bg-blue-500 text-white text-xs px-1 rounded">
+                              Primary
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleEditImageSelect}
+                      className="hidden"
+                      id="edit-images-upload"
+                    />
+                    <Label
+                      htmlFor="edit-images-upload"
+                      className="cursor-pointer flex flex-col items-center"
+                    >
+                      <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-600">Click to upload images</p>
+                      <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB each</p>
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-imageUrl">Main Image URL (Legacy)</Label>
                 <Input
                   id="edit-imageUrl"
                   value={editFormData.imageUrl}
@@ -1105,19 +1253,19 @@ export default function AdminProducts() {
               This action cannot be undone. Are you sure you want to delete this product?
             </DialogDescription>
           </DialogHeader>
-          
+
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
-          
+
           {selectedProduct && (
             <div className="flex items-center space-x-3 p-4 bg-red-50 rounded-lg border border-red-200">
               <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center overflow-hidden">
                 {selectedProduct.imageUrl ? (
-                  <img 
-                    src={selectedProduct.imageUrl} 
+                  <img
+                    src={selectedProduct.imageUrl}
                     alt={selectedProduct.name}
                     className="w-full h-full object-cover"
                   />
@@ -1132,8 +1280,8 @@ export default function AdminProducts() {
             </div>
           )}
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setIsDeleteModalOpen(false);
                 setError(null);

@@ -42,36 +42,39 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
     tags: ''
   });
 
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>('');
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
-  const uploadImage = async (): Promise<string> => {
-    if (!selectedImage) return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400';
+  const uploadImages = async (): Promise<string[]> => {
+    if (selectedImages.length === 0) return ['https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400'];
 
-    setIsUploadingImage(true);
+    setIsUploadingImages(true);
     try {
-      const formData = new FormData();
-      formData.append('image', selectedImage);
+      const uploadPromises = selectedImages.map(async (image) => {
+        const formData = new FormData();
+        formData.append('image', image);
 
-      const response = await fetch('/api/upload/image', {
-        method: 'POST',
-        body: formData,
+        const response = await fetch('/api/upload/image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to upload image: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.imageUrl;
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Upload failed:', errorText);
-        throw new Error(`Failed to upload image: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.imageUrl;
+      const imageUrls = await Promise.all(uploadPromises);
+      return imageUrls;
     } catch (error) {
       console.error('Image upload error:', error);
-      return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400';
+      return ['https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400'];
     } finally {
-      setIsUploadingImage(false);
+      setIsUploadingImages(false);
     }
   };
 
@@ -105,8 +108,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
     try {
       setLoading(true);
 
-      // Upload image first
-      const imageUrl = await uploadImage();
+      // Upload images first
+      const imageUrls = await uploadImages();
 
       // Generate slug from product name
       const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -132,7 +135,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         benefits: formData.benefits || null,
         howToUse: formData.howToUse || null,
         tags: formData.tags || null,
-        imageUrl: imageUrl
+        imageUrl: imageUrls[0],
+        images: imageUrls
       };
 
       const response = await fetch('/api/products', {
@@ -217,8 +221,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       howToUse: '',
       tags: ''
     });
-    setSelectedImage(null);
-    setImagePreview('');
+    setSelectedImages([]);
+    setImagePreviews([]);
     setSelectedShades([]);
   };
 
@@ -264,15 +268,28 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
   };
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      setSelectedImages(files);
+      
+      // Create previews for all selected images
+      const previewPromises = files.map(file => {
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.readAsDataURL(file);
+        });
+      });
+
+      Promise.all(previewPromises).then(setImagePreviews);
     }
+  };
+
+  const removeImage = (index: number) => {
+    const newImages = selectedImages.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    setSelectedImages(newImages);
+    setImagePreviews(newPreviews);
   };
 
   // Get subcategories for selected category
@@ -304,29 +321,35 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Product Image Upload */}
+          {/* Product Images Upload */}
           <div className="space-y-2">
-            <Label>Product Image</Label>
+            <Label>Product Images</Label>
             <div className="space-y-3">
-              {imagePreview && (
-                <div className="relative">
-                  <img
-                    src={imagePreview}
-                    alt="Product preview"
-                    className="w-full h-32 object-cover rounded-lg border"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-2 right-2 h-6 w-6 p-0"
-                    onClick={() => {
-                      setSelectedImage(null);
-                      setImagePreview('');
-                    }}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
+              {imagePreviews.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {imagePreviews.map((preview, index) => (
+                    <div key={index} className="relative">
+                      <img
+                        src={preview}
+                        alt={`Product preview ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-lg border"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-1 right-1 h-6 w-6 p-0"
+                        onClick={() => removeImage(index)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                      {index === 0 && (
+                        <div className="absolute bottom-1 left-1 bg-blue-500 text-white text-xs px-1 rounded">
+                          Primary
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
               <Card className="border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors">
@@ -334,20 +357,21 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleImageSelect}
                     className="hidden"
-                    id="image-upload"
+                    id="images-upload"
                   />
                   <Label
-                    htmlFor="image-upload"
+                    htmlFor="images-upload"
                     className="cursor-pointer flex flex-col items-center"
                   >
                     <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
-                    <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB</p>
+                    <p className="text-sm text-gray-600">Click to upload multiple images</p>
+                    <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB each</p>
                   </Label>
-                  {selectedImage && (
-                    <p className="text-sm text-green-600 mt-2">Selected: {selectedImage.name}</p>
+                  {selectedImages.length > 0 && (
+                    <p className="text-sm text-green-600 mt-2">Selected: {selectedImages.length} images</p>
                   )}
                 </CardContent>
               </Card>
@@ -586,10 +610,10 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
             </Button>
             <Button 
               type="submit" 
-              disabled={isUploadingImage || loading}
+              disabled={isUploadingImages || loading}
               className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isUploadingImage ? 'Uploading Image...' : loading ? 'Creating Product...' : 'Add Product'}
+              {isUploadingImages ? 'Uploading Images...' : loading ? 'Creating Product...' : 'Add Product'}
             </Button>
           </DialogFooter>
         </form>

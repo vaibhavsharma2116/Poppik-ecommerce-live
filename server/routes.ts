@@ -379,13 +379,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/get-mobile-otp/:phoneNumber", async (req, res) => {
     try {
       const { phoneNumber } = req.params;
-      
+
       // Clean phone number the same way as in sendMobileOTP
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
       const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12 
         ? cleanedPhone.substring(2) 
         : cleanedPhone;
-      
+
       const otpData = OTPService.otpStorage.get(formattedPhone);
 
       if (otpData && new Date() <= otpData.expiresAt) {
@@ -458,7 +458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const result = await response.json();
-      
+
       console.log('📱 MDSSEND.IN Response Status:', response.status);
       console.log('📱 MDSSEND.IN Response:', JSON.stringify(result, null, 2));
 
@@ -710,7 +710,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products", async (req, res) => {
     try {
       const products = await storage.getProducts();
-      res.json(products);
+
+      // Get images for each product
+      const productsWithImages = await Promise.all(
+        products.map(async (product) => {
+          const images = await storage.getProductImages(product.id);
+          return {
+            ...product,
+            images: images.map(img => ({
+              id: img.id,
+              url: img.imageUrl,
+              isPrimary: img.isPrimary,
+              sortOrder: img.sortOrder
+            }))
+          };
+        })
+      );
+
+      res.json(productsWithImages);
     } catch (error) {
       console.log("Database unavailable, using sample product data");
       res.json(generateSampleProducts());
@@ -1984,10 +2001,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate and create order items with proper product ID handling
       const orderItems = [];
-      
+
       for (let index = 0; index < items.length; index++) {
         const item = items[index];
-        
+
         if (!item.productName && !item.name) {
           throw new Error(`Item ${index + 1} is missing product name`);
         }
@@ -1999,7 +2016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         let productId = Number(item.productId || item.id || 0);
-        
+
         // Verify that the product exists in the database
         if (productId && productId > 0) {
           try {

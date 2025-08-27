@@ -98,6 +98,10 @@ export default function OptimizedImage({
       style={{
         backgroundColor: '#f3f4f6',
         objectFit: 'contain',
+        maxWidth: '100%',
+        maxHeight: '100%',
+        width: 'auto',
+        height: 'auto',
         ...style
       }}
       onLoad={handleLoad}
