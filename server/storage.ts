@@ -38,42 +38,59 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/poppik",
-  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
-  max: 20,
-  min: 2, // Keep minimum 2 connections alive
-  idleTimeoutMillis: 300000, // 5 minutes instead of 30 seconds
-  connectionTimeoutMillis: 10000, // 10 seconds instead of 2
-  acquireTimeoutMillis: 10000, // Wait up to 10 seconds for a connection
-  keepAlive: true, // Enable TCP keep-alive
-  keepAliveInitialDelayMillis: 0,
-  allowExitOnIdle: false, // Don't allow pool to exit when idle
+  connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/poppik",
+  ssl: process.env.DATABASE_URL?.includes('31.97.226.116') ? false : { rejectUnauthorized: false },
+  max: 10, // Reduced max connections
+  min: 1, // Reduced minimum connections
+  idleTimeoutMillis: 60000, // 1 minute idle timeout
+  connectionTimeoutMillis: 20000, // 20 seconds connection timeout
+  acquireTimeoutMillis: 15000, // 15 seconds to acquire connection
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
+  allowExitOnIdle: false,
+  statement_timeout: 30000, // 30 seconds statement timeout
+  query_timeout: 30000, // 30 seconds query timeout
 });
 
 let db: ReturnType<typeof drizzle> | undefined = undefined;
 
 // Connection health check
 async function checkConnectionHealth() {
+  let client;
   try {
-    const client = await pool.connect();
+    client = await pool.connect();
     await client.query('SELECT 1');
-    client.release();
     return true;
   } catch (error) {
     console.error("Database health check failed:", error);
     return false;
+  } finally {
+    if (client) {
+      try {
+        client.release();
+      } catch (releaseError) {
+        console.error("Error releasing client:", releaseError);
+      }
+    }
   }
 }
 
-// Periodic health check every 30 seconds
+// Periodic health check every 60 seconds (less frequent)
 setInterval(async () => {
   const isHealthy = await checkConnectionHealth();
   if (!isHealthy) {
     console.log("Database connection unhealthy, attempting to reconnect...");
     // Reset db instance to force reconnection
     db = undefined;
+    
+    // Try to end and recreate pool if connection issues persist
+    try {
+      await pool.end();
+    } catch (endError) {
+      console.error("Error ending pool:", endError);
+    }
   }
-}, 30000);
+}, 60000);
 
 async function getDb() {
   if (!db) {

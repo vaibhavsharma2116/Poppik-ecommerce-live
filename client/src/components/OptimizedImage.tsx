@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { optimizeImageUrl, createResponsiveImageSet, type ImageOptimizationOptions } from '@/lib/imageUtils';
 
@@ -96,14 +97,14 @@ export default function OptimizedImage({
       alt={alt}
       className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className}`}
       style={{
-        backgroundColor: '#f3f4f6',
+        backgroundColor: 'transparent',
         objectFit: style.objectFit || 'contain',
         width: style.width || '100%',
-        height: style.height || 'auto',
-        maxWidth: '100%',
-        maxHeight: '100%',
+        height: style.height || '100%',
+        maxWidth: style.maxWidth || '100%',
+        maxHeight: style.maxHeight || '100%',
         display: 'block',
-        margin: 'auto',
+        margin: style.margin || '0',
         ...style
       }}
       onLoad={handleLoad}

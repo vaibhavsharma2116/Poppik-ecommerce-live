@@ -505,18 +505,11 @@ export default function ProductDetail() {
                                     : 'border-gray-200'
                                 }`}
                               >
-                                <OptimizedImage
+                                <img
                                   src={imageUrl}
                                   alt={`${product.name} view ${index + 1}`}
-                                  className="w-full h-full product-detail-thumbnail"
-                                  width={80}
-                                  height={80}
-                                  style={{ 
-                                    objectFit: 'cover',
-                                    width: '100%',
-                                    height: '100%',
-                                    borderRadius: '8px'
-                                  }}
+                                  className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110"
+                          
                                 />
                               </button>
                             ))}
@@ -540,6 +533,7 @@ export default function ProductDetail() {
                                       : 'border-gray-200'
                                   }`}
                                 >
+                                  <div className="w-full h-full flex items-center justify-center p-1 bg-white rounded-lg">
                                   <OptimizedImage
                                     src={imageUrl}
                                     alt={`${product.name} view ${index + 1}`}
@@ -547,11 +541,13 @@ export default function ProductDetail() {
                                     width={80}
                                     height={80}
                                     style={{ 
-                                      objectFit: 'cover',
+                                      objectFit: 'contain',
                                       width: '100%',
-                                      height: '100%'
+                                      height: '100%',
+                                      borderRadius: '6px'
                                     }}
                                   />
+                                </div>
                                 </button>
                               ))}
                             </div>
@@ -576,43 +572,38 @@ export default function ProductDetail() {
                     )}
 
                     {/* Main Image with Zoom */}
-                    <div className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in product-image-container" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px' }}>
+                    <div className="flex-1 bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px' }}>
                       {selectedImageUrl || imageUrls[0] ? (
-                        <OptimizedImage
-                          src={selectedImageUrl || imageUrls[0] || product.imageUrl}
-                          alt={product.name}
-                          className="w-full h-full transition-transform duration-300 group-hover:scale-105 cursor-zoom-in product-detail-main-image"
-                          width={400}
-                          height={400}
-                          style={{ 
-                            width: '100%', 
-                            height: '100%', 
-                            objectFit: 'contain',
-                            display: 'block',
-                            padding: '20px',
-                            boxSizing: 'border-box'
-                          }}
-                          onClick={() => {
-                            // Create zoom modal
-                            const modal = document.createElement('div');
-                            modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
-                            modal.onclick = () => modal.remove();
+                        <div className="w-full h-full flex items-center justify-center p-2">
+                          <img
+                            src={selectedImageUrl || imageUrls[0] || product.imageUrl}
+                            alt={product.name}
+                             className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110"
+                            width={400}
+                            height={400}
+                     
+                            onClick={() => {
+                              // Create zoom modal
+                              const modal = document.createElement('div');
+                              modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
+                              modal.onclick = () => modal.remove();
 
-                            const img = document.createElement('img');
-                            img.src = selectedImageUrl || imageUrls[0] || product.imageUrl;
-                            img.className = 'max-w-full max-h-full object-contain rounded-lg';
-                            img.onclick = (e) => e.stopPropagation();
+                              const img = document.createElement('img');
+                              img.src = selectedImageUrl || imageUrls[0] || product.imageUrl;
+                              img.className = 'max-w-full max-h-full object-contain rounded-lg';
+                              img.onclick = (e) => e.stopPropagation();
 
-                            const closeBtn = document.createElement('button');
-                            closeBtn.innerHTML = '×';
-                            closeBtn.className = 'absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors';
-                            closeBtn.onclick = () => modal.remove();
+                              const closeBtn = document.createElement('button');
+                              closeBtn.innerHTML = '×';
+                              closeBtn.className = 'absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors';
+                              closeBtn.onclick = () => modal.remove();
 
-                            modal.appendChild(img);
-                            modal.appendChild(closeBtn);
-                            document.body.appendChild(modal);
-                          }}
-                        />
+                              modal.appendChild(img);
+                              modal.appendChild(closeBtn);
+                              document.body.appendChild(modal);
+                            }}
+                          />
+                        </div>
                       ) : (
                         <div className="w-full h-full bg-gray-200 rounded-xl sm:rounded-2xl flex items-center justify-center">
                           <span className="text-gray-500">No image available</span>

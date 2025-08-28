@@ -54,8 +54,8 @@ import { Pool } from "pg";
 import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, productImages, productShades } from "../shared/schema";
 // Database connection with enhanced configuration
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/my_pgdb",
-  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
+  connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb",
+  ssl: process.env.DATABASE_URL?.includes('31.97.226.11') ? false : { rejectUnauthorized: false },
   max: 20,
   min: 2,
   idleTimeoutMillis: 300000, // 5 minutes
