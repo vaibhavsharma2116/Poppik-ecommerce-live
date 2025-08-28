@@ -102,6 +102,7 @@ export default function OptimizedImage({
         maxHeight: '100%',
         width: 'auto',
         height: 'auto',
+        display: 'block',
         ...style
       }}
       onLoad={handleLoad}

@@ -106,15 +106,15 @@ export default function HeroBanner({
 
   if (isLoading) {
     return (
-      <div className="w-full h-[500px] relative">
-        <Skeleton className="w-full h-full" />
+      <div className="w-full relative">
+        <Skeleton className="w-full aspect-video" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="w-full h-[500px] flex items-center justify-center bg-red-50">
+      <div className="w-full flex items-center justify-center bg-red-50 py-20">
         <p className="text-red-500">Failed to load hero banner: {(error as Error).message}</p>
       </div>
     );
@@ -122,7 +122,7 @@ export default function HeroBanner({
 
   if (!slides.length) {
     return (
-      <div className="w-full h-[500px] flex items-center justify-center bg-gray-50">
+      <div className="w-full flex items-center justify-center bg-gray-50 py-20">
         <p className="text-gray-500">No slides available</p>
       </div>
     );
@@ -141,7 +141,7 @@ export default function HeroBanner({
         <CarouselContent>
           {slides.map((slide) => (
             <CarouselItem key={slide.id}>
-              <div className="mobile-slider-container relative w-full h-56 sm:h-64 md:h-80 lg:h-96 xl:h-[500px] overflow-hidden">
+              <div className="mobile-slider-container relative w-full overflow-hidden">
                 {showProgress && (
                   <div className="absolute top-0 left-0 w-full h-1 bg-gray-200 z-10">
                     <div 
@@ -155,7 +155,8 @@ export default function HeroBanner({
                 <img 
                   src={slide.imageUrl} 
                   alt={`Slide ${slide.id}`}
-                  className="mobile-slider-image w-full h-full object-contain bg-gray-100"
+                  className="w-full object-contain bg-gray-100"
+                  style={{ aspectRatio: 'auto' }}
                 />
               </div>
             </CarouselItem>

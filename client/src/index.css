@@ -849,8 +849,7 @@ body {
 
   /* Slider specific styles for iPhone SE */
   .mobile-slider-image {
-    @apply h-48;
-    min-height: 192px;
+    max-height: 65vh;
   }
 
   .mobile-slider-title {
@@ -905,8 +904,7 @@ body {
 
   /* Slider styles for iPhone 6/7/8 */
   .mobile-slider-image {
-    @apply h-52;
-    min-height: 208px;
+    max-height: 60vh;
   }
 
   .mobile-slider-title {
@@ -1211,15 +1209,16 @@ body {
   }
 
   .mobile-slider-image {
-    @apply h-44 sm:h-52 md:h-64 lg:h-72 object-contain sm:object-cover w-full;
-    min-height: 176px;
+    @apply object-contain w-full;
     object-position: center;
     object-fit: contain;
+    max-height: 70vh;
   }
 
   @media (min-width: 640px) {
     .mobile-slider-image {
-      object-fit: cover;
+      object-fit: contain;
+      max-height: 60vh;
     }
   }
 
@@ -1451,11 +1450,34 @@ body {
 
   /* Product detail page image sizing */
   .product-detail-image {
-    @apply max-w-full max-h-[300px] w-auto h-auto object-contain;
+    @apply w-auto h-auto object-contain;
+    max-width: 100%;
+    max-height: 600px;
+    min-height: 300px;
   }
 
   .product-detail-container .product-image {
-    @apply max-w-full max-h-[400px] w-auto h-auto object-contain mx-auto;
+    @apply w-auto h-auto object-contain mx-auto;
+    max-width: 100%;
+    max-height: 600px;
+    min-height: 400px;
+  }
+
+  /* Product detail image container */
+  .product-detail-image-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    max-height: 600px;
+  }
+
+  .product-detail-image-container img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
   }
 
   /* Amazon-style mobile grid */

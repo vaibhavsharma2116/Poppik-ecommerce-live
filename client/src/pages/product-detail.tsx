@@ -36,6 +36,12 @@ interface Shade {
   imageUrl?: string;
 }
 
+// Mock Category type for query
+interface Category {
+  id: number;
+  name: string;
+}
+
 export default function ProductDetail() {
   const [, params] = useRoute("/product/:slug");
   const productSlug = params?.slug || "";
@@ -56,27 +62,42 @@ export default function ProductDetail() {
     enabled: !!productSlug,
   });
 
-  // Get product images - handle both new images array and legacy imageUrl
-  const productImages = useMemo(() => {
-    if (product?.images && Array.isArray(product.images) && product.images.length > 0) {
-      // Sort images by sortOrder and return URLs
-      return product.images
+  // Fetch product images from database
+  const { data: productImages = [] } = useQuery({
+    queryKey: [`/api/products/${product?.id}/images`],
+    queryFn: async () => {
+      if (!product?.id) return [];
+
+      const response = await fetch(`/api/products/${product.id}/images`);
+      if (!response.ok) {
+        // Fallback to legacy imageUrl if images API fails
+        return product?.imageUrl ? [{ url: product.imageUrl, sortOrder: 0 }] : [];
+      }
+      return response.json();
+    },
+    enabled: !!product?.id,
+  });
+
+  // Get image URLs sorted by sortOrder
+  const imageUrls = useMemo(() => {
+    if (productImages && productImages.length > 0) {
+      return productImages
         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
         .map(img => img.url || img.imageUrl)
-        .filter(Boolean); // Remove any null/undefined URLs
+        .filter(Boolean);
     } else if (product?.imageUrl) {
       return [product.imageUrl];
     }
     return [];
-  }, [product?.images, product?.imageUrl]);
+  }, [productImages, product?.imageUrl]);
 
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
 
   useEffect(() => {
-    if (productImages.length > 0 && !selectedImageUrl) {
-      setSelectedImageUrl(productImages[0]);
+    if (imageUrls.length > 0 && !selectedImageUrl) {
+      setSelectedImageUrl(imageUrls[0]);
     }
-  }, [productImages]);
+  }, [imageUrls]);
 
   const { data: relatedProducts } = useQuery<Product[]>({
     queryKey: [`/api/products/category/${product?.category}`],
@@ -88,7 +109,7 @@ export default function ProductDetail() {
   const subcategories = [{ id: 3, name: 'face wash' }, { id: 4, name: 'shampoo' }];
 
   // Fetch shades specifically assigned to this product
-  const { data: shades = [] } = useQuery({
+  const { data: shadesFromAPI = [] } = useQuery<Shade[]>({
     queryKey: [`/api/products/${product?.id}/shades`],
     queryFn: async () => {
       if (!product?.id) return [];
@@ -155,6 +176,13 @@ export default function ProductDetail() {
     }
   }, [product]);
 
+  // Set shades when data is available
+  useEffect(() => {
+    if (shadesFromAPI) {
+      setShades(shadesFromAPI);
+    }
+  }, [shadesFromAPI]);
+
   // Don't auto-select any shade, let user choose manually
 
   const toggleWishlist = () => {
@@ -201,7 +229,7 @@ export default function ProductDetail() {
       });
     }
 
-    localStorage.setItem("wishlist", JSON.stringify(wishlist));
+    localStorage.setItem("wishlist", JSON.JSON.stringify(wishlist));
     window.dispatchEvent(new Event("wishlistUpdated"));
   };
 
@@ -237,7 +265,7 @@ export default function ProductDetail() {
         name: product.name,
         price: `₹${product.price}`,
         originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
-        image: selectedShade?.imageUrl || product.imageUrl,
+        image: selectedShade?.imageUrl || selectedImageUrl || imageUrls[0] || product.imageUrl,
         quantity: 1,
         inStock: true,
         selectedShade: selectedShade ? {
@@ -250,7 +278,7 @@ export default function ProductDetail() {
       cart.push(cartItem);
     }
 
-    localStorage.setItem("cart", JSON.stringify(cart));
+    localStorage.setItem("cart", JSON.JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
 
@@ -263,6 +291,17 @@ export default function ProductDetail() {
 
   const handleShadeSelect = (shade: Shade) => {
     setSelectedShade(shade);
+
+    // If shade has an image, set it as the selected image
+    if (shade.imageUrl) {
+      setSelectedImageUrl(shade.imageUrl);
+    } else {
+      // If the selected shade doesn't have an image, revert to the product's main image
+      if (imageUrls.length > 0) {
+        setSelectedImageUrl(imageUrls[0]);
+      }
+    }
+
     toast({
       title: "Shade Selected",
       description: `You selected ${shade.name}`,
@@ -432,52 +471,130 @@ export default function ProductDetail() {
             <div className="sticky top-8">
               <div className="bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl border border-white/20">
                 <div className="space-y-4">
-                  {/* Main Image */}
-                  <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl flex items-center justify-center overflow-hidden shadow-lg">
-                    {selectedImageUrl || productImages[0] ? (
-                      <OptimizedImage
-                        src={selectedImageUrl || productImages[0] || product.imageUrl}
-                        alt={product.name}
-                        className="w-full h-full object-cover rounded-xl sm:rounded-2xl transition-transform duration-300 hover:scale-105"
-                        width={500}
-                        height={500}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-200 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                        <span className="text-gray-500">No image available</span>
+                  {/* Vertical Layout: Thumbnails on Left, Main Image on Right */}
+                  <div className="flex gap-4">
+                    {/* Thumbnail Column - Vertical Slider for 4+ images */}
+                    {imageUrls.length > 1 && (
+                      <div className="w-20 flex-shrink-0">
+                        {imageUrls.length <= 4 ? (
+                          // Show all thumbnails if 4 or less
+                          <div className="flex flex-col gap-3">
+                            {imageUrls.map((imageUrl, index) => (
+                              <button
+                                key={`thumb-${index}`}
+                                onClick={() => setSelectedImageUrl(imageUrl)}
+                                className={`w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-200 hover:border-purple-300 flex-shrink-0 ${
+                                  selectedImageUrl === imageUrl
+                                    ? 'border-purple-500 ring-2 ring-purple-200'
+                                    : 'border-gray-200'
+                                }`}
+                              >
+                                <OptimizedImage
+                                  src={imageUrl}
+                                  alt={`${product.name} view ${index + 1}`}
+                                  className="w-full h-full object-contain"
+                                  width={80}
+                                  height={80}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          // Use slider for more than 4 images
+                          <div className="relative h-80 overflow-hidden w-20">
+                            <div 
+                              className="flex flex-col gap-3 transition-transform duration-300 ease-in-out"
+                              style={{
+                                transform: `translateY(-${Math.max(0, Math.min(imageUrls.findIndex(img => img === selectedImageUrl) - 1, imageUrls.length - 4)) * 88}px)`
+                              }}
+                            >
+                              {imageUrls.map((imageUrl, index) => (
+                                <button
+                                  key={`thumb-${index}`}
+                                  onClick={() => setSelectedImageUrl(imageUrl)}
+                                  className={`w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-200 hover:border-purple-300 flex-shrink-0 ${
+                                    selectedImageUrl === imageUrl
+                                      ? 'border-purple-500 ring-2 ring-purple-200'
+                                      : 'border-gray-200'
+                                  }`}
+                                >
+                                  <OptimizedImage
+                                    src={imageUrl}
+                                    alt={`${product.name} view ${index + 1}`}
+                                    className="w-full h-full object-contain"
+                                    width={80}
+                                    height={80}
+                                  />
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Slider Indicators */}
+                            {imageUrls.length > 4 && (
+                              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex flex-col gap-1">
+                                <div className="w-1 bg-gray-300 rounded-full h-4 relative">
+                                  <div 
+                                    className="w-1 bg-purple-500 rounded-full transition-all duration-300"
+                                    style={{
+                                      height: `${(4 / imageUrls.length) * 100}%`,
+                                      transform: `translateY(${(Math.max(0, Math.min(imageUrls.findIndex(img => img === selectedImageUrl) - 1, imageUrls.length - 4)) / (imageUrls.length - 4)) * (16 - (4 / imageUrls.length) * 16)}px)`
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
+
+                    {/* Main Image with Zoom */}
+                    <div className="flex-1 aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl flex items-center justify-center overflow-hidden shadow-lg relative group cursor-zoom-in">
+                      {selectedImageUrl || imageUrls[0] ? (
+                        <OptimizedImage
+                          src={selectedImageUrl || imageUrls[0] || product.imageUrl}
+                          alt={product.name}
+                          className="w-full h-full object-contain rounded-xl sm:rounded-2xl transition-transform duration-300 group-hover:scale-110 cursor-zoom-in p-4"
+                          width={500}
+                          height={500}
+                          onClick={() => {
+                            // Create zoom modal
+                            const modal = document.createElement('div');
+                            modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
+                            modal.onclick = () => modal.remove();
+
+                            const img = document.createElement('img');
+                            img.src = selectedImageUrl || imageUrls[0] || product.imageUrl;
+                            img.className = 'max-w-full max-h-full object-contain rounded-lg';
+                            img.onclick = (e) => e.stopPropagation();
+
+                            const closeBtn = document.createElement('button');
+                            closeBtn.innerHTML = '×';
+                            closeBtn.className = 'absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors';
+                            closeBtn.onclick = () => modal.remove();
+
+                            modal.appendChild(img);
+                            modal.appendChild(closeBtn);
+                            document.body.appendChild(modal);
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-200 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                          <span className="text-gray-500">No image available</span>
+                        </div>
+                      )}
+
+                      {/* Zoom Hint */}
+                      <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                        Click to zoom
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Thumbnail Grid - Horizontal */}
-                  {productImages.length > 1 && (
-                    <div className="grid grid-cols-4 gap-3">
-                      {productImages.map((imageUrl, index) => (
-                        <button
-                          key={`thumb-${index}`}
-                          onClick={() => setSelectedImageUrl(imageUrl)}
-                          className={`aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-200 hover:border-purple-300 ${
-                            selectedImageUrl === imageUrl
-                              ? 'border-purple-500 ring-2 ring-purple-200'
-                              : 'border-gray-200'
-                          }`}
-                        >
-                          <OptimizedImage
-                            src={imageUrl}
-                            alt={`${product.name} view ${index + 1}`}
-                            className="w-full h-full object-cover"
-                            width={100}
-                            height={100}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
                   {/* Image Count Indicator */}
-                  {productImages.length > 1 && (
+                  {imageUrls.length > 1 && (
                     <div className="text-center text-sm text-gray-500">
-                      {productImages.findIndex(img => img === selectedImageUrl) + 1} of {productImages.length} images
+                      {imageUrls.findIndex(img => img === selectedImageUrl) + 1} of {imageUrls.length} images
                     </div>
                   )}
                 </div>
@@ -564,7 +681,13 @@ export default function ProductDetail() {
                   {/* None/No Shade Option */}
                   <div 
                     className="flex flex-col items-center group cursor-pointer"
-                    onClick={() => setSelectedShade(null)}
+                    onClick={() => {
+                      setSelectedShade(null);
+                      // Reset to original image when no shade is selected
+                      if (imageUrls.length > 0) {
+                        setSelectedImageUrl(imageUrls[0]);
+                      }
+                    }}
                   >
                     <div className="relative">
                       {!selectedShade && (
@@ -1083,6 +1206,6 @@ export default function ProductDetail() {
           </section>
         )}
       </div>
-    
+
   );
 }

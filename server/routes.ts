@@ -37,7 +37,7 @@ function rateLimit(req: any, res: any, next: any) {
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, gte, lte, like, isNull, asc, or, sql } from "drizzle-orm";
 import { Pool } from "pg";
-import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts } from "../shared/schema";
+import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, productImages, productShades } from "../shared/schema";
 // Database connection with enhanced configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/my_pgdb",
@@ -674,7 +674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/upload/image", upload.single("image"), async (req, res) => {
     try {
       console.log("Image upload request received");
-      
+
       if (!req.file) {
         console.error("No image file provided in request");
         return res.status(400).json({ error: "No image file provided" });
@@ -1628,551 +1628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Create Cashfree order
-  app.post("/api/payments/cashfree/create-order", async (req, res) => {
-    try {
-      const { amount, currency = 'INR', customerInfo, orderNote, orderData } = req.body;
-
-      if (!amount || amount <= 0) {
-        return res.status(400).json({ error: "Valid amount is required" });
-      }
-
-      if (!customerInfo || !customerInfo.customerName || !customerInfo.customerEmail) {
-        return res.status(400).json({ error: "Customer information is required" });
-      }
-
-      // Validate customer name and email format
-      if (!customerInfo.customerName.trim() || customerInfo.customerName.trim().length < 2) {
-        return res.status(400).json({ error: "Valid customer name is required" });
-      }
-
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(customerInfo.customerEmail.trim())) {
-        return res.status(400).json({ error: "Valid email address is required" });
-      }
-
-      // Check Cashfree configuration
-      if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY) {
-        console.error("Cashfree credentials not configured properly");
-        return res.status(500).json({ 
-          error: "Cashfree payment is not configured. Please use Cash on Delivery instead.",
-          configError: true
-        });
-      }
-
-      const orderId = `ORDER_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-
-      // Store payment data in database for tracking
-      try {
-        await db.insert(sql`
-          INSERT INTO cashfree_payments (cashfree_order_id, user_id, amount, status, order_data, customer_info, created_at)
-          VALUES (${orderId}, ${orderData.userId}, ${amount}, 'created', ${JSON.stringify(orderData)}, ${JSON.stringify(customerInfo)}, NOW())
-        `);
-      } catch (dbError) {
-        console.error("Failed to store payment data:", dbError);
-        // Continue with payment creation even if DB storage fails
-      }
-
-      // Validate and format phone number properly for Cashfree
-      let phoneNumber = customerInfo.customerPhone || '9999999999';
-
-      // Clean the phone number - remove all non-digit characters except +
-      phoneNumber = phoneNumber.replace(/[^\d+]/g, '');
-
-      // Remove country code if present to normalize
-      phoneNumber = phoneNumber.replace(/^(\+91|91)/, '');
-
-      // Validate Indian mobile number format
-      if (phoneNumber.length === 10 && phoneNumber.match(/^[6-9]\d{9}$/)) {
-        phoneNumber = '+91' + phoneNumber;
-      } else {
-        // Use a valid default for testing
-        phoneNumber = '+919999999999';
-      }
-
-      const cashfreeOrderData = {
-        order_id: orderId,
-        order_amount: parseFloat(amount).toFixed(2),
-        order_currency: currency,
-        order_note: orderNote || 'Beauty Store Purchase',
-        customer_details: {
-          customer_id: String(customerInfo.customerId || 'guest'),
-          customer_name: customerInfo.customerName,
-          customer_email: customerInfo.customerEmail,
-          customer_phone: phoneNumber,
-        },
-        order_meta: {
-          return_url: `https://${req.get('host')}/checkout?payment=processing&orderId=${orderId}`,
-          notify_url: `https://${req.get('host')}/api/payments/cashfree/webhook`,
-        }
-      };
-
-      console.log("Creating Cashfree order with data:", JSON.stringify(cashfreeOrderData, null, 2));
-
-      const response = await fetch(`${CASHFREE_BASE_URL}/pg/orders`, {
-        method: 'POST',
-        headers: {
-          'x-client-id': CASHFREE_APP_ID,
-          'x-client-secret': CASHFREE_SECRET_KEY,
-          'x-api-version': '2023-08-01',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(cashfreeOrderData),
-      });
-
-      const result = await response.json();
-      console.log("Cashfree API response:", JSON.stringify(result, null, 2));
-
-      if (!response.ok) {
-        console.error("Cashfree API error:", result);
-        let errorMessage = "Failed to create Cashfree order";
-
-        if (result.message) {
-          errorMessage = result.message;
-        } else if (result.error_description) {
-          errorMessage = result.error_description;
-        }
-
-        return res.status(response.status).json({ 
-          error: errorMessage,
-          cashfreeError: true,
-          details: result
-        });
-      }
-
-      if (!result.payment_session_id) {
-        console.error("No payment session ID found in Cashfree response:", result);
-        return res.status(500).json({ 
-          error: "Cashfree response missing payment session ID. Please try again.",
-          cashfreeError: true,
-          details: result
-        });
-      }
-
-      res.json({
-        orderId: result.order_id,
-        paymentSessionId: result.payment_session_id,
-        amount: result.order_amount,
-        currency: result.order_currency,
-        environment: CASHFREE_MODE,
-      });
-    } catch (error) {
-      console.error("Cashfree order creation error:", error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Failed to create Cashfree order",
-        details: error instanceof Error ? error.stack : undefined
-      });
-    }
-  });
-
-  // Cashfree payment success callback
-  app.get("/api/payments/cashfree/success", async (req, res) => {
-    try {
-      const { order_id } = req.query;
-
-      if (!order_id) {
-        return res.redirect('/checkout?payment=failed');
-      }
-
-      // Verify payment status
-      const response = await fetch(`${CASHFREE_BASE_URL}/pg/orders/${order_id}`, {
-        headers: {
-          'x-client-id': CASHFREE_APP_ID,
-          'x-client-secret': CASHFREE_SECRET_KEY,
-          'x-api-version': '2023-08-01',
-        },
-      });
-
-      const orderData = await response.json();
-
-      if (response.ok && orderData.order_status === 'PAID') {
-        res.redirect('/checkout?payment=success');
-      } else {
-        res.redirect('/checkout?payment=failed');
-      }
-    } catch (error) {
-      console.error("Cashfree success callback error:", error);
-      res.redirect('/checkout?payment=failed');
-    }
-  });
-
-  // Cashfree webhook for payment verification
-  app.post("/api/payments/cashfree/webhook", async (req, res) => {
-    try {
-      const { order_id, order_status, payment_id } = req.body;
-
-      console.log('Cashfree webhook received:', { order_id, order_status, payment_id });
-
-      // Update payment status in database
-      if (order_status === 'PAID') {
-        try {
-          // Get stored payment data
-          const paymentInfo = await db.select(sql`
-            SELECT * FROM cashfree_payments 
-            WHERE cashfree_order_id = ${order_id} 
-            LIMIT 1
-          `);
-
-          if (paymentInfo.length > 0 && paymentInfo[0].status !== 'completed') {
-            const storedData = JSON.parse(paymentInfo[0].order_data);
-
-            // Create the order in database
-            const orderCreateData = {
-              userId: storedData.userId,
-              totalAmount: paymentInfo[0].amount,
-              status: 'confirmed',
-              paymentMethod: 'Cashfree',
-              shippingAddress: storedData.shippingAddress,
-              cashfreeOrderId: order_id,
-              paymentId: payment_id,
-              createdAt: new Date(),
-            };
-
-            const createdOrders = await db.insert(ordersTable).values(orderCreateData).returning();
-            const order = createdOrders[0];
-
-            // Create order items
-            const orderItems = storedData.items.map((item: any) => ({
-              orderId: order.id,
-              productId: Number(item.productId || item.id || 0),
-              productName: item.productName || item.name,
-              productImage: item.productImage || item.image || '',
-              quantity: Number(item.quantity),
-              price: item.price.toString(),
-            }));
-
-            await db.insert(orderItemsTable).values(orderItems);
-
-            // Update payment status
-            await db.update(sql`
-              UPDATE cashfree_payments 
-              SET status = 'completed', payment_id = ${payment_id}, completed_at = NOW() 
-              WHERE cashfree_order_id = ${order_id}
-            `);
-
-            console.log(`Order created successfully via webhook for payment ${order_id}`);
-          }
-        } catch (dbError) {
-          console.error("Error processing webhook:", dbError);
-        }
-      } else {
-        try {
-          await db.update(sql`
-            UPDATE cashfree_payments 
-            SET status = 'failed', payment_id = ${payment_id}, completed_at = NOW() 
-            WHERE cashfree_order_id = ${order_id}
-          `);
-          console.log(`Payment failed for order: ${order_id}`);
-        } catch (dbError) {
-          console.error("Error updating failed payment:", dbError);
-        }
-      }
-
-      res.status(200).json({ status: 'OK' });
-    } catch (error) {
-      console.error("Cashfree webhook error:", error);
-      res.status(500).json({ error: "Webhook processing failed" });
-    }
-  });
-
-  // Verify Cashfree payment
-  app.post("/api/payments/cashfree/verify", async (req, res) => {
-    try {
-      const { orderId } = req.body;
-
-      if (!orderId) {
-        return res.status(400).json({ error: "Order ID is required" });
-      }
-
-      const response = await fetch(`${CASHFREE_BASE_URL}/pg/orders/${orderId}`, {
-        headers: {
-          'x-client-id': CASHFREE_APP_ID,
-          'x-client-secret': CASHFREE_SECRET_KEY,
-          'x-api-version': '2023-08-01',
-        },
-      });
-
-      const cashfreeOrderData = await response.json();
-
-      if (response.ok && cashfreeOrderData.order_status === 'PAID') {
-        // Payment successful, create the actual order
-        try {
-          // Get stored payment data
-          const paymentInfo = await db.select(sql`
-            SELECT * FROM cashfree_payments 
-            WHERE cashfree_order_id = ${orderId} 
-            LIMIT 1
-          `);
-
-          if (paymentInfo.length > 0) {
-            const storedData = JSON.parse(paymentInfo[0].order_data);
-
-            // Create the order in database
-            const orderCreateData = {
-              userId: storedData.userId,
-              totalAmount: paymentInfo[0].amount,
-              status: 'confirmed',
-              paymentMethod: 'Cashfree',
-              shippingAddress: storedData.shippingAddress,
-              cashfreeOrderId: orderId,
-              paymentSessionId: cashfreeOrderData.payment_session_id,
-              createdAt: new Date(),
-            };
-
-            const createdOrders = await db.insert(ordersTable).values(orderCreateData).returning();
-            const order = createdOrders[0];
-
-            // Create order items
-            const orderItems = storedData.items.map((item: any) => ({
-              orderId: order.id,
-              productId: Number(item.productId || item.id || 0),
-              productName: item.productName || item.name,
-              productImage: item.productImage || item.image || '',
-              quantity: Number(item.quantity),
-              price: item.price.toString(),
-            }));
-
-            await db.insert(orderItemsTable).values(orderItems);
-
-            // Update payment status
-            await db.update(sql`
-              UPDATE cashfree_payments 
-              SET status = 'completed', completed_at = NOW() 
-              WHERE cashfree_order_id = ${orderId}
-            `);
-
-            console.log(`Order created successfully for payment ${orderId}`);
-          }
-        } catch (dbError) {
-          console.error("Error creating order after payment:", dbError);
-          // Don't fail the verification, but log the error
-        }
-
-        res.json({ verified: true, message: "Payment verified successfully" });
-      } else {
-        // Update payment status as failed
-        try {
-          await db.update(sql`
-            UPDATE cashfree_payments 
-            SET status = 'failed', completed_at = NOW() 
-            WHERE cashfree_order_id = ${orderId}
-          `);
-        } catch (dbError) {
-          console.error("Error updating payment status:", dbError);
-        }
-
-        res.status(400).json({ error: "Payment verification failed" });
-      }
-    } catch (error) {
-      console.error("Cashfree verification error:", error);
-      res.status(500).json({ error: "Failed to verify payment" });
-    }
-  });
-
-  // Create new order
-  app.post("/api/orders", async (req, res) => {
-    try {
-      console.log("Received order data:", req.body);
-
-      const { userId, totalAmount, status, paymentMethod, shippingAddress, items } = req.body;
-
-      // Validate required fields
-      if (!userId) {
-        return res.status(400).json({ error: "User ID is required" });
-      }
-
-      if (!totalAmount || isNaN(Number(totalAmount))) {
-        return res.status(400).json({ error: "Valid total amount is required" });
-      }
-
-      if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ error: "Order items are required" });
-      }
-
-      if (!shippingAddress) {
-        return res.status(400).json({ error: "Shipping address is required" });
-      }
-
-      // Parse and validate totalAmount
-      const parsedTotalAmount = Number(totalAmount);
-      if (parsedTotalAmount <= 0) {
-        return res.status(400).json({ error: "Total amount must be greater than 0" });
-      }
-
-      // Create order
-      const orderData = {
-        userId: Number(userId),
-        totalAmount: Math.round(parsedTotalAmount), // Round to nearest integer for database
-        status: status || 'pending',
-        paymentMethod: paymentMethod || 'Credit Card',
-        shippingAddress: shippingAddress.toString(),
-        trackingNumber: null,
-        estimatedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-        createdAt: new Date(),
-      };
-
-      console.log("Creating order with data:", orderData);
-
-      const createdOrders = await db.insert(ordersTable).values(orderData).returning();
-      const order = createdOrders[0];
-
-      console.log("Order created:", order);
-
-      // Validate and create order items with proper product ID handling
-      const orderItems = [];
-
-      for (let index = 0; index < items.length; index++) {
-        const item = items[index];
-
-        if (!item.productName && !item.name) {
-          throw new Error(`Item ${index + 1} is missing product name`);
-        }
-        if (!item.quantity || isNaN(Number(item.quantity))) {
-          throw new Error(`Item ${index + 1} has invalid quantity`);
-        }
-        if (!item.price) {
-          throw new Error(`Item ${index + 1} is missing price`);
-        }
-
-        let productId = Number(item.productId || item.id || 0);
-
-        // Verify that the product exists in the database
-        if (productId && productId > 0) {
-          try {
-            const existingProduct = await storage.getProduct(productId);
-            if (!existingProduct) {
-              console.log(`Product with ID ${productId} not found, setting to null`);
-              productId = null;
-            }
-          } catch (error) {
-            console.log(`Error checking product ${productId}, setting to null:`, error);
-            productId = null;
-          }
-        } else {
-          productId = null;
-        }
-
-        orderItems.push({
-          orderId: order.id,
-          productId: productId,
-          productName: item.productName || item.name,
-          productImage: item.productImage || item.image || '',
-          quantity: Number(item.quantity),
-          price: item.price.toString(),
-        });
-      }
-
-      console.log("Creating order items:", orderItems);
-
-      await db.insert(orderItemsTable).values(orderItems);
-
-      // Generate order ID
-      const orderId = `ORD-${order.id.toString().padStart(3, '0')}`;
-
-      console.log("Order created successfully with ID:", orderId);
-
-      res.status(201).json({ 
-        message: "Order created successfully",
-        orderId,
-        order: {
-          id: orderId,
-          totalAmount: order.totalAmount,
-          status: order.status,
-          createdAt: order.createdAt
-        }
-      });
-    } catch (error) {
-      console.error("Error creating order:", error);
-      res.status(500).json({ 
-        error: "Failed to create order",
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-  // Create sample orders for all users (for testing)
-  app.post("/api/orders/create-sample-data", async (req, res) => {
-    try {
-      // Get all users
-      const allUsers = await db.select();
-
-      if (allUsers.length === 0) {
-        return res.status(400).json({ error: "No users found. Please create a user account first." });
-      }
-
-      let ordersCreated = 0;
-
-      for (const user of allUsers) {
-        // Check if user already has orders
-        const existingOrders = await db
-          .select()
-          .from(ordersTable)
-          .where(eq(ordersTable.userId, user.id));
-
-        if (existingOrders.length > 0) {
-          continue; // Skip users who already have orders
-        }
-
-        // Create sample orders with current dates
-        const now = new Date();
-        const sampleOrders = [
-          {
-            userId: user.id,
-            totalAmount: 1299,
-            status: 'delivered' as const,
-            paymentMethod: 'Credit Card',
-            shippingAddress: `${user.firstName} ${user.lastName}, 123 Beauty Street, Mumbai, Maharashtra 400001`,
-            trackingNumber: `TRK00${user.id}234567`,
-            estimatedDelivery: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000),
-            createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
-          },
-          {
-            userId: user.id,
-            totalAmount: 899,
-            status: 'shipped' as const,
-            paymentMethod: 'UPI',
-            shippingAddress: `${user.firstName} ${user.lastName}, 456 Glow Avenue, Delhi, Delhi 110001`,
-            trackingNumber: `TRK00${user.id}234568`,
-            estimatedDelivery: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
-            createdAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
-          },
-          {
-            userId: user.id,
-            totalAmount: 1599,
-            status: 'processing' as const,
-            paymentMethod: 'Net Banking',
-            shippingAddress: `${user.firstName} ${user.lastName}, 789 Skincare Lane, Bangalore, Karnataka 560001`,
-            trackingNumber: null,
-            estimatedDelivery: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-            createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
-          }
-        ];
-
-        const createdOrders = await db.insert(ordersTable).values(sampleOrders).returning();
-
-        // Create sample order items
-        const sampleItems = [
-
-        ];
-
-        await db.insert(orderItemsTable).values(sampleItems);
-        ordersCreated += createdOrders.length;
-      }
-
-      res.json({ 
-        message: "Sample orders created successfully", 
-        ordersCreated,
-        usersProcessed: allUsers.length
-      });
-    } catch (error) {
-      console.error("Error creating sample orders:", error);
-      res.status(500).json({ error: "Failed to create sample orders" });
-    }
-  });
-
-
-
-        // Update order status (for admin)
+  // Update order status (for admin)
   app.put("/api/orders/:id/status", async (req, res) => {
     try {
       const orderId = req.params.id.replace('ORD-', '');
@@ -4170,7 +3626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get shades for a specific product
+  // Get product shades
   app.get("/api/products/:productId/shades", async (req, res) => {
     try {
       const { productId } = req.params;
@@ -4405,6 +3861,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: error instanceof Error ? error.message : "Unknown error",
         success: false 
       });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
     }
   });
 
