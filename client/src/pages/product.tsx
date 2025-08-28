@@ -157,6 +157,7 @@ export default function ProductsPage() {
           <div className="hidden lg:block">
             <div className="sticky top-4">
               <DynamicFilter
+                key="desktop-filter"
                 products={allProducts || []}
                 categories={categories || []}
                 onFilterChange={handleFilterChange}

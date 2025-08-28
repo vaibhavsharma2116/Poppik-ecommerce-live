@@ -226,7 +226,7 @@ export default function AdminProducts() {
       try {
         // Upload new images if any
         let finalImages = editImagePreviews;
-        
+
         if (editImages.length > 0) {
           const uploadPromises = editImages.map(async (image) => {
             const formData = new FormData();
@@ -403,7 +403,7 @@ export default function AdminProducts() {
     const files = Array.from(event.target.files || []);
     if (files.length > 0) {
       setEditImages(files);
-      
+
       // Create previews for new images
       const previewPromises = files.map(file => {
         return new Promise<string>((resolve) => {

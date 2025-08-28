@@ -111,6 +111,11 @@ export default function Profile() {
 
       console.log('Updating profile for user:', user.id);
       console.log('Profile data:', editFormData);
+      
+      // Prevent multiple simultaneous requests
+      if (isUpdating) return;
+      setIsUpdating(true);
+      
       const requestData = {
         firstName: editFormData.firstName,
         lastName: editFormData.lastName,
@@ -140,6 +145,7 @@ export default function Profile() {
         const text = await response.text();
         console.error("Server returned non-JSON response:", text);
         console.error("This usually means the API route is not being handled by the server");
+        setIsUpdating(false);
         throw new Error("API server error: The profile update endpoint is not responding correctly");
       }
 

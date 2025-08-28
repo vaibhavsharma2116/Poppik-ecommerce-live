@@ -15,7 +15,7 @@ const RATE_LIMIT_WINDOW = 60000; // 1 minute
 const RATE_LIMIT_MAX = 100; // 100 requests per minute
 
 function rateLimit(req: any, res: any, next: any) {
-  const clientIP = req.ip || req.connection.remoteAddress;
+  const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
   const now = Date.now();
   const windowStart = now - RATE_LIMIT_WINDOW;
 
@@ -23,7 +23,7 @@ function rateLimit(req: any, res: any, next: any) {
     rateLimitMap.set(clientIP, []);
   }
 
-  const requests = rateLimitMap.get(clientIP);
+  const requests = rateLimitMap.get(clientIP) || [];
   const recentRequests = requests.filter((time: number) => time > windowStart);
 
   if (recentRequests.length >= RATE_LIMIT_MAX) {
@@ -32,6 +32,20 @@ function rateLimit(req: any, res: any, next: any) {
 
   recentRequests.push(now);
   rateLimitMap.set(clientIP, recentRequests);
+  
+  // Clean up old entries periodically
+  if (Math.random() < 0.01) { // 1% chance to clean up
+    const cutoff = now - (RATE_LIMIT_WINDOW * 2);
+    rateLimitMap.forEach((times, ip) => {
+      const validTimes = times.filter((time: number) => time > cutoff);
+      if (validTimes.length === 0) {
+        rateLimitMap.delete(ip);
+      } else {
+        rateLimitMap.set(ip, validTimes);
+      }
+    });
+  }
+  
   next();
 }
 import { drizzle } from "drizzle-orm/node-postgres";

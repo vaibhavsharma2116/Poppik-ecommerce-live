@@ -372,12 +372,12 @@ export default function Blog() {
                       </div>
                       <div className="flex flex-wrap gap-1 mb-4">
                         {post.tags.slice(0, 3).map((tag, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
+                          <Badge key={`${post.id}-tag-${index}`} variant="secondary" className="text-xs">
                             {tag}
                           </Badge>
                         ))}
                         {post.tags.length > 3 && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge key={`${post.id}-more-tags`} variant="secondary" className="text-xs">
                             +{post.tags.length - 3}
                           </Badge>
                         )}
