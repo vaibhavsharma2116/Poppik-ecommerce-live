@@ -477,20 +477,23 @@ export class DatabaseStorage implements IStorage {
         // Continue with product deletion even if related data deletion fails
       }
 
-      // Delete the product
-      const result = await db.delete(products).where(eq(products.id, id)).returning();
+      // Soft delete by marking as inactive instead of hard delete
+      const result = await db.update(products)
+        .set({ inStock: false })
+        .where(eq(products.id, id))
+        .returning();
       const success = result.length > 0;
 
       if (success) {
-        console.log(`Successfully deleted product ${id} from database. Deleted ${result.length} rows.`);
-        console.log(`Deleted product details:`, result[0]);
+        console.log(`Successfully soft-deleted product ${id} from database. Updated ${result.length} rows.`);
+        console.log(`Updated product details:`, result[0]);
       } else {
-        console.log(`Failed to delete product ${id} - no rows affected`);
+        console.log(`Failed to soft-delete product ${id} - no rows affected`);
       }
 
       return success;
     } catch (error) {
-      console.error(`Error deleting product ${id}:`, error);
+      console.error(`Error soft-deleting product ${id}:`, error);
       console.error(`Error details:`, error.message);
       throw error;
     }
@@ -818,8 +821,12 @@ export class DatabaseStorage implements IStorage {
   async deleteShade(id: number): Promise<boolean> {
     try {
       const db = await getDb();
-      const result = await db.delete(shades).where(eq(shades.id, id));
-      return result.rowCount > 0;
+      // Soft delete by marking as inactive instead of hard delete
+      const result = await db.update(shades)
+        .set({ isActive: false })
+        .where(eq(shades.id, id))
+        .returning();
+      return result.length > 0;
     } catch (error) {
       console.error("Database connection failed:", error);
       throw error;

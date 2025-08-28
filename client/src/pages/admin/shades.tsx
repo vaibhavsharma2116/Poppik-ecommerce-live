@@ -81,7 +81,7 @@ export default function AdminShades() {
 
   // Fetch categories and subcategories
   const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: ['/api/categories'],
+    queryKey: ['categories'],
     queryFn: async () => {
       const response = await fetch('/api/categories');
       if (!response.ok) throw new Error('Failed to fetch categories');
@@ -90,7 +90,7 @@ export default function AdminShades() {
   });
 
   const { data: subcategories = [] } = useQuery<Subcategory[]>({
-    queryKey: ['/api/subcategories'],
+    queryKey: ['subcategories'],
     queryFn: async () => {
       const response = await fetch('/api/subcategories');
       if (!response.ok) throw new Error('Failed to fetch subcategories');
@@ -100,7 +100,7 @@ export default function AdminShades() {
 
   // Fetch products
   const { data: products = [] } = useQuery<Product[]>({
-    queryKey: ['/api/products'],
+    queryKey: ['products'],
     queryFn: async () => {
       const response = await fetch('/api/products');
       if (!response.ok) throw new Error('Failed to fetch products');
@@ -110,7 +110,12 @@ export default function AdminShades() {
 
   // Fetch shades
   const { data: shades = [], isLoading } = useQuery<Shade[]>({
-    queryKey: ['/api/admin/shades'],
+    queryKey: ['admin-shades'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/shades');
+      if (!response.ok) throw new Error('Failed to fetch shades');
+      return response.json();
+    },
   });
 
   // Create shade mutation
@@ -125,8 +130,8 @@ export default function AdminShades() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/shades'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/shades'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
+      queryClient.invalidateQueries({ queryKey: ['shades'] });
       setIsAddModalOpen(false);
       resetForm();
       toast({ title: "Success", description: "Shade created successfully" });
@@ -155,8 +160,8 @@ export default function AdminShades() {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/shades'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/shades'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
+      queryClient.invalidateQueries({ queryKey: ['shades'] });
       setIsEditModalOpen(false);
       resetForm();
       toast({ title: "Success", description: "Shade updated successfully" });
@@ -181,8 +186,8 @@ export default function AdminShades() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/shades'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/shades'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
+      queryClient.invalidateQueries({ queryKey: ['shades'] });
       setIsDeleteModalOpen(false);
       setSelectedShade(null);
       toast({ title: "Success", description: "Shade deleted successfully" });

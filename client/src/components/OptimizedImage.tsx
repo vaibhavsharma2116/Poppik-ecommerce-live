@@ -55,6 +55,7 @@ export default function OptimizedImage({
   };
 
   const handleError = () => {
+    console.log('Image failed to load:', src);
     setError(true);
     setIsLoaded(true);
   };
@@ -97,11 +98,9 @@ export default function OptimizedImage({
       className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className}`}
       style={{
         backgroundColor: '#f3f4f6',
-        objectFit: 'contain',
-        maxWidth: '100%',
-        maxHeight: '100%',
-        width: 'auto',
-        height: 'auto',
+        objectFit: style.objectFit || 'contain',
+        width: style.width || '100%',
+        height: style.height || '100%',
         display: 'block',
         ...style
       }}

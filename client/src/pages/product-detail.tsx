@@ -508,9 +508,14 @@ export default function ProductDetail() {
                                 <OptimizedImage
                                   src={imageUrl}
                                   alt={`${product.name} view ${index + 1}`}
-                                  className="w-full h-full object-contain"
+                                  className="w-full h-full"
                                   width={80}
                                   height={80}
+                                  style={{ 
+                                    objectFit: 'contain',
+                                    width: '100%',
+                                    height: '100%'
+                                  }}
                                 />
                               </button>
                             ))}
@@ -537,9 +542,14 @@ export default function ProductDetail() {
                                   <OptimizedImage
                                     src={imageUrl}
                                     alt={`${product.name} view ${index + 1}`}
-                                    className="w-full h-full object-contain"
+                                    className="w-full h-full"
                                     width={80}
                                     height={80}
+                                    style={{ 
+                                      objectFit: 'contain',
+                                      width: '100%',
+                                      height: '100%'
+                                    }}
                                   />
                                 </button>
                               ))}
@@ -565,14 +575,20 @@ export default function ProductDetail() {
                     )}
 
                     {/* Main Image with Zoom */}
-                    <div className="flex-1 aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl flex items-center justify-center overflow-hidden shadow-lg relative group cursor-zoom-in">
+                    <div className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in" style={{ aspectRatio: '1/1', height: '350px', maxHeight: '350px' }}>
                       {selectedImageUrl || imageUrls[0] ? (
                         <OptimizedImage
                           src={selectedImageUrl || imageUrls[0] || product.imageUrl}
                           alt={product.name}
-                          className="w-full h-full object-contain rounded-xl sm:rounded-2xl transition-transform duration-300 group-hover:scale-110 cursor-zoom-in p-4"
-                          width={500}
-                          height={500}
+                          className="w-full h-full transition-transform duration-300 group-hover:scale-105 cursor-zoom-in"
+                          width={350}
+                          height={350}
+                          style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            objectFit: 'cover',
+                            display: 'block'
+                          }}
                           onClick={() => {
                             // Create zoom modal
                             const modal = document.createElement('div');

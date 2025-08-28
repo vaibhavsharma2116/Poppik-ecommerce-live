@@ -16,7 +16,7 @@ export function optimizeImageUrl(
     height = 400,
     quality = 80,
     format = 'webp',
-    fit = 'crop'
+    fit = 'contain'
   } = options;
 
   // Handle Unsplash URLs

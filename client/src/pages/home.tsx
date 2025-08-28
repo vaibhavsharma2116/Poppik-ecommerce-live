@@ -13,6 +13,8 @@ import { Filter } from "lucide-react";
 import DynamicFilter from "@/components/dynamic-filter";
 import type { Product, Category } from "@/lib/types";
 import loUntitled_design from "@assets/Untitled_design.png";
+import OptimizedImage from '@/components/OptimizedImage';
+
 // WhatsApp Integration Component
 function WhatsAppButton() {
   const handleWhatsAppClick = () => {
@@ -33,8 +35,8 @@ function WhatsAppButton() {
           src={loUntitled_design}
           alt="Boss Babe"
           className="w-16 h-16 rounded-full object-cover"
-          
-         
+
+
         />
       </button>
     </div>
@@ -147,10 +149,13 @@ export default function Home() {
                         <div className="hidden sm:block absolute top-3 sm:top-4 right-3 sm:right-4 w-4 sm:w-6 md:w-8 h-4 sm:h-6 md:h-8 bg-white/20 rounded-full blur-sm"></div>
                         <div className="hidden sm:block absolute bottom-3 sm:bottom-4 left-3 sm:left-4 w-3 sm:w-4 md:w-6 h-3 sm:h-4 md:h-6 bg-white/30 rounded-full blur-sm"></div>
 
-                        <img
+                        <OptimizedImage
                           src={category.imageUrl || categoryImages[category.slug as keyof typeof categoryImages] || "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400"}
                           alt={category.name}
                           className="w-full h-full object-cover rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110 transition-transform duration-300 sm:duration-500 md:duration-700 shadow-md sm:shadow-lg md:shadow-xl"
+                          width={400}
+                          height={400}
+                          optimization={{ width: 400, height: 400, quality: 85, format: 'webp' }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent rounded-xl sm:rounded-2xl group-hover:from-black/5 transition-all duration-300 sm:duration-500"></div>
 
@@ -494,7 +499,7 @@ export default function Home() {
         </div>
       </section>
 
-  
+
       {/* WhatsApp Floating Button */}
       <WhatsAppButton />
     </div>
