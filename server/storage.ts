@@ -844,31 +844,36 @@ export class DatabaseStorage implements IStorage {
 
       // Filter shades based on product's category/subcategory
       const productShades = allShades.filter(shade => {
-        // Check if shade has specific product IDs assigned
-        if (shade.productIds && Array.isArray(shade.productIds)) {
-          if (shade.productIds.includes(productId)) return true;
+        // Priority 1: Check if shade has specific product IDs assigned
+        if (shade.productIds && Array.isArray(shade.productIds) && shade.productIds.length > 0) {
+          // If specific products are selected, only show for those products
+          return shade.productIds.includes(productId);
         }
 
+        // Priority 2: If no specific products are selected, check category/subcategory match
+        // This means the shade applies to all products in the category/subcategory
+        let categoryMatch = false;
+        let subcategoryMatch = false;
+
         // Check category match
-        if (shade.categoryIds && Array.isArray(shade.categoryIds)) {
-          const hasMatchingCategory = shade.categoryIds.some((catId: number) => {
+        if (shade.categoryIds && Array.isArray(shade.categoryIds) && shade.categoryIds.length > 0) {
+          categoryMatch = shade.categoryIds.some((catId: number) => {
             const category = allCategories.find(cat => cat.id === catId);
             return category && category.name.toLowerCase() === product.category.toLowerCase();
           });
-          if (hasMatchingCategory) return true;
         }
 
         // Check subcategory match
-        if (shade.subcategoryIds && Array.isArray(shade.subcategoryIds) && product.subcategory) {
-          const hasMatchingSubcategory = shade.subcategoryIds.some((subId: number) => {
+        if (shade.subcategoryIds && Array.isArray(shade.subcategoryIds) && shade.subcategoryIds.length > 0 && product.subcategory) {
+          subcategoryMatch = shade.subcategoryIds.some((subId: number) => {
             const subcategory = allSubcategories.find(sub => sub.id === subId);
             return subcategory && subcategory.name.toLowerCase() === product.subcategory.toLowerCase();
           });
-          if (hasMatchingSubcategory) return true;
         }
 
-        return false;
-      });
+        return categoryMatch || subcategoryMatch;
+
+        });
 
       return productShades;
     } catch (error) {

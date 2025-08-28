@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
-import { ChevronRight, Star, ShoppingCart, Heart, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
+import { ChevronRight, Star, ShoppingCart, Heart, ChevronDown, ChevronUp, CheckCircle, Badge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -55,6 +55,7 @@ export default function ProductDetail() {
   const [reviewText, setReviewText] = useState("");
   const [reviewImage, setReviewImage] = useState<File | null>(null);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [shades, setShades] = useState<Shade[]>([]);
   const { toast } = useToast();
 
   const { data: product, isLoading } = useQuery<Product>({
@@ -89,7 +90,7 @@ export default function ProductDetail() {
       return [product.imageUrl];
     }
     return [];
-  }, [productImages, product?.imageUrl]);
+  }, [productImages?.length, product?.imageUrl]); // Stable dependencies
 
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
 
@@ -97,7 +98,7 @@ export default function ProductDetail() {
     if (imageUrls.length > 0 && !selectedImageUrl) {
       setSelectedImageUrl(imageUrls[0]);
     }
-  }, [imageUrls]);
+  }, [imageUrls.length, selectedImageUrl]); // Only depend on length and current selection
 
   const { data: relatedProducts } = useQuery<Product[]>({
     queryKey: [`/api/products/category/${product?.category}`],
@@ -118,7 +119,24 @@ export default function ProductDetail() {
       if (!response.ok) {
         return [];
       }
-      return response.json();
+      const shades = await response.json();
+      
+      // Only return shades that are specifically assigned to this product
+      // Filter out shades that are only category-based and don't include this product
+      return shades.filter((shade: Shade) => {
+        // If shade has productIds array and this product is in it, include it
+        if (shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(product.id)) {
+          return true;
+        }
+        
+        // If shade doesn't have specific product IDs but matches category/subcategory
+        // Only include if no specific products are selected (meaning it applies to all in category)
+        if (!shade.productIds || shade.productIds.length === 0) {
+          return true;
+        }
+        
+        return false;
+      });
     },
     enabled: !!product?.id,
   });
@@ -158,32 +176,30 @@ export default function ProductDetail() {
   });
 
   useEffect(() => {
-    if (productReviews) {
+    if (productReviews && Array.isArray(productReviews)) {
       setReviews(productReviews);
     }
-  }, [productReviews]);
+  }, [productReviews?.length]); // Only depend on length
 
   useEffect(() => {
-    if (reviewEligibility) {
+    if (reviewEligibility && typeof reviewEligibility === 'object') {
       setCanReview(reviewEligibility);
     }
-  }, [reviewEligibility]);
+  }, [reviewEligibility?.canReview, reviewEligibility?.message]); // Specific properties
 
   useEffect(() => {
-    if (product) {
+    if (product?.id) {
       const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
       setIsInWishlist(wishlist.some((item: any) => item.id === product.id));
     }
-  }, [product]);
+  }, [product?.id]); // Only depend on product ID
 
-  // Set shades when data is available
+  // Set shades when data is available - Fixed dependencies
   useEffect(() => {
-    if (shadesFromAPI) {
+    if (shadesFromAPI && shadesFromAPI.length > 0) {
       setShades(shadesFromAPI);
     }
-  }, [shadesFromAPI]);
-
-  // Don't auto-select any shade, let user choose manually
+  }, [shadesFromAPI?.length]); // Only depend on length to avoid object reference changes
 
   const toggleWishlist = () => {
     if (!product) return;
@@ -229,7 +245,7 @@ export default function ProductDetail() {
       });
     }
 
-    localStorage.setItem("wishlist", JSON.JSON.stringify(wishlist));
+    localStorage.setItem("wishlist", JSON.stringify(wishlist));
     window.dispatchEvent(new Event("wishlistUpdated"));
   };
 
@@ -278,7 +294,7 @@ export default function ProductDetail() {
       cart.push(cartItem);
     }
 
-    localStorage.setItem("cart", JSON.JSON.stringify(cart));
+    localStorage.setItem("cart", JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
 

@@ -712,48 +712,128 @@ export default function AdminShades() {
               <div className="border rounded-lg p-3 bg-gray-50">
                 <p className="text-sm text-gray-600 mb-3">Select specific products that should have this shade option (overrides category-based selection)</p>
                 {formData.categoryIds.length > 0 || formData.subcategoryIds.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
-                    {(() => {
-                      // Filter products based on selected categories and subcategories
-                      const filteredProducts = products.filter(product => {
-                        // Check if product matches selected categories
-                        const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
-                          const category = categories.find(c => c.id === catId);
-                          return category?.name.toLowerCase() === product.category.toLowerCase();
+                  <div className="space-y-3">
+                    {/* Select All / Deselect All buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const filteredProducts = products.filter(product => {
+                            const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                              const category = categories.find(c => c.id === catId);
+                              return category?.name.toLowerCase() === product.category.toLowerCase();
+                            });
+
+                            const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
+                              const subcategory = subcategories.find(s => s.id === subId);
+                              return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
+                            });
+
+                            return categoryMatch || subcategoryMatch;
+                          });
+
+                          const allProductIds = filteredProducts.map(p => p.id);
+                          setFormData(prev => ({
+                            ...prev,
+                            productIds: [...new Set([...prev.productIds, ...allProductIds])]
+                          }));
+                        }}
+                        className="text-xs"
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const filteredProducts = products.filter(product => {
+                            const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                              const category = categories.find(c => c.id === catId);
+                              return category?.name.toLowerCase() === product.category.toLowerCase();
+                            });
+
+                            const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
+                              const subcategory = subcategories.find(s => s.id === subId);
+                              return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
+                            });
+
+                            return categoryMatch || subcategoryMatch;
+                          });
+
+                          const allProductIds = filteredProducts.map(p => p.id);
+                          setFormData(prev => ({
+                            ...prev,
+                            productIds: prev.productIds.filter(id => !allProductIds.includes(id))
+                          }));
+                        }}
+                        className="text-xs"
+                      >
+                        Deselect All
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
+                      {(() => {
+                        // Filter products based on selected categories and subcategories
+                        const filteredProducts = products.filter(product => {
+                          // Check if product matches selected categories
+                          const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                            const category = categories.find(c => c.id === catId);
+                            return category?.name.toLowerCase() === product.category.toLowerCase();
+                          });
+
+                          // Check if product matches selected subcategories
+                          const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
+                            const subcategory = subcategories.find(s => s.id === subId);
+                            return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
+                          });
+
+                          return categoryMatch || subcategoryMatch;
                         });
 
-                        // Check if product matches selected subcategories
-                        const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
-                          const subcategory = subcategories.find(s => s.id === subId);
-                          return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
-                        });
-
-                        return categoryMatch && subcategoryMatch;
-                      });
-
-                      return filteredProducts.length > 0 ? (
-                        filteredProducts.map(product => (
-                          <div key={product.id} className="flex items-center space-x-3 p-2 bg-white rounded border hover:bg-gray-50">
-                            <Checkbox
-                              id={`prod-${product.id}`}
-                              checked={formData.productIds.includes(product.id)}
-                              onCheckedChange={() => handleProductChange(product.id.toString())}
-                            />
-                            <img 
-                              src={product.imageUrl} 
-                              alt={product.name}
-                              className="w-8 h-8 rounded object-cover"
-                            />
-                            <div className="flex-1">
-                              <Label htmlFor={`prod-${product.id}`} className="text-sm font-medium cursor-pointer">{product.name}</Label>
-                              <p className="text-xs text-gray-500">{product.category} • ₹{product.price}</p>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-gray-500 text-center py-4">No products found for selected categories/subcategories</p>
-                      );
-                    })()}
+                        return filteredProducts.length > 0 ? (
+                          filteredProducts.map(product => (
+                            <label key={product.id} className="flex items-center space-x-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={formData.productIds.includes(product.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      productIds: [...prev.productIds, product.id]
+                                    }));
+                                  } else {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      productIds: prev.productIds.filter(id => id !== product.id)
+                                    }));
+                                  }
+                                }}
+                                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                              />
+                              <img 
+                                src={product.imageUrl} 
+                                alt={product.name}
+                                className="w-8 h-8 rounded object-cover border"
+                              />
+                              <div className="flex-1">
+                                <span className="text-sm font-medium">{product.name}</span>
+                                <span className="text-xs text-gray-500 ml-2">₹{product.price}</span>
+                              </div>
+                              {formData.productIds.includes(product.id) && (
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              )}
+                            </label>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500 p-4 text-center">No products found for selected categories</p>
+                        );
+                      })()}
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
@@ -983,48 +1063,128 @@ export default function AdminShades() {
               <div className="border rounded-lg p-3 bg-gray-50">
                 <p className="text-sm text-gray-600 mb-3">Select specific products that should have this shade option (overrides category-based selection)</p>
                 {formData.categoryIds.length > 0 || formData.subcategoryIds.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
-                    {(() => {
-                      // Filter products based on selected categories and subcategories
-                      const filteredProducts = products.filter(product => {
-                        // Check if product matches selected categories
-                        const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
-                          const category = categories.find(c => c.id === catId);
-                          return category?.name.toLowerCase() === product.category.toLowerCase();
+                  <div className="space-y-3">
+                    {/* Select All / Deselect All buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const filteredProducts = products.filter(product => {
+                            const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                              const category = categories.find(c => c.id === catId);
+                              return category?.name.toLowerCase() === product.category.toLowerCase();
+                            });
+
+                            const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
+                              const subcategory = subcategories.find(s => s.id === subId);
+                              return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
+                            });
+
+                            return categoryMatch || subcategoryMatch;
+                          });
+
+                          const allProductIds = filteredProducts.map(p => p.id);
+                          setFormData(prev => ({
+                            ...prev,
+                            productIds: [...new Set([...prev.productIds, ...allProductIds])]
+                          }));
+                        }}
+                        className="text-xs"
+                      >
+                        Select All
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const filteredProducts = products.filter(product => {
+                            const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                              const category = categories.find(c => c.id === catId);
+                              return category?.name.toLowerCase() === product.category.toLowerCase();
+                            });
+
+                            const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
+                              const subcategory = subcategories.find(s => s.id === subId);
+                              return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
+                            });
+
+                            return categoryMatch || subcategoryMatch;
+                          });
+
+                          const allProductIds = filteredProducts.map(p => p.id);
+                          setFormData(prev => ({
+                            ...prev,
+                            productIds: prev.productIds.filter(id => !allProductIds.includes(id))
+                          }));
+                        }}
+                        className="text-xs"
+                      >
+                        Deselect All
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
+                      {(() => {
+                        // Filter products based on selected categories and subcategories
+                        const filteredProducts = products.filter(product => {
+                          // Check if product matches selected categories
+                          const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                            const category = categories.find(c => c.id === catId);
+                            return category?.name.toLowerCase() === product.category.toLowerCase();
+                          });
+
+                          // Check if product matches selected subcategories
+                          const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
+                            const subcategory = subcategories.find(s => s.id === subId);
+                            return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
+                          });
+
+                          return categoryMatch || subcategoryMatch;
                         });
 
-                        // Check if product matches selected subcategories
-                        const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
-                          const subcategory = subcategories.find(s => s.id === subId);
-                          return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
-                        });
-
-                        return categoryMatch && subcategoryMatch;
-                      });
-
-                      return filteredProducts.length > 0 ? (
-                        filteredProducts.map(product => (
-                          <div key={product.id} className="flex items-center space-x-3 p-2 bg-white rounded border hover:bg-gray-50">
-                            <Checkbox
-                              id={`edit-prod-${product.id}`}
-                              checked={formData.productIds.includes(product.id)}
-                              onCheckedChange={() => handleProductChange(product.id.toString())}
-                            />
-                            <img 
-                              src={product.imageUrl} 
-                              alt={product.name}
-                              className="w-8 h-8 rounded object-cover"
-                            />
-                            <div className="flex-1">
-                              <Label htmlFor={`edit-prod-${product.id}`} className="text-sm font-medium cursor-pointer">{product.name}</Label>
-                              <p className="text-xs text-gray-500">{product.category} • ₹{product.price}</p>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-gray-500 text-center py-4">No products found for selected categories/subcategories</p>
-                      );
-                    })()}
+                        return filteredProducts.length > 0 ? (
+                          filteredProducts.map(product => (
+                            <label key={product.id} className="flex items-center space-x-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={formData.productIds.includes(product.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      productIds: [...prev.productIds, product.id]
+                                    }));
+                                  } else {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      productIds: prev.productIds.filter(id => id !== product.id)
+                                    }));
+                                  }
+                                }}
+                                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                              />
+                              <img 
+                                src={product.imageUrl} 
+                                alt={product.name}
+                                className="w-8 h-8 rounded object-cover border"
+                              />
+                              <div className="flex-1">
+                                <span className="text-sm font-medium">{product.name}</span>
+                                <span className="text-xs text-gray-500 ml-2">₹{product.price}</span>
+                              </div>
+                              {formData.productIds.includes(product.id) && (
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              )}
+                            </label>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500 p-4 text-center">No products found for selected categories</p>
+                        );
+                      })()}
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
