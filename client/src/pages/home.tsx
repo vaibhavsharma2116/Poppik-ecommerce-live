@@ -4,7 +4,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Star, Heart, ShoppingCart, Eye, ArrowRight, Sparkles, Zap, Shield, Truck } from "lucide-react";
+import {
+  Star,
+  Heart,
+  ShoppingCart,
+  Eye,
+  ArrowRight,
+  Sparkles,
+  Zap,
+  Shield,
+  Truck,
+} from "lucide-react";
 import { Link } from "wouter";
 import HeroBanner from "@/components/hero-banner";
 import ProductCard from "@/components/product-card";
@@ -13,15 +23,14 @@ import { Filter } from "lucide-react";
 import DynamicFilter from "@/components/dynamic-filter";
 import type { Product, Category } from "@/lib/types";
 import loUntitled_design from "@assets/Untitled_design.png";
-import OptimizedImage from '@/components/OptimizedImage';
-
 // WhatsApp Integration Component
 function WhatsAppButton() {
   const handleWhatsAppClick = () => {
     const phoneNumber = "+919867577565"; // Replace with your actual WhatsApp business number
-    const message = "Hi! I'm interested in your beauty products. Can you help me?";
-    const whatsappUrl = `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+    const message =
+      "Hi! I'm interested in your beauty products. Can you help me?";
+    const whatsappUrl = `https://wa.me/${phoneNumber.replace("+", "")}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank");
   };
 
   return (
@@ -35,8 +44,6 @@ function WhatsAppButton() {
           src={loUntitled_design}
           alt="Boss Babe"
           className="w-16 h-16 rounded-full object-cover"
-
-
         />
       </button>
     </div>
@@ -48,38 +55,52 @@ export default function Home() {
   const [filteredAllProducts, setFilteredAllProducts] = useState<Product[]>([]);
   const [showAllProductsFilter, setShowAllProductsFilter] = useState(false);
 
-  const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>({
+  const { data: categories, isLoading: categoriesLoading } = useQuery<
+    Category[]
+  >({
     queryKey: ["/api/categories"],
   });
 
-  const { data: bestsellerProducts, isLoading: bestsellersLoading } = useQuery<Product[]>({
+  const { data: bestsellerProducts, isLoading: bestsellersLoading } = useQuery<
+    Product[]
+  >({
     queryKey: ["/api/products/bestsellers"],
   });
 
-  const { data: featuredProducts, isLoading: featuredLoading } = useQuery<Product[]>({
+  const { data: featuredProducts, isLoading: featuredLoading } = useQuery<
+    Product[]
+  >({
     queryKey: ["/api/products/featured"],
   });
 
-  const { data: newLaunchProducts, isLoading: newLaunchLoading } = useQuery<Product[]>({
+  const { data: newLaunchProducts, isLoading: newLaunchLoading } = useQuery<
+    Product[]
+  >({
     queryKey: ["/api/products/new-launches"],
   });
 
-  const { data: allProducts, isLoading: allProductsLoading } = useQuery<Product[]>({
+  const { data: allProducts, isLoading: allProductsLoading } = useQuery<
+    Product[]
+  >({
     queryKey: ["/api/products"],
   });
 
   const categoryImages = {
-    skincare: "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-    haircare: "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-    makeup: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-    bodycare: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400"
+    skincare:
+      "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+    haircare:
+      "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+    makeup:
+      "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+    bodycare:
+      "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
   };
 
   const categoryGradients = {
     skincare: "from-pink-100 via-rose-50 to-pink-200",
-    haircare: "from-blue-100 via-sky-50 to-blue-200", 
+    haircare: "from-blue-100 via-sky-50 to-blue-200",
     makeup: "from-purple-100 via-violet-50 to-purple-200",
-    bodycare: "from-green-100 via-emerald-50 to-green-200"
+    bodycare: "from-green-100 via-emerald-50 to-green-200",
   };
 
   return (
@@ -88,7 +109,7 @@ export default function Home() {
       <HeroBanner />
 
       {/* Timer Section */}
-      <Timer 
+      <Timer
         targetDate={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)} // 7 days from now
         title="Flash Sale Ending Soon!"
         subtitle="Get your favorite beauty products at unbeatable prices"
@@ -115,8 +136,9 @@ export default function Home() {
               </span>
             </h2>
             <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-light">
-              Discover our complete range of beauty and wellness products crafted with premium ingredients 
-              and designed for your unique beauty journey
+              Discover our complete range of beauty and wellness products
+              crafted with premium ingredients and designed for your unique
+              beauty journey
             </p>
             <div className="mt-8 w-24 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto rounded-full"></div>
           </div>
@@ -136,26 +158,31 @@ export default function Home() {
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mb-16 sm:mb-20 md:mb-24">
               {categories?.map((category, index) => (
                 <Link key={category.id} href={`/category/${category.slug}`}>
-                  <div 
+                  <div
                     className="group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-white shadow-sm hover:shadow-lg sm:hover:shadow-xl md:hover:shadow-2xl transition-all duration-300 sm:duration-500 md:duration-700 transform hover:scale-105 sm:hover:-translate-y-1 md:hover:-translate-y-3 md:hover:rotate-1"
                     style={{
                       animationDelay: `${index * 100}ms`,
-                      animation: 'fadeInUp 0.6s ease-out forwards'
+                      animation: "fadeInUp 0.6s ease-out forwards",
                     }}
                   >
                     <div className="aspect-square overflow-hidden relative">
-                      <div className={`relative h-full p-3 sm:p-4 md:p-6 lg:p-8 bg-gradient-to-br ${categoryGradients[category.slug as keyof typeof categoryGradients] || 'from-gray-100 to-gray-200'}`}>
+                      <div
+                        className={`relative h-full p-3 sm:p-4 md:p-6 lg:p-8 bg-gradient-to-br ${categoryGradients[category.slug as keyof typeof categoryGradients] || "from-gray-100 to-gray-200"}`}
+                      >
                         {/* Decorative Elements - Hidden on mobile for cleaner look */}
                         <div className="hidden sm:block absolute top-3 sm:top-4 right-3 sm:right-4 w-4 sm:w-6 md:w-8 h-4 sm:h-6 md:h-8 bg-white/20 rounded-full blur-sm"></div>
                         <div className="hidden sm:block absolute bottom-3 sm:bottom-4 left-3 sm:left-4 w-3 sm:w-4 md:w-6 h-3 sm:h-4 md:h-6 bg-white/30 rounded-full blur-sm"></div>
 
-                        <OptimizedImage
-                          src={category.imageUrl || categoryImages[category.slug as keyof typeof categoryImages] || "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400"}
+                        <img
+                          src={
+                            category.imageUrl ||
+                            categoryImages[
+                              category.slug as keyof typeof categoryImages
+                            ] ||
+                            "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400"
+                          }
                           alt={category.name}
-                          className="w-full h-full object-cover rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110 transition-transform duration-300 sm:duration-500 md:duration-700 shadow-md sm:shadow-lg md:shadow-xl"
-                          width={400}
-                          height={400}
-                          optimization={{ width: 400, height: 400, quality: 85, format: 'webp' }}
+                          className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110 transition-transform duration-300 sm:duration-500 md:duration-700 shadow-md sm:shadow-lg md:shadow-xl bg-white"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent rounded-xl sm:rounded-2xl group-hover:from-black/5 transition-all duration-300 sm:duration-500"></div>
 
@@ -173,9 +200,21 @@ export default function Home() {
                         {category.productCount} products
                       </p> */}
                       <div className="hidden sm:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                        <span className="text-xs sm:text-sm font-medium text-gray-700">Shop Now</span>
-                        <svg className="w-3 sm:w-4 h-3 sm:h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        <span className="text-xs sm:text-sm font-medium text-gray-700">
+                          Shop Now
+                        </span>
+                        <svg
+                          className="w-3 sm:w-4 h-3 sm:h-4 text-gray-700"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 8l4 4m0 0l-4 4m4-4H3"
+                          />
                         </svg>
                       </div>
                     </div>
@@ -199,18 +238,31 @@ export default function Home() {
                 </span>
               </h3>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed font-light mb-8">
-                Handpicked beauty essentials crafted with love and designed for your daily routine
+                Handpicked beauty essentials crafted with love and designed for
+                your daily routine
               </p>
-              {!allProductsLoading && allProducts && allProducts.length > 12 && (
-                <Link href="/category/all">
-                  <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-3">
-                    <span>Explore All {allProducts.length} Products</span>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
-                  </Button>
-                </Link>
-              )}
+              {!allProductsLoading &&
+                allProducts &&
+                allProducts.length > 12 && (
+                  <Link href="/category/all">
+                    <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-3">
+                      <span>Explore All {allProducts.length} Products</span>
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+                        />
+                      </svg>
+                    </Button>
+                  </Link>
+                )}
             </div>
 
             {/* Products Grid - 4 products per row */}
@@ -231,28 +283,42 @@ export default function Home() {
               <>
                 {/* Mobile-first Grid Layout */}
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
-                  {allProducts?.slice(0, 8).map((product) => (
-                    <ProductCard 
-                      key={product.id} 
-                      product={product} 
-                      className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300" 
-                    />
-                  ))}
+                  {allProducts
+                    ?.slice(0, 8)
+                    .map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300"
+                      />
+                    ))}
                 </div>
 
                 {/* View More Button */}
-                {!allProductsLoading && allProducts && allProducts.length > 10 && (
-                  <div className="text-center mt-12">
-                    <Link href="/products">
-                      <Button className="inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-10 py-4 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
-                        View All Products ({allProducts.length})
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                        </svg>
-                      </Button>
-                    </Link>
-                  </div>
-                )}
+                {!allProductsLoading &&
+                  allProducts &&
+                  allProducts.length > 10 && (
+                    <div className="text-center mt-12">
+                      <Link href="/products">
+                        <Button className="inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-10 py-4 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
+                          View All Products ({allProducts.length})
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17 8l4 4m0 0l-4 4m4-4H3"
+                            />
+                          </svg>
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
               </>
             )}
           </div>
@@ -280,13 +346,24 @@ export default function Home() {
               </span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-light mb-8">
-              Our featured products, carefully selected for their exceptional quality and popularity
+              Our featured products, carefully selected for their exceptional
+              quality and popularity
             </p>
             <Link href="/products?filter=featured">
               <Button className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                 <span>View All Featured ({featuredProducts?.length || 0})</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  />
                 </svg>
               </Button>
             </Link>
@@ -310,9 +387,9 @@ export default function Home() {
               {/* Mobile-first Grid Layout for Featured Products */}
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
                 {featuredProducts.slice(0, 8).map((product) => (
-                  <ProductCard 
-                    key={`featured-${product.id}`} 
-                    product={product} 
+                  <ProductCard
+                    key={product.id}
+                    product={product}
                     className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300"
                   />
                 ))}
@@ -331,8 +408,12 @@ export default function Home() {
             </>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No featured products available at the moment.</p>
-              <p className="text-gray-400 text-sm mt-2">Check back soon for new featured items!</p>
+              <p className="text-gray-500 text-lg">
+                No featured products available at the moment.
+              </p>
+              <p className="text-gray-400 text-sm mt-2">
+                Check back soon for new featured items!
+              </p>
             </div>
           )}
         </div>
@@ -359,13 +440,24 @@ export default function Home() {
               </span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-light mb-8">
-              Discover our latest innovations - cutting-edge formulas and revolutionary beauty solutions
+              Discover our latest innovations - cutting-edge formulas and
+              revolutionary beauty solutions
             </p>
             <Link href="/products?filter=newLaunch">
               <Button className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                 <span>Explore New Launches</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  />
                 </svg>
               </Button>
             </Link>
@@ -388,29 +480,48 @@ export default function Home() {
             <>
               {/* Mobile-first Grid Layout for New Launch Products */}
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
-                {allProducts?.filter(product => product.newLaunch).slice(0, 4).map((product) => (
-                  <ProductCard 
-                    key={product.id} 
-                    product={product} 
-                    className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300 relative"
-                  />
-                ))}
+                {allProducts
+                  ?.filter((product) => product.newLaunch)
+                  .slice(0, 4)
+                  .map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300 relative"
+                    />
+                  ))}
               </div>
 
-
-
               {/* Show message if no new launch products */}
-              {allProducts?.filter(product => product.newLaunch).length === 0 && (
+              {allProducts?.filter((product) => product.newLaunch).length ===
+                0 && (
                 <div className="text-center py-12">
                   <div className="mx-auto w-16 h-16 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mb-6">
-                    <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    <svg
+                      className="w-8 h-8 text-emerald-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                      />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">New Products Coming Soon!</h3>
-                  <p className="text-gray-600 mb-6">We're working on exciting new launches. Stay tuned!</p>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    New Products Coming Soon!
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    We're working on exciting new launches. Stay tuned!
+                  </p>
                   <Link href="/products">
-                    <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                    <Button
+                      variant="outline"
+                      className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                    >
                       Browse All Products
                     </Button>
                   </Link>
@@ -441,13 +552,26 @@ export default function Home() {
               </span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-light mb-8">
-              Our most loved products by customers - tried, tested, and trusted by thousands
+              Our most loved products by customers - tried, tested, and trusted
+              by thousands
             </p>
             <Link href="/products?filter=bestseller">
               <Button className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                <span>View All Bestsellers ({bestsellerProducts?.length || 0})</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                <span>
+                  View All Bestsellers ({bestsellerProducts?.length || 0})
+                </span>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  />
                 </svg>
               </Button>
             </Link>
@@ -456,7 +580,10 @@ export default function Home() {
           {bestsellersLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="overflow-hidden bg-gray-100 rounded-lg animate-pulse">
+                <div
+                  key={i}
+                  className="overflow-hidden bg-gray-100 rounded-lg animate-pulse"
+                >
                   <div className="h-72 w-full bg-gray-200" />
                   <div className="p-6 space-y-3">
                     <div className="h-4 w-full bg-gray-200 rounded" />
@@ -471,9 +598,9 @@ export default function Home() {
               {/* Mobile-first Grid Layout for Bestsellers */}
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
                 {bestsellerProducts.slice(0, 8).map((product) => (
-                  <ProductCard 
-                    key={product.id} 
-                    product={product} 
+                  <ProductCard
+                    key={product.id}
+                    product={product}
                     className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300"
                   />
                 ))}
@@ -492,13 +619,16 @@ export default function Home() {
             </>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No bestseller products available at the moment.</p>
-              <p className="text-gray-400 text-sm mt-2">Check back soon for our top-rated products!</p>
+              <p className="text-gray-500 text-lg">
+                No bestseller products available at the moment.
+              </p>
+              <p className="text-gray-400 text-sm mt-2">
+                Check back soon for our top-rated products!
+              </p>
             </div>
           )}
         </div>
       </section>
-
 
       {/* WhatsApp Floating Button */}
       <WhatsAppButton />

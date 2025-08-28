@@ -120,7 +120,7 @@ export default function ProductDetail() {
         return [];
       }
       const shades = await response.json();
-      
+
       // Only return shades that are specifically assigned to this product
       // Filter out shades that are only category-based and don't include this product
       return shades.filter((shade: Shade) => {
@@ -128,13 +128,13 @@ export default function ProductDetail() {
         if (shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(product.id)) {
           return true;
         }
-        
+
         // If shade doesn't have specific product IDs but matches category/subcategory
         // Only include if no specific products are selected (meaning it applies to all in category)
         if (!shade.productIds || shade.productIds.length === 0) {
           return true;
         }
-        
+
         return false;
       });
     },
@@ -245,7 +245,7 @@ export default function ProductDetail() {
       });
     }
 
-    localStorage.setItem("wishlist", JSON.stringify(wishlist));
+    localStorage.setItem("wishlist", JSON.JSON.stringify(wishlist));
     window.dispatchEvent(new Event("wishlistUpdated"));
   };
 
@@ -294,7 +294,7 @@ export default function ProductDetail() {
       cart.push(cartItem);
     }
 
-    localStorage.setItem("cart", JSON.stringify(cart));
+    localStorage.setItem("cart", JSON.JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
 
@@ -508,13 +508,14 @@ export default function ProductDetail() {
                                 <OptimizedImage
                                   src={imageUrl}
                                   alt={`${product.name} view ${index + 1}`}
-                                  className="w-full h-full"
+                                  className="w-full h-full product-detail-thumbnail"
                                   width={80}
                                   height={80}
                                   style={{ 
-                                    objectFit: 'contain',
+                                    objectFit: 'cover',
                                     width: '100%',
-                                    height: '100%'
+                                    height: '100%',
+                                    borderRadius: '8px'
                                   }}
                                 />
                               </button>
@@ -526,7 +527,7 @@ export default function ProductDetail() {
                             <div 
                               className="flex flex-col gap-3 transition-transform duration-300 ease-in-out"
                               style={{
-                                transform: `translateY(-${Math.max(0, Math.min(imageUrls.findIndex(img => img === selectedImageUrl) - 1, imageUrls.length - 4)) * 88}px)`
+                                transform: `translateY(-${Math.max(0, Math.min(imageUrls.findIndex(img => img === selectedImageUrl) - 1, imageUrls.length - 4)) * 108}px)`
                               }}
                             >
                               {imageUrls.map((imageUrl, index) => (
@@ -546,7 +547,7 @@ export default function ProductDetail() {
                                     width={80}
                                     height={80}
                                     style={{ 
-                                      objectFit: 'contain',
+                                      objectFit: 'cover',
                                       width: '100%',
                                       height: '100%'
                                     }}
@@ -575,19 +576,21 @@ export default function ProductDetail() {
                     )}
 
                     {/* Main Image with Zoom */}
-                    <div className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in" style={{ aspectRatio: '1/1', height: '350px', maxHeight: '350px' }}>
+                    <div className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in product-image-container" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px' }}>
                       {selectedImageUrl || imageUrls[0] ? (
                         <OptimizedImage
                           src={selectedImageUrl || imageUrls[0] || product.imageUrl}
                           alt={product.name}
-                          className="w-full h-full transition-transform duration-300 group-hover:scale-105 cursor-zoom-in"
-                          width={350}
-                          height={350}
+                          className="w-full h-full transition-transform duration-300 group-hover:scale-105 cursor-zoom-in product-detail-main-image"
+                          width={400}
+                          height={400}
                           style={{ 
                             width: '100%', 
                             height: '100%', 
-                            objectFit: 'cover',
-                            display: 'block'
+                            objectFit: 'contain',
+                            display: 'block',
+                            padding: '20px',
+                            boxSizing: 'border-box'
                           }}
                           onClick={() => {
                             // Create zoom modal

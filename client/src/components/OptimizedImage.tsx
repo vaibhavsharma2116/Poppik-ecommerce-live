@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { optimizeImageUrl, createResponsiveImageSet, type ImageOptimizationOptions } from '@/lib/imageUtils';
 
@@ -100,8 +99,11 @@ export default function OptimizedImage({
         backgroundColor: '#f3f4f6',
         objectFit: style.objectFit || 'contain',
         width: style.width || '100%',
-        height: style.height || '100%',
+        height: style.height || 'auto',
+        maxWidth: '100%',
+        maxHeight: '100%',
         display: 'block',
+        margin: 'auto',
         ...style
       }}
       onLoad={handleLoad}
