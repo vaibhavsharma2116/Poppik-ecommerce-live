@@ -47,13 +47,17 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
   const [isUploadingImages, setIsUploadingImages] = useState(false);
 
   const uploadImages = async (): Promise<string[]> => {
-    if (selectedImages.length === 0) return ['https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400'];
+    if (selectedImages.length === 0) {
+      return ['https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400'];
+    }
 
     setIsUploadingImages(true);
     try {
-      const uploadPromises = selectedImages.map(async (image) => {
+      const uploadPromises = selectedImages.map(async (image, index) => {
         const formData = new FormData();
         formData.append('image', image);
+
+        console.log(`Uploading image ${index + 1}/${selectedImages.length}:`, image.name);
 
         const response = await fetch('/api/upload/image', {
           method: 'POST',
@@ -61,17 +65,22 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to upload image: ${response.status}`);
+          const errorText = await response.text();
+          console.error(`Failed to upload image ${image.name}:`, errorText);
+          throw new Error(`Failed to upload image ${image.name}: ${response.status}`);
         }
 
         const data = await response.json();
+        console.log(`Image uploaded successfully:`, data.imageUrl);
         return data.imageUrl;
       });
 
       const imageUrls = await Promise.all(uploadPromises);
+      console.log('All images uploaded:', imageUrls);
       return imageUrls;
     } catch (error) {
       console.error('Image upload error:', error);
+      alert(`Image upload failed: ${error.message}`);
       return ['https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400'];
     } finally {
       setIsUploadingImages(false);
@@ -109,7 +118,9 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       setLoading(true);
 
       // Upload images first
+      console.log('Starting image upload process...');
       const imageUrls = await uploadImages();
+      console.log('Images uploaded, URLs:', imageUrls);
 
       // Generate slug from product name
       const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -122,7 +133,7 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         subcategory: formData.subcategory || null,
         price: parseFloat(formData.price),
         description: formData.description,
-        shortDescription: formData.shortDescription,
+        shortDescription: formData.shortDescription || formData.description.substring(0, 100),
         rating: parseFloat(formData.rating),
         reviewCount: parseInt(formData.reviewCount),
         inStock: formData.inStock,
@@ -135,9 +146,11 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         benefits: formData.benefits || null,
         howToUse: formData.howToUse || null,
         tags: formData.tags || null,
-        imageUrl: imageUrls[0],
-        images: imageUrls
+        imageUrl: imageUrls[0], // Primary thumbnail image
+        images: imageUrls // All uploaded images
       };
+
+      console.log('Product data to be sent:', newProduct);
 
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -270,10 +283,28 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length > 0) {
-      setSelectedImages(files);
+      // Validate file types and sizes
+      const validFiles = files.filter(file => {
+        const isValidType = file.type.startsWith('image/');
+        const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB limit
+        
+        if (!isValidType) {
+          alert(`${file.name} is not a valid image file`);
+          return false;
+        }
+        if (!isValidSize) {
+          alert(`${file.name} is too large (max 5MB)`);
+          return false;
+        }
+        return true;
+      });
+
+      if (validFiles.length === 0) return;
+
+      setSelectedImages(validFiles);
       
-      // Create previews for all selected images
-      const previewPromises = files.map(file => {
+      // Create previews for all valid images
+      const previewPromises = validFiles.map(file => {
         return new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => resolve(e.target?.result as string);
@@ -281,7 +312,10 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         });
       });
 
-      Promise.all(previewPromises).then(setImagePreviews);
+      Promise.all(previewPromises).then(previews => {
+        setImagePreviews(previews);
+        console.log(`Selected ${validFiles.length} images for upload`);
+      });
     }
   };
 

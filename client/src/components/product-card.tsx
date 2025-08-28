@@ -156,7 +156,16 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <Link href={`/product/${product.slug}`}>
             <div className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50 h-48 rounded-lg">
               <img
-                src={`${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=400&h=400&q=80&fit=crop' : ''}`}
+                src={(() => {
+                  // Handle new images array format
+                  if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+                    const imageUrl = product.images[0].url || product.images[0].imageUrl;
+                    return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=400&h=400&q=80&fit=crop' : ''}`;
+                  } else if (product.imageUrl) {
+                    return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=400&h=400&q=80&fit=crop' : ''}`;
+                  }
+                  return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
+                })()}
                 alt={product.name}
                 className="w-full h-full object-contain cursor-pointer group-hover:scale-110 transition-transform duration-700 rounded-lg"
                 loading="lazy"
@@ -280,7 +289,16 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         <Link href={`/product/${product.slug}`}>
           <div className="relative overflow-hidden bg-gradient-to-br from-black-50 to-purple-50">
             <img
-              src={`${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=300&h=300&q=75&fit=crop' : ''}`}
+              src={(() => {
+                // Handle new images array format
+                if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+                  const imageUrl = product.images[0].url || product.images[0].imageUrl;
+                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=300&h=300&q=75&fit=crop' : ''}`;
+                } else if (product.imageUrl) {
+                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=300&h=300&q=75&fit=crop' : ''}`;
+                }
+                return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
+              })()}
               alt={product.name}
               className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
               loading="lazy"

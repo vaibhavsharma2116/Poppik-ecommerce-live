@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { ChevronRight, Star, ShoppingCart, Heart, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -63,12 +62,13 @@ export default function ProductDetail() {
       // Sort images by sortOrder and return URLs
       return product.images
         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-        .map(img => img.url || img.imageUrl);
+        .map(img => img.url || img.imageUrl)
+        .filter(Boolean); // Remove any null/undefined URLs
     } else if (product?.imageUrl) {
       return [product.imageUrl];
     }
     return [];
-  }, [product]);
+  }, [product?.images, product?.imageUrl]);
 
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
 
@@ -76,7 +76,7 @@ export default function ProductDetail() {
     if (productImages.length > 0 && !selectedImageUrl) {
       setSelectedImageUrl(productImages[0]);
     }
-  }, [productImages, selectedImageUrl]);
+  }, [productImages]);
 
   const { data: relatedProducts } = useQuery<Product[]>({
     queryKey: [`/api/products/category/${product?.category}`],
@@ -426,22 +426,36 @@ export default function ProductDetail() {
         </nav>
 
         {/* Product Details */}
-        <div className="grid product-detail-grid lg:grid-cols-2 gap-6 sm:gap-12 mb-8 sm:mb-16">
-          {/* Product Image */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-8 sm:mb-16">
+          {/* Product Images - Expanded */}
           <div className="lg:col-span-1">
             <div className="sticky top-8">
               <div className="bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl border border-white/20">
-                <div className="flex gap-4">
-                  {/* Thumbnail List - Vertical */}
+                <div className="space-y-4">
+                  {/* Main Image */}
+                  <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl flex items-center justify-center overflow-hidden shadow-lg">
+                    {selectedImageUrl || productImages[0] ? (
+                      <OptimizedImage
+                        src={selectedImageUrl || productImages[0] || product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-cover rounded-xl sm:rounded-2xl transition-transform duration-300 hover:scale-105"
+                        width={500}
+                        height={500}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-200 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                        <span className="text-gray-500">No image available</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Thumbnail Grid - Horizontal */}
                   {productImages.length > 1 && (
-                    <div className="flex flex-col gap-3 w-20">
+                    <div className="grid grid-cols-4 gap-3">
                       {productImages.map((imageUrl, index) => (
                         <button
-                          key={`thumb-${index}-${imageUrl}`}
-                          onClick={() => {
-                            console.log('Thumbnail clicked:', imageUrl);
-                            setSelectedImageUrl(imageUrl);
-                          }}
+                          key={`thumb-${index}`}
+                          onClick={() => setSelectedImageUrl(imageUrl)}
                           className={`aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-200 hover:border-purple-300 ${
                             selectedImageUrl === imageUrl
                               ? 'border-purple-500 ring-2 ring-purple-200'
@@ -452,39 +466,50 @@ export default function ProductDetail() {
                             src={imageUrl}
                             alt={`${product.name} view ${index + 1}`}
                             className="w-full h-full object-cover"
-                            width={80}
-                            height={80}
+                            width={100}
+                            height={100}
                           />
                         </button>
                       ))}
                     </div>
                   )}
 
-                  {/* Main Image */}
-                  <div className="flex-1">
-                    <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl flex items-center justify-center overflow-hidden shadow-lg">
-                      {selectedImageUrl ? (
-                        <OptimizedImage
-                          src={selectedImageUrl}
-                          alt={product.name}
-                          className="w-full h-full object-cover rounded-xl sm:rounded-2xl transition-transform duration-300 hover:scale-105"
-                          width={500}
-                          height={500}
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gray-200 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                          <span className="text-gray-500">No image available</span>
+                  {/* Image Count Indicator */}
+                  {productImages.length > 1 && (
+                    <div className="text-center text-sm text-gray-500">
+                      {productImages.findIndex(img => img === selectedImageUrl) + 1} of {productImages.length} images
+                    </div>
+                  )}
+                </div>
+
+                {/* Product Benefits */}
+                {product.benefits && (
+                  <div className="mt-6 bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 border border-pink-100">
+                    <h4 className="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                      <div className="w-5 h-5 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full mr-2"></div>
+                      Key Benefits
+                    </h4>
+                    <div className="space-y-2">
+                      {(Array.isArray(product.benefits) 
+                        ? product.benefits.slice(0, 4)
+                        : product.benefits.split('\n').filter(benefit => benefit.trim()).slice(0, 4)
+                      ).map((benefit, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <div className="w-4 h-4 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                          </div>
+                          <span className="text-sm text-gray-700 font-medium">{benefit.trim()}</span>
                         </div>
-                      )}
+                      ))}
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* Product Info */}
-          <div className="space-y-4 sm:space-y-8">
+          <div className="lg:col-span-1 space-y-4 sm:space-y-6">
             <div className="bg-white/70 backdrop-blur-md rounded-xl sm:rounded-3xl p-4 sm:p-8 shadow-xl sm:shadow-2xl border border-white/20">
               {/* Product badges */}
               <div className="flex gap-3 mb-6">
@@ -666,6 +691,7 @@ export default function ProductDetail() {
               </div>
             </div>
           </div>
+        </div>
         </div>
 
         {/* Product Information Tabs */}
@@ -1039,22 +1065,24 @@ export default function ProductDetail() {
           </div>
         </section>
 
-        {/* Related Products */}
+        {/* You May Also Like - Horizontal Scroll */}
         {filteredRelatedProducts.length > 0 && (
           <section className="bg-white/60 backdrop-blur-md rounded-xl sm:rounded-3xl p-4 sm:p-8 shadow-xl sm:shadow-2xl border border-white/20">
-            <div className="text-center mb-8 sm:mb-12">
-              <h2 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-2 sm:mb-4">You May Also Like</h2>
+            <div className="text-center mb-6 sm:mb-8">
+              <h2 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-2">You May Also Like</h2>
               <p className="text-gray-600 text-sm sm:text-lg font-medium">More products from {product.category}</p>
             </div>
 
-            <div className="grid related-products-grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8">
+            <div className="flex space-x-4 overflow-x-auto pb-4 snap-x snap-mandatory">
               {filteredRelatedProducts.map((relatedProduct) => (
-                <ProductCard key={relatedProduct.id} product={relatedProduct} />
+                <div key={relatedProduct.id} className="flex-none w-64 snap-start">
+                  <ProductCard product={relatedProduct} />
+                </div>
               ))}
             </div>
           </section>
         )}
       </div>
-    </div>
+    
   );
 }
