@@ -51,7 +51,7 @@ function rateLimit(req: any, res: any, next: any) {
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, gte, lte, like, isNull, asc, or, sql } from "drizzle-orm";
 import { Pool } from "pg";
-import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, productImages, productShades } from "../shared/schema";
+import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, productImages, productShades, cashfreePayments } from "../shared/schema";
 // Database connection with enhanced configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb",
@@ -276,6 +276,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Logged out successfully" });
   });
 
+  // Cashfree Payment Routes
+  app.post('/api/payments/cashfree/create-order', async (req, res) => {
+    try {
+      const { amount, orderId, currency, customerDetails, orderNote, orderData } = req.body;
+
+      // Validate required fields
+      if (!amount || !orderId || !currency || !customerDetails) {
+        return res.status(400).json({ 
+          error: "Missing required fields: amount, orderId, currency, and customerDetails are required" 
+        });
+      }
+
+      // Validate customerDetails structure
+      if (!customerDetails.customerId || !customerDetails.customerName || !customerDetails.customerEmail) {
+        return res.status(400).json({ 
+          error: "customerDetails must include customerId, customerName, and customerEmail" 
+        });
+      }
+
+      // Check if Cashfree is configured
+      if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY || 
+          CASHFREE_APP_ID === 'cashfree_app_id' || CASHFREE_SECRET_KEY === 'cashfree_secret_key') {
+        console.log("Cashfree not configured properly");
+        return res.status(400).json({ 
+          error: "Cashfree payment gateway is not configured",
+          configError: true
+        });
+      }
+
+      console.log("Creating Cashfree order:", {
+        orderId,
+        amount,
+        currency,
+        customer: customerDetails.customerName
+      });
+
+      // Create Cashfree order payload
+      const cashfreePayload = {
+        order_id: orderId,
+        order_amount: amount,
+        order_currency: currency,
+        customer_details: {
+          customer_id: customerDetails.customerId,
+          customer_name: customerDetails.customerName,
+          customer_email: customerDetails.customerEmail,
+          customer_phone: customerDetails.customerPhone || '9999999999'
+        },
+        order_meta: {
+          return_url: `${req.protocol}://${req.get('host')}/checkout?payment=processing&orderId=${orderId}`,
+          notify_url: `${req.protocol}://${req.get('host')}/api/payments/cashfree/webhook`
+        },
+        order_note: orderNote || 'Beauty Store Purchase'
+      };
+
+      console.log("Cashfree API URL:", `${CASHFREE_BASE_URL}/pg/orders`);
+      console.log("Cashfree payload:", JSON.stringify(cashfreePayload, null, 2));
+
+      // Call Cashfree API
+      const cashfreeResponse = await fetch(`${CASHFREE_BASE_URL}/pg/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-version': '2023-08-01',
+          'x-client-id': CASHFREE_APP_ID,
+          'x-client-secret': CASHFREE_SECRET_KEY,
+        },
+        body: JSON.stringify(cashfreePayload)
+      });
+
+      const cashfreeResult = await cashfreeResponse.json();
+
+      console.log("Cashfree API response status:", cashfreeResponse.status);
+      console.log("Cashfree API response:", JSON.stringify(cashfreeResult, null, 2));
+
+      if (!cashfreeResponse.ok) {
+        console.error("Cashfree API error:", cashfreeResult);
+        return res.status(400).json({ 
+          error: cashfreeResult.message || "Failed to create Cashfree order",
+          cashfreeError: true,
+          details: cashfreeResult
+        });
+      }
+
+      // Store payment record in database
+      try {
+        await db.insert(cashfreePayments).values({
+          cashfreeOrderId: orderId,
+          userId: parseInt(customerDetails.customerId),
+          amount: amount,
+          status: 'created',
+          orderData: orderData || {},
+          customerInfo: customerDetails
+        });
+      } catch (dbError) {
+        console.error("Database error storing payment:", dbError);
+        // Continue even if database storage fails
+      }
+
+      // Return payment session details
+      res.json({
+        orderId: orderId,
+        paymentSessionId: cashfreeResult.payment_session_id,
+        environment: CASHFREE_MODE,
+        message: "Order created successfully"
+      });
+
+    } catch (error) {
+      console.error("Cashfree create order error:", error);
+      res.status(500).json({ 
+        error: "Failed to create payment order",
+        details: error.message
+      });
+    }
+  });
+
+  app.post('/api/payments/cashfree/verify', async (req, res) => {
+    try {
+      const { orderId } = req.body;
+
+      if (!orderId) {
+        return res.status(400).json({ error: "Order ID is required" });
+      }
+
+      console.log("Verifying payment for order:", orderId);
+
+      // Check Cashfree configuration
+      if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY || 
+          CASHFREE_APP_ID === 'cashfree_app_id' || CASHFREE_SECRET_KEY === 'cashfree_secret_key') {
+        return res.status(400).json({ 
+          error: "Cashfree payment gateway is not configured",
+          verified: false 
+        });
+      }
+
+      // Get order status from Cashfree
+      const statusResponse = await fetch(`${CASHFREE_BASE_URL}/pg/orders/${orderId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-version': '2023-08-01',
+          'x-client-id': CASHFREE_APP_ID,
+          'x-client-secret': CASHFREE_SECRET_KEY,
+        }
+      });
+
+      const statusResult = await statusResponse.json();
+
+      console.log("Payment verification response:", JSON.stringify(statusResult, null, 2));
+
+      if (!statusResponse.ok) {
+        console.error("Cashfree verification error:", statusResult);
+        return res.json({ 
+          verified: false, 
+          error: "Failed to verify payment status" 
+        });
+      }
+
+      const isPaymentSuccessful = statusResult.order_status === 'PAID';
+
+      // Update payment record in database
+      try {
+        await db.update(cashfreePayments)
+          .set({ 
+            status: isPaymentSuccessful ? 'completed' : 'failed',
+            paymentId: statusResult.cf_order_id || null,
+            completedAt: isPaymentSuccessful ? new Date() : null
+          })
+          .where(eq(cashfreePayments.cashfreeOrderId, orderId));
+      } catch (dbError) {
+        console.error("Database error updating payment:", dbError);
+      }
+
+      res.json({
+        verified: isPaymentSuccessful,
+        status: statusResult.order_status,
+        paymentId: statusResult.cf_order_id,
+        message: isPaymentSuccessful ? "Payment verified successfully" : "Payment verification failed"
+      });
+
+    } catch (error) {
+      console.error("Payment verification error:", error);
+      res.json({ 
+        verified: false, 
+        error: "Payment verification failed" 
+      });
+    }
+  });
+
   // Mobile OTP routes
   app.post("/api/auth/send-mobile-otp", async (req, res) => {
     try {
@@ -361,7 +549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: result.message,
         testPhone,
         details: {
-          apiUrl: 'https://api.mdssend.in/v1/sms/send',
+          apiUrl: 'http://13.234.156.238/v1/sms/send',
           configured: true,
           apiKeyLength: process.env.MDSSEND_API_KEY?.length,
           senderId: process.env.MDSSEND_SENDER_ID,
@@ -385,6 +573,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
             "Phone number format issues"
           ]
         }
+      });
+    }
+  });
+
+  // Network connectivity test endpoint
+  app.get("/api/auth/test-network", async (req, res) => {
+    try {
+      const testUrls = [
+        'http://13.234.156.238',
+        'https://api.mdssend.in',
+        'http://api.mdssend.in',
+        'https://www.google.com'
+      ];
+
+      const results = [];
+
+      for (const url of testUrls) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+          const start = Date.now();
+          const response = await fetch(url, {
+            method: 'GET',
+            signal: controller.signal
+          });
+          const duration = Date.now() - start;
+
+          clearTimeout(timeoutId);
+          
+          results.push({
+            url,
+            status: response.status,
+            success: response.ok,
+            duration: `${duration}ms`
+          });
+        } catch (error) {
+          results.push({
+            url,
+            success: false,
+            error: error.message
+          });
+        }
+      }
+
+      res.json({
+        message: "Network connectivity test completed",
+        results,
+        environment: process.env.NODE_ENV || 'development',
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      res.status(500).json({
+        error: "Network test failed",
+        details: error.message
       });
     }
   });
@@ -458,10 +702,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...(templateId && { templateid: templateId })
       };
 
-      console.log('🔗 Sending to:', `https://api.mdssend.in/v1/sms/send`);
+      console.log('🔗 Sending to:', `http://13.234.156.238/v1/sms/send`);
       console.log('📝 Request payload:', JSON.stringify(requestData, null, 2));
 
-      const response = await fetch('https://api.mdssend.in/v1/sms/send', {
+      const response = await fetch('http://13.234.156.238/v1/sms/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1854,10 +2098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate sample subcategories for development
   function generateSampleSubcategories() {
     return [
-      { id: 1, name: "Matte Liquid Lipstick", slug: "matte-liquid-lipstick", categoryId: 1, description: "Long-lasting matte finish lipsticks", status: "Active", productCount: 8 },
-      { id: 2, name: "Gloss Liquid Lipstick", slug: "gloss-liquid-lipstick", categoryId: 1, description: "High-shine glossy lipsticks", status: "Active", productCount: 6 },
-      { id: 3, name: "Lip Liner", slug: "lip-liner", categoryId: 1, description: "Precise lip definition products", status: "Active", productCount: 4 },
-      { id: 4, name: "Lip Balm", slug: "lip-balm", categoryId: 1, description: "Nourishing lip care products", status: "Active", productCount: 5 }
+     
     ];
   }
 
@@ -1867,11 +2108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Map category slugs to subcategories
     const categorySubcategoryMap: Record<string, string[]> = {
-      'lips': ['matte-liquid-lipstick', 'gloss-liquid-lipstick', 'lip-liner', 'lip-balm'],
-      'eyes': ['mascara', 'eyeshadow', 'eyeliner', 'eyebrow'],
-      'face': ['foundation', 'concealer', 'powder', 'blush'],
-      'skincare': ['cleanser', 'moisturizer', 'serum', 'sunscreen'],
-      'makeup': ['foundation', 'lipstick', 'eyeshadow', 'mascara']
+      
     };
 
     const subcategorySlugs = categorySubcategoryMap[categorySlug] || [];
@@ -1883,46 +2120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const sampleProducts = generateSampleProducts();
 
     const baseCategories = [
-      {
-        id: 1,
-        name: "Lips",
-        slug: "lips",
-        description: "Beautiful lip products for every occasion",
-        imageUrl: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        status: "Active"
-      },
-      {
-        id: 2,
-        name: "Face",
-        slug: "face",
-        description: "Foundation, concealer and face makeup",
-        imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        status: "Active"
-      },
-      {
-        id: 3,
-        name: "Eyes",
-        slug: "eyes",
-        description: "Eye makeup for stunning looks",
-        imageUrl: "https://images.unsplash.com/photo-1512207846215-2a4d0e8b6b9f?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        status: "Active"
-      },
-      {
-        id: 4,
-        name: "Skincare",
-        slug: "skincare",
-        description: "Premium skincare products",
-        imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        status: "Active"
-      },
-      {
-        id: 5,
-        name: "Eyes Care",
-        slug: "eyes-care",
-        description: "Specialized eye care products",
-        imageUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        status: "Active"
-      }
+     
     ];
 
     // Calculate dynamic product count for each category
@@ -2354,266 +2552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate sample products for development
   function generateSampleProducts() {
     return [
-      {
-        id: 1,
-        name: "Matte Liquid Lipstick - Ruby Red",
-        slug: "matte-liquid-lipstick-ruby-red",
-        description: "Long-lasting matte liquid lipstick in stunning ruby red",
-        shortDescription: "Long-lasting matte finish",
-        price: 899,
-        originalPrice: 1200,
-        category: "Lips",
-        subcategory: "Matte Liquid Lipstick",
-        imageUrl: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.5,
-        reviewCount: 125,
-        inStock: true,
-        featured: true,
-        bestseller: false,
-        newLaunch: false,
-        createdAt: new Date('2024-01-01'),
-        tags: "matte, long-lasting, red"
-      },
-      {
-        id: 2,
-        name: "Gloss Liquid Lipstick - Pink Shine",
-        slug: "gloss-liquid-lipstick-pink-shine",
-        description: "High-shine glossy liquid lipstick in beautiful pink",
-        shortDescription: "High-shine glossy finish",
-        price: 799,
-        originalPrice: 999,
-        category: "Lips",
-        subcategory: "Gloss Liquid Lipstick",
-        imageUrl: "https://images.unsplash.com/photo-1631214540127-41f301318769?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.3,
-        reviewCount: 89,
-        inStock: true,
-        featured: false,
-        bestseller: true,
-        newLaunch: false,
-        createdAt: new Date('2024-01-15'),
-        tags: "gloss, shine, pink"
-      },
-      {
-        id: 3,
-        name: "HD Foundation - Ivory",
-        slug: "hd-foundation-ivory",
-        description: "Full coverage HD foundation for flawless skin",
-        shortDescription: "Full coverage foundation",
-        price: 1299,
-        originalPrice: 1599,
-        category: "Face",
-        subcategory: "Foundation",
-        imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.7,
-        reviewCount: 203,
-        inStock: true,
-        featured: true,
-        bestseller: true,
-        newLaunch: false,
-        createdAt: new Date('2024-02-01'),
-        tags: "foundation, coverage, ivory"
-      },
-      {
-        id: 4,
-        name: "Waterproof Mascara",
-        slug: "waterproof-mascara",
-        description: "Long-lasting waterproof mascara for dramatic lashes",
-        shortDescription: "Waterproof dramatic lashes",
-        price: 649,
-        originalPrice: 799,
-        category: "Eyes",
-        subcategory: "Mascara",
-        imageUrl: "https://images.unsplash.com/photo-1512207846215-2a4d0e8b6b9f?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.4,
-        reviewCount: 156,
-        inStock: true,
-        featured: false,
-        bestseller: false,
-        newLaunch: true,
-        createdAt: new Date('2024-02-15'),
-        tags: "mascara, waterproof, lashes"
-      },
-      {
-        id: 5,
-        name: "Hydrating Face Serum",
-        slug: "hydrating-face-serum",
-        description: "Intensive hydrating serum with hyaluronic acid",
-        shortDescription: "Hyaluronic acid serum",
-        price: 1599,
-        originalPrice: 1999,
-        category: "Skincare",
-        subcategory: "Serum",
-        imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.8,
-        reviewCount: 287,
-        inStock: true,
-        featured: true,
-        bestseller: true,
-        newLaunch: false,
-        createdAt: new Date('2024-01-20'),
-        tags: "serum, hydrating, hyaluronic"
-      },
-      {
-        id: 6,
-        name: "Lip Liner - Nude Rose",
-        slug: "lip-liner-nude-rose",
-        description: "Precise lip liner in nude rose shade",
-        shortDescription: "Precise lip definition",
-        price: 449,
-        originalPrice: 599,
-        category: "Lips",
-        subcategory: "Lip Liner",
-        imageUrl: "https://images.unsplash.com/photo-1583241800519-6da18d585928?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.2,
-        reviewCount: 78,
-        inStock: true,
-        featured: false,
-        bestseller: false,
-        newLaunch: false,
-        createdAt: new Date('2024-01-10'),
-        tags: "liner, nude, rose"
-      },
-      {
-        id: 7,
-        name: "Nourishing Lip Balm",
-        slug: "nourishing-lip-balm",
-        description: "Moisturizing lip balm with natural ingredients",
-        shortDescription: "Natural moisturizing balm",
-        price: 299,
-        originalPrice: 399,
-        category: "Lips",
-        subcategory: "Lip Balm",
-        imageUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.6,
-        reviewCount: 134,
-        inStock: true,
-        featured: false,
-        bestseller: true,
-        newLaunch: false,
-        createdAt: new Date('2024-01-05'),
-        tags: "balm, moisturizing, natural"
-      },
-      {
-        id: 8,
-        name: "Eyeshadow Palette - Sunset",
-        slug: "eyeshadow-palette-sunset",
-        description: "12-shade eyeshadow palette in sunset colors",
-        shortDescription: "12-shade sunset palette",
-        price: 1899,
-        originalPrice: 2299,
-        category: "Eyes",
-        subcategory: "Eyeshadow",
-        imageUrl: "https://images.unsplash.com/photo-1615397587950-3cfd4d96b742?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.9,
-        reviewCount: 312,
-        inStock: true,
-        featured: true,
-        bestseller: true,
-        newLaunch: true,
-        createdAt: new Date('2024-02-20'),
-        tags: "eyeshadow, palette, sunset"
-      },
-      {
-        id: 9,
-        name: "Vitamin C Cleanser",
-        slug: "vitamin-c-cleanser",
-        description: "Brightening cleanser with vitamin C",
-        shortDescription: "Brightening face cleanser",
-        price: 799,
-        originalPrice: 999,
-        category: "Skincare",
-        subcategory: "Cleanser",
-        imageUrl: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.4,
-        reviewCount: 189,
-        inStock: true,
-        featured: false,
-        bestseller: false,
-        newLaunch: false,
-        createdAt: new Date('2024-01-25'),
-        tags: "cleanser, vitamin-c, brightening"
-      },
-      {
-        id: 10,
-        name: "Concealer - Medium",
-        slug: "concealer-medium",
-        description: "High coverage concealer for medium skin tones",
-        shortDescription: "High coverage concealer",
-        price: 899,
-        originalPrice: 1199,
-        category: "Face",
-        subcategory: "Concealer",
-        imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc4030348?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.5,
-        reviewCount: 167,
-        inStock: true,
-        featured: false,
-        bestseller: true,
-        newLaunch: false,
-        createdAt: new Date('2024-02-05'),
-        tags: "concealer, coverage, medium"
-      },
-      {
-        id: 11,
-        name: "Eye Cream - Anti Aging",
-        slug: "eye-cream-anti-aging",
-        description: "Powerful anti-aging eye cream with retinol and peptides",
-        shortDescription: "Anti-aging eye treatment",
-        price: 1299,
-        originalPrice: 1599,
-        category: "Eyes Care",
-        subcategory: null,
-        imageUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.6,
-        reviewCount: 89,
-        inStock: true,
-        featured: true,
-        bestseller: false,
-        newLaunch: false,
-        createdAt: new Date('2024-01-15'),
-        tags: "eye cream, anti-aging, retinol"
-      },
-      {
-        id: 12,
-        name: "Under Eye Gel",
-        slug: "under-eye-gel",
-        description: "Cooling under eye gel to reduce puffiness and dark circles",
-        shortDescription: "Cooling under eye treatment",
-        price: 799,
-        originalPrice: 999,
-        category: "Eyes Care",
-        subcategory: null,
-        imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.3,
-        reviewCount: 156,
-        inStock: true,
-        featured: false,
-        bestseller: true,
-        newLaunch: false,
-        createdAt: new Date('2024-01-20'),
-        tags: "under eye, gel, puffiness"
-      },
-      {
-        id: 13,
-        name: "Eye Serum - Vitamin C",
-        slug: "eye-serum-vitamin-c",
-        description: "Brightening eye serum with vitamin C and hyaluronic acid",
-        shortDescription: "Brightening eye serum",
-        price: 1099,
-        originalPrice: 1399,
-        category: "Eyes Care",
-        subcategory: null,
-        imageUrl: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
-        rating: 4.7,
-        reviewCount: 203,
-        inStock: true,
-        featured: false,
-        bestseller: false,
-        newLaunch: true,
-        createdAt: new Date('2024-02-10'),
-        tags: "eye serum, vitamin c, brightening"
-      }
+      
     ];
   }
 

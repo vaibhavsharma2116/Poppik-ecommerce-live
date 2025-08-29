@@ -13,7 +13,6 @@ import {
   orderItemsTable,
   blogPosts,
   blogCategories,
-  productImages,
   type Product,
   type Category,
   type Subcategory,
@@ -22,7 +21,6 @@ import {
   type Review,
   type BlogPost,
   type BlogCategory,
-  type ProductImage,
   type InsertProduct,
   type InsertCategory,
   type InsertSubcategory,
@@ -30,67 +28,50 @@ import {
   type InsertShade,
   type InsertReview,
   type InsertBlogPost,
-  type InsertBlogCategory,
-  type InsertProductImage
+  type InsertBlogCategory
 } from "@shared/schema";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/poppik",
+  // connectionString: process.env.DATABASE_URL || "postgresql://:5432/poppik",
+  connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb",
   ssl: process.env.DATABASE_URL?.includes('31.97.226.116') ? false : { rejectUnauthorized: false },
-  max: 10, // Reduced max connections
-  min: 1, // Reduced minimum connections
-  idleTimeoutMillis: 60000, // 1 minute idle timeout
-  connectionTimeoutMillis: 20000, // 20 seconds connection timeout
-  acquireTimeoutMillis: 15000, // 15 seconds to acquire connection
-  keepAlive: true,
-  keepAliveInitialDelayMillis: 10000,
-  allowExitOnIdle: false,
-  statement_timeout: 30000, // 30 seconds statement timeout
-  query_timeout: 30000, // 30 seconds query timeout
+  max: 20,
+  min: 2, // Keep minimum 2 connections alive
+  idleTimeoutMillis: 300000, // 5 minutes instead of 30 seconds
+  connectionTimeoutMillis: 10000, // 10 seconds instead of 2
+  acquireTimeoutMillis: 10000, // Wait up to 10 seconds for a connection
+  keepAlive: true, // Enable TCP keep-alive
+  keepAliveInitialDelayMillis: 0,
+  allowExitOnIdle: false, // Don't allow pool to exit when idle
 });
 
 let db: ReturnType<typeof drizzle> | undefined = undefined;
 
 // Connection health check
 async function checkConnectionHealth() {
-  let client;
   try {
-    client = await pool.connect();
+    const client = await pool.connect();
     await client.query('SELECT 1');
+    client.release();
     return true;
   } catch (error) {
     console.error("Database health check failed:", error);
     return false;
-  } finally {
-    if (client) {
-      try {
-        client.release();
-      } catch (releaseError) {
-        console.error("Error releasing client:", releaseError);
-      }
-    }
   }
 }
 
-// Periodic health check every 60 seconds (less frequent)
+// Periodic health check every 30 seconds
 setInterval(async () => {
   const isHealthy = await checkConnectionHealth();
   if (!isHealthy) {
     console.log("Database connection unhealthy, attempting to reconnect...");
     // Reset db instance to force reconnection
     db = undefined;
-    
-    // Try to end and recreate pool if connection issues persist
-    try {
-      await pool.end();
-    } catch (endError) {
-      console.error("Error ending pool:", endError);
-    }
   }
-}, 60000);
+}, 30000);
 
 async function getDb() {
   if (!db) {
@@ -115,7 +96,7 @@ export interface IStorage {
   // Users
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createUser(userData: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: number): Promise<boolean>;
 
@@ -130,12 +111,6 @@ export interface IStorage {
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product | undefined>;
   deleteProduct(id: number): Promise<boolean>;
-
-  // Product Images
-  createProductImages(productId: number, imageUrls: string[]): Promise<ProductImage[]>;
-  getProductImages(productId: number): Promise<ProductImage[]>;
-  updateProductImages(productId: number, imageUrls: string[]): Promise<ProductImage[]>;
-  deleteProductImages(productId: number): Promise<boolean>;
 
   // Categories
   getCategory(id: number): Promise<Category | undefined>;
@@ -222,8 +197,22 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(userData: InsertUser): Promise<User> {
     const db = await getDb();
-    const result = await db.insert(users).values(userData).returning();
-    return result[0];
+    const [user] = await db.insert(users).values({
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      email: userData.email,
+      phone: userData.phone || null,
+      password: userData.password,
+      dateOfBirth: userData.dateOfBirth || null,
+      address: userData.address || null,
+      city: userData.city || null,
+      state: userData.state || null,
+      pincode: userData.pincode || null,
+      role: userData.role || 'customer',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    return user;
   }
 
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
@@ -373,22 +362,8 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Product was not created - no result returned");
       }
 
-      const createdProduct = result[0];
-      console.log("Product created successfully:", createdProduct);
-
-      // If images array is provided, create product images
-      if (productData.images && Array.isArray(productData.images) && productData.images.length > 0) {
-        await this.createProductImages(createdProduct.id, productData.images);
-
-        // Update main imageUrl to be the first image
-        await this.db.update(products)
-          .set({ imageUrl: productData.images[0] })
-          .where(eq(products.id, createdProduct.id));
-
-        createdProduct.imageUrl = productData.images[0];
-      }
-
-      return createdProduct;
+      console.log("Product created successfully:", result[0]);
+      return result[0];
     } catch (error: any) {
       console.error("Error creating product:", error);
 
@@ -433,30 +408,13 @@ export class DatabaseStorage implements IStorage {
         cleanData.slug = cleanData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       }
 
-      // Extract images array from productData
-      const { images, ...productInfo } = cleanData;
-
-      const [product] = await db
+      const [updatedProduct] = await db
         .update(products)
-        .set(productInfo)
+        .set(cleanData)
         .where(eq(products.id, id))
         .returning();
 
-      // Handle multiple images if provided
-      if (images && Array.isArray(images)) {
-        await this.updateProductImages(id, images);
-
-        // Update main imageUrl to be the first image if images exist
-        if (images.length > 0) {
-          await this.db.update(products)
-            .set({ imageUrl: images[0] })
-            .where(eq(products.id, id));
-
-          if (product) product.imageUrl = images[0];
-        }
-      }
-
-      return product || null;
+      return updatedProduct || null;
     } catch (error) {
       console.error("Error updating product:", error);
       throw error;
@@ -483,10 +441,6 @@ export class DatabaseStorage implements IStorage {
         await db.delete(reviews).where(eq(reviews.productId, id));
         console.log(`Deleted reviews for product ${id}`);
 
-        // Delete associated images first
-        await this.deleteProductImages(id);
-        console.log(`Deleted product images for product ${id}`);
-
         // Note: We don't delete order items as they are historical records
         // Just the product itself will be deleted
       } catch (relatedError) {
@@ -494,23 +448,20 @@ export class DatabaseStorage implements IStorage {
         // Continue with product deletion even if related data deletion fails
       }
 
-      // Soft delete by marking as inactive instead of hard delete
-      const result = await db.update(products)
-        .set({ inStock: false })
-        .where(eq(products.id, id))
-        .returning();
+      // Delete the product
+      const result = await db.delete(products).where(eq(products.id, id)).returning();
       const success = result.length > 0;
 
       if (success) {
-        console.log(`Successfully soft-deleted product ${id} from database. Updated ${result.length} rows.`);
-        console.log(`Updated product details:`, result[0]);
+        console.log(`Successfully deleted product ${id} from database. Deleted ${result.length} rows.`);
+        console.log(`Deleted product details:`, result[0]);
       } else {
-        console.log(`Failed to soft-delete product ${id} - no rows affected`);
+        console.log(`Failed to delete product ${id} - no rows affected`);
       }
 
       return success;
     } catch (error) {
-      console.error(`Error soft-deleting product ${id}:`, error);
+      console.error(`Error deleting product ${id}:`, error);
       console.error(`Error details:`, error.message);
       throw error;
     }
@@ -838,12 +789,8 @@ export class DatabaseStorage implements IStorage {
   async deleteShade(id: number): Promise<boolean> {
     try {
       const db = await getDb();
-      // Soft delete by marking as inactive instead of hard delete
-      const result = await db.update(shades)
-        .set({ isActive: false })
-        .where(eq(shades.id, id))
-        .returning();
-      return result.length > 0;
+      const result = await db.delete(shades).where(eq(shades.id, id));
+      return result.rowCount > 0;
     } catch (error) {
       console.error("Database connection failed:", error);
       throw error;
@@ -868,36 +815,31 @@ export class DatabaseStorage implements IStorage {
 
       // Filter shades based on product's category/subcategory
       const productShades = allShades.filter(shade => {
-        // Priority 1: Check if shade has specific product IDs assigned
-        if (shade.productIds && Array.isArray(shade.productIds) && shade.productIds.length > 0) {
-          // If specific products are selected, only show for those products
-          return shade.productIds.includes(productId);
+        // Check if shade has specific product IDs assigned
+        if (shade.productIds && Array.isArray(shade.productIds)) {
+          if (shade.productIds.includes(productId)) return true;
         }
 
-        // Priority 2: If no specific products are selected, check category/subcategory match
-        // This means the shade applies to all products in the category/subcategory
-        let categoryMatch = false;
-        let subcategoryMatch = false;
-
         // Check category match
-        if (shade.categoryIds && Array.isArray(shade.categoryIds) && shade.categoryIds.length > 0) {
-          categoryMatch = shade.categoryIds.some((catId: number) => {
+        if (shade.categoryIds && Array.isArray(shade.categoryIds)) {
+          const hasMatchingCategory = shade.categoryIds.some((catId: number) => {
             const category = allCategories.find(cat => cat.id === catId);
             return category && category.name.toLowerCase() === product.category.toLowerCase();
           });
+          if (hasMatchingCategory) return true;
         }
 
         // Check subcategory match
-        if (shade.subcategoryIds && Array.isArray(shade.subcategoryIds) && shade.subcategoryIds.length > 0 && product.subcategory) {
-          subcategoryMatch = shade.subcategoryIds.some((subId: number) => {
+        if (shade.subcategoryIds && Array.isArray(shade.subcategoryIds) && product.subcategory) {
+          const hasMatchingSubcategory = shade.subcategoryIds.some((subId: number) => {
             const subcategory = allSubcategories.find(sub => sub.id === subId);
             return subcategory && subcategory.name.toLowerCase() === product.subcategory.toLowerCase();
           });
+          if (hasMatchingSubcategory) return true;
         }
 
-        return categoryMatch || subcategoryMatch;
-
-        });
+        return false;
+      });
 
       return productShades;
     } catch (error) {
@@ -911,53 +853,6 @@ export class DatabaseStorage implements IStorage {
     // This would check if the shade is used in any products
     // For now, return false to allow deletion
     return false;
-  }
-
-  // Product Images Methods
-  async createProductImages(productId: number, imageUrls: string[]): Promise<ProductImage[]> {
-    const db = await getDb();
-
-    const imageData = imageUrls.map((url, index) => ({
-      productId,
-      imageUrl: url,
-      isPrimary: index === 0, // First image is primary
-      sortOrder: index,
-      altText: `Product image ${index + 1}`
-    }));
-
-    const result = await db.insert(productImages).values(imageData).returning();
-    return result;
-  }
-
-  async getProductImages(productId: number): Promise<ProductImage[]> {
-    const db = await getDb();
-    const result = await db
-      .select()
-      .from(productImages)
-      .where(eq(productImages.productId, productId))
-      .orderBy(asc(productImages.sortOrder));
-    return result;
-  }
-
-  async updateProductImages(productId: number, imageUrls: string[]): Promise<ProductImage[]> {
-    // Delete existing images
-    await this.db.delete(productImages).where(eq(productImages.productId, productId));
-
-    // Create new images
-    if (imageUrls && imageUrls.length > 0) {
-      return await this.createProductImages(productId, imageUrls);
-    }
-
-    return [];
-  }
-
-  async deleteProductImages(productId: number): Promise<boolean> {
-    const db = await getDb();
-    const result = await db
-      .delete(productImages)
-      .where(eq(productImages.productId, productId))
-      .returning();
-    return result.length > 0;
   }
 
   // Review Management Functions
@@ -1161,8 +1056,8 @@ export class DatabaseStorage implements IStorage {
         .trim();
 
       // Ensure tags is properly formatted
-      const tags = Array.isArray(postData.tags) ?
-        JSON.stringify(postData.tags) :
+      const tags = Array.isArray(postData.tags) ? 
+        JSON.stringify(postData.tags) : 
         typeof postData.tags === 'string' ? postData.tags : '[]';
 
       const postToInsert = {

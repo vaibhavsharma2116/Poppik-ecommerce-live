@@ -81,7 +81,7 @@ app.use((req, res, next) => {
   // ALWAYS serve the app on port 8000
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = 8080;
+  const port = 8081;
   server.listen({
     port,
     host: "0.0.0.0",

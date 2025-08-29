@@ -914,35 +914,35 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Quick Links */}
             <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
+              <h4 className="font-semibold mb-4 text-white">Quick Links</h4>
               <ul className="space-y-2">
                 <li>
-                  <Link href="/" className="text-gray-400 hover:text-black transition-colors">
+                  <Link href="/" className="text-gray-400 hover:text-white transition-colors">
                     Home
                   </Link>
                 </li>
                 <li>
-                  <Link href="/about" className="text-gray-400 hover:text-black transition-colors">
+                  <Link href="/about" className="text-gray-400 hover:text-white transition-colors">
                     About Us
                   </Link>
                 </li>
                 <li>
-                  <Link href="/blog" className="text-gray-400 hover:text-black transition-colors">
+                  <Link href="/blog" className="text-gray-400 hover:text-white transition-colors">
                     Blog
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="text-gray-400 hover:text-black transition-colors">
+                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
                     Contact
                   </Link>
                 </li>
                 {/* <li>
-                  <a href="#" className="text-gray-400 hover:text-black transition-colors">
+                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
                     Blog
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="text-gray-400 hover:text-black transition-colors">
+                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
                     FAQ
                   </a>
                 </li> */}
@@ -951,13 +951,13 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Categories */}
             <div>
-              <h4 className="font-semibold mb-4">Categories</h4>
+              <h4 className="font-semibold mb-4 text-white">Categories</h4>
               <ul className="space-y-2">
                 {categories.slice(0, 6).map((category) => (
                   <li key={category.id}>
                     <Link 
                       href={`/category/${category.slug}`} 
-                      className="text-gray-400 hover:text-black transition-colors"
+                      className="text-gray-400 hover:text-white transition-colors"
                     >
                       {category.name}
                     </Link>
@@ -967,7 +967,7 @@ export default function Layout({ children }: LayoutProps) {
                   <li>
                     <Link 
                       href="/categories" 
-                      className="text-gray-400 hover:text-black transition-colors font-medium"
+                      className="text-gray-400 hover:text-white transition-colors font-medium"
                     >
                       View All Categories →
                     </Link>
@@ -978,38 +978,38 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Support */}
             <div>
-              <h4 className="font-semibold mb-4">Customer Support</h4>
+              <h4 className="font-semibold mb-4 text-white">Customer Support</h4>
               <ul className="space-y-2">
                 {user && (
                   <li>
-                    <Link href="/order-history" className="text-gray-400 hover:text-black transition-colors">
+                    <Link href="/order-history" className="text-gray-400 hover:text-white transition-colors">
                       Order History
                     </Link>
                   </li>
                 )}
                 <li>
-                  <Link href="/track-order" className="text-gray-400 hover:text-black transition-colors">
+                  <Link href="/track-order" className="text-gray-400 hover:text-white transition-colors">
                     Track Your Order
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="text-gray-400 hover:text-black transition-colors">
+                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
                     Contact Support
                   </Link>
                 </li>
                 <li>
-                  <Link href="/about" className="text-gray-400 hover:text-black transition-colors">
+                  <Link href="/about" className="text-gray-400 hover:text-white transition-colors">
                     About Us
                   </Link>
                 </li>
 
                 <li>
-                  <Link href="/terms" className="text-gray-400 hover:text-black transition-colors">
+                  <Link href="/terms" className="text-gray-400 hover:text-white transition-colors">
                     Terms & Conditions
                   </Link>
                 </li>
                 <li>
-                  <Link href="/privacy" className="text-gray-400 hover:text-black transition-colors">
+                  <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">
                     Privacy Policy
                   </Link>
                 </li>

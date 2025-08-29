@@ -636,6 +636,32 @@ export default function Signup() {
                       </InputOTPGroup>
                     </InputOTP>
                   </div>
+                  
+                  {/* Development OTP Display */}
+                  <div className="text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(`/api/auth/debug-otp/${formatPhoneNumber(formData.phone)}`);
+                          const result = await response.json();
+                          if (result.success) {
+                            toast({
+                              title: "Development OTP",
+                              description: `Your OTP is: ${result.otp}`,
+                              duration: 10000,
+                            });
+                          }
+                        } catch (error) {
+                          console.error('Debug OTP error:', error);
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      Show OTP (Dev)
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Verify Button */}

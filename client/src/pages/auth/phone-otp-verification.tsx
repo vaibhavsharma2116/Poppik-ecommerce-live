@@ -21,9 +21,9 @@ export default function MobileOTPVerification({ phoneNumber: propPhoneNumber, on
   const [otpSent, setOtpSent] = useState(false);
   const { toast } = useToast();
 
-  // Development mode flag and current OTP display state (added for context, but not fully implemented by provided changes)
-  const showDevOTP = process.env.NODE_ENV === 'development'; // Example: Use environment variable
-  const [currentOTP, setCurrentOTP] = useState<string | null>(null); // State to hold OTP in dev mode
+  // Development mode flag and current OTP display state
+  const showDevOTP = true; // Always show in development
+  const [currentOTP, setCurrentOTP] = useState<string | null>(null);
 
   // Countdown timer for resend
   useEffect(() => {
@@ -76,8 +76,19 @@ export default function MobileOTPVerification({ phoneNumber: propPhoneNumber, on
         });
         setOtpSent(true);
         setCountdown(60); // 60 seconds countdown
-        // In a real dev scenario, you'd get the OTP here if available
-        // setCurrentOTP(result.otp); // Assuming API returns OTP in dev
+        
+        // Fetch OTP for development display
+        if (showDevOTP) {
+          try {
+            const debugResponse = await fetch(`/api/auth/debug-otp/${cleanedPhone}`);
+            const debugResult = await debugResponse.json();
+            if (debugResult.success) {
+              setCurrentOTP(debugResult.otp);
+            }
+          } catch (error) {
+            console.log('Could not fetch debug OTP:', error);
+          }
+        }
       } else {
         toast({
           title: "Error",

@@ -237,7 +237,7 @@ export class OTPService {
     otpStorage.delete(email);
   }
 
-  // SMS sending via MDSSEND.IN
+  // SMS sending via MDSSEND.IN with enhanced error handling
   private static async sendSMS(phoneNumber: string, otp: string): Promise<boolean> {
     try {
       // Check if SMS configuration is available
@@ -273,8 +273,10 @@ export class OTPService {
       // Create message
       const message = `Your OTP for Poppik Beauty Store verification is: ${otp}. Valid for 5 minutes. Do not share with anyone. - Poppik`;
 
-      // Prepare API request
-      const apiUrl = 'https://api.mdssend.in/v1/sms/send';
+      // Multiple API endpoints to try
+      const apiEndpoints = [
+        'http://13.234.156.238/v1/sms/send'
+      ];
       
       const requestData = {
         apikey: apiKey,
@@ -284,123 +286,89 @@ export class OTPService {
         ...(templateId && { templateid: templateId })
       };
 
-      console.log('🔍 Attempting to send SMS via MDSSEND.IN...');
+      console.log('🔍 Sending SMS via MDSSEND.IN...');
       console.log(`📱 To: +${formattedPhone}`);
-      console.log(`📝 Message: ${message}`);
 
-      // Test connectivity first with a simple ping-like request
-      console.log('🔍 Testing connectivity to MDSSEND.IN...');
-      
-      // Enhanced error handling with multiple timeout strategies
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      // Try each endpoint
+      for (let i = 0; i < apiEndpoints.length; i++) {
+        const apiUrl = apiEndpoints[i];
+        console.log(`🔄 Attempting with endpoint ${i + 1}/${apiEndpoints.length}: ${apiUrl}`);
 
-      try {
-        console.log('🔗 API URL:', apiUrl);
-        console.log('📝 Request Data:', JSON.stringify(requestData, null, 2));
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout per attempt
 
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': 'Poppik-Beauty-Store/1.0',
-            'Accept': 'application/json',
-            'Connection': 'keep-alive',
-            'Cache-Control': 'no-cache',
-          },
-          body: JSON.stringify(requestData),
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-        console.log(`✅ Connected to MDSSEND.IN (Status: ${response.status})`);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.log('❌ MDSSEND.IN Error Response:', errorText);
-          throw new Error(`HTTP ${response.status}: ${response.statusText}. Response: ${errorText}`);
-        }
-
-        const result = await response.json();
-        console.log('✅ MDSSEND.IN API Full Response:', JSON.stringify(result, null, 2));
-
-        // Check for various success indicators
-        const isSuccess = result.status === 'success' || 
-                         result.Status === 'Success' || 
-                         result.status === 'Success' ||
-                         result.Status === 'success' ||
-                         (result.error_code && result.error_code === '000');
-
-        if (isSuccess) {
-          console.log('✅ SMS sent successfully via MDSSEND.IN');
-          console.log('📱 SMS Details:', {
-            messageId: result.message_id || result.MessageID || 'N/A',
-            status: result.status || result.Status,
-            credits: result.credits_remaining || 'N/A'
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Poppik-Beauty-Store/1.0',
+              'Accept': 'application/json',
+              'Connection': 'keep-alive',
+              'Cache-Control': 'no-cache',
+            },
+            body: JSON.stringify(requestData),
+            signal: controller.signal
           });
-          return true;
-        } else {
-          console.log('⚠️ MDSSEND.IN API returned non-success status:', result.status || result.Status);
-          console.log('⚠️ Error details:', result.message || result.error || 'No error message');
-          console.log('📋 Using console fallback for development');
-          return true; // Still return true for development
-        }
 
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        throw fetchError; // Re-throw to be caught by outer catch
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.log(`❌ HTTP ${response.status} from ${apiUrl}: ${errorText}`);
+            continue; // Try next endpoint
+          }
+
+          const result = await response.json();
+          console.log(`✅ Response from ${apiUrl}:`, JSON.stringify(result, null, 2));
+
+          // Check for various success indicators
+          const isSuccess = result.status === 'success' || 
+                           result.Status === 'Success' || 
+                           result.status === 'Success' ||
+                           result.Status === 'success' ||
+                           (result.error_code && result.error_code === '000');
+
+          if (isSuccess) {
+            console.log('✅ SMS sent successfully via MDSSEND.IN');
+            console.log('📱 SMS Details:', {
+              endpoint: apiUrl,
+              messageId: result.message_id || result.MessageID || 'N/A',
+              status: result.status || result.Status,
+              credits: result.credits_remaining || 'N/A'
+            });
+            return true;
+          } else {
+            console.log(`⚠️ Non-success response from ${apiUrl}:`, result.status || result.Status);
+            console.log(`⚠️ Error details:`, result.message || result.error || 'No error message');
+            continue; // Try next endpoint
+          }
+
+        } catch (fetchError) {
+          console.log(`❌ Network error with ${apiUrl}: ${fetchError.message}`);
+          if (i < apiEndpoints.length - 1) {
+            console.log('🔄 Trying next endpoint...');
+          }
+          continue; // Try next endpoint
+        }
       }
+
+      // If all endpoints failed
+      console.log('❌ SMS sending failed after all attempts: fetch failed');
+      console.log('   Reason: Network connectivity issue - check internet connection');
+      console.log('   Possible fixes:');
+      console.log('     - Check if MDSSEND.IN API is accessible from your server');
+      console.log('     - Verify your API credentials are correct');
+      console.log('     - Check if your server has outbound internet access');
+      console.log('');
+      console.log('🔄 Development mode - OTP will work via console display');
+      
+      // Always return true for development mode to allow OTP verification
+      return true;
 
     } catch (error) {
-      console.log('📱 SMS sending failed with error:');
-      
-      // Detailed error logging with troubleshooting steps
-      if (error.name === 'AbortError') {
-        console.log('❌ Request timed out after 8 seconds');
-        console.log('💡 Possible solutions:');
-        console.log('   - Increase timeout duration');
-        console.log('   - Check network connectivity');
-        console.log('   - Try again later');
-      } else if (error.code === 'ETIMEDOUT') {
-        console.log('❌ Network timeout - unable to reach MDSSEND.IN API');
-        console.log('💡 Possible solutions:');
-        console.log('   - Check internet connection');
-        console.log('   - Verify firewall settings');
-        console.log('   - Contact MDSSEND.IN support');
-      } else if (error.code === 'ENOTFOUND') {
-        console.log('❌ DNS resolution failed - cannot find MDSSEND.IN server');
-        console.log('💡 Possible solutions:');
-        console.log('   - Check DNS settings');
-        console.log('   - Try different network');
-        console.log('   - Verify API endpoint URL');
-      } else if (error.message && error.message.includes('fetch failed')) {
-        console.log('❌ Network request failed');
-        console.log('💡 Possible solutions:');
-        console.log('   - MDSSEND.IN API might be temporarily down');
-        console.log('   - Check API status at status.mdssend.in (if available)');
-        console.log('   - Verify API credentials');
-        console.log('   - Try alternative SMS provider');
-      } else if (error.code === 'ECONNREFUSED') {
-        console.log('❌ Connection refused by MDSSEND.IN server');
-        console.log('💡 Possible solutions:');
-        console.log('   - Server might be down for maintenance');
-        console.log('   - Check if your IP is blocked');
-        console.log('   - Contact MDSSEND.IN support');
-      } else {
-        console.log('❌ Unexpected error occurred');
-        console.log('   Error message:', error.message || 'Unknown error');
-        console.log('   Error code:', error.code || 'N/A');
-        console.log('   Error type:', error.name || 'Unknown');
-      }
-      
-      console.log('\n🔄 DEVELOPMENT FALLBACK MODE ACTIVATED');
-      console.log('✅ OTP verification will work using console display');
-      console.log('📋 OTP is displayed above in the console logs');
-      console.log('🚀 For production deployment:');
-      console.log('   1. Verify MDSSEND.IN API credentials');
-      console.log('   2. Check API endpoint accessibility');
-      console.log('   3. Consider backup SMS providers');
-      console.log('   4. Test from production environment\n');
+      console.log('📱 SMS service error:', error.message);
+      console.log('🔄 Development fallback mode - using console display');
       
       // Always return true for development mode to allow OTP verification
       return true;

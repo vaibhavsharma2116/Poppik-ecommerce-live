@@ -129,14 +129,33 @@ export default function AdminProducts() {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      console.log("Fetching data from APIs...");
+      
       const [productsRes, categoriesRes, subcategoriesRes] = await Promise.all([
         fetch('/api/products'),
         fetch('/api/categories'),
         fetch('/api/subcategories')
       ]);
 
-      if (!productsRes.ok || !categoriesRes.ok || !subcategoriesRes.ok) {
-        throw new Error('Failed to fetch data');
+      console.log("API responses:", {
+        products: productsRes.status,
+        categories: categoriesRes.status,
+        subcategories: subcategoriesRes.status
+      });
+
+      if (!productsRes.ok) {
+        const errorText = await productsRes.text();
+        throw new Error(`Products API error: ${productsRes.status} - ${errorText}`);
+      }
+      if (!categoriesRes.ok) {
+        const errorText = await categoriesRes.text();
+        throw new Error(`Categories API error: ${categoriesRes.status} - ${errorText}`);
+      }
+      if (!subcategoriesRes.ok) {
+        const errorText = await subcategoriesRes.text();
+        throw new Error(`Subcategories API error: ${subcategoriesRes.status} - ${errorText}`);
       }
 
       const [productsData, categoriesData, subcategoriesData] = await Promise.all([
@@ -145,13 +164,20 @@ export default function AdminProducts() {
         subcategoriesRes.json()
       ]);
 
-      setProducts(productsData);
-      setCategories(categoriesData);
-      setSubcategories(subcategoriesData);
+      console.log("Fetched data:", {
+        products: productsData?.length || 0,
+        categories: categoriesData?.length || 0,
+        subcategories: subcategoriesData?.length || 0
+      });
+
+      setProducts(productsData || []);
+      setCategories(categoriesData || []);
+      setSubcategories(subcategoriesData || []);
 
       // Initialize filtered products with all products
-      setFilteredProducts(productsData);
+      setFilteredProducts(productsData || []);
     } catch (err) {
+      console.error("Fetch data error:", err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
@@ -434,16 +460,20 @@ export default function AdminProducts() {
 
   // Update filtered products when search term changes
   useEffect(() => {
+    console.log("Products data:", products);
+    console.log("Products length:", products.length);
+    
     let filtered = products;
 
     if (searchTerm) {
       filtered = products.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchTerm.toLowerCase())
+        product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
+    console.log("Filtered products:", filtered);
     setFilteredProducts(filtered);
   }, [searchTerm, products]);
 
@@ -470,7 +500,19 @@ export default function AdminProducts() {
   if (error) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
-      {/* {history.location.push('/admin/products')} */}
+        <div className="text-center bg-red-50 border border-red-200 rounded-lg p-8 max-w-md mx-auto">
+          <div className="text-red-600 mb-4">
+            <AlertTriangle className="h-12 w-12 mx-auto" />
+          </div>
+          <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Products</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={fetchData}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
@@ -567,7 +609,18 @@ export default function AdminProducts() {
               <CardContent className="p-12 text-center">
                 <Package className="h-12 w-12 text-slate-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">No products found</h3>
-                <p className="text-slate-600">Try adjusting your search or filter criteria</p>
+                <p className="text-slate-600">
+                  {searchTerm 
+                    ? `No products match "${searchTerm}". Try adjusting your search criteria.`
+                    : products.length === 0 
+                      ? "No products available. Add some products to get started."
+                      : "Try adjusting your filter criteria"
+                  }
+                </p>
+                <div className="mt-4 text-sm text-slate-500">
+                  Total products in database: {products.length}
+                  {searchTerm && ` | Search term: "${searchTerm}"`}
+                </div>
               </CardContent>
             </Card>
           ) : viewMode === 'grid' ? (

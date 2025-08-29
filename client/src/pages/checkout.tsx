@@ -275,14 +275,18 @@ export default function CheckoutPage() {
         return false;
       }
 
+      // Generate unique order ID
+      const orderId = `ORD-${Date.now()}-${user.id}`;
+
       // Create Cashfree order
       const response = await fetch('/api/payments/cashfree/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: total,
+          orderId: orderId,
           currency: 'INR',
-          customerInfo: {
+          customerDetails: {
             customerId: String(user.id),
             customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
             customerEmail: formData.email.trim(),
