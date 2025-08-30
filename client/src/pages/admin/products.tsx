@@ -34,22 +34,22 @@ import {
 
 interface Product {
   id: number;
-  name: string;
-  slug: string;
-  description: string;
-  shortDescription: string;
-  price: number;
+  name?: string;
+  slug?: string;
+  description?: string;
+  shortDescription?: string;
+  price?: number;
   originalPrice?: number;
-  category: string;
+  category?: string;
   subcategory?: string;
-  imageUrl: string;
+  imageUrl?: string;
   images?: { url: string }[]; // Added for multiple images
-  rating: number;
-  reviewCount: number;
-  inStock: boolean;
-  featured: boolean;
-  bestseller: boolean;
-  newLaunch: boolean;
+  rating?: number;
+  reviewCount?: number;
+  inStock?: boolean;
+  featured?: boolean;
+  bestseller?: boolean;
+  newLaunch?: boolean;
   saleOffer?: string;
   variants?: string;
   ingredients?: string;
@@ -211,19 +211,19 @@ export default function AdminProducts() {
       setSelectedProduct(product);
       setEditFormData({
         name: product.name,
-        price: product.price.toString(),
-        description: product.description,
-        shortDescription: product.shortDescription,
+        price: product.price?.toString() || '0',
+        description: product.description || '',
+        shortDescription: product.shortDescription || '',
         category: categoryValue,
         subcategory: product.subcategory || '',
-        imageUrl: product.imageUrl,
+        imageUrl: product.imageUrl || '',
         images: product.images || [],
-        rating: product.rating.toString(),
-        reviewCount: product.reviewCount.toString(),
-        inStock: product.inStock,
-        featured: product.featured,
-        bestseller: product.bestseller,
-        newLaunch: product.newLaunch,
+        rating: product.rating?.toString() || '0',
+        reviewCount: product.reviewCount?.toString() || '0',
+        inStock: product.inStock ?? true,
+        featured: product.featured ?? false,
+        bestseller: product.bestseller ?? false,
+        newLaunch: product.newLaunch ?? false,
         saleOffer: product.saleOffer || '',
         size: product.size || '',
         ingredients: product.ingredients || '',
@@ -462,18 +462,21 @@ export default function AdminProducts() {
   useEffect(() => {
     console.log("Products data:", products);
     console.log("Products length:", products.length);
+    console.log("Loading state:", loading);
+    console.log("Error state:", error);
     
-    let filtered = products;
+    let filtered = products || [];
 
     if (searchTerm) {
       filtered = products.filter(product =>
-        product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+        product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product?.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product?.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     console.log("Filtered products:", filtered);
+    console.log("Filtered products length:", filtered.length);
     setFilteredProducts(filtered);
   }, [searchTerm, products]);
 
@@ -653,19 +656,19 @@ export default function AdminProducts() {
                 </Badge>
               </div>
               <CardContent className="p-4">
-                <h3 className="font-semibold text-slate-900 mb-1">{product.name}</h3>
+                <h3 className="font-semibold text-slate-900 mb-1">{product.name || 'Untitled Product'}</h3>
                 <p className="text-sm text-slate-500 mb-2">
-                  {product.category} {product.subcategory && `• ${product.subcategory}`}
+                  {product.category || 'No Category'} {product.subcategory && `• ${product.subcategory}`}
                 </p>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-lg font-bold text-slate-900">₹{product.price}</span>
+                  <span className="text-lg font-bold text-slate-900">₹{product.price || 0}</span>
                   <div className="flex items-center space-x-1">
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    <span className="text-sm text-slate-600">{product.rating}</span>
+                    <span className="text-sm text-slate-600">{product.rating || 0}</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-sm text-slate-600 mb-4">
-                  <span>Reviews: {product.reviewCount}</span>
+                  <span>Reviews: {product.reviewCount || 0}</span>
                   {product.bestseller && <Badge variant="secondary">Bestseller</Badge>}
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -762,13 +765,13 @@ export default function AdminProducts() {
                             <Star
                               key={i}
                               className={`w-3.5 h-3.5 ${
-                                i < Math.floor(parseFloat(product.rating))
+                                i < Math.floor(parseFloat(product.rating?.toString() || '0'))
                                   ? "fill-yellow-400 text-yellow-400"
                                   : "text-slate-300"
                               }`}
                             />
                           ))}
-                          <span className="text-xs text-slate-700 ml-1 font-medium">{product.rating}</span>
+                          <span className="text-xs text-slate-700 ml-1 font-medium">{product.rating || 0}</span>
                         </div>
                       </div>
                     </TableCell>

@@ -661,6 +661,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug OTP endpoint for development
+  app.get("/api/auth/debug-otp/:phoneNumber", async (req, res) => {
+    try {
+      const { phoneNumber } = req.params;
+
+      // Clean phone number the same way as in sendMobileOTP
+      const cleanedPhone = phoneNumber.replace(/\D/g, '');
+      const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12 
+        ? cleanedPhone.substring(2) 
+        : cleanedPhone;
+
+      const otpData = OTPService.otpStorage.get(formattedPhone);
+
+      if (otpData && new Date() <= otpData.expiresAt) {
+        res.json({ 
+          success: true,
+          otp: otpData.otp,
+          phoneNumber: formattedPhone,
+          expiresAt: otpData.expiresAt,
+          remainingTime: Math.max(0, Math.floor((otpData.expiresAt.getTime() - Date.now()) / 1000))
+        });
+      } else {
+        res.json({ 
+          success: false,
+          error: "No valid OTP found",
+          phoneNumber: formattedPhone
+        });
+      }
+    } catch (error) {
+      res.json({ 
+        success: false,
+        error: "Failed to get OTP",
+        details: error.message
+      });
+    }
+  });
+
   // Direct SMS test endpoint
   app.post("/api/auth/test-direct-sms", async (req, res) => {
     try {
