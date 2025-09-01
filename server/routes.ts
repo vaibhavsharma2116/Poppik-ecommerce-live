@@ -52,6 +52,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, gte, lte, like, isNull, asc, or, sql } from "drizzle-orm";
 import { Pool } from "pg";
 import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, productImages, productShades, cashfreePayments } from "../shared/schema";
+import { DatabaseMonitor } from "./db-monitor";
 // Database connection with enhanced configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb",
@@ -67,6 +68,7 @@ const pool = new Pool({
 });
 
 const db = drizzle(pool);
+const dbMonitor = new DatabaseMonitor(pool);
 
 // Handle pool errors
 pool.on('error', (err) => {
@@ -134,9 +136,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint with database status
   app.get("/api/health", async (req, res) => {
     let dbStatus = "disconnected";
+    let poolStats = {};
+    
     try {
       await db.select().from(users).limit(1);
       dbStatus = "connected";
+      poolStats = {
+        totalCount: pool.totalCount,
+        idleCount: pool.idleCount,
+        waitingCount: pool.waitingCount
+      };
     } catch (error) {
       dbStatus = "disconnected";
     }
@@ -145,9 +154,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       status: "OK", 
       message: "API server is running",
       database: dbStatus,
+      poolStats,
       timestamp: new Date().toISOString(),
       uptime: process.uptime()
     });
+  });
+
+  // Database performance monitoring endpoints
+  app.get("/api/admin/db/slow-queries", async (req, res) => {
+    try {
+      const minDuration = parseInt(req.query.minDuration as string) || 1000;
+      const slowQueries = await dbMonitor.getSlowQueries(minDuration);
+      res.json(slowQueries);
+    } catch (error) {
+      console.error("Error fetching slow queries:", error);
+      res.status(500).json({ error: "Failed to fetch slow queries" });
+    }
+  });
+
+  app.get("/api/admin/db/active-connections", async (req, res) => {
+    try {
+      const connections = await dbMonitor.getActiveConnections();
+      res.json(connections);
+    } catch (error) {
+      console.error("Error fetching active connections:", error);
+      res.status(500).json({ error: "Failed to fetch active connections" });
+    }
+  });
+
+  app.get("/api/admin/db/suggest-indexes", async (req, res) => {
+    try {
+      const suggestions = await dbMonitor.suggestIndexes();
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error getting index suggestions:", error);
+      res.status(500).json({ error: "Failed to get index suggestions" });
+    }
+  });
+
+  app.post("/api/admin/db/kill-long-queries", async (req, res) => {
+    try {
+      const maxDuration = parseInt(req.body.maxDurationMinutes) || 30;
+      const killedQueries = await dbMonitor.killLongRunningQueries(maxDuration);
+      res.json({
+        message: `Killed ${killedQueries.length} long running queries`,
+        killedQueries
+      });
+    } catch (error) {
+      console.error("Error killing long queries:", error);
+      res.status(500).json({ error: "Failed to kill long running queries" });
+    }
   });
 
   // Public sliders endpoint for frontend

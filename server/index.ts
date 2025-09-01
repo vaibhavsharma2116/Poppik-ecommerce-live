@@ -1,9 +1,11 @@
-
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
 import { config } from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { Pool } from "pg";
+import { DatabaseMonitor } from "./db-monitor";
+import { DatabaseOptimizer } from "./db-optimizer";
 
 // Load environment variables
 config();
@@ -12,6 +14,17 @@ config();
 if (process.env.NODE_ENV === 'production') {
   process.env.NODE_OPTIONS = '--max-old-space-size=512';
 }
+
+// Process optimization
+process.setMaxListeners(15);
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  process.exit(0);
+});
 
 const app = express();
 
@@ -59,6 +72,22 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize database connection pool
+  const pool = new Pool({
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: Number(process.env.DB_PORT),
+  });
+
+  // Initialize database monitor and optimizer
+  const dbMonitor = new DatabaseMonitor(pool);
+  const dbOptimizer = new DatabaseOptimizer(pool);
+
+  // Enable pg_stat_statements on startup
+  dbOptimizer.enableStatements();
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -78,15 +107,16 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 8000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 8081;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  // Serve the app on port 5000 (recommended for web apps)
+  const port = process.env.PORT || 5000;
+  server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
+
+    // Optimize garbage collection
+    if (global.gc) {
+      setInterval(() => {
+        global.gc();
+      }, 30000); // Run GC every 30 seconds
+    }
   });
 })();

@@ -45,43 +45,29 @@ export default function CheckoutPage() {
   const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('payment');
-    const orderIdParam = urlParams.get('orderId');
-
-    if (paymentStatus === 'processing' && orderIdParam) {
-      // Verify payment status
-      verifyPayment(orderIdParam);
-    } else {
-      // Check if user is authenticated
-      const user = getCurrentUser();
-      if (!user) {
-        setShowAuthRequired(true);
-        setLoading(false);
-        return;
-      }
-
-      // Store user profile and show confirmation dialog
-      setUserProfile(user);
-      
-      // Check if user has profile data to fill
-      const hasProfileData = user.firstName || user.lastName || user.email || user.phone || user.address;
-      if (hasProfileData) {
-        setShowProfileDialog(true);
-      }
-
-      const savedCart = localStorage.getItem("cart");
-      if (savedCart) {
-        try {
-          const parsedCart = JSON.parse(savedCart);
-          setCartItems(parsedCart);
-        } catch (error) {
-          console.error("Error parsing cart data:", error);
-          setCartItems([]);
-        }
-      }
-      setLoading(false);
+    // Check if user is logged in when accessing checkout
+    const user = localStorage.getItem("user");
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to proceed with checkout",
+        variant: "destructive",
+      });
+      window.location.href = "/auth/login";
+      return;
     }
+
+    const savedCart = localStorage.getItem("cart");
+    if (savedCart) {
+      try {
+        const parsedCart = JSON.parse(savedCart);
+        setCartItems(parsedCart);
+      } catch (error) {
+        console.error("Error parsing cart data:", error);
+        setCartItems([]);
+      }
+    }
+    setLoading(false);
   }, []);
 
   const verifyPayment = async (orderIdParam: string) => {
@@ -184,12 +170,12 @@ export default function CheckoutPage() {
         } else {
           state = lastPart;
         }
-        
+
         // Second last part might be city
         if (addressParts.length >= 2) {
           city = addressParts[addressParts.length - 2];
         }
-        
+
         // Remove city and state from full address to get street address
         streetAddress = addressParts.slice(0, -2).join(', ');
       } else if (addressParts.length === 2) {
@@ -638,7 +624,7 @@ export default function CheckoutPage() {
               Would you like to use the information from your profile to fill both contact information and shipping address in this checkout form?
             </DialogDescription>
           </DialogHeader>
-          
+
           {userProfile && (
             <div className="space-y-3 py-4">
               <div className="bg-gray-50 p-4 rounded-lg space-y-3">
@@ -655,15 +641,15 @@ export default function CheckoutPage() {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex gap-3 pt-4">
-                <Button 
+                <Button
                   onClick={handleUseProfileData}
                   className="flex-1 bg-red-600 hover:bg-red-700"
                 >
                   Yes, Use Profile Data
                 </Button>
-                <Button 
+                <Button
                   variant="outline"
                   onClick={handleSkipProfileData}
                   className="flex-1"

@@ -81,20 +81,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     e.preventDefault();
     e.stopPropagation();
 
-    // Check if user is logged in
-    const user = localStorage.getItem("user");
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to add items to your cart",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/auth/login";
-      }, 1500);
-      return;
-    }
-
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
     const existingItem = cart.find((cartItem: any) => cartItem.id === product.id);
 

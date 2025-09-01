@@ -252,18 +252,6 @@ export default function ProductDetail() {
   const addToCart = () => {
     if (!product) return;
 
-    // Check if user is logged in
-    const user = localStorage.getItem("user");
-    if (!user) {
-      toast({
-        title: "Login Required",
-        description: "Please log in to add items to your cart",
-        variant: "destructive",
-      });
-      window.location.href = "/auth/login";
-      return;
-    }
-
     // Allow adding to cart without selecting a shade (None option available)
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");

@@ -34,18 +34,35 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Optimized pool configuration
+const poolConfig = {
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/postgres",
+  max: 20,                    // Maximum number of connections
+  min: 2,                     // Minimum number of connections
+  idleTimeoutMillis: 30000,   // Close idle connections after 30 seconds
+  connectionTimeoutMillis: 5000, // Timeout for acquiring connection
+  acquireTimeoutMillis: 60000,   // Max time to wait for connection
+  createTimeoutMillis: 30000,    // Max time to wait for new connection
+  destroyTimeoutMillis: 5000,    // Max time to wait for closing connection
+  reapIntervalMillis: 1000,      // How often to check for idle connections
+  createRetryIntervalMillis: 200, // Retry interval for failed connections
+};
+
+export const pool = new Pool(poolConfig);
+
 const pool = new Pool({
-  // connectionString: process.env.DATABASE_URL || "postgresql://:5432/poppik",
   connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb",
   ssl: process.env.DATABASE_URL?.includes('31.97.226.116') ? false : { rejectUnauthorized: false },
-  max: 20,
-  min: 2, // Keep minimum 2 connections alive
-  idleTimeoutMillis: 300000, // 5 minutes instead of 30 seconds
-  connectionTimeoutMillis: 10000, // 10 seconds instead of 2
-  acquireTimeoutMillis: 10000, // Wait up to 10 seconds for a connection
-  keepAlive: true, // Enable TCP keep-alive
-  keepAliveInitialDelayMillis: 0,
-  allowExitOnIdle: false, // Don't allow pool to exit when idle
+  max: 10, // Reduced from 20 to avoid too many connections
+  min: 1, // Reduced from 2 to minimize idle connections
+  idleTimeoutMillis: 60000, // 1 minute - close idle connections faster
+  connectionTimeoutMillis: 5000, // Reduced to 5 seconds
+  acquireTimeoutMillis: 5000, // Reduced acquisition timeout
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000, // 10 seconds
+  allowExitOnIdle: true, // Allow pool to exit when idle
+  query_timeout: 30000, // 30 second query timeout
+  statement_timeout: 30000, // 30 second statement timeout
 });
 
 let db: ReturnType<typeof drizzle> | undefined = undefined;
