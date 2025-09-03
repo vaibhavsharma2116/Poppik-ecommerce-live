@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Eye, EyeOff, Mail, Lock, User, Phone, CheckCircle } from "lucide-react";
@@ -33,7 +32,7 @@ export default function Signup() {
     address: "",
     city: "",
     state: "",
-    pincode: "",
+    pinCode: "",
     agreeToTerms: false,
     subscribeNewsletter: false
   });
@@ -50,16 +49,16 @@ export default function Signup() {
   const formatPhoneNumber = (phone: string) => {
     // Remove all non-digits
     const cleaned = phone.replace(/\D/g, '');
-    
+
     // If it starts with 91, remove it (assuming Indian numbers)
     if (cleaned.startsWith('91') && cleaned.length === 12) {
       return cleaned.substring(2);
     }
-    
+
     return cleaned;
   };
 
-  
+
   const verifyPhoneOTP = async () => {
     if (phoneOtp.length !== 6) {
       toast({
@@ -135,7 +134,7 @@ export default function Signup() {
           title: "Success",
           description: "Account created successfully!",
         });
-        
+
         window.location.href = "/"; // Redirect to profile
       } else {
         toast({
@@ -158,7 +157,7 @@ export default function Signup() {
 
   const sendOTP = async () => {
     const cleanedPhone = formatPhoneNumber(formData.phone);
-    
+
     if (!cleanedPhone || cleanedPhone.length !== 10) {
       toast({
         title: "Error",
@@ -211,7 +210,7 @@ export default function Signup() {
     e.preventDefault();
 
     // Basic validation
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password || !formData.dateOfBirth || !formData.address || !formData.city || !formData.state || !formData.pincode) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password || !formData.dateOfBirth || !formData.address || !formData.city || !formData.state || !formData.pinCode) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -221,7 +220,7 @@ export default function Signup() {
     }
 
     // Validate PIN code
-    if (formData.pincode && (formData.pincode.length !== 6 || !/^\d{6}$/.test(formData.pincode))) {
+    if (formData.pinCode && (formData.pinCode.length !== 6 || !/^\d{6}$/.test(formData.pinCode))) {
       toast({
         title: "Error",
         description: "Please enter a valid 6-digit PIN code",
@@ -272,7 +271,7 @@ export default function Signup() {
     await sendOTP();
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -280,7 +279,7 @@ export default function Signup() {
     }));
   };
 
-  
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center p-4">
@@ -391,7 +390,7 @@ export default function Signup() {
                   {/* Address Section */}
                   <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
                     <Label className="text-base font-semibold text-gray-700">Address Information</Label>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="address">Street Address *</Label>
                       <Input
@@ -452,19 +451,19 @@ export default function Signup() {
                           required
                         >
                           <option value="">Select State</option>
-                          <option value="andhra-pradesh">Andhra Pradesh</option>
-                          <option value="arunachal-pradesh">Arunachal Pradesh</option>
+                          <option value="andhra_pradesh">Andhra Pradesh</option>
+                          <option value="arunachal_pradesh">Arunachal Pradesh</option>
                           <option value="assam">Assam</option>
                           <option value="bihar">Bihar</option>
                           <option value="chhattisgarh">Chhattisgarh</option>
                           <option value="goa">Goa</option>
                           <option value="gujarat">Gujarat</option>
                           <option value="haryana">Haryana</option>
-                          <option value="himachal-pradesh">Himachal Pradesh</option>
+                          <option value="himachal_pradesh">Himachal Pradesh</option>
                           <option value="jharkhand">Jharkhand</option>
                           <option value="karnataka">Karnataka</option>
                           <option value="kerala">Kerala</option>
-                          <option value="madhya-pradesh">Madhya Pradesh</option>
+                          <option value="madhya_pradesh">Madhya Pradesh</option>
                           <option value="maharashtra">Maharashtra</option>
                           <option value="manipur">Manipur</option>
                           <option value="meghalaya">Meghalaya</option>
@@ -474,27 +473,32 @@ export default function Signup() {
                           <option value="punjab">Punjab</option>
                           <option value="rajasthan">Rajasthan</option>
                           <option value="sikkim">Sikkim</option>
-                          <option value="tamil-nadu">Tamil Nadu</option>
+                          <option value="tamil_nadu">Tamil Nadu</option>
                           <option value="telangana">Telangana</option>
                           <option value="tripura">Tripura</option>
-                          <option value="uttar-pradesh">Uttar Pradesh</option>
+                          <option value="uttar_pradesh">Uttar Pradesh</option>
                           <option value="uttarakhand">Uttarakhand</option>
-                          <option value="west-bengal">West Bengal</option>
-                          <option value="delhi">Delhi</option>
+                          <option value="west_bengal">West Bengal</option>
+                          <option value="andaman_and_nicobar">Andaman and Nicobar Islands</option>
                           <option value="chandigarh">Chandigarh</option>
+                          <option value="dadra_and_nagar_haveli">Dadra and Nagar Haveli and Daman and Diu</option>
+                          <option value="delhi">Delhi</option>
+                          <option value="jammu_and_kashmir">Jammu and Kashmir</option>
+                          <option value="ladakh">Ladakh</option>
+                          <option value="lakshadweep">Lakshadweep</option>
                           <option value="puducherry">Puducherry</option>
                         </select>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="pincode">PIN Code *</Label>
+                      <Label htmlFor="pinCode">PIN Code *</Label>
                       <Input
-                        id="pincode"
-                        name="pincode"
+                        id="pinCode"
+                        name="pinCode"
                         type="text"
-                        placeholder="Enter PIN code"
-                        value={formData.pincode || ''}
+                        placeholder="Enter 6-digit PIN code"
+                        value={formData.pinCode || ''}
                         onChange={handleInputChange}
                         maxLength={6}
                         pattern="[0-9]{6}"
@@ -603,7 +607,7 @@ export default function Signup() {
 
                 <Separator />
 
-               
+
               </>
             ) : (
               // Step 2: Phone OTP Verification
@@ -636,8 +640,8 @@ export default function Signup() {
                       </InputOTPGroup>
                     </InputOTP>
                   </div>
-                  
-                  
+
+
                 </div>
 
                 {/* Verify Button */}
@@ -670,7 +674,7 @@ export default function Signup() {
                   </Button>
                 </div>
 
-               
+
               </>
             )}
 

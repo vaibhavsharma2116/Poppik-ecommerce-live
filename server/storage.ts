@@ -199,23 +199,42 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(userData: InsertUser): Promise<User> {
-    const db = await getDb();
-    const [user] = await db.insert(users).values({
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      email: userData.email,
-      phone: userData.phone || null,
-      password: userData.password,
-      dateOfBirth: userData.dateOfBirth || null,
-      address: userData.address || null,
-      city: userData.city || null,
-      state: userData.state || null,
-      pincode: userData.pincode || null,
-      role: userData.role || 'customer',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }).returning();
-    return user;
+    console.log("Creating user with data:", userData);
+    try {
+      // Test database connection first
+      await getDb(); // This will ensure connection is established or error is thrown
+
+      const [newUser] = await db!.insert(users).values({
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        phone: userData.phone || null,
+        password: userData.password,
+        dateOfBirth: userData.dateOfBirth || null,
+        address: userData.address || null,
+        city: userData.city || null,
+        state: userData.state || null,
+        pincode: userData.pincode || null,
+        role: userData.role || 'customer',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
+      console.log("User created successfully:", newUser);
+      return newUser;
+    } catch (error: any) {
+      console.error("Error creating user:", error);
+
+      // Provide more specific error messages
+      if (error.code === '23505') {
+        throw new Error("A user with this email already exists");
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        throw new Error("Database connection failed");
+      } else if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
+        throw new Error("Database tables not found. Please run database migrations.");
+      }
+
+      throw error;
+    }
   }
 
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {

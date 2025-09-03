@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
-import { pool } from "./storage";
+import { pool, storage } from "./storage";
 import { OTPService } from "./otp-service";
 import path from "path";
 import fs from "fs";
@@ -55,7 +55,7 @@ import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, produ
 import { DatabaseMonitor } from "./db-monitor";
 // Database connection with enhanced configuration
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb",
+  connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.11:5432/my_pgdb",
   ssl: process.env.DATABASE_URL?.includes('31.97.226.11') ? false : { rejectUnauthorized: false },
   max: 20,
   min: 2,
