@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
-import { storage } from "./storage";
+import { pool } from "./storage";
 import { OTPService } from "./otp-service";
 import path from "path";
 import fs from "fs";
@@ -32,7 +32,7 @@ function rateLimit(req: any, res: any, next: any) {
 
   recentRequests.push(now);
   rateLimitMap.set(clientIP, recentRequests);
-  
+
   // Clean up old entries periodically
   if (Math.random() < 0.01) { // 1% chance to clean up
     const cutoff = now - (RATE_LIMIT_WINDOW * 2);
@@ -45,7 +45,7 @@ function rateLimit(req: any, res: any, next: any) {
       }
     });
   }
-  
+
   next();
 }
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -137,7 +137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/health", async (req, res) => {
     let dbStatus = "disconnected";
     let poolStats = {};
-    
+
     try {
       await db.select().from(users).limit(1);
       dbStatus = "connected";
@@ -658,7 +658,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const duration = Date.now() - start;
 
           clearTimeout(timeoutId);
-          
+
           results.push({
             url,
             status: response.status,
@@ -2191,7 +2191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate sample subcategories for development
   function generateSampleSubcategories() {
     return [
-     
+
     ];
   }
 
@@ -2201,7 +2201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Map category slugs to subcategories
     const categorySubcategoryMap: Record<string, string[]> = {
-      
+
     };
 
     const subcategorySlugs = categorySubcategoryMap[categorySlug] || [];
@@ -2213,7 +2213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const sampleProducts = generateSampleProducts();
 
     const baseCategories = [
-     
+
     ];
 
     // Calculate dynamic product count for each category
@@ -2645,7 +2645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate sample products for development
   function generateSampleProducts() {
     return [
-      
+
     ];
   }
 

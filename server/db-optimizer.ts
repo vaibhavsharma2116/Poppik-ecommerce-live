@@ -1,4 +1,3 @@
-
 import { Pool } from "pg";
 
 export class DatabaseOptimizer {
@@ -10,14 +9,54 @@ export class DatabaseOptimizer {
 
   // Enable pg_stat_statements extension
   async enableStatements() {
-    const client = await this.pool.connect();
+    let client;
     try {
-      await client.query(`CREATE EXTENSION IF NOT EXISTS pg_stat_statements;`);
-      console.log("pg_stat_statements extension enabled");
+      // Set a shorter timeout for this specific operation
+      client = await Promise.race([
+        this.pool.connect(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Connection timeout')), 10000)
+        )
+      ]) as any;
+
+      // Quick test query with timeout
+      await Promise.race([
+        client.query('SELECT 1'),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Query timeout')), 5000)
+        )
+      ]);
+
+      // Check if extension is available first
+      const extensionCheck = await Promise.race([
+        client.query(`
+          SELECT EXISTS(
+            SELECT 1 FROM pg_available_extensions 
+            WHERE name = 'pg_stat_statements'
+          ) as available;
+        `),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Extension check timeout')), 5000)
+        )
+      ]) as any;
+
+      if (extensionCheck.rows[0]?.available) {
+        await client.query(`CREATE EXTENSION IF NOT EXISTS pg_stat_statements;`);
+        console.log("pg_stat_statements extension enabled");
+      } else {
+        console.log("pg_stat_statements extension not available - using alternative monitoring");
+      }
     } catch (error) {
-      console.error("Error enabling pg_stat_statements:", error);
+      console.log("pg_stat_statements extension not available - using alternative monitoring");
+      console.log("Error details:", error.message);
     } finally {
-      client.release();
+      if (client) {
+        try {
+          client.release();
+        } catch (releaseError) {
+          console.log("Error releasing client:", releaseError.message);
+        }
+      }
     }
   }
 
@@ -40,7 +79,7 @@ export class DatabaseOptimizer {
         ORDER BY total_exec_time DESC
         LIMIT 20;
       `, [minDurationMs]);
-      
+
       return result.rows;
     } catch (error) {
       console.log("pg_stat_statements extension not available");
@@ -70,7 +109,7 @@ export class DatabaseOptimizer {
           AND pid != pg_backend_pid()
         ORDER BY query_start DESC;
       `);
-      
+
       return result.rows;
     } finally {
       client.release();
@@ -95,7 +134,7 @@ export class DatabaseOptimizer {
           AND pid != pg_backend_pid()
         ORDER BY state_change ASC;
       `);
-      
+
       return result.rows;
     } finally {
       client.release();
@@ -117,7 +156,7 @@ export class DatabaseOptimizer {
           AND EXTRACT(EPOCH FROM (now() - query_start))/60 > $1
           AND pid != pg_backend_pid();
       `, [maxDurationMinutes]);
-      
+
       return result.rows;
     } finally {
       client.release();
@@ -139,7 +178,7 @@ export class DatabaseOptimizer {
           AND EXTRACT(EPOCH FROM (now() - state_change))/60 > $1
           AND pid != pg_backend_pid();
       `, [maxIdleMinutes]);
-      
+
       return result.rows;
     } finally {
       client.release();
@@ -166,7 +205,7 @@ export class DatabaseOptimizer {
         FROM pg_stat_user_tables
         ORDER BY n_live_tup DESC;
       `);
-      
+
       return result.rows;
     } finally {
       client.release();
@@ -189,7 +228,7 @@ export class DatabaseOptimizer {
         WHERE idx_scan = 0
         ORDER BY tablename;
       `);
-      
+
       return result.rows;
     } finally {
       client.release();
@@ -199,22 +238,22 @@ export class DatabaseOptimizer {
   // Analyze database performance
   async analyzePerformance() {
     console.log("🔍 Database Performance Analysis");
-    
+
     const slowQueries = await this.getSlowQueries(500);
     console.log("📊 Slow Queries:", slowQueries.length);
-    
+
     const activeConnections = await this.getActiveConnections();
     console.log("🔗 Active Connections:", activeConnections.length);
-    
+
     const idleConnections = await this.getIdleConnections();
     console.log("😴 Idle Connections:", idleConnections.length);
-    
+
     const tableStats = await this.getTableStats();
     console.log("📈 Tables with most activity:", tableStats.slice(0, 5));
-    
+
     const unusedIndexes = await this.getIndexStats();
     console.log("⚠️ Unused Indexes:", unusedIndexes.length);
-    
+
     return {
       slowQueries,
       activeConnections: activeConnections.length,

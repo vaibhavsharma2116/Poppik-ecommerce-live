@@ -34,23 +34,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Optimized pool configuration
-const poolConfig = {
-  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/postgres",
-  max: 20,                    // Maximum number of connections
-  min: 2,                     // Minimum number of connections
-  idleTimeoutMillis: 30000,   // Close idle connections after 30 seconds
-  connectionTimeoutMillis: 5000, // Timeout for acquiring connection
-  acquireTimeoutMillis: 60000,   // Max time to wait for connection
-  createTimeoutMillis: 30000,    // Max time to wait for new connection
-  destroyTimeoutMillis: 5000,    // Max time to wait for closing connection
-  reapIntervalMillis: 1000,      // How often to check for idle connections
-  createRetryIntervalMillis: 200, // Retry interval for failed connections
-};
 
-export const pool = new Pool(poolConfig);
 
-const pool = new Pool({
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb",
   ssl: process.env.DATABASE_URL?.includes('31.97.226.116') ? false : { rejectUnauthorized: false },
   max: 10, // Reduced from 20 to avoid too many connections

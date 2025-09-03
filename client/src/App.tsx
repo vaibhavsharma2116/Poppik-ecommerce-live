@@ -11,7 +11,7 @@ import ProductsPage from "@/pages/product";
 import ProductDetail from "@/pages/product-detail";
 import About from "@/pages/about";
 import Blog from "@/pages/blog";
-// import Contact from "@/pages/contact";
+import Contact from "@/pages/contact";
 import Login from "./pages/auth/login";
 import Signup from "./pages/auth/signup";
 import OTPVerification from "./pages/auth/otp-verification";
@@ -34,7 +34,6 @@ import AdminProfile from "@/pages/admin/profile";
 import AdminChangePassword from "@/pages/admin/change-password";
 import AdminSliders from "@/pages/admin/sliders";
 import AdminContactSubmissions from "@/pages/admin/contact-submissions";
-import Contact from "@/pages/contact";
 import NotFound from "@/pages/not-found";
 import { lazy, Suspense, startTransition, useEffect } from 'react';
 import AdminShades from "./pages/admin/shades";
@@ -54,11 +53,11 @@ const LoadingSpinner = () => (
 // Component to handle scroll restoration
 function ScrollToTop() {
   const [location] = useLocation();
-  
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location]);
-  
+
   return null;
 }
 

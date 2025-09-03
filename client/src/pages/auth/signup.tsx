@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Eye, EyeOff, Mail, Lock, User, Phone, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ export default function Signup() {
   const { toast } = useToast();
 
   // Countdown timer for resend
-  useState(() => {
+  useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
@@ -136,7 +136,7 @@ export default function Signup() {
           description: "Account created successfully!",
         });
         
-        window.location.href = "/profile"; // Redirect to profile
+        window.location.href = "/"; // Redirect to profile
       } else {
         toast({
           title: "Error",
@@ -637,31 +637,7 @@ export default function Signup() {
                     </InputOTP>
                   </div>
                   
-                  {/* Development OTP Display */}
-                  <div className="text-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
-                        try {
-                          const response = await fetch(`/api/auth/debug-otp/${formatPhoneNumber(formData.phone)}`);
-                          const result = await response.json();
-                          if (result.success) {
-                            toast({
-                              title: "Development OTP",
-                              description: `Your OTP is: ${result.otp}`,
-                              duration: 10000,
-                            });
-                          }
-                        } catch (error) {
-                          console.error('Debug OTP error:', error);
-                        }
-                      }}
-                      className="text-xs"
-                    >
-                      Show OTP (Dev)
-                    </Button>
-                  </div>
+                  
                 </div>
 
                 {/* Verify Button */}
@@ -672,6 +648,27 @@ export default function Signup() {
                 >
                   {isLoading ? "Creating Account..." : "Verify & Create Account"}
                 </Button>
+
+                {/* Resend OTP */}
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Didn't receive the code?
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={sendOTP}
+                    disabled={isLoading || countdown > 0}
+                    className="w-full"
+                  >
+                    {isLoading ? (
+                      "Sending..."
+                    ) : countdown > 0 ? (
+                      `Resend OTP in ${countdown}s`
+                    ) : (
+                      "Resend OTP"
+                    )}
+                  </Button>
+                </div>
 
                
               </>

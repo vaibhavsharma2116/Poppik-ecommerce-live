@@ -2,12 +2,14 @@
 import { Router } from "express";
 import { DatabaseOptimizer } from "./db-optimizer";
 import { DatabaseMonitor } from "./db-monitor";
+import { DatabaseHealth } from "./db-health";
 import { Pool } from "pg";
 
 export function createPerformanceRoutes(pool: Pool) {
   const router = Router();
   const optimizer = new DatabaseOptimizer(pool);
   const monitor = new DatabaseMonitor(pool);
+  const health = new DatabaseHealth(pool);
 
   // Get database performance overview
   router.get("/api/admin/performance", async (req, res) => {
@@ -40,6 +42,41 @@ export function createPerformanceRoutes(pool: Pool) {
     } catch (error) {
       console.error("Active connections error:", error);
       res.status(500).json({ error: "Failed to get connections" });
+    }
+  });
+
+  // Emergency cleanup endpoint
+  router.post("/api/admin/emergency-cleanup", async (req, res) => {
+    try {
+      const result = await health.emergencyCleanup();
+      res.json({ message: "Emergency cleanup completed", killedQueries: result });
+    } catch (error) {
+      console.error("Emergency cleanup error:", error);
+      res.status(500).json({ error: "Failed to perform emergency cleanup" });
+    }
+  });
+
+  // Database health check
+  router.get("/api/admin/db-health", async (req, res) => {
+    try {
+      const healthData = await health.checkDatabaseLoad();
+      const config = await health.checkConfig();
+      res.json({ health: healthData, config });
+    } catch (error) {
+      console.error("Health check error:", error);
+      res.status(500).json({ error: "Failed to check database health" });
+    }
+  });
+
+  // Kill specific long running queries
+  router.post("/api/admin/kill-queries", async (req, res) => {
+    try {
+      const { maxDurationMinutes = 2 } = req.body;
+      const result = await optimizer.killLongRunningQueries(maxDurationMinutes);
+      res.json({ killedQueries: result });
+    } catch (error) {
+      console.error("Kill queries error:", error);
+      res.status(500).json({ error: "Failed to kill queries" });
     }
   });
 

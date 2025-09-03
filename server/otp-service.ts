@@ -22,8 +22,8 @@ export class OTPService {
     try {
       // Clean and format phone number
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
-      const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12 
-        ? cleanedPhone.substring(2) 
+      const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12
+        ? cleanedPhone.substring(2)
         : cleanedPhone;
 
       if (formattedPhone.length !== 10) {
@@ -45,8 +45,8 @@ export class OTPService {
         verified: false
       });
 
-      // Send SMS via MDSSEND.IN
-      const smsSent = await this.sendSMS(formattedPhone, otp);
+      // Send SMS via MDSSEND.IN (pass with 91 prefix for API)
+      const smsSent = await this.sendSMS(`91${formattedPhone}`, otp);
 
       if (!smsSent) {
         console.error('Failed to send SMS via MDSSEND.IN');
@@ -80,8 +80,8 @@ export class OTPService {
     try {
       // Clean and format phone number
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
-      const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12 
-        ? cleanedPhone.substring(2) 
+      const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12
+        ? cleanedPhone.substring(2)
         : cleanedPhone;
 
       const otpData = otpStorage.get(formattedPhone);
@@ -137,14 +137,14 @@ export class OTPService {
         rejectUnauthorized: false
       }
     };
-    
+
     console.log('📧 Email transporter config:', {
       service: 'gmail',
       user: config.auth.user,
       passLength: config.auth.pass?.length || 0,
       passPreview: config.auth.pass ? `${config.auth.pass.substring(0, 4)}****` : 'undefined'
     });
-    
+
     return nodemailer.createTransporter(config);
   }
 
@@ -237,153 +237,92 @@ export class OTPService {
     otpStorage.delete(email);
   }
 
-  // SMS sending using correct API format
+  // SMS sending using the specific API format with route=OTP
   private static async sendSMS(phoneNumber: string, otp: string): Promise<boolean> {
     try {
       console.log('📱 Mobile OTP request for:', phoneNumber);
 
-      // Updated credentials and endpoint
+      // API credentials and parameters
       const username = 'Poppik';
       const apikey = 'IF2ppgKwK0Mm';
       const senderid = 'POPPIK';
-      const mobile = `91${phoneNumber}`;
-      const message = `Your OTP for verification is: ${otp}. Valid for 5 minutes. Do not share with anyone.`;
+      const mobile = phoneNumber; // Use phoneNumber directly without adding 91 prefix
+      const TID = '1707175646621729117';
+      const PEID = '1701175575743853955';
       
-      // Try different API endpoints - prioritize the working format
-      const apiEndpoints = [
-        // Format 1: Working format without route (from your logs)
-        {
-          url: `http://13.234.156.238/api.php?username=${username}&apikey=${apikey}&senderid=${senderid}&mobile=${mobile}&text=${encodeURIComponent(message)}`,
-          method: 'GET'
-        },
-        // Format 2: Try with route parameter set to different values
-        {
-          url: `http://13.234.156.238/api.php?username=${username}&apikey=${apikey}&senderid=${senderid}&route=1&mobile=${mobile}&text=${encodeURIComponent(message)}`,
-          method: 'GET'
-        },
-        // Format 3: Try promotional route
-        {
-          url: `http://13.234.156.238/api.php?username=${username}&apikey=${apikey}&senderid=${senderid}&route=2&mobile=${mobile}&text=${encodeURIComponent(message)}`,
-          method: 'GET'
-        },
-        // Format 4: Try transactional route
-        {
-          url: `http://13.234.156.238/api.php?username=${username}&apikey=${apikey}&senderid=${senderid}&route=transactional&mobile=${mobile}&text=${encodeURIComponent(message)}`,
-          method: 'GET'
-        },
-        // Format 5: Alternative API endpoint
-        {
-          url: `http://13.234.156.238/sendmsg.php?user=${username}&pass=${apikey}&sender=${senderid}&phone=${mobile}&text=${encodeURIComponent(message)}&priority=ndnd&stype=normal`,
-          method: 'GET'
-        },
-        // Format 6: POST format with form data
-        {
-          url: 'http://13.234.156.238/api.php',
-          method: 'POST',
-          body: new URLSearchParams({
-            username: username,
-            apikey: apikey,
-            senderid: senderid,
-            mobile: mobile,
-            text: message,
-            route: '1'
-          })
-        }
-      ];
+      // Dynamic message with OTP
+      const message = `Dear Poppik, your OTP for completing your registration is ${otp}. Please do not share this OTP with anyone. Visit us at www.poppik.in – Team Poppik`;
+
+      // Construct the API URL exactly as specified
+      const apiUrl = `http://13.234.156.238/api.php?username=${username}&apikey=${apikey}&senderid=${senderid}&route=OTP&mobile=${mobile}&text=${encodeURIComponent(message)}&TID=${TID}&PEID=${PEID}`;
 
       console.log('🔍 Sending SMS...');
-      console.log(`📱 To: +${mobile}`);
+      console.log(`📱 To: ${mobile}`);
       console.log(`📝 Message: ${message}`);
+      console.log(`🔗 API URL: ${apiUrl}`);
 
-      for (let i = 0; i < apiEndpoints.length; i++) {
-        const endpoint = apiEndpoints[i];
-        
-        try {
-          console.log(`🔗 Trying API format ${i + 1}:`, endpoint.url);
-
-          const fetchOptions: RequestInit = {
-            method: endpoint.method,
-            headers: {
-              'User-Agent': 'Poppik-Beauty-Store/1.0',
-              'Accept': 'text/plain, application/json, */*'
-            }
-          };
-
-          if (endpoint.method === 'POST') {
-            if (endpoint.contentType === 'application/json') {
-              fetchOptions.headers['Content-Type'] = 'application/json';
-              fetchOptions.body = endpoint.body;
-            } else {
-              fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-              fetchOptions.body = endpoint.body;
-            }
-          }
-
-          const response = await fetch(endpoint.url, fetchOptions);
-          const responseText = await response.text();
-
-          console.log(`📱 API Format ${i + 1} Response Status:`, response.status);
-          console.log(`📱 API Format ${i + 1} Response:`, responseText);
-
-          // Check for success indicators (more flexible matching)
-          const successIndicators = [
-            'success', 'sent', 'delivered', 'submitted', 'accepted',
-            'message sent', 'sms sent', 'ok', '1701', '1702', 'total invalid numbers : 0'
-          ];
-          
-          const errorIndicators = [
-            'undefined route', 'error', 'failed', 'invalid', 'unauthorized',
-            'insufficient', 'expired', 'blocked', 'rejected'
-          ];
-          
-          // Special handling for "Provide Route" - treat as partial success
-          const partialSuccessIndicators = [
-            'provide route', 'total invalid numbers : 0'
-          ];
-
-          const responseTextLower = responseText.toLowerCase();
-          const hasSuccess = successIndicators.some(indicator => 
-            responseTextLower.includes(indicator)
-          );
-          
-          const hasPartialSuccess = partialSuccessIndicators.some(indicator => 
-            responseTextLower.includes(indicator)
-          );
-          
-          const hasError = errorIndicators.some(indicator => 
-            responseTextLower.includes(indicator)
-          );
-
-          // Consider it successful if:
-          // 1. Response is OK and contains success indicator
-          // 2. Response contains "Total Invalid Numbers : 0" (means phone number is valid)
-          // 3. Response is OK and doesn't contain error indicator and is short (likely success code)
-          if (response.ok && (hasSuccess || hasPartialSuccess || (!hasError && responseText.length < 100))) {
-            console.log(`✅ SMS sent successfully using API format ${i + 1}`);
-            console.log(`📱 Success response: ${responseText}`);
-            return true;
-          }
-
-          console.log(`❌ API format ${i + 1} failed, trying next format...`);
-          
-        } catch (formatError) {
-          console.log(`❌ API format ${i + 1} error:`, formatError.message);
-          continue;
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Poppik-Beauty-Store/1.0',
+          'Accept': 'text/plain, application/json, */*'
         }
+      });
+
+      const responseText = await response.text();
+
+      console.log(`📱 SMS API Response Status:`, response.status);
+      console.log(`📱 SMS API Response:`, responseText);
+
+      // Check for success indicators
+      const successIndicators = [
+        'success', 'sent', 'delivered', 'submitted', 'accepted',
+        'message sent', 'sms sent', 'ok', 'queued'
+      ];
+
+      const errorIndicators = [
+        'error', 'failed', 'invalid', 'unauthorized', 
+        'insufficient', 'expired', 'blocked', 'rejected'
+      ];
+
+      const responseTextLower = responseText.toLowerCase();
+      const hasSuccess = successIndicators.some(indicator =>
+        responseTextLower.includes(indicator)
+      );
+
+      const hasError = errorIndicators.some(indicator =>
+        responseTextLower.includes(indicator)
+      );
+
+      // Consider successful if:
+      // 1. Response is OK AND contains success indicator
+      // 2. Response is OK AND is numeric (message ID) AND no errors
+      const isNumericResponse = /^\d+$/.test(responseText.trim());
+
+      if (response.ok && hasSuccess) {
+        console.log(`✅ SMS sent successfully`);
+        console.log(`📱 Success response: ${responseText}`);
+        return true;
+      } else if (response.ok && isNumericResponse && !hasError) {
+        console.log(`✅ SMS sent successfully (message ID: ${responseText})`);
+        return true;
+      } else if (hasError) {
+        console.log(`❌ SMS API returned error: ${responseText}`);
+      } else {
+        console.log(`⚠️ SMS API unclear response: ${responseText}`);
       }
 
-      // If all formats failed, log final error but still show OTP in console for development
-      console.log('❌ All SMS API formats failed');
+      // If SMS failed, still show OTP in console for development
       console.log('🔄 Development mode - OTP will work via console display');
       console.log('\n' + '='.repeat(60));
       console.log('📱 SMS FAILED - DEVELOPMENT OTP DISPLAY');
       console.log('='.repeat(60));
-      console.log(`📱 Phone: +91 ${phoneNumber}`);
+      console.log(`📱 Phone: ${phoneNumber}`);
       console.log(`🔐 OTP Code: ${otp}`);
       console.log(`⏰ Valid for: 5 minutes`);
       console.log(`📅 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
       console.log('='.repeat(60) + '\n');
-      
+
       return true; // Return true for development to allow OTP verification
 
     } catch (error) {
@@ -392,12 +331,12 @@ export class OTPService {
       console.log('\n' + '='.repeat(60));
       console.log('📱 SMS ERROR - DEVELOPMENT OTP DISPLAY');
       console.log('='.repeat(60));
-      console.log(`📱 Phone: +91 ${phoneNumber}`);
+      console.log(`📱 Phone: ${phoneNumber}`);
       console.log(`🔐 OTP Code: ${otp}`);
       console.log(`⏰ Valid for: 5 minutes`);
       console.log(`📅 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
       console.log('='.repeat(60) + '\n');
-      
+
       return true; // Return true for development to allow OTP verification
     }
   }
@@ -436,31 +375,31 @@ export class OTPService {
               <h1 style="color: white; margin: 0; font-size: 28px;">Beauty Store</h1>
               <p style="color: white; margin: 5px 0; opacity: 0.9;">Your OTP Verification Code</p>
             </div>
-            
+
             <div style="padding: 30px; background: #f8f9fa;">
               <h2 style="color: #333; margin-bottom: 20px;">Hello!</h2>
               <p style="color: #666; font-size: 16px; line-height: 1.6;">
                 You requested an OTP for verification. Please use the code below to complete your action:
               </p>
-              
+
               <div style="text-align: center; margin: 30px 0;">
                 <div style="background: #e74c3c; color: white; font-size: 32px; font-weight: bold; padding: 20px; border-radius: 8px; letter-spacing: 8px; display: inline-block;">
                   ${otp}
                 </div>
               </div>
-              
+
               <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 15px; margin: 20px 0;">
                 <p style="margin: 0; color: #856404; font-size: 14px;">
                   <strong>⏰ Important:</strong> This OTP is valid for 5 minutes only.
                 </p>
               </div>
-              
+
               <p style="color: #666; font-size: 14px; line-height: 1.6;">
                 If you didn't request this OTP, please ignore this email. For security reasons, please do not share this code with anyone.
               </p>
-              
+
               <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-              
+
               <div style="text-align: center; color: #999; font-size: 12px;">
                 <p>Beauty Store - Premium Beauty & Skincare Products</p>
                 <p>Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
@@ -498,7 +437,7 @@ Beauty Store - Premium Beauty & Skincare Products
       console.error('Response code:', error.responseCode);
       console.error('Command:', error.command);
       console.error('Full error:', error);
-      
+
       // Fallback: Always log to console for development
       console.log('\n' + '='.repeat(50));
       console.log('📧 EMAIL OTP (Fallback - Console Output)');
@@ -508,7 +447,7 @@ Beauty Store - Premium Beauty & Skincare Products
       console.log(`⏰ Valid for: 5 minutes`);
       console.log(`📅 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
       console.log('='.repeat(50) + '\n');
-      
+
       // Return true for development mode to allow OTP verification
       return true;
     }
