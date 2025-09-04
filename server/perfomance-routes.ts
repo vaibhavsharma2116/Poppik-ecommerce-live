@@ -48,11 +48,35 @@ export function createPerformanceRoutes(pool: Pool) {
   // Emergency cleanup endpoint
   router.post("/api/admin/emergency-cleanup", async (req, res) => {
     try {
-      const result = await health.emergencyCleanup();
-      res.json({ message: "Emergency cleanup completed", killedQueries: result });
+      const healthResult = await health.emergencyCleanup();
+      const cpuResult = await optimizer.emergencyCPUCleanup();
+      await optimizer.optimizeForHighLoad();
+      
+      res.json({ 
+        message: "Emergency cleanup completed", 
+        killedQueries: healthResult,
+        cpuCleanup: cpuResult,
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
       console.error("Emergency cleanup error:", error);
       res.status(500).json({ error: "Failed to perform emergency cleanup" });
+    }
+  });
+
+  // CPU emergency cleanup endpoint
+  router.post("/api/admin/cpu-emergency", async (req, res) => {
+    try {
+      const result = await optimizer.emergencyCPUCleanup();
+      await optimizer.optimizeForHighLoad();
+      res.json({ 
+        message: "CPU emergency cleanup completed", 
+        terminatedProcesses: result,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("CPU emergency cleanup error:", error);
+      res.status(500).json({ error: "Failed to perform CPU cleanup" });
     }
   });
 

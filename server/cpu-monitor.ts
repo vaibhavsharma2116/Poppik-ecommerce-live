@@ -48,6 +48,11 @@ export class CPUMonitor {
       try {
         const cpuUsage = await this.getCurrentCPUUsage();
         const postgresCPU = await this.getPostgresCPUUsage();
+        
+        // Kill high CPU processes immediately if CPU > 80%
+        if (cpuUsage > 80) {
+          await this.killHighCPUPostgresProcesses();
+        }
 
         if (cpuUsage > 90) {
           if (!this.highCPUWarned) {

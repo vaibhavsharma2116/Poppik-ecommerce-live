@@ -133,52 +133,68 @@ export default function AdminProducts() {
       
       console.log("Fetching data from APIs...");
       
-      const [productsRes, categoriesRes, subcategoriesRes] = await Promise.all([
-        fetch('/api/products'),
-        fetch('/api/categories'),
-        fetch('/api/subcategories')
-      ]);
-
-      console.log("API responses:", {
-        products: productsRes.status,
-        categories: categoriesRes.status,
-        subcategories: subcategoriesRes.status
-      });
+      // Fetch products first
+      const productsRes = await fetch('/api/products');
+      console.log("Products API response:", productsRes.status);
 
       if (!productsRes.ok) {
         const errorText = await productsRes.text();
+        console.error("Products API error:", errorText);
         throw new Error(`Products API error: ${productsRes.status} - ${errorText}`);
       }
-      if (!categoriesRes.ok) {
-        const errorText = await categoriesRes.text();
-        throw new Error(`Categories API error: ${categoriesRes.status} - ${errorText}`);
+
+      const productsData = await productsRes.json();
+      console.log("Products data received:", productsData?.length || 0, "products");
+
+      // Set products data immediately
+      setProducts(Array.isArray(productsData) ? productsData : []);
+      setFilteredProducts(Array.isArray(productsData) ? productsData : []);
+
+      // Fetch categories and subcategories in parallel
+      try {
+        const [categoriesRes, subcategoriesRes] = await Promise.all([
+          fetch('/api/categories'),
+          fetch('/api/subcategories')
+        ]);
+
+        console.log("Categories API response:", categoriesRes.status);
+        console.log("Subcategories API response:", subcategoriesRes.status);
+
+        let categoriesData = [];
+        let subcategoriesData = [];
+
+        if (categoriesRes.ok) {
+          categoriesData = await categoriesRes.json();
+          console.log("Categories data received:", categoriesData?.length || 0, "categories");
+        } else {
+          console.warn("Categories API failed, using empty array");
+        }
+
+        if (subcategoriesRes.ok) {
+          subcategoriesData = await subcategoriesRes.json();
+          console.log("Subcategories data received:", subcategoriesData?.length || 0, "subcategories");
+        } else {
+          console.warn("Subcategories API failed, using empty array");
+        }
+
+        setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+        setSubcategories(Array.isArray(subcategoriesData) ? subcategoriesData : []);
+
+      } catch (metaDataError) {
+        console.warn("Failed to fetch categories/subcategories:", metaDataError);
+        // Continue with empty arrays for categories and subcategories
+        setCategories([]);
+        setSubcategories([]);
       }
-      if (!subcategoriesRes.ok) {
-        const errorText = await subcategoriesRes.text();
-        throw new Error(`Subcategories API error: ${subcategoriesRes.status} - ${errorText}`);
-      }
 
-      const [productsData, categoriesData, subcategoriesData] = await Promise.all([
-        productsRes.json(),
-        categoriesRes.json(),
-        subcategoriesRes.json()
-      ]);
-
-      console.log("Fetched data:", {
-        products: productsData?.length || 0,
-        categories: categoriesData?.length || 0,
-        subcategories: subcategoriesData?.length || 0
-      });
-
-      setProducts(productsData || []);
-      setCategories(categoriesData || []);
-      setSubcategories(subcategoriesData || []);
-
-      // Initialize filtered products with all products
-      setFilteredProducts(productsData || []);
     } catch (err) {
       console.error("Fetch data error:", err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
+      // Set empty arrays on error
+      setProducts([]);
+      setCategories([]);
+      setSubcategories([]);
+      setFilteredProducts([]);
     } finally {
       setLoading(false);
     }
@@ -460,23 +476,44 @@ export default function AdminProducts() {
 
   // Update filtered products when search term changes
   useEffect(() => {
-    console.log("Products data:", products);
-    console.log("Products length:", products.length);
-    console.log("Loading state:", loading);
-    console.log("Error state:", error);
+    console.log("Search effect triggered:", {
+      searchTerm,
+      productsLength: products?.length || 0,
+      loading,
+      error
+    });
     
-    let filtered = products || [];
-
-    if (searchTerm) {
-      filtered = products.filter(product =>
-        product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product?.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product?.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    if (!Array.isArray(products)) {
+      console.warn("Products is not an array:", products);
+      setFilteredProducts([]);
+      return;
     }
 
-    console.log("Filtered products:", filtered);
-    console.log("Filtered products length:", filtered.length);
+    let filtered = [...products];
+
+    if (searchTerm && searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = products.filter(product => {
+        if (!product) return false;
+        
+        const name = product.name?.toLowerCase() || '';
+        const category = product.category?.toLowerCase() || '';
+        const description = product.description?.toLowerCase() || '';
+        const subcategory = product.subcategory?.toLowerCase() || '';
+        
+        return name.includes(term) || 
+               category.includes(term) || 
+               description.includes(term) ||
+               subcategory.includes(term);
+      });
+    }
+
+    console.log("Filtered results:", {
+      originalCount: products.length,
+      filteredCount: filtered.length,
+      searchTerm
+    });
+    
     setFilteredProducts(filtered);
   }, [searchTerm, products]);
 
@@ -491,10 +528,23 @@ export default function AdminProducts() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-slate-600">Loading products...</p>
+      <div className="flex-1 space-y-6 p-8 pt-6">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
+              Product Management
+            </h2>
+            <p className="text-slate-600 mt-1">Loading your beauty product inventory...</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-center p-12">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-pink-600" />
+            <p className="text-slate-600 text-lg">Loading products...</p>
+            <p className="text-slate-500 text-sm mt-2">This may take a moment</p>
+          </div>
         </div>
       </div>
     );
@@ -502,19 +552,44 @@ export default function AdminProducts() {
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center bg-red-50 border border-red-200 rounded-lg p-8 max-w-md mx-auto">
-          <div className="text-red-600 mb-4">
-            <AlertTriangle className="h-12 w-12 mx-auto" />
+      <div className="flex-1 space-y-6 p-8 pt-6">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
+              Product Management
+            </h2>
+            <p className="text-slate-600 mt-1">There was an error loading your products</p>
           </div>
-          <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Products</h3>
-          <p className="text-red-600 mb-4">{error}</p>
-          <button 
-            onClick={fetchData}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            Try Again
-          </button>
+        </div>
+        
+        <div className="flex items-center justify-center p-12">
+          <div className="text-center bg-red-50 border border-red-200 rounded-lg p-8 max-w-md mx-auto">
+            <div className="text-red-600 mb-4">
+              <AlertTriangle className="h-12 w-12 mx-auto" />
+            </div>
+            <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Products</h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <div className="space-y-2">
+              <button 
+                onClick={fetchData}
+                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Try Again
+              </button>
+              <button 
+                onClick={() => {
+                  setError(null);
+                  setProducts([]);
+                  setFilteredProducts([]);
+                  setLoading(false);
+                }}
+                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Continue with Empty State
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -620,10 +695,23 @@ export default function AdminProducts() {
                       : "Try adjusting your filter criteria"
                   }
                 </p>
-                <div className="mt-4 text-sm text-slate-500">
-                  Total products in database: {products.length}
-                  {searchTerm && ` | Search term: "${searchTerm}"`}
+                <div className="mt-4 text-sm text-slate-500 space-y-1">
+                  <div>Total products in database: {products?.length || 0}</div>
+                  {searchTerm && <div>Search term: "{searchTerm}"</div>}
+                  <div className="mt-2 text-xs">
+                    Debug: Loading={loading.toString()}, Error={error || 'none'}, Products Array={Array.isArray(products).toString()}
+                  </div>
                 </div>
+                {products.length === 0 && !loading && !error && (
+                  <div className="mt-6">
+                    <button 
+                      onClick={fetchData}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Refresh Data
+                    </button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : viewMode === 'grid' ? (

@@ -55,8 +55,8 @@ import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, produ
 import { DatabaseMonitor } from "./db-monitor";
 // Database connection with enhanced configuration
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.11:5432/my_pgdb",
-  ssl: process.env.DATABASE_URL?.includes('31.97.226.11') ? false : { rejectUnauthorized: false },
+ connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.11:5432/my_pgdb?sslmode=disable",
+  ssl: false,  // force disable SSL
   max: 20,
   min: 2,
   idleTimeoutMillis: 300000, // 5 minutes
@@ -368,7 +368,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customer: customerDetails.customerName
       });
 
-      // Create Cashfree order payload
+      // Create Cashfree order payload with proper HTTPS URLs
+      const host = req.get('host');
+      
+      // Force HTTPS for production domains or when forwarded from HTTPS proxy
+      let protocol = 'https';
+      
+      // Only use HTTP for localhost/development
+      if (host && (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0'))) {
+        protocol = req.protocol;
+      }
+      
+      // Also check various proxy headers
+      const forwardedProto = req.get('x-forwarded-proto') || req.get('x-forwarded-protocol') || req.get('x-url-scheme');
+      if (forwardedProto === 'https') {
+        protocol = 'https';
+      }
+
       const cashfreePayload = {
         order_id: orderId,
         order_amount: amount,
@@ -380,8 +396,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           customer_phone: customerDetails.customerPhone || '9999999999'
         },
         order_meta: {
-          return_url: `${req.protocol}://${req.get('host')}/checkout?payment=processing&orderId=${orderId}`,
-          notify_url: `${req.protocol}://${req.get('host')}/api/payments/cashfree/webhook`
+          return_url: `${protocol}://${host}/checkout?payment=processing&orderId=${orderId}`,
+          notify_url: `${protocol}://${host}/api/payments/cashfree/webhook`
         },
         order_note: orderNote || 'Beauty Store Purchase'
       };

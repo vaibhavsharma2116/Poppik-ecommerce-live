@@ -37,13 +37,12 @@ dotenv.config();
 
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb",
-  ssl: process.env.DATABASE_URL?.includes('31.97.226.116') ? false : { rejectUnauthorized: false },
-  max: 10, // Reduced from 20 to avoid too many connections
-  min: 1, // Reduced from 2 to minimize idle connections
-  idleTimeoutMillis: 60000, // 1 minute - close idle connections faster
-  connectionTimeoutMillis: 5000, // Reduced to 5 seconds
-  acquireTimeoutMillis: 5000, // Reduced acquisition timeout
+  connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb?sslmode=disable",
+  ssl: false,  // force disable SSL
+  max: 5, // Reduced from 20 to avoid too many connections
+  idleTimeoutMillis: 15000, // Reduced from 60000 to close idle connections faster
+  connectionTimeoutMillis: 2000, // Reduced to 2 seconds
+  // acquireTimeoutMillis: 5000, // Reduced acquisition timeout (not supported in pg)
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000, // 10 seconds
   allowExitOnIdle: true, // Allow pool to exit when idle
@@ -166,7 +165,7 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  private db: ReturnType<typeof drizzle>;
+  private db: ReturnType<typeof drizzle> | undefined;
 
   constructor() {
     // Initialize the database connection in the constructor
@@ -204,7 +203,7 @@ export class DatabaseStorage implements IStorage {
       // Test database connection first
       await getDb(); // This will ensure connection is established or error is thrown
 
-      const [newUser] = await db!.insert(users).values({
+      const [newUser] = await this.db!.insert(users).values({
         firstName: userData.firstName,
         lastName: userData.lastName,
         email: userData.email,

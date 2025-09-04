@@ -6,9 +6,14 @@ import { setupVite, serveStatic, log } from "./vite";
 import { pool } from "./storage";
 import { DatabaseMonitor } from "./db-monitor";
 import { DatabaseOptimizer } from "./db-optimizer";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables
-config();
+config({ path: path.resolve(process.cwd(), ".env") }); // dist ke bahar wali .env ko load karega
 
 // Optimize for production
 if (process.env.NODE_ENV === 'production') {
@@ -118,14 +123,14 @@ app.use((req, res, next) => {
   }
 
   // Serve the app on port 5000 (recommended for web apps)
-  const port = process.env.PORT || 5000;
+  const port = parseInt(process.env.PORT || '5000');
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
 
     // Optimize garbage collection
-    if (global.gc) {
+    if ((global as any).gc) {
       setInterval(() => {
-        global.gc();
+        (global as any).gc();
       }, 30000); // Run GC every 30 seconds
     }
   });

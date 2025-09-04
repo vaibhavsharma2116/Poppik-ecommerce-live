@@ -7,8 +7,60 @@ export class DatabaseOptimizer {
     this.pool = pool;
   }
 
+  // Emergency CPU reduction
+  async emergencyCPUCleanup(): Promise<any[]> {
+    const client = await this.pool.connect();
+    try {
+      // Kill all long running queries (> 30 seconds)
+      const result = await client.query(`
+        SELECT 
+          pg_terminate_backend(pid) as terminated,
+          pid,
+          query,
+          EXTRACT(EPOCH FROM (now() - query_start)) as duration_seconds
+        FROM pg_stat_activity 
+        WHERE state IN ('active', 'idle in transaction')
+          AND EXTRACT(EPOCH FROM (now() - query_start)) > 30
+          AND pid <> pg_backend_pid()
+          AND usename != 'postgres'
+      `);
+
+      // Also cancel all running queries
+      await client.query(`
+        SELECT pg_cancel_backend(pid)
+        FROM pg_stat_activity 
+        WHERE state = 'active'
+          AND pid <> pg_backend_pid()
+      `);
+
+      return result.rows;
+    } finally {
+      client.release();
+    }
+  }
+
+  // Optimize PostgreSQL configuration for high load
+  async optimizeForHighLoad(): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      // Set more aggressive timeout settings
+      await client.query("SET statement_timeout = '30s'");
+      await client.query("SET idle_in_transaction_session_timeout = '60s'");
+      await client.query("SET lock_timeout = '5s'");
+
+      // Reduce work_mem to prevent memory issues
+      await client.query("SET work_mem = '2MB'");
+
+      console.log("Applied high-load optimizations to PostgreSQL");
+    } catch (error) {
+      console.error("Error optimizing for high load:", error);
+    } finally {
+      client.release();
+    }
+  }
+
   // Enable pg_stat_statements extension
-  async enableStatements() {
+  async enableStatements(): Promise<void> {
     let client;
     try {
       // Set a shorter timeout for this specific operation
