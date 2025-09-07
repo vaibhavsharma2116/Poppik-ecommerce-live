@@ -12,8 +12,8 @@ export const users = pgTable("users", {
   dateOfBirth: varchar("date_of_birth", { length: 10 }),
   address: text("address"),
   role: varchar("role", { length: 20 }).notNull().default("user"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
 export const products = pgTable("products", {
@@ -148,15 +148,13 @@ export const orderNotificationsTable = pgTable("order_notifications", {
 export const insertOrderNotificationSchema = createInsertSchema(orderNotificationsTable);
 export const selectOrderNotificationSchema = createSelectSchema(orderNotificationsTable);
 
-import { sql } from "drizzle-orm";
-
 export const sliders = pgTable("sliders", {
   id: serial("id").primaryKey(),
   imageUrl: text("image_url").notNull(),
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const contactSubmissions = pgTable("contact_submissions", {
@@ -184,7 +182,7 @@ export const shades = pgTable("shades", {
   productIds: jsonb("product_ids"),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export type Shade = typeof shades.$inferSelect;
@@ -200,7 +198,7 @@ export const reviews = pgTable("reviews", {
   imageUrl: text("image_url"),
   isVerified: boolean("is_verified").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export type Review = typeof reviews.$inferSelect;

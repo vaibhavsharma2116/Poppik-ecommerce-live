@@ -4,8 +4,6 @@ import { config } from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { pool } from "./storage";
-import { DatabaseMonitor } from "./db-monitor";
-import { DatabaseOptimizer } from "./db-optimizer";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -77,31 +75,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Initialize database monitor and optimizer using existing pool
-  const dbMonitor = new DatabaseMonitor(pool);
-  const dbOptimizer = new DatabaseOptimizer(pool);
-
-  // Enable pg_stat_statements on startup
-  await dbOptimizer.enableStatements();
-
-  // Kill long running queries on startup
-  console.log("🔧 Cleaning up long running queries...");
-  await dbOptimizer.killLongRunningQueries(5); // Kill queries running longer than 5 minutes
-
-  // Close idle connections
-  console.log("🔧 Closing idle connections...");
-  await dbOptimizer.closeIdleConnections(10); // Close connections idle for more than 10 minutes
-
-  // Set up periodic database cleanup
-  setInterval(async () => {
-    try {
-      await dbOptimizer.killLongRunningQueries(10);
-      await dbOptimizer.closeIdleConnections(15);
-      console.log("🔄 Database cleanup completed");
-    } catch (error) {
-      console.error("Database cleanup error:", error);
-    }
-  }, 300000); // Run every 5 minutes
+  // Simple database connection test
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT 1');
+    client.release();
+    console.log("✅ Database connection verified");
+  } catch (error) {
+    console.error("❌ Database connection failed:", error);
+  }
 
   const server = await registerRoutes(app);
 

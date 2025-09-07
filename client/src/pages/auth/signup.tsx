@@ -137,9 +137,10 @@ export default function Signup() {
 
         window.location.href = "/"; // Redirect to profile
       } else {
+        console.error("Account creation failed:", data);
         toast({
           title: "Error",
-          description: data.error || "Failed to create account",
+          description: data.error || data.details || "Failed to create account",
           variant: "destructive",
         });
       }

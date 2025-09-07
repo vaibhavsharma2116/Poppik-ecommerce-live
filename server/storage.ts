@@ -13,6 +13,7 @@ import {
   orderItemsTable,
   blogPosts,
   blogCategories,
+  sliders,
   type Product,
   type Category,
   type Subcategory,
@@ -38,59 +39,31 @@ dotenv.config();
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.116:5432/my_pgdb?sslmode=disable",
-  ssl: false,  // force disable SSL
-  max: 5, // Reduced from 20 to avoid too many connections
-  idleTimeoutMillis: 15000, // Reduced from 60000 to close idle connections faster
-  connectionTimeoutMillis: 2000, // Reduced to 2 seconds
-  // acquireTimeoutMillis: 5000, // Reduced acquisition timeout (not supported in pg)
+  ssl: false,
+  max: 3, // Further reduced connections
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 5000,
   keepAlive: true,
-  keepAliveInitialDelayMillis: 10000, // 10 seconds
-  allowExitOnIdle: true, // Allow pool to exit when idle
-  query_timeout: 30000, // 30 second query timeout
-  statement_timeout: 30000, // 30 second statement timeout
+  keepAliveInitialDelayMillis: 0,
+  allowExitOnIdle: true,
 });
 
-let db: ReturnType<typeof drizzle> | undefined = undefined;
+// Single database instance - don't recreate
+const db = drizzle(pool);
 
-// Connection health check
-async function checkConnectionHealth() {
+// Simple connection test on startup
+(async () => {
   try {
     const client = await pool.connect();
     await client.query('SELECT 1');
     client.release();
-    return true;
+    console.log("✅ Database connected successfully");
   } catch (error) {
-    console.error("Database health check failed:", error);
-    return false;
+    console.error("❌ Database connection failed:", error);
   }
-}
-
-// Periodic health check every 30 seconds
-setInterval(async () => {
-  const isHealthy = await checkConnectionHealth();
-  if (!isHealthy) {
-    console.log("Database connection unhealthy, attempting to reconnect...");
-    // Reset db instance to force reconnection
-    db = undefined;
-  }
-}, 30000);
+})();
 
 async function getDb() {
-  if (!db) {
-    try {
-      // Test the connection
-      const client = await pool.connect();
-      await client.query('SELECT 1'); // Simple health check
-      client.release();
-      console.log("Database connected successfully (PostgreSQL)");
-      db = drizzle(pool);
-    } catch (error) {
-      console.error("Database connection failed:", error);
-      // Wait a bit before retrying
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      throw error;
-    }
-  }
   return db;
 }
 
@@ -162,26 +135,18 @@ export interface IStorage {
   createBlogCategory(categoryData: InsertBlogCategory): Promise<BlogCategory>; // Changed from any to InsertBlogCategory and BlogCategory
   updateBlogCategory(id: number, categoryData: Partial<InsertBlogCategory>): Promise<BlogCategory | undefined>; // Changed from any to Partial<InsertBlogCategory> and BlogCategory | undefined
   deleteBlogCategory(id: number): Promise<boolean>;
+
+  // Sliders
+  getSliders(): Promise<any[]>;
+  getActiveSliders(): Promise<any[]>;
+  createSlider(sliderData: any): Promise<any>;
+  updateSlider(id: number, sliderData: any): Promise<any>;
+  deleteSlider(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
-  private db: ReturnType<typeof drizzle> | undefined;
-
   constructor() {
-    // Initialize the database connection in the constructor
-    this.initializeDb();
-  }
-
-  private async initializeDb() {
-    if (!this.db) {
-      try {
-        this.db = drizzle(pool);
-        console.log("Database connected successfully (PostgreSQL) - inside DatabaseStorage");
-      } catch (error) {
-        console.error("Database connection failed:", error);
-        throw error;
-      }
-    }
+    // Database connection is handled by the singleton instance above
   }
 
   // Users
@@ -198,12 +163,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(userData: InsertUser): Promise<User> {
-    console.log("Creating user with data:", userData);
     try {
-      // Test database connection first
-      await getDb(); // This will ensure connection is established or error is thrown
+      console.log("Storage: Creating user with data:", {
+        ...userData,
+        password: "[HIDDEN]"
+      });
 
-      const [newUser] = await this.db!.insert(users).values({
+      // Validate required fields
+      if (!userData.firstName || !userData.lastName || !userData.email || !userData.password) {
+        throw new Error("Missing required fields: firstName, lastName, email, and password are required");
+      }
+
+      const database = await getDb();
+      const [user] = await database.insert(users).values({
         firstName: userData.firstName,
         lastName: userData.lastName,
         email: userData.email,
@@ -218,10 +190,15 @@ export class DatabaseStorage implements IStorage {
         createdAt: new Date(),
         updatedAt: new Date()
       }).returning();
-      console.log("User created successfully:", newUser);
-      return newUser;
+      console.log("Storage: User created successfully with ID:", user.id);
+      return user;
     } catch (error: any) {
-      console.error("Error creating user:", error);
+      console.error("Storage: Error creating user:", {
+        message: error.message,
+        code: error.code,
+        constraint: error.constraint,
+        detail: error.detail
+      });
 
       // Provide more specific error messages
       if (error.code === '23505') {
@@ -1077,8 +1054,8 @@ export class DatabaseStorage implements IStorage {
         .trim();
 
       // Ensure tags is properly formatted
-      const tags = Array.isArray(postData.tags) ? 
-        JSON.stringify(postData.tags) : 
+      const tags = Array.isArray(postData.tags) ?
+        JSON.stringify(postData.tags) :
         typeof postData.tags === 'string' ? postData.tags : '[]';
 
       const postToInsert = {
@@ -1306,6 +1283,60 @@ export class DatabaseStorage implements IStorage {
       return { liked, likesCount };
     } catch (error) {
       console.error("Error toggling blog post like:", error);
+      throw error;
+    }
+  }
+
+  // Slider Management Functions
+  async getSliders(): Promise<any[]> {
+    try {
+      const db = await getDb();
+      return await db.select().from(sliders).orderBy(asc(sliders.sortOrder));
+    } catch (error) {
+      console.error("Error fetching sliders:", error);
+      return [];
+    }
+  }
+
+  async getActiveSliders(): Promise<any[]> {
+    try {
+      const db = await getDb();
+      return await db.select().from(sliders).where(eq(sliders.isActive, true)).orderBy(asc(sliders.sortOrder));
+    } catch (error) {
+      console.error("Error fetching active sliders:", error);
+      return [];
+    }
+  }
+
+  async createSlider(sliderData: any): Promise<any> {
+    try {
+      const db = await getDb();
+      const [slider] = await db.insert(sliders).values(sliderData).returning();
+      return slider;
+    } catch (error) {
+      console.error("Error creating slider:", error);
+      throw error;
+    }
+  }
+
+  async updateSlider(id: number, sliderData: any): Promise<any> {
+    try {
+      const db = await getDb();
+      const [slider] = await db.update(sliders).set(sliderData).where(eq(sliders.id, id)).returning();
+      return slider;
+    } catch (error) {
+      console.error("Error updating slider:", error);
+      throw error;
+    }
+  }
+
+  async deleteSlider(id: number): Promise<boolean> {
+    try {
+      const db = await getDb();
+      const result = await db.delete(sliders).where(eq(sliders.id, id)).returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting slider:", error);
       throw error;
     }
   }

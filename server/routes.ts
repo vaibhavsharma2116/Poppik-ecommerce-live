@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
-import { pool, storage } from "./storage";
+import { storage } from "./storage";
 import { OTPService } from "./otp-service";
 import path from "path";
 import fs from "fs";
@@ -207,20 +207,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Public sliders endpoint for frontend
-  app.get('/api/sliders', async (req, res) => {
+  app.get("/api/sliders", async (req, res) => {
     try {
-      const activeSliders = await db
-        .select()
-        .from(sliders)
-        .where(eq(sliders.isActive, true))
-        .orderBy(asc(sliders.sortOrder));
-
+      const activeSliders = await storage.getActiveSliders();
       res.json(activeSliders);
     } catch (error) {
       console.error('Error fetching public sliders:', error);
+      // Fallback sample data if database is unavailable
       console.log("Database unavailable, using sample slider data");
-
-
+      res.json([
+        {
+          id: 1,
+          imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
+          isActive: true,
+          sortOrder: 1
+        },
+        {
+          id: 2,
+          imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
+          isActive: true,
+          sortOrder: 2
+        }
+      ]);
     }
   });
 
@@ -232,40 +240,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.post("/api/auth/signup", async (req, res) => {
     try {
-      const { firstName, lastName, email, phone, password, confirmPassword, dateOfBirth, address } = req.body;
+      console.log("Signup request received:", {
+        ...req.body,
+        password: req.body.password ? "[HIDDEN]" : undefined,
+        confirmPassword: req.body.confirmPassword ? "[HIDDEN]" : undefined
+      });
+
+      const { firstName, lastName, email, phone, password, confirmPassword, dateOfBirth, address, city, state, pinCode } = req.body;
 
       // Validation
       if (!firstName || !lastName || !email || !password || !dateOfBirth || !address) {
+        console.log("Missing required fields:", { firstName: !!firstName, lastName: !!lastName, email: !!email, password: !!password, dateOfBirth: !!dateOfBirth, address: !!address });
         return res.status(400).json({ error: "All required fields must be provided" });
       }
 
       if (password !== confirmPassword) {
+        console.log("Password mismatch during signup");
         return res.status(400).json({ error: "Passwords don't match" });
       }
 
       if (password.length < 6) {
+        console.log("Password too short:", password.length);
         return res.status(400).json({ error: "Password must be at least 6 characters" });
       }
 
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        console.log("Invalid email format:", email);
+        return res.status(400).json({ error: "Please provide a valid email address" });
+      }
+
+      console.log("Checking if user exists with email:", email);
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
+        console.log("User already exists with email:", email);
         return res.status(400).json({ error: "User already exists with this email" });
       }
 
+      console.log("Hashing password...");
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Create user
-      const user = await storage.createUser({
-        firstName,
-        lastName,
-        email,
-        phone,
+      console.log("Creating user in database...");
+      // Create user with all the form data
+      const userData = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone ? phone.trim() : null,
         password: hashedPassword,
-        dateOfBirth,
-        address
+        dateOfBirth: dateOfBirth.trim(),
+        address: `${address.trim()}${city ? `, ${city.trim()}` : ''}${state ? `, ${state.trim()}` : ''}${pinCode ? ` - ${pinCode.trim()}` : ''}`
+      };
+
+      console.log("User data to create:", {
+        ...userData,
+        password: "[HIDDEN]"
       });
+
+      const user = await storage.createUser(userData);
+      console.log("User created successfully with ID:", user.id);
 
       // Generate JWT token
       const token = jwt.sign(
@@ -276,14 +312,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Return user data (without password) and token
       const { password: _, ...userWithoutPassword } = user;
+
+      console.log("Signup successful for user:", userWithoutPassword.email);
       res.status(201).json({
         message: "User created successfully",
         user: userWithoutPassword,
         token
       });
     } catch (error) {
-      console.error("Signup error:", error);
-      res.status(500).json({ error: "Failed to create user" });
+      console.error("Signup error details:", {
+        message: error.message,
+        code: error.code,
+        constraint: error.constraint,
+        detail: error.detail,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+
+      // Handle specific database errors
+      if (error.code === '23505') { // Unique constraint violation
+        if (error.constraint && error.constraint.includes('email')) {
+          return res.status(400).json({ error: "A user with this email already exists" });
+        }
+        return res.status(400).json({ error: "A user with this information already exists" });
+      }
+
+      if (error.code === 'ECONNREFUSED') {
+        return res.status(500).json({ error: "Database connection error. Please try again." });
+      }
+
+      if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
+        return res.status(500).json({ error: "Database table not found. Please contact support." });
+      }
+
+      // Generic error response
+      res.status(500).json({ 
+        error: "Failed to create user", 
+        details: process.env.NODE_ENV === 'development' ? error.message : "Please try again or contact support if the problem persists."
+      });
     }
   });
 
@@ -370,15 +435,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create Cashfree order payload with proper HTTPS URLs
       const host = req.get('host');
-      
+
       // Force HTTPS for production domains or when forwarded from HTTPS proxy
       let protocol = 'https';
-      
+
       // Only use HTTP for localhost/development
       if (host && (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0'))) {
         protocol = req.protocol;
       }
-      
+
       // Also check various proxy headers
       const forwardedProto = req.get('x-forwarded-proto') || req.get('x-forwarded-protocol') || req.get('x-url-scheme');
       if (forwardedProto === 'https') {
@@ -3220,7 +3285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         <td>${item.name}</td>
                         <td class="text-right">${item.quantity}</td>
                         <td class="text-right">₹${unitPrice.toLocaleString('en-IN')}</td>
-                        <td class="text-right">₹${itemTotal.toLocaleString('en-IN')}</td>
+                        <td class="text-right">₹${itemItemTotal.toLocaleString('en-IN')}</td>
                     </tr>
                   `;
                 }).join('')}

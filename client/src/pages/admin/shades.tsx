@@ -726,17 +726,42 @@ export default function AdminShades() {
                         size="sm"
                         onClick={() => {
                           const filteredProducts = products.filter(product => {
-                            const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                            // If no categories selected, don't show any products
+                            if (formData.categoryIds.length === 0) {
+                              return false;
+                            }
+
+                            // First filter: Check if product matches selected categories
+                            const categoryMatch = formData.categoryIds.some(catId => {
                               const category = categories.find(c => c.id === catId);
-                              return category?.name.toLowerCase() === product.category.toLowerCase();
+                              if (!category) return false;
+                              const categoryName = category.name.toLowerCase().trim();
+                              const productCategory = product.category?.toLowerCase().trim();
+                              return productCategory === categoryName;
                             });
 
-                            const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
-                              const subcategory = subcategories.find(s => s.id === subId);
-                              return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
-                            });
+                            // If product doesn't match selected categories, exclude it
+                            if (!categoryMatch) return false;
 
-                            return categoryMatch || subcategoryMatch;
+                            // Second filter: If subcategories are selected, filter by them too
+                            if (formData.subcategoryIds.length > 0) {
+                              if (!product.subcategory) return false;
+
+                              const subcategoryMatch = formData.subcategoryIds.some(subId => {
+                                const subcategory = subcategories.find(s => s.id === subId);
+                                if (!subcategory) return false;
+                                const subcategoryName = subcategory.name.toLowerCase().trim();
+                                const productSubcategory = product.subcategory?.toLowerCase().trim();
+                                const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
+                                const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
+                                return productSubcategory === subcategoryName || normalizedProductSub === normalizedSubcategory;
+                              });
+
+                              return subcategoryMatch;
+                            }
+
+                            // If no subcategories selected, show all products from selected categories
+                            return true;
                           });
 
                           const allProductIds = filteredProducts.map(p => p.id);
@@ -755,17 +780,42 @@ export default function AdminShades() {
                         size="sm"
                         onClick={() => {
                           const filteredProducts = products.filter(product => {
-                            const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                            // If no categories selected, don't show any products
+                            if (formData.categoryIds.length === 0) {
+                              return false;
+                            }
+
+                            // First filter: Check if product matches selected categories
+                            const categoryMatch = formData.categoryIds.some(catId => {
                               const category = categories.find(c => c.id === catId);
-                              return category?.name.toLowerCase() === product.category.toLowerCase();
+                              if (!category) return false;
+                              const categoryName = category.name.toLowerCase().trim();
+                              const productCategory = product.category?.toLowerCase().trim();
+                              return productCategory === categoryName;
                             });
 
-                            const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
-                              const subcategory = subcategories.find(s => s.id === subId);
-                              return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
-                            });
+                            // If product doesn't match selected categories, exclude it
+                            if (!categoryMatch) return false;
 
-                            return categoryMatch || subcategoryMatch;
+                            // Second filter: If subcategories are selected, filter by them too
+                            if (formData.subcategoryIds.length > 0) {
+                              if (!product.subcategory) return false;
+
+                              const subcategoryMatch = formData.subcategoryIds.some(subId => {
+                                const subcategory = subcategories.find(s => s.id === subId);
+                                if (!subcategory) return false;
+                                const subcategoryName = subcategory.name.toLowerCase().trim();
+                                const productSubcategory = product.subcategory?.toLowerCase().trim();
+                                const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
+                                const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
+                                return productSubcategory === subcategoryName || normalizedProductSub === normalizedSubcategory;
+                              });
+
+                              return subcategoryMatch;
+                            }
+
+                            // If no subcategories selected, show all products from selected categories
+                            return true;
                           });
 
                           const allProductIds = filteredProducts.map(p => p.id);
@@ -784,19 +834,50 @@ export default function AdminShades() {
                       {(() => {
                         // Filter products based on selected categories and subcategories
                         const filteredProducts = products.filter(product => {
-                          // Check if product matches selected categories
-                          const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                          // If no categories selected, don't show any products
+                          if (formData.categoryIds.length === 0) {
+                            return false;
+                          }
+
+                          // First filter: Check if product matches selected categories
+                          const categoryMatch = formData.categoryIds.some(catId => {
                             const category = categories.find(c => c.id === catId);
-                            return category?.name.toLowerCase() === product.category.toLowerCase();
+                            if (!category) return false;
+
+                            const categoryName = category.name.toLowerCase().trim();
+                            const productCategory = product.category?.toLowerCase().trim();
+
+                            return productCategory === categoryName;
                           });
 
-                          // Check if product matches selected subcategories
-                          const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
-                            const subcategory = subcategories.find(s => s.id === subId);
-                            return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
-                          });
+                          // If product doesn't match selected categories, exclude it
+                          if (!categoryMatch) return false;
 
-                          return categoryMatch || subcategoryMatch;
+                          // Second filter: If subcategories are selected, filter by them too
+                          if (formData.subcategoryIds.length > 0) {
+                            // Only show products that match the selected subcategories
+                            if (!product.subcategory) return false;
+
+                            const subcategoryMatch = formData.subcategoryIds.some(subId => {
+                              const subcategory = subcategories.find(s => s.id === subId);
+                              if (!subcategory) return false;
+
+                              const subcategoryName = subcategory.name.toLowerCase().trim();
+                              const productSubcategory = product.subcategory?.toLowerCase().trim();
+
+                              // Also check for common variations
+                              const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
+                              const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
+
+                              return productSubcategory === subcategoryName || 
+                                     normalizedProductSub === normalizedSubcategory;
+                            });
+
+                            return subcategoryMatch;
+                          }
+
+                          // If no subcategories selected, show all products from selected categories
+                          return true;
                         });
 
                         return filteredProducts.length > 0 ? (
@@ -1077,17 +1158,42 @@ export default function AdminShades() {
                         size="sm"
                         onClick={() => {
                           const filteredProducts = products.filter(product => {
-                            const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                            // If no categories selected, don't show any products
+                            if (formData.categoryIds.length === 0) {
+                              return false;
+                            }
+
+                            // First filter: Check if product matches selected categories
+                            const categoryMatch = formData.categoryIds.some(catId => {
                               const category = categories.find(c => c.id === catId);
-                              return category?.name.toLowerCase() === product.category.toLowerCase();
+                              if (!category) return false;
+                              const categoryName = category.name.toLowerCase().trim();
+                              const productCategory = product.category?.toLowerCase().trim();
+                              return productCategory === categoryName;
                             });
 
-                            const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
-                              const subcategory = subcategories.find(s => s.id === subId);
-                              return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
-                            });
+                            // If product doesn't match selected categories, exclude it
+                            if (!categoryMatch) return false;
 
-                            return categoryMatch || subcategoryMatch;
+                            // Second filter: If subcategories are selected, filter by them too
+                            if (formData.subcategoryIds.length > 0) {
+                              if (!product.subcategory) return false;
+
+                              const subcategoryMatch = formData.subcategoryIds.some(subId => {
+                                const subcategory = subcategories.find(s => s.id === subId);
+                                if (!subcategory) return false;
+                                const subcategoryName = subcategory.name.toLowerCase().trim();
+                                const productSubcategory = product.subcategory?.toLowerCase().trim();
+                                const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
+                                const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
+                                return productSubcategory === subcategoryName || normalizedProductSub === normalizedSubcategory;
+                              });
+
+                              return subcategoryMatch;
+                            }
+
+                            // If no subcategories selected, show all products from selected categories
+                            return true;
                           });
 
                           const allProductIds = filteredProducts.map(p => p.id);
@@ -1106,17 +1212,42 @@ export default function AdminShades() {
                         size="sm"
                         onClick={() => {
                           const filteredProducts = products.filter(product => {
-                            const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                            // If no categories selected, don't show any products
+                            if (formData.categoryIds.length === 0) {
+                              return false;
+                            }
+
+                            // First filter: Check if product matches selected categories
+                            const categoryMatch = formData.categoryIds.some(catId => {
                               const category = categories.find(c => c.id === catId);
-                              return category?.name.toLowerCase() === product.category.toLowerCase();
+                              if (!category) return false;
+                              const categoryName = category.name.toLowerCase().trim();
+                              const productCategory = product.category?.toLowerCase().trim();
+                              return productCategory === categoryName;
                             });
 
-                            const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
-                              const subcategory = subcategories.find(s => s.id === subId);
-                              return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
-                            });
+                            // If product doesn't match selected categories, exclude it
+                            if (!categoryMatch) return false;
 
-                            return categoryMatch || subcategoryMatch;
+                            // Second filter: If subcategories are selected, filter by them too
+                            if (formData.subcategoryIds.length > 0) {
+                              if (!product.subcategory) return false;
+
+                              const subcategoryMatch = formData.subcategoryIds.some(subId => {
+                                const subcategory = subcategories.find(s => s.id === subId);
+                                if (!subcategory) return false;
+                                const subcategoryName = subcategory.name.toLowerCase().trim();
+                                const productSubcategory = product.subcategory?.toLowerCase().trim();
+                                const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
+                                const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
+                                return productSubcategory === subcategoryName || normalizedProductSub === normalizedSubcategory;
+                              });
+
+                              return subcategoryMatch;
+                            }
+
+                            // If no subcategories selected, show all products from selected categories
+                            return true;
                           });
 
                           const allProductIds = filteredProducts.map(p => p.id);
@@ -1135,19 +1266,50 @@ export default function AdminShades() {
                       {(() => {
                         // Filter products based on selected categories and subcategories
                         const filteredProducts = products.filter(product => {
-                          // Check if product matches selected categories
-                          const categoryMatch = formData.categoryIds.length === 0 || formData.categoryIds.some(catId => {
+                          // If no categories selected, don't show any products
+                          if (formData.categoryIds.length === 0) {
+                            return false;
+                          }
+
+                          // First filter: Check if product matches selected categories
+                          const categoryMatch = formData.categoryIds.some(catId => {
                             const category = categories.find(c => c.id === catId);
-                            return category?.name.toLowerCase() === product.category.toLowerCase();
+                            if (!category) return false;
+
+                            const categoryName = category.name.toLowerCase().trim();
+                            const productCategory = product.category?.toLowerCase().trim();
+
+                            return productCategory === categoryName;
                           });
 
-                          // Check if product matches selected subcategories
-                          const subcategoryMatch = formData.subcategoryIds.length === 0 || formData.subcategoryIds.some(subId => {
-                            const subcategory = subcategories.find(s => s.id === subId);
-                            return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
-                          });
+                          // If product doesn't match selected categories, exclude it
+                          if (!categoryMatch) return false;
 
-                          return categoryMatch || subcategoryMatch;
+                          // Second filter: If subcategories are selected, filter by them too
+                          if (formData.subcategoryIds.length > 0) {
+                            // Only show products that match the selected subcategories
+                            if (!product.subcategory) return false;
+
+                            const subcategoryMatch = formData.subcategoryIds.some(subId => {
+                              const subcategory = subcategories.find(s => s.id === subId);
+                              if (!subcategory) return false;
+
+                              const subcategoryName = subcategory.name.toLowerCase().trim();
+                              const productSubcategory = product.subcategory?.toLowerCase().trim();
+
+                              // Also check for common variations
+                              const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
+                              const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
+
+                              return productSubcategory === subcategoryName || 
+                                     normalizedProductSub === normalizedSubcategory;
+                            });
+
+                            return subcategoryMatch;
+                          }
+
+                          // If no subcategories selected, show all products from selected categories
+                          return true;
                         });
 
                         return filteredProducts.length > 0 ? (
@@ -1203,7 +1365,7 @@ export default function AdminShades() {
               </div>
             </div>
 
-            {/* Current form products preview */}
+            {/* Products Preview */}
             {(formData.categoryIds.length > 0 || formData.subcategoryIds.length > 0 || formData.productIds.length > 0) && (
               <div className="space-y-4">
                 <Label>Products that will use this shade</Label>

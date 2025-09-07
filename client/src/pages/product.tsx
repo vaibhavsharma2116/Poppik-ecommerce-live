@@ -15,7 +15,6 @@ import type { Product, Category } from "@/lib/types";
 
 export default function ProductsPage() {
   const search = useSearch();
-  const searchParams = new URLSearchParams(search);
   const [sortBy, setSortBy] = useState("popular");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -33,6 +32,7 @@ export default function ProductsPage() {
   // Handle initial URL parameter filtering
   useEffect(() => {
     if (allProducts) {
+      const searchParams = new URLSearchParams(search);
       const filterParam = searchParams.get('filter');
       let filtered = [...allProducts];
 
@@ -58,7 +58,7 @@ export default function ProductsPage() {
 
       setFilteredProducts(filtered);
     }
-  }, [allProducts, searchParams]);
+  }, [allProducts, search]);
 
   // Handle dynamic filter changes
   const handleFilterChange = (products: Product[], filters: any) => {
@@ -157,7 +157,6 @@ export default function ProductsPage() {
           <div className="hidden lg:block">
             <div className="sticky top-4">
               <DynamicFilter
-                key="desktop-filter"
                 products={allProducts || []}
                 categories={categories || []}
                 onFilterChange={handleFilterChange}

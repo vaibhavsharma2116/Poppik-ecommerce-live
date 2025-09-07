@@ -613,28 +613,7 @@ export default function ProductDetail() {
                   )}
                 </div>
 
-                {/* Product Benefits */}
-                {product.benefits && (
-                  <div className="mt-6 bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-4 border border-pink-100">
-                    <h4 className="text-lg font-bold text-gray-900 mb-3 flex items-center">
-                      <div className="w-5 h-5 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full mr-2"></div>
-                      Key Benefits
-                    </h4>
-                    <div className="space-y-2">
-                      {(Array.isArray(product.benefits) 
-                        ? product.benefits.slice(0, 4)
-                        : product.benefits.split('\n').filter(benefit => benefit.trim()).slice(0, 4)
-                      ).map((benefit, index) => (
-                        <div key={index} className="flex items-center space-x-2">
-                          <div className="w-4 h-4 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full flex items-center justify-center">
-                            <div className="w-2 h-2 bg-white rounded-full"></div>
-                          </div>
-                          <span className="text-sm text-gray-700 font-medium">{benefit.trim()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              
               </div>
             </div>
           </div>
