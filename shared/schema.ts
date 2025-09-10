@@ -254,3 +254,19 @@ export type BlogPost = typeof blogPosts.$inferSelect;
 export type InsertBlogPost = typeof blogPosts.$inferInsert;
 export type BlogCategory = typeof blogCategories.$inferSelect;
 export type InsertBlogCategory = typeof blogCategories.$inferInsert;
+
+// Category Sliders Table
+export const categorySliders = pgTable("category_sliders", {
+  id: serial("id").primaryKey(),
+  categoryId: integer("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
+  imageUrl: text("image_url").notNull(),
+  title: text("title"),
+  subtitle: text("subtitle"),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type CategorySlider = typeof categorySliders.$inferSelect;
+export type InsertCategorySlider = typeof categorySliders.$inferInsert;

@@ -125,22 +125,22 @@ export default function Home() {
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center mb-20">
-            <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-100 rounded-full mb-8 shadow-sm">
-              <span className="text-sm font-semibold text-transparent bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text">
+            <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-100 rounded-full mb-6 sm:mb-8 shadow-sm">
+              <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text">
                 ✨ Premium Beauty Collection
               </span>
             </div>
-            <h2 className="text-5xl md:text-6xl font-bold mb-8 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 sm:mb-8 tracking-tight">
               <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
                 Shop by Category
               </span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-light">
+            <p className="text-lg sm:text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-light">
               Discover our complete range of beauty and wellness products
               crafted with premium ingredients and designed for your unique
               beauty journey
             </p>
-            <div className="mt-8 w-24 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto rounded-full"></div>
+            <div className="mt-6 sm:mt-8 w-16 sm:w-24 h-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full mx-auto"></div>
           </div>
 
           {/* Dynamic Categories Grid - Mobile-first Design */}
@@ -226,43 +226,23 @@ export default function Home() {
 
           {/* Enhanced Products Section */}
           <div className="space-y-12">
-            <div className="text-center">
-              <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-full mb-6">
-                <span className="text-sm font-semibold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
-                  🌟 Curated Collection
-                </span>
+            <div>
+              <div className="text-center mb-4 sm:mb-6">
+                <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-full">
+                  <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
+                    🌟 Curated Collection
+                  </span>
+                </div>
               </div>
-              <h3 className="text-4xl md:text-5xl font-bold mb-4">
+              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-left">
                 <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
                   Our Products
                 </span>
               </h3>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed font-light mb-8">
+              {/* <p className="text-lg sm:text-xl text-gray-600 leading-relaxed font-light mb-6 sm:mb-8 text-left">
                 Handpicked beauty essentials crafted with love and designed for
                 your daily routine
-              </p>
-              {!allProductsLoading &&
-                allProducts &&
-                allProducts.length > 12 && (
-                  <Link href="/category/all">
-                    <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-3">
-                      <span>Explore All {allProducts.length} Products</span>
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 8l4 4m0 0l-4 4m4-4H3"
-                        />
-                      </svg>
-                    </Button>
-                  </Link>
-                )}
+              </p> */}
             </div>
 
             {/* Products Grid - 4 products per row */}
@@ -319,6 +299,32 @@ export default function Home() {
                       </Link>
                     </div>
                   )}
+                
+                {/* Explore All Products Button */}
+                {!allProductsLoading &&
+                  allProducts &&
+                  allProducts.length > 12 && (
+                    <div className="text-center mt-8">
+                      <Link href="/category/all">
+                        <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-3">
+                          <span>Explore All {allProducts.length} Products</span>
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17 8l4 4m0 0l-4 4m4-4H3"
+                            />
+                          </svg>
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
               </>
             )}
           </div>
@@ -334,39 +340,23 @@ export default function Home() {
         </div>
 
         <div className=" mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-full mb-8 shadow-sm">
-              <span className="text-sm font-semibold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
-                ⭐ Featured Products
-              </span>
+          <div className="mb-16">
+            <div className="text-center mb-6 sm:mb-8">
+              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-full shadow-sm">
+                <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
+                  ⭐ Featured Products
+                </span>
+              </div>
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-4 sm:mb-6 text-left">
               <span className="text-transparent bg-gradient-to-r from-purple-700 via-pink-600 to-purple-700 bg-clip-text">
                 Featured Collection
               </span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-light mb-8">
+            {/* <p className="text-lg sm:text-xl text-gray-600 leading-relaxed font-light mb-6 sm:mb-8 text-left">
               Our featured products, carefully selected for their exceptional
               quality and popularity
-            </p>
-            <Link href="/products?filter=featured">
-              <Button className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                <span>View All Featured ({featuredProducts?.length || 0})</span>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 8l4 4m0 0l-4 4m4-4H3"
-                  />
-                </svg>
-              </Button>
-            </Link>
+            </p> */}
           </div>
 
           {featuredLoading ? (
@@ -396,15 +386,26 @@ export default function Home() {
               </div>
 
               {/* View All Button */}
-              {featuredProducts.length > 8 && (
-                <div className="text-center mt-10">
-                  <Link href="/products?filter=featured">
-                    <Button className="btn-primary px-8 py-3 rounded-full">
-                      View All Featured Products ({featuredProducts.length})
-                    </Button>
-                  </Link>
-                </div>
-              )}
+              <div className="text-center mt-10">
+                <Link href="/products?filter=featured">
+                  <Button className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+                    <span>View All Featured ({featuredProducts?.length || 0})</span>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 8l4 4m0 0l-4 4m4-4H3"
+                      />
+                    </svg>
+                  </Button>
+                </Link>
+              </div>
             </>
           ) : (
             <div className="text-center py-12">
@@ -428,39 +429,23 @@ export default function Home() {
         </div>
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-full mb-8 shadow-sm animate-pulse">
-              <span className="text-sm font-semibold text-transparent bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text">
-                🚀 Fresh & New
-              </span>
+          <div className="mb-16">
+            <div className="text-center mb-6 sm:mb-8">
+              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-full shadow-sm animate-pulse">
+                <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text">
+                  🚀 Fresh & New
+                </span>
+              </div>
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-4 sm:mb-6 text-left">
               <span className="text-transparent bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-700 bg-clip-text">
                 New Launches
               </span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-light mb-8">
+            {/* <p className="text-lg sm:text-xl text-gray-600 leading-relaxed font-light mb-6 sm:mb-8 text-left">
               Discover our latest innovations - cutting-edge formulas and
               revolutionary beauty solutions
-            </p>
-            <Link href="/products?filter=newLaunch">
-              <Button className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                <span>Explore New Launches</span>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 8l4 4m0 0l-4 4m4-4H3"
-                  />
-                </svg>
-              </Button>
-            </Link>
+            </p> */}
           </div>
 
           {allProductsLoading ? (
@@ -490,6 +475,28 @@ export default function Home() {
                       className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300 relative"
                     />
                   ))}
+              </div>
+
+              {/* Explore New Launches Button */}
+              <div className="text-center mt-10">
+                <Link href="/products?filter=newLaunch">
+                  <Button className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+                    <span>Explore New Launches</span>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 8l4 4m0 0l-4 4m4-4H3"
+                      />
+                    </svg>
+                  </Button>
+                </Link>
               </div>
 
               {/* Show message if no new launch products */}
@@ -540,41 +547,23 @@ export default function Home() {
         </div>
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-100 rounded-full mb-8 shadow-sm">
-              <span className="text-sm font-semibold text-transparent bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text">
-                🏆 Customer Favorites
-              </span>
+          <div className="mb-16">
+            <div className="text-center mb-6 sm:mb-8">
+              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-100 rounded-full shadow-sm">
+                <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text">
+                  🏆 Customer Favorites
+                </span>
+              </div>
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-4 sm:mb-6 text-left">
               <span className="text-transparent bg-gradient-to-r from-amber-700 via-yellow-600 to-amber-700 bg-clip-text">
                 Bestsellers
               </span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-light mb-8">
+            {/* <p className="text-lg sm:text-xl text-gray-600 leading-relaxed font-light mb-6 sm:mb-8 text-left">
               Our most loved products by customers - tried, tested, and trusted
               by thousands
-            </p>
-            <Link href="/products?filter=bestseller">
-              <Button className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                <span>
-                  View All Bestsellers ({bestsellerProducts?.length || 0})
-                </span>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17 8l4 4m0 0l-4 4m4-4H3"
-                  />
-                </svg>
-              </Button>
-            </Link>
+            </p> */}
           </div>
 
           {bestsellersLoading ? (
@@ -607,15 +596,28 @@ export default function Home() {
               </div>
 
               {/* View All Button */}
-              {bestsellerProducts.length > 8 && (
-                <div className="text-center mt-10">
-                  <Link href="/products?filter=bestseller">
-                    <Button className="btn-primary px-8 py-3 rounded-full">
-                      View All Bestsellers ({bestsellerProducts.length})
-                    </Button>
-                  </Link>
-                </div>
-              )}
+              <div className="text-center mt-10">
+                <Link href="/products?filter=bestseller">
+                  <Button className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+                    <span>
+                      View All Bestsellers ({bestsellerProducts?.length || 0})
+                    </span>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 8l4 4m0 0l-4 4m4-4H3"
+                      />
+                    </svg>
+                  </Button>
+                </Link>
+              </div>
             </>
           ) : (
             <div className="text-center py-12">

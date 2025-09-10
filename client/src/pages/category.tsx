@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import type { Product, Category, Subcategory } from "@/lib/types";
 
 export default function CategoryPage() {
@@ -126,9 +127,99 @@ export default function CategoryPage() {
     return <div>Category not found</div>;
   }
 
+  // Get category sliders
+  const { data: categorySliderImages = [], isLoading: slidersLoading } = useQuery({
+    queryKey: [`/api/categories/slug/${categorySlug}/sliders`],
+    enabled: !!categorySlug,
+  });
+
+  // Fallback static slider data if no dynamic sliders exist
+  const fallbackSliderImages = [
+    {
+      id: 1,
+      imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
+      title: "Discover Amazing Products",
+      subtitle: "Find the perfect items for you"
+    },
+    {
+      id: 2,
+      imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
+      title: "Premium Quality Collection",
+      subtitle: "Curated just for you"
+    },
+    {
+      id: 3,
+      imageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
+      title: "Special Offers Available",
+      subtitle: "Don't miss out on great deals"
+    }
+  ];
+
+  // Use dynamic sliders if available, otherwise use fallback
+  const slidesToShow = categorySliderImages.length > 0 ? categorySliderImages : fallbackSliderImages;
+
+  const CategoryHeroSlider = () => {
+    const [api, setApi] = React.useState<any>();
+    const [current, setCurrent] = React.useState(0);
+    const [count, setCount] = React.useState(0);
+
+    React.useEffect(() => {
+      if (!api) return;
+
+      setCount(api.scrollSnapList().length);
+      setCurrent(api.selectedScrollSnap() + 1);
+
+      api.on("select", () => {
+        setCurrent(api.selectedScrollSnap() + 1);
+      });
+    }, [api]);
+
+    return (
+      <div className="mb-8 sm:mb-12">
+        <Carousel
+          setApi={setApi}
+          className="w-full"
+          opts={{
+            align: "start",
+            loop: true,
+          }}
+        >
+          <CarouselContent>
+            {slidesToShow.map((slide) => (
+              <CarouselItem key={slide.id}>
+                <div className="relative h-48 sm:h-64 md:h-80 lg:h-96 rounded-2xl sm:rounded-3xl overflow-hidden">
+                  <img
+                    src={slide.imageUrl}
+                    alt={slide.title || 'Category Banner'}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent">
+                    <div className="absolute bottom-8 left-8 text-white">
+                      <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
+                        {slide.title || 'Discover Amazing Products'}
+                      </h2>
+                      <p className="text-sm sm:text-base md:text-lg opacity-90">
+                        {slide.subtitle || 'Find the perfect items for you'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="left-4" />
+          <CarouselNext className="right-4" />
+        </Carousel>
+        
+        {/* Dot indicators */}
+        
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm mb-8">
           <Link href="/" className="text-gray-500 hover:text-gray-700">
@@ -140,17 +231,16 @@ export default function CategoryPage() {
           </span>
         </nav>
 
-        {/* Header */}
-        <div className="text-center mb-8 sm:mb-10 md:mb-12 px-2 sm:px-0">
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-xl sm:shadow-2xl border border-white/20 max-w-4xl mx-auto">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-3 sm:mb-4 md:mb-6 leading-tight">
-              {categoryLoading ? "Loading..." : category?.name}
-            </h1>
-            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-700 font-medium">
-              Discover our amazing {category?.name?.toLowerCase()} collection
-            </p>
+        {/* Hero Slider */}
+        {slidersLoading ? (
+          <div className="mb-8 sm:mb-12">
+            <div className="w-full h-48 sm:h-64 md:h-80 lg:h-96 rounded-2xl sm:rounded-3xl bg-gray-200 animate-pulse"></div>
           </div>
-        </div>
+        ) : (
+          <CategoryHeroSlider />
+        )}
+
+       
 
         {/* Controls */}
          <div className="lg:hidden mb-4 sm:mb-6 order-last lg:order-first">

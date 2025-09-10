@@ -51,11 +51,11 @@ function rateLimit(req: any, res: any, next: any) {
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, gte, lte, like, isNull, asc, or, sql } from "drizzle-orm";
 import { Pool } from "pg";
-import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, productImages, productShades, cashfreePayments } from "../shared/schema";
+import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, productImages, productShades, cashfreePayments, categorySliders } from "../shared/schema";
 import { DatabaseMonitor } from "./db-monitor";
 // Database connection with enhanced configuration
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://31.97.226.11:5432/my_pgdb?sslmode=disable",
+ connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/poppik?sslmode=disable",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -3928,9 +3928,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const productId = parseInt(id);
-      
+
       console.log("Updating product:", productId, "with data:", req.body);
-      
+
       const product = await storage.updateProduct(productId, req.body);
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
@@ -3940,10 +3940,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.body.images && Array.isArray(req.body.images)) {
         try {
           console.log("Updating product images:", req.body.images);
-          
+
           // Delete existing images
           await db.delete(productImages).where(eq(productImages.productId, productId));
-          
+
           // Insert new images
           if (req.body.images.length > 0) {
             await Promise.all(
@@ -3958,14 +3958,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               })
             );
           }
-          
+
           console.log("Product images updated successfully");
         } catch (imageError) {
           console.error('Error updating product images:', imageError);
           // Continue even if image update fails
         }
       }
-      
+
       res.json(product);
     } catch (error) {
       console.error("Product update error:", error);
@@ -4041,7 +4041,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const verifyDelete = await storage.getProduct(productId);
         if (verifyDelete) {
-          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          console.log(`WARNING: Product ${productId} still existsafter delete operation`);
           return res.status(500).json({
             error: "Product deletion verification failed - product still exists",
             success: false,

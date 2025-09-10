@@ -12,6 +12,10 @@ export default {
       'xl': '1280px',
       '2xl': '1536px',
     },
+    fontFamily: {
+      'sans': ['Poppins', 'system-ui', '-apple-system', 'sans-serif'],
+      'poppins': ['Poppins', 'sans-serif'],
+    },
     extend: {
       borderRadius: {
         lg: "var(--radius)",

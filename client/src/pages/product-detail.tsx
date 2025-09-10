@@ -245,7 +245,7 @@ export default function ProductDetail() {
       });
     }
 
-    localStorage.setItem("wishlist", JSON.JSON.stringify(wishlist));
+    localStorage.setItem("wishlist", JSON.stringify(wishlist));
     window.dispatchEvent(new Event("wishlistUpdated"));
   };
 
@@ -282,7 +282,7 @@ export default function ProductDetail() {
       cart.push(cartItem);
     }
 
-    localStorage.setItem("cart", JSON.JSON.stringify(cart));
+    localStorage.setItem("cart", JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
 
@@ -670,7 +670,7 @@ export default function ProductDetail() {
                       </span>
                     )}
                   </label>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-5 gap-3">
                   {/* None/No Shade Option */}
                   <div 
                     className="flex flex-col items-center group cursor-pointer"
@@ -689,7 +689,7 @@ export default function ProductDetail() {
                         </div>
                       )}
                       <div 
-                        className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl flex items-center justify-center ${
+                        className={`w-10 h-10 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl flex items-center justify-center ${
                           !selectedShade
                             ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105 bg-gray-100' 
                             : 'border-gray-300 hover:border-purple-400 bg-gray-50'
@@ -709,7 +709,7 @@ export default function ProductDetail() {
                   </div>
 
                   {(() => {
-                    const shadesToShow = showAllShades ? shades : shades.slice(0, 3);
+                    const shadesToShow = showAllShades ? shades : shades.slice(0, 4);
 
                     return shadesToShow.map((shade) => (
                       <div 
@@ -724,7 +724,7 @@ export default function ProductDetail() {
                             </div>
                           )}
                           <div 
-                            className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
+                            className={`w-10 h-10 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
                               selectedShade?.id === shade.id 
                                 ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105' 
                                 : 'border-gray-300 hover:border-purple-400'

@@ -10,19 +10,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2,
-  Eye,
-  Layers,
-  Tag,
-  FolderOpen,
-  Package,
-  TrendingUp
-} from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, Layers, Tag, FolderOpen, Package, TrendingUp, ImageIcon, X, Search, Edit } from "lucide-react";
 import type { Category, Subcategory } from "@/lib/types";
+import { AlertDialog, AlertDialogFooter, AlertDialogHeader } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@radix-ui/react-alert-dialog';
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  imageUrl: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface CategorySlider {
+  id: number;
+  categoryId: number;
+  imageUrl: string;
+  title: string;
+  subtitle: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function AdminCategories() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,7 +53,23 @@ export default function AdminCategories() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null);
 
+  // Slider Management State
+  const [isSliderModalOpen, setIsSliderModalOpen] = useState(false);
+  const [categorySliders, setCategorySliders] = useState<CategorySlider[]>([]);
+  const [selectedCategoryForSliders, setSelectedCategoryForSliders] = useState<Category | null>(null);
+  const [sliderFormData, setSliderFormData] = useState({
+    imageUrl: '',
+    title: '',
+    subtitle: '',
+    isActive: true,
+    sortOrder: 0
+  });
+  const [editingSlider, setEditingSlider] = useState<CategorySlider | null>(null);
+  const [selectedSliderImage, setSelectedSliderImage] = useState<File | null>(null);
+  const [sliderImagePreview, setSliderImagePreview] = useState<string | null>(null);
+
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch categories
   const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useQuery({
@@ -128,14 +159,14 @@ export default function AdminCategories() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(subcategory)
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         console.error('Subcategory creation failed:', data);
         throw new Error(data.error || 'Failed to create subcategory');
       }
-      
+
       return data;
     },
     onSuccess: () => {
@@ -248,10 +279,10 @@ export default function AdminCategories() {
 
       const data = await response.json();
       const uploadedUrl = data.imageUrl;
-      
+
       // Update the preview to show the uploaded image
       setImagePreview(uploadedUrl);
-      
+
       return uploadedUrl;
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -264,7 +295,7 @@ export default function AdminCategories() {
   const handleAddCategory = async () => {
     try {
       const slug = categoryFormData.slug || categoryFormData.name.toLowerCase().replace(/\s+/g, '-');
-      
+
       // Upload image if selected
       let imageUrl = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400';
       if (selectedImage) {
@@ -293,25 +324,25 @@ export default function AdminCategories() {
       alert('Subcategory name is required');
       return;
     }
-    
+
     if (!subcategoryFormData.description.trim()) {
       alert('Subcategory description is required');
       return;
     }
-    
+
     if (!subcategoryFormData.categoryId) {
       alert('Please select a parent category');
       return;
     }
-    
+
     const categoryId = parseInt(subcategoryFormData.categoryId);
     if (isNaN(categoryId) || categoryId <= 0) {
       alert('Please select a valid parent category');
       return;
     }
-    
+
     const slug = subcategoryFormData.slug || subcategoryFormData.name.toLowerCase().replace(/\s+/g, '-');
-    
+
     createSubcategoryMutation.mutate({
       ...subcategoryFormData,
       slug,
@@ -347,10 +378,10 @@ export default function AdminCategories() {
 
   const handleUpdateCategory = async () => {
     if (!editingCategory) return;
-    
+
     try {
       const slug = categoryFormData.slug || categoryFormData.name.toLowerCase().replace(/\s+/g, '-');
-      
+
       // Upload new image if selected, otherwise keep existing or use preview
       let imageUrl = editingCategory.imageUrl;
       if (selectedImage) {
@@ -417,6 +448,198 @@ export default function AdminCategories() {
       </div>
     );
   }
+
+  const resetForm = () => {
+    setCategoryFormData({
+      name: '',
+      slug: '',
+      description: '',
+      imageUrl: '',
+      status: 'Active'
+    });
+    setSelectedImage(null);
+    setImagePreview('');
+    setEditingCategory(null);
+  };
+
+  const resetSliderForm = () => {
+    setSliderFormData({
+      imageUrl: '',
+      title: '',
+      subtitle: '',
+      isActive: true,
+      sortOrder: 0
+    });
+    setSelectedSliderImage(null);
+    setSliderImagePreview('');
+    setEditingSlider(null);
+  };
+
+  const openSliderManager = async (category: Category) => {
+    setSelectedCategoryForSliders(category);
+    setIsSliderModalOpen(true);
+    await fetchCategorySliders(category.id);
+  };
+
+  const fetchCategorySliders = async (categoryId: number) => {
+    try {
+      const response = await fetch(`/api/admin/categories/${categoryId}/sliders`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch category sliders');
+      }
+
+      const sliders = await response.json();
+      setCategorySliders(sliders);
+    } catch (error) {
+      console.error('Error fetching category sliders:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch category sliders",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSliderImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedSliderImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setSliderImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadSliderImage = async (): Promise<string> => {
+    if (!selectedSliderImage) {
+      throw new Error('No image selected');
+    }
+
+    const formData = new FormData();
+    formData.append('image', selectedSliderImage);
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload image');
+    }
+
+    const data = await response.json();
+    return data.imageUrl;
+  };
+
+  const handleSliderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCategoryForSliders) return;
+
+    try {
+      setUploading(true);
+
+      let imageUrl = sliderFormData.imageUrl;
+
+      if (selectedSliderImage) {
+        imageUrl = await uploadSliderImage();
+      }
+
+      const sliderData = {
+        ...sliderFormData,
+        imageUrl,
+      };
+
+      const url = editingSlider 
+        ? `/api/admin/categories/${selectedCategoryForSliders.id}/sliders/${editingSlider.id}`
+        : `/api/admin/categories/${selectedCategoryForSliders.id}/sliders`;
+
+      const method = editingSlider ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sliderData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${editingSlider ? 'update' : 'create'} slider`);
+      }
+
+      toast({
+        title: "Success",
+        description: `Slider ${editingSlider ? 'updated' : 'created'} successfully`,
+      });
+
+      await fetchCategorySliders(selectedCategoryForSliders.id);
+      resetSliderForm();
+    } catch (error) {
+      console.error('Error saving slider:', error);
+      toast({
+        title: "Error",
+        description: `Failed to ${editingSlider ? 'update' : 'create'} slider`,
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleEditSlider = (slider: CategorySlider) => {
+    setEditingSlider(slider);
+    setSliderFormData({
+      imageUrl: slider.imageUrl,
+      title: slider.title || '',
+      subtitle: slider.subtitle || '',
+      isActive: slider.isActive,
+      sortOrder: slider.sortOrder
+    });
+    setSliderImagePreview(slider.imageUrl);
+  };
+
+  const handleDeleteSlider = async (sliderId: number) => {
+    if (!selectedCategoryForSliders) return;
+
+    try {
+      const response = await fetch(`/api/admin/categories/${selectedCategoryForSliders.id}/sliders/${sliderId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete slider');
+      }
+
+      toast({
+        title: "Success",
+        description: "Slider deleted successfully",
+      });
+
+      await fetchCategorySliders(selectedCategoryForSliders.id);
+    } catch (error) {
+      console.error('Error deleting slider:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete slider",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
@@ -556,34 +779,30 @@ export default function AdminCategories() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center space-x-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 w-8 p-0"
-                            onClick={() => {
-                              setSelectedCategory(category);
-                              setIsViewModalOpen(true);
-                            }}
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openSliderManager(category)}
+                            className="text-blue-600 hover:text-blue-700"
                           >
-                            <Eye className="h-4 w-4" />
+                            <ImageIcon className="h-4 w-4" />
                           </Button>
                           <Button 
-                            variant="ghost" 
+                            variant="outline" 
                             size="sm" 
-                            className="h-8 w-8 p-0"
                             onClick={() => handleEditCategory(category)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
                           <Button 
-                            variant="ghost" 
+                            variant="outline" 
                             size="sm" 
-                            className="h-8 w-8 p-0"
                             onClick={() => {
                               setSelectedCategory(category);
                               setIsDeleteModalOpen(true);
                             }}
+                            className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -1050,6 +1269,192 @@ export default function AdminCategories() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Slider Management Modal */}
+      <Dialog open={isSliderModalOpen} onOpenChange={setIsSliderModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Manage Sliders - {selectedCategoryForSliders?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Add and manage slider images for this category page
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Add/Edit Slider Form */}
+            <form onSubmit={handleSliderSubmit} className="space-y-4 p-4 border rounded-lg bg-gray-50">
+              <h3 className="text-lg font-semibold">
+                {editingSlider ? 'Edit Slider' : 'Add New Slider'}
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="slider-title">Title</Label>
+                  <Input
+                    id="slider-title"
+                    value={sliderFormData.title}
+                    onChange={(e) => setSliderFormData(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Slider title"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="slider-subtitle">Subtitle</Label>
+                  <Input
+                    id="slider-subtitle"
+                    value={sliderFormData.subtitle}
+                    onChange={(e) => setSliderFormData(prev => ({ ...prev, subtitle: e.target.value }))}
+                    placeholder="Slider subtitle"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="slider-sort-order">Sort Order</Label>
+                  <Input
+                    id="slider-sort-order"
+                    type="number"
+                    value={sliderFormData.sortOrder}
+                    onChange={(e) => setSliderFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex items-center space-x-2 mt-6">
+                  <input
+                    type="checkbox"
+                    id="slider-active"
+                    checked={sliderFormData.isActive}
+                    onChange={(e) => setSliderFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                    className="rounded"
+                  />
+                  <Label htmlFor="slider-active">Active</Label>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="slider-image">Slider Image</Label>
+                {sliderImagePreview ? (
+                  <div className="relative mt-2">
+                    <img 
+                      src={sliderImagePreview} 
+                      alt="Slider Preview" 
+                      className="w-full h-40 object-cover rounded-lg border shadow-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-2 right-2 h-8 w-8 p-0 rounded-full"
+                      onClick={() => {
+                        setSliderImagePreview('');
+                        setSelectedSliderImage(null);
+                        setSliderFormData(prev => ({ ...prev, imageUrl: '' }));
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Input
+                    id="slider-image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSliderImageSelect}
+                    className="mt-1"
+                  />
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="submit" disabled={uploading}>
+                  {uploading ? 'Saving...' : editingSlider ? 'Update Slider' : 'Add Slider'}
+                </Button>
+                {editingSlider && (
+                  <Button type="button" variant="outline" onClick={resetSliderForm}>
+                    Cancel Edit
+                  </Button>
+                )}
+              </div>
+            </form>
+
+            {/* Existing Sliders */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Existing Sliders</h3>
+              {categorySliders.length === 0 ? (
+                <p className="text-gray-500">No sliders added yet.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {categorySliders.map((slider) => (
+                    <div key={slider.id} className="border rounded-lg p-4 space-y-2">
+                      <img 
+                        src={slider.imageUrl} 
+                        alt={slider.title || 'Slider'} 
+                        className="w-full h-32 object-cover rounded"
+                      />
+                      <div>
+                        <h4 className="font-medium">{slider.title || 'No Title'}</h4>
+                        <p className="text-sm text-gray-600">{slider.subtitle || 'No Subtitle'}</p>
+                        <p className="text-xs text-gray-500">
+                          Order: {slider.sortOrder} | {slider.isActive ? 'Active' : 'Inactive'}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditSlider(slider)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteSlider(slider.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Modal */}
+      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. Are you sure you want to delete this {selectedCategory ? 'category' : 'subcategory'}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsDeleteModalOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (selectedCategory) {
+                  deleteCategoryMutation.mutate(selectedCategory.id);
+                } else if (selectedSubcategory) {
+                  deleteSubcategoryMutation.mutate(selectedSubcategory.id);
+                }
+                setIsDeleteModalOpen(false);
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

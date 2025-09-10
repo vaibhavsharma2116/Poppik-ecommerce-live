@@ -47,6 +47,18 @@ export interface Subcategory {
   slug: string;
 }
 
+export interface CategorySlider {
+  id: number;
+  categoryId: number;
+  imageUrl: string;
+  title: string;
+  subtitle: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;
