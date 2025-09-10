@@ -433,8 +433,8 @@ body {
   }
 
   .mobile-slider-image {
-    @apply w-full h-48 sm:h-64 md:h-80 lg:h-96 object-cover;
-    min-height: 200px;
+    @apply w-full h-64 sm:h-80 md:h-96 lg:h-[32rem] object-cover;
+    min-height: 400px;
   }
 
   .mobile-slider-content {
@@ -849,7 +849,9 @@ body {
 
   /* Slider specific styles for iPhone SE */
   .mobile-slider-image {
-    max-height: 65vh;
+    max-height: 90vh;
+    min-height: 450px;
+    height: 480px;
   }
 
   .mobile-slider-title {
@@ -904,7 +906,9 @@ body {
 
   /* Slider styles for iPhone 6/7/8 */
   .mobile-slider-image {
-    max-height: 60vh;
+    max-height: 85vh;
+    min-height: 500px;
+    height: 520px;
   }
 
   .mobile-slider-title {
@@ -1065,8 +1069,10 @@ body {
 
   /* Slider styles for iPhone 12/13/14 series */
   .mobile-slider-image {
-    @apply h-60;
-    min-height: 240px;
+    @apply h-96;
+    min-height: 500px;
+    max-height: 90vh;
+    height: 550px;
   }
 
   .mobile-slider-title {
@@ -1212,13 +1218,17 @@ body {
     @apply object-contain w-full;
     object-position: center;
     object-fit: contain;
-    max-height: 70vh;
+    max-height: 95vh;
+    min-height: 500px;
+    height: 550px;
   }
 
   @media (min-width: 640px) {
     .mobile-slider-image {
       object-fit: contain;
-      max-height: 60vh;
+      max-height: 90vh;
+      min-height: 550px;
+      height: 600px;
     }
   }
 

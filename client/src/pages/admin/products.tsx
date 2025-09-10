@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,12 +130,18 @@ export default function AdminProducts() {
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log("Fetching data from APIs...");
-      
-      // Fetch products first
-      const productsRes = await fetch('/api/products');
-      console.log("Products API response:", productsRes.status);
+
+      // Fetch products first with better error handling
+      const productsRes = await fetch('/api/products', {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log("Products API response:", productsRes.status, productsRes.statusText);
 
       if (!productsRes.ok) {
         const errorText = await productsRes.text();
@@ -144,11 +150,15 @@ export default function AdminProducts() {
       }
 
       const productsData = await productsRes.json();
-      console.log("Products data received:", productsData?.length || 0, "products");
+      console.log("Raw products data:", productsData);
+      console.log("Products data received:", Array.isArray(productsData) ? productsData.length : 'Not an array', "products");
 
-      // Set products data immediately
-      setProducts(Array.isArray(productsData) ? productsData : []);
-      setFilteredProducts(Array.isArray(productsData) ? productsData : []);
+      // Validate and set products data
+      const validProductsData = Array.isArray(productsData) ? productsData : [];
+      console.log("Setting products:", validProductsData.length);
+
+      setProducts(validProductsData);
+      setFilteredProducts(validProductsData);
 
       // Fetch categories and subcategories in parallel
       try {
@@ -182,7 +192,6 @@ export default function AdminProducts() {
 
       } catch (metaDataError) {
         console.warn("Failed to fetch categories/subcategories:", metaDataError);
-        // Continue with empty arrays for categories and subcategories
         setCategories([]);
         setSubcategories([]);
       }
@@ -190,7 +199,6 @@ export default function AdminProducts() {
     } catch (err) {
       console.error("Fetch data error:", err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
-      // Set empty arrays on error
       setProducts([]);
       setCategories([]);
       setSubcategories([]);
@@ -469,20 +477,43 @@ export default function AdminProducts() {
     }
   };
 
-    // Handle dynamic filter changes
-  const handleFilterChange = (filteredProducts: Product[], activeFilters: any) => {
-    setFilteredProducts(filteredProducts);
-  };
+    // State to track if dynamic filter is active
+  const [isDynamicFilterActive, setIsDynamicFilterActive] = useState(false);
 
-  // Update filtered products when search term changes
+  // Handle dynamic filter changes
+  const handleFilterChange = useCallback((filteredProducts: Product[], activeFilters: any) => {
+    console.log("Filter change:", {
+      filteredCount: filteredProducts.length,
+      activeFilters
+    });
+    
+    // Check if any filters are actually active
+    const hasActiveFilters = Object.keys(activeFilters).some(key => {
+      const value = activeFilters[key];
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'number') return value > 0;
+      if (typeof value === 'string') return value.trim() !== '';
+      return false;
+    });
+
+    setIsDynamicFilterActive(hasActiveFilters);
+    setFilteredProducts(filteredProducts);
+  }, []);
+
+  // Update filtered products when search term changes (only if dynamic filter is not active)
   useEffect(() => {
+    // Don't override filtered products if dynamic filter is controlling them
+    if (isDynamicFilterActive) return;
+
     console.log("Search effect triggered:", {
       searchTerm,
       productsLength: products?.length || 0,
       loading,
-      error
+      error,
+      isDynamicFilterActive
     });
-    
+
     if (!Array.isArray(products)) {
       console.warn("Products is not an array:", products);
       setFilteredProducts([]);
@@ -495,12 +526,12 @@ export default function AdminProducts() {
       const term = searchTerm.toLowerCase().trim();
       filtered = products.filter(product => {
         if (!product) return false;
-        
+
         const name = product.name?.toLowerCase() || '';
         const category = product.category?.toLowerCase() || '';
         const description = product.description?.toLowerCase() || '';
         const subcategory = product.subcategory?.toLowerCase() || '';
-        
+
         return name.includes(term) || 
                category.includes(term) || 
                description.includes(term) ||
@@ -513,9 +544,9 @@ export default function AdminProducts() {
       filteredCount: filtered.length,
       searchTerm
     });
-    
+
     setFilteredProducts(filtered);
-  }, [searchTerm, products]);
+  }, [searchTerm, products, loading, error, isDynamicFilterActive]);
 
   const lowStockCount = products.filter(p => !p.inStock).length;
   const bestSeller = products.find(p => p.bestseller);

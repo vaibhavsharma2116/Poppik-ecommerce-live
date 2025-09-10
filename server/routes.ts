@@ -88,11 +88,11 @@ const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID || 'cashfree_app_id';
 const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY || 'cashfree_secret_key';
 
 // Determine environment based on credentials or explicit env variable
-const isProduction = process.env.CASHFREE_BASE_URL === 'production' || 
+const isProduction = process.env.CASHFREE_BASE_URL === 'production' ||
                     (process.env.CASHFREE_SECRET_KEY && process.env.CASHFREE_SECRET_KEY.includes('prod'));
 
-const CASHFREE_BASE_URL = isProduction 
-  ? 'https://api.cashfree.com' 
+const CASHFREE_BASE_URL = isProduction
+  ? 'https://api.cashfree.com'
   : 'https://sandbox.cashfree.com';
 
 const CASHFREE_MODE = isProduction ? 'production' : 'sandbox';
@@ -150,8 +150,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       dbStatus = "disconnected";
     }
 
-    res.json({ 
-      status: "OK", 
+    res.json({
+      status: "OK",
       message: "API server is running",
       database: dbStatus,
       poolStats,
@@ -345,8 +345,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Generic error response
-      res.status(500).json({ 
-        error: "Failed to create user", 
+      res.status(500).json({
+        error: "Failed to create user",
         details: process.env.NODE_ENV === 'development' ? error.message : "Please try again or contact support if the problem persists."
       });
     }
@@ -404,23 +404,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate required fields
       if (!amount || !orderId || !currency || !customerDetails) {
-        return res.status(400).json({ 
-          error: "Missing required fields: amount, orderId, currency, and customerDetails are required" 
+        return res.status(400).json({
+          error: "Missing required fields: amount, orderId, currency, and customerDetails are required"
         });
       }
 
       // Validate customerDetails structure
       if (!customerDetails.customerId || !customerDetails.customerName || !customerDetails.customerEmail) {
-        return res.status(400).json({ 
-          error: "customerDetails must include customerId, customerName, and customerEmail" 
+        return res.status(400).json({
+          error: "customerDetails must include customerId, customerName, and customerEmail"
         });
       }
 
       // Check if Cashfree is configured
-      if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY || 
+      if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY ||
           CASHFREE_APP_ID === 'cashfree_app_id' || CASHFREE_SECRET_KEY === 'cashfree_secret_key') {
         console.log("Cashfree not configured properly");
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "Cashfree payment gateway is not configured",
           configError: true
         });
@@ -489,7 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!cashfreeResponse.ok) {
         console.error("Cashfree API error:", cashfreeResult);
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: cashfreeResult.message || "Failed to create Cashfree order",
           cashfreeError: true,
           details: cashfreeResult
@@ -521,7 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Cashfree create order error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to create payment order",
         details: error.message
       });
@@ -539,11 +539,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Verifying payment for order:", orderId);
 
       // Check Cashfree configuration
-      if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY || 
+      if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY ||
           CASHFREE_APP_ID === 'cashfree_app_id' || CASHFREE_SECRET_KEY === 'cashfree_secret_key') {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "Cashfree payment gateway is not configured",
-          verified: false 
+          verified: false
         });
       }
 
@@ -564,9 +564,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!statusResponse.ok) {
         console.error("Cashfree verification error:", statusResult);
-        return res.json({ 
-          verified: false, 
-          error: "Failed to verify payment status" 
+        return res.json({
+          verified: false,
+          error: "Failed to verify payment status"
         });
       }
 
@@ -575,7 +575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update payment record in database
       try {
         await db.update(cashfreePayments)
-          .set({ 
+          .set({
             status: isPaymentSuccessful ? 'completed' : 'failed',
             paymentId: statusResult.cf_order_id || null,
             completedAt: isPaymentSuccessful ? new Date() : null
@@ -594,9 +594,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Payment verification error:", error);
-      res.json({ 
-        verified: false, 
-        error: "Payment verification failed" 
+      res.json({
+        verified: false,
+        error: "Payment verification failed"
       });
     }
   });
@@ -704,7 +704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           configured: !!process.env.MDSSEND_API_KEY && !!process.env.MDSSEND_SENDER_ID,
           possibleIssues: [
             "Invalid API credentials",
-            "Network connectivity issues", 
+            "Network connectivity issues",
             "MDSSEND.IN API is down",
             "Incorrect API endpoint URL",
             "Phone number format issues"
@@ -777,14 +777,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Clean phone number the same way as in sendMobileOTP
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
-      const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12 
-        ? cleanedPhone.substring(2) 
+      const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12
+        ? cleanedPhone.substring(2)
         : cleanedPhone;
 
       const otpData = OTPService.otpStorage.get(formattedPhone);
 
       if (otpData && new Date() <= otpData.expiresAt) {
-        res.json({ 
+        res.json({
           otp: otpData.otp,
           phoneNumber: formattedPhone,
           expiresAt: otpData.expiresAt,
@@ -805,14 +805,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Clean phone number the same way as in sendMobileOTP
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
-      const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12 
-        ? cleanedPhone.substring(2) 
+      const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12
+        ? cleanedPhone.substring(2)
         : cleanedPhone;
 
       const otpData = OTPService.otpStorage.get(formattedPhone);
 
       if (otpData && new Date() <= otpData.expiresAt) {
-        res.json({ 
+        res.json({
           success: true,
           otp: otpData.otp,
           phoneNumber: formattedPhone,
@@ -820,14 +820,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           remainingTime: Math.max(0, Math.floor((otpData.expiresAt.getTime() - Date.now()) / 1000))
         });
       } else {
-        res.json({ 
+        res.json({
           success: false,
           error: "No valid OTP found",
           phoneNumber: formattedPhone
         });
       }
     } catch (error) {
-      res.json({ 
+      res.json({
         success: false,
         error: "Failed to get OTP",
         details: error.message
@@ -1057,7 +1057,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const etag = res.getHeader('ETag');
     const lastModified = res.getHeader('Last-Modified');
 
-    if ((ifNoneMatch && ifNoneMatch === etag) || 
+    if ((ifNoneMatch && ifNoneMatch === etag) ||
         (ifModifiedSince && new Date(ifModifiedSince) >= new Date(lastModified))) {
       return res.status(304).end();
     }
@@ -1072,8 +1072,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pipeline = pipeline.resize(
             width ? parseInt(width as string) : undefined,
             height ? parseInt(height as string) : undefined,
-            { 
-              fit: 'cover', 
+            {
+              fit: 'cover',
               position: 'center',
               withoutEnlargement: true
             }
@@ -1121,7 +1121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Return the file URL
       const imageUrl = `/api/images/${req.file.filename}`;
-      res.json({ 
+      res.json({
         imageUrl,
         message: "Image uploaded successfully",
         filename: req.file.filename,
@@ -1130,9 +1130,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Image upload error:", error);
-      res.status(500).json({ 
-        error: "Failed to upload image", 
-        details: error.message 
+      res.status(500).json({
+        error: "Failed to upload image",
+        details: error.message
       });
     }
   });
@@ -1146,7 +1146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Return the file URL
       const imageUrl = `/api/images/${req.file.filename}`;
-      res.json({ 
+      res.json({
         success: true,
         imageUrl,
         message: "Image uploaded successfully"
@@ -1160,28 +1160,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Products API
   app.get("/api/products", async (req, res) => {
     try {
+      console.log("GET /api/products - Fetching products...");
+
+      res.setHeader('Content-Type', 'application/json');
+
       const products = await storage.getProducts();
+      console.log("Products fetched:", products?.length || 0);
+
+      if (!Array.isArray(products)) {
+        console.warn("Products is not an array, returning empty array");
+        return res.json([]);
+      }
 
       // Get images for each product
       const productsWithImages = await Promise.all(
         products.map(async (product) => {
-          const images = await storage.getProductImages(product.id);
-          return {
-            ...product,
-            images: images.map(img => ({
-              id: img.id,
-              url: img.imageUrl,
-              isPrimary: img.isPrimary,
-              sortOrder: img.sortOrder
-            }))
-          };
+          try {
+            const images = await storage.getProductImages(product.id);
+            return {
+              ...product,
+              images: images.map(img => ({
+                id: img.id,
+                url: img.imageUrl,
+                isPrimary: img.isPrimary,
+                sortOrder: img.sortOrder
+              }))
+            };
+          } catch (imgError) {
+            console.warn(`Failed to get images for product ${product.id}:`, imgError.message);
+            return {
+              ...product,
+              images: []
+            };
+          }
         })
       );
 
+      console.log("Returning products with images:", productsWithImages.length);
       res.json(productsWithImages);
     } catch (error) {
+      console.error("Products API error:", error);
       console.log("Database unavailable, using sample product data");
-      res.json(generateSampleProducts());
+      res.json([]);
     }
   });
 
@@ -1195,20 +1215,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate required fields
       const { name, price, category, description } = req.body;
       if (!name || !price || !category || !description) {
-        return res.status(400).json({ 
-          error: "Missing required fields: name, price, category, and description are required" 
+        return res.status(400).json({
+          error: "Missing required fields: name, price, category, and description are required"
         });
       }
 
       if (name.trim().length === 0 || description.trim().length === 0) {
-        return res.status(400).json({ 
-          error: "Name and description cannot be empty" 
+        return res.status(400).json({
+          error: "Name and description cannot be empty"
         });
       }
 
       if (isNaN(Number(price)) || Number(price) <= 0) {
-        return res.status(400).json({ 
-          error: "Price must be a valid positive number" 
+        return res.status(400).json({
+          error: "Price must be a valid positive number"
         });
       }
 
@@ -1228,11 +1248,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const product = await storage.createProduct(productData);
       console.log("Product created successfully:", product);
 
+      // Store product images if any were uploaded
+      if (req.body.images && Array.isArray(req.body.images) && req.body.images.length > 0) {
+        try {
+          console.log("Storing product images:", req.body.images);
+          await Promise.all(
+            req.body.images.map(async (imageUrl: string, index: number) => {
+              await db.insert(productImages).values({
+                productId: product.id,
+                imageUrl: imageUrl,
+                altText: `${product.name} - Image ${index + 1}`,
+                isPrimary: index === 0, // First image is primary
+                sortOrder: index
+              });
+            })
+          );
+          console.log("Product images stored successfully");
+        } catch (imageError) {
+          console.error('Error storing product images:', imageError);
+          // Continue even if image storage fails
+        }
+      }
+
       res.status(201).json(product);
     } catch (error) {
       console.error("Product creation error:", error);
-      res.status(500).json({ 
-        error: "Failed to create product", 
+      res.status(500).json({
+        error: "Failed to create product",
         details: error.message || "Unknown error",
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
@@ -1308,7 +1350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filteredSampleProducts = sampleProducts.filter(product => {
         if (!product.subcategory) return false;
         const productSubcategory = product.subcategory.toLowerCase();
-        return productSubcategory === subcategorySlug || 
+        return productSubcategory === subcategorySlug ||
                productSubcategory.replace(/[-\s]+/g, ' ') === subcategorySlug.replace(/[-\s]+/g, ' ');
       });
 
@@ -1350,7 +1392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           targetSubcategory.replace(/-/g, ' '),  // Spaces instead of dashes
         ];
 
-        return variations.some(variation => 
+        return variations.some(variation =>
           productSubcategory === variation ||
           productSubcategory.replace(/\s/g, '') === variation.replace(/\s/g, '')
         );
@@ -1411,7 +1453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (mappedCategories.some(mapped => productCategory.includes(mapped))) return true;
 
         // Check if product category has mappings to search category
-        const reverseMappings = Object.entries(categoryMappings).find(([key, values]) => 
+        const reverseMappings = Object.entries(categoryMappings).find(([key, values]) =>
           values.includes(searchCategory)
         );
         if (reverseMappings && productCategory.includes(reverseMappings[0])) return true;
@@ -1456,7 +1498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (mappedCategories.some(mapped => productCategory.includes(mapped))) return true;
 
         // Reverse mapping check
-        const reverseMappings = Object.entries(categoryMappings).find(([key, values]) => 
+        const reverseMappings = Object.entries(categoryMappings).find(([key, values]) =>
           values.includes(searchCategory)
         );
         if (reverseMappings && productCategory.includes(reverseMappings[0])) return true;
@@ -1528,14 +1570,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate required fields
       const { name, description } = req.body;
       if (!name || !description) {
-        return res.status(400).json({ 
-          error: "Missing required fields: name and description are required" 
+        return res.status(400).json({
+          error: "Missing required fields: name and description are required"
         });
       }
 
       if (name.trim().length === 0 || description.trim().length === 0) {
-        return res.status(400).json({ 
-          error: "Name and description cannot be empty" 
+        return res.status(400).json({
+          error: "Name and description cannot be empty"
         });
       }
 
@@ -1562,8 +1604,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(category);
     } catch (error) {
       console.error("Category creation error:", error);
-      res.status(500).json({ 
-        error: "Failed to create category", 
+      res.status(500).json({
+        error: "Failed to create category",
         details: error.message || "Unknown error",
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
@@ -1630,8 +1672,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update product count for each subcategory
       const subcategoriesWithCount = subcategories.map(subcategory => {
-        const productCount = allProducts.filter(product => 
-          product.subcategory && 
+        const productCount = allProducts.filter(product =>
+          product.subcategory &&
           product.subcategory.toLowerCase().trim() === subcategory.name.toLowerCase().trim()
         ).length;
 
@@ -1686,14 +1728,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate required fields
       const { name, categoryId, description } = req.body;
       if (!name || !categoryId || !description) {
-        return res.status(400).json({ 
-          error: "Missing required fields: name, categoryId, and description are required" 
+        return res.status(400).json({
+          error: "Missing required fields: name, categoryId, and description are required"
         });
       }
 
       if (name.trim().length === 0 || description.trim().length === 0) {
-        return res.status(400).json({ 
-          error: "Name and description cannot be empty" 
+        return res.status(400).json({
+          error: "Name and description cannot be empty"
         });
       }
 
@@ -1731,7 +1773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errorMessage = "Database connection error. Please try again later.";
       }
 
-      res.status(500).json({ 
+      res.status(500).json({
         error: errorMessage,
         details: error.message || "Unknown error",
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
@@ -1881,7 +1923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cancelled: "Your order has been cancelled."
       };
 
-      res.json({ 
+      res.json({
         message: "Notification sent successfully",
         notification: notifications[status] || "Order status updated"
       });
@@ -2299,7 +2341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Calculate dynamic product count for each category
     return baseCategories.map(category => {
-      const productCount = sampleProducts.filter(product => 
+      const productCount = sampleProducts.filter(product =>
         product.category.toLowerCase() === category.slug.toLowerCase()
       ).length;
 
@@ -2343,9 +2385,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({ likes: newLikes })
         .where(require('drizzle-orm').eq(require('../shared/schema').blogPosts.id, postId));
 
-      res.json({ 
-        liked: true, 
-        likesCount: newLikes 
+      res.json({
+        liked: true,
+        likesCount: newLikes
       });
     } catch (error) {
       console.error("Error toggling blog post like:", error);
@@ -2393,10 +2435,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({ comments: sql`${blogPosts.comments} + 1` })
         .where(eq(blogPosts.id, postId));
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         comment,
-        message: "Comment added successfully" 
+        message: "Comment added successfully"
       });
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -2560,7 +2602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: req.body.content,
         author: req.body.author,
         category: req.body.category,
-        tags: Array.isArray(req.body.tags) ? req.body.tags : 
+        tags: Array.isArray(req.body.tags) ? req.body.tags :
               typeof req.body.tags === 'string' ? req.body.tags.split(',').map(t => t.trim()) : [],
         imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400',
         videoUrl,
@@ -2596,7 +2638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.body.readTime) updateData.readTime = req.body.readTime;
 
       if (req.body.tags) {
-        updateData.tags = Array.isArray(req.body.tags) ? req.body.tags : 
+        updateData.tags = Array.isArray(req.body.tags) ? req.body.tags :
                           typeof req.body.tags === 'string' ? req.body.tags.split(',').map(t => t.trim()) : [];
       }
 
@@ -2909,7 +2951,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // // 1. Send anemail notification to your support team
       // 2. Send a confirmation email to the customer
 
-      res.json({ 
+      res.json({
         message: "Thank you for your message! We'll get back to you within 24 hours.",
         success: true,
         submissionId: savedSubmission.id
@@ -3285,7 +3327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         <td>${item.name}</td>
                         <td class="text-right">${item.quantity}</td>
                         <td class="text-right">₹${unitPrice.toLocaleString('en-IN')}</td>
-                        <td class="text-right">₹${itemItemTotal.toLocaleString('en-IN')}</td>
+                        <td class="text-right">₹${itemTotal.toLocaleString('en-IN')}</td>
                     </tr>
                   `;
                 }).join('')}
@@ -3391,7 +3433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let products = [];
       try {
         const allProducts = await storage.getProducts();
-        products = allProducts.filter(product => 
+        products = allProducts.filter(product =>
           product.name.toLowerCase().includes(searchTerm) ||
           product.category.toLowerCase().includes(searchTerm) ||
           (product.subcategory && product.subcategory.toLowerCase().includes(searchTerm)) ||
@@ -3414,7 +3456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: users.createdAt,
         }).from(users);
 
-        customers = allUsers.filter(user => 
+        customers = allUsers.filter(user =>
           (user.firstName && user.firstName.toLowerCase().includes(searchTerm)) ||
           (user.lastName && user.lastName.toLowerCase().includes(searchTerm)) ||
           (user.email && user.email.toLowerCase().includes(searchTerm)) ||
@@ -3578,7 +3620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errorMessage = "A shade with this value already exists. Please choose a different name or value.";
       }
 
-      res.status(500).json({ 
+      res.status(500).json({
         error: errorMessage,
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
@@ -3636,7 +3678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         errorMessage = "A shade with this value already exists. Please choose a different name or value.";
       }
 
-      res.status(500).json({ 
+      res.status(500).json({
         error: errorMessage,
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
@@ -3672,8 +3714,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Handle image URL - require uploaded file
       if (!req.file) {
-        return res.status(400).json({ 
-          error: 'Image file is required' 
+        return res.status(400).json({
+          error: 'Image file is required'
         });
       }
 
@@ -3694,9 +3736,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(newSlider);
     } catch (error) {
       console.error('Error uploading image:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: 'Failed to upload image',
-        details: error.message 
+        details: error.message
       });
     }
   });
@@ -3885,12 +3927,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/products/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const product = await storage.updateProduct(parseInt(id), req.body);
+      const productId = parseInt(id);
+      
+      console.log("Updating product:", productId, "with data:", req.body);
+      
+      const product = await storage.updateProduct(productId, req.body);
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+          
+          // Delete existing images
+          await db.delete(productImages).where(eq(productImages.productId, productId));
+          
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+          
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+      
       res.json(product);
     } catch (error) {
+      console.error("Product update error:", error);
       res.status(500).json({ error: "Failed to update product" });
     }
   });
@@ -3904,9 +3982,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (isNaN(productId)) {
         console.log(`Invalid product ID: ${id}`);
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "Invalid product ID",
-          success: false 
+          success: false
         });
       }
 
@@ -3918,18 +3996,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         existingProduct = await storage.getProduct(productId);
       } catch (error) {
         console.error(`Error checking if product exists: ${error.message}`);
-        return res.status(500).json({ 
+        return res.status(500).json({
           error: "Database error while checking product",
-          success: false 
+          success: false
         });
       }
 
       if (!existingProduct) {
         console.log(`Product with ID ${productId} not found`);
-        return res.status(404).json({ 
+        return res.status(404).json({
           error: "Product not found",
           success: false,
-          productId 
+          productId
         });
       }
 
@@ -3941,7 +4019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success = await storage.deleteProduct(productId);
       } catch (error) {
         console.error(`Error during product deletion: ${error.message}`);
-        return res.status(500).json({ 
+        return res.status(500).json({
           error: "Database error during deletion",
           success: false,
           details: error.message
@@ -3950,10 +4028,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!success) {
         console.log(`Failed to delete product ${productId} from database`);
-        return res.status(500).json({ 
+        return res.status(500).json({
           error: "Failed to delete product from database",
           success: false,
-          productId 
+          productId
         });
       }
 
@@ -3964,10 +4042,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const verifyDelete = await storage.getProduct(productId);
         if (verifyDelete) {
           console.log(`WARNING: Product ${productId} still exists after delete operation`);
-          return res.status(500).json({ 
+          return res.status(500).json({
             error: "Product deletion verification failed - product still exists",
             success: false,
-            productId 
+            productId
           });
         }
       } catch (error) {
@@ -3975,18 +4053,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Verification confirmed: Product ${productId} no longer exists`);
       }
 
-      res.status(200).json({ 
-        success: true, 
+      res.status(200).json({
+        success: true,
         message: "Product deleted successfully",
         productId: productId
       });
 
     } catch (error) {
       console.error("Unexpected product deletion error:", error);
-      res.status(500).json({ 
-        error: "Failed to delete product", 
+      res.status(500).json({
+        error: "Failed to delete product",
         details: error instanceof Error ? error.message : "Unknown error",
-        success: false 
+        success: false
       });
     }
   });

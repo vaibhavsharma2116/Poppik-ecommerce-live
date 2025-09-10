@@ -14,6 +14,7 @@ import {
   blogPosts,
   blogCategories,
   sliders,
+  productImages,
   type Product,
   type Category,
   type Subcategory,
@@ -851,6 +852,44 @@ export class DatabaseStorage implements IStorage {
     // This would check if the shade is used in any products
     // For now, return false to allow deletion
     return false;
+  }
+
+  // Product Images Management
+  async getProductImages(productId: number): Promise<any[]> {
+    try {
+      const db = await getDb();
+      const images = await db
+        .select()
+        .from(productImages)
+        .where(eq(productImages.productId, productId))
+        .orderBy(asc(productImages.sortOrder));
+      return images;
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      return [];
+    }
+  }
+
+  async createProductImage(imageData: any): Promise<any> {
+    try {
+      const db = await getDb();
+      const [image] = await db.insert(productImages).values(imageData).returning();
+      return image;
+    } catch (error) {
+      console.error("Error creating product image:", error);
+      throw error;
+    }
+  }
+
+  async deleteProductImage(imageId: number): Promise<boolean> {
+    try {
+      const db = await getDb();
+      const result = await db.delete(productImages).where(eq(productImages.id, imageId)).returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting product image:", error);
+      throw error;
+    }
   }
 
   // Review Management Functions

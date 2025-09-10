@@ -1,6 +1,22 @@
+# Environment files
 .env
-.env
-.env
-.env
-.env
-live.zip
+.env.*
+
+# Dependency folder
+node_modules/
+
+# Build output
+dist/
+
+# Zip or compressed files
+*.zip
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS specific files
+.DS_Store
+Thumbs.db

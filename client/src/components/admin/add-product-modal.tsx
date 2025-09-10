@@ -181,6 +181,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
 
       const createdProduct = await response.json();
 
+      
+
       // Assign selected shades to the product
       if (selectedShades.length > 0) {
         try {
