@@ -49,9 +49,9 @@ function rateLimit(req: any, res: any, next: any) {
   next();
 }
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, desc, and, gte, lte, like, isNull, asc, or, sql } from "drizzle-orm";
+import { eq, desc, and, sql, or, like, isNull, asc } from "drizzle-orm";
 import { Pool } from "pg";
-import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, productImages, productShades, cashfreePayments, categorySliders } from "../shared/schema";
+import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, productImages, productShades, cashfreePayments, categorySliders, categories } from "../shared/schema";
 import { DatabaseMonitor } from "./db-monitor";
 // Database connection with enhanced configuration
 const pool = new Pool({
@@ -3699,7 +3699,177 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Slider management routes
+  // Category slider management routes
+  app.get('/api/admin/categories/:categoryId/sliders', async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      console.log('Fetching sliders for category ID:', categoryId);
+      
+      // Check if categorySliders table exists, if not return empty array
+      try {
+        const slidersResult = await db
+          .select()
+          .from(categorySliders)
+          .where(eq(categorySliders.categoryId, categoryId))
+          .orderBy(asc(categorySliders.sortOrder));
+        
+        console.log('Found sliders:', slidersResult);
+        res.json(slidersResult);
+      } catch (tableError) {
+        console.log('CategorySliders table may not exist, returning empty array');
+        res.json([]);
+      }
+    } catch (error) {
+      console.error('Error fetching category sliders:', error);
+      res.status(500).json({ error: 'Failed to fetch category sliders', details: error.message });
+    }
+  });
+
+  app.post('/api/admin/categories/:categoryId/sliders', async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const { imageUrl, title, subtitle, isActive, sortOrder } = req.body;
+
+      console.log('Creating category slider for category:', categoryId);
+      console.log('Slider data:', { imageUrl, title, subtitle, isActive, sortOrder });
+
+      // Validation
+      if (!imageUrl) {
+        return res.status(400).json({ error: 'Image URL is required' });
+      }
+
+      if (isNaN(categoryId)) {
+        return res.status(400).json({ error: 'Invalid category ID' });
+      }
+
+      // Check if category exists
+      const category = await db
+        .select()
+        .from(categories)
+        .where(eq(categories.id, categoryId))
+        .limit(1);
+
+      if (category.length === 0) {
+        return res.status(404).json({ error: 'Category not found' });
+      }
+
+      const sliderData = {
+        categoryId,
+        imageUrl: imageUrl.trim(),
+        title: (title || '').trim(),
+        subtitle: (subtitle || '').trim(),
+        isActive: Boolean(isActive ?? true),
+        sortOrder: parseInt(sortOrder) || 0
+      };
+
+      console.log('Inserting slider data:', sliderData);
+
+      const [newSlider] = await db.insert(categorySliders).values(sliderData).returning();
+
+      console.log('Created slider successfully:', newSlider);
+      res.json(newSlider);
+    } catch (error) {
+      console.error('Error creating category slider:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        constraint: error.constraint,
+        detail: error.detail
+      });
+      
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(400).json({ error: 'A slider with similar data already exists' });
+      }
+      
+      if (error.code === '23503') { // Foreign key constraint violation
+        return res.status(400).json({ error: 'Invalid category reference' });
+      }
+      
+      res.status(500).json({ 
+        error: 'Failed to create category slider',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
+  app.put('/api/admin/categories/:categoryId/sliders/:sliderId', async (req, res) => {
+    try {
+      const sliderId = parseInt(req.params.sliderId);
+      const { imageUrl, title, subtitle, isActive, sortOrder } = req.body;
+
+      const [updatedSlider] = await db
+        .update(categorySliders)
+        .set({
+          imageUrl,
+          title: title || '',
+          subtitle: subtitle || '',
+          isActive: isActive !== false,
+          sortOrder: sortOrder || 0,
+          updatedAt: new Date()
+        })
+        .where(eq(categorySliders.id, sliderId))
+        .returning();
+
+      if (!updatedSlider) {
+        return res.status(404).json({ error: 'Category slider not found' });
+      }
+
+      res.json(updatedSlider);
+    } catch (error) {
+      console.error('Error updating category slider:', error);
+      res.status(500).json({ error: 'Failed to update category slider' });
+    }
+  });
+
+  app.delete('/api/admin/categories/:categoryId/sliders/:sliderId', async (req, res) => {
+    try {
+      const sliderId = parseInt(req.params.sliderId);
+
+      const [deletedSlider] = await db
+        .delete(categorySliders)
+        .where(eq(categorySliders.id, sliderId))
+        .returning();
+
+      if (!deletedSlider) {
+        return res.status(404).json({ error: 'Category slider not found' });
+      }
+
+      res.json({ message: 'Category slider deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting category slider:', error);
+      res.status(500).json({ error: 'Failed to delete category slider' });
+    }
+  });
+
+  // Public endpoint for category sliders (for frontend display)
+  app.get('/api/categories/slug/:categorySlug/sliders', async (req, res) => {
+    try {
+      const { categorySlug } = req.params;
+
+      // First get the category by slug
+      const category = await storage.getCategoryBySlug(categorySlug);
+      if (!category) {
+        return res.status(404).json({ error: 'Category not found' });
+      }
+
+      // Get active sliders for this category
+      const sliders = await db
+        .select()
+        .from(categorySliders)
+        .where(and(
+          eq(categorySliders.categoryId, category.id),
+          eq(categorySliders.isActive, true)
+        ))
+        .orderBy(asc(categorySliders.sortOrder));
+
+      res.json(sliders);
+    } catch (error) {
+      console.error('Error fetching public category sliders:', error);
+      res.json([]); // Return empty array as fallback
+    }
+  });
+
+  // General slider management routes
   app.get('/api/admin/sliders', async (req, res) => {
     try {
       const allSliders = await db.select().from(sliders).orderBy(desc(sliders.sortOrder));

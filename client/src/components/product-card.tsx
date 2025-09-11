@@ -289,8 +289,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
               loading="lazy"
               decoding="async"
-              width="300"
-              height="200"
+          
               style={{ width: '100%', height: '70%', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;

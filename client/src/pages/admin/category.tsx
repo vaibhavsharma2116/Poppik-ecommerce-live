@@ -25,6 +25,19 @@ interface Category {
   status: string;
   createdAt: string;
   updatedAt: string;
+  productCount: number; // Added productCount for stats
+}
+
+interface Subcategory {
+  id: number;
+  categoryId: number;
+  name: string;
+  slug: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  productCount: number; // Added productCount for stats
 }
 
 interface CategorySlider {
@@ -420,7 +433,7 @@ export default function AdminCategories() {
     { label: "Total Categories", value: categories.length.toString(), icon: Layers, color: "from-blue-500 to-cyan-500" },
     { label: "Total Subcategories", value: subcategories.length.toString(), icon: Tag, color: "from-purple-500 to-pink-500" },
     { label: "Active Categories", value: categories.filter((c: Category) => c.status === 'Active').length.toString(), icon: Package, color: "from-green-500 to-emerald-500" },
-    { label: "Total Products", value: categories.reduce((sum: number, cat: Category) => sum + cat.productCount, 0).toString(), icon: TrendingUp, color: "from-orange-500 to-red-500" }
+    { label: "Total Products", value: categories.reduce((sum: number, cat: Category) => sum + (cat.productCount || 0), 0).toString(), icon: TrendingUp, color: "from-orange-500 to-red-500" }
   ];
 
   if ((categoriesLoading && categories.length === 0) || (subcategoriesLoading && subcategories.length === 0)) {
@@ -454,7 +467,6 @@ export default function AdminCategories() {
       name: '',
       slug: '',
       description: '',
-      imageUrl: '',
       status: 'Active'
     });
     setSelectedImage(null);
@@ -483,12 +495,7 @@ export default function AdminCategories() {
 
   const fetchCategorySliders = async (categoryId: number) => {
     try {
-      const response = await fetch(`/api/admin/categories/${categoryId}/sliders`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await fetch(`/api/admin/categories/${categoryId}/sliders`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch category sliders');
@@ -526,11 +533,8 @@ export default function AdminCategories() {
     const formData = new FormData();
     formData.append('image', selectedSliderImage);
 
-    const response = await fetch('/api/upload', {
+    const response = await fetch('/api/upload/image', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-      },
       body: formData,
     });
 
@@ -555,28 +559,45 @@ export default function AdminCategories() {
         imageUrl = await uploadSliderImage();
       }
 
-      const sliderData = {
-        ...sliderFormData,
-        imageUrl,
-      };
+      if (!imageUrl) {
+        toast({
+          title: "Error",
+          description: "Please provide an image URL or upload an image",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      const url = editingSlider 
+      const url = editingSlider
         ? `/api/admin/categories/${selectedCategoryForSliders.id}/sliders/${editingSlider.id}`
         : `/api/admin/categories/${selectedCategoryForSliders.id}/sliders`;
 
       const method = editingSlider ? 'PUT' : 'POST';
 
+      const requestData = {
+        imageUrl: imageUrl.trim(),
+        title: sliderFormData.title.trim(),
+        subtitle: sliderFormData.subtitle.trim(),
+        isActive: sliderFormData.isActive,
+        sortOrder: Number(sliderFormData.sortOrder) || 0
+      };
+
+      console.log('Sending slider data:', requestData);
+
       const response = await fetch(url, {
         method,
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+        headers: { 
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
-        body: JSON.stringify(sliderData),
+        body: JSON.stringify(requestData),
       });
 
+      const responseData = await response.json();
+      console.log('Server response:', responseData);
+
       if (!response.ok) {
-        throw new Error(`Failed to ${editingSlider ? 'update' : 'create'} slider`);
+        throw new Error(responseData.error || `Failed to ${editingSlider ? 'update' : 'create'} slider`);
       }
 
       toast({
@@ -616,9 +637,6 @@ export default function AdminCategories() {
     try {
       const response = await fetch(`/api/admin/categories/${selectedCategoryForSliders.id}/sliders/${sliderId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-        },
       });
 
       if (!response.ok) {
@@ -1371,7 +1389,7 @@ export default function AdminCategories() {
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={uploading}>
-                  {uploading ? 'Saving...' : editingSlider ? 'Update Slider' : 'Add Slider'}
+                  {uploading ? 'Uploading...' : editingSlider ? 'Update Slider' : 'Add Slider'}
                 </Button>
                 {editingSlider && (
                   <Button type="button" variant="outline" onClick={resetSliderForm}>

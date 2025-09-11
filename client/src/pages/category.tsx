@@ -127,28 +127,41 @@ export default function CategoryPage() {
     return <div>Category not found</div>;
   }
 
-  // Get category sliders
-  const { data: categorySliderImages = [], isLoading: slidersLoading } = useQuery({
+  // Get category sliders with better error handling
+  const { data: categorySliderImages = [], isLoading: slidersLoading, error: slidersError } = useQuery({
     queryKey: [`/api/categories/slug/${categorySlug}/sliders`],
+    queryFn: async () => {
+      const response = await fetch(`/api/categories/slug/${categorySlug}/sliders`);
+      if (!response.ok) {
+        console.warn(`Failed to fetch sliders for category ${categorySlug}:`, response.status);
+        return [];
+      }
+      const data = await response.json();
+      console.log('Category sliders fetched:', data);
+      return data;
+    },
     enabled: !!categorySlug,
+    retry: 1,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 
   // Fallback static slider data if no dynamic sliders exist
   const fallbackSliderImages = [
     {
-      id: 1,
+      id: 'fallback-1',
       imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
       title: "Discover Amazing Products",
       subtitle: "Find the perfect items for you"
     },
     {
-      id: 2,
+      id: 'fallback-2',
       imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
       title: "Premium Quality Collection",
       subtitle: "Curated just for you"
     },
     {
-      id: 3,
+      id: 'fallback-3',
       imageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
       title: "Special Offers Available",
       subtitle: "Don't miss out on great deals"
@@ -156,7 +169,18 @@ export default function CategoryPage() {
   ];
 
   // Use dynamic sliders if available, otherwise use fallback
-  const slidesToShow = categorySliderImages.length > 0 ? categorySliderImages : fallbackSliderImages;
+  const slidesToShow = categorySliderImages && categorySliderImages.length > 0 ? categorySliderImages : fallbackSliderImages;
+  
+  // Debug log
+  React.useEffect(() => {
+    console.log('Category sliders state:', {
+      categorySlug,
+      slidersLoading,
+      slidersError,
+      categorySliderImages,
+      slidesToShow
+    });
+  }, [categorySlug, slidersLoading, slidersError, categorySliderImages, slidesToShow]);
 
   const CategoryHeroSlider = () => {
     const [api, setApi] = React.useState<any>();
@@ -187,21 +211,21 @@ export default function CategoryPage() {
           <CarouselContent>
             {slidesToShow.map((slide) => (
               <CarouselItem key={slide.id}>
-                <div className="relative h-48 sm:h-64 md:h-80 lg:h-96 rounded-2xl sm:rounded-3xl overflow-hidden">
+                <div className="relative h-48 sm:h-64 md:h-80 lg:h-96  overflow-hidden">
                   <img
                     src={slide.imageUrl}
                     alt={slide.title || 'Category Banner'}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent">
-                    <div className="absolute bottom-8 left-8 text-white">
+                  <div className="">
+                    {/* <div className="absolute bottom-8 left-8 text-white">
                       <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
                         {slide.title || 'Discover Amazing Products'}
                       </h2>
                       <p className="text-sm sm:text-base md:text-lg opacity-90">
                         {slide.subtitle || 'Find the perfect items for you'}
                       </p>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </CarouselItem>
@@ -218,10 +242,10 @@ export default function CategoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
-      <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="">
+      <div className="">
         {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm mb-8">
+        {/* <nav className="flex items-center space-x-2 text-sm mb-8">
           <Link href="/" className="text-gray-500 hover:text-gray-700">
             Home
           </Link>
@@ -229,12 +253,12 @@ export default function CategoryPage() {
           <span className="text-gray-900 font-medium">
             {categoryLoading ? "Loading..." : category?.name}
           </span>
-        </nav>
+        </nav> */}
 
         {/* Hero Slider */}
         {slidersLoading ? (
           <div className="mb-8 sm:mb-12">
-            <div className="w-full h-48 sm:h-64 md:h-80 lg:h-96 rounded-2xl sm:rounded-3xl bg-gray-200 animate-pulse"></div>
+            <div className="w-full h-48 sm:h-64 md:h-80 lg:h-96  bg-gray-200 animate-pulse"></div>
           </div>
         ) : (
           <CategoryHeroSlider />
