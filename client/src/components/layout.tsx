@@ -26,6 +26,7 @@ export default function Layout({ children }: LayoutProps) {
   const [isSearchCommandOpen, setIsSearchCommandOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showSearchBar, setShowSearchBar] = useState(false);
   const [location] = useLocation();
   const [cartCount, setCartCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
@@ -226,51 +227,70 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Desktop Search */}
             <div className="hidden md:flex items-center space-x-4 relative">
-              <div className="relative w-96">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                <Input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={handleSearchInputChange}
-                  onFocus={handleSearchInputFocus}
-                  onBlur={handleSearchInputBlur}
-                  className="w-full pl-10 pr-4 bg-white/90 backdrop-blur-sm border-white/50 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-yellow-300 transition-all duration-300"
-                />
+              {showSearchBar ? (
+                <div className="relative w-96">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchQuery}
+                    onChange={handleSearchInputChange}
+                    onFocus={handleSearchInputFocus}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        if (!searchQuery.trim()) {
+                          setShowSearchBar(false);
+                        }
+                        setShowSearchResults(false);
+                      }, 200);
+                    }}
+                    autoFocus
+                    className="w-full pl-10 pr-4 bg-white/90 backdrop-blur-sm border-white/50 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-yellow-300 transition-all duration-300"
+                  />
 
-                {/* Search Results Dropdown */}
-                {showSearchResults && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
-                    {isSearchLoading ? (
-                      <div className="p-4 text-center text-gray-500">Searching...</div>
-                    ) : searchResults.length === 0 ? (
-                      <div className="p-4 text-center text-gray-500">No products found</div>
-                    ) : (
-                      <div className="py-2">
-                        {searchResults.map((product) => (
-                          <div
-                            key={product.id}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
-                            onClick={() => handleSearchResultClick(product.slug)}
-                          >
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-10 h-10 object-cover rounded"
-                            />
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900">{product.name}</div>
-                              <div className="text-sm text-gray-500">
-                                {product.category?.name} • ${product.price}
+                  {/* Search Results Dropdown */}
+                  {showSearchResults && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                      {isSearchLoading ? (
+                        <div className="p-4 text-center text-gray-500">Searching...</div>
+                      ) : searchResults.length === 0 ? (
+                        <div className="p-4 text-center text-gray-500">No products found</div>
+                      ) : (
+                        <div className="py-2">
+                          {searchResults.map((product) => (
+                            <div
+                              key={product.id}
+                              className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                              onClick={() => handleSearchResultClick(product.slug)}
+                            >
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="w-10 h-10 object-cover rounded"
+                              />
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-900">{product.name}</div>
+                                <div className="text-sm text-gray-500">
+                                  {product.category?.name} • ${product.price}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowSearchBar(true)}
+                  className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                >
+                  <Search className="h-5 w-5" />
+                </Button>
+              )}
             </div>
 
             {/* Right Icons */}
@@ -585,51 +605,72 @@ export default function Layout({ children }: LayoutProps) {
 
           {/* Mobile Search Bar */}
           <div className="md:hidden px-2 pb-3">
-            <div className="relative max-w-xs mx-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-              <Input
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={handleSearchInputChange}
-                onFocus={handleSearchInputFocus}
-                onBlur={handleSearchInputBlur}
-                className="w-full pl-10 pr-4 py-2 text-sm bg-white/90 backdrop-blur-sm border-white/50 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-yellow-300 transition-all duration-300 rounded-full"
-              />
+            {showSearchBar ? (
+              <div className="relative max-w-xs mx-auto">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+                <Input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={handleSearchInputChange}
+                  onFocus={handleSearchInputFocus}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      if (!searchQuery.trim()) {
+                        setShowSearchBar(false);
+                      }
+                      setShowSearchResults(false);
+                    }, 200);
+                  }}
+                  autoFocus
+                  className="w-full pl-10 pr-4 py-2 text-sm bg-white/90 backdrop-blur-sm border-white/50 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-yellow-300 transition-all duration-300 rounded-full"
+                />
 
-              {/* Mobile Search Results Dropdown */}
-              {showSearchResults && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
-                  {isSearchLoading ? (
-                    <div className="p-4 text-center text-gray-500">Searching...</div>
-                  ) : searchResults.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500">No products found</div>
-                  ) : (
-                    <div className="py-2">
-                      {searchResults.map((product) => (
-                        <div
-                          key={product.id}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
-                          onClick={() => handleSearchResultClick(product.slug)}
-                        >
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="w-10 h-10 object-cover rounded"
-                          />
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-900">{product.name}</div>
-                            <div className="text-sm text-gray-500">
-                              {product.category?.name} • ${product.price}
+                {/* Mobile Search Results Dropdown */}
+                {showSearchResults && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                    {isSearchLoading ? (
+                      <div className="p-4 text-center text-gray-500">Searching...</div>
+                    ) : searchResults.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">No products found</div>
+                    ) : (
+                      <div className="py-2">
+                        {searchResults.map((product) => (
+                          <div
+                            key={product.id}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                            onClick={() => handleSearchResultClick(product.slug)}
+                          >
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-10 h-10 object-cover rounded"
+                            />
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">{product.name}</div>
+                              <div className="text-sm text-gray-500">
+                                {product.category?.name} • ${product.price}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowSearchBar(true)}
+                  className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                >
+                  <Search className="h-5 w-5" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 

@@ -581,6 +581,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
             completedAt: isPaymentSuccessful ? new Date() : null
           })
           .where(eq(cashfreePayments.cashfreeOrderId, orderId));
+
+        // If payment is successful, create order in ordersTable for admin panel
+        if (isPaymentSuccessful) {
+          // Get cashfree payment details
+          const cashfreePayment = await db
+            .select()
+            .from(cashfreePayments)
+            .where(eq(cashfreePayments.cashfreeOrderId, orderId))
+            .limit(1);
+
+          if (cashfreePayment.length > 0) {
+            const payment = cashfreePayment[0];
+            const orderData = payment.orderData;
+
+            // Check if order already exists in ordersTable
+            const existingOrder = await db
+              .select()
+              .from(ordersTable)
+              .where(eq(ordersTable.cashfreeOrderId, orderId))
+              .limit(1);
+
+            if (existingOrder.length === 0) {
+              // Create order in ordersTable
+              const [newOrder] = await db.insert(ordersTable).values({
+                userId: payment.userId,
+                totalAmount: payment.amount,
+                status: 'processing',
+                paymentMethod: 'Cashfree',
+                shippingAddress: orderData.shippingAddress,
+                cashfreeOrderId: orderId,
+                paymentSessionId: statusResult.payment_session_id || null,
+                paymentId: statusResult.cf_order_id || null,
+                estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+              }).returning();
+
+              // Create order items
+              if (orderData.items && Array.isArray(orderData.items)) {
+                const orderItems = orderData.items.map((item: any) => ({
+                  orderId: newOrder.id,
+                  productId: Number(item.productId) || null,
+                  productName: item.productName,
+                  productImage: item.productImage,
+                  quantity: Number(item.quantity),
+                  price: item.price,
+                }));
+
+                await db.insert(orderItemsTable).values(orderItems);
+              }
+
+              console.log("Order created in ordersTable:", newOrder.id);
+            } else {
+              console.log("Order already exists in ordersTable");
+            }
+          }
+        }
       } catch (dbError) {
         console.error("Database error updating payment:", dbError);
       }
@@ -1807,6 +1862,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync Cashfree orders to ordersTable
+  app.post("/api/admin/sync-cashfree-orders", async (req, res) => {
+    try {
+      console.log("Syncing Cashfree orders to ordersTable...");
+
+      // Get all completed Cashfree payments
+      const completedPayments = await db
+        .select()
+        .from(cashfreePayments)
+        .where(eq(cashfreePayments.status, 'completed'));
+
+      let syncedCount = 0;
+
+      for (const payment of completedPayments) {
+        // Check if order already exists in ordersTable
+        const existingOrder = await db
+          .select()
+          .from(ordersTable)
+          .where(eq(ordersTable.cashfreeOrderId, payment.cashfreeOrderId))
+          .limit(1);
+
+        if (existingOrder.length === 0) {
+          try {
+            const orderData = payment.orderData;
+
+            // Create order in ordersTable
+            const [newOrder] = await db.insert(ordersTable).values({
+              userId: payment.userId,
+              totalAmount: payment.amount,
+              status: 'processing',
+              paymentMethod: 'Cashfree',
+              shippingAddress: orderData.shippingAddress,
+              cashfreeOrderId: payment.cashfreeOrderId,
+              paymentId: payment.paymentId,
+              estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+              createdAt: payment.createdAt || new Date(),
+            }).returning();
+
+            // Create order items
+            if (orderData.items && Array.isArray(orderData.items)) {
+              const orderItems = orderData.items.map((item: any) => ({
+                orderId: newOrder.id,
+                productId: Number(item.productId) || null,
+                productName: item.productName,
+                productImage: item.productImage,
+                quantity: Number(item.quantity),
+                price: item.price,
+              }));
+
+              await db.insert(orderItemsTable).values(orderItems);
+            }
+
+            syncedCount++;
+            console.log(`Synced order: ${payment.cashfreeOrderId}`);
+          } catch (error) {
+            console.error(`Failed to sync order ${payment.cashfreeOrderId}:`, error);
+          }
+        }
+      }
+
+      res.json({
+        message: `Successfully synced ${syncedCount} Cashfree orders`,
+        syncedCount,
+        totalPayments: completedPayments.length
+      });
+    } catch (error) {
+      console.error("Error syncing Cashfree orders:", error);
+      res.status(500).json({ error: "Failed to sync Cashfree orders" });
+    }
+  });
+
   // Admin Orders endpoints
   app.get("/api/admin/orders", async (req, res) => {
     try {
@@ -2101,6 +2227,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+
+  // Create new order (for checkout)
+  app.post("/api/orders", async (req, res) => {
+    try {
+      console.log("Creating new order:", req.body);
+
+      const { userId, totalAmount, status, paymentMethod, shippingAddress, items } = req.body;
+
+      // Validation
+      if (!userId || !totalAmount || !paymentMethod || !shippingAddress || !items) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "Items are required" });
+      }
+
+      // Create the order
+      const orderData = {
+        userId: Number(userId),
+        totalAmount: Number(totalAmount),
+        status: status || 'pending',
+        paymentMethod,
+        shippingAddress,
+        estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+      };
+
+      const [newOrder] = await db.insert(ordersTable).values(orderData).returning();
+
+      // Create order items
+      const orderItems = items.map((item: any) => ({
+        orderId: newOrder.id,
+        productId: Number(item.productId),
+        productName: item.productName,
+        productImage: item.productImage,
+        quantity: Number(item.quantity),
+        price: item.price,
+      }));
+
+      await db.insert(orderItemsTable).values(orderItems);
+
+      const orderId = `ORD-${newOrder.id.toString().padStart(3, '0')}`;
+
+      console.log("Order created successfully:", orderId);
+
+      res.status(201).json({
+        success: true,
+        message: "Order placed successfully",
+        orderId,
+        order: {
+          ...newOrder,
+          id: orderId
+        }
+      });
+
+    } catch (error) {
+      console.error("Order creation error:", error);
+      res.status(500).json({ 
+        error: "Failed to create order",
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
 
   // Update order status (for admin)
   app.put("/api/orders/:id/status", async (req, res) => {

@@ -93,6 +93,39 @@ export default function AdminOrders() {
     }
   };
 
+  const handleSyncCashfreeOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/sync-cashfree-orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast({
+          title: "Success",
+          description: data.message,
+        });
+        // Refresh orders after sync
+        await fetchOrders();
+      } else {
+        throw new Error('Failed to sync Cashfree orders');
+      }
+    } catch (error) {
+      console.error('Error syncing Cashfree orders:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync Cashfree orders",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
   }, []);
@@ -300,6 +333,10 @@ export default function AdminOrders() {
           <Button variant="outline" size="sm" onClick={fetchOrders}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleSyncCashfreeOrders}>
+            <Package className="h-4 w-4 mr-2" />
+            Sync Cashfree Orders
           </Button>
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />

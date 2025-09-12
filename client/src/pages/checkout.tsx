@@ -482,8 +482,19 @@ export default function CheckoutPage() {
           body: JSON.stringify(orderData),
         });
 
-        if (response.ok) {
-          const result = await response.json();
+        let result;
+        const contentType = response.headers.get('content-type');
+
+        if (contentType && contentType.includes('application/json')) {
+          result = await response.json();
+        } else {
+          // Handle non-JSON responses (like HTML error pages)
+          const textResponse = await response.text();
+          console.error('Non-JSON response received:', textResponse);
+          throw new Error('Server returned an unexpected response format');
+        }
+
+        if (response.ok && result.success) {
           setOrderId(result.orderId || 'ORD-001');
           setOrderPlaced(true);
 
@@ -497,14 +508,14 @@ export default function CheckoutPage() {
             description: "You will receive a confirmation email shortly",
           });
         } else {
-          throw new Error('Failed to place order');
+          throw new Error(result.error || 'Failed to place order');
         }
       }
     } catch (error) {
       console.error('Order placement error:', error);
       toast({
         title: "Order Failed",
-        description: "There was an error placing your order. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error placing your order. Please try again.",
         variant: "destructive",
       });
     }
