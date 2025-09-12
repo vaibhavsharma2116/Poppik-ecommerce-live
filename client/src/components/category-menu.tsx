@@ -32,7 +32,7 @@ export default function CategoryMenu({
   };
 
   const getSubcategoriesForCategory = (categoryName: string) => {
-    return [...new Set(
+    return [...newSet(
       products
         .filter(p => p.category === categoryName)
         .map(p => p.subcategory)

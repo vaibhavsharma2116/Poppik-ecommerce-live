@@ -4,6 +4,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Navigation Menu Positioning Fix */
+[data-radix-navigation-menu-viewport] {
+  position: absolute !important;
+  top: 100% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 9999 !important;
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+  margin-top: 8px !important;
+}
+
+[data-radix-navigation-menu-content] {
+  position: relative !important;
+  background: white !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+  min-width: 200px !important;
+  max-width: 400px !important;
+}
+
+/* Navigation Menu Root positioning */
+[data-radix-navigation-menu-root] {
+  position: relative !important;
+}
+
+/* Navigation Menu List positioning */
+[data-radix-navigation-menu-list] {
+  position: relative !important;
+}
+
+/* Navigation Menu Item positioning */
+[data-radix-navigation-menu-item] {
+  position: relative !important;
+}
+
+/* Ensure proper stacking context */
+nav [data-radix-navigation-menu-root] {
+  z-index: 50 !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 html {
   scroll-behavior: smooth;
 }

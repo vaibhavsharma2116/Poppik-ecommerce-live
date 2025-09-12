@@ -225,76 +225,78 @@ export default function Layout({ children }: LayoutProps) {
               </div>
             </Link>
 
-            {/* Desktop Search */}
-            <div className="hidden md:flex items-center space-x-4 relative">
-              {showSearchBar ? (
-                <div className="relative w-96">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search products..."
-                    value={searchQuery}
-                    onChange={handleSearchInputChange}
-                    onFocus={handleSearchInputFocus}
-                    onBlur={() => {
-                      setTimeout(() => {
-                        if (!searchQuery.trim()) {
-                          setShowSearchBar(false);
-                        }
-                        setShowSearchResults(false);
-                      }, 200);
-                    }}
-                    autoFocus
-                    className="w-full pl-10 pr-4 bg-white/90 backdrop-blur-sm border-white/50 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-yellow-300 transition-all duration-300"
-                  />
-
-                  {/* Search Results Dropdown */}
-                  {showSearchResults && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
-                      {isSearchLoading ? (
-                        <div className="p-4 text-center text-gray-500">Searching...</div>
-                      ) : searchResults.length === 0 ? (
-                        <div className="p-4 text-center text-gray-500">No products found</div>
-                      ) : (
-                        <div className="py-2">
-                          {searchResults.map((product) => (
-                            <div
-                              key={product.id}
-                              className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
-                              onClick={() => handleSearchResultClick(product.slug)}
-                            >
-                              <img
-                                src={product.imageUrl}
-                                alt={product.name}
-                                className="w-10 h-10 object-cover rounded"
-                              />
-                              <div className="flex-1">
-                                <div className="font-medium text-gray-900">{product.name}</div>
-                                <div className="text-sm text-gray-500">
-                                  {product.category?.name} • ${product.price}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setShowSearchBar(true)}
-                  className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
-                >
-                  <Search className="h-5 w-5" />
-                </Button>
-              )}
-            </div>
+            {/* Spacer for center alignment */}
+            <div className="flex-1"></div>
 
             {/* Right Icons */}
             <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* Desktop Search */}
+              <div className="hidden md:flex items-center relative">
+                {showSearchBar ? (
+                  <div className="relative w-96">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+                    <Input
+                      type="text"
+                      placeholder="Search products..."
+                      value={searchQuery}
+                      onChange={handleSearchInputChange}
+                      onFocus={handleSearchInputFocus}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          if (!searchQuery.trim()) {
+                            setShowSearchBar(false);
+                          }
+                          setShowSearchResults(false);
+                        }, 200);
+                      }}
+                      autoFocus
+                      className="w-full pl-10 pr-4 bg-white/90 backdrop-blur-sm border-white/50 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-yellow-300 transition-all duration-300"
+                    />
+
+                    {/* Search Results Dropdown */}
+                    {showSearchResults && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                        {isSearchLoading ? (
+                          <div className="p-4 text-center text-gray-500">Searching...</div>
+                        ) : searchResults.length === 0 ? (
+                          <div className="p-4 text-center text-gray-500">No products found</div>
+                        ) : (
+                          <div className="py-2">
+                            {searchResults.map((product) => (
+                              <div
+                                key={product.id}
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                                onClick={() => handleSearchResultClick(product.slug)}
+                              >
+                                <img
+                                  src={product.imageUrl}
+                                  alt={product.name}
+                                  className="w-10 h-10 object-cover rounded"
+                                />
+                                <div className="flex-1">
+                                  <div className="font-medium text-gray-900">{product.name}</div>
+                                  <div className="text-sm text-gray-500">
+                                    {product.category?.name} • ${product.price}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setShowSearchBar(true)}
+                    className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                  >
+                    <Search className="h-5 w-5" />
+                  </Button>
+                )}
+              </div>
 
               {/* Wishlist Icon */}
               <Link href="/wishlist">
@@ -384,17 +386,17 @@ export default function Layout({ children }: LayoutProps) {
                         </Link>
                       ))}
                     </div>
-                    
+
                     {/* Categories Section */}
                     <div className="px-4 pb-4">
                       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
                         Categories
                       </div>
-                      
+
                       <Accordion type="single" collapsible className="w-full space-y-2">
                         {categories.map((category) => {
                           const categorySubcategories = getSubcategoriesForCategory(category.id);
-                          
+
                           if (categorySubcategories.length > 0) {
                             return (
                               <AccordionItem 
@@ -483,7 +485,7 @@ export default function Layout({ children }: LayoutProps) {
                               </div>
                             </div>
                           </Link>
-                          
+
                           <Link href="/wishlist">
                             <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
                               <div className="p-2 bg-pink-100 rounded-full">
@@ -502,7 +504,7 @@ export default function Layout({ children }: LayoutProps) {
                               )}
                             </div>
                           </Link>
-                          
+
                           <Link href="/cart">
                             <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
                               <div className="p-2 bg-green-100 rounded-full">
@@ -521,7 +523,7 @@ export default function Layout({ children }: LayoutProps) {
                               )}
                             </div>
                           </Link>
-                          
+
                           <div className="pt-3 mt-3 border-t border-gray-200">
                             <button
                               onClick={handleLogout}
@@ -550,7 +552,7 @@ export default function Layout({ children }: LayoutProps) {
                               </div>
                             </div>
                           </Link>
-                          
+
                           <Link href="/wishlist">
                             <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
                               <div className="p-2 bg-pink-100 rounded-full">
@@ -569,7 +571,7 @@ export default function Layout({ children }: LayoutProps) {
                               )}
                             </div>
                           </Link>
-                          
+
                           <Link href="/cart">
                             <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
                               <div className="p-2 bg-green-100 rounded-full">
@@ -675,7 +677,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         {/* Navigation - Desktop */}
-        <nav className="gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hidden md:block shadow-md">
+        <nav className="gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hidden md:block shadow-md navigation-hover">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-center h-12">
               <NavigationMenu>
@@ -701,27 +703,31 @@ export default function Layout({ children }: LayoutProps) {
 
                     if (categorySubcategories.length > 0) {
                       return (
-                        <NavigationMenuItem key={category.id}>
-                          <NavigationMenuTrigger className={`text-sm font-medium transition-colors px-4 py-2 ${
-                            isActiveLink(`/category/${category.slug}`)
-                              ? "text-yellow-300 bg-white/20 rounded-full"
-                              : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
-                          }`}>
+                        <NavigationMenuItem key={category.id} className="group">
+                          <NavigationMenuTrigger 
+                            className={`text-sm font-medium transition-colors px-4 py-2 ${
+                              isActiveLink(`/category/${category.slug}`)
+                                ? "text-yellow-300 bg-white/20 rounded-full"
+                                : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                            }`}
+                            onMouseEnter={() => {
+                              // Trigger hover state
+                              const trigger = document.querySelector(`[data-radix-navigation-menu-trigger]`);
+                              if (trigger) {
+                                trigger.setAttribute('data-state', 'open');
+                              }
+                            }}
+                          >
                             {category.name}
                           </NavigationMenuTrigger>
-                          <NavigationMenuContent>
-                            <div className="grid gap-4 p-8 w-[500px] grid-cols-3">
-                              <div className="space-y-4">
-                                <div className="border-b border-gray-200 pb-2">
-                                  <h4 className="text-sm font-semibold text-red-500 uppercase tracking-wider">
-                                    {category.name}
-                                  </h4>
-                                </div>
-                                {categorySubcategories.slice(0, 4).map((subcategory) => (
+                          <NavigationMenuContent className="group-hover:block">
+                            <div className="grid gap-3 p-4 min-w-[200px] max-w-[400px] w-max">
+                              <div className="space-y-2">
+                                {categorySubcategories.map((subcategory) => (
                                   <NavigationMenuLink key={subcategory.id} asChild>
                                     <Link 
                                       href={`/category/${category.slug}?subcategory=${subcategory.slug}`}
-                                      className="group block select-none rounded-lg p-3 leading-none no-underline outline-none transition-all hover:bg-red-50 hover:shadow-sm border border-transparent hover:border-red-100"
+                                      className="group block select-none rounded-lg p-2 leading-none no-underline outline-none transition-all hover:bg-red-50 hover:shadow-sm border border-transparent hover:border-red-100"
                                       onClick={() => {
                                         // Force page refresh to ensure proper filtering
                                         setTimeout(() => {
@@ -732,48 +738,10 @@ export default function Layout({ children }: LayoutProps) {
                                       <div className="text-sm font-medium transition-colors text-gray-900 group-hover:text-red-600">
                                         {subcategory.name}
                                       </div>
-                                      <p className="text-xs text-gray-500 mt-1 group-hover:text-red-500">
-                                        {subcategory.description.length > 50 
-                                          ? `${subcategory.description.substring(0, 50)}...` 
-                                          : subcategory.description
-                                        }
-                                      </p>
                                     </Link>
                                   </NavigationMenuLink>
                                 ))}
                               </div>
-
-                              {categorySubcategories.length > 4 && (
-                                <div className="space-y-4">
-                                  <div className="border-b border-gray-200 pb-2">
-                                    <h4 className="text-sm font-semibold text-red-500 uppercase tracking-wider">More</h4>
-                                  </div>
-                                  {categorySubcategories.slice(4, 8).map((subcategory) => (
-                                    <NavigationMenuLink key={subcategory.id} asChild>
-                                      <Link 
-                                        href={`/category/${category.slug}?subcategory=${subcategory.slug}`}
-                                        className="group block select-none rounded-lg p-3 leading-none no-underline outline-none transition-all hover:bg-red-50 hover:shadow-sm border border-transparent hover:border-red-100"
-                                        onClick={() => {
-                                          // Force page refresh to ensure proper filtering
-                                          setTimeout(() => {
-                                            window.location.href = `/category/${category.slug}?subcategory=${subcategory.slug}`;
-                                          }, 100);
-                                        }}
-                                      >
-                                        <div className="text-sm font-medium transition-colors text-gray-900 group-hover:text-red-600">
-                                          {subcategory.name}
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-1 group-hover:text-red-500">
-                                          {subcategory.description.length > 50 
-                                            ? `${subcategory.description.substring(0, 50)}...` 
-                                            : subcategory.description
-                                          }
-                                        </p>
-                                      </Link>
-                                    </NavigationMenuLink>
-                                  ))}
-                                </div>
-                              )}
                             </div>
                           </NavigationMenuContent>
                         </NavigationMenuItem>
