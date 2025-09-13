@@ -1,3 +1,4 @@
+
 import { useState, useEffect, startTransition } from "react";
 import { Link, useLocation } from "wouter";
 import { Search, ShoppingCart, Menu, X, User, Heart, LogOut, ChevronDown, ChevronRight } from "lucide-react";
@@ -18,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import logo from "@assets/logo.png";
 import headerLogo from "@assets/typo_Poppik_Black-01.png";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -192,8 +194,6 @@ export default function Layout({ children }: LayoutProps) {
     return location.startsWith(href);
   };
 
-
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -208,14 +208,13 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-white">
-
-
-      {/* Main Header */}
+      {/* Header */}
       <header className="sticky top-0 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 shadow-lg z-50">
+        {/* Main Header */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link href="/">
+            {/* Logo - Hidden on mobile */}
+            <Link href="/" className="hidden md:block">
               <div className="flex items-center cursor-pointer hover:scale-105 transition-transform duration-300">
                 <img 
                   src={headerLogo} 
@@ -228,148 +227,19 @@ export default function Layout({ children }: LayoutProps) {
             {/* Spacer for center alignment */}
             <div className="flex-1"></div>
 
-            {/* Right Icons */}
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              {/* Desktop Search */}
-              <div className="hidden md:flex items-center relative">
-                {showSearchBar ? (
-                  <div className="relative w-96">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                    <Input
-                      type="text"
-                      placeholder="Search products..."
-                      value={searchQuery}
-                      onChange={handleSearchInputChange}
-                      onFocus={handleSearchInputFocus}
-                      onBlur={() => {
-                        setTimeout(() => {
-                          setShowSearchBar(false);
-                          setShowSearchResults(false);
-                          setSearchQuery("");
-                        }, 200);
-                      }}
-                      autoFocus
-                      className="w-full pl-10 pr-4 bg-white/90 backdrop-blur-sm border-white/50 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-yellow-300 transition-all duration-300"
-                    />
-
-                    {/* Search Results Dropdown */}
-                    {showSearchResults && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
-                        {isSearchLoading ? (
-                          <div className="p-4 text-center text-gray-500">Searching...</div>
-                        ) : searchResults.length === 0 ? (
-                          <div className="p-4 text-center text-gray-500">No products found</div>
-                        ) : (
-                          <div className="py-2">
-                            {searchResults.map((product) => (
-                              <div
-                                key={product.id}
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
-                                onClick={() => handleSearchResultClick(product.slug)}
-                              >
-                                <img
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                  className="w-10 h-10 object-cover rounded"
-                                />
-                                <div className="flex-1">
-                                  <div className="font-medium text-gray-900">{product.name}</div>
-                                  <div className="text-sm text-gray-500">
-                                    {product.category?.name} • ${product.price}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setShowSearchBar(true)}
-                    className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
-                  >
-                    <Search className="h-5 w-5" />
-                  </Button>
-                )}
-              </div>
-
-              {/* Mobile Search Icon */}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setShowSearchBar(true)}
-                className="md:hidden text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-
-              {/* Wishlist Icon */}
-              <Link href="/wishlist">
-                <Button variant="ghost" size="sm" className="relative text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
-                  <Heart className="h-5 w-5" />
-                  {wishlistCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-pink-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
-                      {wishlistCount}
-                    </span>
-                  )}
-                </Button>
-              </Link>
-
-              <Link href="/cart">
-                <Button variant="ghost" size="sm" className="relative text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
-                  <ShoppingCart className="h-5 w-5" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
-                      {cartCount}
-                    </span>
-                  )}
-                </Button>
-              </Link>
-              {user ? (
-                <div className="flex items-center space-x-2">
-                  <Link href="/profile">
-                    <Button variant="ghost" size="sm" className="hidden md:flex text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
-                      Welcome, {user.firstName}
-                    </Button>
-                  </Link>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={handleLogout}
-                    title="Logout"
-                    className="text-black hover:text-red-300 hover:bg-white/20 transition-all duration-300"
-                  >
-                    <LogOut className="h-5 w-5" />
-                  </Button>
-                </div>
-              ) : (
-                <Link href="/auth/login">
-                  <Button variant="ghost" size="sm" className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
-                    <User className="h-5 w-5" />
-                  </Button>
-                </Link>
-              )}
-
-              {/* Mobile Menu */}
+            {/* Mobile Layout - Left: Menu, Center: Logo, Right: Search & Cart */}
+            <div className="md:hidden flex items-center justify-between w-full">
+              {/* Left - Mobile Menu */}
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm" className="md:hidden text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
+                  <Button variant="ghost" size="sm" className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-80 p-0 overflow-hidden">
+                <SheetContent side="left" className="w-80 p-0 overflow-hidden">
                   {/* Mobile Menu Header */}
                   <div className="px-6 py-4 bg-gradient-to-r from-red-50 to-pink-50 border-b border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <img 
-                        src={logo} 
-                        alt="POPPIK Logo" 
-                        className="h-8 w-auto object-contain"
-                      />
+                    <div className="flex items-center">
                       <h2 className="font-semibold text-gray-800">Menu</h2>
                     </div>
                   </div>
@@ -514,25 +384,6 @@ export default function Layout({ children }: LayoutProps) {
                             </div>
                           </Link>
 
-                          <Link href="/cart">
-                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
-                              <div className="p-2 bg-green-100 rounded-full">
-                                <ShoppingCart className="h-4 w-4 text-green-600" />
-                              </div>
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">Shopping Cart</div>
-                                <div className="text-xs text-gray-500">
-                                  {cartCount} items in cart
-                                </div>
-                              </div>
-                              {cartCount > 0 && (
-                                <span className="bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs font-medium">
-                                  {cartCount}
-                                </span>
-                              )}
-                            </div>
-                          </Link>
-
                           <div className="pt-3 mt-3 border-t border-gray-200">
                             <button
                               onClick={handleLogout}
@@ -580,101 +431,233 @@ export default function Layout({ children }: LayoutProps) {
                               )}
                             </div>
                           </Link>
-
-                          <Link href="/cart">
-                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
-                              <div className="p-2 bg-green-100 rounded-full">
-                                <ShoppingCart className="h-4 w-4 text-green-600" />
-                              </div>
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">Shopping Cart</div>
-                                <div className="text-xs text-gray-500">
-                                  {cartCount} items in cart
-                                </div>
-                              </div>
-                              {cartCount > 0 && (
-                                <span className="bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs font-medium">
-                                  {cartCount}
-                                </span>
-                              )}
-                            </div>
-                          </Link>
                         </>
                       )}
                     </div>
                   </div>
                 </SheetContent>
               </Sheet>
+
+              {/* Center - Logo */}
+              <div className="absolute left-1/2 transform -translate-x-1/2">
+                <Link href="/">
+                  <img 
+                    src={headerLogo} 
+                    alt="Fresh Look Everyday - POPPIK" 
+                    className="h-8 w-auto object-contain hover:scale-105 transition-transform duration-300"
+                  />
+                </Link>
+              </div>
+
+              {/* Right - Search & Cart Icons */}
+              <div className="flex items-center space-x-3">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowSearchBar(true)}
+                  className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                >
+                  <Search className="h-5 w-5" />
+                </Button>
+
+                <Link href="/cart">
+                  <Button variant="ghost" size="sm" className="relative text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
+                    <ShoppingCart className="h-5 w-5" />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
+                        {cartCount}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
+              </div>
             </div>
-          </div>
 
-          {/* Search Command */}
-          <SearchCommand
-            open={isSearchCommandOpen}
-            onOpenChange={setIsSearchCommandOpen}
-          />
+            {/* Desktop Layout - Keep existing */}
+            <div className="hidden md:flex items-center space-x-4">
+              {/* Desktop Search */}
+              <div className="flex items-center relative">
+                {showSearchBar ? (
+                  <div className="relative w-96">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+                    <Input
+                      type="text"
+                      placeholder="Search products..."
+                      value={searchQuery}
+                      onChange={handleSearchInputChange}
+                      onFocus={handleSearchInputFocus}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setShowSearchBar(false);
+                          setShowSearchResults(false);
+                          setSearchQuery("");
+                        }, 200);
+                      }}
+                      autoFocus
+                      className="w-full pl-10 pr-4 bg-white/90 backdrop-blur-sm border-white/50 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-yellow-300 transition-all duration-300"
+                    />
 
-          {/* Mobile Search Bar - Only shows when search icon is clicked */}
-          {showSearchBar && (
-            <div className="md:hidden px-2 pb-3">
-              <div className="relative max-w-xs mx-auto">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
-                <Input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={handleSearchInputChange}
-                  onFocus={handleSearchInputFocus}
-                  onBlur={() => {
-                    setTimeout(() => {
-                      setShowSearchBar(false);
-                      setShowSearchResults(false);
-                      setSearchQuery("");
-                    }, 200);
-                  }}
-                  autoFocus
-                  className="w-full pl-10 pr-4 py-2 text-sm bg-white/90 backdrop-blur-sm border-white/50 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-yellow-300 transition-all duration-300 rounded-full"
-                />
-
-                {/* Mobile Search Results Dropdown */}
-                {showSearchResults && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
-                    {isSearchLoading ? (
-                      <div className="p-4 text-center text-gray-500">Searching...</div>
-                    ) : searchResults.length === 0 ? (
-                      <div className="p-4 text-center text-gray-500">No products found</div>
-                    ) : (
-                      <div className="py-2">
-                        {searchResults.map((product) => (
-                          <div
-                            key={product.id}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
-                            onClick={() => handleSearchResultClick(product.slug)}
-                          >
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-10 h-10 object-cover rounded"
-                            />
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900">{product.name}</div>
-                              <div className="text-sm text-gray-500">
-                                {product.category?.name} • ${product.price}
+                    {/* Search Results Dropdown */}
+                    {showSearchResults && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                        {isSearchLoading ? (
+                          <div className="p-4 text-center text-gray-500">Searching...</div>
+                        ) : searchResults.length === 0 ? (
+                          <div className="p-4 text-center text-gray-500">No products found</div>
+                        ) : (
+                          <div className="py-2">
+                            {searchResults.map((product) => (
+                              <div
+                                key={product.id}
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                                onClick={() => handleSearchResultClick(product.slug)}
+                              >
+                                <img
+                                  src={product.imageUrl}
+                                  alt={product.name}
+                                  className="w-10 h-10 object-cover rounded"
+                                />
+                                <div className="flex-1">
+                                  <div className="font-medium text-gray-900">{product.name}</div>
+                                  <div className="text-sm text-gray-500">
+                                    {product.category?.name} • ${product.price}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
                     )}
                   </div>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setShowSearchBar(true)}
+                    className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                  >
+                    <Search className="h-5 w-5" />
+                  </Button>
                 )}
               </div>
+
+              {/* Wishlist Icon */}
+              <Link href="/wishlist">
+                <Button variant="ghost" size="sm" className="relative text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
+                  <Heart className="h-5 w-5" />
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-pink-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
+                      {wishlistCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
+
+              <Link href="/cart">
+                <Button variant="ghost" size="sm" className="relative text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
+                      {cartCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
+              {user ? (
+                <div className="flex items-center space-x-2">
+                  <Link href="/profile">
+                    <Button variant="ghost" size="sm" className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
+                      Welcome, {user.firstName}
+                    </Button>
+                  </Link>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={handleLogout}
+                    title="Logout"
+                    className="text-black hover:text-red-300 hover:bg-white/20 transition-all duration-300"
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </Button>
+                </div>
+              ) : (
+                <Link href="/auth/login">
+                  <Button variant="ghost" size="sm" className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </Link>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
+        {/* Search Command */}
+        <SearchCommand
+          open={isSearchCommandOpen}
+          onOpenChange={setIsSearchCommandOpen}
+        />
+
+        {/* Mobile Search Bar - Only shows when search icon is clicked */}
+        {showSearchBar && (
+          <div className="md:hidden px-2 pb-3">
+            <div className="relative max-w-xs mx-auto">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+              <Input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={handleSearchInputChange}
+                onFocus={handleSearchInputFocus}
+                onBlur={() => {
+                  setTimeout(() => {
+                    setShowSearchBar(false);
+                    setShowSearchResults(false);
+                    setSearchQuery("");
+                  }, 200);
+                }}
+                autoFocus
+                className="w-full pl-10 pr-4 py-2 text-sm bg-white/90 backdrop-blur-sm border-white/50 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-yellow-300 transition-all duration-300 rounded-full"
+              />
+
+              {/* Mobile Search Results Dropdown */}
+              {showSearchResults && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                  {isSearchLoading ? (
+                    <div className="p-4 text-center text-gray-500">Searching...</div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">No products found</div>
+                  ) : (
+                    <div className="py-2">
+                      {searchResults.map((product) => (
+                        <div
+                          key={product.id}
+                          className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                          onClick={() => handleSearchResultClick(product.slug)}
+                        >
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-10 h-10 object-cover rounded"
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900">{product.name}</div>
+                            <div className="text-sm text-gray-500">
+                              {product.category?.name} • ${product.price}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Navigation - Desktop */}
-        <nav className="gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hidden md:block shadow-md">
+        <nav className="bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hidden md:block shadow-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-center h-12">
               <ul className="flex items-center space-x-4">
@@ -711,12 +694,6 @@ export default function Layout({ children }: LayoutProps) {
 
                         {/* Dropdown positioned under this specific menu item */}
                         <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg border border-gray-200 rounded-md z-50 min-w-[200px] max-w-[400px] py-2">
-                          {/* <Link 
-                            href={`/category/${category.slug}`}
-                            className="block px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
-                          >
-                            View All {category.name}
-                          </Link> */}
                           <div className="border-t border-gray-100 my-1"></div>
                           {categorySubcategories.map((subcategory) => (
                             <Link
@@ -811,12 +788,11 @@ export default function Layout({ children }: LayoutProps) {
             {/* Company Info */}
             <div>
               <div className="mb-4">
-                  <img 
-  src={logo} 
-  alt="POPPIK Logo" 
-   style={{ width: 'auto', height: '140px' }}
-
-/>
+                <img 
+                  src={logo} 
+                  alt="POPPIK Logo" 
+                  style={{ width: 'auto', height: '140px' }}
+                />
               </div>
               <p className="text-gray-400 mb-4">
                 Your trusted partner for natural, effective beauty and wellness products.
@@ -926,16 +902,6 @@ export default function Layout({ children }: LayoutProps) {
                     Contact
                   </Link>
                 </li>
-                {/* <li>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                    Blog
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                    FAQ
-                  </a>
-                </li> */}
               </ul>
             </div>
 
@@ -992,7 +958,6 @@ export default function Layout({ children }: LayoutProps) {
                     About Us
                   </Link>
                 </li>
-
                 <li>
                   <Link href="/terms" className="text-gray-400 hover:text-white transition-colors">
                     Terms & Conditions
@@ -1008,7 +973,6 @@ export default function Layout({ children }: LayoutProps) {
           </div>
 
           {/* Newsletter */}
-
           <div className="border-t border-gray-800 mt-8 pt-8 text-center">
             <p className="text-gray-400 text-sm">
               © 2025 Poppik. All rights reserved.

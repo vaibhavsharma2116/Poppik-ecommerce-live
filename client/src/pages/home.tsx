@@ -130,16 +130,16 @@ export default function Home() {
                 ✨ Premium Beauty Collection
               </span>
             </div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 sm:mb-8 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-medium mb-6 sm:mb-8 tracking-tight">
               <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
                 Shop by Category
               </span>
             </h2>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-light">
+            {/* <p className="text-lg sm:text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-light">
               Discover our complete range of beauty and wellness products
               crafted with premium ingredients and designed for your unique
               beauty journey
-            </p>
+            </p> */}
             <div className="mt-6 sm:mt-8 w-16 sm:w-24 h-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full mx-auto"></div>
           </div>
 
