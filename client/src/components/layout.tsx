@@ -243,10 +243,9 @@ export default function Layout({ children }: LayoutProps) {
                       onFocus={handleSearchInputFocus}
                       onBlur={() => {
                         setTimeout(() => {
-                          if (!searchQuery.trim()) {
-                            setShowSearchBar(false);
-                          }
+                          setShowSearchBar(false);
                           setShowSearchResults(false);
+                          setSearchQuery("");
                         }, 200);
                       }}
                       autoFocus
@@ -298,6 +297,16 @@ export default function Layout({ children }: LayoutProps) {
                 )}
               </div>
 
+              {/* Mobile Search Icon */}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowSearchBar(true)}
+                className="md:hidden text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+
               {/* Wishlist Icon */}
               <Link href="/wishlist">
                 <Button variant="ghost" size="sm" className="relative text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
@@ -314,7 +323,7 @@ export default function Layout({ children }: LayoutProps) {
                 <Button variant="ghost" size="sm" className="relative text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
                   <ShoppingCart className="h-5 w-5" />
                   {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-400 to-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-bounce">
+                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
                       {cartCount}
                     </span>
                   )}
@@ -605,9 +614,9 @@ export default function Layout({ children }: LayoutProps) {
             onOpenChange={setIsSearchCommandOpen}
           />
 
-          {/* Mobile Search Bar */}
-          <div className="md:hidden px-2 pb-3">
-            {showSearchBar ? (
+          {/* Mobile Search Bar - Only shows when search icon is clicked */}
+          {showSearchBar && (
+            <div className="md:hidden px-2 pb-3">
               <div className="relative max-w-xs mx-auto">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
                 <Input
@@ -618,10 +627,9 @@ export default function Layout({ children }: LayoutProps) {
                   onFocus={handleSearchInputFocus}
                   onBlur={() => {
                     setTimeout(() => {
-                      if (!searchQuery.trim()) {
-                        setShowSearchBar(false);
-                      }
+                      setShowSearchBar(false);
                       setShowSearchResults(false);
+                      setSearchQuery("");
                     }, 200);
                   }}
                   autoFocus
@@ -661,158 +669,131 @@ export default function Layout({ children }: LayoutProps) {
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="flex justify-center">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setShowSearchBar(true)}
-                  className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
-                >
-                  <Search className="h-5 w-5" />
-                </Button>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Navigation - Desktop */}
-        <nav className="gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hidden md:block shadow-md navigation-hover">
+        <nav className="gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hidden md:block shadow-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-center h-12">
-              <NavigationMenu>
-                <NavigationMenuList className="space-x-4">
-                  <NavigationMenuItem>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        href="/"
-                        className={`text-sm font-medium transition-colors px-4 py-2 ${
-                          isActiveLink("/")
-                            ? "text-yellow-300 bg-white/20 rounded-full"
-                            : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
-                        }`}
-                      >
-                        Home
-                      </Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
+              <ul className="flex items-center space-x-4">
+                <li>
+                  <Link
+                    href="/"
+                    className={`text-sm font-medium transition-colors px-4 py-2 block ${
+                      isActiveLink("/")
+                        ? "text-yellow-300 bg-white/20 rounded-full"
+                        : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                    }`}
+                  >
+                    Home
+                  </Link>
+                </li>
 
-                  {/* Dynamic Categories */}
-                  {!loading && categories.map((category) => {
-                    const categorySubcategories = getSubcategoriesForCategory(category.id);
+                {/* Dynamic Categories */}
+                {!loading && categories.map((category) => {
+                  const categorySubcategories = getSubcategoriesForCategory(category.id);
 
-                    if (categorySubcategories.length > 0) {
-                      return (
-                        <NavigationMenuItem key={category.id} className="group">
-                          <NavigationMenuTrigger 
-                            className={`text-sm font-medium transition-colors px-4 py-2 ${
-                              isActiveLink(`/category/${category.slug}`)
-                                ? "text-yellow-300 bg-white/20 rounded-full"
-                                : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
-                            }`}
-                            onMouseEnter={() => {
-                              // Trigger hover state
-                              const trigger = document.querySelector(`[data-radix-navigation-menu-trigger]`);
-                              if (trigger) {
-                                trigger.setAttribute('data-state', 'open');
-                              }
-                            }}
+                  if (categorySubcategories.length > 0) {
+                    return (
+                      <li key={category.id} className="relative group">
+                        <button
+                          className={`text-sm font-medium transition-colors px-4 py-2 ${
+                            isActiveLink(`/category/${category.slug}`)
+                              ? "text-yellow-300 bg-white/20 rounded-full"
+                              : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                          }`}
+                          onClick={() => window.location.href = `/category/${category.slug}`}
+                        >
+                          {category.name}
+                        </button>
+
+                        {/* Dropdown positioned under this specific menu item */}
+                        <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg border border-gray-200 rounded-md z-50 min-w-[200px] max-w-[400px] py-2">
+                          {/* <Link 
+                            href={`/category/${category.slug}`}
+                            className="block px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
                           >
-                            {category.name}
-                          </NavigationMenuTrigger>
-                          <NavigationMenuContent className="group-hover:block">
-                            <div className="grid gap-3 p-4 min-w-[200px] max-w-[400px] w-max">
-                              <div className="space-y-2">
-                                {categorySubcategories.map((subcategory) => (
-                                  <NavigationMenuLink key={subcategory.id} asChild>
-                                    <Link 
-                                      href={`/category/${category.slug}?subcategory=${subcategory.slug}`}
-                                      className="group block select-none rounded-lg p-2 leading-none no-underline outline-none transition-all hover:bg-red-50 hover:shadow-sm border border-transparent hover:border-red-100"
-                                      onClick={() => {
-                                        // Force page refresh to ensure proper filtering
-                                        setTimeout(() => {
-                                          window.location.href = `/category/${category.slug}?subcategory=${subcategory.slug}`;
-                                        }, 100);
-                                      }}
-                                    >
-                                      <div className="text-sm font-medium transition-colors text-gray-900 group-hover:text-red-600">
-                                        {subcategory.name}
-                                      </div>
-                                    </Link>
-                                  </NavigationMenuLink>
-                                ))}
-                              </div>
-                            </div>
-                          </NavigationMenuContent>
-                        </NavigationMenuItem>
-                      );
-                    } else {
-                      // Category without subcategories - simple link
-                      return (
-                        <NavigationMenuItem key={category.id}>
-                          <NavigationMenuLink asChild>
+                            View All {category.name}
+                          </Link> */}
+                          <div className="border-t border-gray-100 my-1"></div>
+                          {categorySubcategories.map((subcategory) => (
                             <Link
-                              href={`/category/${category.slug}`}
-                              className={`text-sm font-medium transition-colors px-4 py-2 ${
-                                isActiveLink(`/category/${category.slug}`)
-                                  ? "text-yellow-300 bg-white/20 rounded-full"
-                                  : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
-                              }`}
+                              key={subcategory.id}
+                              href={`/category/${category.slug}?subcategory=${subcategory.slug}`}
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
+                              title={subcategory.name}
+                              onClick={() => {
+                                setTimeout(() => {
+                                  window.location.href = `/category/${category.slug}?subcategory=${subcategory.slug}`;
+                                }, 100);
+                              }}
                             >
-                              {category.name}
+                              {subcategory.name}
                             </Link>
-                          </NavigationMenuLink>
-                        </NavigationMenuItem>
-                      );
-                    }
-                  })}
+                          ))}
+                        </div>
+                      </li>
+                    );
+                  } else {
+                    // Category without subcategories - simple link
+                    return (
+                      <li key={category.id}>
+                        <Link
+                          href={`/category/${category.slug}`}
+                          className={`text-sm font-medium transition-colors px-4 py-2 block ${
+                            isActiveLink(`/category/${category.slug}`)
+                              ? "text-yellow-300 bg-white/20 rounded-full"
+                              : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                          }`}
+                        >
+                          {category.name}
+                        </Link>
+                      </li>
+                    );
+                  }
+                })}
 
-                  <NavigationMenuItem>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        href="/about"
-                        className={`text-sm font-medium transition-colors px-4 py-2 ${
-                          isActiveLink("/about")
-                            ? "text-yellow-300 bg-white/20 rounded-full"
-                            : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
-                        }`}
-                      >
-                        About
-                      </Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
+                <li>
+                  <Link
+                    href="/about"
+                    className={`text-sm font-medium transition-colors px-4 py-2 block ${
+                      isActiveLink("/about")
+                        ? "text-yellow-300 bg-white/20 rounded-full"
+                        : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                    }`}
+                  >
+                    About
+                  </Link>
+                </li>
 
-                  <NavigationMenuItem>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        href="/blog"
-                        className={`text-sm font-medium transition-colors px-4 py-2 ${
-                          isActiveLink("/blog")
-                            ? "text-yellow-300 bg-white/20 rounded-full"
-                            : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
-                        }`}
-                      >
-                        Blog
-                      </Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
+                <li>
+                  <Link
+                    href="/blog"
+                    className={`text-sm font-medium transition-colors px-4 py-2 block ${
+                      isActiveLink("/blog")
+                        ? "text-yellow-300 bg-white/20 rounded-full"
+                        : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                    }`}
+                  >
+                    Blog
+                  </Link>
+                </li>
 
-                  <NavigationMenuItem>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        href="/contact"
-                        className={`text-sm font-medium transition-colors px-4 py-2 ${
-                          isActiveLink("/contact")
-                            ? "text-yellow-300 bg-white/20 rounded-full"
-                            : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
-                        }`}
-                      >
-                        Contact
-                      </Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                </NavigationMenuList>
-              </NavigationMenu>
+                <li>
+                  <Link
+                    href="/contact"
+                    className={`text-sm font-medium transition-colors px-4 py-2 block ${
+                      isActiveLink("/contact")
+                        ? "text-yellow-300 bg-white/20 rounded-full"
+                        : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                    }`}
+                  >
+                    Contact
+                  </Link>
+                </li>
+              </ul>
             </div>
           </div>
         </nav>

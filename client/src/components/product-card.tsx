@@ -256,7 +256,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
   return (
     <Card 
-      className={`group hover:shadow-lg transition-all duration-300 overflow-hidden bg-gradient-to-br from-white via-pink-50/30 to-purple-50/20 border border-pink-100/50 hover:border-pink-200 hover:shadow-pink-100/20 mobile-product-card w-full ${className}`}
+      className={`group hover:shadow-lg transition-all duration-300 overflow-hidden bg-white border-0 hover:border-pink-200 hover:shadow-pink-100/20 mobile-product-card w-full ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -273,7 +273,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <Heart className={`h-6 w-6 transition-all duration-300 ${isInWishlist ? "text-red-500 fill-current animate-pulse" : "text-gray-400 hover:text-pink-500"}`} />
         </button>
         <Link href={`/product/${product.slug}`}>
-          <div className="relative overflow-hidden bg-gradient-to-br from-black-50 to-purple-50">
+          <div className="relative overflow-hidden bg-white">
             <img
               src={(() => {
                 // Handle new images array format
@@ -311,8 +311,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         </Link>
       </div>
 
-      <CardContent className="mobile-product-content p-2 sm:p-3 md:p-4 lg:p-5 space-y-1 sm:space-y-2 md:space-y-3 bg-gradient-to-b from-white to-pink-25">
-        <div className="flex items-center justify-between bg-white/80 backdrop-blur-sm rounded-lg p-2 border border-pink-100 shadow-sm">
+      <CardContent className="mobile-product-content p-2 sm:p-3 md:p-4 lg:p-5 space-y-1 sm:space-y-2 md:space-y-3 bg-white">
+        <div className="flex items-center justify-between bg-white rounded-lg p-2">
           <div className="star-rating">
             {renderStars(parseFloat(product.rating))}
           </div>
