@@ -129,7 +129,7 @@ export default function HeroBanner({
   }
 
   return (
-    <section className="relative w-full -mt-4" aria-label="Hero banner carousel">
+    <section className="relative w-full" aria-label="Hero banner carousel">
       <Carousel
         setApi={setApi}
         className="w-full"

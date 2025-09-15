@@ -211,22 +211,17 @@ export default function CategoryPage() {
           <CarouselContent>
             {slidesToShow.map((slide) => (
               <CarouselItem key={slide.id}>
-                <div className="relative h-48 sm:h-64 md:h-80 lg:h-96  overflow-hidden">
+                <div className="relative overflow-hidden rounded-lg sm:rounded-xl">
                   <img
                     src={slide.imageUrl}
                     alt={slide.title || 'Category Banner'}
-                    className="w-full h-full object-cover"
+                    className="w-full h-auto object-contain bg-gray-50"
+                    style={{
+                     
+                      objectFit: 'contain',
+                      objectPosition: 'center'
+                    }}
                   />
-                  <div className="">
-                    {/* <div className="absolute bottom-8 left-8 text-white">
-                      <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
-                        {slide.title || 'Discover Amazing Products'}
-                      </h2>
-                      <p className="text-sm sm:text-base md:text-lg opacity-90">
-                        {slide.subtitle || 'Find the perfect items for you'}
-                      </p>
-                    </div> */}
-                  </div>
                 </div>
               </CarouselItem>
             ))}
