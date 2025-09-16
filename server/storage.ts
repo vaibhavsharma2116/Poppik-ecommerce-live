@@ -39,7 +39,7 @@ dotenv.config();
 
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://localhost:5432/poppik?sslmode=disable",
+  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,
   max: 3, // Further reduced connections
   idleTimeoutMillis: 10000,
