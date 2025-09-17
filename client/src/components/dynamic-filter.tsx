@@ -45,19 +45,24 @@ export default function DynamicFilter({
 
   const [maxPrice, setMaxPrice] = useState(2000);
 
-  // Calculate max price from products and reset filters when products change
+  // Calculate max price from products and initialize filters
   useEffect(() => {
     if (products.length > 0) {
       const max = Math.max(...products.map(p => p.price));
       const roundedMax = Math.ceil(max / 100) * 100;
       setMaxPrice(roundedMax);
+      
+      // Check for URL parameters to set initial filters
+      const urlParams = new URLSearchParams(window.location.search);
+      const filterParam = urlParams.get('filter');
+      
       setFilters({
         priceRange: [0, roundedMax],
         rating: 0,
         inStock: false,
-        featured: false,
-        bestseller: false,
-        newLaunch: false,
+        featured: filterParam === 'featured',
+        bestseller: filterParam === 'bestseller',
+        newLaunch: filterParam === 'newLaunch',
         searchTerm: "",
         selectedCategories: []
       });

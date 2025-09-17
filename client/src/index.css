@@ -263,7 +263,7 @@ body {
 
   /* Mobile product card enhancements */
   .mobile-product-card {
-    @apply bg-white rounded-xl sm:rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden;
+    @apply bg-white rounded-xl sm:rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border-0;
   }
 
   .mobile-product-image {
@@ -408,7 +408,7 @@ body {
   }
 
   .mobile-category-product-card {
-    @apply border border-gray-100 hover:border-red-200 transition-all duration-300;
+    @apply border-0 transition-all duration-300;
   }
 
   .mobile-category-product-card .mobile-product-image {
@@ -1574,7 +1574,7 @@ body {
   }
 
   .amazon-mobile-card {
-    @apply bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden;
+    @apply bg-white rounded-md shadow-sm border-0 overflow-hidden;
   }
 
   .amazon-mobile-image {

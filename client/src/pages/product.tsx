@@ -31,7 +31,7 @@ export default function ProductsPage() {
 
   // Handle initial URL parameter filtering
   useEffect(() => {
-    if (allProducts) {
+    if (allProducts && allProducts.length > 0) {
       const searchParams = new URLSearchParams(search);
       const filterParam = searchParams.get('filter');
       let filtered = [...allProducts];
@@ -40,13 +40,13 @@ export default function ProductsPage() {
       if (filterParam) {
         switch (filterParam) {
           case 'bestseller':
-            filtered = allProducts.filter(product => product.bestseller);
+            filtered = allProducts.filter(product => product.bestseller === true);
             break;
           case 'featured':
-            filtered = allProducts.filter(product => product.featured);
+            filtered = allProducts.filter(product => product.featured === true);
             break;
           case 'newLaunch':
-            filtered = allProducts.filter(product => product.newLaunch);
+            filtered = allProducts.filter(product => product.newLaunch === true);
             break;
         }
       }
@@ -54,6 +54,16 @@ export default function ProductsPage() {
       let categoryParam = searchParams.get('category');
       if (categoryParam && categoryParam !== "all") {
         filtered = filtered.filter(product => product.category === categoryParam);
+      }
+
+      // Update active filters based on URL parameters
+      if (filterParam) {
+        setActiveFilters(prev => ({
+          ...prev,
+          featured: filterParam === 'featured',
+          bestseller: filterParam === 'bestseller',
+          newLaunch: filterParam === 'newLaunch',
+        }));
       }
 
       setFilteredProducts(filtered);
@@ -64,6 +74,17 @@ export default function ProductsPage() {
   const handleFilterChange = (products: Product[], filters: any) => {
     setFilteredProducts(products);
     setActiveFilters(filters);
+    
+    // Update URL if needed to reflect filter changes
+    const searchParams = new URLSearchParams(search);
+    const currentFilter = searchParams.get('filter');
+    
+    // If user has manually changed filters, remove the URL filter parameter
+    if (currentFilter && !filters[currentFilter]) {
+      searchParams.delete('filter');
+      const newUrl = `${window.location.pathname}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+      window.history.replaceState(null, '', newUrl);
+    }
   };
 
   // Sort products based on selected sort option

@@ -430,8 +430,8 @@ export default function Cart() {
                 {/* Security & Policies */}
                 <div className="space-y-2 text-xs text-gray-500 text-center">
                   <p>🔒 Secure checkout with SSL encryption</p>
-                  <p>📦 Free returns within 30 days</p>
-                  <p>⚡ Same day delivery available</p>
+                  {/* <p>📦 Free returns within 30 days</p>
+                  <p>⚡ Same day delivery available</p> */}
                 </div>
               </CardContent>
             </Card>

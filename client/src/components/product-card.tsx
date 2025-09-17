@@ -20,9 +20,11 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
   // Check if product is in wishlist
   useEffect(() => {
-    const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
-    setIsInWishlist(wishlist.some((item: any) => item.id === product.id));
-  }, [product.id]);
+    if (product?.id) {
+      const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
+      setIsInWishlist(wishlist.some((item: any) => item.id === product.id));
+    }
+  }, [product?.id]);
 
   const toggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -123,6 +125,11 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       />
     ));
   };
+
+  // Early return with null check - make sure product exists
+  if (!product) {
+    return null;
+  }
 
   if (viewMode === 'list') {
     return (
@@ -256,7 +263,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
   return (
     <Card 
-      className={`group hover:shadow-lg transition-all duration-300 overflow-hidden bg-white border-0 hover:border-pink-200 hover:shadow-pink-100/20 mobile-product-card w-full ${className}`}
+      className={`group hover:shadow-lg transition-all duration-300 overflow-hidden bg-white border-0 hover:shadow-pink-100/20 mobile-product-card w-full ${className}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

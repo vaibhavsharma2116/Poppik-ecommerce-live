@@ -123,10 +123,6 @@ export default function CategoryPage() {
     }
   };
 
-  if (!match) {
-    return <div>Category not found</div>;
-  }
-
   // Get category sliders with better error handling
   const { data: categorySliderImages = [], isLoading: slidersLoading, error: slidersError } = useQuery({
     queryKey: [`/api/categories/slug/${categorySlug}/sliders`],
@@ -186,6 +182,9 @@ export default function CategoryPage() {
     const [api, setApi] = React.useState<any>();
     const [current, setCurrent] = React.useState(0);
     const [count, setCount] = React.useState(0);
+    const [isPlaying, setIsPlaying] = React.useState(true);
+    const [progress, setProgress] = React.useState(0);
+    const autoplayDelay = 5000; // 5 seconds
 
     React.useEffect(() => {
       if (!api) return;
@@ -195,19 +194,60 @@ export default function CategoryPage() {
 
       api.on("select", () => {
         setCurrent(api.selectedScrollSnap() + 1);
+        setProgress(0);
       });
     }, [api]);
+
+    // Auto play functionality
+    React.useEffect(() => {
+      if (!isPlaying || !api || count <= 1) return;
+
+      const interval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 100) {
+            if (api.canScrollNext()) {
+              api.scrollNext();
+            } else {
+              api.scrollTo(0);
+            }
+            return 0;
+          }
+          return prev + (100 / (autoplayDelay / 100));
+        });
+      }, 100);
+
+      return () => clearInterval(interval);
+    }, [api, isPlaying, autoplayDelay, count]);
+
+    const togglePlayPause = () => {
+      setIsPlaying(!isPlaying);
+    };
+
+    const goToSlide = (index: number) => {
+      api?.scrollTo(index);
+      setProgress(0);
+    };
 
     return (
       <div className="mb-8 sm:mb-12">
         <Carousel
           setApi={setApi}
-          className="w-full"
+          className="w-full relative"
           opts={{
             align: "start",
             loop: true,
           }}
         >
+          {/* Progress bar */}
+          {count > 1 && (
+            <div className="absolute top-0 left-0 w-full h-1 bg-gray-200 z-10">
+              <div 
+                className="h-full bg-blue-500 transition-all duration-100 ease-linear"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
+
           <CarouselContent>
             {slidesToShow.map((slide) => (
               <CarouselItem key={slide.id}>
@@ -217,7 +257,6 @@ export default function CategoryPage() {
                     alt={slide.title || 'Category Banner'}
                     className="w-full h-auto object-contain bg-gray-50"
                     style={{
-                     
                       objectFit: 'contain',
                       objectPosition: 'center'
                     }}
@@ -228,13 +267,58 @@ export default function CategoryPage() {
           </CarouselContent>
           <CarouselPrevious className="left-4" />
           <CarouselNext className="right-4" />
+
+          {/* Play/Pause button */}
+          {count > 1 && (
+            <button
+              onClick={togglePlayPause}
+              className="absolute top-4 right-4 z-20 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition-all"
+              aria-label={isPlaying ? "Pause slideshow" : "Play slideshow"}
+            >
+              {isPlaying ? (
+                <svg className="w-4 h-4 text-gray-800" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 text-gray-800" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7L8 5z"/>
+                </svg>
+              )}
+            </button>
+          )}
+
+          {/* Slide counter */}
+          {count > 1 && (
+            <div className="absolute bottom-4 right-4 z-20 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-white text-sm font-medium">
+              {current} / {count}
+            </div>
+          )}
         </Carousel>
-        
+
         {/* Dot indicators */}
-        
+        {/* {count > 1 && (
+          <div className="flex justify-center space-x-2 mt-4">
+            {Array.from({ length: count }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToSlide(index)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  current === index + 1
+                    ? 'bg-blue-500 w-6'
+                    : 'bg-gray-300 hover:bg-gray-400'
+                }`}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
+          </div>
+        )} */}
       </div>
     );
   };
+
+  if (!match) {
+    return <div>Category not found</div>;
+  }
 
   return (
     <div className="">
