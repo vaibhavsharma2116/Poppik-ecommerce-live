@@ -144,24 +144,7 @@ export default function CategoryPage() {
 
   // Fallback static slider data if no dynamic sliders exist
   const fallbackSliderImages = [
-    {
-      id: 'fallback-1',
-      imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
-      title: "Discover Amazing Products",
-      subtitle: "Find the perfect items for you"
-    },
-    {
-      id: 'fallback-2',
-      imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
-      title: "Premium Quality Collection",
-      subtitle: "Curated just for you"
-    },
-    {
-      id: 'fallback-3',
-      imageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
-      title: "Special Offers Available",
-      subtitle: "Don't miss out on great deals"
-    }
+   
   ];
 
   // Use dynamic sliders if available, otherwise use fallback
