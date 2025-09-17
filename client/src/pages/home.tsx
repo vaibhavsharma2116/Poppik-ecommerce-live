@@ -269,7 +269,7 @@ export default function Home() {
                       <ProductCard
                         key={product.id}
                         product={product}
-                        className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300"
+                        className="mobile-product-card "
                       />
                     ))}
                 </div>
