@@ -1258,6 +1258,12 @@ body {
     @apply px-3;
   }
 
+  /* Ensure full viewport coverage */
+  body, #root {
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile */
+  }
+
   .product-card {
     @apply rounded-lg shadow-sm;
   }
@@ -1361,6 +1367,13 @@ body {
     @apply w-2.5 h-2.5;
   }
 }
+
+  /* Mobile page container to prevent black areas */
+  .mobile-page-container {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: linear-gradient(to bottom, #f9fafb, #ffffff);
+  }
 
   /* Mobile specific product cards */
   .mobile-product-card .product-image {
