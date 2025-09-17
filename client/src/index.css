@@ -258,12 +258,12 @@ body {
 
   /* Mobile navigation improvements */
   .mobile-nav-item {
-    @apply text-base sm:text-lg py-3 px-4 border-b border-gray-100 last:border-b-0;
+    @apply text-base sm:text-lg py-3 px-4 last:border-b-0;
   }
 
   /* Mobile product card enhancements */
   .mobile-product-card {
-    @apply bg-white rounded-xl sm:rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border-0;
+    @apply bg-white rounded-xl sm:rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden;
   }
 
   .mobile-product-image {
@@ -330,7 +330,7 @@ body {
 
   /* Enhanced Mobile Menu Styles */
   .mobile-menu-header {
-    @apply px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-red-50 to-pink-50;
+    @apply px-6 py-4 bg-gradient-to-r from-red-50 to-pink-50;
   }
 
   .mobile-menu-content {
@@ -366,11 +366,11 @@ body {
   }
 
   .mobile-menu-footer {
-    @apply border-t border-gray-100 bg-gray-50 px-4 py-4 space-y-2;
+    @apply bg-white px-4 py-4 space-y-2;
   }
 
   .mobile-menu-card {
-    @apply flex items-center space-x-3 px-3 py-3 rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100;
+    @apply flex items-center space-x-3 px-3 py-3 rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-200;
   }
 
   .mobile-menu-icon-wrapper {
@@ -395,7 +395,7 @@ body {
   }
 
   .mobile-accordion [data-radix-accordion-trigger] {
-    @apply hover:bg-gray-50 rounded-lg transition-all duration-200 justify-between;
+    @apply hover:bg-red-50 rounded-lg transition-all duration-200 justify-between;
   }
 
   .mobile-accordion [data-radix-accordion-content] {
@@ -450,7 +450,7 @@ body {
   }
 
   .mobile-search-results {
-    @apply absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto;
+    @apply absolute top-full left-0 right-0 mt-1 bg-white rounded-md shadow-lg z-50 max-h-96 overflow-y-auto;
   }
 
   .mobile-category-description {
@@ -459,12 +459,12 @@ body {
 
   /* Mobile filter improvements */
   .mobile-filter-button {
-    @apply w-full bg-black text-white px-4 py-3 rounded-lg font-medium text-sm sm:text-base mb-4;
+    @apply w-full bg-red-600 text-white px-4 py-3 rounded-lg font-medium text-sm sm:text-base mb-4;
   }
 
   /* Mobile cart and checkout */
   .mobile-cart-item {
-    @apply flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 border-b border-gray-100;
+    @apply flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4;
   }
 
   .mobile-cart-image {
@@ -551,7 +551,7 @@ body {
   }
 
   .mobile-form-input {
-    @apply w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm sm:text-base;
+    @apply w-full px-3 py-2 sm:px-4 sm:py-3 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm sm:text-base;
   }
 
   /* Mobile spacing utilities */
@@ -612,11 +612,11 @@ body {
   }
 
   .btn-primary {
-    @apply bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors;
+    @apply bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors;
   }
 
   .btn-secondary {
-    @apply border border-black text-black px-6 py-3 rounded-lg font-medium hover:bg-black hover:text-white transition-colors;
+    @apply border border-red-600 text-red-600 px-6 py-3 rounded-lg font-medium hover:bg-red-600 hover:text-white transition-colors;
   }
 
   .gradient-pink {
