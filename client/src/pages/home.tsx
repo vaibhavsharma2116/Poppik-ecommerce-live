@@ -464,7 +464,7 @@ export default function Home() {
           ) : (
             <>
               {/* Mobile-first Grid Layout for New Launch Products */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
+              <div className="mobile-product-grid">
                 {allProducts
                   ?.filter((product) => product.newLaunch)
                   .slice(0, 4)
@@ -472,7 +472,7 @@ export default function Home() {
                     <ProductCard
                       key={product.id}
                       product={product}
-                      className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300 relative"
+                      className="mobile-product-card hover:shadow-xl transition-all duration-300 transform hover:scale-105 relative"
                     />
                   ))}
               </div>

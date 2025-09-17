@@ -1298,7 +1298,11 @@ body {
   }
 
   .mobile-product-card {
-    @apply p-4 rounded-xl;
+    @apply p-4 rounded-xl bg-white border-2 border-gray-800 shadow-lg;
+  }
+
+  .mobile-product-grid {
+    @apply grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8;
   }
 }
 
