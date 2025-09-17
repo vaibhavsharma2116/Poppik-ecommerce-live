@@ -132,6 +132,20 @@ body {
     @apply font-sans antialiased bg-background text-foreground;
     font-family: 'Poppins', system-ui, -apple-system, sans-serif;
   }
+
+  /* Remove all borders from product cards and their children */
+  .product-card,
+  .product-card *,
+  .mobile-product-card,
+  .mobile-product-card *,
+  .group,
+  .group * {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    -webkit-box-shadow: none !important;
+    -moz-box-shadow: none !important;
+  }
 }
 
 @layer components {
@@ -143,6 +157,12 @@ body {
     outline: none !important;
     -webkit-box-shadow: none !important;
     -moz-box-shadow: none !important;
+  }
+
+  .product-card * {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
   }
 
   .product-card::before {
@@ -276,10 +296,14 @@ body {
     -moz-box-shadow: none !important;
   }
 
+  .mobile-product-card * {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
   .mobile-product-image {
-    @apply w-full h-full object-cover transition-transform duration-300;
-    aspect-ratio: 1/1;
-    min-height: 140px;
+    @apply aspect-square object-cover w-full transition-transform duration-300;
   }
 
   .mobile-product-content {
@@ -1595,6 +1619,14 @@ body {
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
+  }
+
+  .amazon-mobile-card *,
+  .amazon-mobile-card::before,
+  .amazon-mobile-card::after {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
   }
 
   .amazon-mobile-image {
