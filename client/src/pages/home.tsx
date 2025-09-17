@@ -262,21 +262,17 @@ export default function Home() {
             ) : (
               <>
                 {/* Mobile-first Grid Layout */}
-                {!allProductsLoading && allProducts && allProducts.length > 0 && (
-  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
-    {allProducts.map((product) => (
-      <div 
-        className={`product-card transition-all duration-300 overflow-hidden relative`}
-        key={product.id}
-      >
-        <ProductCard
-          product={product}
-          className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300 relative"
-        />
-      </div>
-    ))}
-  </div>
-)}
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
+                  {allProducts
+                    ?.slice(0, 8)
+                    .map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300"
+                      />
+                    ))}
+                </div>
 
                 {/* View More Button */}
                 {!allProductsLoading &&
@@ -468,21 +464,18 @@ export default function Home() {
           ) : (
             <>
               {/* Mobile-first Grid Layout for New Launch Products */}
-             {!allProductsLoading && allProducts && allProducts.length > 0 && (
-  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
-    {allProducts.map((product) => (
-      <div 
-        className={`product-card transition-all duration-300 overflow-hidden relative`}
-        key={product.id}
-      >
-        <ProductCard
-          product={product}
-          className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300 relative"
-        />
-      </div>
-    ))}
-  </div>
-)}
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
+                {allProducts
+                  ?.filter((product) => product.newLaunch)
+                  .slice(0, 4)
+                  .map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300 relative"
+                    />
+                  ))}
+              </div>
 
               {/* Explore New Launches Button */}
               <div className="text-center mt-10">
