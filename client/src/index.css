@@ -147,7 +147,6 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(139, 69, 193, 0.1) 100%);
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
