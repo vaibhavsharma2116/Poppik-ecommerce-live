@@ -213,6 +213,44 @@ body {
     @apply px-4 sm:px-6 lg:px-8;
   }
 
+  /* Enhanced Mobile Grid for consistent 2-column layout */
+  .mobile-product-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 0 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  @media (min-width: 480px) {
+    .mobile-product-grid {
+      gap: 12px;
+      padding: 0 12px;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .mobile-product-grid {
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .mobile-product-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .mobile-product-grid {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+    }
+  }
+
   /* Logo responsive styles */
   .responsive-logo {
     height: 2rem; /* 32px for mobile */
@@ -294,12 +332,25 @@ body {
     outline: none !important;
     -webkit-box-shadow: none !important;
     -moz-box-shadow: none !important;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    flex: 1;
+    min-width: 0;
   }
 
   .mobile-product-card * {
     border: none !important;
     box-shadow: none !important;
     outline: none !important;
+  }
+
+  /* Consistent mobile product card layout */
+  .mobile-product-card-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
   }
 
   .mobile-product-image {
@@ -1258,12 +1309,6 @@ body {
     @apply px-3;
   }
 
-  /* Ensure full viewport coverage */
-  body, #root {
-    min-height: 100vh;
-    min-height: 100dvh; /* Dynamic viewport height for mobile */
-  }
-
   .product-card {
     @apply rounded-lg shadow-sm;
   }
@@ -1367,13 +1412,6 @@ body {
     @apply w-2.5 h-2.5;
   }
 }
-
-  /* Mobile page container to prevent black areas */
-  .mobile-page-container {
-    min-height: 100vh;
-    min-height: 100dvh;
-    background: linear-gradient(to bottom, #f9fafb, #ffffff);
-  }
 
   /* Mobile specific product cards */
   .mobile-product-card .product-image {

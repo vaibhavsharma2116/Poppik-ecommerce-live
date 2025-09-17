@@ -93,7 +93,7 @@ export default function Home() {
     makeup:
       "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
     bodycare:
-      "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+      "https://images.unsplash.com/photo-1571019613454-1cb2f982d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
   };
 
   const categoryGradients = {
@@ -299,7 +299,7 @@ export default function Home() {
                       </Link>
                     </div>
                   )}
-                
+
                 {/* Explore All Products Button */}
                 {!allProductsLoading &&
                   allProducts &&
@@ -375,7 +375,7 @@ export default function Home() {
           ) : featuredProducts && featuredProducts.length > 0 ? (
             <>
               {/* Mobile-first Grid Layout for Featured Products */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
+              <div className="mobile-product-grid">
                 {featuredProducts.slice(0, 8).map((product) => (
                   <ProductCard
                     key={product.id}

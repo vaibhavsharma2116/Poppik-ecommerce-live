@@ -266,14 +266,17 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
   return (
     <div 
-      className={`group transition-all duration-300 overflow-hidden bg-white w-full ${className}`}
+      className={`mobile-product-card-container group transition-all duration-300 overflow-hidden bg-white ${className}`}
       style={{ 
         border: 'none !important', 
         outline: 'none !important', 
         boxShadow: 'none !important', 
         WebkitBoxShadow: 'none !important',
         MozBoxShadow: 'none !important',
-        borderRadius: '12px' 
+        borderRadius: '12px',
+        width: '100%',
+        maxWidth: '100%',
+        margin: '0'
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
