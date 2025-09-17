@@ -39,7 +39,7 @@ dotenv.config();
 
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
+  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,
   max: 3, // Further reduced connections
   idleTimeoutMillis: 10000,
@@ -747,10 +747,42 @@ export class DatabaseStorage implements IStorage {
   async createShade(shadeData: InsertShade): Promise<Shade> {
     try {
       const db = await getDb();
-      const [shade] = await db.insert(shades).values(shadeData).returning();
+      
+      // Ensure value is unique by checking existing values and appending number if needed
+      let value = shadeData.value;
+      if (!value) {
+        // Generate value from name if not provided
+        value = shadeData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      }
+      
+      // Check if value already exists and generate unique one
+      let finalValue = value;
+      let counter = 1;
+      while (true) {
+        const existingShade = await db
+          .select()
+          .from(shades)
+          .where(eq(shades.value, finalValue))
+          .limit(1);
+        
+        if (existingShade.length === 0) {
+          break; // Value is unique
+        }
+        
+        finalValue = `${value}-${counter}`;
+        counter++;
+      }
+      
+      // Create shade with unique value
+      const shadeToInsert = {
+        ...shadeData,
+        value: finalValue
+      };
+      
+      const [shade] = await db.insert(shades).values(shadeToInsert).returning();
       return shade;
     } catch (error) {
-      console.error("Database connection failed:", error);
+      console.error("Database error creating shade:", error);
       throw error;
     }
   }

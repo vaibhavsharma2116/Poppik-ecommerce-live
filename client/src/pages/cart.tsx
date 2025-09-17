@@ -287,7 +287,7 @@ export default function Cart() {
                       <img
                         src={item.image}
                         alt={item.name}
-                        className="h-24 w-24 sm:h-28 sm:w-28 object-cover rounded-lg mx-auto sm:mx-0"
+                        className="sm:h-28 sm:w-28 object-cover rounded-lg mx-auto sm:mx-0"
                       />
                     </div>
 

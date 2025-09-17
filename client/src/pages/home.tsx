@@ -108,12 +108,12 @@ export default function Home() {
       {/* Hero Section */}
       <HeroBanner />
 
-      {/* Timer Section */}
+      {/* Timer Section
       <Timer
         targetDate={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)} // 7 days from now
         title="Flash Sale Ending Soon!"
         subtitle="Get your favorite beauty products at unbeatable prices"
-      />
+      /> */}
 
       {/* Enhanced Categories Section */}
       <section className="py-24 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">

@@ -43,6 +43,7 @@ export default function CheckoutPage() {
   });
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [profileDataLoaded, setProfileDataLoaded] = useState(false);
 
   useEffect(() => {
     // Check if user is logged in when accessing checkout
@@ -57,6 +58,77 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Parse user data and set profile
+    try {
+      const userData = JSON.parse(user);
+      setUserProfile(userData);
+
+      // Auto-fill form data if profile has information and not already loaded
+      if (userData && !profileDataLoaded) {
+        // Parse address to extract city, state, zipCode from profile
+        let city = "";
+        let state = "";
+        let zipCode = "";
+        let streetAddress = userData.address || "";
+
+        // Try to extract city, state, zipCode from full address if they exist
+        if (streetAddress) {
+          const addressParts = streetAddress.split(',').map(part => part.trim());
+          if (addressParts.length >= 3) {
+            // Last part might contain state and pin code
+            const lastPart = addressParts[addressParts.length - 1];
+            const pinCodeMatch = lastPart.match(/\d{6}$/);
+            if (pinCodeMatch) {
+              zipCode = pinCodeMatch[0];
+              state = lastPart.replace(/\d{6}$/, '').trim();
+            } else {
+              state = lastPart;
+            }
+
+            // Second last part might be city
+            if (addressParts.length >= 2) {
+              city = addressParts[addressParts.length - 2];
+            }
+
+            // Remove city and state from full address to get street address
+            streetAddress = addressParts.slice(0, -2).join(', ');
+          } else if (addressParts.length === 2) {
+            // If only 2 parts, assume first is address and second is city
+            city = addressParts[1];
+            streetAddress = addressParts[0];
+          } else if (addressParts.length === 1) {
+            // If only 1 part, use it as street address
+            streetAddress = addressParts[0];
+          }
+        }
+
+        // Auto-fill form data with profile information
+        setFormData({
+          email: userData.email || "",
+          firstName: userData.firstName || "",
+          lastName: userData.lastName || "",
+          address: streetAddress,
+          city: city,
+          state: state,
+          zipCode: zipCode,
+          phone: userData.phone || "",
+          paymentMethod: "cashfree",
+        });
+
+        setProfileDataLoaded(true);
+
+        // Show notification that data was auto-filled
+        if (userData.firstName || userData.lastName || userData.email || userData.phone || userData.address) {
+          toast({
+            title: "Profile Data Loaded",
+            description: "Your contact information and shipping address have been filled automatically.",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error parsing user data:", error);
+    }
+
     const savedCart = localStorage.getItem("cart");
     if (savedCart) {
       try {
@@ -68,7 +140,7 @@ export default function CheckoutPage() {
       }
     }
     setLoading(false);
-  }, []);
+  }, [profileDataLoaded]);
 
   const verifyPayment = async (orderIdParam: string) => {
     try {
@@ -625,47 +697,66 @@ export default function CheckoutPage() {
     <div className="min-h-screen bg-gray-50 py-8">
       {/* Profile Data Confirmation Dialog */}
       <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Use Profile Information?
+              Use Profile Information
             </DialogTitle>
             <DialogDescription>
-              Would you like to use the information from your profile to fill both contact information and shipping address in this checkout form?
+              Fill the checkout form with your profile information. You can edit any field after filling.
             </DialogDescription>
           </DialogHeader>
 
           {userProfile && (
-            <div className="space-y-3 py-4">
-              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                <div>
-                  <h4 className="font-semibold text-sm text-gray-700 mb-2">Contact Information:</h4>
-                  <p><strong>Name:</strong> {userProfile.firstName} {userProfile.lastName}</p>
-                  <p><strong>Email:</strong> {userProfile.email}</p>
-                  {userProfile.phone && <p><strong>Phone:</strong> {userProfile.phone}</p>}
-                </div>
-                {userProfile.address && (
+            <div className="space-y-4 py-4">
+              <div className="bg-gradient-to-br from-red-50 to-pink-50 p-4 rounded-lg space-y-4 border border-red-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <h4 className="font-semibold text-sm text-gray-700 mb-2">Shipping Address:</h4>
-                    <p>{userProfile.address}</p>
+                    <h4 className="font-semibold text-sm text-red-700 mb-2">Contact Information</h4>
+                    <div className="space-y-1 text-sm text-gray-700">
+                      <p><span className="font-medium">Name:</span> {userProfile.firstName} {userProfile.lastName}</p>
+                      <p><span className="font-medium">Email:</span> {userProfile.email}</p>
+                      {userProfile.phone && <p><span className="font-medium">Phone:</span> {userProfile.phone}</p>}
+                    </div>
                   </div>
-                )}
+                  <div>
+                    <h4 className="font-semibold text-sm text-red-700 mb-2">Shipping Address</h4>
+                    <div className="text-sm text-gray-700">
+                      {userProfile.address ? (
+                        <p>{userProfile.address}</p>
+                      ) : (
+                        <p className="text-gray-500 italic">No address saved in profile</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <div className="flex items-start space-x-2">
+                  <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center mt-0.5">
+                    <span className="text-white text-xs">ℹ</span>
+                  </div>
+                  <p className="text-sm text-blue-700">
+                    After using profile data, you can edit any field directly in the form. Use "Clear Form" button to start fresh.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
                 <Button
                   onClick={handleUseProfileData}
                   className="flex-1 bg-red-600 hover:bg-red-700"
                 >
-                  Yes, Use Profile Data
+                  Use This Information
                 </Button>
                 <Button
                   variant="outline"
                   onClick={handleSkipProfileData}
                   className="flex-1"
                 >
-                  No, I'll Enter Manually
+                  Cancel
                 </Button>
               </div>
             </div>
@@ -689,9 +780,20 @@ export default function CheckoutPage() {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <User className="h-5 w-5 mr-2" />
-                    Contact Information
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <User className="h-5 w-5 mr-2" />
+                      Contact Information
+                    </div>
+                    {/* <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowProfileDialog(true)}
+                      className="text-xs"
+                    >
+                      Use Profile Data
+                    </Button> */}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -743,9 +845,20 @@ export default function CheckoutPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <MapPin className="h-5 w-5 mr-2" />
-                    Shipping Address
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <MapPin className="h-5 w-5 mr-2" />
+                      Shipping Address
+                    </div>
+                    {/* <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowProfileDialog(true)}
+                      className="text-xs"
+                    >
+                      Use Profile Data
+                    </Button> */}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1191,7 +1304,7 @@ export default function CheckoutPage() {
                       <Label htmlFor="cashfree" className="flex-1">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium">Cashfree Payment</p>
+                            <p className="font-medium">Online Payment</p>
                             <p className="text-sm text-gray-500">Pay with UPI, Cards, Net Banking & Wallets</p>
                           </div>
                           <div className="flex items-center space-x-2">

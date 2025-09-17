@@ -220,7 +220,7 @@ export default function Layout({ children }: LayoutProps) {
                 <img
                   src={headerLogo}
                   alt="Fresh Look Everyday - POPPIK"
-                  className="h-12 w-auto sm:h-14 md:h-16 lg:h-20 xl:h-24 object-contain"
+                  className="h-12 w-auto sm:h-14 md:h-16 lg:h-20 xl:h-24 object-contain mt-4"
                 />
               </div>
             </Link>
@@ -246,7 +246,7 @@ export default function Layout({ children }: LayoutProps) {
                   </div>
 
                   {/* Mobile Menu Content */}
-                  <ScrollArea className="flex-1 h-[calc(100vh-12rem)]">
+                  <ScrollArea className="flex-1 h-[calc(65vh)]">
                     <div className="px-4 py-4 space-y-1">
                       {/* Static Navigation Items */}
                       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
@@ -349,9 +349,7 @@ export default function Layout({ children }: LayoutProps) {
                         })}
                       </Accordion>
                     </div>
-                  </ScrollArea>
-                  {/* User Actions Section */}
-                  <div className="border-t border-gray-100 bg-gray-50 px-4 py-4">
+                    <div className="border-t border-gray-100 bg-gray-50 px-4 py-4">
                     <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
                       Account
                     </div>
@@ -440,6 +438,9 @@ export default function Layout({ children }: LayoutProps) {
                       )}
                     </div>
                   </div>
+                  </ScrollArea>
+                  {/* User Actions Section */}
+                  
                 </SheetContent>
               </Sheet>
 
@@ -449,7 +450,7 @@ export default function Layout({ children }: LayoutProps) {
                   <img
                     src={headerLogo}
                     alt="Fresh Look Everyday - POPPIK"
-                    className="h-8 w-auto object-contain hover:scale-105 transition-transform duration-300"
+                    className=" h-12 w-auto sm:h-14 md:h-16 lg:h-20 xl:h-24 object-contain hover:scale-105 transition-transform duration-300"
                   />
                 </Link>
               </div>

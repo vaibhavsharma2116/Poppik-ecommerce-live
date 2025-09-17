@@ -17,6 +17,7 @@ interface FilterState {
   newLaunch: boolean;
   searchTerm: string;
   selectedCategories: string[];
+  selectedSubcategories: string[];
 }
 
 interface DynamicFilterProps {
@@ -24,13 +25,17 @@ interface DynamicFilterProps {
   categories: Category[];
   onFilterChange: (filteredProducts: Product[], activeFilters: FilterState) => void;
   className?: string;
+  subcategories?: any[];
+  showSubcategories?: boolean;
 }
 
 export default function DynamicFilter({ 
   products, 
   categories, 
   onFilterChange, 
-  className = "" 
+  className = "",
+  subcategories = [],
+  showSubcategories = false
 }: DynamicFilterProps) {
   const [filters, setFilters] = useState<FilterState>({
     priceRange: [0, 2000],
@@ -40,7 +45,8 @@ export default function DynamicFilter({
     bestseller: false,
     newLaunch: false,
     searchTerm: "",
-    selectedCategories: []
+    selectedCategories: [],
+    selectedSubcategories: []
   });
 
   const [maxPrice, setMaxPrice] = useState(2000);
@@ -64,7 +70,8 @@ export default function DynamicFilter({
         bestseller: filterParam === 'bestseller',
         newLaunch: filterParam === 'newLaunch',
         searchTerm: "",
-        selectedCategories: []
+        selectedCategories: [],
+        selectedSubcategories: []
       });
     }
   }, [products]);
@@ -113,6 +120,11 @@ export default function DynamicFilter({
         return false;
       }
 
+      // Subcategory filter
+      if (filters.selectedSubcategories.length > 0 && !filters.selectedSubcategories.includes(product.subcategory || '')) {
+        return false;
+      }
+
       return true;
     });
 
@@ -143,7 +155,8 @@ export default function DynamicFilter({
       bestseller: false,
       newLaunch: false,
       searchTerm: "",
-      selectedCategories: []
+      selectedCategories: [],
+      selectedSubcategories: []
     });
   };
 
@@ -157,6 +170,7 @@ export default function DynamicFilter({
     if (filters.newLaunch) count++;
     if (filters.searchTerm) count++;
     if (filters.selectedCategories.length > 0) count++;
+    if (filters.selectedSubcategories.length > 0) count++;
     return count;
   };
 
@@ -166,6 +180,15 @@ export default function DynamicFilter({
       selectedCategories: checked
         ? [...prev.selectedCategories, category]
         : prev.selectedCategories.filter(cat => cat !== category)
+    }));
+  };
+
+  const handleSubcategoryChange = (subcategory: string, checked: boolean) => {
+    setFilters(prev => ({
+      ...prev,
+      selectedSubcategories: checked
+        ? [...prev.selectedSubcategories, subcategory]
+        : prev.selectedSubcategories.filter(sub => sub !== subcategory)
     }));
   };
 
@@ -197,6 +220,16 @@ export default function DynamicFilter({
           }));
         } else {
           setFilters(prev => ({ ...prev, selectedCategories: [] }));
+        }
+        break;
+      case 'subcategory':
+        if (value) {
+          setFilters(prev => ({ 
+            ...prev, 
+            selectedSubcategories: prev.selectedSubcategories.filter(sub => sub !== value) 
+          }));
+        } else {
+          setFilters(prev => ({ ...prev, selectedSubcategories: [] }));
         }
         break;
     }
@@ -287,6 +320,15 @@ export default function DynamicFilter({
               />
             </Badge>
           ))}
+          {filters.selectedSubcategories.map((subcategory) => (
+            <Badge key={subcategory} variant="outline" className="flex items-center gap-1">
+              {subcategory}
+              <X 
+                className="h-3 w-3 cursor-pointer" 
+                onClick={() => removeFilter('subcategory', subcategory)}
+              />
+            </Badge>
+          ))}
         </div>
       )}
 
@@ -343,39 +385,74 @@ export default function DynamicFilter({
         </CardContent>
       </Card>
 
-      {/* Categories Filter */}
-      {categories.length > 0 && (
+      {/* Subcategories Filter - Show when on category page */}
+      {showSubcategories && subcategories.length > 0 ? (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Categories</CardTitle>
+            <CardTitle className="text-sm">Subcategories</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {categories.map((category) => {
-              const productCount = products.filter(p => p.category === category.name).length;
+            {subcategories.map((subcategory) => {
+              const productCount = products.filter(p => p.subcategory === subcategory.name).length;
               return (
-                <div key={category.id} className="flex items-center justify-between space-x-2">
+                <div key={subcategory.id} className="flex items-center justify-between space-x-2">
                   <div className="flex items-center space-x-2 flex-1">
                     <Checkbox
-                      id={`category-${category.id}`}
-                      checked={filters.selectedCategories.includes(category.name)}
+                      id={`subcategory-${subcategory.id}`}
+                      checked={filters.selectedSubcategories.includes(subcategory.name)}
                       onCheckedChange={(checked) => 
-                        handleCategoryChange(category.name, checked as boolean)
+                        handleSubcategoryChange(subcategory.name, checked as boolean)
                       }
                       className="h-3.5 w-3.5 scale-75"
                     />
                     <label 
-                      htmlFor={`category-${category.id}`} 
+                      htmlFor={`subcategory-${subcategory.id}`} 
                       className="text-sm font-medium cursor-pointer flex-1"
                     >
-                      {category.name}
+                      {subcategory.name}
                     </label>
                   </div>
-                  <span className="text-xs text-gray-500">({productCount})</span>
+                  {/* <span className="text-xs text-gray-500">({productCount})</span> */}
                 </div>
               );
             })}
           </CardContent>
         </Card>
+      ) : (
+        /* Categories Filter - Show when not on category page */
+        categories.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Categories</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {categories.map((category) => {
+                const productCount = products.filter(p => p.category === category.name).length;
+                return (
+                  <div key={category.id} className="flex items-center justify-between space-x-2">
+                    <div className="flex items-center space-x-2 flex-1">
+                      <Checkbox
+                        id={`category-${category.id}`}
+                        checked={filters.selectedCategories.includes(category.name)}
+                        onCheckedChange={(checked) => 
+                          handleCategoryChange(category.name, checked as boolean)
+                        }
+                        className="h-3.5 w-3.5 scale-75"
+                      />
+                      <label 
+                        htmlFor={`category-${category.id}`} 
+                        className="text-sm font-medium cursor-pointer flex-1"
+                      >
+                        {category.name}
+                      </label>
+                    </div>
+                    {/* <span className="text-xs text-gray-500">({productCount})</span> */}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )
       )}
 
       {/* Product Status Filters */}

@@ -125,19 +125,19 @@ export default function ProductsPage() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-12">
+        {/* <div className="text-center mb-12">
           <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 max-w-4xl mx-auto">
             <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">Our Products</h1>
             <p className="text-xl text-gray-700 font-medium">Discover our complete range of premium beauty products</p>
           </div>
-        </div>
+        </div> */}
 
         {/* Controls */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 space-y-4 lg:space-y-0">
           <div className="flex items-center space-x-4">
             {/* View Mode Toggle */}
-            <div className="flex items-center bg-white/70 backdrop-blur-md border border-white/20 rounded-2xl p-1 shadow-lg">
-              <Button
+            {/* <div className="flex items-center bg-white/70 backdrop-blur-md border border-white/20 rounded-2xl p-1 shadow-lg"> */}
+              {/* <Button
                 variant={viewMode === "grid" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setViewMode("grid")}
@@ -153,7 +153,7 @@ export default function ProductsPage() {
               >
                 <List className="h-4 w-4" />
               </Button>
-            </div>
+            </div> */}
           </div>
 
           <div className="flex items-center gap-4">
@@ -216,7 +216,7 @@ export default function ProductsPage() {
           {/* Products Display */}
           <div className="lg:col-span-3">
             {productsLoading || categoriesLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <Card key={i} className="overflow-hidden bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20">
                     <Skeleton className="h-64 w-full rounded-t-3xl" />
@@ -242,7 +242,7 @@ export default function ProductsPage() {
                 {/* Products Grid/List */}
                 {filteredProducts.length > 0 ? (
                   <div className={viewMode === "grid" 
-                    ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8" 
+                    ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8" 
                     : "space-y-6"
                   }>
                     {filteredProducts.map((product) => (

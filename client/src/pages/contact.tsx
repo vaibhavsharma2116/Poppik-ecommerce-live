@@ -148,7 +148,10 @@ export default function Contact() {
                   <div>
                     <h3 className="font-medium text-gray-900">Address</h3>
                     <p className="text-gray-600">
-                       213, Sky Lark Building, Plot no.63, Sector 11, CBD Belapur, Navi Mumbai - 400614, Maharashtra, India
+                      <h2 className="text-lg font-semibold">Poppik Lifestyle Private Limited</h2>
+                      <p>Office No.- 213, A- Wing, Skylark Building,
+                     Plot No.- 63, Sector No.- 11, C.B.D. Belapur,
+                      Navi Mumbai- 400614 INDIA.</p>
                     </p>
                   </div>
                 </div>

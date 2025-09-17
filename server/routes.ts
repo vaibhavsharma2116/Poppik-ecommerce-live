@@ -55,7 +55,7 @@ import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, produ
 import { DatabaseMonitor } from "./db-monitor";
 // Database connection with enhanced configuration
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
+ connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -436,17 +436,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create Cashfree order payload with proper HTTPS URLs
       const host = req.get('host');
 
-      // Force HTTPS for production domains or when forwarded from HTTPS proxy
+      // Always use HTTPS for Cashfree as it requires secure URLs
       let protocol = 'https';
-
-      // Only use HTTP for localhost/development
+      
+      // For Replit development, use the replit.dev domain with HTTPS
+      let returnHost = host;
       if (host && (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0'))) {
-        protocol = req.protocol;
-      }
-
-      // Also check various proxy headers
-      const forwardedProto = req.get('x-forwarded-proto') || req.get('x-forwarded-protocol') || req.get('x-url-scheme');
-      if (forwardedProto === 'https') {
+        // For local development, we need to use a publicly accessible HTTPS URL
+        // Since Cashfree requires HTTPS, we'll use the Replit preview URL
+        const replitHost = process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : host;
+        returnHost = replitHost;
         protocol = 'https';
       }
 
@@ -461,8 +460,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           customer_phone: customerDetails.customerPhone || '9999999999'
         },
         order_meta: {
-          return_url: `${protocol}://${host}/checkout?payment=processing&orderId=${orderId}`,
-          notify_url: `${protocol}://${host}/api/payments/cashfree/webhook`
+          return_url: `${protocol}://${returnHost}/checkout?payment=processing&orderId=${orderId}`,
+          notify_url: `${protocol}://${returnHost}/api/payments/cashfree/webhook`
         },
         order_note: orderNote || 'Beauty Store Purchase'
       };
@@ -3777,12 +3776,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid color code format. Use hex format like #FF0000" });
       }
 
-      const generatedValue = value && value.trim() ? value.trim() : name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-
       const shadeData = {
         name: name.trim(),
         colorCode: colorCode.trim().toUpperCase(),
-        value: generatedValue,
+        value: value && value.trim() ? value.trim() : null, // Let storage handle value generation
         isActive: Boolean(isActive ?? true),
         sortOrder: Number(sortOrder) || 0,
         categoryIds: Array.isArray(categoryIds) ? categoryIds : [],
@@ -3801,15 +3798,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error creating shade:", error);
 
       let errorMessage = "Failed to create shade";
+      let statusCode = 500;
+
       if (error.message) {
-        errorMessage = error.message;
+        if (error.message.includes('unique constraint') || error.message.includes('duplicate key')) {
+          errorMessage = "A shade with this name or similar properties already exists. The system will automatically generate a unique identifier.";
+          statusCode = 400;
+        } else if (error.message.includes('not null constraint')) {
+          errorMessage = "Missing required shade information";
+          statusCode = 400;
+        } else {
+          errorMessage = error.message;
+        }
       }
 
-      if (error.message && error.message.includes('unique constraint')) {
-        errorMessage = "A shade with this value already exists. Please choose a different name or value.";
-      }
-
-      res.status(500).json({
+      res.status(statusCode).json({
         error: errorMessage,
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });

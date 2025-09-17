@@ -704,7 +704,7 @@ export default function ProductDetail() {
                         ? 'text-purple-700 font-semibold' 
                         : 'text-gray-600 group-hover:text-purple-600'
                     }`}>
-                      No Shade
+                      {/* No Shade */}
                     </span>
                   </div>
 

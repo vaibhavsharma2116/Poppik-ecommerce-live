@@ -365,6 +365,8 @@ export default function CategoryPage() {
                   <DynamicFilter
                     products={productsToShow || []}
                     categories={categories || []}
+                    subcategories={subcategories || []}
+                    showSubcategories={true}
                     onFilterChange={handleFilterChange}
                   />
                 </div>
@@ -380,6 +382,8 @@ export default function CategoryPage() {
               <DynamicFilter
                 products={productsToShow || []}
                 categories={categories || []}
+                subcategories={subcategories || []}
+                showSubcategories={true}
                 onFilterChange={handleFilterChange}
                 className="bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20 p-6"
               />
@@ -418,7 +422,7 @@ export default function CategoryPage() {
                 {/* Products Grid/List */}
                 {sortedProducts.length > 0 ? (
                   <div className={viewMode === "grid" 
-                    ? "mobile-category-grid grid grid-cols-2 " 
+                    ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8" 
                     : "space-y-4 sm:space-y-6"
                   }>
                     {sortedProducts.map((product) => (
