@@ -108,7 +108,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       });
     }
 
-    localStorage.setItem("cart", JSON.JSON.stringify(cart));
+    localStorage.setItem("cart", JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
   };
