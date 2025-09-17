@@ -12,6 +12,7 @@ const Card = React.forwardRef<
       "rounded-lg bg-card text-card-foreground",
       className
     )}
+    style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
     {...props}
   />
 ))

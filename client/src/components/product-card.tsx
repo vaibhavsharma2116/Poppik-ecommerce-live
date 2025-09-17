@@ -133,7 +133,10 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
   if (viewMode === 'list') {
     return (
-      <div className={`product-card group flex overflow-hidden bg-gradient-to-r from-white via-pink-50 to-purple-50 transition-all duration-500 ${className}`}>
+      <div 
+        className={`product-card group flex overflow-hidden bg-gradient-to-r from-white via-pink-50 to-purple-50 transition-all duration-500 ${className}`}
+        style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+      >
         <div className="relative w-48 flex-shrink-0">
           {product.saleOffer && (
             <Badge className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs px-3 py-1 animate-pulse shadow-lg">
@@ -263,8 +266,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
   return (
     <div 
-      className={`group transition-all duration-300 overflow-hidden bg-white mobile-product-card w-full ${className}`}
-      style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+      className={`group transition-all duration-300 overflow-hidden bg-white w-full ${className}`}
+      style={{ border: 'none', outline: 'none', boxShadow: 'none', borderRadius: '12px' }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
