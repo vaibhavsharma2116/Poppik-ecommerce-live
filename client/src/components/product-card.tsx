@@ -291,7 +291,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <Heart className={`h-6 w-6 transition-all duration-300 ${isInWishlist ? "text-red-500 fill-current animate-pulse" : "text-gray-400 hover:text-pink-500"}`} />
         </button>
         <Link href={`/product/${product.slug}`}>
-          <div className="relative overflow-hidden bg-white">
+          <div className="relative overflow-hidden bg-white h-36 sm:h-44 md:h-52 lg:h-60">
             <img
               src={(() => {
                 // Handle new images array format
@@ -304,11 +304,10 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
               })()}
               alt={product.name}
-              className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
+              className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-cover"
               loading="lazy"
               decoding="async"
-
-              style={{ width: '100%', height: '70%', objectFit: 'contain', display: 'block' }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';

@@ -277,7 +277,9 @@ body {
   }
 
   .mobile-product-image {
-    @apply aspect-square object-cover w-full transition-transform duration-300;
+    @apply w-full h-full object-cover transition-transform duration-300;
+    aspect-ratio: 1/1;
+    min-height: 140px;
   }
 
   .mobile-product-content {
