@@ -225,7 +225,7 @@ export default function Home() {
           )}
 
           {/* Enhanced Products Section */}
-          <div className="space-y-12">
+          <div className="space-y-8 sm:space-y-12">
             <div>
               <div className="text-center mb-4 sm:mb-6">
                 <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-full">
@@ -234,44 +234,44 @@ export default function Home() {
                   </span>
                 </div>
               </div>
-              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-left">
+              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center sm:text-left">
                 <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
                   Our Products
                 </span>
               </h3>
-              {/* <p className="text-lg sm:text-xl text-gray-600 leading-relaxed font-light mb-6 sm:mb-8 text-left">
-                Handpicked beauty essentials crafted with love and designed for
-                your daily routine
-              </p> */}
             </div>
 
-            {/* Products Grid - 4 products per row */}
+            {/* Products Grid - Mobile Optimized */}
             {allProductsLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <Card key={i} className="overflow-hidden bg-white shadow-sm">
-                    <Skeleton className="h-72 w-full" />
-                    <CardContent className="p-5 space-y-3">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-6 w-1/2" />
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="px-2 sm:px-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                      <Skeleton className="aspect-square w-full" />
+                      <div className="p-3 space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-6 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <>
-                {/* Mobile-first Grid Layout */}
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
-                  {allProducts
-                    ?.slice(0, 8)
-                    .map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300"
-                      />
-                    ))}
+                {/* Mobile-first Grid Layout with proper spacing */}
+                <div className="px-2 sm:px-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                    {allProducts
+                      ?.slice(0, 8)
+                      .map((product) => (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                        />
+                      ))}
+                  </div>
                 </div>
 
                 {/* View More Button */}
@@ -375,14 +375,16 @@ export default function Home() {
           ) : featuredProducts && featuredProducts.length > 0 ? (
             <>
               {/* Mobile-first Grid Layout for Featured Products */}
-              <div className="mobile-product-grid">
-                {featuredProducts.slice(0, 8).map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300"
-                  />
-                ))}
+              <div className="px-2 sm:px-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                  {featuredProducts.slice(0, 8).map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                    />
+                  ))}
+                </div>
               </div>
 
               {/* View All Button */}
@@ -464,17 +466,19 @@ export default function Home() {
           ) : (
             <>
               {/* Mobile-first Grid Layout for New Launch Products */}
-              <div className="mobile-product-grid">
-                {allProducts
-                  ?.filter((product) => product.newLaunch)
-                  .slice(0, 4)
-                  .map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      className="mobile-product-card hover:shadow-xl transition-all duration-300 transform hover:scale-105 relative"
-                    />
-                  ))}
+              <div className="px-2 sm:px-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                  {allProducts
+                    ?.filter((product) => product.newLaunch)
+                    .slice(0, 4)
+                    .map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                      />
+                    ))}
+                </div>
               </div>
 
               {/* Explore New Launches Button */}
@@ -585,14 +589,16 @@ export default function Home() {
           ) : bestsellerProducts && bestsellerProducts.length > 0 ? (
             <>
               {/* Mobile-first Grid Layout for Bestsellers */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8">
-                {bestsellerProducts.slice(0, 8).map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    className="mobile-product-card shadow-sm hover:shadow-md transition-all duration-300"
-                  />
-                ))}
+              <div className="px-2 sm:px-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                  {bestsellerProducts.slice(0, 8).map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                    />
+                  ))}
+                </div>
               </div>
 
               {/* View All Button */}
