@@ -136,8 +136,13 @@ body {
 
 @layer components {
   .product-card {
-    @apply bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden relative;
+    @apply bg-white rounded-2xl transition-all duration-300 overflow-hidden relative;
     background: linear-gradient(135deg, #ffffff 0%, #fdf2f8 50%, #f3e8ff 100%);
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    -webkit-box-shadow: none !important;
+    -moz-box-shadow: none !important;
   }
 
   .product-card::before {
@@ -147,6 +152,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(139, 69, 193, 0.1) 100%);
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
@@ -266,6 +272,8 @@ body {
     border: none !important;
     box-shadow: none !important;
     outline: none !important;
+    -webkit-box-shadow: none !important;
+    -moz-box-shadow: none !important;
   }
 
   .mobile-product-image {
@@ -414,6 +422,8 @@ body {
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    -moz-box-shadow: none !important;
   }
 
   .mobile-category-product-card .mobile-product-image {
@@ -1579,9 +1589,10 @@ body {
   }
 
   .amazon-mobile-card {
-    @apply bg-white rounded-md shadow-none overflow-hidden;
+    @apply bg-white rounded-md overflow-hidden;
     border: none !important;
     outline: none !important;
+    box-shadow: none !important;
   }
 
   .amazon-mobile-image {

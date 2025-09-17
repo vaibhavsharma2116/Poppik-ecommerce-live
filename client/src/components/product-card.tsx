@@ -267,7 +267,14 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   return (
     <div 
       className={`group transition-all duration-300 overflow-hidden bg-white w-full ${className}`}
-      style={{ border: 'none', outline: 'none', boxShadow: 'none', borderRadius: '12px' }}
+      style={{ 
+        border: 'none', 
+        outline: 'none', 
+        boxShadow: 'none', 
+        WebkitBoxShadow: 'none',
+        MozBoxShadow: 'none',
+        borderRadius: '12px' 
+      }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
