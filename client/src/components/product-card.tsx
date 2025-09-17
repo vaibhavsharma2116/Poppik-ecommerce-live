@@ -108,7 +108,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       });
     }
 
-    localStorage.setItem("cart", JSON.stringify(cart));
+    localStorage.setItem("cart", JSON.JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
   };
@@ -133,7 +133,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
   if (viewMode === 'list') {
     return (
-      <Card className={`product-card group flex overflow-hidden bg-gradient-to-r from-white via-pink-50 to-purple-50 border-2 border-transparent hover:border-pink-200 hover:shadow-2xl transition-all duration-500 ${className}`}>
+      <div className={`product-card group flex overflow-hidden bg-gradient-to-r from-white via-pink-50 to-purple-50 transition-all duration-500 ${className}`}>
         <div className="relative w-48 flex-shrink-0">
           {product.saleOffer && (
             <Badge className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs px-3 py-1 animate-pulse shadow-lg">
@@ -180,7 +180,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           </Link>
         </div>
 
-        <CardContent className="flex-1 p-6 flex flex-col justify-between bg-gradient-to-br from-white via-pink-25 to-purple-25">
+        <div className="flex-1 p-6 flex flex-col justify-between bg-gradient-to-br from-white via-pink-25 to-purple-25">
           <div className="space-y-3">
             <div className="flex items-center justify-between bg-white/70 backdrop-blur-sm rounded-lg p-2 border border-pink-100">
               <div className="star-rating">
@@ -215,7 +215,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 </Badge>
               )}
               {product.featured && (
-                <Badge variant="secondary" className="text-xs bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 hover:from-blue-200 hover:to-indigo-200 border border-blue-300 shadow-md">
+                <Badge variant="secondary" className="text-xs bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 hover:from-blue-200 hover:to-indigo-100 border border-blue-300 shadow-md">
                   ✨ Featured
                 </Badge>
               )}
@@ -256,13 +256,13 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card 
+    <div 
       className={`group transition-all duration-300 overflow-hidden bg-white mobile-product-card w-full ${className}`}
       style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
       onMouseEnter={() => setIsHovered(true)}
@@ -297,7 +297,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
               loading="lazy"
               decoding="async"
-          
+
               style={{ width: '100%', height: '70%', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
@@ -319,7 +319,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         </Link>
       </div>
 
-      <CardContent className="mobile-product-content p-2 sm:p-3 md:p-4 lg:p-5 space-y-1 sm:space-y-2 md:space-y-3 bg-white">
+      <div className="mobile-product-content p-2 sm:p-3 md:p-4 lg:p-5 space-y-1 sm:space-y-2 md:space-y-3 bg-white">
         <div className="flex items-center justify-between bg-white rounded-lg p-2">
           <div className="star-rating">
             {renderStars(parseFloat(product.rating))}
@@ -368,8 +368,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           )}
         </div>
 
-      
-      </CardContent>
-    </Card>
+
+      </div>
+    </div>
   );
 }
