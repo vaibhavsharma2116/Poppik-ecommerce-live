@@ -263,8 +263,10 @@ body {
 
   /* Mobile product card enhancements */
   .mobile-product-card {
-    @apply bg-white rounded-xl sm:rounded-2xl shadow-none hover:shadow-none transition-all duration-300 overflow-hidden;
+    @apply bg-white rounded-xl sm:rounded-2xl transition-all duration-300 overflow-hidden;
     border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
   }
 
   .mobile-product-image {
@@ -409,9 +411,10 @@ body {
   }
 
   .mobile-category-product-card {
-    @apply transition-all duration-300 shadow-none;
+    @apply transition-all duration-300;
     border: none !important;
     outline: none !important;
+    box-shadow: none !important;
   }
 
   .mobile-category-product-card .mobile-product-image {
