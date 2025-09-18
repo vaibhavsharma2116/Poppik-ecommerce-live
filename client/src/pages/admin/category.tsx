@@ -801,8 +801,21 @@ export default function AdminCategories() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => openSliderManager(category)}
+                            onClick={() => {
+                              setSelectedCategory(category);
+                              setIsViewModalOpen(true);
+                            }}
                             className="text-blue-600 hover:text-blue-700"
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openSliderManager(category)}
+                            className="text-green-600 hover:text-green-700"
+                            title="Manage Sliders"
                           >
                             <ImageIcon className="h-4 w-4" />
                           </Button>
@@ -810,6 +823,8 @@ export default function AdminCategories() {
                             variant="outline" 
                             size="sm" 
                             onClick={() => handleEditCategory(category)}
+                            className="text-orange-600 hover:text-orange-700"
+                            title="Edit Category"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -821,6 +836,7 @@ export default function AdminCategories() {
                               setIsDeleteModalOpen(true);
                             }}
                             className="text-red-600 hover:text-red-700"
+                            title="Delete Category"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -877,34 +893,37 @@ export default function AdminCategories() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center space-x-1">
+                          <div className="flex gap-2">
                             <Button 
-                              variant="ghost" 
+                              variant="outline" 
                               size="sm" 
-                              className="h-8 w-8 p-0"
                               onClick={() => {
                                 setSelectedSubcategory(subcategory);
                                 setIsViewModalOpen(true);
                               }}
+                              className="text-blue-600 hover:text-blue-700"
+                              title="View Details"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
                             <Button 
-                              variant="ghost" 
+                              variant="outline" 
                               size="sm" 
-                              className="h-8 w-8 p-0"
                               onClick={() => handleEditSubcategory(subcategory)}
+                              className="text-orange-600 hover:text-orange-700"
+                              title="Edit Subcategory"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button 
-                              variant="ghost" 
+                              variant="outline" 
                               size="sm" 
-                              className="h-8 w-8 p-0"
                               onClick={() => {
                                 setSelectedSubcategory(subcategory);
                                 setIsDeleteModalOpen(true);
                               }}
+                              className="text-red-600 hover:text-red-700"
+                              title="Delete Subcategory"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
