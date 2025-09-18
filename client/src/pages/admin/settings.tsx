@@ -14,8 +14,8 @@ import { User, Mail, Phone, Shield } from "lucide-react";
 export default function AdminSettings() {
   const [user, setUser] = useState<any>(null);
   const [storeSettings, setStoreSettings] = useState({
-    storeName: 'Beauty Haven',
-    contactEmail: 'contact@beautyhaven.com',
+    storeName: 'Poppik Lifestyle Private Limited',
+    contactEmail: 'info@poppik.in',
     storeDescription: 'Your one-stop destination for premium beauty and cosmetic products',
     currency: 'USD',
     taxRate: '8.5'

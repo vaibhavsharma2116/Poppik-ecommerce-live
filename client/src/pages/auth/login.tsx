@@ -44,7 +44,7 @@ export default function Login() {
         if (data.user.role === "admin") {
           window.location.href = "/admin";
         } else {
-          window.location.href = "/profile";
+          window.location.href = "/";
         } 
       } else {
         alert(data.error || "Invalid credentials");
@@ -73,7 +73,7 @@ export default function Login() {
       });
 
       // Redirect to profile
-      window.location.href = "/profile";
+      window.location.href = "/";
     } catch (error: any) {
       console.error("Google sign-in error:", error);
       toast({
@@ -86,7 +86,7 @@ export default function Login() {
 
   // Render phone login component
   if (showPhoneLogin) {
-    return <PhoneOTPVerification onVerified={() => window.location.href = "/profile"} />;
+    return <PhoneOTPVerification onVerified={() => window.location.href = "/"} />;
   }
 
   return (

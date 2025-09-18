@@ -931,7 +931,7 @@ export default function AdminCategories() {
           setImagePreview('');
         }
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editingCategory ? <Edit className="h-5 w-5 text-emerald-600" /> : <Layers className="h-5 w-5 text-blue-600" />}
@@ -941,7 +941,7 @@ export default function AdminCategories() {
               {editingCategory ? 'Update the category details' : 'Create a new product category for your store'}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4">
+          <div className="grid gap-4 max-h-[60vh] overflow-y-auto px-1">
             <div>
               <Label htmlFor="category-name">Category Name</Label>
               <Input
@@ -1072,7 +1072,7 @@ export default function AdminCategories() {
           setSubcategoryFormData({ name: '', slug: '', description: '', categoryId: '', status: 'Active' });
         }
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Tag className="h-5 w-5 text-purple-600" />
@@ -1082,7 +1082,7 @@ export default function AdminCategories() {
               {editingSubcategory ? 'Update the subcategory details' : 'Create a new subcategory under an existing category'}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4">
+          <div className="grid gap-4 max-h-[60vh] overflow-y-auto px-1">
             <div>
               <Label htmlFor="subcategory-category">Parent Category</Label>
               <Select value={subcategoryFormData.categoryId} onValueChange={(value) => setSubcategoryFormData(prev => ({ ...prev, categoryId: value }))}>

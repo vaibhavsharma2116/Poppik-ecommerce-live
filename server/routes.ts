@@ -55,7 +55,7 @@ import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, produ
 import { DatabaseMonitor } from "./db-monitor";
 // Database connection with enhanced configuration
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -3465,14 +3465,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 <body>
     <div class="invoice-container">
         <div class="header">
-            <div class="company-name">Beauty Store</div>
+            <div class="company-name">Poppik Lifestyle Private Limited</div>
             <div class="company-details">
                 Premium Beauty & Skincare Products<br>
-                123 Beauty Street, Mumbai, Maharashtra 400001<br>
-                Email: info@beautystore.com | Phone: +91 98765 43210<br>
-                GST No: 27ABCDE1234F1Z5
+                Office No.- 213, A- Wing, Skylark Building, <br>
+                Plot No.- 63, Sector No.- 11, C.B.D. Belapur,<br>
+                 Navi Mumbai- 400614 INDIA.o
+                GST No: 27AAQCP0247B1ZK
             </div>
-        </div>
+        </div><br>
 
         <h1 class="invoice-title">INVOICE</h1>
 
@@ -3546,7 +3547,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <div class="footer">
             <p><strong>Thank you for your business!</strong></p>
             <p>This is a computer generated invoice. No signature required.</p>
-            <p>For any queries, please contact us at support@beautystore.com</p>
+            <p>For any queries, please contact us at info@poppik.in</p>
             <p>Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}</p>
         </div>
     </div>
