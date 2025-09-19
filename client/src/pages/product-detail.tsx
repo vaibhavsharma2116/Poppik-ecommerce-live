@@ -477,55 +477,60 @@ export default function ProductDetail() {
                 <div className="space-y-4">
                   {/* Vertical Layout: Thumbnails on Left, Main Image on Right */}
                   <div className="flex gap-4">
-                    {/* Thumbnail Column - Vertical Slider for 4+ images */}
+                    {/* Thumbnail Column - Swipeable Vertical Carousel */}
                     {imageUrls.length > 1 && (
-                      <div className="w-20 flex-shrink-0">
-                        {imageUrls.length <= 4 ? (
-                          // Show all thumbnails if 4 or less
-                          <div className="flex flex-col gap-3">
+                      <div className="w-20 flex-shrink-0 relative">
+                        <div 
+                          className="h-80 overflow-hidden scroll-smooth"
+                          style={{ scrollBehavior: 'smooth' }}
+                        >
+                          <div 
+                            id="thumbnail-container"
+                            className="flex flex-col gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
+                            style={{
+                              scrollSnapType: 'y mandatory',
+                              scrollBehavior: 'smooth',
+                              WebkitOverflowScrolling: 'touch'
+                            }}
+                            onScroll={(e) => {
+                              const container = e.currentTarget;
+                              const scrollTop = container.scrollTop;
+                              const itemHeight = 92; // 80px height + 12px gap
+                              const visibleIndex = Math.round(scrollTop / itemHeight);
+                              
+                              // Auto-select image based on scroll position
+                              if (imageUrls[visibleIndex] && imageUrls[visibleIndex] !== selectedImageUrl) {
+                                setSelectedImageUrl(imageUrls[visibleIndex]);
+                              }
+                            }}
+                          >
                             {imageUrls.map((imageUrl, index) => (
                               <button
                                 key={`thumb-${index}`}
-                                onClick={() => setSelectedImageUrl(imageUrl)}
-                                className={`w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-200 hover:border-purple-300 flex-shrink-0 ${
+                                onClick={() => {
+                                  setSelectedImageUrl(imageUrl);
+                                  // Smooth scroll to selected thumbnail
+                                  const container = document.getElementById('thumbnail-container');
+                                  if (container) {
+                                    const itemHeight = 92;
+                                    container.scrollTo({
+                                      top: index * itemHeight,
+                                      behavior: 'smooth'
+                                    });
+                                  }
+                                }}
+                                className={`w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-300 hover:border-purple-300 flex-shrink-0 ${
                                   selectedImageUrl === imageUrl
-                                    ? 'border-purple-500 ring-2 ring-purple-200'
+                                    ? 'border-purple-500 ring-2 ring-purple-200 scale-105'
                                     : 'border-gray-200'
                                 }`}
+                                style={{ scrollSnapAlign: 'start' }}
                               >
-                                <img
-                                  src={imageUrl}
-                                  alt={`${product.name} view ${index + 1}`}
-                                  className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110"
-                          
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          // Use slider for more than 4 images
-                          <div className="relative h-80 overflow-hidden w-20">
-                            <div 
-                              className="flex flex-col gap-3 transition-transform duration-300 ease-in-out"
-                              style={{
-                                transform: `translateY(-${Math.max(0, Math.min(imageUrls.findIndex(img => img === selectedImageUrl) - 1, imageUrls.length - 4)) * 108}px)`
-                              }}
-                            >
-                              {imageUrls.map((imageUrl, index) => (
-                                <button
-                                  key={`thumb-${index}`}
-                                  onClick={() => setSelectedImageUrl(imageUrl)}
-                                  className={`w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-200 hover:border-purple-300 flex-shrink-0 ${
-                                    selectedImageUrl === imageUrl
-                                      ? 'border-purple-500 ring-2 ring-purple-200'
-                                      : 'border-gray-200'
-                                  }`}
-                                >
-                                  <div className="w-full h-full flex items-center justify-center p-1 bg-white rounded-lg">
+                                <div className="w-full h-full flex items-center justify-center p-1 bg-white rounded-lg">
                                   <OptimizedImage
                                     src={imageUrl}
                                     alt={`${product.name} view ${index + 1}`}
-                                    className="w-full h-full"
+                                    className="w-full h-full hover:scale-110 transition-transform duration-200"
                                     width={80}
                                     height={80}
                                     style={{ 
@@ -536,26 +541,70 @@ export default function ProductDetail() {
                                     }}
                                   />
                                 </div>
-                                </button>
-                              ))}
-                            </div>
-
-                            {/* Slider Indicators */}
-                            {imageUrls.length > 4 && (
-                              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex flex-col gap-1">
-                                <div className="w-1 bg-gray-300 rounded-full h-4 relative">
-                                  <div 
-                                    className="w-1 bg-purple-500 rounded-full transition-all duration-300"
-                                    style={{
-                                      height: `${(4 / imageUrls.length) * 100}%`,
-                                      transform: `translateY(${(Math.max(0, Math.min(imageUrls.findIndex(img => img === selectedImageUrl) - 1, imageUrls.length - 4)) / (imageUrls.length - 4)) * (16 - (4 / imageUrls.length) * 16)}px)`
-                                    }}
-                                  ></div>
-                                </div>
-                              </div>
-                            )}
+                              </button>
+                            ))}
                           </div>
+                        </div>
+
+                        {/* Navigation Arrows for Better UX */}
+                        {imageUrls.length > 3 && (
+                          <>
+                            <button
+                              onClick={() => {
+                                const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
+                                const prevIndex = Math.max(0, currentIndex - 1);
+                                setSelectedImageUrl(imageUrls[prevIndex]);
+                                
+                                const container = document.getElementById('thumbnail-container');
+                                if (container) {
+                                  container.scrollTo({
+                                    top: prevIndex * 92,
+                                    behavior: 'smooth'
+                                  });
+                                }
+                              }}
+                              className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:bg-white transition-all duration-200 z-10"
+                              disabled={imageUrls.findIndex(img => img === selectedImageUrl) === 0}
+                            >
+                              <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
+                                const nextIndex = Math.min(imageUrls.length - 1, currentIndex + 1);
+                                setSelectedImageUrl(imageUrls[nextIndex]);
+                                
+                                const container = document.getElementById('thumbnail-container');
+                                if (container) {
+                                  container.scrollTo({
+                                    top: nextIndex * 92,
+                                    behavior: 'smooth'
+                                  });
+                                }
+                              }}
+                              className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:bg-white transition-all duration-200 z-10"
+                              disabled={imageUrls.findIndex(img => img === selectedImageUrl) === imageUrls.length - 1}
+                            >
+                              <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          </>
                         )}
+
+                        {/* Scroll Indicator */}
+                        <div className="absolute right-1 top-1/2 transform -translate-y-1/2 w-1 h-16 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="w-full bg-purple-500 rounded-full transition-all duration-300"
+                            style={{
+                              height: `${Math.min(100, (3 / imageUrls.length) * 100)}%`,
+                              transform: `translateY(${(imageUrls.findIndex(img => img === selectedImageUrl) / Math.max(1, imageUrls.length - 3)) * (64 - Math.min(64, (3 / imageUrls.length) * 64))}px)`
+                            }}
+                          ></div>
+                        </div>
                       </div>
                     )}
 

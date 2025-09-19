@@ -1971,6 +1971,33 @@ img {
     border-radius: 6px !important;
   }
 
+  /* Smooth Scrolling Thumbnail Carousel */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  #thumbnail-container {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Touch-friendly scrolling for mobile */
+  @media (max-width: 768px) {
+    #thumbnail-container {
+      overscroll-behavior: contain;
+      scroll-snap-type: y mandatory;
+    }
+    
+    #thumbnail-container button {
+      scroll-snap-align: start;
+    }
+  }
+
   /* Product detail container fixes */
   .product-detail-container .mobile-slider-image,
   .product-detail-container .product-image {

@@ -61,8 +61,10 @@ export default function DynamicFilter({
       // Check for URL parameters to set initial filters
       const urlParams = new URLSearchParams(window.location.search);
       const filterParam = urlParams.get('filter');
+      const categoryParam = urlParams.get('category');
       
-      setFilters({
+      setFilters(prevFilters => ({
+        ...prevFilters,
         priceRange: [0, roundedMax],
         rating: 0,
         inStock: false,
@@ -70,11 +72,34 @@ export default function DynamicFilter({
         bestseller: filterParam === 'bestseller',
         newLaunch: filterParam === 'newLaunch',
         searchTerm: "",
-        selectedCategories: [],
+        selectedCategories: categoryParam && categoryParam !== 'all' ? [categoryParam] : [],
         selectedSubcategories: []
-      });
+      }));
     }
   }, [products]);
+
+  // Monitor URL changes to update filters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const filterParam = urlParams.get('filter');
+    const categoryParam = urlParams.get('category');
+    
+    if (filterParam) {
+      setFilters(prev => ({
+        ...prev,
+        featured: filterParam === 'featured',
+        bestseller: filterParam === 'bestseller',
+        newLaunch: filterParam === 'newLaunch'
+      }));
+    }
+    
+    if (categoryParam && categoryParam !== 'all') {
+      setFilters(prev => ({
+        ...prev,
+        selectedCategories: [categoryParam]
+      }));
+    }
+  }, [window.location.search]);
 
   // Apply filters whenever filters change
   useEffect(() => {
