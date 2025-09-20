@@ -34,7 +34,7 @@ export default function About() {
         <div className="text-center mb-16">
           <h1 className="text-4xl font-bold text-gray-900 mb-6">About Poppik</h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            At Poppik, we believe beauty is more than skin deep. We're a modern cosmetics and personal care brand offering high-performance color cosmetics, skincare essentials, and premium bath products designed for the bold, confident, and conscious consumer.
+            At Poppik, we believe makeup is not just about color – it’s about confidence colored your way. Our mission is simple: to bring a Fresh Look Everyday that celebrates individuality and self-expression.
           </p>
         </div>
 
@@ -44,20 +44,23 @@ export default function About() {
             <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
             <div className="space-y-4 text-gray-600 leading-relaxed">
               <p>
-               Founded by industry experts with a deep passion for beauty and innovation:
+               <h4 className="text-xl font-medium text-gray-900 ">* Who We Are</h4> 
+               
+               Poppik is a new-age cosmetic brand designed for women who live boldly, break barriers, and inspire others – our very own Boss Babes.<br></br>
+               <br></br>
 
-                  Jay Gupta brings over 14 years of experience in sales strategy, marketing, and brand development. He is also a proud Mentor of Change at NITI Aayog, supporting entrepreneurship and innovation across India.
-                  
-                  Ravinder Singh has 27 years of rich experience in sales leadership, having worked with top brands like MyGlamm, Himalaya, and Britannia. He also serves as a Senior Consultant to Khadi India, promoting indigenous and sustainable beauty solutions.
-                  
-                  Together, they bring vision, experience, and excellence to create a brand that truly understands Indian beauty.
+              <h4 className="text-xl font-medium text-gray-900 ">* What We Do</h4> 
+             From transfer-proof lipsticks to radiant blushes and everyday essentials, every Poppik product is crafted with care, trend-driven, and made for all skin tones.<br></br>
+              <br></br>
 
+              <h4 className="text-xl font-medium text-gray-900 ">* Our Vision</h4> 
+             To create a beauty community where every woman shines her way – confident, unstoppable, and always fresh with Poppik
               </p>
-              <p>
+              {/* <p>
                 Today, we're proud to offer a comprehensive range of skincare, haircare, makeup, and body care 
                 products that are carefully formulated with active ingredients, rigorously tested, and loved by 
                 millions of customers worldwide.
-              </p>
+              </p> */}
             </div>
 
             {/* Stats */}
@@ -109,10 +112,14 @@ export default function About() {
 
         {/* Mission Statement */}
         <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-2xl p-8 md:p-12 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Mission</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Promise</h2>
           <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
-            At Poppik, our mission is to offer a full range of innovative, safe, and high-performance beauty products thoughtfully tailored to the needs of Indian consumers. We aim to bridge the gap between modern beauty trends and traditional Indian values by infusing our formulations with time-tested ingredients and cultural relevance. Our products are designed to empower self-expression through color, care, and confidence, helping individuals feel seen, celebrated, and beautiful in their own skin. At the heart of our mission lies a commitment to sustainability and ethics — by supporting local manufacturing, creating employment opportunities, and promoting responsible beauty, we strive to make a meaningful impact on both people and the planet.
-
+            {/* At Poppik, our mission is to offer a full range of innovative, safe, and high-performance beauty products thoughtfully tailored to the needs of Indian consumers. We aim to bridge the gap between modern beauty trends and traditional Indian values by infusing our formulations with time-tested ingredients and cultural relevance. Our products are designed to empower self-expression through color, care, and confidence, helping individuals feel seen, celebrated, and beautiful in their own skin. At the heart of our mission lies a commitment to sustainability and ethics — by supporting local manufacturing, creating employment opportunities, and promoting responsible beauty, we strive to make a meaningful impact on both people and the planet. */}
+            <span className="text-xl font-medium text-gray-900 "> Confidence in Every Shade</span> – colors that speak your story.<br></br>
+            <br></br>
+            <span className="text-xl font-medium text-gray-900 ">Everyday Freshness</span> – makeup that feels as good as it looks.<br></br>
+            <br></br>
+           <span className="text-xl font-medium text-gray-900 ">Beauty Without Limits</span> – inclusive for every woman, every mood, every moment.<br></br>
           </p>
         </div>
       </div>
