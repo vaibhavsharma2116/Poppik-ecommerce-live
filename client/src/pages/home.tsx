@@ -125,11 +125,11 @@ export default function Home() {
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center mb-20">
-            <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-100 rounded-full mb-6 sm:mb-8 shadow-sm">
+            {/* <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-100 rounded-full mb-6 sm:mb-8 shadow-sm">
               <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text">
                 ✨ Premium Beauty Collection
               </span>
-            </div>
+            </div> */}
             <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-medium mb-6 sm:mb-8 tracking-tight">
               <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
                 Shop by Category
@@ -228,11 +228,11 @@ export default function Home() {
           <div className="space-y-8 sm:space-y-12">
             <div>
               <div className="text-center mb-4 sm:mb-6">
-                <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-full">
+                {/* <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-full">
                   <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
                     🌟 Curated Collection
                   </span>
-                </div>
+                </div> */}
               </div>
               <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center sm:text-left">
                 <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
@@ -342,11 +342,11 @@ export default function Home() {
         <div className=" mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="mb-16">
             <div className="text-center mb-6 sm:mb-8">
-              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-full shadow-sm">
+              {/* <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-full shadow-sm">
                 <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
                   ⭐ Featured Products
                 </span>
-              </div>
+              </div> */}
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-4 sm:mb-6 text-left">
               <span className="text-transparent bg-gradient-to-r from-purple-700 via-pink-600 to-purple-700 bg-clip-text">
@@ -433,11 +433,11 @@ export default function Home() {
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="mb-16">
             <div className="text-center mb-6 sm:mb-8">
-              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-full shadow-sm animate-pulse">
+              {/* <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-full shadow-sm animate-pulse">
                 <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text">
                   🚀 Fresh & New
                 </span>
-              </div>
+              </div> */}
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-4 sm:mb-6 text-left">
               <span className="text-transparent bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-700 bg-clip-text">
@@ -553,11 +553,11 @@ export default function Home() {
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="mb-16">
             <div className="text-center mb-6 sm:mb-8">
-              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-100 rounded-full shadow-sm">
+              {/* <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-100 rounded-full shadow-sm">
                 <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text">
                   🏆 Customer Favorites
                 </span>
-              </div>
+              </div> */}
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-4 sm:mb-6 text-left">
               <span className="text-transparent bg-gradient-to-r from-amber-700 via-yellow-600 to-amber-700 bg-clip-text">
