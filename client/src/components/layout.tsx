@@ -274,7 +274,7 @@ export default function Layout({ children }: LayoutProps) {
                   <img
                     src={headerLogo}
                     alt="POPPIK LIFESTYLE"
-                    className="h-12 w-auto  object-contain mt-4"
+                    className="h-10 w-auto lg:h-12 xl:h-14 object-contain mt-2"
                   />
                 </div>
               </Link>
@@ -505,7 +505,7 @@ export default function Layout({ children }: LayoutProps) {
                   <img
                     src={headerLogo}
                     alt="POPPIK LIFESTYLE"
-                    className="h-12 w-auto sm:h-14 md:h-16 lg:h-20 xl:h-24 object-contain hover:scale-105 transition-transform duration-300"
+                    className="h-8 w-auto sm:h-10 md:h-12 lg:h-14 xl:h-16 object-contain hover:scale-105 transition-transform duration-300"
                   />
                 </Link>
               </div>
@@ -516,7 +516,7 @@ export default function Layout({ children }: LayoutProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowSearchBar(true)}
-                  className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                  className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
                 >
                   <Search className="h-5 w-5" />
                 </Button>
