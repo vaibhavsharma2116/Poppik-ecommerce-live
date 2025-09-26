@@ -634,17 +634,11 @@ export default function Layout({ children }: LayoutProps) {
                 </Button>
               </Link>
               {user ? (
-                <div className="flex items-center space-x-2">
-                  <Link href="/profile">
-                    <Button variant="ghost" size="sm" className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 p-1">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="text-sm bg-red-100 text-red-600">
-                          {getInitials(user.firstName, user.lastName)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </Link>
-                </div>
+                <Link href="/profile">
+                  <Button variant="ghost" size="sm" className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </Link>
               ) : (
                 <Link href="/auth/login">
                   <Button variant="ghost" size="sm" className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
