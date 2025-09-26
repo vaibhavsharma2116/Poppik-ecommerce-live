@@ -516,7 +516,7 @@ export default function Layout({ children }: LayoutProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowSearchBar(true)}
-                  className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                  className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
                 >
                   <Search className="h-5 w-5" />
                 </Button>
@@ -535,7 +535,7 @@ export default function Layout({ children }: LayoutProps) {
             </div>
 
             {/* Desktop Layout - Keep existing */}
-            <div className="hidden md:flex items-center space-x-4">
+            <div className="hidden md:flex items-center space-x-2">
               {/* Desktop Search */}
               <div className="flex items-center relative">
                 {showSearchBar ? (
@@ -632,7 +632,7 @@ export default function Layout({ children }: LayoutProps) {
                       Welcome, {user.firstName}
                     </Button>
                   </Link>
-                  <Button
+                  {/* <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleLogout}
@@ -640,7 +640,7 @@ export default function Layout({ children }: LayoutProps) {
                     className="text-black hover:text-red-300 hover:bg-white/20 transition-all duration-300"
                   >
                     <LogOut className="h-5 w-5" />
-                  </Button>
+                  </Button> */}
                 </div>
               ) : (
                 <Link href="/auth/login">

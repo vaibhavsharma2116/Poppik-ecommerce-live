@@ -167,27 +167,27 @@ export default function HeroBanner({
           <>
             <button
               onClick={prevSlide}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition-all"
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-20  rounded-full p-2  transition-all"
               aria-label="Previous slide"
             >
-              <ChevronLeft className="w-5 h-5 text-gray-800" />
+              <ChevronLeft className="w-6 h-6 text-gray-800" />
             </button>
 
             <button
               onClick={nextSlide}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition-all"
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-20  rounded-full p-2  transition-all"
               aria-label="Next slide"
             >
-              <ChevronRight className="w-5 h-5 text-gray-800" />
+              <ChevronRight className="w-6 h-6 text-gray-800" />
             </button>
           </>
         )}
 
         
 
-        <div className="absolute top-6 right-6 z-20 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-white text-sm font-medium">
+        {/* <div className="absolute top-6 right-6 z-20 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-white text-sm font-medium">
           {current + 1} / {slides.length}
-        </div>
+        </div> */}
       </Carousel>
     </section>
   );
