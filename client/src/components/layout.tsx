@@ -4,6 +4,7 @@ import { Search, ShoppingCart, Menu, X, User, Heart, LogOut, ChevronDown, Chevro
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import SearchCommand from "@/components/search-command";
 import {
   NavigationMenu,
@@ -26,6 +27,13 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const [isSearchCommandOpen, setIsSearchCommandOpen] = useState(false);
+  
+  // Helper function to get user initials
+  const getInitials = (firstName: string, lastName: string) => {
+    const first = firstName?.charAt(0) || '';
+    const last = lastName?.charAt(0) || '';
+    return `${first}${last}`.toUpperCase() || 'U';
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
@@ -628,19 +636,14 @@ export default function Layout({ children }: LayoutProps) {
               {user ? (
                 <div className="flex items-center space-x-2">
                   <Link href="/profile">
-                    <Button variant="ghost" size="sm" className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
-                      Welcome, {user.firstName}
+                    <Button variant="ghost" size="sm" className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 p-1">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="text-sm bg-red-100 text-red-600">
+                          {getInitials(user.firstName, user.lastName)}
+                        </AvatarFallback>
+                      </Avatar>
                     </Button>
                   </Link>
-                  {/* <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleLogout}
-                    title="Logout"
-                    className="text-black hover:text-red-300 hover:bg-white/20 transition-all duration-300"
-                  >
-                    <LogOut className="h-5 w-5" />
-                  </Button> */}
                 </div>
               ) : (
                 <Link href="/auth/login">
