@@ -524,7 +524,7 @@ export default function Layout({ children }: LayoutProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowSearchBar(true)}
-                  className="text-white hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                  className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
                 >
                   <Search className="h-5 w-5" />
                 </Button>
