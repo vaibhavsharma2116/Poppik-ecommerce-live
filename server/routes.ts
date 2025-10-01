@@ -2707,60 +2707,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid order ID format" });
       }
 
-      // Fetch order from database
-      const result = await pool.query(
-        'SELECT * FROM orders WHERE id = $1',
-        [numericId]
-      );
+      // Fetch order from database using drizzle
+      const orderResult = await db
+        .select()
+        .from(ordersTable)
+        .where(eq(ordersTable.id, numericId))
+        .limit(1);
 
-      if (result.rows.length === 0) {
+      if (orderResult.length === 0) {
         return res.status(404).json({ error: "Order not found" });
       }
 
-      const orderData = result.rows[0];
+      const orderData = orderResult[0];
 
       // Check if order has Shiprocket integration
-      if (!orderData.shiprocket_order_id) {
+      if (!orderData.shiprocketOrderId) {
         // Generate basic timeline for non-Shiprocket orders
-        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
+        const basicTimeline = generateTrackingTimeline(orderData.status, orderData.createdAt, orderData.estimatedDelivery);
 
         return res.json({
           error: "This order is not shipped through Shiprocket",
           hasShiprocketTracking: false,
           orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
           status: orderData.status,
-          trackingNumber: orderData.tracking_number,
-          estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
+          trackingNumber: orderData.trackingNumber,
+          estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
           timeline: basicTimeline,
           realTimeTracking: false,
-          totalAmount: orderData.total_amount,
-          shippingAddress: orderData.shipping_address,
-          createdAt: orderData.created_at.toISOString().split('T')[0],
+          totalAmount: orderData.totalAmount,
+          shippingAddress: orderData.shippingAddress,
+          createdAt: orderData.createdAt.toISOString().split('T')[0],
           message: "This order was not created through Shiprocket. Please use the regular tracking option."
         });
       }
 
-      // Check if Shiprocket is configured
-      if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD) {
-        // Fallback to basic tracking if Shiprocket not configured
-        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
+      // Try to get real-time tracking from Shiprocket
+      let shiprocketTracking = null;
+      let shiprocketError = null;
 
-        res.json({
-          orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-          shiprocketOrderId: orderData.shiprocket_order_id,
-          status: orderData.status,
-          trackingNumber: orderData.tracking_number,
-          estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
-          timeline: basicTimeline,
-          realTimeTracking: false,
-          totalAmount: orderData.total_amount,
-          shippingAddress: orderData.shipping_address,
-          createdAt: orderData.created_at.toISOString().split('T')[0],
-          hasShiprocketTracking: true,
-          configured: true,
-          error: "Unable to fetch real-time tracking data from Shiprocket. Using standard tracking."
-        });
+      try {
+        if (process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
+          // Try to track using AWB code if available
+          if (orderData.shiprocketShipmentId) {
+            shiprocketTracking = await shiprocketService.trackByAWB(orderData.shiprocketShipmentId);
+          } else if (orderData.shiprocketOrderId) {
+            shiprocketTracking = await shiprocketService.trackOrder(orderData.shiprocketOrderId.toString());
+          }
+        }
+      } catch (error) {
+        console.error('Shiprocket tracking failed:', error);
+        shiprocketError = error.message;
       }
+
+      // Generate timeline - use Shiprocket data if available, otherwise basic timeline
+      let timeline;
+      let realTimeTracking = false;
+
+      if (shiprocketTracking && !shiprocketError) {
+        timeline = shiprocketService.convertTrackingToTimeline(shiprocketTracking);
+        realTimeTracking = true;
+      } else {
+        timeline = generateTrackingTimeline(orderData.status, orderData.createdAt, orderData.estimatedDelivery);
+      }
+
+      res.json({
+        orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
+        shiprocketOrderId: orderData.shiprocketOrderId,
+        status: orderData.status,
+        trackingNumber: orderData.trackingNumber,
+        estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
+        timeline: timeline,
+        realTimeTracking: realTimeTracking,
+        totalAmount: orderData.totalAmount,
+        shippingAddress: orderData.shippingAddress,
+        createdAt: orderData.createdAt.toISOString().split('T')[0],
+        hasShiprocketTracking: !!orderData.shiprocketOrderId,
+        configured: !!(process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD),
+        shiprocketError: shiprocketError
+      });
     } catch (error) {
       console.error("Error fetching Shiprocket tracking:", error);
       res.status(500).json({ error: "Failed to fetch tracking information" });
