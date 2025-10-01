@@ -2611,7 +2611,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const orderDate = new Date(createdAt);
 
-    if (status === 'processing' || status === 'shipped' || status === 'delivered') {
+    if (status === 'confirmed') {
+      timeline.push({
+        step: "Order Confirmed",
+        status: "completed",
+        date: new Date(orderDate.getTime() + 2 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 hours later
+        time: new Date(orderDate.getTime() + 2 * 60 * 60 * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        description: "Your order has been confirmed and is being prepared"
+      });
+      timeline.push({
+        step: "Processing",
+        status: "pending",
+        date: new Date(orderDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        time: "Expected by 10:00 AM",
+        description: "Your order will be processed and shipped soon"
+      });
+    } else if (status === 'processing' || status === 'shipped' || status === 'delivered') {
       timeline.push({
         step: "Processing",
         status: "completed",
@@ -2672,9 +2687,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   function getCurrentStep(status: string): number {
     switch (status) {
       case 'pending': return 0;
-      case 'processing': return 1;
-      case 'shipped': return 2;
-      case 'delivered': return 3;
+      case 'confirmed': return 1;
+      case 'processing': return 2;
+      case 'shipped': return 3;
+      case 'delivered': return 4;
       default: return 0;
     }
   }

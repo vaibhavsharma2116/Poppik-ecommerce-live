@@ -182,6 +182,8 @@ export default function TrackOrderPage() {
     switch (status) {
       case 'pending':
         return <Clock className="h-5 w-5 text-yellow-600" />;
+      case 'confirmed':
+        return <CheckCircle className="h-5 w-5 text-green-600" />;
       case 'processing':
         return <Package className="h-5 w-5 text-blue-600" />;
       case 'shipped':
@@ -196,6 +198,7 @@ export default function TrackOrderPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'confirmed': return 'bg-green-100 text-green-800 border-green-200';
       case 'processing': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'shipped': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'delivered': return 'bg-green-100 text-green-800 border-green-200';

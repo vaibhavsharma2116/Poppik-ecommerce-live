@@ -40,9 +40,24 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
-  app.use(vite.middlewares);
+  // Vite middleware को configure करते हैं कि वो API routes को skip करे
+  app.use((req, res, next) => {
+    // API routes को Vite middleware के pass भेजने से रोकते हैं
+    if (req.url.startsWith('/api/')) {
+      return next();
+    }
+    // Non-API routes के लिए Vite middleware run करते हैं
+    vite.middlewares(req, res, next);
+  });
+  
+  // Fallback HTML serving केवल non-API routes के लिए
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
+
+    // Double check - API routes को यहाँ भी skip करते हैं
+    if (url.startsWith('/api/')) {
+      return next();
+    }
 
     try {
       const clientTemplate = path.resolve(
@@ -76,10 +91,20 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // Static files को भी API routes के conflict से बचाते हैं
+  app.use((req, res, next) => {
+    if (req.url.startsWith('/api/')) {
+      return next();
+    }
+    express.static(distPath)(req, res, next);
+  });
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // HTML fallback केवल non-API routes के लिए
+  app.use("*", (req, res, next) => {
+    // API routes को skip करते हैं
+    if (req.originalUrl.startsWith('/api/')) {
+      return next();
+    }
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
