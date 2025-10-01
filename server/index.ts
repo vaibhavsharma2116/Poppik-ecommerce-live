@@ -85,32 +85,26 @@ app.use((req, res, next) => {
     console.error("❌ Database connection failed:", error);
   }
 
-  // Register API routes FIRST - यह बहुत important है
+  // Register API routes FIRST before any middleware
   const server = await registerRoutes(app);
 
-  // Setup Vite/Static serving AFTER API routes registration
-  // ताकि Vite middleware API routes को catch न करे
+  // Vite/Static setup को API routes के बाद करते हैं
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // Global error handler for all routes
+  // Final error handler
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    console.error("Global error handler:", err);
-    
-    // API routes के लिए JSON response
+    // Only handle API route errors here
     if (req.path.startsWith('/api/')) {
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
-      return res.status(status).json({ message });
+      res.status(status).json({ message });
+      return;
     }
-    
-    // Non-API routes के लिए generic error
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    res.status(status).json({ message });
+    next(err);
   });
 
   // Global error handler for non-API routes
@@ -120,6 +114,7 @@ app.use((req, res, next) => {
     const message = err.message || "Internal Server Error";
     res.status(status).json({ message });
   });
+
 
   // Serve the app on port 5000 (recommended for web apps)
   const port = parseInt(process.env.PORT || '5000');
