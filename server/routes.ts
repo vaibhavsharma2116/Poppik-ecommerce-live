@@ -1907,11 +1907,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(eq(users.id, order.userId))
             .limit(1);
 
-          const userData = user[0] || { 
-            firstName: 'Customer', 
-            lastName: '', 
-            email: 'customer@example.com', 
-            phone: '9999999999' 
+          const userData = user[0] || {
+            firstName: 'Customer',
+            lastName: '',
+            email: 'customer@example.com',
+            phone: '9999999999'
           };
 
           // Get order items
@@ -1979,9 +1979,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error syncing orders with Shiprocket:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to sync orders with Shiprocket",
-        details: error.message 
+        details: error.message
       });
     }
   });
@@ -2396,9 +2396,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create order in Shiprocket if enabled
       let shiprocketOrderId = null;
-      let shiprocketShipmentId = null;
+      let shiprocketAwb = null;
       let shiprocketError = null;
-      
+
       try {
         if (process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
           console.log('Creating Shiprocket order...');
@@ -2406,7 +2406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             email: process.env.SHIPROCKET_EMAIL,
             hasPassword: !!process.env.SHIPROCKET_PASSWORD
           });
-          
+
           // Get user details if needed
           let customerData = {
             firstName: customerName?.split(' ')[0] || 'Customer',
@@ -2455,11 +2455,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (shiprocketResponse && shiprocketResponse.order_id) {
             shiprocketOrderId = shiprocketResponse.order_id;
-            shiprocketShipmentId = shiprocketResponse.shipment_id || null;
-            
+            shiprocketAwb = shiprocketResponse.awb_code || shiprocketResponse.shipment_id || null;
+
             console.log(`Shiprocket order created successfully: ${shiprocketOrderId}`);
+            console.log(`Shiprocket AWB/Shipment ID: ${shiprocketAwb}`);
           } else {
-            console.error('Shiprocket order creation failed - no order_id in response');
+            console.warn('Shiprocket response missing order_id:', shiprocketResponse);
             shiprocketError = 'No order_id received from Shiprocket';
           }
         } else {
@@ -2467,29 +2468,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
           shiprocketError = 'Shiprocket credentials not configured';
         }
       } catch (shiprocketErrorCatch) {
+        shiprocketError = shiprocketErrorCatch.message; // Capture the error message
         console.error('Shiprocket order creation failed:', shiprocketErrorCatch);
         console.error('Error details:', {
           message: shiprocketErrorCatch.message,
           stack: shiprocketErrorCatch.stack
         });
-        shiprocketError = shiprocketErrorCatch.message;
+
+        // Log specific error types for debugging
+        if (shiprocketErrorCatch.message.includes('Forbidden')) {
+          console.error('Shiprocket API access forbidden - check credentials and permissions');
+        } else if (shiprocketErrorCatch.message.includes('authentication')) {
+          console.error('Shiprocket authentication failed - check email/password');
+        }
+
         // Don't fail the main order creation if Shiprocket fails
       }
 
-      // Update order with Shiprocket details if successful
-      if (shiprocketOrderId) {
-        try {
-          await db.update(ordersTable)
-            .set({
-              shiprocketOrderId: shiprocketOrderId,
-              shiprocketShipmentId: shiprocketShipmentId
-            })
-            .where(eq(ordersTable.id, newOrder.id));
-          
-          console.log(`Order ${orderId} updated with Shiprocket details`);
-        } catch (updateError) {
-          console.error('Failed to update order with Shiprocket details:', updateError);
+      // Update order with Shiprocket details and error info if applicable
+      try {
+        const updateData: any = {};
+        
+        if (shiprocketOrderId) {
+          updateData.shiprocketOrderId = shiprocketOrderId;
         }
+        
+        if (shiprocketAwb !== undefined) {
+          updateData.shiprocketShipmentId = shiprocketAwb;
+        }
+        
+        if (shiprocketError) {
+          updateData.notes = `Shiprocket Error: ${shiprocketError}`;
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await db.update(ordersTable)
+            .set(updateData)
+            .where(eq(ordersTable.id, newOrder.id));
+
+          console.log(`Order ${orderId} updated with Shiprocket details:`, updateData);
+        }
+      } catch (updateError) {
+        console.error('Failed to update order with Shiprocket details or error info:', updateError);
       }
 
       res.json({
@@ -2501,8 +2521,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         order: {
           id: orderId,
           ...newOrder,
-          shiprocketOrderId,
-          shiprocketShipmentId
+          shiprocketOrderId: shiprocketOrderId || null,
+          shiprocketShipmentId: shiprocketAwb || null
         }
       });
 
@@ -2681,7 +2701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!orderData.shiprocketOrderId) {
         // Fallback to regular tracking if no Shiprocket tracking
         const basicTimeline = generateTrackingTimeline(orderData.status, orderData.createdAt, orderData.estimatedDelivery);
-        
+
         return res.json({
           error: "This order is not shipped through Shiprocket",
           hasShiprocketTracking: false,
@@ -2702,7 +2722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD) {
         // Fallback to basic tracking if Shiprocket not configured
         const basicTimeline = generateTrackingTimeline(orderData.status, orderData.createdAt, orderData.estimatedDelivery);
-        
+
         return res.json({
           orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
           shiprocketOrderId: orderData.shiprocketOrderId,
@@ -2723,7 +2743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         // Get tracking information from Shiprocket
         const trackingData = await shiprocketService.trackOrder(orderData.shiprocketOrderId);
-        
+
         // Convert Shiprocket tracking data to our timeline format
         const timeline = shiprocketService.convertTrackingToTimeline(trackingData);
 
@@ -2746,10 +2766,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(trackingInfo);
       } catch (shiprocketError) {
         console.error('Shiprocket tracking error:', shiprocketError);
-        
+
         // Fallback to basic tracking if Shiprocket fails
         const basicTimeline = generateTrackingTimeline(orderData.status, orderData.createdAt, orderData.estimatedDelivery);
-        
+
         res.json({
           orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
           shiprocketOrderId: orderData.shiprocketOrderId,
@@ -2774,67 +2794,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Generate sample orders for development
   function generateSampleOrders(customers = [], products = []) {
-  const statuses = ['pending', 'processing', 'shipped', 'delivered'];
-  const orders = [];
-  const now = new Date();
+    const statuses = ['pending', 'processing', 'shipped', 'delivered'];
+    const orders = [];
+    const now = new Date();
 
-  // If either customers or products is empty, return empty orders
-  if (!customers.length || !products.length) {
-    return [];
-  }
-
-  for (let i = 0; i < 50; i++) {
-    const customer = customers[Math.floor(Math.random() * customers.length)];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
-    const orderDate = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000);
-
-    const orderProducts = [];
-    const numProducts = Math.floor(Math.random() * 3) + 1;
-    let totalAmount = 0;
-
-    for (let j = 0; j < numProducts; j++) {
-      const product = products[Math.floor(Math.random() * products.length)];
-      const quantity = Math.floor(Math.random() * 3) + 1;
-      const price = parseInt(product?.price?.replace(/[₹,]/g, '')) || 0;
-
-      orderProducts.push({
-        ...product,
-        quantity,
-      });
-
-      totalAmount += price * quantity;
+    // If either customers or products is empty, return empty orders
+    if (!customers.length || !products.length) {
+      return [];
     }
 
-    orders.push({
-      id: `ORD-${(i + 1).toString().padStart(3, '0')}`,
-      customer: {
-        name: customer.name,
-        email: customer.email,
-        phone: customer.phone,
-        address: `${customer.name}, ${Math.floor(Math.random() * 999) + 1} Sample Street, Mumbai, Maharashtra 400001`,
-      },
-      date: orderDate.toISOString().split('T')[0],
-      total: `₹${totalAmount}`,
-      totalAmount,
-      status,
-      items: orderProducts.length,
-      paymentMethod: ['Credit Card', 'UPI', 'Net Banking'][Math.floor(Math.random() * 3)],
-      trackingNumber:
-        status === 'shipped' || status === 'delivered'
-          ? `TRK${Math.random().toString(36).substring(7).toUpperCase()}`
-          : null,
-      estimatedDelivery:
-        status === 'shipped'
-          ? new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-          : null,
-      products: orderProducts,
-      userId: Math.floor(Math.random() * 5) + 1,
-      shippingAddress: `${customer.name}, ${Math.floor(Math.random() * 999) + 1} Sample Street, Mumbai, Maharashtra 400001`,
-    });
-  }
+    for (let i = 0; i < 50; i++) {
+      const customer = customers[Math.floor(Math.random() * customers.length)];
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const orderDate = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000);
 
-  return orders.sort((a, b) => new Date(b.date) - new Date(a.date));
-}
+      const orderProducts = [];
+      const numProducts = Math.floor(Math.random() * 3) + 1;
+      let totalAmount = 0;
+
+      for (let j = 0; j < numProducts; j++) {
+        const product = products[Math.floor(Math.random() * products.length)];
+        const quantity = Math.floor(Math.random() * 3) + 1;
+        const price = parseInt(product?.price?.replace(/[₹,]/g, '')) || 0;
+
+        orderProducts.push({
+          ...product,
+          quantity,
+        });
+
+        totalAmount += price * quantity;
+      }
+
+      orders.push({
+        id: `ORD-${(i + 1).toString().padStart(3, '0')}`,
+        customer: {
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          address: `${customer.name}, ${Math.floor(Math.random() * 999) + 1} Sample Street, Mumbai, Maharashtra 400001`,
+        },
+        date: orderDate.toISOString().split('T')[0],
+        total: `₹${totalAmount}`,
+        totalAmount,
+        status,
+        items: orderProducts.length,
+        paymentMethod: ['Credit Card', 'UPI', 'Net Banking'][Math.floor(Math.random() * 3)],
+        trackingNumber:
+          status === 'shipped' || status === 'delivered'
+            ? `TRK${Math.random().toString(36).substring(7).toUpperCase()}`
+            : null,
+        estimatedDelivery:
+          status === 'shipped'
+            ? new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            : null,
+        products: orderProducts,
+        userId: Math.floor(Math.random() * 5) + 1,
+        shippingAddress: `${customer.name}, ${Math.floor(Math.random() * 999) + 1} Sample Street, Mumbai, Maharashtra 400001`,
+      });
+    }
+
+    return orders.sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
 
 
   // Generate sample subcategories for development

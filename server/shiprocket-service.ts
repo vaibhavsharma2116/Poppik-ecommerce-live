@@ -1,4 +1,3 @@
-
 interface ShiprocketConfig {
   email: string;
   password: string;
@@ -95,20 +94,15 @@ class ShiprocketService {
     };
   }
 
-  private async authenticate(): Promise<string> {
-    if (this.token && Date.now() < this.tokenExpiry) {
-      return this.token;
+  private async authenticate(forceRefresh: boolean = false): Promise<void> {
+    console.log('Authenticating with Shiprocket...');
+
+    // Skip if we already have a token and not forcing refresh
+    if (this.token && !forceRefresh) {
+      return;
     }
 
-    // Clear existing token
-    this.token = null;
-    this.tokenExpiry = 0;
-
     try {
-      console.log('Authenticating with Shiprocket...');
-      console.log('Email:', this.config.email);
-      console.log('Base URL:', this.config.baseUrl);
-
       const response = await fetch(`${this.config.baseUrl}/external/auth/login`, {
         method: 'POST',
         headers: {
@@ -120,123 +114,118 @@ class ShiprocketService {
         }),
       });
 
-      const responseText = await response.text();
-      console.log('Shiprocket auth response status:', response.status);
-      console.log('Shiprocket auth response:', responseText);
+      const responseData = await response.text();
+      let data;
 
-      if (!response.ok) {
-        throw new Error(`Shiprocket authentication failed: ${response.status} ${response.statusText} - ${responseText}`);
+      try {
+        data = JSON.parse(responseData);
+      } catch (parseError) {
+        console.error('Failed to parse authentication response:', responseData);
+        throw new Error('Invalid authentication response from Shiprocket');
       }
 
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        throw new Error(`Invalid JSON response from Shiprocket: ${responseText}`);
+      if (!response.ok) {
+        console.error('Authentication failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          response: data
+        });
+        throw new Error(`Authentication failed: ${response.statusText} - ${JSON.stringify(data)}`);
       }
 
       if (!data.token) {
-        throw new Error(`No token received from Shiprocket: ${JSON.stringify(data)}`);
+        throw new Error('No token received from Shiprocket authentication');
       }
 
       this.token = data.token;
       // Set token expiry to 9 days (Shiprocket tokens are valid for 10 days)
       this.tokenExpiry = Date.now() + (9 * 24 * 60 * 60 * 1000);
-      
+
       console.log('Shiprocket authentication successful');
-      return this.token;
     } catch (error) {
       console.error('Shiprocket authentication error:', error);
+      this.token = null; // Clear invalid token
       throw error;
     }
   }
 
-  private async makeRequest(endpoint: string, method: string = 'GET', body?: any) {
-    const token = await this.authenticate();
-    
-    const options: RequestInit = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    };
 
-    if (body) {
-      options.body = JSON.stringify(body);
-    }
-
-    console.log('Making Shiprocket request:', {
-      url: `${this.config.baseUrl}${endpoint}`,
-      method,
-      hasBody: !!body,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.substring(0, 20)}...`
-      }
-    });
-
-    const response = await fetch(`${this.config.baseUrl}${endpoint}`, options);
-    const responseText = await response.text();
-    
-    console.log('Shiprocket response status:', response.status);
-    console.log('Shiprocket response:', responseText);
-    
-    if (!response.ok) {
-      // If forbidden, try to re-authenticate once
-      if (response.status === 403 && this.token) {
-        console.log('Got 403, clearing token and retrying...');
-        this.token = null;
-        this.tokenExpiry = 0;
-        
-        // Retry once with fresh authentication
-        const newToken = await this.authenticate();
-        const retryOptions: RequestInit = {
-          method,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${newToken}`,
-          },
-        };
-
-        if (body) {
-          retryOptions.body = JSON.stringify(body);
-        }
-
-        const retryResponse = await fetch(`${this.config.baseUrl}${endpoint}`, retryOptions);
-        const retryResponseText = await retryResponse.text();
-        
-        console.log('Retry response status:', retryResponse.status);
-        console.log('Retry response:', retryResponseText);
-        
-        if (!retryResponse.ok) {
-          throw new Error(`Shiprocket API error: ${retryResponse.status} ${retryResponse.statusText} - ${retryResponseText}`);
-        }
-
-        try {
-          return JSON.parse(retryResponseText);
-        } catch (parseError) {
-          throw new Error(`Invalid JSON response: ${retryResponseText}`);
-        }
-      }
-      
-      throw new Error(`Shiprocket API error: ${response.status} ${response.statusText} - ${responseText}`);
-    }
+  private async makeRequest(endpoint: string, method: string = 'GET', data?: any) {
+    const url = `${this.config.baseUrl}${endpoint}`;
 
     try {
-      return JSON.parse(responseText);
-    } catch (parseError) {
-      throw new Error(`Invalid JSON response: ${responseText}`);
+      // Validate token before making request
+      if (!this.token) {
+        throw new Error('Shiprocket token not available');
+      }
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.token}`
+        },
+        body: data ? JSON.stringify(data) : undefined
+      });
+
+      const responseData = await response.text();
+      let jsonData;
+
+      try {
+        jsonData = JSON.parse(responseData);
+      } catch (parseError) {
+        console.error('Failed to parse Shiprocket response:', responseData);
+        throw new Error(`Invalid response from Shiprocket: ${response.statusText}`);
+      }
+
+      if (!response.ok) {
+        console.error('Shiprocket API error details:', {
+          status: response.status,
+          statusText: response.statusText,
+          response: jsonData,
+          endpoint,
+          method
+        });
+
+        // Handle specific error cases
+        if (response.status === 401) {
+          throw new Error('Shiprocket authentication failed - token may be expired');
+        } else if (response.status === 403) {
+          throw new Error('Shiprocket access forbidden - check API permissions');
+        } else if (response.status === 429) {
+          throw new Error('Shiprocket rate limit exceeded - please try again later');
+        }
+
+        throw new Error(`Shiprocket API error: ${response.statusText} - ${JSON.stringify(jsonData)}`);
+      }
+
+      return jsonData;
+    } catch (error) {
+      console.error('Shiprocket API request failed:', error);
+      throw error;
     }
   }
 
   async createOrder(orderData: ShiprocketOrder) {
-    try {
-      const response = await this.makeRequest('/external/orders/create/adhoc', 'POST', orderData);
-      return response;
-    } catch (error) {
-      console.error('Error creating Shiprocket order:', error);
-      throw error;
+    let attempts = 0;
+    const maxAttempts = 2;
+
+    while (attempts < maxAttempts) {
+      try {
+        await this.authenticate(attempts > 0); // Force refresh on retry
+        return await this.makeRequest('/external/orders/create/adhoc', 'POST', orderData);
+      } catch (error) {
+        attempts++;
+
+        // If it's an auth error and we haven't retried yet, try again with fresh token
+        if (attempts < maxAttempts && (error.message.includes('401') || error.message.includes('authentication'))) {
+          console.log('Retrying with fresh authentication...');
+          this.token = null; // Clear token to force refresh
+          continue;
+        }
+
+        throw error;
+      }
     }
   }
 
@@ -310,25 +299,25 @@ class ShiprocketService {
   // Convert your order format to Shiprocket format
   convertToShiprocketFormat(order: any, pickupLocation: string = "Primary"): ShiprocketOrder {
     const items = order.items || [];
-    
+
     // Extract city, state, and pincode from shipping address
     const addressParts = order.shippingAddress.split(',').map((part: string) => part.trim());
     let city = "Mumbai";
     let state = "Maharashtra"; 
     let pincode = "400001";
-    
+
     // Try to extract pincode (6 digits)
     const pincodeMatch = order.shippingAddress.match(/\b\d{6}\b/);
     if (pincodeMatch) {
       pincode = pincodeMatch[0];
     }
-    
+
     // Try to extract city and state from address parts
     if (addressParts.length >= 2) {
       city = addressParts[addressParts.length - 3] || "Mumbai";
       state = addressParts[addressParts.length - 2] || "Maharashtra";
     }
-    
+
     return {
       order_id: order.id,
       order_date: new Date(order.createdAt).toISOString().split('T')[0],
@@ -374,7 +363,7 @@ class ShiprocketService {
     }
 
     const activities = trackingData.tracking_data.shipment_track[0].shipment_track_activities;
-    
+
     return activities.map((activity: any) => ({
       step: activity.status,
       status: this.getTimelineStatus(activity.status),
@@ -387,7 +376,7 @@ class ShiprocketService {
   private getTimelineStatus(status: string): 'completed' | 'active' | 'pending' {
     const completedStatuses = ['Delivered', 'delivered', 'Out for Delivery', 'Shipped'];
     const activeStatuses = ['In Transit', 'Picked Up', 'Out for pickup'];
-    
+
     if (completedStatuses.some(s => status.toLowerCase().includes(s.toLowerCase()))) {
       return 'completed';
     }
