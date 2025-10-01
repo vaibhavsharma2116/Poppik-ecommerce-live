@@ -74,7 +74,47 @@ export default function TrackOrderPage() {
     setError("");
 
     try {
-      const response = await fetch(`/api/orders/${trackingOrderId}/tracking`);
+      // Try Shiprocket tracking first
+      let response = await fetch(`/api/orders/${trackingOrderId}/track-shiprocket`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Check if there's an error (like "not shipped through Shiprocket")
+        if (data.error && data.hasShiprocketTracking === false) {
+          // Fall back to regular tracking
+          response = await fetch(`/api/orders/${trackingOrderId}/tracking`);
+          
+          if (response.ok) {
+            const regularData = await response.json();
+            setTrackingInfo(regularData);
+            toast({
+              title: "Order Found",
+              description: `Using standard tracking for order ${regularData.orderId}`,
+            });
+          } else {
+            throw new Error('Failed to fetch tracking information');
+          }
+        } else {
+          setTrackingInfo(data);
+          
+          if (data.realTimeTracking) {
+            toast({
+              title: "Real-time Tracking",
+              description: `Live tracking data loaded for order ${data.orderId}`,
+            });
+          } else {
+            toast({
+              title: "Order Found",
+              description: `Standard tracking loaded for order ${data.orderId}`,
+            });
+          }
+        }
+        return;
+      }
+      
+      // Fallback to regular tracking if Shiprocket fails
+      response = await fetch(`/api/orders/${trackingOrderId}/tracking`);
       
       if (response.ok) {
         const data = await response.json();
@@ -103,7 +143,21 @@ export default function TrackOrderPage() {
     
     setRefreshing(true);
     try {
-      const response = await fetch(`/api/orders/${trackingInfo.orderId}/tracking`);
+      // Try Shiprocket tracking first for real-time updates
+      let response = await fetch(`/api/orders/${trackingInfo.orderId}/track-shiprocket`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setTrackingInfo(data);
+        toast({
+          title: "Updated",
+          description: data.realTimeTracking ? "Real-time tracking refreshed" : "Tracking information refreshed",
+        });
+        return;
+      }
+      
+      // Fallback to regular tracking
+      response = await fetch(`/api/orders/${trackingInfo.orderId}/tracking`);
       if (response.ok) {
         const data = await response.json();
         setTrackingInfo(data);
@@ -334,8 +388,17 @@ export default function TrackOrderPage() {
                 <CardTitle className="flex items-center gap-2">
                   <Truck className="h-5 w-5" />
                   Tracking Timeline
+                  {trackingInfo.realTimeTracking && (
+                    <Badge className="bg-green-100 text-green-800 border-green-200">
+                      Live Tracking
+                    </Badge>
+                  )}
                 </CardTitle>
-                <p className="text-gray-600">Follow your order's journey step by step</p>
+                <p className="text-gray-600">
+                  {trackingInfo.realTimeTracking 
+                    ? "Real-time updates from our shipping partner" 
+                    : "Follow your order's journey step by step"}
+                </p>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">

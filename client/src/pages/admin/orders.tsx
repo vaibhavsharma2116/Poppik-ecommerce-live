@@ -29,7 +29,8 @@ import {
   MapPin,
   Edit,
   Save,
-  RefreshCw
+  RefreshCw,
+  Send // Import Send icon
 } from "lucide-react";
 
 interface Order {
@@ -56,6 +57,7 @@ interface Order {
   userId?: number;
   totalAmount?: number;
   shippingAddress?: string;
+  awbCode?: string; // Add awbCode for Shiprocket
 }
 
 export default function AdminOrders() {
@@ -119,6 +121,42 @@ export default function AdminOrders() {
       toast({
         title: "Error",
         description: "Failed to sync Cashfree orders",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to ship order via Shiprocket
+  const handleShipOrder = async (orderId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/shiprocket/ship', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast({
+          title: "Success",
+          description: data.message,
+        });
+        // Refresh orders to show updated status and AWB code
+        await fetchOrders();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to ship order');
+      }
+    } catch (error: any) {
+      console.error('Error shipping order:', error);
+      toast({
+        title: "Error",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -230,7 +268,7 @@ export default function AdminOrders() {
 
   const handleUpdateTracking = async (orderId: string, trackingNumber: string) => {
     try {
-      const response = await fetch(`/api/orders/${orderId}/status`, {
+      const response = await fetch(`/api/orders/${orderId}/tracking`, { // Corrected endpoint
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -514,6 +552,36 @@ export default function AdminOrders() {
                           <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSendNotification(order.id, order.status)}
+                        >
+                          <Send className="h-4 w-4 mr-1" />
+                          Notify
+                        </Button>
+                        {order.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleShipOrder(order.id)}
+                            className="ml-2"
+                          >
+                            <Truck className="h-4 w-4 mr-1" />
+                            Ship
+                          </Button>
+                        )}
+                        {order.awbCode && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(`/api/orders/${order.id}/track-shiprocket`, '_blank')}
+                            className="ml-2"
+                          >
+                            <Package className="h-4 w-4 mr-1" />
+                            Track
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -587,6 +655,12 @@ export default function AdminOrders() {
                           <span className="font-medium">{selectedOrder.estimatedDelivery}</span>
                         </div>
                       )}
+                      {selectedOrder.awbCode && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">AWB Code:</span>
+                          <span className="font-medium">{selectedOrder.awbCode}</span>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -619,6 +693,26 @@ export default function AdminOrders() {
                         <Download className="h-4 w-4 mr-2" />
                         Download Invoice
                       </Button>
+                      {selectedOrder.status === 'pending' && (
+                        <Button
+                          className="w-full justify-start"
+                          variant="outline"
+                          onClick={() => handleShipOrder(selectedOrder.id)}
+                        >
+                          <Truck className="h-4 w-4 mr-2" />
+                          Ship via Shiprocket
+                        </Button>
+                      )}
+                      {selectedOrder.awbCode && (
+                        <Button
+                          className="w-full justify-start"
+                          variant="outline"
+                          onClick={() => window.open(`/api/orders/${selectedOrder.id}/track-shiprocket`, '_blank')}
+                        >
+                          <Package className="h-4 w-4 mr-2" />
+                          Track Shipment
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                 </div>

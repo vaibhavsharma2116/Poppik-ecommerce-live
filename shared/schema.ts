@@ -1,4 +1,4 @@
-import { pgTable, text, integer, numeric, boolean, serial, jsonb, varchar, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, numeric, boolean, serial, jsonb, varchar, timestamp, json, real } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -88,13 +88,15 @@ export const selectUserSchema = createSelectSchema(users);
 // Orders table
 export const ordersTable = pgTable("orders", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  totalAmount: integer("total_amount").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  totalAmount: real("total_amount").notNull(),
   status: text("status").notNull().default("pending"),
   paymentMethod: text("payment_method").notNull(),
   shippingAddress: text("shipping_address").notNull(),
   trackingNumber: text("tracking_number"),
   estimatedDelivery: timestamp("estimated_delivery"),
+  shiprocketOrderId: text("shiprocket_order_id"),
+  shiprocketShipmentId: integer("shiprocket_shipment_id"),
   cashfreeOrderId: text("cashfree_order_id"),
   paymentSessionId: text("payment_session_id"),
   paymentId: text("payment_id"),

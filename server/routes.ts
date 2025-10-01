@@ -53,6 +53,7 @@ import { eq, desc, and, sql, or, like, isNull, asc } from "drizzle-orm";
 import { Pool } from "pg";
 import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, productImages, productShades, cashfreePayments, categorySliders, categories } from "../shared/schema";
 import { DatabaseMonitor } from "./db-monitor";
+import ShiprocketService from "./shiprocket-service";
 // Database connection with enhanced configuration
 const pool = new Pool({
  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
@@ -130,6 +131,8 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // const userService = new UserService();
+  const shiprocketService = new ShiprocketService();
   // Apply rate limiting to all API routes
   app.use("/api", rateLimit);
 
@@ -438,7 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Always use HTTPS for Cashfree as it requires secure URLs
       let protocol = 'https';
-      
+
       // For Replit development, use the replit.dev domain with HTTPS
       let returnHost = host;
       if (host && (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0'))) {
@@ -1861,6 +1864,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync existing orders with Shiprocket
+  app.post("/api/admin/sync-shiprocket-orders", async (req, res) => {
+    try {
+      console.log("Syncing existing orders with Shiprocket...");
+
+      // Check if Shiprocket is configured
+      if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD) {
+        return res.status(400).json({
+          error: "Shiprocket credentials not configured",
+          message: "Please set SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD environment variables"
+        });
+      }
+
+      // Get orders that don't have Shiprocket tracking
+      const ordersToSync = await db
+        .select()
+        .from(ordersTable)
+        .where(and(
+          isNull(ordersTable.shiprocketOrderId),
+          or(
+            eq(ordersTable.status, 'processing'),
+            eq(ordersTable.status, 'pending')
+          )
+        ))
+        .limit(10); // Process in batches
+
+      let syncedCount = 0;
+      let failedCount = 0;
+
+      for (const order of ordersToSync) {
+        try {
+          // Get user details
+          const user = await db
+            .select({
+              firstName: users.firstName,
+              lastName: users.lastName,
+              email: users.email,
+              phone: users.phone,
+            })
+            .from(users)
+            .where(eq(users.id, order.userId))
+            .limit(1);
+
+          const userData = user[0] || { 
+            firstName: 'Customer', 
+            lastName: '', 
+            email: 'customer@example.com', 
+            phone: '9999999999' 
+          };
+
+          // Get order items
+          const items = await db
+            .select()
+            .from(orderItemsTable)
+            .where(eq(orderItemsTable.orderId, order.id));
+
+          const orderForShiprocket = {
+            id: `ORD-${order.id.toString().padStart(3, '0')}`,
+            createdAt: order.createdAt,
+            totalAmount: order.totalAmount,
+            paymentMethod: order.paymentMethod,
+            shippingAddress: order.shippingAddress,
+            items: items.map(item => ({
+              productId: item.productId,
+              productName: item.productName,
+              productImage: item.productImage,
+              quantity: item.quantity,
+              price: item.price
+            })),
+            customer: {
+              firstName: userData.firstName,
+              lastName: userData.lastName,
+              email: userData.email,
+              phone: userData.phone
+            }
+          };
+
+          const shiprocketOrderData = shiprocketService.convertToShiprocketFormat(orderForShiprocket);
+          const shiprocketResponse = await shiprocketService.createOrder(shiprocketOrderData);
+
+          if (shiprocketResponse.order_id) {
+            // Update order with Shiprocket details
+            await db.update(ordersTable)
+              .set({
+                shiprocketOrderId: shiprocketResponse.order_id,
+                shiprocketShipmentId: shiprocketResponse.shipment_id || null
+              })
+              .where(eq(ordersTable.id, order.id));
+
+            syncedCount++;
+            console.log(`Synced order ${order.id} with Shiprocket order ${shiprocketResponse.order_id}`);
+          } else {
+            failedCount++;
+            console.error(`Failed to create Shiprocket order for order ${order.id}`);
+          }
+
+        } catch (orderError) {
+          failedCount++;
+          console.error(`Error syncing order ${order.id}:`, orderError);
+        }
+
+        // Add delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      res.json({
+        message: `Shiprocket sync completed`,
+        totalOrders: ordersToSync.length,
+        syncedCount,
+        failedCount,
+        remaining: Math.max(0, ordersToSync.length - syncedCount - failedCount)
+      });
+
+    } catch (error) {
+      console.error("Error syncing orders with Shiprocket:", error);
+      res.status(500).json({ 
+        error: "Failed to sync orders with Shiprocket",
+        details: error.message 
+      });
+    }
+  });
+
   // Sync Cashfree orders to ordersTable
   app.post("/api/admin/sync-cashfree-orders", async (req, res) => {
     try {
@@ -2232,35 +2357,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Creating new order:", req.body);
 
-      const { userId, totalAmount, status, paymentMethod, shippingAddress, items } = req.body;
+      const { userId, totalAmount, status, paymentMethod, shippingAddress, items, customerName, customerEmail, customerPhone } = req.body;
 
       // Validation
       if (!userId || !totalAmount || !paymentMethod || !shippingAddress || !items) {
-        return res.status(400).json({ error: "Missing required fields" });
+        return res.status(400).json({ error: "Missing required fields: userId, totalAmount, paymentMethod, shippingAddress, and items are required" });
       }
 
       if (!Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: "Items are required" });
       }
 
-      // Create the order
-      const orderData = {
+      // Insert the order into database (without items column)
+      const [newOrder] = await db.insert(ordersTable).values({
         userId: Number(userId),
         totalAmount: Number(totalAmount),
         status: status || 'pending',
-        paymentMethod,
-        shippingAddress,
+        paymentMethod: paymentMethod || 'Cash on Delivery',
+        shippingAddress: shippingAddress,
+        trackingNumber: null,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-      };
+        createdAt: new Date(),
+      }).returning();
 
-      const [newOrder] = await db.insert(ordersTable).values(orderData).returning();
-
-      // Create order items
+      // Create order items in separate table
       const orderItems = items.map((item: any) => ({
         orderId: newOrder.id,
-        productId: Number(item.productId),
-        productName: item.productName,
-        productImage: item.productImage,
+        productId: Number(item.productId) || null,
+        productName: item.productName || item.name,
+        productImage: item.productImage || item.image,
         quantity: Number(item.quantity),
         price: item.price,
       }));
@@ -2269,21 +2394,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const orderId = `ORD-${newOrder.id.toString().padStart(3, '0')}`;
 
-      console.log("Order created successfully:", orderId);
+      // Create order in Shiprocket if enabled
+      let shiprocketOrderId = null;
+      let shiprocketShipmentId = null;
+      let shiprocketError = null;
+      
+      try {
+        if (process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
+          console.log('Creating Shiprocket order...');
+          console.log('Shiprocket credentials configured:', {
+            email: process.env.SHIPROCKET_EMAIL,
+            hasPassword: !!process.env.SHIPROCKET_PASSWORD
+          });
+          
+          // Get user details if needed
+          let customerData = {
+            firstName: customerName?.split(' ')[0] || 'Customer',
+            lastName: customerName?.split(' ').slice(1).join(' ') || '',
+            email: customerEmail || 'customer@example.com',
+            phone: customerPhone || '9999999999'
+          };
 
-      res.status(201).json({
+          // If customer data is missing, get from user table
+          if (!customerName || !customerEmail) {
+            const user = await db
+              .select({
+                firstName: users.firstName,
+                lastName: users.lastName,
+                email: users.email,
+                phone: users.phone,
+              })
+              .from(users)
+              .where(eq(users.id, Number(userId)))
+              .limit(1);
+
+            if (user.length > 0) {
+              customerData = {
+                firstName: user[0].firstName || 'Customer',
+                lastName: user[0].lastName || '',
+                email: user[0].email,
+                phone: user[0].phone || '9999999999'
+              };
+            }
+          }
+
+          const shiprocketOrderData = shiprocketService.convertToShiprocketFormat({
+            id: orderId,
+            createdAt: newOrder.createdAt,
+            totalAmount: Number(totalAmount),
+            paymentMethod: paymentMethod,
+            shippingAddress: shippingAddress,
+            items: items,
+            customer: customerData
+          });
+
+          console.log('Shiprocket order data:', JSON.stringify(shiprocketOrderData, null, 2));
+
+          const shiprocketResponse = await shiprocketService.createOrder(shiprocketOrderData);
+          console.log('Shiprocket response:', shiprocketResponse);
+
+          if (shiprocketResponse && shiprocketResponse.order_id) {
+            shiprocketOrderId = shiprocketResponse.order_id;
+            shiprocketShipmentId = shiprocketResponse.shipment_id || null;
+            
+            console.log(`Shiprocket order created successfully: ${shiprocketOrderId}`);
+          } else {
+            console.error('Shiprocket order creation failed - no order_id in response');
+            shiprocketError = 'No order_id received from Shiprocket';
+          }
+        } else {
+          console.log('Shiprocket not configured - missing credentials');
+          shiprocketError = 'Shiprocket credentials not configured';
+        }
+      } catch (shiprocketErrorCatch) {
+        console.error('Shiprocket order creation failed:', shiprocketErrorCatch);
+        console.error('Error details:', {
+          message: shiprocketErrorCatch.message,
+          stack: shiprocketErrorCatch.stack
+        });
+        shiprocketError = shiprocketErrorCatch.message;
+        // Don't fail the main order creation if Shiprocket fails
+      }
+
+      // Update order with Shiprocket details if successful
+      if (shiprocketOrderId) {
+        try {
+          await db.update(ordersTable)
+            .set({
+              shiprocketOrderId: shiprocketOrderId,
+              shiprocketShipmentId: shiprocketShipmentId
+            })
+            .where(eq(ordersTable.id, newOrder.id));
+          
+          console.log(`Order ${orderId} updated with Shiprocket details`);
+        } catch (updateError) {
+          console.error('Failed to update order with Shiprocket details:', updateError);
+        }
+      }
+
+      res.json({
         success: true,
         message: "Order placed successfully",
-        orderId,
+        orderId: orderId,
+        shiprocketIntegrated: !!shiprocketOrderId,
+        shiprocketError: shiprocketError,
         order: {
+          id: orderId,
           ...newOrder,
-          id: orderId
+          shiprocketOrderId,
+          shiprocketShipmentId
         }
       });
 
     } catch (error) {
       console.error("Order creation error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to create order",
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
@@ -2433,6 +2658,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
       default: return 0;
     }
   }
+
+  // Shiprocket tracking endpoint
+  app.get("/api/orders/:id/track-shiprocket", async (req, res) => {
+    try {
+      const orderId = req.params.id.replace('ORD-', '');
+
+      // Get order from database
+      const order = await db
+        .select()
+        .from(ordersTable)
+        .where(eq(ordersTable.id, Number(orderId)))
+        .limit(1);
+
+      if (order.length === 0) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      const orderData = order[0];
+
+      // Check if order has Shiprocket tracking
+      if (!orderData.shiprocketOrderId) {
+        // Fallback to regular tracking if no Shiprocket tracking
+        const basicTimeline = generateTrackingTimeline(orderData.status, orderData.createdAt, orderData.estimatedDelivery);
+        
+        return res.json({
+          error: "This order is not shipped through Shiprocket",
+          hasShiprocketTracking: false,
+          orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
+          status: orderData.status,
+          trackingNumber: orderData.trackingNumber,
+          estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
+          timeline: basicTimeline,
+          realTimeTracking: false,
+          totalAmount: orderData.totalAmount,
+          shippingAddress: orderData.shippingAddress,
+          createdAt: orderData.createdAt.toISOString().split('T')[0],
+          message: "This order was not created through Shiprocket. Please use the regular tracking option."
+        });
+      }
+
+      // Check if Shiprocket is configured
+      if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD) {
+        // Fallback to basic tracking if Shiprocket not configured
+        const basicTimeline = generateTrackingTimeline(orderData.status, orderData.createdAt, orderData.estimatedDelivery);
+        
+        return res.json({
+          orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
+          shiprocketOrderId: orderData.shiprocketOrderId,
+          status: orderData.status,
+          trackingNumber: orderData.trackingNumber,
+          estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
+          timeline: basicTimeline,
+          realTimeTracking: false,
+          totalAmount: orderData.totalAmount,
+          shippingAddress: orderData.shippingAddress,
+          createdAt: orderData.createdAt.toISOString().split('T')[0],
+          hasShiprocketTracking: true,
+          configured: false,
+          message: "Shiprocket tracking is not configured. Using standard tracking."
+        });
+      }
+
+      try {
+        // Get tracking information from Shiprocket
+        const trackingData = await shiprocketService.trackOrder(orderData.shiprocketOrderId);
+        
+        // Convert Shiprocket tracking data to our timeline format
+        const timeline = shiprocketService.convertTrackingToTimeline(trackingData);
+
+        const trackingInfo = {
+          orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
+          shiprocketOrderId: orderData.shiprocketOrderId,
+          status: orderData.status,
+          trackingNumber: orderData.trackingNumber,
+          estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
+          timeline: timeline,
+          realTimeTracking: true,
+          totalAmount: orderData.totalAmount,
+          shippingAddress: orderData.shippingAddress,
+          createdAt: orderData.createdAt.toISOString().split('T')[0],
+          hasShiprocketTracking: true,
+          configured: true,
+          shiprocketData: trackingData
+        };
+
+        res.json(trackingInfo);
+      } catch (shiprocketError) {
+        console.error('Shiprocket tracking error:', shiprocketError);
+        
+        // Fallback to basic tracking if Shiprocket fails
+        const basicTimeline = generateTrackingTimeline(orderData.status, orderData.createdAt, orderData.estimatedDelivery);
+        
+        res.json({
+          orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
+          shiprocketOrderId: orderData.shiprocketOrderId,
+          status: orderData.status,
+          trackingNumber: orderData.trackingNumber,
+          estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
+          timeline: basicTimeline,
+          realTimeTracking: false,
+          totalAmount: orderData.totalAmount,
+          shippingAddress: orderData.shippingAddress,
+          createdAt: orderData.createdAt.toISOString().split('T')[0],
+          hasShiprocketTracking: true,
+          configured: true,
+          error: "Unable to fetch real-time tracking data from Shiprocket. Using standard tracking."
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching Shiprocket tracking:", error);
+      res.status(500).json({ error: "Failed to fetch tracking information" });
+    }
+  });
 
   // Generate sample orders for development
   function generateSampleOrders(customers = [], products = []) {
@@ -3581,7 +3919,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin global search endpoint
+  // Admin search endpoint
   // Token validation endpoint
   app.get("/api/auth/validate", (req, res) => {
     try {
@@ -3897,7 +4235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const categoryId = parseInt(req.params.categoryId);
       console.log('Fetching sliders for category ID:', categoryId);
-      
+
       // Check if categorySliders table exists, if not return empty array
       try {
         const slidersResult = await db
@@ -3905,7 +4243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .from(categorySliders)
           .where(eq(categorySliders.categoryId, categoryId))
           .orderBy(asc(categorySliders.sortOrder));
-        
+
         console.log('Found sliders:', slidersResult);
         res.json(slidersResult);
       } catch (tableError) {
@@ -3969,16 +4307,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         constraint: error.constraint,
         detail: error.detail
       });
-      
+
       if (error.code === '23505') { // Unique constraint violation
         return res.status(400).json({ error: 'A slider with similar data already exists' });
       }
-      
+
       if (error.code === '23503') { // Foreign key constraint violation
         return res.status(400).json({ error: 'Invalid category reference' });
       }
-      
-      res.status(500).json({ 
+
+      res.status(500).json({
         error: 'Failed to create category slider',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
