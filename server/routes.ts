@@ -2394,48 +2394,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const orderId = `ORD-${newOrder.id.toString().padStart(3, '0')}`;
 
-      // Create order in Shiprocket if enabled
+      // Try to create Shiprocket order for new orders
       let shiprocketOrderId = null;
       let shiprocketAwb = null;
       let shiprocketError = null;
 
       try {
+        // Only create Shiprocket order if service is properly configured
         if (process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
           console.log('Creating Shiprocket order...');
-          console.log('Shiprocket credentials configured:', {
-            email: process.env.SHIPROCKET_EMAIL,
-            hasPassword: !!process.env.SHIPROCKET_PASSWORD
-          });
 
-          // Get user details if needed
+          // Get user details - always fetch from database for accuracy
           let customerData = {
-            firstName: customerName?.split(' ')[0] || 'Customer',
-            lastName: customerName?.split(' ').slice(1).join(' ') || '',
-            email: customerEmail || 'customer@example.com',
-            phone: customerPhone || '9999999999'
+            firstName: 'Customer',
+            lastName: '',
+            email: 'customer@example.com',
+            phone: '9999999999'
           };
 
-          // If customer data is missing, get from user table
-          if (!customerName || !customerEmail) {
-            const user = await db
-              .select({
-                firstName: users.firstName,
-                lastName: users.lastName,
-                email: users.email,
-                phone: users.phone,
-              })
-              .from(users)
-              .where(eq(users.id, Number(userId)))
-              .limit(1);
+          const user = await db
+            .select({
+              firstName: users.firstName,
+              lastName: users.lastName,
+              email: users.email,
+              phone: users.phone,
+            })
+            .from(users)
+            .where(eq(users.id, Number(userId)))
+            .limit(1);
 
-            if (user.length > 0) {
-              customerData = {
-                firstName: user[0].firstName || 'Customer',
-                lastName: user[0].lastName || '',
-                email: user[0].email,
-                phone: user[0].phone || '9999999999'
-              };
-            }
+          if (user.length > 0) {
+            customerData = {
+              firstName: user[0].firstName || customerName?.split(' ')[0] || 'Customer',
+              lastName: user[0].lastName || customerName?.split(' ').slice(1).join(' ') || '',
+              email: user[0].email || customerEmail || 'customer@example.com',
+              phone: user[0].phone || customerPhone || '9999999999'
+            };
           }
 
           const shiprocketOrderData = shiprocketService.convertToShiprocketFormat({
@@ -2468,7 +2462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           shiprocketError = 'Shiprocket credentials not configured';
         }
       } catch (shiprocketErrorCatch) {
-        shiprocketError = shiprocketErrorCatch.message; // Capture the error message
+        shiprocketError = shiprocketErrorCatch.message;
         console.error('Shiprocket order creation failed:', shiprocketErrorCatch);
         console.error('Error details:', {
           message: shiprocketErrorCatch.message,
@@ -2481,8 +2475,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (shiprocketErrorCatch.message.includes('authentication')) {
           console.error('Shiprocket authentication failed - check email/password');
         }
-
-        // Don't fail the main order creation if Shiprocket fails
       }
 
       // Update order with Shiprocket details and error info if applicable
@@ -4501,6 +4493,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting slider:', error);
       res.status(500).json({ error: 'Failed to delete slider' });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
     }
   });
 

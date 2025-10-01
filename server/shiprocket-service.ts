@@ -97,9 +97,14 @@ class ShiprocketService {
   private async authenticate(forceRefresh: boolean = false): Promise<void> {
     console.log('Authenticating with Shiprocket...');
 
-    // Skip if we already have a token and not forcing refresh
-    if (this.token && !forceRefresh) {
+    // Skip if we already have a valid token and not forcing refresh
+    if (this.token && Date.now() < this.tokenExpiry && !forceRefresh) {
       return;
+    }
+
+    // Validate credentials
+    if (!this.config.email || !this.config.password) {
+      throw new Error('Shiprocket email and password are required');
     }
 
     try {
@@ -130,6 +135,11 @@ class ShiprocketService {
           statusText: response.statusText,
           response: data
         });
+        
+        if (response.status === 401) {
+          throw new Error('Invalid Shiprocket credentials - check email and password');
+        }
+        
         throw new Error(`Authentication failed: ${response.statusText} - ${JSON.stringify(data)}`);
       }
 
@@ -145,6 +155,7 @@ class ShiprocketService {
     } catch (error) {
       console.error('Shiprocket authentication error:', error);
       this.token = null; // Clear invalid token
+      this.tokenExpiry = 0;
       throw error;
     }
   }
