@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, Phone, Calendar, RefreshCw, Mail, User } from "lucide-react";
+import { ArrowLeft, Package, Truck, CheckCircle, Clock, MapPin, Phone, Calendar, RefreshCw, Mail, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -190,6 +190,8 @@ export default function TrackOrderPage() {
         return <Truck className="h-5 w-5 text-purple-600" />;
       case 'delivered':
         return <CheckCircle className="h-5 w-5 text-green-600" />;
+      case 'cancelled':
+        return <X className="h-5 w-5 text-red-600" />;
       default:
         return <Clock className="h-5 w-5 text-gray-600" />;
     }
@@ -207,7 +209,16 @@ export default function TrackOrderPage() {
     }
   };
 
-  const getStepIcon = (stepStatus: string) => {
+  const getStepIcon = (stepStatus: string, stepName?: string) => {
+    // Special handling for cancelled orders
+    if (stepName === 'Order Cancelled') {
+      return (
+        <div className="h-8 w-8 rounded-full bg-red-100 border-2 border-red-500 flex items-center justify-center">
+          <X className="h-5 w-5 text-red-600" />
+        </div>
+      );
+    }
+
     switch (stepStatus) {
       case 'completed':
         return (
@@ -408,10 +419,11 @@ export default function TrackOrderPage() {
                   {trackingInfo.timeline.map((step, index) => (
                     <div key={index} className="flex items-start gap-4">
                       <div className="flex flex-col items-center">
-                        {getStepIcon(step.status)}
+                        {getStepIcon(step.status, step.step)}
                         {index < trackingInfo.timeline.length - 1 && (
                           <div className={`w-0.5 h-16 mt-2 ${
-                            step.status === 'completed' ? 'bg-green-500' : 'bg-gray-300'
+                            step.status === 'completed' && step.step !== 'Order Cancelled' ? 'bg-green-500' : 
+                            step.step === 'Order Cancelled' ? 'bg-red-500' : 'bg-gray-300'
                           }`}></div>
                         )}
                       </div>
