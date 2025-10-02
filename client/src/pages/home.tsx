@@ -301,7 +301,7 @@ export default function Home() {
                   )}
 
                 {/* Explore All Products Button */}
-                {!allProductsLoading &&
+                {/* {!allProductsLoading &&
                   allProducts &&
                   allProducts.length > 12 && (
                     <div className="text-center mt-8">
@@ -324,7 +324,7 @@ export default function Home() {
                         </Button>
                       </Link>
                     </div>
-                  )}
+                  )} */}
               </>
             )}
           </div>

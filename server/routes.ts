@@ -2700,6 +2700,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
+  // Shiprocket serviceability endpoint for shipping cost
+  app.get("/api/shiprocket/serviceability", async (req, res) => {
+    try {
+      const { deliveryPincode, weight, cod } = req.query;
+
+      if (!deliveryPincode || !weight) {
+        return res.status(400).json({ 
+          error: "Missing required parameters: deliveryPincode and weight" 
+        });
+      }
+
+      const shiprocketService = new ShiprocketService();
+      
+      // Default pickup pincode (you should set this in env or get from settings)
+      const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE || "400001";
+      
+      try {
+        const serviceability = await shiprocketService.getServiceability(
+          pickupPincode,
+          deliveryPincode as string,
+          Number(weight),
+          cod === 'true'
+        );
+
+        // Check if we got valid data from Shiprocket
+        if (serviceability && serviceability.data && serviceability.data.available_courier_companies) {
+          res.json(serviceability);
+        } else {
+          // Return fallback if no courier companies available
+          console.warn("No courier companies available from Shiprocket, using fallback");
+          res.json({
+            data: {
+              available_courier_companies: [{
+                courier_company_id: 0,
+                courier_name: "Standard Shipping",
+                freight_charge: 99,
+                cod_charges: cod === 'true' ? 20 : 0,
+                estimated_delivery_days: "5-7",
+                rate: 99
+              }]
+            },
+            fallback: true,
+            message: "Using default shipping rates"
+          });
+        }
+      } catch (shiprocketError) {
+        // If Shiprocket fails, return a fallback response with default shipping
+        console.warn("Shiprocket serviceability check failed, using fallback:", shiprocketError);
+        
+        res.json({
+          data: {
+            available_courier_companies: [{
+              courier_company_id: 0,
+              courier_name: "Standard Shipping",
+              freight_charge: 99,
+              cod_charges: cod === 'true' ? 20 : 0,
+              estimated_delivery_days: "5-7",
+              rate: 99
+            }]
+          },
+          fallback: true,
+          message: "Using default shipping rates"
+        });
+      }
+    } catch (error) {
+      console.error("Error checking Shiprocket serviceability:", error);
+      res.status(500).json({ 
+        error: "Failed to check shipping serviceability",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Shiprocket tracking endpoint
   app.get("/api/orders/:orderId/track-shiprocket", async (req, res) => {
     try {

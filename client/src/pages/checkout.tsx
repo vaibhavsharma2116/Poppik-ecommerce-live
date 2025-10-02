@@ -45,6 +45,10 @@ export default function CheckoutPage() {
   const [userProfile, setUserProfile] = useState(null);
   const [profileDataLoaded, setProfileDataLoaded] = useState(false);
 
+  // Initialize shipping cost state and loading indicator
+  const [shippingCost, setShippingCost] = useState<number>(99);
+  const [loadingShipping, setLoadingShipping] = useState(false);
+
   useEffect(() => {
     // Check if user is logged in when accessing checkout
     const user = localStorage.getItem("user");
@@ -142,6 +146,75 @@ export default function CheckoutPage() {
     setLoading(false);
   }, [profileDataLoaded]);
 
+  // Calculate shipping cost when pincode or payment method changes
+  useEffect(() => {
+    const fetchShippingCost = async () => {
+      // Only fetch if zipCode is valid and not in COD mode (as COD might have different rates or conditions)
+      if (formData.zipCode && formData.zipCode.length === 6) {
+        setLoadingShipping(true);
+        try {
+          // Approximate weight calculation for shipping API
+          const weight = cartItems.reduce((total, item) => total + (0.5 * item.quantity), 0);
+          // Check if COD is selected for shipping calculation
+          const isCOD = formData.paymentMethod === 'cod';
+
+          const response = await fetch(
+            `/api/shiprocket/serviceability?deliveryPincode=${formData.zipCode}&weight=${weight}&cod=${isCOD}`
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+
+            // Check if courier data is available and filter for the cheapest option
+            if (data.data && data.data.available_courier_companies && data.data.available_courier_companies.length > 0) {
+              const cheapestCourier = data.data.available_courier_companies.reduce((prev: any, curr: any) => {
+                return (curr.rate < prev.rate) ? curr : prev;
+              });
+
+              setShippingCost(Math.round(cheapestCourier.rate));
+              toast({
+                title: "Shipping Cost Calculated",
+                description: `₹${Math.round(cheapestCourier.rate)} via ${cheapestCourier.courier_name}`,
+              });
+            } else {
+              // If no couriers are available, reset to default or show an error
+              setShippingCost(99); // Reset to default or a fallback value
+              toast({
+                title: "Shipping Unavailable",
+                description: "Shipping not available for this location or combination.",
+                variant: "destructive",
+              });
+            }
+          } else {
+            // Handle API errors by resetting to default shipping cost
+            setShippingCost(99);
+            toast({
+              title: "Shipping Error",
+              description: "Could not calculate shipping cost. Please try again.",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching shipping cost:", error);
+          setShippingCost(99); // Fallback on error
+          toast({
+            title: "Shipping Error",
+            description: "An unexpected error occurred while calculating shipping.",
+            variant: "destructive",
+          });
+        } finally {
+          setLoadingShipping(false);
+        }
+      } else {
+        // If zipCode is empty or invalid, reset to default shipping cost
+        setShippingCost(99);
+      }
+    };
+
+    fetchShippingCost();
+  }, [formData.zipCode, formData.paymentMethod, cartItems]);
+
+
   const verifyPayment = async (orderIdParam: string) => {
     try {
       const response = await fetch('/api/payments/cashfree/verify', {
@@ -211,7 +284,8 @@ export default function CheckoutPage() {
   };
 
   const subtotal = calculateSubtotal();
-  const shipping = subtotal > 599 ? 0 : 99;
+  // Use the dynamic shippingCost, default to 99 if subtotal is less than 599, otherwise free.
+  const shipping = subtotal > 599 ? 0 : shippingCost;
   const total = subtotal + shipping;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -1369,8 +1443,9 @@ export default function CheckoutPage() {
                       <span>Subtotal</span>
                       <span>₹{subtotal.toLocaleString()}</span>
                     </div>
+                    {/* Display shipping cost with loading indicator */}
                     <div className="flex justify-between text-gray-600">
-                      <span>Shipping</span>
+                      <span>Shipping {loadingShipping && <span className="text-xs">(calculating...)</span>}</span>
                       <span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
                     </div>
                     <div className="flex justify-between text-lg font-semibold text-gray-900 pt-2 border-t">

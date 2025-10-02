@@ -92,6 +92,15 @@ class ShiprocketService {
       password: process.env.SHIPROCKET_PASSWORD || '',
       baseUrl: process.env.SHIPROCKET_BASE_URL || 'https://apiv2.shiprocket.in/v1'
     };
+    
+    // If a pre-existing token is provided in environment, use it
+    const preExistingToken = process.env.SHIPROCKET_TOKEN;
+    if (preExistingToken) {
+      this.token = preExistingToken;
+      // Set a far future expiry since we don't know when the provided token expires
+      this.tokenExpiry = Date.now() + (365 * 24 * 60 * 60 * 1000);
+      console.log('Using pre-existing Shiprocket token from environment');
+    }
   }
 
   private async authenticate(forceRefresh: boolean = false): Promise<void> {
@@ -99,6 +108,14 @@ class ShiprocketService {
 
     // Skip if we already have a valid token and not forcing refresh
     if (this.token && Date.now() < this.tokenExpiry && !forceRefresh) {
+      return;
+    }
+
+    // If using pre-existing token from env, don't try to re-authenticate
+    if (process.env.SHIPROCKET_TOKEN && !forceRefresh) {
+      this.token = process.env.SHIPROCKET_TOKEN;
+      this.tokenExpiry = Date.now() + (365 * 24 * 60 * 60 * 1000);
+      console.log('Using pre-existing Shiprocket token, skipping authentication');
       return;
     }
 
@@ -242,6 +259,7 @@ class ShiprocketService {
 
   async trackOrder(orderId: string) {
     try {
+      await this.authenticate();
       const response = await this.makeRequest(`/external/courier/track?order_id=${orderId}`);
       return response;
     } catch (error) {
@@ -252,6 +270,7 @@ class ShiprocketService {
 
   async trackByAWB(awbCode: string) {
     try {
+      await this.authenticate();
       const response = await this.makeRequest(`/external/courier/track/awb/${awbCode}`);
       return response;
     } catch (error) {
@@ -262,9 +281,15 @@ class ShiprocketService {
 
   async getServiceability(pickupPincode: string, deliveryPincode: string, weight: number, cod: boolean = false) {
     try {
-      const response = await this.makeRequest(
-        `/external/courier/serviceability/?pickup_postcode=${pickupPincode}&delivery_postcode=${deliveryPincode}&weight=${weight}&cod=${cod ? 1 : 0}`
-      );
+      await this.authenticate();
+      
+      // Use GET method with query parameters for serviceability check
+      const codValue = cod ? 1 : 0;
+      const endpoint = `/external/courier/serviceability/?pickup_postcode=${pickupPincode}&delivery_postcode=${deliveryPincode}&weight=${weight}&cod=${codValue}`;
+      
+      console.log('Checking serviceability with GET request:', endpoint);
+      
+      const response = await this.makeRequest(endpoint, 'GET');
       return response;
     } catch (error) {
       console.error('Error checking serviceability:', error);
@@ -274,6 +299,7 @@ class ShiprocketService {
 
   async generateAWB(shipmentId: number, courierId: number) {
     try {
+      await this.authenticate();
       const response = await this.makeRequest('/external/courier/assign/awb', 'POST', {
         shipment_id: shipmentId,
         courier_id: courierId,
@@ -287,6 +313,7 @@ class ShiprocketService {
 
   async getOrderDetails(orderId: string) {
     try {
+      await this.authenticate();
       const response = await this.makeRequest(`/external/orders/show/${orderId}`);
       return response;
     } catch (error) {
@@ -297,6 +324,7 @@ class ShiprocketService {
 
   async cancelOrder(orderId: string) {
     try {
+      await this.authenticate();
       const response = await this.makeRequest('/external/orders/cancel', 'POST', {
         ids: [orderId]
       });

@@ -200,10 +200,68 @@ export default function Cart() {
     }, 0);
   };
 
+  const [shippingCost, setShippingCost] = useState<number>();
+  const [loadingShipping, setLoadingShipping] = useState(false);
+  const [deliveryPincode, setDeliveryPincode] = useState("");
+
   const subtotal = calculateSubtotal();
-  const shipping = promoCode.toLowerCase() === "freeship" ? 0 : (subtotal > 599 ? 0 : 99);
+  const shipping = promoCode.toLowerCase() === "freeship" ? 0 : (subtotal > 599 ? 0 : shippingCost);
   const discount = promoCode.toLowerCase() === "save10" ? Math.floor(subtotal * 0.1) : 0;
   const total = subtotal + shipping - discount;
+
+  // Calculate total weight of cart items
+  const calculateTotalWeight = () => {
+    // Assuming each product weighs 0.5 kg (you can adjust this)
+    return cartItems.reduce((total, item) => total + (0.5 * item.quantity), 0);
+  };
+
+  // Fetch shipping cost from Shiprocket
+  const fetchShippingCost = async (pincode: string) => {
+    if (!pincode || pincode.length !== 6) {
+      return;
+    }
+
+    setLoadingShipping(true);
+    try {
+      const weight = calculateTotalWeight();
+      const isCOD = false; // Will be determined at checkout
+      
+      const response = await fetch(
+        `/api/shiprocket/serviceability?deliveryPincode=${pincode}&weight=${weight}&cod=${isCOD}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Get the cheapest available courier
+        if (data.data && data.data.available_courier_companies && data.data.available_courier_companies.length > 0) {
+          const cheapestCourier = data.data.available_courier_companies.reduce((prev: any, curr: any) => {
+            return (curr.rate < prev.rate) ? curr : prev;
+          });
+          
+          setShippingCost(Math.round(cheapestCourier.rate));
+          toast({
+            title: "Shipping Cost Updated",
+            description: `Estimated shipping: ₹${Math.round(cheapestCourier.rate)} via ${cheapestCourier.courier_name}`,
+          });
+        } else {
+          // Fallback to default shipping
+          setShippingCost(0);
+          toast({
+            title: "Shipping Estimate",
+            description: "Using standard shipping rate",
+          });
+        }
+      } else {
+        setShippingCost(0);
+      }
+    } catch (error) {
+      console.error("Error fetching shipping cost:", error);
+      setShippingCost(0);
+    } finally {
+      setLoadingShipping(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -365,6 +423,36 @@ export default function Cart() {
             <Card className="sticky top-4">
               <CardContent className="p-4 sm:p-6 space-y-4">
                 <h2 className="text-xl font-semibold text-gray-900">Order Summary</h2>
+
+                {/* Delivery Pincode */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Delivery Pincode</label>
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Enter 6-digit pincode"
+                      value={deliveryPincode}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setDeliveryPincode(value);
+                      }}
+                      maxLength={6}
+                      className="flex-1"
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => fetchShippingCost(deliveryPincode)}
+                      disabled={loadingShipping || deliveryPincode.length !== 6}
+                    >
+                      {loadingShipping ? "..." : "Check"}
+                    </Button>
+                  </div>
+                  {deliveryPincode.length === 6 && !loadingShipping && (
+                    <p className="text-xs text-gray-500">
+                      💡 Click "Check" to get accurate shipping cost
+                    </p>
+                  )}
+                </div>
 
                 {/* Promo Code */}
                 <div className="space-y-2">
