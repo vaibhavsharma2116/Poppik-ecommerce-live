@@ -341,135 +341,107 @@ class ShiprocketService {
     const { firstName, lastName, email, phone } = order.customer || {};
     const { shippingAddress, totalAmount, paymentMethod, createdAt } = order;
 
-    // Parse address into components with better fallback handling
-    const addressParts = shippingAddress.split(',').map(part => part.trim()).filter(part => part.length > 0);
-    
-    // Extract street (first part or default)
-    let street = addressParts[0] || 'Complete Address';
-    if (street.length < 3) {
-      street = 'Complete Address';
-    }
-    
-    // Extract city (second part or default)
-    let city = addressParts[1] || 'New Delhi';
-    if (city.length < 3) {
-      city = 'New Delhi';
-    }
-    
-    // Extract state and pincode from third part
-    const stateAndPin = addressParts[2] || '';
-    
-    // Extract pincode (6 digits)
-    const pincodeMatch = stateAndPin.match(/\d{6}/);
-    let pincode = pincodeMatch ? pincodeMatch[0] : (addressParts[3]?.match(/\d{6}/)?.[0] || '110001');
-    
-    // Extract state (remove pincode and clean up)
-    let state = stateAndPin.replace(/\d{6}/, '').replace(/[-_]/g, ' ').trim();
-    if (!state || state.length < 3) {
-      state = 'Delhi';
-    }
+    // Parse the full shipping address to extract components
+    // Expected format: "street, city, state pincode" or similar variations
+    let street = '';
+    let city = '';
+    let state = '';
+    let pincode = '';
 
-    // Map common city names to their correct states (based on pincode)
-    const cityStateMapping: Record<string, string> = {
-      'jaipur': 'Rajasthan',
-      'delhi': 'Delhi',
-      'mumbai': 'Maharashtra',
-      'bangalore': 'Karnataka',
-      'chennai': 'Tamil Nadu',
-      'hyderabad': 'Telangana',
-      'kolkata': 'West Bengal',
-      'pune': 'Maharashtra',
-      'ahmedabad': 'Gujarat',
-      'surat': 'Gujarat'
-    };
-
-    // If we have a valid pincode, try to determine the correct state from city
-    if (pincode && pincode !== '000000') {
-      const cityLower = city.toLowerCase().trim();
+    if (shippingAddress && typeof shippingAddress === 'string') {
+      // Split by comma and clean parts
+      const parts = shippingAddress.split(',').map(p => p.trim()).filter(p => p.length > 0);
       
-      // If city is in our mapping, use the correct state
-      if (cityStateMapping[cityLower]) {
-        state = cityStateMapping[cityLower];
-        console.log(`🔄 Corrected state based on city: ${city} -> ${state}`);
-      }
-      
-      // Additional pincode-based validation
-      // Rajasthan pincodes: 302xxx, 303xxx, etc.
-      if (pincode.startsWith('302') || pincode.startsWith('303')) {
-        state = 'Rajasthan';
-      }
-      // Maharashtra pincodes: 400xxx, 401xxx, etc.
-      else if (pincode.startsWith('400') || pincode.startsWith('401')) {
-        state = 'Maharashtra';
+      if (parts.length >= 3) {
+        // Format: "street, city, state pincode"
+        street = parts[0];
+        city = parts[1];
+        
+        // Parse last part for state and pincode
+        const lastPart = parts[parts.length - 1];
+        const pincodeMatch = lastPart.match(/\b\d{6}\b/);
+        
+        if (pincodeMatch) {
+          pincode = pincodeMatch[0];
+          state = lastPart.replace(pincode, '').trim();
+        } else {
+          state = lastPart;
+        }
+        
+        // Clean up state formatting
+        state = state.replace(/[-_]/g, ' ').trim();
+        
+      } else if (parts.length === 2) {
+        // Format: "street, city"
+        street = parts[0];
+        city = parts[1];
+      } else if (parts.length === 1) {
+        street = parts[0];
       }
     }
 
-    // Ensure state name is properly formatted (title case, no underscores)
-    state = state.replace(/_/g, ' ').split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-
-    console.log('📍 Parsed address components:', {
-      original: shippingAddress,
-      street: street,
-      city: city,
-      state: state,
-      pincode: pincode
-    });
-
-    // Clean up phone number
-    let formattedPhone = phone || "9999999999";
-    formattedPhone = formattedPhone.replace(/\D/g, '');
-    if (formattedPhone.length === 10) {
-      formattedPhone = formattedPhone;
-    } else if (formattedPhone.length === 12 && formattedPhone.startsWith('91')) {
-      formattedPhone = formattedPhone.substring(2);
-    } else {
-      formattedPhone = "9999999999";
-    }
-
-    // Validate phone is 10 digits
-    if (!/^\d{10}$/.test(formattedPhone)) {
-      formattedPhone = "9999999999";
-    }
-
-    // Validate and ensure minimum length requirements before sending to Shiprocket
-    // Shiprocket requires minimum 3 characters for address fields
+    // Normalize and validate customer name
+    const billingFirstName = (firstName || '').trim() || 'Customer';
+    const billingLastName = (lastName || '').trim() || 'Name';
     
-    // Validate street address (minimum 3 chars, maximum 100)
+    // Normalize and validate street address (minimum 3 characters required by Shiprocket)
     street = street.trim();
     if (!street || street.length < 3) {
-      street = 'Complete Address';
+      street = 'Complete Address NA';
     }
+    // Shiprocket has max 100 chars for address
     street = street.substring(0, 100);
     
-    // Validate city (minimum 3 chars)
+    // Normalize and validate city (minimum 3 characters)
     city = city.trim();
     if (!city || city.length < 3) {
       city = 'New Delhi';
     }
     
-    // Validate state (minimum 3 chars, proper format)
+    // Normalize and validate state (minimum 3 characters)
     state = state.trim();
     if (!state || state.length < 3) {
       state = 'Delhi';
     }
+    // Format state properly (title case)
+    state = state.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
     
-    // Validate pincode (must be 6 digits)
-    if (!/^\d{6}$/.test(pincode)) {
-      console.warn(`⚠️ Invalid pincode detected: ${pincode}, using fallback`);
-      pincode = '110001'; // Default Delhi pincode as fallback
+    // Validate pincode (must be exactly 6 digits)
+    if (!pincode || !/^\d{6}$/.test(pincode)) {
+      console.warn(`⚠️ Invalid or missing pincode: ${pincode}, using default`);
+      pincode = '110001';
     }
 
-    console.log('✅ Validated address components:', {
+    // Clean up phone number to 10 digits
+    let formattedPhone = (phone || '').replace(/\D/g, '');
+    
+    // Handle different phone formats
+    if (formattedPhone.length === 12 && formattedPhone.startsWith('91')) {
+      formattedPhone = formattedPhone.substring(2);
+    } else if (formattedPhone.length === 11 && formattedPhone.startsWith('0')) {
+      formattedPhone = formattedPhone.substring(1);
+    }
+    
+    // Validate 10 digit phone
+    if (!/^\d{10}$/.test(formattedPhone)) {
+      console.warn(`⚠️ Invalid phone: ${phone}, using default`);
+      formattedPhone = '9999999999';
+    }
+    
+    // Validate email
+    const billingEmail = (email || '').trim() || 'customer@example.com';
+
+    console.log('✅ Final validated address for Shiprocket:', {
+      customer: `${billingFirstName} ${billingLastName}`,
+      email: billingEmail,
+      phone: formattedPhone,
       street: street,
-      streetLength: street.length,
       city: city,
-      cityLength: city.length,
       state: state,
-      stateLength: state.length,
       pincode: pincode,
-      pincodeValid: /^\d{6}$/.test(pincode)
+      country: 'India'
     });
 
     const shiprocketData = {
@@ -478,18 +450,18 @@ class ShiprocketService {
       pickup_location: pickupLocation,
       channel_id: "",
       comment: "Poppik Beauty Store Order",
-      billing_customer_name: firstName || "Customer",
-      billing_last_name: lastName || "Name",
+      billing_customer_name: billingFirstName,
+      billing_last_name: billingLastName,
       billing_address: street,
       billing_city: city,
       billing_pincode: pincode,
       billing_state: state,
       billing_country: "India",
-      billing_email: email || "customer@example.com",
+      billing_email: billingEmail,
       billing_phone: formattedPhone,
       shipping_is_billing: true,
-      shipping_customer_name: firstName || "Customer",
-      shipping_last_name: lastName || "Name",
+      shipping_customer_name: billingFirstName,
+      shipping_last_name: billingLastName,
       shipping_address: street,
       shipping_city: city,
       shipping_pincode: pincode,
@@ -522,14 +494,7 @@ class ShiprocketService {
       weight: items.reduce((total: number, item: any) => total + (0.5 * (Number(item.quantity) || 1)), 0),
     };
 
-    console.log('📦 Formatted Shiprocket order:', {
-      order_id: shiprocketData.order_id,
-      customer: `${shiprocketData.billing_customer_name} ${shiprocketData.billing_last_name}`,
-      phone: shiprocketData.billing_phone,
-      address: `${shiprocketData.billing_city}, ${shiprocketData.billing_state} - ${shiprocketData.billing_pincode}`,
-      items: shiprocketData.order_items.length,
-      weight: shiprocketData.weight
-    });
+    console.log('📦 Complete Shiprocket order payload:', JSON.stringify(shiprocketData, null, 2));
 
     return shiprocketData;
   }
