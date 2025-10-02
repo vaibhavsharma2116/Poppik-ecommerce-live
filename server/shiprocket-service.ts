@@ -342,15 +342,32 @@ class ShiprocketService {
     const { shippingAddress, totalAmount, paymentMethod, createdAt } = order;
 
     // Parse address into components with better fallback handling
-    const addressParts = shippingAddress.split(',').map(part => part.trim());
-    let street = addressParts[0] || 'Address Line 1';
-    let city = addressParts[1] || 'City';
+    const addressParts = shippingAddress.split(',').map(part => part.trim()).filter(part => part.length > 0);
+    
+    // Extract street (first part or default)
+    let street = addressParts[0] || 'Complete Address';
+    if (street.length < 3) {
+      street = 'Complete Address';
+    }
+    
+    // Extract city (second part or default)
+    let city = addressParts[1] || 'New Delhi';
+    if (city.length < 3) {
+      city = 'New Delhi';
+    }
+    
+    // Extract state and pincode from third part
     const stateAndPin = addressParts[2] || '';
-
-    // Extract state and pincode
+    
+    // Extract pincode (6 digits)
     const pincodeMatch = stateAndPin.match(/\d{6}/);
-    let pincode = pincodeMatch ? pincodeMatch[0] : addressParts[3] || '000000';
-    let state = stateAndPin.replace(/\d{6}/, '').trim() || 'State';
+    let pincode = pincodeMatch ? pincodeMatch[0] : (addressParts[3]?.match(/\d{6}/)?.[0] || '110001');
+    
+    // Extract state (remove pincode and clean up)
+    let state = stateAndPin.replace(/\d{6}/, '').replace(/[-_]/g, ' ').trim();
+    if (!state || state.length < 3) {
+      state = 'Delhi';
+    }
 
     // Map common city names to their correct states (based on pincode)
     const cityStateMapping: Record<string, string> = {
@@ -420,22 +437,23 @@ class ShiprocketService {
     // Shiprocket requires minimum 3 characters for address fields
     
     // Validate street address (minimum 3 chars, maximum 100)
+    street = street.trim();
     if (!street || street.length < 3) {
-      street = (street || 'Address').padEnd(3, ' ');
+      street = 'Complete Address';
     }
-    street = street.substring(0, 100).trim();
+    street = street.substring(0, 100);
     
     // Validate city (minimum 3 chars)
-    if (!city || city.length < 3) {
-      city = (city || 'City').padEnd(3, ' ');
-    }
     city = city.trim();
+    if (!city || city.length < 3) {
+      city = 'New Delhi';
+    }
     
     // Validate state (minimum 3 chars, proper format)
-    if (!state || state.length < 3) {
-      state = (state || 'State').padEnd(3, ' ');
-    }
     state = state.trim();
+    if (!state || state.length < 3) {
+      state = 'Delhi';
+    }
     
     // Validate pincode (must be 6 digits)
     if (!/^\d{6}$/.test(pincode)) {
@@ -460,10 +478,9 @@ class ShiprocketService {
       pickup_location: pickupLocation,
       channel_id: "",
       comment: "Poppik Beauty Store Order",
-      billing_customer_name: firstName,
-      billing_last_name: lastName,
+      billing_customer_name: firstName || "Customer",
+      billing_last_name: lastName || "Name",
       billing_address: street,
-      billing_address_2: '',
       billing_city: city,
       billing_pincode: pincode,
       billing_state: state,
@@ -471,10 +488,9 @@ class ShiprocketService {
       billing_email: email || "customer@example.com",
       billing_phone: formattedPhone,
       shipping_is_billing: true,
-      shipping_customer_name: firstName,
-      shipping_last_name: lastName,
+      shipping_customer_name: firstName || "Customer",
+      shipping_last_name: lastName || "Name",
       shipping_address: street,
-      shipping_address_2: '',
       shipping_city: city,
       shipping_pincode: pincode,
       shipping_country: "India",
