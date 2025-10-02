@@ -586,6 +586,34 @@ export default function CheckoutPage() {
       return false;
     }
 
+    // Validate address fields for Shiprocket
+    if (!formData.city || formData.city.trim().length < 3) {
+      toast({
+        title: "Invalid City",
+        description: "Please select or enter a valid city name",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (!formData.state || formData.state.trim().length < 3) {
+      toast({
+        title: "Invalid State",
+        description: "Please select or enter a valid state name",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (!formData.zipCode || !/^\d{6}$/.test(formData.zipCode.trim())) {
+      toast({
+        title: "Invalid PIN Code",
+        description: "Please enter a valid 6-digit PIN code",
+        variant: "destructive",
+      });
+      return false;
+    }
+
 
     try {
       let paymentSuccessful = false;

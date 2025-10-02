@@ -340,78 +340,73 @@ class ShiprocketService {
     const items = order.items || [];
 
     // Extract city, state, and pincode from shipping address
-    // Expected format: "street, city, state pincode" or variations
     const addressParts = order.shippingAddress.split(',').map((part: string) => part.trim());
     
-    let streetAddress = "";
-    let city = "Mumbai";
-    let state = "Maharashtra"; 
-    let pincode = "400001";
+    let streetAddress = "NA";
+    let city = "NA";
+    let state = "NA";
+    let pincode = "000000";
     
-    if (addressParts.length >= 3) {
-      // First part is street address
-      streetAddress = addressParts[0];
-      // Second part is city
-      city = addressParts[1];
-      // Third part contains state and pincode
-      const stateAndPin = addressParts[2].trim().split(/\s+/);
-      if (stateAndPin.length >= 2) {
-        // Last element is pincode
-        pincode = stateAndPin[stateAndPin.length - 1];
-        // Everything else is state
-        state = stateAndPin.slice(0, -1).join(' ');
-      } else {
-        state = stateAndPin[0] || "Maharashtra";
-      }
-    } else if (addressParts.length === 2) {
-      streetAddress = addressParts[0];
-      city = addressParts[1];
-    } else if (addressParts.length === 1) {
-      streetAddress = addressParts[0];
-    }
-    
-    // Ensure street address is not empty
-    if (!streetAddress || streetAddress.trim() === "") {
-      streetAddress = "Address Line 1";
-    }
-    
-    // Validate pincode format (should be 6 digits)
-    if (!/^\d{6}$/.test(pincode)) {
-      // Try to extract 6 digits from the address
-      const pincodeMatch = order.shippingAddress.match(/\b\d{6}\b/);
-      if (pincodeMatch) {
-        pincode = pincodeMatch[0];
-      } else {
-        console.warn('Invalid pincode detected, using default');
-        pincode = "400001";
-      }
-    }
-
-    // Try to extract pincode (6 digits)
+    // First, try to extract 6-digit pincode
     const pincodeMatch = order.shippingAddress.match(/\b\d{6}\b/);
     if (pincodeMatch) {
       pincode = pincodeMatch[0];
     }
-
-    // Try to extract city and state from address parts
+    
+    // Parse address based on number of parts
     if (addressParts.length >= 3) {
-      // Last part should have state and pincode
-      const lastPart = addressParts[addressParts.length - 1];
+      // Format: "street, city, state pincode"
+      streetAddress = addressParts[0] || "NA";
+      city = addressParts[1] || "NA";
+      
+      // Last part contains state and possibly pincode
+      const lastPart = addressParts[2].trim();
+      
+      // Remove pincode from state if present
       if (lastPart.includes(pincode)) {
-        state = lastPart.replace(pincode, '').trim();
+        state = lastPart.replace(pincode, '').trim() || "NA";
       } else {
-        state = lastPart;
+        // Try to split by space to separate state and pincode
+        const stateAndPin = lastPart.split(/\s+/);
+        if (stateAndPin.length >= 2) {
+          // Check if last element is pincode
+          const lastElement = stateAndPin[stateAndPin.length - 1];
+          if (/^\d{6}$/.test(lastElement)) {
+            pincode = lastElement;
+            state = stateAndPin.slice(0, -1).join(' ') || "NA";
+          } else {
+            state = lastPart;
+          }
+        } else {
+          state = lastPart;
+        }
       }
+    } else if (addressParts.length === 2) {
+      streetAddress = addressParts[0] || "NA";
+      city = addressParts[1] || "NA";
       
-      // Second last should be city
-      city = addressParts[addressParts.length - 2];
-      
-      // Everything before city is street address
-      streetAddress = addressParts.slice(0, -2).join(', ');
-    } else if (addressParts.length >= 2) {
-      city = addressParts[addressParts.length - 2] || "Mumbai";
-      state = addressParts[addressParts.length - 1] || "Maharashtra";
-      streetAddress = addressParts[0] || order.shippingAddress;
+      // Try to extract state from city part if it has pincode
+      if (pincodeMatch && city.includes(pincode)) {
+        state = city.replace(pincode, '').trim() || "NA";
+      }
+    } else if (addressParts.length === 1) {
+      streetAddress = addressParts[0] || "NA";
+    }
+    
+    // Clean and validate fields - Shiprocket doesn't accept empty or very short values
+    streetAddress = streetAddress.trim() || "NA";
+    city = city.trim() || "NA";
+    state = state.trim() || "NA";
+    
+    // Ensure minimum length requirements
+    if (streetAddress.length < 3) streetAddress = "Address Line 1";
+    if (city.length < 3) city = "City";
+    if (state.length < 3) state = "State";
+    
+    // Validate pincode is 6 digits
+    if (!/^\d{6}$/.test(pincode)) {
+      console.warn('Invalid pincode detected:', pincode);
+      pincode = "110001"; // Default Delhi pincode
     }
 
     // Clean up phone number
@@ -424,6 +419,11 @@ class ShiprocketService {
     } else {
       phone = "9999999999";
     }
+    
+    // Validate phone is 10 digits
+    if (!/^\d{10}$/.test(phone)) {
+      phone = "9999999999";
+    }
 
     const shiprocketData = {
       order_id: order.id,
@@ -431,16 +431,25 @@ class ShiprocketService {
       pickup_location: pickupLocation,
       channel_id: "",
       comment: "Poppik Beauty Store Order",
-      billing_customer_name: order.customer?.firstName || "Customer",
-      billing_last_name: order.customer?.lastName || "",
+      billing_customer_name: (order.customer?.firstName || "Customer").trim(),
+      billing_last_name: (order.customer?.lastName || "Name").trim(),
       billing_address: streetAddress,
+      billing_address_2: "",
       billing_city: city,
       billing_pincode: pincode,
       billing_state: state,
       billing_country: "India",
-      billing_email: order.customer?.email || "customer@example.com",
+      billing_email: (order.customer?.email || "customer@example.com").trim(),
       billing_phone: phone,
       shipping_is_billing: true,
+      shipping_customer_name: (order.customer?.firstName || "Customer").trim(),
+      shipping_last_name: (order.customer?.lastName || "Name").trim(),
+      shipping_address: streetAddress,
+      shipping_address_2: "",
+      shipping_city: city,
+      shipping_pincode: pincode,
+      shipping_country: "India",
+      shipping_state: state,
       order_items: items.map((item: any, index: number) => {
         const price = typeof item.price === 'string' 
           ? parseFloat(item.price.replace(/[₹,]/g, ''))
