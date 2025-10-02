@@ -2372,7 +2372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [newOrder] = await db.insert(ordersTable).values({
         userId: Number(userId),
         totalAmount: Number(totalAmount),
-        status: status || 'pending',
+        status: status || 'confirmed',
         paymentMethod: paymentMethod || 'Cash on Delivery',
         shippingAddress: shippingAddress,
         trackingNumber: null,
@@ -2394,24 +2394,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const orderId = `ORD-${newOrder.id.toString().padStart(3, '0')}`;
 
-      // Try to create Shiprocket order for new orders
+      // Always try to create Shiprocket order for all new orders
       let shiprocketOrderId = null;
       let shiprocketAwb = null;
       let shiprocketError = null;
 
-      try {
-        // Only create Shiprocket order if service is properly configured
-        if (process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
-          console.log('Creating Shiprocket order...');
+      // Check if Shiprocket is configured
+      if (process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
+        try {
+          console.log('🚀 Starting Shiprocket order creation for:', orderId);
 
-          // Get user details - always fetch from database for accuracy
-          let customerData = {
-            firstName: 'Customer',
-            lastName: '',
-            email: 'customer@example.com',
-            phone: '9999999999'
-          };
-
+          // Get user details from database
           const user = await db
             .select({
               firstName: users.firstName,
@@ -2423,15 +2416,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(eq(users.id, Number(userId)))
             .limit(1);
 
+          let customerData = {
+            firstName: customerName?.split(' ')[0] || 'Customer',
+            lastName: customerName?.split(' ').slice(1).join(' ') || '',
+            email: customerEmail || 'customer@example.com',
+            phone: customerPhone || '9999999999'
+          };
+
           if (user.length > 0) {
             customerData = {
-              firstName: user[0].firstName || customerName?.split(' ')[0] || 'Customer',
-              lastName: user[0].lastName || customerName?.split(' ').slice(1).join(' ') || '',
-              email: user[0].email || customerEmail || 'customer@example.com',
-              phone: user[0].phone || customerPhone || '9999999999'
+              firstName: user[0].firstName || customerData.firstName,
+              lastName: user[0].lastName || customerData.lastName,
+              email: user[0].email || customerData.email,
+              phone: user[0].phone || customerData.phone
             };
           }
 
+          console.log('📦 Customer data for Shiprocket:', customerData);
+
+          // Prepare Shiprocket order
           const shiprocketOrderData = shiprocketService.convertToShiprocketFormat({
             id: orderId,
             createdAt: newOrder.createdAt,
@@ -2442,66 +2445,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
             customer: customerData
           });
 
-          console.log('Shiprocket order data:', JSON.stringify(shiprocketOrderData, null, 2));
+          console.log('📋 Shiprocket order payload:', JSON.stringify(shiprocketOrderData, null, 2));
 
+          // Create order on Shiprocket
           const shiprocketResponse = await shiprocketService.createOrder(shiprocketOrderData);
-          console.log('Shiprocket response:', shiprocketResponse);
+          console.log('✅ Shiprocket API response:', JSON.stringify(shiprocketResponse, null, 2));
 
           if (shiprocketResponse && shiprocketResponse.order_id) {
             shiprocketOrderId = shiprocketResponse.order_id;
             shiprocketAwb = shiprocketResponse.awb_code || shiprocketResponse.shipment_id || null;
 
-            console.log(`Shiprocket order created successfully: ${shiprocketOrderId}`);
-            console.log(`Shiprocket AWB/Shipment ID: ${shiprocketAwb}`);
+            console.log(`✅ Shiprocket order created: ${shiprocketOrderId} with AWB: ${shiprocketAwb || 'Pending'}`);
+
+            // Update order with Shiprocket details immediately
+            await db.update(ordersTable)
+              .set({
+                shiprocketOrderId: shiprocketOrderId,
+                shiprocketShipmentId: shiprocketAwb,
+                status: 'processing'
+              })
+              .where(eq(ordersTable.id, newOrder.id));
+
+            console.log(`✅ Database updated with Shiprocket details for order ${orderId}`);
           } else {
-            console.warn('Shiprocket response missing order_id:', shiprocketResponse);
-            shiprocketError = 'No order_id received from Shiprocket';
+            shiprocketError = 'Invalid Shiprocket response - no order_id';
+            console.error('❌ Shiprocket response missing order_id:', shiprocketResponse);
           }
-        } else {
-          console.log('Shiprocket not configured - missing credentials');
-          shiprocketError = 'Shiprocket credentials not configured';
-        }
-      } catch (shiprocketErrorCatch) {
-        shiprocketError = shiprocketErrorCatch.message;
-        console.error('Shiprocket order creation failed:', shiprocketErrorCatch);
-        console.error('Error details:', {
-          message: shiprocketErrorCatch.message,
-          stack: shiprocketErrorCatch.stack
-        });
+        } catch (shiprocketErrorCatch) {
+          shiprocketError = shiprocketErrorCatch.message;
+          console.error('❌ Shiprocket order creation failed:', {
+            orderId: orderId,
+            error: shiprocketErrorCatch.message,
+            stack: shiprocketErrorCatch.stack
+          });
 
-        // Log specific error types for debugging
-        if (shiprocketErrorCatch.message.includes('Forbidden')) {
-          console.error('Shiprocket API access forbidden - check credentials and permissions');
-        } else if (shiprocketErrorCatch.message.includes('authentication')) {
-          console.error('Shiprocket authentication failed - check email/password');
-        }
-      }
-
-      // Update order with Shiprocket details and error info if applicable
-      try {
-        const updateData: any = {};
-
-        if (shiprocketOrderId) {
-          updateData.shiprocketOrderId = shiprocketOrderId;
-        }
-
-        if (shiprocketAwb !== undefined) {
-          updateData.shiprocketShipmentId = shiprocketAwb;
-        }
-
-        if (shiprocketError) {
-          updateData.notes = `Shiprocket Error: ${shiprocketError}`;
-        }
-
-        if (Object.keys(updateData).length > 0) {
+          // Save error to database for debugging
           await db.update(ordersTable)
-            .set(updateData)
+            .set({
+              notes: `Shiprocket Error: ${shiprocketErrorCatch.message}`
+            })
             .where(eq(ordersTable.id, newOrder.id));
-
-          console.log(`Order ${orderId} updated with Shiprocket details:`, updateData);
         }
-      } catch (updateError) {
-        console.error('Failed to update order with Shiprocket details or error info:', updateError);
+      } else {
+        shiprocketError = 'Shiprocket credentials not configured';
+        console.warn('⚠️ Shiprocket not configured - skipping integration');
       }
 
       res.json({
@@ -2509,6 +2496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Order placed successfully",
         orderId: orderId,
         shiprocketIntegrated: !!shiprocketOrderId,
+        shiprocketOrderId: shiprocketOrderId,
         shiprocketError: shiprocketError,
         order: {
           id: orderId,
@@ -2519,7 +2507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error("Order creation error:", error);
+      console.error("❌ Order creation error:", error);
       res.status(500).json({
         error: "Failed to create order",
         details: process.env.NODE_ENV === 'development' ? error.message : undefined

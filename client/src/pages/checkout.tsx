@@ -611,6 +611,9 @@ export default function CheckoutPage() {
           status: 'confirmed',
           paymentMethod,
           shippingAddress: `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`,
+          customerName: `${formData.firstName} ${formData.lastName}`,
+          customerEmail: formData.email,
+          customerPhone: formData.phone,
           items: cartItems.map(item => ({
             productId: item.id,
             productName: item.name,

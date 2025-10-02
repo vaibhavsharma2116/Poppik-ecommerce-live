@@ -341,6 +341,7 @@ class ShiprocketService {
 
     // Extract city, state, and pincode from shipping address
     const addressParts = order.shippingAddress.split(',').map((part: string) => part.trim());
+    let streetAddress = order.shippingAddress;
     let city = "Mumbai";
     let state = "Maharashtra"; 
     let pincode = "400001";
@@ -352,47 +353,90 @@ class ShiprocketService {
     }
 
     // Try to extract city and state from address parts
-    if (addressParts.length >= 2) {
-      city = addressParts[addressParts.length - 3] || "Mumbai";
-      state = addressParts[addressParts.length - 2] || "Maharashtra";
+    if (addressParts.length >= 3) {
+      // Last part should have state and pincode
+      const lastPart = addressParts[addressParts.length - 1];
+      if (lastPart.includes(pincode)) {
+        state = lastPart.replace(pincode, '').trim();
+      } else {
+        state = lastPart;
+      }
+      
+      // Second last should be city
+      city = addressParts[addressParts.length - 2];
+      
+      // Everything before city is street address
+      streetAddress = addressParts.slice(0, -2).join(', ');
+    } else if (addressParts.length >= 2) {
+      city = addressParts[addressParts.length - 2] || "Mumbai";
+      state = addressParts[addressParts.length - 1] || "Maharashtra";
+      streetAddress = addressParts[0] || order.shippingAddress;
     }
 
-    return {
+    // Clean up phone number
+    let phone = order.customer?.phone || "9999999999";
+    phone = phone.replace(/\D/g, '');
+    if (phone.length === 10) {
+      phone = phone;
+    } else if (phone.length === 12 && phone.startsWith('91')) {
+      phone = phone.substring(2);
+    } else {
+      phone = "9999999999";
+    }
+
+    const shiprocketData = {
       order_id: order.id,
       order_date: new Date(order.createdAt).toISOString().split('T')[0],
       pickup_location: pickupLocation,
-      channel_id: "5433",
-      comment: "Beauty Store Order",
-      billing_customer_name: order.customer?.firstName || order.customer?.name?.split(' ')[0] || "Customer",
-      billing_last_name: order.customer?.lastName || order.customer?.name?.split(' ').slice(1).join(' ') || "",
-      billing_address: order.shippingAddress,
+      channel_id: "",
+      comment: "Poppik Beauty Store Order",
+      billing_customer_name: order.customer?.firstName || "Customer",
+      billing_last_name: order.customer?.lastName || "",
+      billing_address: streetAddress,
       billing_city: city,
       billing_pincode: pincode,
       billing_state: state,
       billing_country: "India",
       billing_email: order.customer?.email || "customer@example.com",
-      billing_phone: order.customer?.phone || "9999999999",
+      billing_phone: phone,
       shipping_is_billing: true,
-      order_items: items.map((item: any, index: number) => ({
-        name: item.productName || item.name,
-        sku: `SKU${item.productId || index + 1}`,
-        units: item.quantity,
-        selling_price: parseFloat(item.price.replace(/[₹,]/g, '')),
-        discount: 0,
-        tax: 0,
-        hsn: 0,
-      })),
+      order_items: items.map((item: any, index: number) => {
+        const price = typeof item.price === 'string' 
+          ? parseFloat(item.price.replace(/[₹,]/g, ''))
+          : Number(item.price);
+        
+        return {
+          name: (item.productName || item.name || 'Product').substring(0, 50),
+          sku: `SKU${item.productId || (Date.now() + index)}`,
+          units: Number(item.quantity) || 1,
+          selling_price: price,
+          discount: 0,
+          tax: 0,
+          hsn: 0,
+        };
+      }),
       payment_method: order.paymentMethod === 'Cash on Delivery' ? 'COD' : 'Prepaid',
       shipping_charges: 0,
       giftwrap_charges: 0,
       transaction_charges: 0,
       total_discount: 0,
-      sub_total: order.totalAmount,
+      sub_total: Number(order.totalAmount),
       length: 15,
       breadth: 10,
       height: 5,
-      weight: 0.5,
+      weight: items.reduce((total: number, item: any) => total + (0.5 * (Number(item.quantity) || 1)), 0),
     };
+
+    console.log('📦 Formatted Shiprocket order:', {
+      order_id: shiprocketData.order_id,
+      customer: `${shiprocketData.billing_customer_name} ${shiprocketData.billing_last_name}`,
+      phone: shiprocketData.billing_phone,
+      address: `${shiprocketData.billing_city}, ${shiprocketData.billing_state} - ${shiprocketData.billing_pincode}`,
+      items: shiprocketData.order_items.length,
+      weight: shiprocketData.weight
+    });
+
+    return shiprocketData;
   }
 
   // Convert Shiprocket tracking to your timeline format
