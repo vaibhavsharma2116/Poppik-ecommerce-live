@@ -340,11 +340,52 @@ class ShiprocketService {
     const items = order.items || [];
 
     // Extract city, state, and pincode from shipping address
+    // Expected format: "street, city, state pincode" or variations
     const addressParts = order.shippingAddress.split(',').map((part: string) => part.trim());
-    let streetAddress = order.shippingAddress;
+    
+    let streetAddress = "";
     let city = "Mumbai";
     let state = "Maharashtra"; 
     let pincode = "400001";
+    
+    if (addressParts.length >= 3) {
+      // First part is street address
+      streetAddress = addressParts[0];
+      // Second part is city
+      city = addressParts[1];
+      // Third part contains state and pincode
+      const stateAndPin = addressParts[2].trim().split(/\s+/);
+      if (stateAndPin.length >= 2) {
+        // Last element is pincode
+        pincode = stateAndPin[stateAndPin.length - 1];
+        // Everything else is state
+        state = stateAndPin.slice(0, -1).join(' ');
+      } else {
+        state = stateAndPin[0] || "Maharashtra";
+      }
+    } else if (addressParts.length === 2) {
+      streetAddress = addressParts[0];
+      city = addressParts[1];
+    } else if (addressParts.length === 1) {
+      streetAddress = addressParts[0];
+    }
+    
+    // Ensure street address is not empty
+    if (!streetAddress || streetAddress.trim() === "") {
+      streetAddress = "Address Line 1";
+    }
+    
+    // Validate pincode format (should be 6 digits)
+    if (!/^\d{6}$/.test(pincode)) {
+      // Try to extract 6 digits from the address
+      const pincodeMatch = order.shippingAddress.match(/\b\d{6}\b/);
+      if (pincodeMatch) {
+        pincode = pincodeMatch[0];
+      } else {
+        console.warn('Invalid pincode detected, using default');
+        pincode = "400001";
+      }
+    }
 
     // Try to extract pincode (6 digits)
     const pincodeMatch = order.shippingAddress.match(/\b\d{6}\b/);
