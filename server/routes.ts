@@ -2021,7 +2021,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               cashfreeOrderId: payment.cashfreeOrderId,
               paymentId: payment.paymentId,
               estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-              createdAt: payment.createdAt || new Date(),
             }).returning();
 
             // Create order items
