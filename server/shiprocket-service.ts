@@ -343,14 +343,14 @@ class ShiprocketService {
 
     // Parse address into components with better fallback handling
     const addressParts = shippingAddress.split(',').map(part => part.trim());
-    const street = addressParts[0] || 'Address Line 1';
-    const city = addressParts[1] || 'City';
+    let street = addressParts[0] || 'Address Line 1';
+    let city = addressParts[1] || 'City';
     const stateAndPin = addressParts[2] || '';
 
     // Extract state and pincode
     const pincodeMatch = stateAndPin.match(/\d{6}/);
-    const pincode = pincodeMatch ? pincodeMatch[0] : addressParts[3] || '000000';
-    const state = stateAndPin.replace(/\d{6}/, '').trim() || 'State';
+    let pincode = pincodeMatch ? pincodeMatch[0] : addressParts[3] || '000000';
+    let state = stateAndPin.replace(/\d{6}/, '').trim() || 'State';
 
     console.log('📍 Parsed address components:', {
       original: shippingAddress,
@@ -375,6 +375,28 @@ class ShiprocketService {
     if (!/^\d{10}$/.test(formattedPhone)) {
       formattedPhone = "9999999999";
     }
+
+    // Validate and ensure minimum length requirements before sending to Shiprocket
+    // Shiprocket requires minimum 3 characters for address fields
+    if (street.length < 3) {
+      street = street.padEnd(3, ' ').substring(0, 100);
+    }
+    if (city.length < 3) {
+      city = city.padEnd(3, ' ');
+    }
+    if (state.length < 3) {
+      state = state.padEnd(3, ' ');
+    }
+
+    console.log('✅ Validated address components:', {
+      street: street,
+      streetLength: street.length,
+      city: city,
+      cityLength: city.length,
+      state: state,
+      stateLength: state.length,
+      pincode: pincode
+    });
 
     const shiprocketData = {
       order_id: order.id,
@@ -402,7 +424,7 @@ class ShiprocketService {
       shipping_country: "India",
       shipping_state: state,
       order_items: items.map((item: any, index: number) => {
-        const price = typeof item.price === 'string' 
+        const price = typeof item.price === 'string'
           ? parseFloat(item.price.replace(/[₹,]/g, ''))
           : Number(item.price);
 
