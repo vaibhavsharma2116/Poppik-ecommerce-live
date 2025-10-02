@@ -92,7 +92,7 @@ class ShiprocketService {
       password: process.env.SHIPROCKET_PASSWORD || '',
       baseUrl: process.env.SHIPROCKET_BASE_URL || 'https://apiv2.shiprocket.in/v1'
     };
-    
+
     // If a pre-existing token is provided in environment, use it
     const preExistingToken = process.env.SHIPROCKET_TOKEN;
     if (preExistingToken) {
@@ -152,11 +152,11 @@ class ShiprocketService {
           statusText: response.statusText,
           response: data
         });
-        
+
         if (response.status === 401) {
           throw new Error('Invalid Shiprocket credentials - check email and password');
         }
-        
+
         throw new Error(`Authentication failed: ${response.statusText} - ${JSON.stringify(data)}`);
       }
 
@@ -282,13 +282,13 @@ class ShiprocketService {
   async getServiceability(pickupPincode: string, deliveryPincode: string, weight: number, cod: boolean = false) {
     try {
       await this.authenticate();
-      
+
       // Use GET method with query parameters for serviceability check
       const codValue = cod ? 1 : 0;
       const endpoint = `/external/courier/serviceability/?pickup_postcode=${pickupPincode}&delivery_postcode=${deliveryPincode}&weight=${weight}&cod=${codValue}`;
-      
+
       console.log('Checking serviceability with GET request:', endpoint);
-      
+
       const response = await this.makeRequest(endpoint, 'GET');
       return response;
     } catch (error) {
@@ -338,120 +338,65 @@ class ShiprocketService {
   // Convert your order format to Shiprocket format
   convertToShiprocketFormat(order: any, pickupLocation: string = "Primary"): ShiprocketOrder {
     const items = order.items || [];
+    const { firstName, lastName, email, phone } = order.customer || {};
+    const { shippingAddress, totalAmount, paymentMethod, createdAt } = order;
 
-    // Extract city, state, and pincode from shipping address
-    const addressParts = order.shippingAddress.split(',').map((part: string) => part.trim());
-    
-    let streetAddress = "NA";
-    let city = "NA";
-    let state = "NA";
-    let pincode = "000000";
-    
-    // First, try to extract 6-digit pincode
-    const pincodeMatch = order.shippingAddress.match(/\b\d{6}\b/);
-    if (pincodeMatch) {
-      pincode = pincodeMatch[0];
-    }
-    
-    // Parse address based on number of parts
-    if (addressParts.length >= 3) {
-      // Format: "street, city, state pincode"
-      streetAddress = addressParts[0] || "";
-      city = addressParts[1] || "";
-      
-      // Last part contains state and possibly pincode
-      const lastPart = addressParts[2].trim();
-      
-      // Remove pincode from state if present
-      if (lastPart.includes(pincode)) {
-        state = lastPart.replace(pincode, '').trim() || "";
-      } else {
-        // Try to split by space to separate state and pincode
-        const stateAndPin = lastPart.split(/\s+/);
-        if (stateAndPin.length >= 2) {
-          // Check if last element is pincode
-          const lastElement = stateAndPin[stateAndPin.length - 1];
-          if (/^\d{6}$/.test(lastElement)) {
-            pincode = lastElement;
-            state = stateAndPin.slice(0, -1).join(' ') || "";
-          } else {
-            state = lastPart;
-          }
-        } else {
-          state = lastPart;
-        }
-      }
-    } else if (addressParts.length === 2) {
-      streetAddress = addressParts[0] || "";
-      city = addressParts[1] || "";
-      
-      // Try to extract state from city part if it has pincode
-      if (pincodeMatch && city.includes(pincode)) {
-        state = city.replace(pincode, '').trim() || "";
-      }
-    } else if (addressParts.length === 1) {
-      streetAddress = addressParts[0] || "";
-    }
-    
-    // Clean and validate fields - Shiprocket requires minimum 3 characters
-    streetAddress = streetAddress.trim();
-    city = city.trim();
-    state = state.trim();
-    
-    // Ensure minimum length requirements with proper fallbacks
-    if (!streetAddress || streetAddress.length < 3) {
-      streetAddress = order.shippingAddress.split(',')[0]?.trim() || "Complete Address";
-    }
-    if (!city || city.length < 3) {
-      city = "Mumbai"; // Default city
-    }
-    if (!state || state.length < 3) {
-      state = "Maharashtra"; // Default state
-    }
-    
-    // Validate pincode is 6 digits
-    if (!/^\d{6}$/.test(pincode)) {
-      console.warn('Invalid pincode detected:', pincode, '- using default');
-      pincode = "400001"; // Default Mumbai pincode
-    }
+    // Parse address into components with better fallback handling
+    const addressParts = shippingAddress.split(',').map(part => part.trim());
+    const street = addressParts[0] || 'Address Line 1';
+    const city = addressParts[1] || 'City';
+    const stateAndPin = addressParts[2] || '';
+
+    // Extract state and pincode
+    const pincodeMatch = stateAndPin.match(/\d{6}/);
+    const pincode = pincodeMatch ? pincodeMatch[0] : addressParts[3] || '000000';
+    const state = stateAndPin.replace(/\d{6}/, '').trim() || 'State';
+
+    console.log('📍 Parsed address components:', {
+      original: shippingAddress,
+      street: street,
+      city: city,
+      state: state,
+      pincode: pincode
+    });
 
     // Clean up phone number
-    let phone = order.customer?.phone || "9999999999";
-    phone = phone.replace(/\D/g, '');
-    if (phone.length === 10) {
-      phone = phone;
-    } else if (phone.length === 12 && phone.startsWith('91')) {
-      phone = phone.substring(2);
+    let formattedPhone = phone || "9999999999";
+    formattedPhone = formattedPhone.replace(/\D/g, '');
+    if (formattedPhone.length === 10) {
+      formattedPhone = formattedPhone;
+    } else if (formattedPhone.length === 12 && formattedPhone.startsWith('91')) {
+      formattedPhone = formattedPhone.substring(2);
     } else {
-      phone = "9999999999";
+      formattedPhone = "9999999999";
     }
-    
+
     // Validate phone is 10 digits
-    if (!/^\d{10}$/.test(phone)) {
-      phone = "9999999999";
+    if (!/^\d{10}$/.test(formattedPhone)) {
+      formattedPhone = "9999999999";
     }
 
     const shiprocketData = {
       order_id: order.id,
-      order_date: new Date(order.createdAt).toISOString().split('T')[0],
+      order_date: new Date(createdAt).toISOString().split('T')[0],
       pickup_location: pickupLocation,
       channel_id: "",
       comment: "Poppik Beauty Store Order",
-      billing_customer_name: (order.customer?.firstName || "Customer").trim(),
-      billing_last_name: (order.customer?.lastName || "Name").trim(),
-      billing_address: streetAddress,
-      billing_address_2: "",
+      billing_customer_name: firstName,
+      billing_last_name: lastName,
+      billing_address: street,
+      billing_address_2: '',
       billing_city: city,
       billing_pincode: pincode,
       billing_state: state,
       billing_country: "India",
-      billing_email: (order.customer?.email || "customer@example.com").trim(),
-      billing_phone: phone,
+      billing_email: email || "customer@example.com",
+      billing_phone: formattedPhone,
       shipping_is_billing: true,
-      shipping_customer_name: (order.customer?.firstName || "Customer").trim(),
-      shipping_last_name: (order.customer?.lastName || "Name").trim(),
-      shipping_address: streetAddress,
-      shipping_address_2: "",
+      shipping_customer_name: firstName,
+      shipping_last_name: lastName,
+      shipping_address: street,
+      shipping_address_2: '',
       shipping_city: city,
       shipping_pincode: pincode,
       shipping_country: "India",
@@ -460,7 +405,7 @@ class ShiprocketService {
         const price = typeof item.price === 'string' 
           ? parseFloat(item.price.replace(/[₹,]/g, ''))
           : Number(item.price);
-        
+
         return {
           name: (item.productName || item.name || 'Product').substring(0, 50),
           sku: `SKU${item.productId || (Date.now() + index)}`,
@@ -471,12 +416,12 @@ class ShiprocketService {
           hsn: 0,
         };
       }),
-      payment_method: order.paymentMethod === 'Cash on Delivery' ? 'COD' : 'Prepaid',
+      payment_method: paymentMethod === 'Cash on Delivery' ? 'COD' : 'Prepaid',
       shipping_charges: 0,
       giftwrap_charges: 0,
       transaction_charges: 0,
       total_discount: 0,
-      sub_total: Number(order.totalAmount),
+      sub_total: Number(totalAmount),
       length: 15,
       breadth: 10,
       height: 5,
