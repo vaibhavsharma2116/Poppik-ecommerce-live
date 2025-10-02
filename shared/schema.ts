@@ -96,10 +96,11 @@ export const ordersTable = pgTable("orders", {
   trackingNumber: text("tracking_number"),
   estimatedDelivery: timestamp("estimated_delivery"),
   shiprocketOrderId: text("shiprocket_order_id"),
-  shiprocketShipmentId: integer("shiprocket_shipment_id"),
+  shiprocketShipmentId: text("shiprocket_shipment_id"),
   cashfreeOrderId: text("cashfree_order_id"),
   paymentSessionId: text("payment_session_id"),
   paymentId: text("payment_id"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

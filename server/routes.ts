@@ -2369,15 +2369,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Insert the order into database
-      const [newOrder] = await db.insert(ordersTable).values({
+      const newOrderData = {
         userId: Number(userId),
         totalAmount: Number(totalAmount),
         status: status || 'confirmed',
         paymentMethod: paymentMethod || 'Cash on Delivery',
         shippingAddress: shippingAddress,
-        trackingNumber: null,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-      }).returning();
+      };
+
+      console.log("Inserting order data:", newOrderData);
+
+      const [newOrder] = await db.insert(ordersTable).values(newOrderData).returning();
 
       // Create order items in separate table
       const orderItems = items.map((item: any) => ({
