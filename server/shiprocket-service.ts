@@ -441,15 +441,20 @@ class ShiprocketService {
       country: 'India'
     });
 
+    // Format order date with time (YYYY-MM-DD HH:MM)
+    const orderDate = new Date(createdAt);
+    const formattedDate = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}-${String(orderDate.getDate()).padStart(2, '0')} ${String(orderDate.getHours()).padStart(2, '0')}:${String(orderDate.getMinutes()).padStart(2, '0')}`;
+
     const shiprocketData = {
       order_id: order.id,
-      order_date: new Date(createdAt).toISOString().split('T')[0],
+      order_date: formattedDate,
       pickup_location: pickupLocation,
       channel_id: "",
       comment: "Poppik Beauty Store Order",
       billing_customer_name: billingFirstName,
       billing_last_name: billingLastName,
       billing_address: street,
+      billing_address_2: "",
       billing_city: city,
       billing_pincode: pincode,
       billing_state: state,
@@ -469,7 +474,7 @@ class ShiprocketService {
           selling_price: price,
           discount: 0,
           tax: 0,
-          hsn: 0,
+          hsn: 610910,
         };
       }),
       payment_method: paymentMethod === 'Cash on Delivery' ? 'COD' : 'Prepaid',
