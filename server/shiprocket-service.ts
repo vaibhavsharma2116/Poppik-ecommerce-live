@@ -352,6 +352,46 @@ class ShiprocketService {
     let pincode = pincodeMatch ? pincodeMatch[0] : addressParts[3] || '000000';
     let state = stateAndPin.replace(/\d{6}/, '').trim() || 'State';
 
+    // Map common city names to their correct states (based on pincode)
+    const cityStateMapping: Record<string, string> = {
+      'jaipur': 'Rajasthan',
+      'delhi': 'Delhi',
+      'mumbai': 'Maharashtra',
+      'bangalore': 'Karnataka',
+      'chennai': 'Tamil Nadu',
+      'hyderabad': 'Telangana',
+      'kolkata': 'West Bengal',
+      'pune': 'Maharashtra',
+      'ahmedabad': 'Gujarat',
+      'surat': 'Gujarat'
+    };
+
+    // If we have a valid pincode, try to determine the correct state from city
+    if (pincode && pincode !== '000000') {
+      const cityLower = city.toLowerCase().trim();
+      
+      // If city is in our mapping, use the correct state
+      if (cityStateMapping[cityLower]) {
+        state = cityStateMapping[cityLower];
+        console.log(`🔄 Corrected state based on city: ${city} -> ${state}`);
+      }
+      
+      // Additional pincode-based validation
+      // Rajasthan pincodes: 302xxx, 303xxx, etc.
+      if (pincode.startsWith('302') || pincode.startsWith('303')) {
+        state = 'Rajasthan';
+      }
+      // Maharashtra pincodes: 400xxx, 401xxx, etc.
+      else if (pincode.startsWith('400') || pincode.startsWith('401')) {
+        state = 'Maharashtra';
+      }
+    }
+
+    // Ensure state name is properly formatted (title case, no underscores)
+    state = state.replace(/_/g, ' ').split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+
     console.log('📍 Parsed address components:', {
       original: shippingAddress,
       street: street,
@@ -378,14 +418,29 @@ class ShiprocketService {
 
     // Validate and ensure minimum length requirements before sending to Shiprocket
     // Shiprocket requires minimum 3 characters for address fields
-    if (street.length < 3) {
-      street = street.padEnd(3, ' ').substring(0, 100);
+    
+    // Validate street address (minimum 3 chars, maximum 100)
+    if (!street || street.length < 3) {
+      street = (street || 'Address').padEnd(3, ' ');
     }
-    if (city.length < 3) {
-      city = city.padEnd(3, ' ');
+    street = street.substring(0, 100).trim();
+    
+    // Validate city (minimum 3 chars)
+    if (!city || city.length < 3) {
+      city = (city || 'City').padEnd(3, ' ');
     }
-    if (state.length < 3) {
-      state = state.padEnd(3, ' ');
+    city = city.trim();
+    
+    // Validate state (minimum 3 chars, proper format)
+    if (!state || state.length < 3) {
+      state = (state || 'State').padEnd(3, ' ');
+    }
+    state = state.trim();
+    
+    // Validate pincode (must be 6 digits)
+    if (!/^\d{6}$/.test(pincode)) {
+      console.warn(`⚠️ Invalid pincode detected: ${pincode}, using fallback`);
+      pincode = '110001'; // Default Delhi pincode as fallback
     }
 
     console.log('✅ Validated address components:', {
@@ -395,7 +450,8 @@ class ShiprocketService {
       cityLength: city.length,
       state: state,
       stateLength: state.length,
-      pincode: pincode
+      pincode: pincode,
+      pincodeValid: /^\d{6}$/.test(pincode)
     });
 
     const shiprocketData = {
