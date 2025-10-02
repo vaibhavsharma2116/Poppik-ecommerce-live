@@ -2021,6 +2021,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               cashfreeOrderId: payment.cashfreeOrderId,
               paymentId: payment.paymentId,
               estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+              createdAt: payment.createdAt || new Date(),
             }).returning();
 
             // Create order items
@@ -2367,7 +2368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Items are required" });
       }
 
-      // Insert the order into database (without items column)
+      // Insert the order into database
       const [newOrder] = await db.insert(ordersTable).values({
         userId: Number(userId),
         totalAmount: Number(totalAmount),
@@ -2376,6 +2377,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         shippingAddress: shippingAddress,
         trackingNumber: null,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+        createdAt: new Date(),
+        updatedAt: new Date(),
       }).returning();
 
       // Create order items in separate table
@@ -2506,9 +2509,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("❌ Order creation error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        code: error.code
+      });
       res.status(500).json({
         error: "Failed to create order",
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        details: error.message || "Unknown error occurred"
       });
     }
   });
