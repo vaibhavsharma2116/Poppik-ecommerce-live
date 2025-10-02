@@ -2436,6 +2436,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           console.log('📦 Customer data for Shiprocket:', customerData);
 
+          // Parse shipping address for Shiprocket
+          // Expected format: "street, city, state pincode" or "street, city, state - pincode"
+          const addressParts = shippingAddress.split(',').map(s => s.trim());
+
+          // Get street address (first part)
+          const billingAddress = addressParts[0] || 'NA';
+
+          // Get city (second part)
+          const billingCity = addressParts[1] || 'NA';
+
+          // Parse state and pincode from third part
+          let billingState = 'NA';
+          let billingPincode = '';
+
+          if (addressParts[2]) {
+            const stateAndPincode = addressParts[2].trim();
+            // Remove any hyphens and extra spaces
+            const cleaned = stateAndPincode.replace(/\s*-\s*/g, ' ').trim();
+            const parts = cleaned.split(/\s+/);
+
+            // Last part should be pincode (6 digits)
+            const lastPart = parts[parts.length - 1];
+            if (/^\d{6}$/.test(lastPart)) {
+              billingPincode = lastPart;
+              billingState = parts.slice(0, -1).join(' ') || 'NA';
+            } else {
+              // If no valid pincode found, treat everything as state
+              billingState = cleaned;
+              billingPincode = '000000'; // Fallback pincode
+            }
+          } else {
+            billingPincode = '000000'; // Fallback pincode
+          }
+
+          console.log('📍 Parsed address components:', {
+            original: shippingAddress,
+            street: billingAddress,
+            city: billingCity,
+            state: billingState,
+            pincode: billingPincode
+          });
+
           // Prepare Shiprocket order
           const shiprocketOrderData = shiprocketService.convertToShiprocketFormat({
             id: orderId,
@@ -2446,6 +2488,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             items: items,
             customer: customerData
           });
+
+          // Ensure all required fields have valid values
+          const shiprocketPayload = {
+            "order_id": orderId,
+            "order_date": new Date().toISOString().split('T')[0],
+            "pickup_location": "Primary",
+            "channel_id": "",
+            "comment": "Poppik Beauty Store Order",
+            "billing_customer_name": customerData.firstName || "Customer",
+            "billing_last_name": customerData.lastName || "Name",
+            "billing_address": billingAddress || "Address",
+            "billing_city": billingCity || "City",
+            "billing_pincode": billingPincode || "000000",
+            "billing_state": billingState || "State",
+            "billing_country": "India",
+            "billing_email": customerData.email || "customer@example.com",
+            "billing_phone": customerData.phone || "0000000000",
+            "shipping_is_billing": true,
+          };
 
           console.log('📋 Shiprocket order payload:', JSON.stringify(shiprocketOrderData, null, 2));
 
@@ -2701,16 +2762,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { deliveryPincode, weight, cod } = req.query;
 
       if (!deliveryPincode || !weight) {
-        return res.status(400).json({ 
-          error: "Missing required parameters: deliveryPincode and weight" 
+        return res.status(400).json({
+          error: "Missing required parameters: deliveryPincode and weight"
         });
       }
 
       const shiprocketService = new ShiprocketService();
-      
+
       // Default pickup pincode (you should set this in env or get from settings)
       const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE || "400001";
-      
+
       try {
         const serviceability = await shiprocketService.getServiceability(
           pickupPincode,
@@ -2743,7 +2804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (shiprocketError) {
         // If Shiprocket fails, return a fallback response with default shipping
         console.warn("Shiprocket serviceability check failed, using fallback:", shiprocketError);
-        
+
         res.json({
           data: {
             available_courier_companies: [{
@@ -2761,7 +2822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       console.error("Error checking Shiprocket serviceability:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to check shipping serviceability",
         details: error instanceof Error ? error.message : String(error)
       });
@@ -4561,6 +4622,292 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting slider:', error);
       res.status(500).json({ error: 'Failed to delete slider' });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(productImages).where(eq(productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still existsafter delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
     }
   });
 
