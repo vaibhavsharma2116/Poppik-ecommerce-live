@@ -2420,7 +2420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           let customerData = {
             firstName: customerName?.split(' ')[0] || 'Customer',
-            lastName: customerName?.split(' ').slice(1).join(' ') || '',
+            lastName: customerName?.split(' ').slice(1).join(' ') || 'Name',
             email: customerEmail || 'customer@example.com',
             phone: customerPhone || '9999999999'
           };
@@ -2435,60 +2435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           console.log('📦 Customer data for Shiprocket:', customerData);
-
-          // Parse shipping address for Shiprocket
-          // Expected format: "street, city, state pincode" or "street, city, state - pincode"
-          const addressParts = shippingAddress.split(',').map(s => s.trim());
-
-          // Get street address (first part)
-          const billingAddress = addressParts[0] || 'NA';
-
-          // Get city (second part)
-          const billingCity = addressParts[1] || 'NA';
-
-          // Parse state and pincode from third part
-          let billingState = 'NA';
-          let billingPincode = '';
-
-          if (addressParts[2]) {
-            const stateAndPincode = addressParts[2].trim();
-            // Remove any hyphens and extra spaces
-            const cleaned = stateAndPincode.replace(/\s*-\s*/g, ' ').trim();
-            const parts = cleaned.split(/\s+/);
-
-            // Last part should be pincode (6 digits)
-            const lastPart = parts[parts.length - 1];
-            if (/^\d{6}$/.test(lastPart)) {
-              billingPincode = lastPart;
-              billingState = parts.slice(0, -1).join(' ') || 'NA';
-            } else {
-              // If no valid pincode found, treat everything as state
-              billingState = cleaned;
-              billingPincode = '000000'; // Fallback pincode
-            }
-          } else {
-            billingPincode = '000000'; // Fallback pincode
-          }
-
-          console.log('📍 Parsed address components:', {
-            original: shippingAddress,
-            street: billingAddress,
-            city: billingCity,
-            state: billingState,
-            pincode: billingPincode
-          });
-
-          // Validate minimum length requirements before sending to Shiprocket
-          if (billingAddress.length < 3 || billingCity.length < 3 || billingState.length < 3) {
-            console.error('❌ Address validation failed - fields too short:', {
-              street: billingAddress,
-              streetLength: billingAddress.length,
-              city: billingCity,
-              cityLength: billingCity.length,
-              state: billingState,
-              stateLength: billingState.length
-            });
-          }
+          console.log('📍 Full shipping address:', shippingAddress);
 
           // Prepare Shiprocket order
           const shiprocketOrderData = shiprocketService.convertToShiprocketFormat({
@@ -2500,25 +2447,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             items: items,
             customer: customerData
           });
-
-          // Ensure all required fields have valid values
-          const shiprocketPayload = {
-            "order_id": orderId,
-            "order_date": new Date().toISOString().split('T')[0],
-            "pickup_location": "Primary",
-            "channel_id": "",
-            "comment": "Poppik Beauty Store Order",
-            "billing_customer_name": customerData.firstName || "Customer",
-            "billing_last_name": customerData.lastName || "Name",
-            "billing_address": billingAddress || "Address",
-            "billing_city": billingCity || "City",
-            "billing_pincode": billingPincode || "000000",
-            "billing_state": billingState || "State",
-            "billing_country": "India",
-            "billing_email": customerData.email || "customer@example.com",
-            "billing_phone": customerData.phone || "0000000000",
-            "shipping_is_billing": true,
-          };
 
           console.log('📋 Shiprocket order payload:', JSON.stringify(shiprocketOrderData, null, 2));
 

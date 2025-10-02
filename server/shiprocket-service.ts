@@ -342,7 +342,7 @@ class ShiprocketService {
     const { shippingAddress, totalAmount, paymentMethod, createdAt } = order;
 
     // Parse the full shipping address to extract components
-    // Expected format: "street, city, state pincode" or similar variations
+    // Expected format: "street, city, state pincode"
     let street = '';
     let city = '';
     let state = '';
@@ -351,6 +351,8 @@ class ShiprocketService {
     if (shippingAddress && typeof shippingAddress === 'string') {
       // Split by comma and clean parts
       const parts = shippingAddress.split(',').map(p => p.trim()).filter(p => p.length > 0);
+      
+      console.log('📍 Parsing address parts:', parts);
       
       if (parts.length >= 3) {
         // Format: "street, city, state pincode"
@@ -363,13 +365,10 @@ class ShiprocketService {
         
         if (pincodeMatch) {
           pincode = pincodeMatch[0];
-          state = lastPart.replace(pincode, '').trim();
+          state = lastPart.replace(pincode, '').trim().replace(/\s*-\s*/g, ' ');
         } else {
           state = lastPart;
         }
-        
-        // Clean up state formatting
-        state = state.replace(/[-_]/g, ' ').trim();
         
       } else if (parts.length === 2) {
         // Format: "street, city"
@@ -381,57 +380,55 @@ class ShiprocketService {
     }
 
     // Normalize and validate customer name
-    const billingFirstName = (firstName || '').trim() || 'Customer';
-    const billingLastName = (lastName || '').trim() || 'Name';
+    const billingFirstName = (firstName || 'Customer').trim();
+    const billingLastName = (lastName || 'Name').trim();
     
-    // Normalize and validate street address (minimum 3 characters required by Shiprocket)
+    // Normalize and validate street address - MUST BE AT LEAST 3 CHARACTERS
     street = street.trim();
     if (!street || street.length < 3) {
-      street = 'Complete Address NA';
+      console.error('❌ Invalid street address:', street);
+      street = shippingAddress || 'Address Not Provided';
     }
-    // Shiprocket has max 100 chars for address
     street = street.substring(0, 100);
     
-    // Normalize and validate city (minimum 3 characters)
+    // Normalize and validate city - MUST BE AT LEAST 3 CHARACTERS
     city = city.trim();
     if (!city || city.length < 3) {
-      city = 'New Delhi';
+      console.error('❌ Invalid city:', city);
+      city = 'Mumbai'; // Use a common fallback
     }
     
-    // Normalize and validate state (minimum 3 characters)
+    // Normalize and validate state - MUST BE AT LEAST 3 CHARACTERS
     state = state.trim();
     if (!state || state.length < 3) {
-      state = 'Delhi';
+      console.error('❌ Invalid state:', state);
+      state = 'Maharashtra'; // Use a common fallback
     }
-    // Format state properly (title case)
+    // Capitalize state name properly
     state = state.split(' ').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    ).join(' ');
+    ).join(' ').replace(/_/g, ' ');
     
-    // Validate pincode (must be exactly 6 digits)
+    // Validate pincode - MUST BE EXACTLY 6 DIGITS
     if (!pincode || !/^\d{6}$/.test(pincode)) {
-      console.warn(`⚠️ Invalid or missing pincode: ${pincode}, using default`);
-      pincode = '110001';
+      console.error('❌ Invalid pincode:', pincode);
+      pincode = '400001'; // Mumbai pincode as fallback
     }
 
     // Clean up phone number to 10 digits
     let formattedPhone = (phone || '').replace(/\D/g, '');
-    
-    // Handle different phone formats
     if (formattedPhone.length === 12 && formattedPhone.startsWith('91')) {
       formattedPhone = formattedPhone.substring(2);
     } else if (formattedPhone.length === 11 && formattedPhone.startsWith('0')) {
       formattedPhone = formattedPhone.substring(1);
     }
-    
-    // Validate 10 digit phone
     if (!/^\d{10}$/.test(formattedPhone)) {
-      console.warn(`⚠️ Invalid phone: ${phone}, using default`);
+      console.error('❌ Invalid phone:', phone);
       formattedPhone = '9999999999';
     }
     
     // Validate email
-    const billingEmail = (email || '').trim() || 'customer@example.com';
+    const billingEmail = (email || 'customer@example.com').trim();
 
     console.log('✅ Final validated address for Shiprocket:', {
       customer: `${billingFirstName} ${billingLastName}`,
@@ -460,13 +457,6 @@ class ShiprocketService {
       billing_email: billingEmail,
       billing_phone: formattedPhone,
       shipping_is_billing: true,
-      shipping_customer_name: billingFirstName,
-      shipping_last_name: billingLastName,
-      shipping_address: street,
-      shipping_city: city,
-      shipping_pincode: pincode,
-      shipping_country: "India",
-      shipping_state: state,
       order_items: items.map((item: any, index: number) => {
         const price = typeof item.price === 'string'
           ? parseFloat(item.price.replace(/[₹,]/g, ''))
