@@ -2377,7 +2377,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         shippingAddress: shippingAddress,
         trackingNumber: null,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-        createdAt: new Date(),
       }).returning();
 
       // Create order items in separate table

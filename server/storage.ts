@@ -303,7 +303,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log("Creating product with data:", productData);
 
-      // Validate only essential required fields
+      // Validate required fields
       const { name, price, category, description } = productData;
       if (!name || !price || !category || !description) {
         throw new Error("Missing required fields: name, price, category, and description are required");
@@ -747,14 +747,14 @@ export class DatabaseStorage implements IStorage {
   async createShade(shadeData: InsertShade): Promise<Shade> {
     try {
       const db = await getDb();
-      
+
       // Ensure value is unique by checking existing values and appending number if needed
       let value = shadeData.value;
       if (!value) {
         // Generate value from name if not provided
         value = shadeData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       }
-      
+
       // Check if value already exists and generate unique one
       let finalValue = value;
       let counter = 1;
@@ -764,21 +764,21 @@ export class DatabaseStorage implements IStorage {
           .from(shades)
           .where(eq(shades.value, finalValue))
           .limit(1);
-        
+
         if (existingShade.length === 0) {
           break; // Value is unique
         }
-        
+
         finalValue = `${value}-${counter}`;
         counter++;
       }
-      
+
       // Create shade with unique value
       const shadeToInsert = {
         ...shadeData,
         value: finalValue
       };
-      
+
       const [shade] = await db.insert(shades).values(shadeToInsert).returning();
       return shade;
     } catch (error) {
