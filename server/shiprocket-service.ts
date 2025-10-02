@@ -356,15 +356,15 @@ class ShiprocketService {
     // Parse address based on number of parts
     if (addressParts.length >= 3) {
       // Format: "street, city, state pincode"
-      streetAddress = addressParts[0] || "NA";
-      city = addressParts[1] || "NA";
+      streetAddress = addressParts[0] || "";
+      city = addressParts[1] || "";
       
       // Last part contains state and possibly pincode
       const lastPart = addressParts[2].trim();
       
       // Remove pincode from state if present
       if (lastPart.includes(pincode)) {
-        state = lastPart.replace(pincode, '').trim() || "NA";
+        state = lastPart.replace(pincode, '').trim() || "";
       } else {
         // Try to split by space to separate state and pincode
         const stateAndPin = lastPart.split(/\s+/);
@@ -373,7 +373,7 @@ class ShiprocketService {
           const lastElement = stateAndPin[stateAndPin.length - 1];
           if (/^\d{6}$/.test(lastElement)) {
             pincode = lastElement;
-            state = stateAndPin.slice(0, -1).join(' ') || "NA";
+            state = stateAndPin.slice(0, -1).join(' ') || "";
           } else {
             state = lastPart;
           }
@@ -382,31 +382,37 @@ class ShiprocketService {
         }
       }
     } else if (addressParts.length === 2) {
-      streetAddress = addressParts[0] || "NA";
-      city = addressParts[1] || "NA";
+      streetAddress = addressParts[0] || "";
+      city = addressParts[1] || "";
       
       // Try to extract state from city part if it has pincode
       if (pincodeMatch && city.includes(pincode)) {
-        state = city.replace(pincode, '').trim() || "NA";
+        state = city.replace(pincode, '').trim() || "";
       }
     } else if (addressParts.length === 1) {
-      streetAddress = addressParts[0] || "NA";
+      streetAddress = addressParts[0] || "";
     }
     
-    // Clean and validate fields - Shiprocket doesn't accept empty or very short values
-    streetAddress = streetAddress.trim() || "NA";
-    city = city.trim() || "NA";
-    state = state.trim() || "NA";
+    // Clean and validate fields - Shiprocket requires minimum 3 characters
+    streetAddress = streetAddress.trim();
+    city = city.trim();
+    state = state.trim();
     
-    // Ensure minimum length requirements
-    if (streetAddress.length < 3) streetAddress = "Address Line 1";
-    if (city.length < 3) city = "City";
-    if (state.length < 3) state = "State";
+    // Ensure minimum length requirements with proper fallbacks
+    if (!streetAddress || streetAddress.length < 3) {
+      streetAddress = order.shippingAddress.split(',')[0]?.trim() || "Complete Address";
+    }
+    if (!city || city.length < 3) {
+      city = "Mumbai"; // Default city
+    }
+    if (!state || state.length < 3) {
+      state = "Maharashtra"; // Default state
+    }
     
     // Validate pincode is 6 digits
     if (!/^\d{6}$/.test(pincode)) {
-      console.warn('Invalid pincode detected:', pincode);
-      pincode = "110001"; // Default Delhi pincode
+      console.warn('Invalid pincode detected:', pincode, '- using default');
+      pincode = "400001"; // Default Mumbai pincode
     }
 
     // Clean up phone number

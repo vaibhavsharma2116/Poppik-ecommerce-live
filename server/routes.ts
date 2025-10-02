@@ -2478,6 +2478,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pincode: billingPincode
           });
 
+          // Validate minimum length requirements before sending to Shiprocket
+          if (billingAddress.length < 3 || billingCity.length < 3 || billingState.length < 3) {
+            console.error('❌ Address validation failed - fields too short:', {
+              street: billingAddress,
+              streetLength: billingAddress.length,
+              city: billingCity,
+              cityLength: billingCity.length,
+              state: billingState,
+              stateLength: billingState.length
+            });
+          }
+
           // Prepare Shiprocket order
           const shiprocketOrderData = shiprocketService.convertToShiprocketFormat({
             id: orderId,

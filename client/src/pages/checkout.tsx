@@ -587,10 +587,19 @@ export default function CheckoutPage() {
     }
 
     // Validate address fields for Shiprocket
+    if (!formData.address || formData.address.trim().length < 10) {
+      toast({
+        title: "Invalid Address",
+        description: "Please enter a complete address (minimum 10 characters)",
+        variant: "destructive",
+      });
+      return false;
+    }
+
     if (!formData.city || formData.city.trim().length < 3) {
       toast({
         title: "Invalid City",
-        description: "Please select or enter a valid city name",
+        description: "Please select a valid city from the dropdown",
         variant: "destructive",
       });
       return false;
@@ -599,7 +608,7 @@ export default function CheckoutPage() {
     if (!formData.state || formData.state.trim().length < 3) {
       toast({
         title: "Invalid State",
-        description: "Please select or enter a valid state name",
+        description: "Please select a valid state from the dropdown",
         variant: "destructive",
       });
       return false;
@@ -609,6 +618,16 @@ export default function CheckoutPage() {
       toast({
         title: "Invalid PIN Code",
         description: "Please enter a valid 6-digit PIN code",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Validate city and state are not default values
+    if (formData.city === "" || formData.state === "") {
+      toast({
+        title: "Address Incomplete",
+        description: "Please select city and state from the dropdown menus",
         variant: "destructive",
       });
       return false;
