@@ -221,7 +221,7 @@ export default function Blog() {
                     {post.videoUrl && (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <video
-                          className="w-full h-full object-cover"
+                          className="w-full h-full"
                           controls
                           preload="metadata"
                           poster={post.imageUrl}
@@ -331,7 +331,7 @@ export default function Blog() {
                       {post.videoUrl && (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <video
-                            className="w-full h-full object-cover"
+                            className="w-full h-full "
                             controls
                             preload="metadata"
                             poster={post.imageUrl}
