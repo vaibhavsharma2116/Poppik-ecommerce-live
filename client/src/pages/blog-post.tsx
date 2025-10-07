@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,7 +32,7 @@ export default function BlogPostDetail() {
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,13 +41,13 @@ export default function BlogPostDetail() {
     }
   }, [slug]);
 
-  
+
 
   const fetchBlogPost = async (postSlug: string) => {
     try {
       setLoading(true);
       const response = await fetch(`/api/blog/posts/${postSlug}`);
-      
+
       if (response.ok) {
         const data = await response.json();
         setPost(data);
@@ -63,12 +62,12 @@ export default function BlogPostDetail() {
     }
   };
 
-  
+
 
   const handleShare = async () => {
     const url = window.location.href;
     const title = post?.title || "Check out this blog post";
-    
+
     if (navigator.share) {
       try {
         await navigator.share({
@@ -100,7 +99,7 @@ export default function BlogPostDetail() {
     }
   };
 
-  
+
 
   if (loading) {
     return (
@@ -152,7 +151,7 @@ export default function BlogPostDetail() {
               Back to Blog
             </Button>
           </Link>
-          
+
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
             <Badge variant="outline">{post.category}</Badge>
             <span className="flex items-center gap-1">
@@ -169,11 +168,11 @@ export default function BlogPostDetail() {
               </Badge>
             )}
           </div>
-          
+
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 leading-tight">
             {post.title}
           </h1>
-          
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -181,7 +180,7 @@ export default function BlogPostDetail() {
                 <span className="font-medium text-gray-900">{post.author}</span>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={handleShare} className="text-gray-500">
                 <Share2 className="h-4 w-4" />
@@ -196,12 +195,13 @@ export default function BlogPostDetail() {
         {/* Featured Image/Video */}
         <div className="relative mb-8 rounded-xl overflow-hidden shadow-lg">
           {post.videoUrl ? (
-            <div className="aspect-video">
+            <div className="w-full">
               <video 
-                className="w-full h-full object-cover"
+                className="w-full h-auto object-contain rounded-xl"
                 controls
                 preload="metadata"
                 poster={post.imageUrl}
+                style={{ maxHeight: '70vh' }}
               >
                 <source src={post.videoUrl} type="video/mp4" />
                 Your browser does not support the video tag.
@@ -225,9 +225,9 @@ export default function BlogPostDetail() {
             <div className="text-lg text-gray-600 mb-6 font-medium leading-relaxed border-l-4 border-pink-500 pl-6 bg-pink-50 py-4 rounded-r-lg">
               {post.excerpt}
             </div>
-            
+
             <Separator className="my-8" />
-            
+
             {/* Main Content */}
             <div className="prose prose-lg max-w-none">
               <div 
@@ -241,9 +241,9 @@ export default function BlogPostDetail() {
                 ))}
               </div>
             </div>
-            
+
             <Separator className="my-8" />
-            
+
             {/* Tags */}
             {post.tags && post.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-6">
@@ -255,7 +255,7 @@ export default function BlogPostDetail() {
                 ))}
               </div>
             )}
-            
+
             {/* Article Actions */}
             <div className="flex items-center justify-between pt-6 border-t">
               <div className="flex items-center gap-4">
@@ -264,7 +264,7 @@ export default function BlogPostDetail() {
                   Share
                 </Button>
               </div>
-              
+
               <div className="text-sm text-gray-500">
                 Last updated: {new Date(post.updatedAt).toLocaleDateString()}
               </div>
@@ -272,7 +272,7 @@ export default function BlogPostDetail() {
           </CardContent>
         </Card>
 
-        
+
 
         {/* Author Info */}
         <Card className="mb-8">
