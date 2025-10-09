@@ -160,9 +160,8 @@ export default function Contact() {
                   <Clock className="h-6 w-6 text-pink-600 mt-1" />
                   <div>
                     <h3 className="font-medium text-gray-900">Business Hours</h3>
-                    <p className="text-gray-600">Monday - Friday: 9:00 AM - 6:00 PM</p>
-                    <p className="text-gray-600">Saturday: 10:00 AM - 4:00 PM</p>
-                    <p className="text-gray-600">Sunday: Closed</p>
+                    <p className="text-gray-600">Monday - Friday: 9:00 AM - 7:00 PM</p>
+                    <p className="text-gray-600">Saturday-Sunday: Closed</p>
                   </div>
                 </div>
               </CardContent>
@@ -297,14 +296,14 @@ export default function Contact() {
                   <p className="text-gray-600 mb-4">Standard shipping typically takes 3-7 business days. Express shipping is available for 1-2 business days.</p>
                   
                   <h3 className="font-medium text-gray-900 mb-2">What is your return policy?</h3>
-                  <p className="text-gray-600 mb-4">We offer a 30-day return policy for unopened products. Please contact us for return instructions.</p>
+                  <p className="text-gray-600 mb-4">We currently do not have a return or exchange policy. Please review your order carefully before completing your purchase.</p>
                 </div>
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Do you ship internationally?</h3>
                   <p className="text-gray-600 mb-4">Currently, we only ship within India. International shipping is coming soon!</p>
                   
                   <h3 className="font-medium text-gray-900 mb-2">How can I track my order?</h3>
-                  <p className="text-gray-600 mb-4">Once your order ships, you'll receive a tracking number via email. You can also check your order status in your account.</p>
+                  <p className="text-gray-600 mb-4">Once your order ships, you'll receive a tracking number. You can also check your order status in your account.</p>
                 </div>
               </div>
             </CardContent>
