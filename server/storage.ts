@@ -39,7 +39,7 @@ dotenv.config();
 
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
   ssl: false,
   max: 3, // Further reduced connections
   idleTimeoutMillis: 10000,
@@ -129,7 +129,14 @@ export interface IStorage {
   createBlogPost(postData: InsertBlogPost): Promise<BlogPost>; // Changed from any to InsertBlogPost and BlogPost
   updateBlogPost(id: number, postData: Partial<InsertBlogPost>): Promise<BlogPost | undefined>; // Changed from any to Partial<InsertBlogPost> and BlogPost | undefined
   deleteBlogPost(id: number): Promise<boolean>;
-  searchBlogPosts(query: string): Promise<BlogPost[]>; // Changed from any[] to BlogPost[]
+  searchBlogPosts(query: string): Promise<BlogPost[]>; // Changed from any[] to BlogPo
+
+  // Featured Sections Management Functions
+  getFeaturedSections(): Promise<FeaturedSection[]>;
+  getActiveFeaturedSections(): Promise<FeaturedSection[]>;
+  createFeaturedSection(sectionData: InsertFeaturedSection): Promise<FeaturedSection>;
+  updateFeaturedSection(id: number, sectionData: Partial<InsertFeaturedSection>): Promise<FeaturedSection | undefined>;
+  deleteFeaturedSection(id: number): Promise<boolean>;st[]
 
   // Blog Categories
   getBlogCategories(): Promise<BlogCategory[]>; // Changed from any[] to BlogCategory[]

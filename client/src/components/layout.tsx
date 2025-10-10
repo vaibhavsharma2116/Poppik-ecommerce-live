@@ -20,9 +20,37 @@ import logo from "@assets/logo.png";
 import headerLogo from "@assets/POPPIK LOGO.jpg";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
+import AnnouncementBar from "@/components/announcement-bar";
+import loUntitled_design from "@assets/Untitled_design.png";
 
 interface LayoutProps {
   children: React.ReactNode;
+}
+
+// WhatsApp Floating Button Component
+function WhatsAppButton() {
+  const handleWhatsAppClick = () => {
+    const phoneNumber = "+919867577565";
+    const message = "Hi! I'm interested in your beauty products. Can you help me?";
+    const whatsappUrl = `https://wa.me/${phoneNumber.replace("+", "")}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank");
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50">
+      <button
+        onClick={handleWhatsAppClick}
+        className="text-white p-2 rounded-full"
+        title="Chat with us on WhatsApp"
+      >
+        <img
+          src={loUntitled_design}
+          alt="Chat with us"
+          className="w-16 h-16 rounded-full object-cover hover:scale-110 transition-transform duration-300"
+        />
+      </button>
+    </div>
+  );
 }
 
 export default function Layout({ children }: LayoutProps) {
@@ -217,6 +245,9 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Announcement Bar */}
+      <AnnouncementBar />
+      
       {/* Header */}
       <header className="sticky top-0 bg-white shadow-lg z-50">
         {/* Main Header */}
@@ -229,6 +260,17 @@ export default function Layout({ children }: LayoutProps) {
                  {/* Left - Social Media Links */}
               <div className="flex items-center space-x-4">
                 <a
+                  href="https://www.facebook.com/people/Poppik/61579145279161/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-black hover:text-blue-500 transition-colors duration-300 transform hover:scale-110"
+                  title="Follow us on Facebook"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                </a>
+                <a
                   href="https://www.instagram.com/poppikofficial/"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -240,10 +282,21 @@ export default function Layout({ children }: LayoutProps) {
                   </svg>
                 </a>
                 <a
+                  href="https://www.threads.net/@poppikofficial"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-black hover:text-gray-600 transition-colors duration-300 transform hover:scale-110"
+                  title="Follow us on Threads"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717-1.268 1.58-1.993 3.894-2.015 6.175v.016c.022 2.279.747 4.598 2.015 6.177 1.429 1.781 3.629 2.695 6.54 2.717 3.018-.02 5.092-.963 6.174-2.807.51-.87.794-1.896.87-3.14-.074-.316-.17-.626-.288-.928-.417.31-.907.577-1.467.807-1.876.77-4.264.924-6.73.435-2.826-.56-4.96-1.98-6.04-4.01-.527-.99-.792-2.094-.792-3.287 0-1.53.434-2.905 1.29-4.088 1.164-1.605 3.018-2.717 5.378-3.22 1.88-.4 3.853-.36 5.887.119 2.034.478 3.805 1.396 5.274 2.734l-1.395 1.395c-1.168-1.068-2.545-1.797-4.095-2.17-1.55-.373-3.144-.436-4.745-.187-1.834.286-3.272 1.027-4.15 2.142-.545.692-.82 1.47-.82 2.313 0 .84.182 1.557.544 2.134.724 1.155 2.202 2.104 4.182 2.534 1.98.43 3.915.323 5.446-.302.75-.306 1.374-.686 1.86-1.132-.207-.88-.602-1.614-1.18-2.19-1.168-1.165-2.99-1.755-5.425-1.755h-.046v-1.88h.046c2.99 0 5.336.784 6.978 2.333 1.642 1.549 2.464 3.71 2.464 6.463 0 .925-.106 1.806-.316 2.63-.42 1.644-1.168 3.026-2.227 4.113-1.484 1.525-3.545 2.298-6.126 2.298z"/>
+                  </svg>
+                </a>
+                <a
                   href="https://www.linkedin.com/company/poppik-lifestyle/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-black hover:text-blue-300 transition-colors duration-300 transform hover:scale-110"
+                  className="text-black hover:text-blue-600 transition-colors duration-300 transform hover:scale-110"
                   title="Connect with us on LinkedIn"
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -251,25 +304,36 @@ export default function Layout({ children }: LayoutProps) {
                   </svg>
                 </a>
                 <a
-                  href="https://whatsapp.com/channel/0029Vb6Zmsh1yT214jsWqS3D"
+                  href="https://x.com/poppikofficial"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-black hover:text-green-300 transition-colors duration-300 transform hover:scale-110"
-                  title="Join our WhatsApp Channel"
+                  className="text-black hover:text-gray-800 transition-colors duration-300 transform hover:scale-110"
+                  title="Follow us on X (Twitter)"
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.025-.57-.025-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.704"/>
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                   </svg>
                 </a>
                 <a
                   href="https://www.youtube.com/@Poppikofficial"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-black hover:text-red-300 transition-colors duration-300 transform hover:scale-110"
+                  className="text-black hover:text-red-500 transition-colors duration-300 transform hover:scale-110"
                   title="Subscribe to our YouTube channel"
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                </a>
+                <a
+                  href="https://whatsapp.com/channel/0029Vb6Zmsh1yT214jsWqS3D"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-black hover:text-green-500 transition-colors duration-300 transform hover:scale-110"
+                  title="Join our WhatsApp Channel"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.025-.57-.025-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.704"/>
                   </svg>
                 </a>
               </div>
@@ -839,10 +903,13 @@ export default function Layout({ children }: LayoutProps) {
         {children}
       </main>
 
+      {/* WhatsApp Floating Button */}
+      <WhatsAppButton />
+
       {/* Footer */}
       <footer className="bg-black text-black py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             {/* Company Info */}
             <div>
               <div className="mb-4">
@@ -1028,12 +1095,49 @@ export default function Layout({ children }: LayoutProps) {
                 </li>
               </ul>
             </div>
+
+            {/* Also Available On */}
+            <div>
+              <h4 className="font-semibold mb-4 text-white">Also Available On</h4>
+              <ul className="space-y-2">
+                <li>
+                  <a
+                    href="https://www.amazon.in/stores/Poppik/page/YOUR_AMAZON_STORE_ID"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
+                    Amazon
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.flipkart.com/poppik-store"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
+                    Flipkart
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.meesho.com/poppik-store"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
+                    Meesho
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
 
           {/* Newsletter */}
           <div className="border-t border-gray-800 mt-8 pt-8 text-center">
             <p className="text-gray-400 text-sm">
-              © 2025 Poppik. All rights reserved.
+              © 2025 Poppik Lifestyle Private Limited. All rights reserved.
             </p>
           </div>
         </div>

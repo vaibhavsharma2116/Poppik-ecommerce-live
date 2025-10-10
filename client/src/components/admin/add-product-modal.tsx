@@ -542,14 +542,14 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
                 <Label htmlFor="add-inStock" className="text-sm cursor-pointer select-none">In Stock</Label>
               </div>
 
-              <div className="flex items-center space-x-2">
+              {/* <div className="flex items-center space-x-2">
                 <Checkbox
                   id="add-featured"
                   checked={formData.featured}
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, featured: checked === true }))}
                 />
                 <Label htmlFor="add-featured" className="text-sm cursor-pointer select-none">Featured</Label>
-              </div>
+              </div> */}
 
               <div className="flex items-center space-x-2">
                 <Checkbox

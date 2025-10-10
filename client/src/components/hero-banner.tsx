@@ -142,7 +142,7 @@ export default function HeroBanner({
           {slides.map((slide) => (
             <CarouselItem key={slide.id}>
               <div className="mobile-slider-container relative w-full overflow-hidden">
-                {showProgress && (
+                {/* {showProgress && (
                   <div className="absolute top-0 left-0 w-full h-1 bg-gray-200 z-10">
                     <div 
                       className="h-full bg-red-500 transition-all duration-100 ease-linear"
@@ -150,7 +150,7 @@ export default function HeroBanner({
                       aria-hidden="true"
                     />
                   </div>
-                )}
+                )} */}
 
                 <img 
                   src={slide.imageUrl} 

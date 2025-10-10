@@ -22,34 +22,7 @@ import Timer from "@/components/timer";
 import { Filter } from "lucide-react";
 import DynamicFilter from "@/components/dynamic-filter";
 import type { Product, Category } from "@/lib/types";
-import loUntitled_design from "@assets/Untitled_design.png";
-// WhatsApp Integration Component
-function WhatsAppButton() {
-  const handleWhatsAppClick = () => {
-    const phoneNumber = "+919867577565"; // Replace with your actual WhatsApp business number
-    const message =
-      "Hi! I'm interested in your beauty products. Can you help me?";
-    const whatsappUrl = `https://wa.me/${phoneNumber.replace("+", "")}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, "_blank");
-  };
-
-  return (
-    <div className="fixed bottom-6 right-6 z-50">
-      <button
-        onClick={handleWhatsAppClick}
-        className="text-white p-2 rounded-full "
-        title="Chat with us on WhatsApp"
-      >
-        <img
-          src={loUntitled_design}
-          alt="Boss Babe"
-          className="w-16 h-16 rounded-full object-cover"
-        />
-      </button>
-    </div>
-  );
-}
-
+// WhatsApp Integration Component has been moved to Layout
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filteredAllProducts, setFilteredAllProducts] = useState<Product[]>([]);
@@ -83,6 +56,10 @@ export default function Home() {
     Product[]
   >({
     queryKey: ["/api/products"],
+  });
+
+  const { data: featuredSections, isLoading: featuredSectionsLoading } = useQuery<any[]>({
+    queryKey: ["/api/featured-sections"],
   });
 
   const categoryImages = {
@@ -224,16 +201,88 @@ export default function Home() {
             </div>
           )}
 
-          {/* Enhanced Products Section */}
+          {/* Bestsellers Section - First */}
           <div className="space-y-8 sm:space-y-12">
             <div>
-              <div className="text-center mb-4 sm:mb-6">
-                {/* <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-full">
-                  <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
-                    🌟 Curated Collection
-                  </span>
-                </div> */}
+              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center sm:text-left">
+                <span className="text-transparent bg-gradient-to-r from-amber-700 via-yellow-600 to-amber-700 bg-clip-text">
+                  Bestsellers
+                </span>
+              </h3>
+            </div>
+
+            {bestsellersLoading ? (
+              <div className="px-2 sm:px-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                      <Skeleton className="aspect-square w-full" />
+                      <div className="p-3 space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-6 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
+            ) : bestsellerProducts && bestsellerProducts.length > 0 ? (
+              <>
+                <div className="px-2 sm:px-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                    {bestsellerProducts.slice(0, 8).map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="text-center mt-10">
+                  <Link href="/products?filter=bestseller">
+                    <Button className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+                      <span>
+                        View All Bestsellers ({bestsellerProducts?.length || 0})
+                      </span>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+                        />
+                      </svg>
+                    </Button>
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">
+                  No bestseller products available at the moment.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Our Products Section - Second */}
+      <section className="py-20 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.02]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
+        </div>
+
+        <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="space-y-8 sm:space-y-12">
+            <div>
               <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center sm:text-left">
                 <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
                   Our Products
@@ -241,7 +290,6 @@ export default function Home() {
               </h3>
             </div>
 
-            {/* Products Grid - Mobile Optimized */}
             {allProductsLoading ? (
               <div className="px-2 sm:px-4">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
@@ -259,7 +307,6 @@ export default function Home() {
               </div>
             ) : (
               <>
-                {/* Mobile-first Grid Layout with proper spacing */}
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                     {allProducts
@@ -274,7 +321,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* View More Button */}
                 {!allProductsLoading &&
                   allProducts &&
                   allProducts.length > 10 && (
@@ -299,155 +345,60 @@ export default function Home() {
                       </Link>
                     </div>
                   )}
-
-                {/* Explore All Products Button */}
-                {/* {!allProductsLoading &&
-                  allProducts &&
-                  allProducts.length > 12 && (
-                    <div className="text-center mt-8">
-                      <Link href="/category/all">
-                        <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-3">
-                          <span>Explore All {allProducts.length} Products</span>
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M17 8l4 4m0 0l-4 4m4-4H3"
-                            />
-                          </svg>
-                        </Button>
-                      </Link>
-                    </div>
-                  )} */}
               </>
             )}
           </div>
         </div>
       </section>
 
-      {/* Featured Products Section */}
-      <section className="py-20 bg-gradient-to-br from-purple-50 via-white to-pink-50 relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-[0.03]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,_var(--tw-gradient-stops))] from-purple-500 via-transparent to-transparent"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_50%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
-        </div>
-
-        <div className=" mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="mb-16">
-            <div className="text-center mb-6 sm:mb-8">
-              {/* <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100 rounded-full shadow-sm">
-                <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
-                  ⭐ Featured Products
-                </span>
-              </div> */}
-            </div>
-            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-4 sm:mb-6 text-left">
-              <span className="text-transparent bg-gradient-to-r from-purple-700 via-pink-600 to-purple-700 bg-clip-text">
-                Featured Collection
-              </span>
-            </h2>
-            {/* <p className="text-lg sm:text-xl text-gray-600 leading-relaxed font-light mb-6 sm:mb-8 text-left">
-              Our featured products, carefully selected for their exceptional
-              quality and popularity
-            </p> */}
-          </div>
-
-          {featuredLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i} className="overflow-hidden">
-                  <Skeleton className="h-72 w-full" />
-                  <CardContent className="p-6 space-y-3">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-6 w-1/2" />
-                  </CardContent>
-                </Card>
+      {/* Featured Sections */}
+      {!featuredSectionsLoading && featuredSections && featuredSections.length > 0 && (
+        <section className="py-20 bg-gradient-to-br from-purple-50 via-white to-pink-50 relative overflow-hidden">
+          <div className="mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {featuredSections.map((section) => (
+                <div key={section.id} className="group relative overflow-hidden rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500">
+                  <div className="aspect-[16/9] relative">
+                    <img 
+                      src={section.imageUrl} 
+                      alt={section.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                    <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
+                      <h3 className="text-3xl font-bold mb-2">{section.title}</h3>
+                      {section.subtitle && (
+                        <p className="text-lg mb-4 opacity-90">{section.subtitle}</p>
+                      )}
+                      {section.linkUrl && section.buttonText && (
+                        <Link href={section.linkUrl}>
+                          <Button className="bg-white text-black hover:bg-gray-100">
+                            {section.buttonText}
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
-          ) : featuredProducts && featuredProducts.length > 0 ? (
-            <>
-              {/* Mobile-first Grid Layout for Featured Products */}
-              <div className="px-2 sm:px-4">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {featuredProducts.slice(0, 8).map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                    />
-                  ))}
-                </div>
-              </div>
+          </div>
+        </section>
+      )}
 
-              {/* View All Button */}
-              <div className="text-center mt-10">
-                <Link href="/products?filter=featured">
-                  <Button className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                    <span>View All Featured ({featuredProducts?.length || 0})</span>
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 8l4 4m0 0l-4 4m4-4H3"
-                      />
-                    </svg>
-                  </Button>
-                </Link>
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">
-                No featured products available at the moment.
-              </p>
-              <p className="text-gray-400 text-sm mt-2">
-                Check back soon for new featured items!
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* New Launch Products Section */}
+      {/* New Launches Section - Third */}
       <section className="py-20 bg-gradient-to-br from-emerald-50 via-white to-teal-50 relative overflow-hidden">
-        {/* Background Pattern */}
         <div className="absolute inset-0 opacity-[0.03]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,_var(--tw-gradient-stops))] from-emerald-500 via-transparent to-transparent"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_30%,_var(--tw-gradient-stops))] from-teal-500 via-transparent to-transparent"></div>
         </div>
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="mb-16">
-            <div className="text-center mb-6 sm:mb-8">
-              {/* <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-full shadow-sm animate-pulse">
-                <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text">
-                  🚀 Fresh & New
-                </span>
-              </div> */}
-            </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-4 sm:mb-6 text-left">
               <span className="text-transparent bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-700 bg-clip-text">
                 New Launches
               </span>
             </h2>
-            {/* <p className="text-lg sm:text-xl text-gray-600 leading-relaxed font-light mb-6 sm:mb-8 text-left">
-              Discover our latest innovations - cutting-edge formulas and
-              revolutionary beauty solutions
-            </p> */}
           </div>
 
           {allProductsLoading ? (
@@ -465,7 +416,6 @@ export default function Home() {
             </div>
           ) : (
             <>
-              {/* Mobile-first Grid Layout for New Launch Products */}
               <div className="px-2 sm:px-4">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                   {allProducts
@@ -481,7 +431,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Explore New Launches Button */}
               <div className="text-center mt-10">
                 <Link href="/products?filter=newLaunch">
                   <Button className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
@@ -503,7 +452,6 @@ export default function Home() {
                 </Link>
               </div>
 
-              {/* Show message if no new launch products */}
               {allProducts?.filter((product) => product.newLaunch).length ===
                 0 && (
                 <div className="text-center py-12">
@@ -543,103 +491,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Bestsellers Section */}
-      <section className="py-20 bg-gradient-to-br from-amber-50 via-white to-yellow-50 relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-[0.03]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,_var(--tw-gradient-stops))] from-amber-500 via-transparent to-transparent"></div>
-        </div>
+      
 
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="mb-16">
-            <div className="text-center mb-6 sm:mb-8">
-              {/* <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-100 rounded-full shadow-sm">
-                <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text">
-                  🏆 Customer Favorites
-                </span>
-              </div> */}
-            </div>
-            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-4 sm:mb-6 text-left">
-              <span className="text-transparent bg-gradient-to-r from-amber-700 via-yellow-600 to-amber-700 bg-clip-text">
-                Bestsellers
-              </span>
-            </h2>
-            {/* <p className="text-lg sm:text-xl text-gray-600 leading-relaxed font-light mb-6 sm:mb-8 text-left">
-              Our most loved products by customers - tried, tested, and trusted
-              by thousands
-            </p> */}
-          </div>
+      
 
-          {bestsellersLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="overflow-hidden bg-gray-100 rounded-lg animate-pulse"
-                >
-                  <div className="h-72 w-full bg-gray-200" />
-                  <div className="p-6 space-y-3">
-                    <div className="h-4 w-full bg-gray-200 rounded" />
-                    <div className="h-4 w-3/4 bg-gray-200 rounded" />
-                    <div className="h-6 w-1/2 bg-gray-200 rounded" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : bestsellerProducts && bestsellerProducts.length > 0 ? (
-            <>
-              {/* Mobile-first Grid Layout for Bestsellers */}
-              <div className="px-2 sm:px-4">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {bestsellerProducts.slice(0, 8).map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* View All Button */}
-              <div className="text-center mt-10">
-                <Link href="/products?filter=bestseller">
-                  <Button className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                    <span>
-                      View All Bestsellers ({bestsellerProducts?.length || 0})
-                    </span>
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 8l4 4m0 0l-4 4m4-4H3"
-                      />
-                    </svg>
-                  </Button>
-                </Link>
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">
-                No bestseller products available at the moment.
-              </p>
-              <p className="text-gray-400 text-sm mt-2">
-                Check back soon for our top-rated products!
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* WhatsApp Floating Button */}
-      <WhatsAppButton />
-    </div>
+      </div>
   );
 }

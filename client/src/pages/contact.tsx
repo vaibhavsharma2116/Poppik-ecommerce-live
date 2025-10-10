@@ -300,7 +300,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-medium text-gray-900 mb-2">Do you ship internationally?</h3>
-                  <p className="text-gray-600 mb-4">Currently, we only ship within India. International shipping is coming soon!</p>
+                  <p className="text-gray-600 mb-4">Yes, we ship internationally as well. Delivery time may vary depending on the destination and standard shipping timelines.</p>
                   
                   <h3 className="font-medium text-gray-900 mb-2">How can I track my order?</h3>
                   <p className="text-gray-600 mb-4">Once your order ships, you'll receive a tracking number. You can also check your order status in your account.</p>

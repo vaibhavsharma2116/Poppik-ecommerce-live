@@ -45,7 +45,7 @@ export default function Blog() {
   const [error, setError] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  
+
 
 
   // Fetch blog posts
@@ -216,7 +216,7 @@ export default function Blog() {
                     <img
                       src={post.imageUrl}
                       alt={post.title}
-                      className="w-full h-68  object-cover group-hover:scale-110 transition-transform duration-300"
+                      className="w-full aspect-video object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                     {post.videoUrl && (
                       <div className="absolute inset-0 flex items-center justify-center">
@@ -286,13 +286,11 @@ export default function Blog() {
         {/* All Posts */}
         {!loading && (
           <section>
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-bold text-gray-900">
-                {selectedCategory === "All" ? "Latest Articles" : `${selectedCategory} Articles`}
-              </h2>
-              <div className="text-sm text-gray-600">
-                {filteredPosts.length} article{filteredPosts.length !== 1 ? 's' : ''} found
-              </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">
+              {selectedCategory === "All" ? "Latest Articles" : `${selectedCategory} Articles`}
+            </h2>
+            <div className="text-sm text-gray-600 mb-8 text-center sm:text-left">
+              {filteredPosts.length} article{filteredPosts.length !== 1 ? 's' : ''} found
             </div>
 
             {filteredPosts.length === 0 ? (
@@ -319,14 +317,14 @@ export default function Blog() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
                 {filteredPosts.map((post) => (
                   <Card key={post.id} className="group hover:shadow-lg transition-all duration-300 overflow-hidden">
                     <div className="relative overflow-hidden">
                       <img
                         src={post.imageUrl}
                         alt={post.title}
-                        className="w-full h-68  object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full aspect-video  group-hover:scale-105 transition-transform duration-300"
                       />
                       {post.videoUrl && (
                         <div className="absolute inset-0 flex items-center justify-center">

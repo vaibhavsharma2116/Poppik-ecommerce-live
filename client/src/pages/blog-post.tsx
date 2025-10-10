@@ -105,7 +105,7 @@ export default function BlogPostDetail() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="animate-pulse">
             <div className="h-8 bg-gray-200 rounded mb-4"></div>
             <div className="h-64 bg-gray-200 rounded mb-6"></div>
@@ -123,7 +123,7 @@ export default function BlogPostDetail() {
   if (error || !post) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <Card className="text-center py-12">
             <CardContent>
               <h1 className="text-2xl font-bold text-gray-900 mb-4">Post Not Found</h1>
@@ -192,7 +192,7 @@ export default function BlogPostDetail() {
       </div>
 
       {/* Content */}
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Featured Image/Video */}
         <div className="relative mb-8 rounded-xl overflow-hidden shadow-lg" style={{ height: '500px' }}>
           {post.videoUrl ? (

@@ -56,7 +56,7 @@ import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
 // Database connection with enhanced configuration
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,

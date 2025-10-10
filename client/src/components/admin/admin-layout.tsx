@@ -20,7 +20,8 @@ import {
   Activity,
   ChevronDown,
   FileText,
-  Images
+  Images,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +84,12 @@ const sidebarItems = [
     title: "Sliders",
     href: "/sliders",
     icon: Images,
+    badge: null,
+  },
+  {
+    title: "Featured Sections",
+    href: "/featured-sections",
+    icon: Sparkles,
     badge: null,
   },
   {

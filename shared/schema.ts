@@ -222,24 +222,31 @@ export type ProductImage = typeof productImages.$inferSelect;
 export type InsertProductImage = typeof productImages.$inferInsert;
 
 // Blog Posts Table
-export const blogPosts = pgTable('blog_posts', {
-  id: serial('id').primaryKey(),
-  title: varchar('title', { length: 255 }).notNull(),
-  slug: varchar('slug', { length: 255 }).notNull().unique(),
-  excerpt: text('excerpt'),
-  content: text('content').notNull(),
-  author: varchar('author', { length: 100 }).notNull(),
-  category: varchar('category', { length: 100 }).notNull(),
-  tags: text('tags').default('[]'), // Store as JSON string
-  imageUrl: varchar('image_url', { length: 500 }),
-  videoUrl: varchar('video_url', { length: 500 }),
-  featured: boolean('featured').default(false),
-  published: boolean('published').default(true),
-  likes: integer('likes').default(0),
-  comments: integer('comments').default(0),
-  readTime: varchar('read_time', { length: 50 }).default('5 min read'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+export const blogPosts = pgTable("blog_posts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  content: text("content").notNull(),
+  excerpt: text("excerpt"),
+  featuredImage: text("featured_image"),
+  author: text("author").notNull(),
+  published: boolean("published").default(false),
+  featured: boolean("featured").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const featuredSections = pgTable("featured_sections", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  subtitle: text("subtitle"),
+  imageUrl: text("image_url").notNull(),
+  linkUrl: text("link_url"),
+  buttonText: text("button_text"),
+  displayOrder: integer("display_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Blog Categories Table
