@@ -51,9 +51,10 @@ function rateLimit(req: any, res: any, next: any) {
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, sql, or, like, isNull, asc } from "drizzle-orm";
 import { Pool } from "pg";
-import { ordersTable, orderItemsTable, users, sliders, reviews, blogPosts, productImages, productShades, cashfreePayments, categorySliders, categories } from "../shared/schema";
+import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
+
 // Database connection with enhanced configuration
 const pool = new Pool({
  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
@@ -68,7 +69,7 @@ const pool = new Pool({
   allowExitOnIdle: false,
 });
 
-const db = drizzle(pool);
+const db = drizzle(pool, { schema }); // Pass schema to drizzle
 const dbMonitor = new DatabaseMonitor(pool);
 
 // Handle pool errors
@@ -131,8 +132,6 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // const userService = new UserService();
-  const shiprocketService = new ShiprocketService();
   // Apply rate limiting to all API routes
   app.use("/api", rateLimit);
 
@@ -142,7 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let poolStats = {};
 
     try {
-      await db.select().from(users).limit(1);
+      await db.select().from(schema.users).limit(1);
       dbStatus = "connected";
       poolStats = {
         totalCount: pool.totalCount,
@@ -227,7 +226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         {
           id: 2,
-          imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
+          imageUrl: "https://images.unsplash.com/photo-15223357890203-aabd1fc54bc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=400",
           isActive: true,
           sortOrder: 2
         }
@@ -500,7 +499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Store payment record in database
       try {
-        await db.insert(cashfreePayments).values({
+        await db.insert(schema.cashfreePayments).values({
           cashfreeOrderId: orderId,
           userId: parseInt(customerDetails.customerId),
           amount: amount,
@@ -576,21 +575,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update payment record in database
       try {
-        await db.update(cashfreePayments)
+        await db.update(schema.cashfreePayments)
           .set({
             status: isPaymentSuccessful ? 'completed' : 'failed',
             paymentId: statusResult.cf_order_id || null,
             completedAt: isPaymentSuccessful ? new Date() : null
           })
-          .where(eq(cashfreePayments.cashfreeOrderId, orderId));
+          .where(eq(schema.cashfreePayments.cashfreeOrderId, orderId));
 
         // If payment is successful, create order in ordersTable for admin panel
         if (isPaymentSuccessful) {
           // Get cashfree payment details
           const cashfreePayment = await db
             .select()
-            .from(cashfreePayments)
-            .where(eq(cashfreePayments.cashfreeOrderId, orderId))
+            .from(schema.cashfreePayments)
+            .where(eq(schema.cashfreePayments.cashfreeOrderId, orderId))
             .limit(1);
 
           if (cashfreePayment.length > 0) {
@@ -600,13 +599,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Check if order already exists in ordersTable
             const existingOrder = await db
               .select()
-              .from(ordersTable)
-              .where(eq(ordersTable.cashfreeOrderId, orderId))
+              .from(schema.ordersTable)
+              .where(eq(schema.ordersTable.cashfreeOrderId, orderId))
               .limit(1);
 
             if (existingOrder.length === 0) {
               // Create order in ordersTable
-              const [newOrder] = await db.insert(ordersTable).values({
+              const [newOrder] = await db.insert(schema.ordersTable).values({
                 userId: payment.userId,
                 totalAmount: payment.amount,
                 status: 'processing',
@@ -629,7 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   price: item.price,
                 }));
 
-                await db.insert(orderItemsTable).values(orderItems);
+                await db.insert(schema.orderItemsTable).values(orderItems);
               }
 
               console.log("Order created in ordersTable:", newOrder.id);
@@ -1311,7 +1310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("Storing product images:", req.body.images);
           await Promise.all(
             req.body.images.map(async (imageUrl: string, index: number) => {
-              await db.insert(productImages).values({
+              await db.insert(schema.productImages).values({
                 productId: product.id,
                 imageUrl: imageUrl,
                 altText: `${product.name} - Image ${index + 1}`,
@@ -1539,7 +1538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Special mappings for common variations
         const categoryMappings: Record<string, string[]> = {
-          'lips': ['lip', 'lipcare', 'lip care', 'lip-care'],
+          'lips': ['lip', 'lipcare', 'lip care', 'lip-’care'],
           'lip': ['lips', 'lipcare', 'lip care', 'lip-care'],
           'lipcare': ['lip', 'lips', 'lip care', 'lip-care'],
           'lip-care': ['lip', 'lips', 'lipcare', 'lip care'],
@@ -1880,12 +1879,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get orders that don't have Shiprocket tracking
       const ordersToSync = await db
         .select()
-        .from(ordersTable)
+        .from(schema.ordersTable)
         .where(and(
-          isNull(ordersTable.shiprocketOrderId),
+          isNull(schema.ordersTable.shiprocketOrderId),
           or(
-            eq(ordersTable.status, 'processing'),
-            eq(ordersTable.status, 'pending')
+            eq(schema.ordersTable.status, 'processing'),
+            eq(schema.ordersTable.status, 'pending')
           )
         ))
         .limit(10); // Process in batches
@@ -1898,13 +1897,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get user details
           const user = await db
             .select({
-              firstName: users.firstName,
-              lastName: users.lastName,
-              email: users.email,
-              phone: users.phone,
+              firstName: schema.users.firstName,
+              lastName: schema.users.lastName,
+              email: schema.users.email,
+              phone: schema.users.phone,
             })
-            .from(users)
-            .where(eq(users.id, order.userId))
+            .from(schema.users)
+            .where(eq(schema.users.id, order.userId))
             .limit(1);
 
           const userData = user[0] || {
@@ -1917,8 +1916,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get order items
           const items = await db
             .select()
-            .from(orderItemsTable)
-            .where(eq(orderItemsTable.orderId, order.id));
+            .from(schema.orderItemsTable)
+            .where(eq(schema.orderItemsTable.orderId, order.id));
 
           const orderForShiprocket = {
             id: `ORD-${order.id.toString().padStart(3, '0')}`,
@@ -1946,12 +1945,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (shiprocketResponse.order_id) {
             // Update order with Shiprocket details
-            await db.update(ordersTable)
+            await db.update(schema.ordersTable)
               .set({
                 shiprocketOrderId: shiprocketResponse.order_id,
                 shiprocketShipmentId: shiprocketResponse.shipment_id || null
               })
-              .where(eq(ordersTable.id, order.id));
+              .where(eq(schema.ordersTable.id, order.id));
 
             syncedCount++;
             console.log(`Synced order ${order.id} with Shiprocket order ${shiprocketResponse.order_id}`);
@@ -1994,8 +1993,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all completed Cashfree payments
       const completedPayments = await db
         .select()
-        .from(cashfreePayments)
-        .where(eq(cashfreePayments.status, 'completed'));
+        .from(schema.cashfreePayments)
+        .where(eq(schema.cashfreePayments.status, 'completed'));
 
       let syncedCount = 0;
 
@@ -2003,8 +2002,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check if order already exists in ordersTable
         const existingOrder = await db
           .select()
-          .from(ordersTable)
-          .where(eq(ordersTable.cashfreeOrderId, payment.cashfreeOrderId))
+          .from(schema.ordersTable)
+          .where(eq(schema.ordersTable.cashfreeOrderId, payment.cashfreeOrderId))
           .limit(1);
 
         if (existingOrder.length === 0) {
@@ -2012,7 +2011,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const orderData = payment.orderData;
 
             // Create order in ordersTable
-            const [newOrder] = await db.insert(ordersTable).values({
+            const [newOrder] = await db.insert(schema.ordersTable).values({
               userId: payment.userId,
               totalAmount: payment.amount,
               status: 'processing',
@@ -2035,7 +2034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 price: item.price,
               }));
 
-              await db.insert(orderItemsTable).values(orderItems);
+              await db.insert(schema.orderItemsTable).values(orderItems);
             }
 
             syncedCount++;
@@ -2065,8 +2064,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         orders = await db
           .select()
-          .from(ordersTable)
-          .orderBy(desc(ordersTable.createdAt));
+          .from(schema.ordersTable)
+          .orderBy(desc(schema.ordersTable.createdAt));
       } catch (dbError) {
         // Fallback sample data when database is unavailable
         console.log("Database unavailable, using sample data");
@@ -2079,25 +2078,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         orders.map(async (order) => {
           const items = await db
             .select({
-              id: orderItemsTable.id,
-              name: orderItemsTable.productName,
-              quantity: orderItemsTable.quantity,
-              price: orderItemsTable.price,
-              image: orderItemsTable.productImage,
+              id: schema.orderItemsTable.id,
+              name: schema.orderItemsTable.productName,
+              quantity: schema.orderItemsTable.quantity,
+              price: schema.orderItemsTable.price,
+              image: schema.orderItemsTable.productImage,
             })
-            .from(orderItemsTable)
-            .where(eq(orderItemsTable.orderId, order.id));
+            .from(schema.orderItemsTable)
+            .where(eq(schema.orderItemsTable.orderId, order.id));
 
           // Get user info
           const user = await db
             .select({
-              firstName: users.firstName,
-              lastName: users.lastName,
-              email: users.email,
-              phone: users.phone,
+              firstName: schema.users.firstName,
+              lastName: schema.users.lastName,
+              email: schema.users.email,
+              phone: schema.users.phone,
             })
-            .from(users)
-            .where(eq(users.id, order.userId))
+            .from(schema.users)
+            .where(eq(schema.users.id, order.userId))
             .limit(1);
 
           const userData = user[0] || { firstName: 'Unknown', lastName: 'Customer', email: 'unknown@email.com', phone: 'N/A' };
@@ -2141,8 +2140,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get order and user info
       const order = await db
         .select()
-        .from(ordersTable)
-        .where(eq(ordersTable.id, Number(orderId)))
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.id, Number(orderId)))
         .limit(1);
 
       if (order.length === 0) {
@@ -2151,8 +2150,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = await db
         .select()
-        .from(users)
-        .where(eq(users.id, order[0].userId))
+        .from(schema.users)
+        .where(eq(schema.users.id, order[0].userId))
         .limit(1);
 
       if (user.length === 0) {
@@ -2195,23 +2194,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get orders from database
       const orders = await db
         .select()
-        .from(ordersTable)
-        .where(eq(ordersTable.userId, Number(userId)))
-        .orderBy(desc(ordersTable.createdAt));
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.userId, Number(userId)))
+        .orderBy(desc(schema.ordersTable.createdAt));
 
       // Get order items for each order
       const ordersWithItems = await Promise.all(
         orders.map(async (order) => {
           const items = await db
             .select({
-              id: orderItemsTable.id,
-              name: orderItemsTable.productName,
-              quantity: orderItemsTable.quantity,
-              price: orderItemsTable.price,
-              image: orderItemsTable.productImage,
+              id: schema.orderItemsTable.id,
+              name: schema.orderItemsTable.productName,
+              quantity: schema.orderItemsTable.quantity,
+              price: schema.orderItemsTable.price,
+              image: schema.orderItemsTable.productImage,
             })
-            .from(orderItemsTable)
-            .where(eq(orderItemsTable.orderId, order.id));
+            .from(schema.orderItemsTable)
+            .where(eq(schema.orderItemsTable.orderId, order.id));
 
           return {
             id: `ORD-${order.id.toString().padStart(3, '0')}`,
@@ -2241,8 +2240,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const order = await db
         .select()
-        .from(ordersTable)
-        .where(eq(ordersTable.id, Number(orderId)))
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.id, Number(orderId)))
         .limit(1);
 
       if (order.length === 0) {
@@ -2251,14 +2250,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const items = await db
         .select({
-          id: orderItemsTable.id,
-          name: orderItemsTable.productName,
-          quantity: orderItemsTable.quantity,
-          price: orderItemsTable.price,
-          image: orderItemsTable.productImage,
+          id: schema.orderItemsTable.id,
+          name: schema.orderItemsTable.productName,
+          quantity: schema.orderItemsTable.quantity,
+          price: schema.orderItemsTable.price,
+          image: schema.orderItemsTable.productImage,
         })
-        .from(orderItemsTable)
-        .where(eq(orderItemsTable.orderId, order[0].id));
+        .from(schema.orderItemsTable)
+        .where(eq(schema.orderItemsTable.orderId, order[0].id));
 
       const orderWithItems = {
         id: `ORD-${order[0].id.toString().padStart(3, '0')}`,
@@ -2292,8 +2291,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user already has orders
       const existingOrders = await db
         .select()
-        .from(ordersTable)
-        .where(eq(ordersTable.userId, Number(userId)));
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.userId, Number(userId)));
 
       if (existingOrders.length > 0) {
         return res.json({ message: "User already has orders", orders: existingOrders.length });
@@ -2334,14 +2333,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       ];
 
-      const createdOrders = await db.insert(ordersTable).values(sampleOrders).returning();
+      const createdOrders = await db.insert(schema.ordersTable).values(sampleOrders).returning();
 
       // Create sample order items
       const sampleItems = [
 
       ];
 
-      await db.insert(orderItemsTable).values(sampleItems);
+      await db.insert(schema.orderItemsTable).values(sampleItems);
 
       res.json({ message: "Sample orders created successfully", orders: createdOrders.length });
     } catch (error) {
@@ -2380,7 +2379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("Inserting order data:", newOrderData);
 
-      const [newOrder] = await db.insert(ordersTable).values(newOrderData).returning();
+      const [newOrder] = await db.insert(schema.ordersTable).values(newOrderData).returning();
 
       // Create order items in separate table
       const orderItems = items.map((item: any) => ({
@@ -2392,7 +2391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         price: item.price,
       }));
 
-      await db.insert(orderItemsTable).values(orderItems);
+      await db.insert(schema.orderItemsTable).values(orderItems);
 
       const orderId = `ORD-${newOrder.id.toString().padStart(3, '0')}`;
 
@@ -2409,13 +2408,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get user details from database
           const user = await db
             .select({
-              firstName: users.firstName,
-              lastName: users.lastName,
-              email: users.email,
-              phone: users.phone,
+              firstName: schema.users.firstName,
+              lastName: schema.users.lastName,
+              email: schema.users.email,
+              phone: schema.users.phone,
             })
-            .from(users)
-            .where(eq(users.id, Number(userId)))
+            .from(schema.users)
+            .where(eq(schema.users.id, Number(userId)))
             .limit(1);
 
           let customerData = {
@@ -2461,13 +2460,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`✅ Shiprocket order created: ${shiprocketOrderId} with AWB: ${shiprocketAwb || 'Pending'}`);
 
             // Update order with Shiprocket details immediately
-            await db.update(ordersTable)
+            await db.update(schema.ordersTable)
               .set({
                 shiprocketOrderId: shiprocketOrderId,
                 shiprocketShipmentId: shiprocketAwb,
                 status: 'processing'
               })
-              .where(eq(ordersTable.id, newOrder.id));
+              .where(eq(schema.ordersTable.id, newOrder.id));
 
             console.log(`✅ Database updated with Shiprocket details for order ${orderId}`);
           } else {
@@ -2483,11 +2482,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // Save error to database for debugging
-          await db.update(ordersTable)
+          await db.update(schema.ordersTable)
             .set({
               notes: `Shiprocket Error: ${shiprocketErrorCatch.message}`
             })
-            .where(eq(ordersTable.id, newOrder.id));
+            .where(eq(schema.ordersTable.id, newOrder.id));
         }
       } else {
         shiprocketError = 'Shiprocket credentials not configured';
@@ -2535,9 +2534,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await db
-        .update(ordersTable)
+        .update(schema.ordersTable)
         .set(updateData)
-        .where(eq(ordersTable.id, Number(orderId)));
+        .where(eq(schema.ordersTable.id, Number(orderId)));
 
       res.json({ message: "Order status updated successfully" });
     } catch (error) {
@@ -2553,8 +2552,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const order = await db
         .select()
-        .from(ordersTable)
-        .where(eq(ordersTable.id, Number(orderId)))
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.id, Number(orderId)))
         .limit(1);
 
       if (order.length === 0) {
@@ -3008,9 +3007,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user details
       const user = await db.select({
-        firstName: users.firstName,
-        lastName: users.lastName
-      }).from(users).where(eq(users.id, parseInt(userId))).limit(1);
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName
+      }).from(schema.users).where(eq(schema.users.id, parseInt(userId))).limit(1);
 
       if (!user || user.length === 0) {
         return res.status(404).json({ error: "User not found" });
@@ -3026,9 +3025,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // Update post comment count
-      await db.update(blogPosts)
-        .set({ comments: sql`${blogPosts.comments} + 1` })
-        .where(eq(blogPosts.id, postId));
+      await db.update(schema.blogPosts)
+        .set({ comments: sql`${schema.blogPosts.comments} + 1` })
+        .where(eq(schema.blogPosts.id, postId));
 
       res.json({
         success: true,
@@ -3091,7 +3090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           title: "The Ultimate Guide to Korean Skincare Routine",
           slug: "ultimate-guide-korean-skincare-routine",
           excerpt: "Discover the secrets behind the famous 10-step Korean skincare routine and how to adapt it for your skin type.",
-          content: "Korean skincare has revolutionized the beauty industry with its emphasis on prevention, hydration, and gentle care...",
+          content: "Korean skincare has revolutionized the beauty industry with its emphasis on prevention, hydration, and gentle care. The famous 10-step routine focuses on layering products from thinnest to thickest consistency.\n\nStart with an oil-based cleanser to remove makeup and SPF, followed by a water-based cleanser for a deep clean. Exfoliation 2-3 times a week helps remove dead skin cells. Toner balances pH levels and prepares skin for better absorption.\n\nEssences are the heart of K-beauty, delivering concentrated hydration. Serums target specific concerns like dark spots or fine lines. Sheet masks provide an intensive treatment 2-3 times weekly. Eye cream addresses the delicate under-eye area.\n\nMoisturizer locks in all previous layers, while sunscreen is the final and most crucial step during the day. Remember, consistency is key, and you can customize this routine based on your skin's needs.",
           author: "Sarah Kim",
           category: "Skincare",
           tags: ["K-Beauty", "Skincare", "Routine", "Tips"],
@@ -3104,6 +3103,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
           readTime: "8 min read",
           createdAt: new Date('2024-12-15'),
           updatedAt: new Date('2024-12-15')
+        },
+        {
+          id: 2,
+          title: "Best Makeup Products Under $20",
+          slug: "best-makeup-products-under-20",
+          excerpt: "Achieve a flawless makeup look without breaking the bank with these affordable yet high-quality products.",
+          content: "You don't need to spend a fortune to look fabulous. Here are the best makeup products that deliver luxury quality at drugstore prices.\n\n# Foundation & Base\n\nFor base makeup, the Maybelline Fit Me foundation offers excellent coverage and a natural finish for under $10. E.L.F.'s Putty Primer creates a smooth canvas at just $8, ensuring your makeup stays in place all day long.\n\n# Lips That Pop\n\nNYX Professional Makeup offers incredible lip products, with their Soft Matte Lip Cream being a cult favorite at only $7. The color payoff is amazing and it lasts for hours without drying out your lips.\n\n# Glow and Highlight\n\nWet n Wild's MegaGlo highlighters rival high-end brands at only $5. The pigmentation is incredible and gives you that coveted dewy glow that everyone loves.\n\n# Eye-Catching Lashes\n\nEssence's Lash Princess Mascara gives dramatic volume for under $5. It's often compared to high-end mascaras but at a fraction of the price. Perfect for creating those Instagram-worthy lashes!\n\n# Colorful Eyes\n\nColourPop's eyeshadow palettes offer vibrant, blendable colors for around $15. The quality is comparable to luxury brands, and the color range is incredible.\n\n# Skincare Meets Makeup\n\nCeraVe and The Ordinary provide affordable skincare that works beautifully under makeup. These budget-friendly gems prove that price doesn't always equal quality!\n\nRemember, looking beautiful doesn't have to cost a fortune. These affordable products deliver amazing results and will leave you with money to spare!",
+          author: "Jessica Torres",
+          category: "Product Reviews",
+          tags: ["Makeup", "Budget Beauty", "Product Reviews", "Affordable"],
+          imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
+          videoUrl: null,
+          featured: true,
+          published: true,
+          likes: 287,
+          comments: 56,
+          readTime: "10 min read",
+          createdAt: new Date('2024-12-11'),
+          updatedAt: new Date('2024-12-11')
+        },
+        {
+          id: 3,
+          title: "Top 10 Hair Care Tips for Healthy, Shiny Hair",
+          slug: "top-10-hair-care-tips",
+          excerpt: "Transform your hair with these expert-approved tips for maintaining healthy, lustrous locks all year round.",
+          content: "Healthy hair starts with a proper care routine. Here are the top 10 tips to achieve gorgeous, shiny hair.\n\n1. Wash hair with lukewarm water, not hot, to prevent damage. 2. Use a sulfate-free shampoo suited to your hair type. 3. Condition every time you shampoo, focusing on mid-lengths to ends. 4. Apply a deep conditioning mask weekly for extra nourishment.\n\n5. Minimize heat styling and always use a heat protectant spray. 6. Trim your hair every 6-8 weeks to prevent split ends. 7. Eat a balanced diet rich in proteins, vitamins, and omega-3 fatty acids. 8. Protect hair from sun damage with UV-protective products or hats.\n\n9. Sleep on a silk pillowcase to reduce friction and breakage. 10. Stay hydrated - drinking water benefits your hair too! Remember, consistency is key to seeing results.",
+          author: "Lisa Chen",
+          category: "Hair Care",
+          tags: ["Hair Care", "Beauty Tips", "Healthy Hair"],
+          imageUrl: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
+          videoUrl: null,
+          featured: false,
+          published: true,
+          likes: 156,
+          comments: 32,
+          readTime: "7 min read",
+          createdAt: new Date('2024-12-13'),
+          updatedAt: new Date('2024-12-13')
+        },
+        {
+          id: 4,
+          title: "Natural Ingredients for Glowing Skin",
+          slug: "natural-ingredients-glowing-skin",
+          excerpt: "Explore powerful natural ingredients that can transform your skincare routine and give you radiant, healthy skin.",
+          content: "Nature offers incredible ingredients for achieving glowing skin. Let's explore some of the most effective natural skincare heroes.\n\nHoney is a natural humectant that attracts and retains moisture while having antibacterial properties. Aloe vera soothes inflammation and provides deep hydration. Turmeric contains curcumin, which brightens skin and reduces hyperpigmentation.\n\nGreen tea is rich in antioxidants that fight free radicals and reduce signs of aging. Vitamin C from citrus fruits brightens complexion and boosts collagen production. Coconut oil deeply moisturizes and has antimicrobial properties.\n\nRosehip oil is packed with vitamins A and C, perfect for anti-aging. Tea tree oil helps combat acne with its natural antibacterial properties. Always patch test new ingredients and introduce them gradually into your routine.",
+          author: "Maya Patel",
+          category: "Skincare",
+          tags: ["Natural Beauty", "Skincare", "DIY", "Organic"],
+          imageUrl: "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
+          videoUrl: null,
+          featured: false,
+          published: true,
+          likes: 203,
+          comments: 41,
+          readTime: "9 min read",
+          createdAt: new Date('2024-12-12'),
+          updatedAt: new Date('2024-12-12')
+        },
+        {
+          id: 5,
+          title: "Best Makeup Products Under $20",
+          slug: "best-makeup-products-under-20",
+          excerpt: "Achieve a flawless makeup look without breaking the bank with these affordable yet high-quality products.",
+          content: "You don't need to spend a fortune to look fabulous. Here are the best makeup products that deliver luxury quality at drugstore prices.\n\n# Foundation & Base\n\nFor base makeup, the Maybelline Fit Me foundation offers excellent coverage and a natural finish for under $10. E.L.F.'s Putty Primer creates a smooth canvas at just $8, ensuring your makeup stays in place all day long.\n\n# Lips That Pop\n\nNYX Professional Makeup offers incredible lip products, with their Soft Matte Lip Cream being a cult favorite at only $7. The color payoff is amazing and it lasts for hours without drying out your lips.\n\n# Glow and Highlight\n\nWet n Wild's MegaGlo highlighters rival high-end brands at only $5. The pigmentation is incredible and gives you that coveted dewy glow that everyone loves.\n\n# Eye-Catching Lashes\n\nEssence's Lash Princess Mascara gives dramatic volume for under $5. It's often compared to high-end mascaras but at a fraction of the price. Perfect for creating those Instagram-worthy lashes!\n\n# Colorful Eyes\n\nColourPop's eyeshadow palettes offer vibrant, blendable colors for around $15. The quality is comparable to luxury brands, and the color range is incredible.\n\n# Skincare Meets Makeup\n\nCeraVe and The Ordinary provide affordable skincare that works beautifully under makeup. These budget-friendly gems prove that price doesn't always equal quality!\n\nRemember, looking beautiful doesn't have to cost a fortune. These affordable products deliver amazing results and will leave you with money to spare!",
+          author: "Jessica Torres",
+          category: "Product Reviews",
+          tags: ["Makeup", "Budget Beauty", "Product Reviews", "Affordable"],
+          imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
+          videoUrl: null,
+          featured: true,
+          published: true,
+          likes: 287,
+          comments: 56,
+          readTime: "10 min read",
+          createdAt: new Date('2024-12-11'),
+          updatedAt: new Date('2024-12-11')
+        },
+        {
+          id: 6,
+          title: "Summer Skincare Routine Essentials",
+          slug: "summer-skincare-routine-essentials",
+          excerpt: "Protect and nourish your skin during hot summer months with these essential skincare tips and products.",
+          content: "Summer requires special attention to keep your skin healthy and protected. Here's your essential summer skincare guide.\n\nSunscreen is non-negotiable - apply SPF 30 or higher every 2 hours when outdoors. Choose a lightweight, oil-free moisturizer to prevent clogged pores in humid weather. Switch to a gel-based cleanser for a refreshing clean without stripping natural oils.\n\nExfoliate 2-3 times weekly to remove dead skin cells and prevent breakouts. Use a vitamin C serum in the morning for added sun protection and brightening. Hydrating face mists throughout the day keep skin refreshed and dewy.\n\nDon't forget your lips and hands - they need SPF too! Evening skincare should include retinol or AHAs to repair sun damage. Stay hydrated by drinking plenty of water, and consider adding hydrating foods like watermelon and cucumber to your diet.",
+          author: "Amanda Lee",
+          category: "Beauty Tips",
+          tags: ["Summer", "Skincare", "SPF", "Seasonal"],
+          imageUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f98b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
+          videoUrl: null,
+          featured: true,
+          published: true,
+          likes: 178,
+          comments: 29,
+          readTime: "8 min read",
+          createdAt: new Date('2024-12-10'),
+          updatedAt: new Date('2024-12-10')
         }
       ];
       res.json(samplePosts);
@@ -3113,19 +3207,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/blog/posts/:slug", async (req, res) => {
     try {
       const { slug } = req.params;
-      const post = await storage.getBlogPostBySlug(slug);
 
-      if (!post) {
-        return res.status(404).json({ error: "Blog post not found" });
+      // Sample posts data as fallback
+      const samplePosts = [
+        {
+          id: 1,
+          title: "The Ultimate Guide to Korean Skincare Routine",
+          slug: "ultimate-guide-korean-skincare-routine",
+          excerpt: "Discover the secrets behind the famous 10-step Korean skincare routine and how to adapt it for your skin type.",
+          content: "Korean skincare has revolutionized the beauty industry with its emphasis on prevention, hydration, and gentle care. The famous 10-step routine focuses on layering products from thinnest to thickest consistency.\n\nStart with an oil-based cleanser to remove makeup and SPF, followed by a water-based cleanser for a deep clean. Exfoliation 2-3 times a week helps remove dead skin cells. Toner balances pH levels and prepares skin for better absorption.\n\nEssences are the heart of K-beauty, delivering concentrated hydration. Serums target specific concerns like dark spots or fine lines. Sheet masks provide an intensive treatment 2-3 times weekly. Eye cream addresses the delicate under-eye area.\n\nMoisturizer locks in all previous layers, while sunscreen is the final and most crucial step during the day. Remember, consistency is key, and you can customize this routine based on your skin's needs.",
+          author: "Sarah Kim",
+          category: "Skincare",
+          tags: ["K-Beauty", "Skincare", "Routine", "Tips"],
+          imageUrl: "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
+          videoUrl: null,
+          featured: true,
+          published: true,
+          likes: 124,
+          comments: 18,
+          readTime: "8 min read",
+          createdAt: new Date('2024-12-15'),
+          updatedAt: new Date('2024-12-15')
+        },
+        {
+          id: 2,
+          title: "Perfect Winged Eyeliner Tutorial for Beginners",
+          slug: "perfect-winged-eyeliner-tutorial",
+          excerpt: "Master the art of winged eyeliner with our step-by-step guide, perfect for makeup beginners.",
+          content: "Creating the perfect winged eyeliner doesn't have to be intimidating. With the right technique and practice, anyone can achieve a flawless cat-eye look.\n\nStart by choosing the right eyeliner - gel or liquid liners work best for wings. Begin at the inner corner of your eye and draw a thin line along your lash line. The key is to keep your hand steady and work in small strokes.\n\nFor the wing, imagine a line extending from your lower lash line towards your temple. Mark this point lightly, then connect it to your upper lash line, creating a triangle. Fill in the triangle and you're done!\n\nPro tip: Use tape as a guide for sharp, even wings on both eyes. If you make mistakes, a cotton swab dipped in micellar water can clean up edges perfectly.",
+          author: "Emma Rodriguez",
+          category: "Makeup",
+          tags: ["Makeup", "Tutorial", "Eyeliner", "Beauty Tips"],
+          imageUrl: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
+          videoUrl: null,
+          featured: true,
+          published: true,
+          likes: 98,
+          comments: 24,
+          readTime: "6 min read",
+          createdAt: new Date('2024-12-14'),
+          updatedAt: new Date('2024-12-14')
+        }
+      ];
+
+      try {
+        const post = await storage.getBlogPostBySlug(slug);
+
+        if (post) {
+          // Parse tags for frontend
+          const postWithParsedTags = {
+            ...post,
+            tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags
+          };
+          return res.json(postWithParsedTags);
+        }
+      } catch (dbError) {
+        console.log("Database error, using sample data:", dbError.message);
       }
 
-      // Parse tags for frontend
-      const postWithParsedTags = {
-        ...post,
-        tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags
-      };
+      // If no post found in database, check sample posts
+      const samplePost = samplePosts.find(p => p.slug === slug);
+      if (samplePost) {
+        return res.json(samplePost);
+      }
 
-      res.json(postWithParsedTags);
+      // If slug not found anywhere, return 404
+      return res.status(404).json({ error: "Blog post not found" });
+
     } catch (error) {
       console.error("Error fetching blog post:", error);
       res.status(500).json({ error: "Failed to fetch blog post" });
@@ -3282,6 +3430,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Featured Sections API
+  app.get("/api/admin/featured-sections", async (req, res) => {
+    try {
+      const sections = await storage.getFeaturedSections();
+      res.json(sections);
+    } catch (error) {
+      console.error("Error fetching featured sections:", error);
+      res.status(500).json({ error: "Failed to fetch featured sections" });
+    }
+  });
+
+  app.post("/api/admin/featured-sections", async (req, res) => {
+    try {
+      const { title, subtitle, imageUrl, linkUrl, buttonText, displayOrder, isActive } = req.body;
+
+      if (!title || !imageUrl) {
+        return res.status(400).json({ error: "Title and image URL are required" });
+      }
+
+      const sectionData = {
+        title: title.trim(),
+        subtitle: subtitle ? subtitle.trim() : null,
+        imageUrl: imageUrl.trim(),
+        linkUrl: linkUrl ? linkUrl.trim() : null,
+        buttonText: buttonText ? buttonText.trim() : null,
+        displayOrder: parseInt(displayOrder) || 0,
+        isActive: Boolean(isActive ?? true)
+      };
+
+      const section = await storage.createFeaturedSection(sectionData);
+      res.status(201).json(section);
+    } catch (error) {
+      console.error("Error creating featured section:", error);
+      res.status(500).json({ error: "Failed to create featured section" });
+    }
+  });
+
+  app.put("/api/admin/featured-sections/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { title, subtitle, imageUrl, linkUrl, buttonText, displayOrder, isActive } = req.body;
+
+      const updateData: any = {};
+      if (title !== undefined) updateData.title = title.trim();
+      if (subtitle !== undefined) updateData.subtitle = subtitle ? subtitle.trim() : null;
+      if (imageUrl !== undefined) updateData.imageUrl = imageUrl.trim();
+      if (linkUrl !== undefined) updateData.linkUrl = linkUrl ? linkUrl.trim() : null;
+      if (buttonText !== undefined) updateData.buttonText = buttonText ? buttonText.trim() : null;
+      if (displayOrder !== undefined) updateData.displayOrder = parseInt(displayOrder) || 0;
+      if (isActive !== undefined) updateData.isActive = Boolean(isActive);
+
+      const section = await storage.updateFeaturedSection(parseInt(id), updateData);
+      if (!section) {
+        return res.status(404).json({ error: "Featured section not found" });
+      }
+
+      res.json(section);
+    } catch (error) {
+      console.error("Error updating featured section:", error);
+      res.status(500).json({ error: "Failed to update featured section" });
+    }
+  });
+
+  app.delete("/api/admin/featured-sections/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteFeaturedSection(parseInt(id));
+
+      if (!success) {
+        return res.status(404).json({ error: "Featured section not found" });
+      }
+
+      res.json({ success: true, message: "Featured section deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting featured section:", error);
+      res.status(500).json({ error: "Failed to delete featured section" });
+    }
+  });
+
+  // Public featured sections endpoint
+  app.get("/api/featured-sections", async (req, res) => {
+    try {
+      const sections = await storage.getActiveFeaturedSections();
+      res.json(sections);
+    } catch (error) {
+      console.error("Error fetching public featured sections:", error);
+      res.json([]);
+    }
+  });
+
   // Admin blog categories
   app.get("/api/admin/blog/categories", async (req, res) => {
     try {
@@ -3298,7 +3536,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const categoryData = {
         name: req.body.name,
         description: req.body.description,
-        isActive: req.body.isActive !== false,
+        isActive: req.body.isActive !== 'false',
         sortOrder: parseInt(req.body.sortOrder) || 0
       };
 
@@ -3374,13 +3612,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let allUsers;
       try {
         allUsers = await db.select({
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          email: users.email,
-          phone: users.phone,
-          createdAt: users.createdAt,
-        }).from(users);
+          id: schema.users.id,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          email: schema.users.email,
+          phone: schema.users.phone,
+          createdAt: schema.users.createdAt,
+        }).from(schema.users);
       } catch (dbError) {
         // Fallback sample data when database is unavailable
         console.log("Database unavailable, using sample customer data");
@@ -3393,11 +3631,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get order count and total spent for this user
           const userOrders = await db
             .select({
-              totalAmount: ordersTable.totalAmount,
-              status: ordersTable.status,
+              totalAmount: schema.ordersTable.totalAmount,
+              status: schema.ordersTable.status,
             })
-            .from(ordersTable)
-            .where(eq(ordersTable.userId, user.id));
+            .from(schema.ordersTable)
+            .where(eq(schema.ordersTable.userId, user.id));
 
           const orderCount = userOrders.length;
           const totalSpent = userOrders.reduce((sum, order) => sum + order.totalAmount, 0);
@@ -3442,15 +3680,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user details
       const user = await db
         .select({
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          email: users.email,
-          phone: users.phone,
-          createdAt: users.createdAt,
+          id: schema.users.id,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          email: schema.users.email,
+          phone: schema.users.phone,
+          createdAt: schema.users.createdAt,
         })
-        .from(users)
-        .where(eq(users.id, customerId))
+        .from(schema.users)
+        .where(eq(schema.users.id, customerId))
         .limit(1);
 
       if (user.length === 0) {
@@ -3462,9 +3700,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get customer's orders
       const customerOrders = await db
         .select()
-        .from(ordersTable)
-        .where(eq(ordersTable.userId, customerId))
-        .orderBy(desc(ordersTable.createdAt));
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.userId, customerId))
+        .orderBy(desc(schema.ordersTable.createdAt));
 
       const orderCount = customerOrders.length;
       const totalSpent = customerOrders.reduce((sum, order) => sum + order.totalAmount, 0);
@@ -3630,8 +3868,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get order details
       const order = await db
         .select()
-        .from(ordersTable)
-        .where(eq(ordersTable.id, Number(orderId)))
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.id, Number(orderId)))
         .limit(1);
 
       if (order.length === 0) {
@@ -3641,25 +3879,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get order items
       const items = await db
         .select({
-          id: orderItemsTable.id,
-          name: orderItemsTable.productName,
-          quantity: orderItemsTable.quantity,
-          price: orderItemsTable.price,
-          image: orderItemsTable.productImage,
+          id: schema.orderItemsTable.id,
+          name: schema.orderItemsTable.productName,
+          quantity: schema.orderItemsTable.quantity,
+          price: schema.orderItemsTable.price,
+          image: schema.orderItemsTable.productImage,
         })
-        .from(orderItemsTable)
-        .where(eq(orderItemsTable.orderId, order[0].id));
+        .from(schema.orderItemsTable)
+        .where(eq(schema.orderItemsTable.orderId, order[0].id));
 
       // Get user info
       const user = await db
         .select({
-          firstName: users.firstName,
-          lastName: users.lastName,
-          email: users.email,
-          phone: users.phone,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          email: schema.users.email,
+          phone: schema.users.phone,
         })
-        .from(users)
-        .where(eq(users.id, order[0].userId))
+        .from(schema.users)
+        .where(eq(schema.users.id, order[0].userId))
         .limit(1);
 
       const userData = user[0] || { firstName: 'Unknown', lastName: 'Customer', email: 'unknown@email.com', phone: 'N/A' };
@@ -4044,13 +4282,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let customers = [];
       try {
         const allUsers = await db.select({
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          email: users.email,
-          phone: users.phone,
-          createdAt: users.createdAt,
-        }).from(users);
+          id: schema.users.id,
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          email: schema.users.email,
+          phone: schema.users.phone,
+          createdAt: schema.users.createdAt,
+        }).from(schema.users);
 
         customers = allUsers.filter(user =>
           (user.firstName && user.firstName.toLowerCase().includes(searchTerm)) ||
@@ -4071,7 +4309,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Search orders
       let orders = [];
       try {
-        const allOrders = await db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
+        const allOrders = await db.select().from(schema.ordersTable).orderBy(desc(schema.ordersTable.createdAt));
 
         orders = await Promise.all(
           allOrders.filter(order => {
@@ -4083,12 +4321,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Get user info for the order
               const user = await db
                 .select({
-                  firstName: users.firstName,
-                  lastName: users.lastName,
-                  email: users.email,
+                  firstName: schema.users.firstName,
+                  lastName: schema.users.lastName,
+                  email: schema.users.email,
                 })
-                .from(users)
-                .where(eq(users.id, order.userId))
+                .from(schema.users)
+                .where(eq(schema.users.id, order.userId))
                 .limit(1);
 
               const userData = user[0] || { firstName: 'Unknown', lastName: 'Customer', email: 'unknown@email.com' };
@@ -4309,9 +4547,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const slidersResult = await db
           .select()
-          .from(categorySliders)
-          .where(eq(categorySliders.categoryId, categoryId))
-          .orderBy(asc(categorySliders.sortOrder));
+          .from(schema.categorySliders)
+          .where(eq(schema.categorySliders.categoryId, categoryId))
+          .orderBy(asc(schema.categorySliders.sortOrder));
 
         console.log('Found sliders:', slidersResult);
         res.json(slidersResult);
@@ -4345,8 +4583,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if category exists
       const category = await db
         .select()
-        .from(categories)
-        .where(eq(categories.id, categoryId))
+        .from(schema.categories)
+        .where(eq(schema.categories.id, categoryId))
         .limit(1);
 
       if (category.length === 0) {
@@ -4364,7 +4602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Inserting slider data:', sliderData);
 
-      const [newSlider] = await db.insert(categorySliders).values(sliderData).returning();
+      const [newSlider] = await db.insert(schema.categorySliders).values(sliderData).returning();
 
       console.log('Created slider successfully:', newSlider);
       res.json(newSlider);
@@ -4398,7 +4636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { imageUrl, title, subtitle, isActive, sortOrder } = req.body;
 
       const [updatedSlider] = await db
-        .update(categorySliders)
+        .update(schema.categorySliders)
         .set({
           imageUrl,
           title: title || '',
@@ -4407,7 +4645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sortOrder: sortOrder || 0,
           updatedAt: new Date()
         })
-        .where(eq(categorySliders.id, sliderId))
+        .where(eq(schema.categorySliders.id, sliderId))
         .returning();
 
       if (!updatedSlider) {
@@ -4426,8 +4664,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sliderId = parseInt(req.params.sliderId);
 
       const [deletedSlider] = await db
-        .delete(categorySliders)
-        .where(eq(categorySliders.id, sliderId))
+        .delete(schema.categorySliders)
+        .where(eq(schema.categorySliders.id, sliderId))
         .returning();
 
       if (!deletedSlider) {
@@ -4441,7 +4679,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public endpoint for category sliders (for frontend display)
+  // Testimonials Management Routes
+
+  // Public endpoints for testimonials
+  app.get('/api/testimonials', async (req, res) => {
+    try {
+      const testimonials = await storage.getActiveTestimonials();
+      // Map customer_image to customerImageUrl for frontend compatibility
+      const formattedTestimonials = testimonials.map(t => ({
+        id: t.id,
+        customerName: t.customerName,
+        customerImageUrl: t.customerImage,
+        rating: t.rating,
+        content: t.reviewText,
+        isActive: t.isActive,
+        createdAt: t.createdAt,
+      }));
+      res.json(formattedTestimonials);
+    } catch (error) {
+      console.error('Error fetching testimonials:', error);
+      res.status(500).json({ error: 'Failed to fetch testimonials' });
+    }
+  });
+
+  // Admin endpoints for testimonials management
+  app.get('/api/admin/testimonials', async (req, res) => {
+    try {
+      const testimonials = await storage.getTestimonials();
+      // Map customer_image to customerImage for admin panel
+      const formattedTestimonials = testimonials.map(t => ({
+        ...t,
+        customerImage: t.customerImage || t.customer_image,
+      }));
+      res.json(formattedTestimonials);
+    } catch (error) {
+      console.error('Error fetching testimonials:', error);
+      res.status(500).json({ error: 'Failed to fetch testimonials' });
+    }
+  });
+
+  app.get('/api/admin/testimonials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const testimonial = await storage.getTestimonial(id);
+      if (!testimonial) {
+        return res.status(404).json({ error: 'Testimonial not found' });
+      }
+      res.json(testimonial);
+    } catch (error) {
+      console.error('Error fetching testimonial:', error);
+      res.status(500).json({ error: 'Failed to fetch testimonial' });
+    }
+  });
+
+  app.post('/api/admin/testimonials', upload.single('image'), async (req, res) => {
+    try {
+      let customerImage = req.body.customerImage;
+
+      // Handle image upload
+      if (req.file) {
+        customerImage = `/api/images/${req.file.filename}`;
+      }
+
+      const testimonialData = {
+        customerName: req.body.customerName,
+        customerImage: customerImage || null,
+        rating: parseInt(req.body.rating) || 5,
+        reviewText: req.body.reviewText,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+      };
+
+      const testimonial = await storage.createTestimonial(testimonialData);
+      res.status(201).json(testimonial);
+    } catch (error) {
+      console.error('Error creating testimonial:', error);
+      res.status(500).json({ error: 'Failed to create testimonial' });
+    }
+  });
+
+  app.put('/api/admin/testimonials/:id', upload.single('image'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      let updateData: any = {
+        customerName: req.body.customerName,
+        rating: parseInt(req.body.rating) || 5,
+        reviewText: req.body.reviewText,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+      };
+
+      // Handle image upload
+      if (req.file) {
+        updateData.customerImage = `/api/images/${req.file.filename}`;
+      } else if (req.body.customerImage) {
+        updateData.customerImage = req.body.customerImage;
+      }
+
+      const testimonial = await storage.updateTestimonial(id, updateData);
+      if (!testimonial) {
+        return res.status(404).json({ error: 'Testimonial not found' });
+      }
+      res.json(testimonial);
+    } catch (error) {
+      console.error('Error updating testimonial:', error);
+      res.status(500).json({ error: 'Failed to update testimonial' });
+    }
+  });
+
+  app.delete('/api/admin/testimonials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteTestimonial(id);
+      if (!success) {
+        return res.status(404).json({ error: 'Testimonial not found' });
+      }
+      res.json({ message: 'Testimonial deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting testimonial:', error);
+      res.status(500).json({ error: 'Failed to delete testimonial' });
+    }
+  });
+
+  // Public category sliders endpoint (for frontend display)
   app.get('/api/categories/slug/:categorySlug/sliders', async (req, res) => {
     try {
       const { categorySlug } = req.params;
@@ -4455,12 +4815,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get active sliders for this category
       const sliders = await db
         .select()
-        .from(categorySliders)
+        .from(schema.categorySliders)
         .where(and(
-          eq(categorySliders.categoryId, category.id),
-          eq(categorySliders.isActive, true)
+          eq(schema.categorySliders.categoryId, category.id),
+          eq(schema.categorySliders.isActive, true)
         ))
-        .orderBy(asc(categorySliders.sortOrder));
+        .orderBy(asc(schema.categorySliders.sortOrder));
 
       res.json(sliders);
     } catch (error) {
@@ -4472,7 +4832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // General slider management routes
   app.get('/api/admin/sliders', async (req, res) => {
     try {
-      const allSliders = await db.select().from(sliders).orderBy(desc(sliders.sortOrder));
+      const allSliders = await db.select().from(schema.sliders).orderBy(desc(schema.sliders.sortOrder));
       res.json(allSliders);
     } catch (error) {
       console.error('Error fetching sliders:', error);
@@ -4491,7 +4851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const imageUrl = `/api/images/${req.file.filename}`;
 
-      const [newSlider] = await db.insert(sliders).values({
+      const [newSlider] = await db.insert(schema.sliders).values({
         title: `Image ${Date.now()}`,
         subtitle: '',
         description: 'Uploaded image',
@@ -4524,7 +4884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imageUrl = `/api/images/${req.file?.filename}`;
        }
 
-      const [updatedSlider] = await db.update(sliders)
+      const [updatedSlider] = await db.update(schema.sliders)
         .set({
 
           imageUrl: imageUrl,
@@ -4532,7 +4892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sortOrder: parseInt(body.sortOrder, 10),
           updatedAt: new Date().toISOString()
         })
-        .where(eq(sliders.id, id))
+        .where(eq(schema.sliders.id, id))
         .returning();
 
       if (!updatedSlider) {
@@ -4550,8 +4910,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
 
-      const [deletedSlider] = await db.delete(sliders)
-        .where(eq(sliders.id, id))
+      const [deletedSlider] = await db.delete(schema.sliders)
+        .where(eq(schema.sliders.id, id))
         .returning();
 
       if (!deletedSlider) {
@@ -4724,13 +5084,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("Updating product images:", req.body.images);
 
           // Delete existing images
-          await db.delete(productImages).where(eq(productImages.productId, productId));
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
 
           // Insert new images
           if (req.body.images.length > 0) {
             await Promise.all(
               req.body.images.map(async (imageUrl: string, index: number) => {
-                await db.insert(productImages).values({
+                await db.insert(schema.productImages).values({
                   productId: productId,
                   imageUrl: imageUrl,
                   altText: `${product.name} - Image ${index + 1}`,
@@ -4823,7 +5183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const verifyDelete = await storage.getProduct(productId);
         if (verifyDelete) {
-          console.log(`WARNING: Product ${productId} still existsafter delete operation`);
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
           return res.status(500).json({
             error: "Product deletion verification failed - product still exists",
             success: false,
@@ -5010,13 +5370,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("Updating product images:", req.body.images);
 
           // Delete existing images
-          await db.delete(productImages).where(eq(productImages.productId, productId));
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
 
           // Insert new images
           if (req.body.images.length > 0) {
             await Promise.all(
               req.body.images.map(async (imageUrl: string, index: number) => {
-                await db.insert(productImages).values({
+                await db.insert(schema.productImages).values({
                   productId: productId,
                   imageUrl: imageUrl,
                   altText: `${product.name} - Image ${index + 1}`,
@@ -5109,7 +5469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const verifyDelete = await storage.getProduct(productId);
         if (verifyDelete) {
-          console.log(`WARNING: Product ${productId} still existsafter delete operation`);
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
           return res.status(500).json({
             error: "Product deletion verification failed - product still exists",
             success: false,
@@ -5158,6 +5518,3700 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching product shades:", error);
       res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId),parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const shades = await storage.getProductShades(parseInt(productId));
+      res.json(shades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
+      };
+
+      const review = await storage.createReview(reviewData);
+
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Get user's reviews
+  app.get("/api/users/:userId/reviews", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const userReviews = await storage.getUserReviews(parseInt(userId));
+      res.json(userReviews);
+    } catch (error) {
+      console.error("Error fetching user reviews:", error);
+      res.status(500).json({ error: "Failed to fetch user reviews" });
+    }
+  });
+
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      const product = await storage.updateProduct(productId, req.body);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        try {
+          console.log("Updating product images:", req.body.images);
+
+          // Delete existing images
+          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+
+          // Insert new images
+          if (req.body.images.length > 0) {
+            await Promise.all(
+              req.body.images.map(async (imageUrl: string, index: number) => {
+                await db.insert(schema.productImages).values({
+                  productId: productId,
+                  imageUrl: imageUrl,
+                  altText: `${product.name} - Image ${index + 1}`,
+                  isPrimary: index === 0, // First image is primary
+                  sortOrder: index
+                });
+              })
+            );
+          }
+
+          console.log("Product images updated successfully");
+        } catch (imageError) {
+          console.error('Error updating product images:', imageError);
+          // Continue even if image update fails
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
     }
   });
 

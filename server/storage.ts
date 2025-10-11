@@ -15,6 +15,7 @@ import {
   blogCategories,
   sliders,
   productImages,
+  featuredSections,
   type Product,
   type Category,
   type Subcategory,
@@ -30,7 +31,11 @@ import {
   type InsertShade,
   type InsertReview,
   type InsertBlogPost,
-  type InsertBlogCategory
+  type InsertBlogCategory,
+  // Import the productShades table
+  productShades,
+  categorySliders,
+  testimonials
 } from "@shared/schema";
 import dotenv from "dotenv";
 
@@ -112,7 +117,7 @@ export interface IStorage {
   createShade(shade: InsertShade): Promise<Shade>;
   updateShade(id: number, shade: Partial<InsertShade>): Promise<Shade | undefined>;
   deleteShade(id: number): Promise<boolean>;
-  getProductShades(productId: number): Promise<any[]>;
+  getProductShades(productId: number): Promise<any[]>; // Changed to use the new method
 
    // Review Management Functions
   createReview(reviewData: InsertReview): Promise<Review>;
@@ -129,14 +134,14 @@ export interface IStorage {
   createBlogPost(postData: InsertBlogPost): Promise<BlogPost>; // Changed from any to InsertBlogPost and BlogPost
   updateBlogPost(id: number, postData: Partial<InsertBlogPost>): Promise<BlogPost | undefined>; // Changed from any to Partial<InsertBlogPost> and BlogPost | undefined
   deleteBlogPost(id: number): Promise<boolean>;
-  searchBlogPosts(query: string): Promise<BlogPost[]>; // Changed from any[] to BlogPo
+  searchBlogPosts(query: string): Promise<BlogPost[]>;
 
   // Featured Sections Management Functions
   getFeaturedSections(): Promise<FeaturedSection[]>;
   getActiveFeaturedSections(): Promise<FeaturedSection[]>;
   createFeaturedSection(sectionData: InsertFeaturedSection): Promise<FeaturedSection>;
   updateFeaturedSection(id: number, sectionData: Partial<InsertFeaturedSection>): Promise<FeaturedSection | undefined>;
-  deleteFeaturedSection(id: number): Promise<boolean>;st[]
+  deleteFeaturedSection(id: number): Promise<boolean>;
 
   // Blog Categories
   getBlogCategories(): Promise<BlogCategory[]>; // Changed from any[] to BlogCategory[]
@@ -150,11 +155,62 @@ export interface IStorage {
   createSlider(sliderData: any): Promise<any>;
   updateSlider(id: number, sliderData: any): Promise<any>;
   deleteSlider(id: number): Promise<boolean>;
+
+  // Category slider management
+  getCategorySliders(categoryId: number): Promise<any[]>;
+  createCategorySlider(sliderData: any): Promise<any>;
+  updateCategorySlider(id: number, sliderData: any): Promise<any>;
+  deleteCategorySlider(id: number): Promise<boolean>;
+
+  // Testimonials management
+  getTestimonials(): Promise<any[]>;
+  getActiveTestimonials(): Promise<any[]>;
+  getTestimonial(id: number): Promise<any | undefined>;
+  createTestimonial(testimonialData: any): Promise<any>;
+  updateTestimonial(id: number, testimonialData: any): Promise<any>;
+  deleteTestimonial(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
   constructor() {
     // Database connection is handled by the singleton instance above
+  }
+
+  // Featured Sections
+  async getFeaturedSections(): Promise<any[]> {
+    const db = await getDb();
+    return await db.select().from(featuredSections).orderBy(asc(featuredSections.displayOrder));
+  }
+
+  async getActiveFeaturedSections(): Promise<any[]> {
+    const db = await getDb();
+    return await db
+      .select()
+      .from(featuredSections)
+      .where(eq(featuredSections.isActive, true))
+      .orderBy(asc(featuredSections.displayOrder));
+  }
+
+  async createFeaturedSection(sectionData: any): Promise<any> {
+    const db = await getDb();
+    const result = await db.insert(featuredSections).values(sectionData).returning();
+    return result[0];
+  }
+
+  async updateFeaturedSection(id: number, sectionData: any): Promise<any | undefined> {
+    const db = await getDb();
+    const result = await db
+      .update(featuredSections)
+      .set({ ...sectionData, updatedAt: new Date() })
+      .where(eq(featuredSections.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteFeaturedSection(id: number): Promise<boolean> {
+    const db = await getDb();
+    const result = await db.delete(featuredSections).where(eq(featuredSections.id, id));
+    return result.rowCount > 0;
   }
 
   // Users
@@ -839,49 +895,24 @@ export class DatabaseStorage implements IStorage {
   async getProductShades(productId: number): Promise<any[]> {
     try {
       const db = await getDb();
+      const productShadesResult = await db
+        .select({
+          id: shades.id,
+          name: shades.name,
+          colorCode: shades.colorCode,
+          value: shades.value,
+          imageUrl: shades.imageUrl,
+          isActive: shades.isActive,
+          sortOrder: shades.sortOrder,
+        })
+        .from(productShades)
+        .innerJoin(shades, eq(productShades.shadeId, shades.id))
+        .where(eq(productShades.productId, productId))
+        .orderBy(asc(shades.sortOrder));
 
-      // Get product details
-      const product = await this.getProduct(productId);
-      if (!product) return [];
-
-      // Get all active shades
-      const allShades = await this.getActiveShades();
-
-      // Get all categories and subcategories for faster lookup
-      const allCategories = await this.getCategories();
-      const allSubcategories = await this.getSubcategories();
-
-      // Filter shades based on product's category/subcategory
-      const productShades = allShades.filter(shade => {
-        // Check if shade has specific product IDs assigned
-        if (shade.productIds && Array.isArray(shade.productIds)) {
-          if (shade.productIds.includes(productId)) return true;
-        }
-
-        // Check category match
-        if (shade.categoryIds && Array.isArray(shade.categoryIds)) {
-          const hasMatchingCategory = shade.categoryIds.some((catId: number) => {
-            const category = allCategories.find(cat => cat.id === catId);
-            return category && category.name.toLowerCase() === product.category.toLowerCase();
-          });
-          if (hasMatchingCategory) return true;
-        }
-
-        // Check subcategory match
-        if (shade.subcategoryIds && Array.isArray(shade.subcategoryIds) && product.subcategory) {
-          const hasMatchingSubcategory = shade.subcategoryIds.some((subId: number) => {
-            const subcategory = allSubcategories.find(sub => sub.id === subId);
-            return subcategory && subcategory.name.toLowerCase() === product.subcategory.toLowerCase();
-          });
-          if (hasMatchingSubcategory) return true;
-        }
-
-        return false;
-      });
-
-      return productShades;
+      return productShadesResult;
     } catch (error) {
-      console.error("Error getting product shades:", error);
+      console.error("Error fetching product shades:", error);
       return [];
     }
   }
@@ -1232,6 +1263,13 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Featured Sections Management Functions
+  getFeaturedSections(): Promise<FeaturedSection[]>;
+  getActiveFeaturedSections(): Promise<FeaturedSection[]>;
+  createFeaturedSection(sectionData: InsertFeaturedSection): Promise<FeaturedSection>;
+  updateFeaturedSection(id: number, sectionData: Partial<InsertFeaturedSection>): Promise<FeaturedSection | undefined>;
+  deleteFeaturedSection(id: number): Promise<boolean>;
+
   // Blog Categories
 
   // Get all blog categories
@@ -1415,6 +1453,106 @@ export class DatabaseStorage implements IStorage {
       return result.length > 0;
     } catch (error) {
       console.error("Error deleting slider:", error);
+      throw error;
+    }
+  }
+
+  // Category slider management
+  async getCategorySliders(categoryId: number): Promise<any[]>;
+  async createCategorySlider(sliderData: any): Promise<any>;
+  async updateCategorySlider(id: number, sliderData: any): Promise<any>;
+  async deleteCategorySlider(id: number): Promise<boolean> {
+    try {
+      const db = await getDb();
+      const result = await db.delete(categorySliders).where(eq(categorySliders.id, id)).returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting category slider:", error);
+      throw error;
+    }
+  }
+
+  // Testimonials Management
+  async getTestimonials(): Promise<any[]> {
+    try {
+      const db = await getDb();
+      const result = await db.select().from(testimonials).orderBy(desc(testimonials.sortOrder));
+      return result;
+    } catch (error) {
+      console.error("Error fetching testimonials:", error);
+      return [];
+    }
+  }
+
+  async getActiveTestimonials(): Promise<any[]> {
+    try {
+      const db = await getDb();
+      const result = await db
+        .select()
+        .from(testimonials)
+        .where(eq(testimonials.isActive, true))
+        .orderBy(asc(testimonials.sortOrder));
+      return result;
+    } catch (error) {
+      console.error("Error fetching active testimonials:", error);
+      return [];
+    }
+  }
+
+  async getTestimonial(id: number): Promise<any | undefined> {
+    try {
+      const db = await getDb();
+      const result = await db.select().from(testimonials).where(eq(testimonials.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error fetching testimonial:", error);
+      return undefined;
+    }
+  }
+
+  async createTestimonial(testimonialData: any): Promise<any> {
+    try {
+      const db = await getDb();
+      const [result] = await db.insert(testimonials).values({
+        customerName: testimonialData.customerName,
+        customerImage: testimonialData.customerImage || null,
+        rating: testimonialData.rating || 5,
+        reviewText: testimonialData.reviewText,
+        isActive: testimonialData.isActive !== false,
+        sortOrder: testimonialData.sortOrder || 0,
+      }).returning();
+      return result;
+    } catch (error) {
+      console.error("Error creating testimonial:", error);
+      throw error;
+    }
+  }
+
+  async updateTestimonial(id: number, testimonialData: any): Promise<any> {
+    try {
+      const db = await getDb();
+      const [result] = await db
+        .update(testimonials)
+        .set({
+          ...testimonialData,
+          updatedAt: new Date(),
+        })
+        .where(eq(testimonials.id, id))
+        .returning();
+      return result;
+    } catch (error) {
+      console.error("Error updating testimonial:", error);
+      throw error;
+    }
+  }
+
+  async deleteTestimonial(id: number): Promise<boolean> {
+    try {
+      const db = await getDb();
+      const result = await db.delete(testimonials).where(eq(testimonials.id, id)).returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting testimonial:", error);
       throw error;
     }
   }

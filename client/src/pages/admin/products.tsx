@@ -51,13 +51,13 @@ interface Product {
   bestseller?: boolean;
   newLaunch?: boolean;
   saleOffer?: string;
-  variants?: string;
+  size?: string;
   ingredients?: string;
   benefits?: string;
   howToUse?: string;
-  size?: string;
   tags?: string;
   skinType?: string;
+  shadeIds?: number[]; // Added for shade management
 }
 
 interface Category {
@@ -80,12 +80,19 @@ interface Subcategory {
   productCount: number;
 }
 
+interface Shade {
+  id: number;
+  name: string;
+  colorCode: string;
+}
+
 export default function AdminProducts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [shades, setShades] = useState<Shade[]>([]); // State for shades
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +122,8 @@ export default function AdminProducts() {
     benefits: '',
     howToUse: '',
     tags: '',
-    skinType: ''
+    skinType: '',
+    shadeIds: [] as number[], // Initialize shadeIds as an empty array
   });
 
   const [editImages, setEditImages] = useState<File[]>([]);
@@ -160,18 +168,21 @@ export default function AdminProducts() {
       setProducts(validProductsData);
       setFilteredProducts(validProductsData);
 
-      // Fetch categories and subcategories in parallel
+      // Fetch categories, subcategories, and shades in parallel
       try {
-        const [categoriesRes, subcategoriesRes] = await Promise.all([
+        const [categoriesRes, subcategoriesRes, shadesRes] = await Promise.all([
           fetch('/api/categories'),
-          fetch('/api/subcategories')
+          fetch('/api/subcategories'),
+          fetch('/api/shades') // Fetch shades
         ]);
 
         console.log("Categories API response:", categoriesRes.status);
         console.log("Subcategories API response:", subcategoriesRes.status);
+        console.log("Shades API response:", shadesRes.status); // Log shades API response
 
         let categoriesData = [];
         let subcategoriesData = [];
+        let shadesData = [];
 
         if (categoriesRes.ok) {
           categoriesData = await categoriesRes.json();
@@ -187,13 +198,22 @@ export default function AdminProducts() {
           console.warn("Subcategories API failed, using empty array");
         }
 
+        if (shadesRes.ok) {
+          shadesData = await shadesRes.json();
+          console.log("Shades data received:", shadesData?.length || 0, "shades");
+        } else {
+          console.warn("Shades API failed, using empty array");
+        }
+
         setCategories(Array.isArray(categoriesData) ? categoriesData : []);
         setSubcategories(Array.isArray(subcategoriesData) ? subcategoriesData : []);
+        setShades(Array.isArray(shadesData) ? shadesData : []); // Set shades state
 
       } catch (metaDataError) {
-        console.warn("Failed to fetch categories/subcategories:", metaDataError);
+        console.warn("Failed to fetch categories/subcategories/shades:", metaDataError);
         setCategories([]);
         setSubcategories([]);
+        setShades([]);
       }
 
     } catch (err) {
@@ -202,6 +222,7 @@ export default function AdminProducts() {
       setProducts([]);
       setCategories([]);
       setSubcategories([]);
+      setShades([]);
       setFilteredProducts([]);
     } finally {
       setLoading(false);
@@ -254,7 +275,8 @@ export default function AdminProducts() {
         benefits: product.benefits || '',
         howToUse: product.howToUse || '',
         tags: product.tags || '',
-        skinType: product.skinType || ''
+        skinType: product.skinType || '',
+        shadeIds: product.shadeIds || [], // Set shadeIds from product data
       });
 
       // Set existing images for preview
@@ -319,7 +341,8 @@ export default function AdminProducts() {
           tags: editFormData.tags || null,
           skinType: editFormData.skinType || null,
           images: finalImages,
-          imageUrl: finalImages[0] || editFormData.imageUrl
+          imageUrl: finalImages[0] || editFormData.imageUrl,
+          shadeIds: editFormData.shadeIds, // Include shadeIds in updateData
         };
 
         console.log('Updating product with data:', updateData);
@@ -486,7 +509,7 @@ export default function AdminProducts() {
       filteredCount: filteredProducts.length,
       activeFilters
     });
-    
+
     // Check if any filters are actually active
     const hasActiveFilters = Object.keys(activeFilters).some(key => {
       const value = activeFilters[key];
@@ -569,7 +592,7 @@ export default function AdminProducts() {
             <p className="text-slate-600 mt-1">Loading your beauty product inventory...</p>
           </div>
         </div>
-        
+
         <div className="flex items-center justify-center p-12">
           <div className="text-center">
             <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-pink-600" />
@@ -593,7 +616,7 @@ export default function AdminProducts() {
             <p className="text-slate-600 mt-1">There was an error loading your products</p>
           </div>
         </div>
-        
+
         <div className="flex items-center justify-center p-12">
           <div className="text-center bg-red-50 border border-red-200 rounded-lg p-8 max-w-md mx-auto">
             <div className="text-red-600 mb-4">
@@ -1221,14 +1244,52 @@ export default function AdminProducts() {
 
             {/* Product Tags */}
             <div className="space-y-2">
-              <Label htmlFor="edit-tags">Tags (comma separated)</Label>
-              <Input
-                id="edit-tags"
-                value={editFormData.tags}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, tags: e.target.value }))}
-                placeholder="organic, cruelty-free, vegan"
-              />
-            </div>
+                <Label htmlFor="edit-tags">Tags (comma separated)</Label>
+                <Input
+                  id="edit-tags"
+                  value={editFormData.tags}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, tags: e.target.value }))}
+                  placeholder="organic, cruelty-free, vegan"
+                />
+              </div>
+
+              {/* Product Shades */}
+              <div className="space-y-2">
+                <Label>Product Shades (Optional)</Label>
+                <p className="text-sm text-gray-500">Select shades available for this product</p>
+                <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                  {shades && shades.length > 0 ? (
+                    shades.map((shade: any) => (
+                      <div key={shade.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                        <Checkbox
+                          id={`edit-shade-${shade.id}`}
+                          checked={editFormData.shadeIds?.includes(shade.id) || false}
+                          onCheckedChange={(checked) => {
+                            setEditFormData(prev => ({
+                              ...prev,
+                              shadeIds: checked 
+                                ? [...(prev.shadeIds || []), shade.id]
+                                : (prev.shadeIds || []).filter(id => id !== shade.id)
+                            }));
+                          }}
+                        />
+                        <Label 
+                          htmlFor={`edit-shade-${shade.id}`} 
+                          className="flex items-center gap-2 cursor-pointer flex-1"
+                        >
+                          <div 
+                            className="w-6 h-6 rounded border border-gray-300" 
+                            style={{ backgroundColor: shade.colorCode }}
+                          />
+                          <span>{shade.name}</span>
+                        </Label>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">No shades available. Create shades in the Shades section first.</p>
+                  )}
+                </div>
+              </div>
 
             {/* Product Flags */}
             <div className="space-y-4">

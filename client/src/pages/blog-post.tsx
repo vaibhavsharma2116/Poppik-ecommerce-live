@@ -1,11 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { useParams, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, User, ArrowLeft, Share2, Eye, Play } from "lucide-react";
+import { Calendar, Clock, User, ArrowLeft, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface BlogPost {
@@ -31,9 +29,10 @@ interface BlogPost {
 export default function BlogPostDetail() {
   const { slug } = useParams();
   const [post, setPost] = useState<BlogPost | null>(null);
+  const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,16 +41,17 @@ export default function BlogPostDetail() {
     }
   }, [slug]);
 
-  
-
   const fetchBlogPost = async (postSlug: string) => {
     try {
       setLoading(true);
       const response = await fetch(`/api/blog/posts/${postSlug}`);
-      
+
       if (response.ok) {
         const data = await response.json();
         setPost(data);
+
+        // Fetch related posts
+        fetchRelatedPosts(data.category, data.id);
       } else {
         setError("Blog post not found");
       }
@@ -63,12 +63,26 @@ export default function BlogPostDetail() {
     }
   };
 
-  
+  const fetchRelatedPosts = async (category: string, currentPostId: number) => {
+    try {
+      const response = await fetch(`/api/blog/posts?category=${category}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Filter out current post and limit to 3
+        const filtered = data
+          .filter((p: BlogPost) => p.id !== currentPostId)
+          .slice(0, 3);
+        setRelatedPosts(filtered);
+      }
+    } catch (error) {
+      console.error("Error fetching related posts:", error);
+    }
+  };
 
   const handleShare = async () => {
     const url = window.location.href;
     const title = post?.title || "Check out this blog post";
-    
+
     if (navigator.share) {
       try {
         await navigator.share({
@@ -83,7 +97,6 @@ export default function BlogPostDetail() {
         console.log("Sharing canceled");
       }
     } else {
-      // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(url);
         toast({
@@ -100,15 +113,13 @@ export default function BlogPostDetail() {
     }
   };
 
-  
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded mb-4"></div>
-            <div className="h-64 bg-gray-200 rounded mb-6"></div>
+      <div className="min-h-screen bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="animate-pulse space-y-8">
+            <div className="h-96 bg-gray-200 rounded"></div>
+            <div className="h-8 bg-gray-200 rounded w-3/4"></div>
             <div className="space-y-3">
               <div className="h-4 bg-gray-200 rounded"></div>
               <div className="h-4 bg-gray-200 rounded w-5/6"></div>
@@ -122,14 +133,14 @@ export default function BlogPostDetail() {
 
   if (error || !post) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="min-h-screen bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <Card className="text-center py-12">
             <CardContent>
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">Post Not Found</h1>
+              <h1 className="text-2xl font-medium text-gray-900 mb-4">Post Not Found</h1>
               <p className="text-gray-600 mb-6">{error}</p>
               <Link href="/blog">
-                <Button>
+                <Button variant="outline">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Blog
                 </Button>
@@ -142,160 +153,174 @@ export default function BlogPostDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <Link href="/blog">
-            <Button variant="ghost" className="mb-4">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Blog
-            </Button>
-          </Link>
-          
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-            <Badge variant="outline">{post.category}</Badge>
-            <span className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              {new Date(post.createdAt).toLocaleDateString()}
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {post.readTime}
-            </span>
-            {post.featured && (
-              <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">
-                Featured
-              </Badge>
-            )}
+    <div className="min-h-screen bg-white">
+      {/* Hero Section with Featured Image */}
+      <div className="w-full bg-gray-100">
+        {post.videoUrl ? (
+          <video 
+            className="w-full h-[500px] object-cover"
+            controls
+            preload="metadata"
+            poster={post.imageUrl}
+          >
+            <source src={post.videoUrl} type="video/mp4" />
+          </video>
+        ) : (
+          <img
+            src={post.imageUrl}
+            alt={post.title}
+            className="w-full h-[500px] object-cover"
+          />
+        )}
+      </div>
+
+      {/* Title and Metadata Section - Below Image */}
+      <div className="bg-white border-b">
+        <div className="max-w-6xl mx-auto px-8 md:px-12 py-8">
+          <div className="mb-4">
+            <Link href="/blog">
+              <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
+                Home
+              </Button>
+            </Link>
+            <span className="text-gray-400 mx-2">/</span>
+            <span className="text-gray-600">The World of Faces</span>
           </div>
-          
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 leading-tight">
+
+          <p className="text-gray-500 text-sm mb-4">
+            {new Date(post.createdAt).toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: '2-digit', 
+              year: 'numeric' 
+            })}
+          </p>
+
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
             {post.title}
           </h1>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-gray-500" />
-                <span className="font-medium text-gray-900">{post.author}</span>
-              </div>
-            </div>
-            
+
+          {/* <div className="flex items-center gap-6 text-gray-600 text-sm">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={handleShare} className="text-gray-500">
-                <Share2 className="h-4 w-4" />
-              </Button>
+              <User className="h-4 w-4" />
+              <span>{post.author}</span>
             </div>
-          </div>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              <span>{post.readTime}</span>
+            </div>
+            <Badge variant="outline" className="border-gray-300">
+              {post.category}
+            </Badge>
+          </div> */}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Featured Image/Video */}
-        <div className="relative mb-8 rounded-xl overflow-hidden shadow-lg" style={{ height: '500px' }}>
-          {post.videoUrl ? (
-            <video 
-              className="w-full h-full"
-              controls
-              preload="metadata"
-              poster={post.imageUrl}
-            >
-              <source src={post.videoUrl} type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
-          ) : (
-            <img
-              src={post.imageUrl}
-              alt={post.title}
-              className="w-full h-full"
-            />
-          )}
+      {/* Main Content */}
+      <article className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Author & Meta Info */}
+        <div className="py-8 border-b flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+              <User className="h-6 w-6 text-gray-600" />
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">{post.author}</p>
+              <p className="text-sm text-gray-500">Beauty Expert</p>
+            </div>
+          </div>
+
+          <Button variant="ghost" size="sm" onClick={handleShare}>
+            <Share2 className="h-4 w-4 mr-2" />
+            Share
+          </Button>
         </div>
 
-        {/* Article Content */}
-        <Card className="mb-8">
-          <CardContent className="p-8">
-            {/* Excerpt */}
-            <div className="text-lg text-gray-600 mb-6 font-medium leading-relaxed border-l-4 border-pink-500 pl-6 bg-pink-50 py-4 rounded-r-lg">
-              {post.excerpt}
-            </div>
-            
-            <Separator className="my-8" />
-            
-            {/* Main Content */}
-            <div className="prose prose-lg max-w-none">
-              <div 
-                className="text-gray-800 leading-relaxed space-y-6"
-                style={{ whiteSpace: 'pre-wrap' }}
-              >
-                {post.content.split('\n\n').map((paragraph, index) => (
-                  <p key={index} className="text-base leading-7">
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
-            </div>
-            
-            <Separator className="my-8" />
-            
-            {/* Tags */}
-            {post.tags && post.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-6">
-                <span className="text-sm font-medium text-gray-700 mr-2">Tags:</span>
-                {post.tags.map((tag, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    #{tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            
-            {/* Article Actions */}
-            <div className="flex items-center justify-between pt-6 border-t">
-              <div className="flex items-center gap-4">
-                <Button variant="outline" size="sm" onClick={handleShare} className="flex items-center gap-2">
-                  <Share2 className="h-4 w-4" />
-                  Share
-                </Button>
-              </div>
-              
-              <div className="text-sm text-gray-500">
-                Last updated: {new Date(post.updatedAt).toLocaleDateString()}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        
-
-        {/* Author Info */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
-                <User className="h-8 w-8 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">About {post.author}</h3>
-                <p className="text-gray-600">
-                  Beauty expert and content creator passionate about helping others discover their perfect look.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Back to Blog */}
-        <div className="text-center">
-          <Link href="/blog">
-            <Button size="lg" className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Explore More Articles
-            </Button>
-          </Link>
+        {/* Excerpt */}
+        <div className="py-8">
+          <p className="text-xl text-gray-700 leading-relaxed font-light">
+            {post.excerpt}
+          </p>
         </div>
+
+        {/* Content Sections */}
+        <div className="prose prose-lg max-w-none mb-12 blog-content">
+          <div dangerouslySetInnerHTML={{ __html: post.content }} />
+        </div>
+
+        {/* Tags */}
+        {post.tags && post.tags.length > 0 && (
+          <div className="py-8 border-t border-b">
+            <div className="flex flex-wrap gap-2">
+              {post.tags.map((tag, index) => (
+                <Badge 
+                  key={index} 
+                  variant="secondary" 
+                  className="bg-gray-100 text-gray-700 hover:bg-gray-200 px-4 py-2"
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </article>
+
+      {/* Related Posts Section */}
+      {relatedPosts.length > 0 && (
+        <section className="py-16 bg-gray-50">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">You may also like</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {relatedPosts.map((relatedPost) => (
+                <Link key={relatedPost.id} href={`/blog/${relatedPost.slug}`}>
+                  <div className="group cursor-pointer">
+                    <div className="relative overflow-hidden bg-gray-100 mb-4" style={{ paddingBottom: '66.67%' }}>
+                      <img
+                        src={relatedPost.imageUrl}
+                        alt={relatedPost.title}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+
+                    <p className="text-sm text-gray-500 mb-2">
+                      {new Date(relatedPost.createdAt).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: '2-digit', 
+                        year: 'numeric' 
+                      })}
+                    </p>
+
+                    <h3 className="text-lg font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2">
+                      {relatedPost.title}
+                    </h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            <div className="text-center mt-12">
+              <Link href="/blog">
+                {/* <Button 
+                  variant="default" 
+                  className="bg-red-600 hover:bg-red-700 text-white px-8 py-6 text-base"
+                >
+                  VIEW ALL
+                </Button> */}
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Back to Blog CTA */}
+      <div className="py-12 text-center bg-white">
+        <Link href="/blog">
+          <Button variant="outline" size="lg">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Explore More Articles
+          </Button>
+        </Link>
       </div>
     </div>
   );

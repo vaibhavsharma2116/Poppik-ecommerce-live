@@ -34,9 +34,11 @@ import AdminProfile from "@/pages/admin/profile";
 import AdminChangePassword from "@/pages/admin/change-password";
 import AdminSliders from "@/pages/admin/sliders";
 import AdminContactSubmissions from "@/pages/admin/contact-submissions";
+import AdminTestimonials from "@/pages/admin/testimonials";
 import NotFound from "@/pages/not-found";
 import { lazy, Suspense, startTransition, useEffect } from 'react';
 import AdminShades from "./pages/admin/shades";
+import AdminFeaturedSections from "@/pages/admin/featured-sections";
 import BlogPost from "./pages/blog-post";
 
 const AdminBlog = lazy(() => import("./pages/admin/blog"));
@@ -81,9 +83,11 @@ function Router() {
                 <AdminBlog />
               </Suspense>
             </Route>
+            <Route path="/shades" component={AdminShades} />
+            <Route path="/featured-sections" component={AdminFeaturedSections} />
+            <Route path="/testimonials" component={AdminTestimonials} />
             <Route path="/settings" component={AdminSettings} />
             <Route path="/profile" component={AdminProfile} />
-            <Route path="/shades" component={AdminShades} />
             <Route path="/change-password" component={AdminChangePassword} />
              <Route path="/contact-submissions" component={AdminContactSubmissions} />
             <Route path="/reports">

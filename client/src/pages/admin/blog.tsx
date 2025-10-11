@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/admin/rich-text-editor";
 import { 
   Plus, 
   Search, 
@@ -28,8 +29,46 @@ import {
   Calendar,
   User,
   Tag,
-  Play
+  Play,
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Heading1,
+  Heading2,
+  ListOrdered,
+  ListIcon
 } from "lucide-react";
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { TextAlign } from '@tiptap/extension-text-align';
+import { Underline } from '@tiptap/extension-underline';
+import { Image as TipTapImage } from '@tiptap/extension-image';
+import { Link } from '@tiptap/extension-link';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
+import { FontFamily } from '@tiptap/extension-font-family';
+
+// Custom FontSize extension
+const FontSize = TextStyle.extend({
+  addAttributes() {
+    return {
+      fontSize: {
+        default: null,
+        parseHTML: element => element.style.fontSize,
+        renderHTML: attributes => {
+          if (!attributes.fontSize) {
+            return {};
+          }
+          return { style: `font-size: ${attributes.fontSize}` };
+        },
+      },
+    };
+  },
+});
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,6 +143,38 @@ export default function AdminBlog() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingPost, setDeletingPost] = useState<BlogPost | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Rich text editor
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+      Underline,
+      TipTapImage.configure({
+        inline: true,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'blog-image',
+        },
+      }),
+      Link.configure({
+        openOnClick: false,
+      }),
+      TextStyle,
+      FontSize,
+      Color,
+      FontFamily.configure({
+        types: ['textStyle'],
+      }),
+    ],
+    content: '',
+    onUpdate: ({ editor }) => {
+      setFormData(prev => ({ ...prev, content: editor.getHTML() }));
+    },
+  });
 
   // Form states
   const [formData, setFormData] = useState({
@@ -255,6 +326,8 @@ export default function AdminBlog() {
       readTime: '5 min read'
     });
     setFiles({});
+    editor?.commands.setContent('');
+    setShowPreview(false);
   };
 
   const resetCategoryForm = () => {
@@ -281,6 +354,7 @@ export default function AdminBlog() {
       published: post.published,
       readTime: post.readTime
     });
+    editor?.commands.setContent(post.content);
     setShowAddModal(true);
   };
 
@@ -402,6 +476,10 @@ export default function AdminBlog() {
       });
     }
   });
+
+  const handlePreview = () => {
+    setShowPreview(true);
+  };
 
   return (
     <div className="space-y-8">
@@ -737,14 +815,434 @@ export default function AdminBlog() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="content">Content *</Label>
-              <Textarea
-                id="content"
-                value={formData.content}
-                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                rows={8}
-                required
-              />
+              <Label>Content *</Label>
+              <Tabs defaultValue="editor" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="editor">Editor</TabsTrigger>
+                  <TabsTrigger value="preview" onClick={() => setShowPreview(true)}>Preview</TabsTrigger>
+                </TabsList>
+                <TabsContent value="editor" className="space-y-2">
+                  {/* Advanced Editor Toolbar - Word Style */}
+                  <div className="border rounded-md bg-muted/50">
+                    {/* First Row - Font, Size, and Basic Formatting */}
+                    <div className="p-2 flex flex-wrap items-center gap-2 border-b">
+                      {/* Font Family */}
+                      <select
+                        className="h-8 text-sm border rounded px-2 bg-white w-[160px]"
+                        value={editor?.getAttributes('textStyle').fontFamily || ''}
+                        onChange={(e) => {
+                          const fontFamily = e.target.value;
+                          if (fontFamily && fontFamily !== '') {
+                            editor?.chain().focus().setFontFamily(fontFamily).run();
+                          } else {
+                            editor?.chain().focus().unsetFontFamily().run();
+                          }
+                        }}
+                      >
+                        <option value="">Default Font</option>
+                        <option value="Arial">Arial</option>
+                        <option value="Calibri">Calibri</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Courier New">Courier New</option>
+                        <option value="Comic Sans MS">Comic Sans MS</option>
+                        <option value="Inter">Inter</option>
+                      </select>
+
+                      {/* Font Size */}
+                      <select
+                        className="h-8 text-sm border rounded px-2 bg-white"
+                        defaultValue="16px"
+                        onChange={(e) => {
+                          const size = e.target.value;
+                          if (size) {
+                            editor?.commands.setMark('textStyle', { fontSize: size });
+                          }
+                        }}
+                      >
+                        <option value="">Font Size</option>
+                        <option value="8px">8</option>
+                        <option value="10px">10</option>
+                        <option value="12px">12</option>
+                        <option value="14px">14</option>
+                        <option value="16px">16</option>
+                        <option value="18px">18</option>
+                        <option value="20px">20</option>
+                        <option value="24px">24</option>
+                        <option value="28px">28</option>
+                        <option value="32px">32</option>
+                        <option value="36px">36</option>
+                        <option value="48px">48</option>
+                        <option value="72px">72</option>
+                      </select>
+
+                      <div className="w-px h-8 bg-border" />
+
+                      {/* Text Formatting */}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={editor?.isActive('bold') ? 'secondary' : 'ghost'}
+                        onClick={() => editor?.chain().focus().toggleBold().run()}
+                        title="Bold (Ctrl+B)"
+                      >
+                        <Bold className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={editor?.isActive('italic') ? 'secondary' : 'ghost'}
+                        onClick={() => editor?.chain().focus().toggleItalic().run()}
+                        title="Italic (Ctrl+I)"
+                      >
+                        <Italic className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={editor?.isActive('underline') ? 'secondary' : 'ghost'}
+                        onClick={() => editor?.chain().focus().toggleUnderline().run()}
+                        title="Underline (Ctrl+U)"
+                      >
+                        <UnderlineIcon className="h-4 w-4" />
+                      </Button>
+
+                      <div className="w-px h-8 bg-border" />
+
+                      {/* Text Color & Highlight */}
+                      <div className="flex items-center gap-1">
+                        <Label htmlFor="text-color" className="cursor-pointer">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            asChild
+                            title="Text Color"
+                          >
+                            <span className="flex items-center gap-1">
+                              <div className="h-4 w-4 border rounded" style={{ backgroundColor: editor?.getAttributes('textStyle').color || '#000000' }} />
+                              <span className="text-xs">A</span>
+                            </span>
+                          </Button>
+                        </Label>
+                        <input
+                          id="text-color"
+                          type="color"
+                          className="hidden"
+                          onInput={(e) => editor?.chain().focus().setColor((e.target as HTMLInputElement).value).run()}
+                        />
+                      </div>
+
+                      <div className="w-px h-8 bg-border" />
+
+                      {/* Headings */}
+                      <Select 
+                        value={
+                          editor?.isActive('heading', { level: 1 }) ? 'heading1' :
+                          editor?.isActive('heading', { level: 2 }) ? 'heading2' :
+                          editor?.isActive('heading', { level: 3 }) ? 'heading3' :
+                          'paragraph'
+                        }
+                        onValueChange={(value) => {
+                          if (value === 'paragraph') {
+                            editor?.chain().focus().setParagraph().run();
+                          } else if (value === 'heading1') {
+                            editor?.chain().focus().setHeading({ level: 1 }).run();
+                          } else if (value === 'heading2') {
+                            editor?.chain().focus().setHeading({ level: 2 }).run();
+                          } else if (value === 'heading3') {
+                            editor?.chain().focus().setHeading({ level: 3 }).run();
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[120px] h-8">
+                          <SelectValue placeholder="Style" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="paragraph">Normal</SelectItem>
+                          <SelectItem value="heading1">Heading 1</SelectItem>
+                          <SelectItem value="heading2">Heading 2</SelectItem>
+                          <SelectItem value="heading3">Heading 3</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Second Row - Alignment, Lists, and Insert Options */}
+                    <div className="p-2 flex flex-wrap items-center gap-2">
+                      {/* Text Alignment */}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={editor?.isActive({ textAlign: 'left' }) ? 'secondary' : 'ghost'}
+                        onClick={() => editor?.chain().focus().setTextAlign('left').run()}
+                        title="Align Left"
+                      >
+                        <AlignLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={editor?.isActive({ textAlign: 'center' }) ? 'secondary' : 'ghost'}
+                        onClick={() => editor?.chain().focus().setTextAlign('center').run()}
+                        title="Align Center"
+                      >
+                        <AlignCenter className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={editor?.isActive({ textAlign: 'right' }) ? 'secondary' : 'ghost'}
+                        onClick={() => editor?.chain().focus().setTextAlign('right').run()}
+                        title="Align Right"
+                      >
+                        <AlignRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={editor?.isActive({ textAlign: 'justify' }) ? 'secondary' : 'ghost'}
+                        onClick={() => editor?.chain().focus().setTextAlign('justify').run()}
+                        title="Justify"
+                      >
+                        <AlignJustify className="h-4 w-4" />
+                      </Button>
+
+                      <div className="w-px h-8 bg-border" />
+
+                      {/* Lists */}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={editor?.isActive('bulletList') ? 'secondary' : 'ghost'}
+                        onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                        title="Bullet List"
+                      >
+                        <ListIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={editor?.isActive('orderedList') ? 'secondary' : 'ghost'}
+                        onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                        title="Numbered List"
+                      >
+                        <ListOrdered className="h-4 w-4" />
+                      </Button>
+
+                      <div className="w-px h-8 bg-border" />
+
+                      {/* Insert Image */}
+                      <div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          id="content-image-upload"
+                          onChange={async (e) => {
+                            const files = e.target.files;
+                            if (!files || files.length === 0) return;
+
+                            for (let i = 0; i < files.length; i++) {
+                              const file = files[i];
+                              const formData = new FormData();
+                              formData.append('image', file);
+
+                              try {
+                                const response = await fetch('/api/upload/image', {
+                                  method: 'POST',
+                                  body: formData,
+                                });
+
+                                if (response.ok) {
+                                  const data = await response.json();
+                                  editor?.chain().focus().setImage({ src: data.imageUrl }).run();
+                                }
+                              } catch (error) {
+                                console.error('Error uploading image:', error);
+                              }
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                        <Label htmlFor="content-image-upload">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            asChild
+                            title="Insert Image"
+                          >
+                            <span className="cursor-pointer flex items-center gap-1">
+                              <Upload className="h-4 w-4" />
+                              <span className="text-xs">Image</span>
+                            </span>
+                          </Button>
+                        </Label>
+                      </div>
+
+                      <div className="w-px h-8 bg-border" />
+
+                      {/* Image Alignment Controls */}
+                      <div className="flex items-center gap-1 px-1 py-0.5 rounded bg-background/50">
+                        <span className="text-xs text-muted-foreground mr-1">Image:</span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            if (!editor) return;
+                            
+                            // Find all images in the document
+                            const { state } = editor;
+                            let lastImagePos = -1;
+                            
+                            state.doc.descendants((node, pos) => {
+                              if (node.type.name === 'image') {
+                                lastImagePos = pos;
+                              }
+                            });
+                            
+                            if (lastImagePos >= 0) {
+                              const tr = state.tr;
+                              const imageNode = tr.doc.nodeAt(lastImagePos);
+                              
+                              if (imageNode) {
+                                tr.setNodeMarkup(lastImagePos, null, {
+                                  ...imageNode.attrs,
+                                  style: 'float: left; margin: 0.5rem 1rem 0.5rem 0; max-width: 350px; clear: both;'
+                                });
+                                editor.view.dispatch(tr);
+                              }
+                            }
+                          }}
+                          title="Align Image Left"
+                        >
+                          <AlignLeft className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            if (!editor) return;
+                            
+                            // Find all images in the document
+                            const { state } = editor;
+                            let lastImagePos = -1;
+                            
+                            state.doc.descendants((node, pos) => {
+                              if (node.type.name === 'image') {
+                                lastImagePos = pos;
+                              }
+                            });
+                            
+                            if (lastImagePos >= 0) {
+                              const tr = state.tr;
+                              const imageNode = tr.doc.nodeAt(lastImagePos);
+                              
+                              if (imageNode) {
+                                tr.setNodeMarkup(lastImagePos, null, {
+                                  ...imageNode.attrs,
+                                  style: 'display: block; margin: 1.5rem auto; max-width: 350px; clear: both;'
+                                });
+                                editor.view.dispatch(tr);
+                              }
+                            }
+                          }}
+                          title="Align Image Center"
+                        >
+                          <AlignCenter className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            if (!editor) return;
+                            
+                            // Find all images in the document
+                            const { state } = editor;
+                            let lastImagePos = -1;
+                            
+                            state.doc.descendants((node, pos) => {
+                              if (node.type.name === 'image') {
+                                lastImagePos = pos;
+                              }
+                            });
+                            
+                            if (lastImagePos >= 0) {
+                              const tr = state.tr;
+                              const imageNode = tr.doc.nodeAt(lastImagePos);
+                              
+                              if (imageNode) {
+                                tr.setNodeMarkup(lastImagePos, null, {
+                                  ...imageNode.attrs,
+                                  style: 'float: right; margin: 0.5rem 0 0.5rem 1rem; max-width: 350px; clear: both;'
+                                });
+                                editor.view.dispatch(tr);
+                              }
+                            }
+                          }}
+                          title="Align Image Right"
+                        >
+                          <AlignRight className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Editor Content */}
+                  <div className="border rounded-md min-h-[300px] p-4 prose prose-sm max-w-none">
+                    <EditorContent editor={editor} />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="preview" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>{formData.title || 'Blog Title Preview'}</CardTitle>
+                      <CardDescription>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Badge variant="outline">{formData.category || 'Category'}</Badge>
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {formData.author || 'Author'}
+                          </span>
+                          <span>{formData.readTime}</span>
+                        </div>
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {formData.imageUrl && (
+                        <img 
+                          src={formData.imageUrl} 
+                          alt="Preview" 
+                          className="w-full h-64 object-cover rounded-md"
+                        />
+                      )}
+                      {formData.videoUrl && (
+                        <video 
+                          src={formData.videoUrl} 
+                          controls 
+                          className="w-full rounded-md"
+                        />
+                      )}
+                      <p className="text-muted-foreground italic">
+                        {formData.excerpt || 'Excerpt preview...'}
+                      </p>
+                      <div 
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: formData.content || '<p>Content preview...</p>' }}
+                      />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -833,13 +1331,23 @@ export default function AdminBlog() {
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex justify-between">
               <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingPost ? 'Update' : 'Create'} Post
-              </Button>
+              <div className="flex gap-2">
+                {/* <Button 
+                  type="button" 
+                  variant="secondary"
+                  onClick={handlePreview}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Preview
+                </Button> */}
+                <Button type="submit">
+                  {editingPost ? 'Update' : 'Create'} Post
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>

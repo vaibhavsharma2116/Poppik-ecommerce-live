@@ -14,6 +14,8 @@ import {
   Zap,
   Shield,
   Truck,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Link } from "wouter";
 import HeroBanner from "@/components/hero-banner";
@@ -22,6 +24,152 @@ import Timer from "@/components/timer";
 import { Filter } from "lucide-react";
 import DynamicFilter from "@/components/dynamic-filter";
 import type { Product, Category } from "@/lib/types";
+
+interface Testimonial {
+  id: number;
+  customerName: string;
+  customerImageUrl: string;
+  rating: number;
+  content: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+// Testimonials Carousel Component
+function TestimonialsCarousel() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const { data: testimonials = [], isLoading } = useQuery<Testimonial[]>({
+    queryKey: ['/api/testimonials'],
+  });
+
+  const activeTestimonials = testimonials.filter(t => t.isActive);
+
+  const nextTestimonial = () => {
+    setCurrentIndex((prev) => (prev + 1) % activeTestimonials.length);
+  };
+
+  const prevTestimonial = () => {
+    setCurrentIndex((prev) => (prev - 1 + activeTestimonials.length) % activeTestimonials.length);
+  };
+
+  const getVisibleTestimonials = () => {
+    if (activeTestimonials.length === 0) return [];
+    
+    const visible = [];
+    for (let i = -2; i <= 2; i++) {
+      const index = (currentIndex + i + activeTestimonials.length) % activeTestimonials.length;
+      visible.push({
+        testimonial: activeTestimonials[index],
+        position: i,
+      });
+    }
+    return visible;
+  };
+
+  useEffect(() => {
+    if (activeTestimonials.length > 1) {
+      const interval = setInterval(nextTestimonial, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTestimonials.length, currentIndex]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Skeleton className="w-full max-w-3xl h-64" />
+      </div>
+    );
+  }
+
+  if (activeTestimonials.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">No testimonials available at the moment.</p>
+      </div>
+    );
+  }
+
+  const currentTestimonial = activeTestimonials[currentIndex];
+  const visibleTestimonials = getVisibleTestimonials();
+
+  return (
+    <div className="relative">
+      {/* Profile Images Carousel */}
+      <div className="flex items-center justify-center gap-12 mb-8">
+        <button 
+          onClick={prevTestimonial}
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          aria-label="Previous testimonial"
+        >
+          <ChevronLeft className="w-6 h-6 text-gray-600" />
+        </button>
+
+        <div className="flex items-center gap-16">
+          {visibleTestimonials.map(({ testimonial, position }) => {
+            const isCenter = position === 0;
+            const opacity = position === 0 ? 1 : position === -1 || position === 1 ? 0.7 : 0.5;
+            const size = isCenter ? 'w-24 h-24' : 'w-16 h-16';
+            
+            return (
+              <div
+                key={testimonial.id}
+                className={`${size} rounded-3xl overflow-hidden transition-all duration-300 ${
+                  isCenter ? 'shadow-lg border-4 border-white' : ''
+                }`}
+                style={{ opacity }}
+              >
+                <img
+                  src={testimonial.customerImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop'}
+                  alt={testimonial.customerName}
+                  className="w-full h-full object-cover"
+                  
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        <button 
+          onClick={nextTestimonial}
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          aria-label="Next testimonial"
+        >
+          <ChevronRight className="w-6 h-6 text-gray-600" />
+        </button>
+      </div>
+
+      {/* Testimonial Content */}
+      <div className="text-center max-w-3xl mx-auto">
+        {/* Star Rating */}
+        <div className="flex justify-center gap-1 mb-6">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Star
+              key={star}
+              className={`w-5 h-5 ${
+                star <= currentTestimonial.rating
+                  ? 'text-yellow-400 fill-current'
+                  : 'text-gray-300'
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Testimonial Text */}
+        <p className="text-lg sm:text-xl text-gray-700 mb-6 leading-relaxed">
+          {currentTestimonial.content}
+        </p>
+
+        {/* Customer Name */}
+        <p className="text-sm text-gray-500 italic">— {currentTestimonial.customerName}</p>
+      </div>
+
+      {/* Dots Indicator */}
+     
+    </div>
+  );
+}
+
 // WhatsApp Integration Component has been moved to Layout
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -102,7 +250,7 @@ export default function Home() {
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center mb-20">
-            {/* <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-100 rounded-full mb-6 sm:mb-8 shadow-sm">
+            {/* <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-pink-50 to-purple-500 border border-pink-100 rounded-full mb-6 sm:mb-8 shadow-sm">
               <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text">
                 ✨ Premium Beauty Collection
               </span>
@@ -351,41 +499,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Sections */}
-      {!featuredSectionsLoading && featuredSections && featuredSections.length > 0 && (
-        <section className="py-20 bg-gradient-to-br from-purple-50 via-white to-pink-50 relative overflow-hidden">
-          <div className="mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {featuredSections.map((section) => (
-                <div key={section.id} className="group relative overflow-hidden rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500">
-                  <div className="aspect-[16/9] relative">
-                    <img 
-                      src={section.imageUrl} 
-                      alt={section.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-                    <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
-                      <h3 className="text-3xl font-bold mb-2">{section.title}</h3>
-                      {section.subtitle && (
-                        <p className="text-lg mb-4 opacity-90">{section.subtitle}</p>
-                      )}
-                      {section.linkUrl && section.buttonText && (
-                        <Link href={section.linkUrl}>
-                          <Button className="bg-white text-black hover:bg-gray-100">
-                            {section.buttonText}
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* New Launches Section - Third */}
       <section className="py-20 bg-gradient-to-br from-emerald-50 via-white to-teal-50 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03]">
@@ -491,10 +604,25 @@ export default function Home() {
         </div>
       </section>
 
-      
+      {/* Testimonials Section */}
+      <section className="py-20 bg-gradient-to-br from-rose-50 via-white to-pink-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-medium mb-4">
+              <span className="text-gray-900">Testimonials</span>
+            </h2>
+          </div>
 
-      
+          <TestimonialsCarousel />
+        </div>
+      </section>
 
-      </div>
+      {/* WhatsApp Floating Button */}
+      {/* <WhatsAppButton /> */}
+
+      {/* Footer */}
+      <footer className="bg-black text-black py-16">
+      </footer>
+    </div>
   );
 }

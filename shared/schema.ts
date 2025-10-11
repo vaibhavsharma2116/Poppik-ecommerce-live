@@ -1,4 +1,4 @@
-import { pgTable, text, integer, numeric, boolean, serial, jsonb, varchar, timestamp, json, real } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, numeric, boolean, serial, jsonb, varchar, timestamp, json, real, sqliteTable, sql } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -78,6 +78,7 @@ export const insertSubcategorySchema = createInsertSchema(subcategories).omit({
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+export type SelectUser = typeof users.$inferSelect;
 
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = typeof products.$inferInsert;
@@ -207,6 +208,17 @@ export const reviews = pgTable("reviews", {
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
 
+// Product Shades Junction Table
+export const productShades = pgTable("product_shades", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  shadeId: integer("shade_id").notNull().references(() => shades.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ProductShade = typeof productShades.$inferSelect;
+export type InsertProductShade = typeof productShades.$inferInsert;
+
 // Product Images Table
 export const productImages = pgTable("product_images", {
   id: serial("id").primaryKey(),
@@ -226,12 +238,18 @@ export const blogPosts = pgTable("blog_posts", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   slug: text("slug").notNull().unique(),
+  excerpt: text("excerpt").notNull(),
   content: text("content").notNull(),
-  excerpt: text("excerpt"),
-  featuredImage: text("featured_image"),
   author: text("author").notNull(),
-  published: boolean("published").default(false),
+  category: text("category").notNull(),
+  tags: text("tags"),
+  imageUrl: text("image_url"),
+  videoUrl: text("video_url"),
   featured: boolean("featured").default(false),
+  published: boolean("published").default(true),
+  likes: integer("likes").default(0),
+  comments: integer("comments").default(0),
+  readTime: text("read_time").default("5 min read"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -280,3 +298,19 @@ export const categorySliders = pgTable("category_sliders", {
 
 export type CategorySlider = typeof categorySliders.$inferSelect;
 export type InsertCategorySlider = typeof categorySliders.$inferInsert;
+
+// Testimonials Table
+export const testimonials = pgTable("testimonials", {
+  id: serial("id").primaryKey(),
+  customerName: varchar("customer_name", { length: 255 }).notNull(),
+  customerImage: text("customer_image"),
+  rating: integer("rating").notNull().default(5),
+  reviewText: text("review_text").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type Testimonial = typeof testimonials.$inferSelect;
+export type InsertTestimonial = typeof testimonials.$inferInsert;

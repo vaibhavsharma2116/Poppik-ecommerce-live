@@ -99,6 +99,12 @@ const sidebarItems = [
     badge: null,
   },
   {
+    title: "Testimonials",
+    href: "/testimonials",
+    icon: User,
+    badge: null,
+  },
+  {
     title: "Blog",
     href: "/blog",
     icon: FileText,
@@ -259,7 +265,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             {/* Mobile Navigation */}
-            <nav className="flex-1 px-3 py-6 space-y-1">
+            <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto scrollbar-custom">
               {sidebarItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location === item.href;
@@ -327,7 +333,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-6 space-y-1">
+        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto scrollbar-custom">
           {sidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = location === item.href;
@@ -361,7 +367,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Footer */}
         <div className="px-3 py-4 border-t border-slate-700/50">
-          <Button 
+          {/* <Button 
             variant="ghost"
             onClick={handleLogout}
             className={cn(
@@ -371,7 +377,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           >
             <LogOut className={cn("transition-colors", sidebarCollapsed ? "w-5 h-5" : "w-4 h-4 mr-3")} />
             {!sidebarCollapsed && "Logout"}
-          </Button>
+          </Button> */}
         </div>
       </div>
 
