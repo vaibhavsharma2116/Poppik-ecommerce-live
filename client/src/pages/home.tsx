@@ -603,7 +603,6 @@ export default function Home() {
       </section>
 
       {/* Video Testimonials Section */}
-      <VideoTestimonials />
 
       {/* Testimonials Section */}
       <section className="py-20 bg-gradient-to-br from-rose-50 via-white to-pink-50">
@@ -617,6 +616,7 @@ export default function Home() {
           <TestimonialsCarousel />
         </div>
       </section>
+      <VideoTestimonials />
 
       {/* WhatsApp Floating Button */}
       {/* <WhatsAppButton /> */}

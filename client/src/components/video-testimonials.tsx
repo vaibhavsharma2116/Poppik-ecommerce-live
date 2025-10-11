@@ -109,10 +109,13 @@ export default function VideoTestimonials() {
 
   const visibleTestimonials = getVisibleTestimonials();
 
-  // Autoplay first video when testimonials load
+  // Autoplay all visible videos when component mounts or slides change
   useState(() => {
-    if (autoplayEnabled && activeTestimonials.length > 0 && !isPlaying) {
-      setIsPlaying(activeTestimonials[0].id);
+    if (autoplayEnabled && visibleTestimonials.length > 0) {
+      // Set all visible video IDs to play
+      visibleTestimonials.forEach((testimonial) => {
+        setIsPlaying(testimonial.id);
+      });
     }
   });
 
@@ -174,29 +177,15 @@ export default function VideoTestimonials() {
               <Card key={testimonial.id} className="overflow-hidden group hover:shadow-xl transition-all duration-300">
                 {/* Video Section */}
                 <div className="relative aspect-[3/4] bg-gray-100">
-                  {isPlaying === testimonial.id ? (
-                    <video
-                      src={testimonial.videoUrl}
-                      className="w-full h-full object-cover"
-                      autoPlay
-                      playsInline
-                      muted
-                      loop
-                      style={{ pointerEvents: 'none' }}
-                    />
-                  ) : (
-                    <>
-                     
-                      <button
-                        onClick={() => setIsPlaying(testimonial.id)}
-                        className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors"
-                      >
-                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
-                          <Play className="w-8 h-8 text-pink-600 ml-1" fill="currentColor" />
-                        </div>
-                      </button>
-                    </>
-                  )}
+                  <video
+                    src={testimonial.videoUrl}
+                    className="w-full h-full object-cover"
+                    autoPlay
+                    playsInline
+                    muted
+                    loop
+                    poster={testimonial.thumbnailUrl}
+                  />
 
                   {/* Product Image Overlay - Bottom Left */}
                   {testimonial.product && (

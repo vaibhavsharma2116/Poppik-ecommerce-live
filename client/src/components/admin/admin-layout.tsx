@@ -75,6 +75,12 @@ const sidebarItems = [
     badge: "1.2k",
   },
   {
+    title: "Announcements",
+    href: "/announcements",
+    icon: Bell,
+    badge: null,
+  },
+  {
     title: "Shades",
     href: "/shades",
     icon: Palette,

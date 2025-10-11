@@ -36,6 +36,7 @@ import AdminSliders from "@/pages/admin/sliders";
 import AdminContactSubmissions from "@/pages/admin/contact-submissions";
 import AdminTestimonials from "@/pages/admin/testimonials";
 import AdminVideoTestimonials from "@/pages/admin/video-testimonials";
+import AdminAnnouncements from "@/pages/admin/announcements";
 import NotFound from "@/pages/not-found";
 import { lazy, Suspense, startTransition, useEffect } from 'react';
 import AdminShades from "./pages/admin/shades";
@@ -88,6 +89,7 @@ function Router() {
             <Route path="/featured-sections" component={AdminFeaturedSections} />
             <Route path="/testimonials" component={AdminTestimonials} />
             <Route path="/video-testimonials" component={AdminVideoTestimonials} />
+            <Route path="/announcements" component={AdminAnnouncements} />
             <Route path="/settings" component={AdminSettings} />
             <Route path="/profile" component={AdminProfile} />
             <Route path="/change-password" component={AdminChangePassword} />

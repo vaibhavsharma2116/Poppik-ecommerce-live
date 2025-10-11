@@ -1236,7 +1236,7 @@ export default function AdminBlog() {
                         {formData.excerpt || 'Excerpt preview...'}
                       </p>
                       <div 
-                        className="prose prose-sm max-w-none"
+                        className="blog-content prose prose-lg max-w-none"
                         dangerouslySetInnerHTML={{ __html: formData.content || '<p>Content preview...</p>' }}
                       />
                     </CardContent>

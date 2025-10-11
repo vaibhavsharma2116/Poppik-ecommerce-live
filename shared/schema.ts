@@ -259,12 +259,21 @@ export const blogPosts = pgTable("blog_posts", {
 // Blog Categories Table
 export const blogCategories = pgTable("blog_categories", {
   id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull().unique(),
-  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
   description: text("description"),
-  isActive: boolean("is_active").default(true),
-  sortOrder: integer("sort_order").default(0),
-  createdAt: timestamp("created_at").defaultNow(),
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const announcements = pgTable('announcements', {
+  id: serial('id').primaryKey(),
+  text: text('text').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
 });
 
 export type BlogPost = typeof blogPosts.$inferSelect;

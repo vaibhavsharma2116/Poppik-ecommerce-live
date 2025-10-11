@@ -34,7 +34,9 @@ import {
   // Import the productShades table
   productShades,
   categorySliders,
-  testimonials
+  testimonials,
+  // Import the announcements table
+  announcements
 } from "@shared/schema";
 import dotenv from "dotenv";
 
@@ -43,7 +45,7 @@ dotenv.config();
 
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
+  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,
   max: 3, // Further reduced connections
   idleTimeoutMillis: 10000,
@@ -136,7 +138,7 @@ export interface IStorage {
   searchBlogPosts(query: string): Promise<BlogPost[]>;
 
   // Featured Sections Management Functions
-  
+
   deleteFeaturedSection(id: number): Promise<boolean>;
 
   // Blog Categories
@@ -165,6 +167,14 @@ export interface IStorage {
   createTestimonial(testimonialData: any): Promise<any>;
   updateTestimonial(id: number, testimonialData: any): Promise<any>;
   deleteTestimonial(id: number): Promise<boolean>;
+
+  // Announcements management
+  getAnnouncements(): Promise<any[]>;
+  getActiveAnnouncements(): Promise<any[]>;
+  getAnnouncement(id: number): Promise<any | undefined>;
+  createAnnouncement(announcementData: any): Promise<any>;
+  updateAnnouncement(id: number, announcementData: any): Promise<any>;
+  deleteAnnouncement(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1225,7 +1235,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Featured Sections Management Functions
-  
+
   deleteFeaturedSection(id: number): Promise<boolean>;
 
   // Blog Categories
@@ -1262,15 +1272,20 @@ export class DatabaseStorage implements IStorage {
       const [category] = await db
         .insert(blogCategories)
         .values({
-          ...categoryData,
+          name: categoryData.name,
+          description: categoryData.description || '',
           slug,
-          createdAt: new Date()
+          isActive: categoryData.isActive ?? true,
+          sortOrder: categoryData.sortOrder || 0
         })
         .returning();
       return category;
     } catch (error) {
       console.error("Error creating blog category:", error);
-      throw error;
+      if (error.code === '23505') {
+        throw new Error('A category with this name already exists');
+      }
+      throw new Error('Failed to create blog category: ' + (error.message || 'Unknown error'));
     }
   }
 
@@ -1305,14 +1320,27 @@ export class DatabaseStorage implements IStorage {
   async deleteBlogCategory(id: number): Promise<boolean> {
     try {
       const db = await getDb();
+      
+      // Check if category exists
+      const existing = await db
+        .select()
+        .from(blogCategories)
+        .where(eq(blogCategories.id, id))
+        .limit(1);
+      
+      if (existing.length === 0) {
+        return false;
+      }
+      
+      // Delete the category (without returning clause to avoid column issues)
       const result = await db
         .delete(blogCategories)
-        .where(eq(blogCategories.id, id))
-        .returning();
-      return result.length > 0;
+        .where(eq(blogCategories.id, id));
+      
+      return true;
     } catch (error) {
       console.error("Error deleting blog category:", error);
-      throw error;
+      throw new Error('Failed to delete blog category: ' + (error.message || 'Unknown error'));
     }
   }
 
@@ -1505,14 +1533,44 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTestimonial(id: number): Promise<boolean> {
-    try {
-      const db = await getDb();
-      const result = await db.delete(testimonials).where(eq(testimonials.id, id)).returning();
-      return result.length > 0;
-    } catch (error) {
-      console.error("Error deleting testimonial:", error);
-      throw error;
-    }
+    const db = await getDb();
+    const result = await db.delete(testimonials).where(eq(testimonials.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Announcements methods
+  async getAnnouncements(): Promise<any[]> {
+    return await db.select().from(announcements).orderBy(announcements.sortOrder);
+  }
+
+  async getActiveAnnouncements(): Promise<any[]> {
+    return await db.select()
+      .from(announcements)
+      .where(eq(announcements.isActive, true))
+      .orderBy(announcements.sortOrder);
+  }
+
+  async getAnnouncement(id: number): Promise<any | undefined> {
+    const result = await db.select().from(announcements).where(eq(announcements.id, id));
+    return result[0];
+  }
+
+  async createAnnouncement(announcementData: any): Promise<any> {
+    const result = await db.insert(announcements).values(announcementData).returning();
+    return result[0];
+  }
+
+  async updateAnnouncement(id: number, announcementData: any): Promise<any> {
+    const result = await db.update(announcements)
+      .set({ ...announcementData, updatedAt: new Date() })
+      .where(eq(announcements.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteAnnouncement(id: number): Promise<boolean> {
+    const result = await db.delete(announcements).where(eq(announcements.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 }
 

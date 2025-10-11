@@ -1,31 +1,33 @@
-
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 
 interface Announcement {
   id: number;
   text: string;
+  isActive: boolean;
+  sortOrder: number;
 }
-
-const announcements: Announcement[] = [
-  { id: 1, text: "🎁 FREE GIFTS ON ORDERS ABOVE ₹399" },
-  { id: 2, text: "🚚 FREE SHIPPING ON ALL PREPAID ORDERS" },
-  { id: 3, text: "✨ SPECIAL DIWALI OFFERS - UPTO 50% OFF" },
-];
 
 export default function AnnouncementBar() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
 
+  const { data: announcements = [] } = useQuery<Announcement[]>({
+    queryKey: ['/api/announcements'],
+  });
+
   useEffect(() => {
+    if (announcements.length === 0) return;
+
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % announcements.length);
-    }, 4000); // Change announcement every 3 seconds
+    }, 4000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [announcements.length]);
 
-  if (!isVisible) return null;
+  if (!isVisible || announcements.length === 0) return null;
 
   return (
     <div className="relative bg-black text-white py-2 px-4 text-center overflow-hidden">
@@ -47,27 +49,6 @@ export default function AnnouncementBar() {
           </div>
         ))}
       </div>
-
-      {/* Close Button */}
-      {/* <button
-        onClick={() => setIsVisible(false)}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-colors"
-        aria-label="Close announcement"
-      >
-        <X className="w-4 h-4" />
-      </button> */}
-
-      {/* Slide Indicators */}
-      {/* <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex gap-1 pb-1">
-        {announcements.map((_, index) => (
-          <div
-            key={index}
-            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-              index === currentIndex ? "bg-white w-4" : "bg-white/40"
-            }`}
-          />
-        ))}
-      </div> */}
     </div>
   );
 }

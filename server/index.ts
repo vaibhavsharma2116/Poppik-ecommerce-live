@@ -116,8 +116,8 @@ app.use((req, res, next) => {
   });
 
 
-  // Serve the app on port 5000 (recommended for web apps)
-  const port = 5000;
+  // Serve the app on port 8085 (recommended for web apps)
+  const port = 8085;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
 
