@@ -1,5 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
-import compression from "compression";
+
 import { config } from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -31,8 +31,7 @@ process.on('SIGINT', () => {
 
 const app = express();
 
-// Enable compression for better performance
-app.use(compression());
+
 
 // Trust proxy for load balancer
 app.set('trust proxy', 1);
