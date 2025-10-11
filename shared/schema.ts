@@ -254,18 +254,7 @@ export const blogPosts = pgTable("blog_posts", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const featuredSections = pgTable("featured_sections", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  subtitle: text("subtitle"),
-  imageUrl: text("image_url").notNull(),
-  linkUrl: text("link_url"),
-  buttonText: text("button_text"),
-  displayOrder: integer("display_order").default(0),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+
 
 // Blog Categories Table
 export const blogCategories = pgTable("blog_categories", {
@@ -306,11 +295,23 @@ export const testimonials = pgTable("testimonials", {
   customerImage: text("customer_image"),
   rating: integer("rating").notNull().default(5),
   reviewText: text("review_text").notNull(),
-  isActive: boolean("is_active").notNull().default(true),
-  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export type Testimonial = typeof testimonials.$inferSelect;
 export type InsertTestimonial = typeof testimonials.$inferInsert;
+
+export const videoTestimonials = pgTable("video_testimonials", {
+  id: serial("id").primaryKey(),
+  customerImage: text("customer_image").notNull(),
+  videoUrl: text("video_url").notNull(),
+  thumbnailUrl: text("thumbnail_url").notNull(),
+  productId: integer("product_id").notNull().references(() => products.id, { onDelete: 'cascade' }),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});

@@ -15,7 +15,6 @@ import {
   blogCategories,
   sliders,
   productImages,
-  featuredSections,
   type Product,
   type Category,
   type Subcategory,
@@ -137,10 +136,7 @@ export interface IStorage {
   searchBlogPosts(query: string): Promise<BlogPost[]>;
 
   // Featured Sections Management Functions
-  getFeaturedSections(): Promise<FeaturedSection[]>;
-  getActiveFeaturedSections(): Promise<FeaturedSection[]>;
-  createFeaturedSection(sectionData: InsertFeaturedSection): Promise<FeaturedSection>;
-  updateFeaturedSection(id: number, sectionData: Partial<InsertFeaturedSection>): Promise<FeaturedSection | undefined>;
+  
   deleteFeaturedSection(id: number): Promise<boolean>;
 
   // Blog Categories
@@ -176,42 +172,7 @@ export class DatabaseStorage implements IStorage {
     // Database connection is handled by the singleton instance above
   }
 
-  // Featured Sections
-  async getFeaturedSections(): Promise<any[]> {
-    const db = await getDb();
-    return await db.select().from(featuredSections).orderBy(asc(featuredSections.displayOrder));
-  }
 
-  async getActiveFeaturedSections(): Promise<any[]> {
-    const db = await getDb();
-    return await db
-      .select()
-      .from(featuredSections)
-      .where(eq(featuredSections.isActive, true))
-      .orderBy(asc(featuredSections.displayOrder));
-  }
-
-  async createFeaturedSection(sectionData: any): Promise<any> {
-    const db = await getDb();
-    const result = await db.insert(featuredSections).values(sectionData).returning();
-    return result[0];
-  }
-
-  async updateFeaturedSection(id: number, sectionData: any): Promise<any | undefined> {
-    const db = await getDb();
-    const result = await db
-      .update(featuredSections)
-      .set({ ...sectionData, updatedAt: new Date() })
-      .where(eq(featuredSections.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async deleteFeaturedSection(id: number): Promise<boolean> {
-    const db = await getDb();
-    const result = await db.delete(featuredSections).where(eq(featuredSections.id, id));
-    return result.rowCount > 0;
-  }
 
   // Users
   async getUser(id: number): Promise<User | undefined> {
@@ -1264,10 +1225,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Featured Sections Management Functions
-  getFeaturedSections(): Promise<FeaturedSection[]>;
-  getActiveFeaturedSections(): Promise<FeaturedSection[]>;
-  createFeaturedSection(sectionData: InsertFeaturedSection): Promise<FeaturedSection>;
-  updateFeaturedSection(id: number, sectionData: Partial<InsertFeaturedSection>): Promise<FeaturedSection | undefined>;
+  
   deleteFeaturedSection(id: number): Promise<boolean>;
 
   // Blog Categories

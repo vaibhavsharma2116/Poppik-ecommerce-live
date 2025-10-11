@@ -20,9 +20,9 @@ import {
 import { Link } from "wouter";
 import HeroBanner from "@/components/hero-banner";
 import ProductCard from "@/components/product-card";
-import Timer from "@/components/timer";
 import { Filter } from "lucide-react";
 import DynamicFilter from "@/components/dynamic-filter";
+import VideoTestimonials from "@/components/video-testimonials";
 import type { Product, Category } from "@/lib/types";
 
 interface Testimonial {
@@ -206,9 +206,7 @@ export default function Home() {
     queryKey: ["/api/products"],
   });
 
-  const { data: featuredSections, isLoading: featuredSectionsLoading } = useQuery<any[]>({
-    queryKey: ["/api/featured-sections"],
-  });
+  
 
   const categoryImages = {
     skincare:
@@ -603,6 +601,9 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* Video Testimonials Section */}
+      <VideoTestimonials />
 
       {/* Testimonials Section */}
       <section className="py-20 bg-gradient-to-br from-rose-50 via-white to-pink-50">

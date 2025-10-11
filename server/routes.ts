@@ -3430,16 +3430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Featured Sections API
-  app.get("/api/admin/featured-sections", async (req, res) => {
-    try {
-      const sections = await storage.getFeaturedSections();
-      res.json(sections);
-    } catch (error) {
-      console.error("Error fetching featured sections:", error);
-      res.status(500).json({ error: "Failed to fetch featured sections" });
-    }
-  });
+
 
   app.post("/api/admin/featured-sections", async (req, res) => {
     try {
@@ -3509,16 +3500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public featured sections endpoint
-  app.get("/api/featured-sections", async (req, res) => {
-    try {
-      const sections = await storage.getActiveFeaturedSections();
-      res.json(sections);
-    } catch (error) {
-      console.error("Error fetching public featured sections:", error);
-      res.json([]);
-    }
-  });
+
 
   // Admin blog categories
   app.get("/api/admin/blog/categories", async (req, res) => {
@@ -4676,6 +4658,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting category slider:', error);
       res.status(500).json({ error: 'Failed to delete category slider' });
+    }
+  });
+
+  // Video Testimonials Management Routes
+
+  // Public endpoints for video testimonials
+  app.get('/api/video-testimonials', async (req, res) => {
+    try {
+      const testimonials = await db
+        .select()
+        .from(schema.videoTestimonials)
+        .where(eq(schema.videoTestimonials.isActive, true))
+        .orderBy(asc(schema.videoTestimonials.sortOrder));
+      
+      res.json(testimonials);
+    } catch (error) {
+      console.error('Error fetching video testimonials:', error);
+      res.status(500).json({ error: 'Failed to fetch video testimonials' });
+    }
+  });
+
+  // Admin endpoints for video testimonials management
+  app.get('/api/admin/video-testimonials', async (req, res) => {
+    try {
+      const testimonials = await db
+        .select()
+        .from(schema.videoTestimonials)
+        .orderBy(desc(schema.videoTestimonials.createdAt));
+      
+      res.json(testimonials);
+    } catch (error) {
+      console.error('Error fetching video testimonials:', error);
+      res.status(500).json({ error: 'Failed to fetch video testimonials' });
+    }
+  });
+
+  app.post('/api/admin/video-testimonials', upload.fields([
+    { name: 'video', maxCount: 1 },
+    { name: 'thumbnail', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      let videoUrl = req.body.videoUrl;
+      let thumbnailUrl = req.body.thumbnailUrl;
+
+      // Handle video upload
+      if (files?.video?.[0]) {
+        videoUrl = `/api/images/${files.video[0].filename}`;
+      }
+
+      // Handle thumbnail upload
+      if (files?.thumbnail?.[0]) {
+        thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
+      }
+
+      const testimonialData = {
+       
+        customerImage: '', // Empty string for backward compatibility
+        videoUrl: videoUrl,
+        thumbnailUrl: thumbnailUrl,
+        productId: parseInt(req.body.productId),
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+      };
+
+      const [testimonial] = await db
+        .insert(schema.videoTestimonials)
+        .values(testimonialData)
+        .returning();
+
+      res.status(201).json(testimonial);
+    } catch (error) {
+      console.error('Error creating video testimonial:', error);
+      res.status(500).json({ error: 'Failed to create video testimonial' });
+    }
+  });
+
+  app.put('/api/admin/video-testimonials/:id', upload.fields([
+    { name: 'video', maxCount: 1 },
+    { name: 'thumbnail', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      let updateData: any = {
+        customerName: req.body.customerName,
+        customerImage: '', // Empty string for backward compatibility
+        productId: parseInt(req.body.productId),
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+        updatedAt: new Date(),
+      };
+
+      // Handle video upload
+      if (files?.video?.[0]) {
+        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.videoUrl) {
+        updateData.videoUrl = req.body.videoUrl;
+      }
+
+      // Handle thumbnail upload
+      if (files?.thumbnail?.[0]) {
+        updateData.thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
+      } else if (req.body.thumbnailUrl) {
+        updateData.thumbnailUrl = req.body.thumbnailUrl;
+      }
+
+      const [testimonial] = await db
+        .update(schema.videoTestimonials)
+        .set(updateData)
+        .where(eq(schema.videoTestimonials.id, id))
+        .returning();
+
+      if (!testimonial) {
+        return res.status(404).json({ error: 'Video testimonial not found' });
+      }
+
+      res.json(testimonial);
+    } catch (error) {
+      console.error('Error updating video testimonial:', error);
+      res.status(500).json({ error: 'Failed to update video testimonial' });
+    }
+  });
+
+  app.delete('/api/admin/video-testimonials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deletedTestimonial] = await db
+        .delete(schema.videoTestimonials)
+        .where(eq(schema.videoTestimonials.id, id))
+        .returning();
+
+      if (!deletedTestimonial) {
+        return res.status(404).json({ error: 'Video testimonial not found' });
+      }
+
+      res.json({ message: 'Video testimonial deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting video testimonial:', error);
+      res.status(500).json({ error: 'Failed to delete video testimonial' });
     }
   });
 

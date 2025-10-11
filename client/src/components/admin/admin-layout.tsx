@@ -105,6 +105,12 @@ const sidebarItems = [
     badge: null,
   },
   {
+    title: "Video Testimonials",
+    href: "/video-testimonials",
+    icon: FileText,
+    badge: null,
+  },
+  {
     title: "Blog",
     href: "/blog",
     icon: FileText,
