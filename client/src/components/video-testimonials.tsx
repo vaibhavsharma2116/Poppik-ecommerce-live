@@ -142,37 +142,37 @@ export default function VideoTestimonials() {
   }
 
   return (
-    <section className="py-16 bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
+    <section className="py-12 sm:py-14 md:py-16 bg-gradient-to-br from-pink-50 via-white to-purple-50">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
+        <div className="text-center mb-8 sm:mb-10 md:mb-12">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-4 px-4">
             <span className="text-transparent bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text">
               What Our Customers Say
             </span>
           </h2>
-          <p className="text-gray-600 text-lg font-medium">Real reviews from real customers</p>
+          <p className="text-sm sm:text-base md:text-lg text-gray-600 font-medium px-4">Real reviews from real customers</p>
         </div>
 
         <div className="relative">
-          {/* Navigation Buttons */}
+          {/* Navigation Buttons - Hidden on mobile, visible on tablet+ */}
           <button
             onClick={prevSlide}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-gray-50 -ml-4"
+            className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 lg:p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-gray-50 -ml-2 lg:-ml-4"
             aria-label="Previous testimonials"
           >
-            <ChevronLeft className="w-6 h-6 text-gray-800" />
+            <ChevronLeft className="w-5 h-5 lg:w-6 lg:h-6 text-gray-800" />
           </button>
 
           <button
             onClick={nextSlide}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-gray-50 -mr-4"
+            className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 lg:p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:bg-gray-50 -mr-2 lg:-mr-4"
             aria-label="Next testimonials"
           >
-            <ChevronRight className="w-6 h-6 text-gray-800" />
+            <ChevronRight className="w-5 h-5 lg:w-6 lg:h-6 text-gray-800" />
           </button>
 
-          {/* Testimonials Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Testimonials Grid - Responsive */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6 px-1 sm:px-0">
             {visibleTestimonials.map((testimonial) => (
               <Card key={testimonial.id} className="overflow-hidden group hover:shadow-xl transition-all duration-300">
                 {/* Video Section */}
@@ -189,47 +189,47 @@ export default function VideoTestimonials() {
 
                   {/* Product Image Overlay - Bottom Left */}
                   {testimonial.product && (
-                    <div className="absolute bottom-4 left-4 bg-white rounded-lg p-2 shadow-lg">
+                    <div className="absolute bottom-2 sm:bottom-3 md:bottom-4 left-2 sm:left-3 md:left-4 bg-white rounded-md sm:rounded-lg p-1.5 sm:p-2 shadow-lg">
                       <img
                         src={testimonial.product.imageUrl}
                         alt={testimonial.product.name}
-                        className="w-16 h-16 object-contain rounded"
+                        className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 object-contain rounded"
                       />
                     </div>
                   )}
                 </div>
 
                 {/* Product Info */}
-                <div className="p-4 bg-white">
+                <div className="p-2 sm:p-3 md:p-4 bg-white">
                   {testimonial.product ? (
                     <>
-                      <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">
+                      <h3 className="font-semibold text-xs sm:text-sm md:text-base text-gray-900 mb-1 sm:mb-1.5 line-clamp-2 leading-tight min-h-[2rem] sm:min-h-[2.5rem]">
                         {testimonial.product.name}
                       </h3>
-                      <div className="flex items-center gap-2 mb-3">
-                        <p className="text-lg font-bold text-pink-600">
+                      <div className="flex items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
+                        <p className="text-sm sm:text-base md:text-lg font-bold text-pink-600">
                           ₹{testimonial.product.price}
                         </p>
                         {testimonial.product.originalPrice && (
-                          <p className="text-sm text-gray-500 line-through">
+                          <p className="text-xs sm:text-sm text-gray-500 line-through">
                             ₹{testimonial.product.originalPrice}
                           </p>
                         )}
                       </div>
                       <Button
                         onClick={() => addToCart(testimonial.product!)}
-                        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+                        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs sm:text-sm py-1.5 sm:py-2"
                       >
                         ADD TO CART
                       </Button>
                     </>
                   ) : (
                     <>
-                      <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">
+                      <h3 className="font-semibold text-xs sm:text-sm text-gray-900 mb-1 line-clamp-2">
                         Product Loading...
                       </h3>
                       <Button
-                        className="w-full bg-gray-300 text-gray-500 cursor-not-allowed"
+                        className="w-full bg-gray-300 text-gray-500 cursor-not-allowed text-xs sm:text-sm py-1.5 sm:py-2"
                         disabled
                       >
                         Loading...
@@ -239,6 +239,24 @@ export default function VideoTestimonials() {
                 </div>
               </Card>
             ))}
+          </div>
+
+          {/* Mobile Navigation Dots */}
+          <div className="flex md:hidden justify-center gap-2 mt-6">
+            <button
+              onClick={prevSlide}
+              className="p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all"
+              aria-label="Previous"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-800" />
+            </button>
+            <button
+              onClick={nextSlide}
+              className="p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all"
+              aria-label="Next"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-800" />
+            </button>
           </div>
         </div>
       </div>

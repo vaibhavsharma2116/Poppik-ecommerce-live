@@ -57,7 +57,11 @@ function TestimonialsCarousel() {
     if (activeTestimonials.length === 0) return [];
     
     const visible = [];
-    for (let i = -2; i <= 2; i++) {
+    // Always show 5 images on all screen sizes
+    const displayCount = 5;
+    const offset = Math.floor(displayCount / 2);
+    
+    for (let i = -offset; i <= offset; i++) {
       const index = (currentIndex + i + activeTestimonials.length) % activeTestimonials.length;
       visible.push({
         testimonial: activeTestimonials[index],
@@ -76,16 +80,16 @@ function TestimonialsCarousel() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Skeleton className="w-full max-w-3xl h-64" />
+      <div className="flex items-center justify-center py-8 sm:py-12">
+        <Skeleton className="w-full max-w-3xl h-48 sm:h-64" />
       </div>
     );
   }
 
   if (activeTestimonials.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">No testimonials available at the moment.</p>
+      <div className="text-center py-8 sm:py-12 px-4">
+        <p className="text-sm sm:text-base text-gray-500">No testimonials available at the moment.</p>
       </div>
     );
   }
@@ -94,28 +98,41 @@ function TestimonialsCarousel() {
   const visibleTestimonials = getVisibleTestimonials();
 
   return (
-    <div className="relative">
+    <div className="relative px-2 sm:px-4">
       {/* Profile Images Carousel */}
-      <div className="flex items-center justify-center gap-12 mb-8">
+      <div className="flex items-center justify-center gap-2 sm:gap-4 md:gap-8 lg:gap-12 mb-6 sm:mb-8">
         <button 
           onClick={prevTestimonial}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
           aria-label="Previous testimonial"
         >
-          <ChevronLeft className="w-6 h-6 text-gray-600" />
+          <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-gray-600" />
         </button>
 
-        <div className="flex items-center gap-16">
+        <div className="flex items-center gap-1 sm:gap-3 md:gap-6 lg:gap-10 overflow-hidden">
           {visibleTestimonials.map(({ testimonial, position }) => {
             const isCenter = position === 0;
-            const opacity = position === 0 ? 1 : position === -1 || position === 1 ? 0.7 : 0.5;
-            const size = isCenter ? 'w-24 h-24' : 'w-16 h-16';
+            
+            // All screen sizes: 5 images (center large, near medium, far small)
+            let opacity = 1;
+            let size = '';
+            
+            if (isCenter) {
+              size = 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28';
+              opacity = 1;
+            } else if (position === -1 || position === 1) {
+              size = 'w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20';
+              opacity = 0.7;
+            } else {
+              size = 'w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-14 lg:h-14';
+              opacity = 0.5;
+            }
             
             return (
               <div
                 key={testimonial.id}
-                className={`${size} rounded-3xl overflow-hidden transition-all duration-300 ${
-                  isCenter ? 'shadow-lg border-4 border-white' : ''
+                className={`${size} rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-300 flex-shrink-0 ${
+                  isCenter ? 'shadow-md sm:shadow-lg border-2 sm:border-4 border-white' : ''
                 }`}
                 style={{ opacity }}
               >
@@ -123,7 +140,6 @@ function TestimonialsCarousel() {
                   src={testimonial.customerImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop'}
                   alt={testimonial.customerName}
                   className="w-full h-full object-cover"
-                  
                 />
               </div>
             );
@@ -132,21 +148,21 @@ function TestimonialsCarousel() {
 
         <button 
           onClick={nextTestimonial}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
           aria-label="Next testimonial"
         >
-          <ChevronRight className="w-6 h-6 text-gray-600" />
+          <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-gray-600" />
         </button>
       </div>
 
       {/* Testimonial Content */}
-      <div className="text-center max-w-3xl mx-auto">
+      <div className="text-center max-w-3xl mx-auto px-4 sm:px-6">
         {/* Star Rating */}
-        <div className="flex justify-center gap-1 mb-6">
+        <div className="flex justify-center gap-0.5 sm:gap-1 mb-4 sm:mb-6">
           {[1, 2, 3, 4, 5].map((star) => (
             <Star
               key={star}
-              className={`w-5 h-5 ${
+              className={`w-4 h-4 sm:w-5 sm:h-5 ${
                 star <= currentTestimonial.rating
                   ? 'text-yellow-400 fill-current'
                   : 'text-gray-300'
@@ -156,16 +172,13 @@ function TestimonialsCarousel() {
         </div>
 
         {/* Testimonial Text */}
-        <p className="text-lg sm:text-xl text-gray-700 mb-6 leading-relaxed">
+        <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-700 mb-4 sm:mb-6 leading-relaxed px-2">
           {currentTestimonial.content}
         </p>
 
         {/* Customer Name */}
-        <p className="text-sm text-gray-500 italic">— {currentTestimonial.customerName}</p>
+        <p className="text-xs sm:text-sm text-gray-500 italic">— {currentTestimonial.customerName}</p>
       </div>
-
-      {/* Dots Indicator */}
-     
     </div>
   );
 }
@@ -605,10 +618,10 @@ export default function Home() {
       {/* Video Testimonials Section */}
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-gradient-to-br from-rose-50 via-white to-pink-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-medium mb-4">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-rose-50 via-white to-pink-50">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
+          <div className="text-center mb-8 sm:mb-10 md:mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium mb-2 sm:mb-4">
               <span className="text-gray-900">Testimonials</span>
             </h2>
           </div>

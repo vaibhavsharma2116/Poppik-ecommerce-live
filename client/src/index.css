@@ -83,12 +83,34 @@ body {
 .ProseMirror {
   min-height: 300px;
   outline: none;
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
 }
 
-/* Font Family Support */
+.ProseMirror * {
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
+}
+
+/* Font Family Support - Override all with Poppins */
 .ProseMirror [data-font-family="Arial"],
-.ProseMirror [style*="font-family: Arial"] {
-  font-family: Arial, sans-serif !important;
+.ProseMirror [style*="font-family: Arial"],
+.ProseMirror [data-font-family="Calibri"],
+.ProseMirror [style*="font-family: Calibri"],
+.ProseMirror [data-font-family="Times New Roman"],
+.ProseMirror [style*="font-family: Times New Roman"],
+.ProseMirror [style*='font-family: "Times New Roman"'],
+.ProseMirror [data-font-family="Georgia"],
+.ProseMirror [style*="font-family: Georgia"],
+.ProseMirror [data-font-family="Verdana"],
+.ProseMirror [style*="font-family: Verdana"],
+.ProseMirror [data-font-family="Courier New"],
+.ProseMirror [style*="font-family: Courier New"],
+.ProseMirror [style*='font-family: "Courier New"'],
+.ProseMirror [data-font-family="Comic Sans MS"],
+.ProseMirror [style*="font-family: Comic Sans MS"],
+.ProseMirror [style*='font-family: "Comic Sans MS"'],
+.ProseMirror [data-font-family="Inter"],
+.ProseMirror [style*="font-family: Inter"] {
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
 }
 
 .ProseMirror [data-font-family="Calibri"],
@@ -217,6 +239,11 @@ body {
   margin: 1rem 0;
   line-height: 1.75;
   color: #374151;
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
+}
+
+.blog-content * {
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
 }
 
 .blog-content h1 {
@@ -404,11 +431,20 @@ body {
 @layer base {
   * {
     @apply border-0;
+    font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
+  }
+
+  html {
+    font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
   }
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+    font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
+  }
+
+  body * {
+    font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
   }
 
   /* Remove all borders from product cards and their children */
@@ -1588,6 +1624,10 @@ body {
 /* General Mobile-first media queries */
 @media (max-width: 640px) {
   /* Extra small devices (phones) */
+  * {
+    font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
+  }
+
   .container {
     @apply px-3;
   }
