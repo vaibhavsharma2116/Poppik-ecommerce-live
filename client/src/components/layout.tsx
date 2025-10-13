@@ -30,7 +30,7 @@ interface LayoutProps {
 // WhatsApp Floating Button Component
 function WhatsAppButton() {
   const handleWhatsAppClick = () => {
-    const phoneNumber = "+919867577565";
+    const phoneNumber = "+918976261444";
     const message = "Hi! I'm interested in your beauty products. Can you help me?";
     const whatsappUrl = `https://wa.me/${phoneNumber.replace("+", "")}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
@@ -260,7 +260,7 @@ export default function Layout({ children }: LayoutProps) {
                  {/* Left - Social Media Links */}
               <div className="flex items-center space-x-4">
                 <a
-                  href="https://www.facebook.com/people/Poppik/61579145279161/"
+                  href="https://www.facebook.com/share/17jwSeQ3yU/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-black hover:text-blue-500 transition-colors duration-300 transform hover:scale-110"
@@ -271,7 +271,7 @@ export default function Layout({ children }: LayoutProps) {
                   </svg>
                 </a>
                 <a
-                  href="https://www.instagram.com/poppikofficial/"
+                  href="https://www.instagram.com/poppik_official?igsh=M3BidG9jbmJtenZ4"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-black hover:text-pink-300 transition-colors duration-300 transform hover:scale-110"
@@ -282,7 +282,7 @@ export default function Layout({ children }: LayoutProps) {
                   </svg>
                 </a>
                 <a
-                  href="https://www.threads.net/@poppikofficial"
+                  href="https://www.threads.com/@poppik_official"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-black hover:text-gray-600 transition-colors duration-300 transform hover:scale-110"
@@ -304,7 +304,7 @@ export default function Layout({ children }: LayoutProps) {
                   </svg>
                 </a>
                 <a
-                  href="https://x.com/poppikofficial"
+                  href="https://x.com/poppikofficial?t=WXkmP_f22BOWpfaCjGG_oA&s=09"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-black hover:text-gray-800 transition-colors duration-300 transform hover:scale-110"
@@ -315,7 +315,7 @@ export default function Layout({ children }: LayoutProps) {
                   </svg>
                 </a>
                 <a
-                  href="https://www.youtube.com/@Poppikofficial"
+                  href="https://youtube.com/@poppik_official?si=0s1cFXQHWo4toy2f"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-black hover:text-red-500 transition-colors duration-300 transform hover:scale-110"
@@ -924,7 +924,7 @@ export default function Layout({ children }: LayoutProps) {
               </p>
               <div className="flex space-x-4">
                 <a
-                  href="https://www.instagram.com/poppikofficial/"
+                  href="https://www.instagram.com/poppik_official?igsh=M3BidG9jbmJtenZ4"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-pink-500 transition-colors duration-300 transform hover:scale-110"
@@ -935,7 +935,7 @@ export default function Layout({ children }: LayoutProps) {
                   </svg>
                 </a>
                 <a
-                  href="https://www.facebook.com/people/Poppik/61579145279161/"
+                  href="https://www.facebook.com/share/17jwSeQ3yU/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-blue-500 transition-colors duration-300 transform hover:scale-110"
@@ -946,7 +946,7 @@ export default function Layout({ children }: LayoutProps) {
                   </svg>
                 </a>
                 <a
-                  href="https://www.youtube.com/@Poppikofficial"
+                  href="https://youtube.com/@poppik_official?si=0s1cFXQHWo4toy2f"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-red-500 transition-colors duration-300 transform hover:scale-110"
@@ -968,7 +968,7 @@ export default function Layout({ children }: LayoutProps) {
                   </svg>
                 </a>
                 <a
-                  href="https://x.com/poppikofficial"
+                  href="https://x.com/poppikofficial?t=WXkmP_f22BOWpfaCjGG_oA&s=09"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-black transition-colors duration-300 transform hover:scale-110"
@@ -979,7 +979,7 @@ export default function Layout({ children }: LayoutProps) {
                   </svg>
                 </a>
                 <a
-                  href="https://pinterest.com/poppikofficial"
+                  href="https://pin.it/7zbVvhod9"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-red-600 transition-colors duration-300 transform hover:scale-110"

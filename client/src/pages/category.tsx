@@ -221,15 +221,6 @@ export default function CategoryPage() {
             loop: true,
           }}
         >
-          {/* Progress bar */}
-          {count > 1 && (
-            <div className="absolute top-0 left-0 w-full h-1 bg-gray-200 z-10">
-              <div
-                className="h-full bg-blue-500 transition-all duration-100 ease-linear"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          )}
 
           <CarouselContent>
             {slidesToShow.map((slide) => (
@@ -248,11 +239,11 @@ export default function CategoryPage() {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="left-4" />
-          <CarouselNext className="right-4" />
+          <CarouselPrevious className="left-4 border-0 bg-transparent shadow-none hover:bg-transparent" />
+          <CarouselNext className="right-4 border-0 bg-transparent shadow-none hover:bg-transparent" />
 
           {/* Play/Pause button */}
-          {count > 1 && (
+          {/* {count > 1 && (
             <button
               onClick={togglePlayPause}
               className="absolute top-4 right-4 z-20 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition-all"
@@ -268,7 +259,7 @@ export default function CategoryPage() {
                 </svg>
               )}
             </button>
-          )}
+          )} */}
 
           {/* Slide counter */}
           {count > 1 && (
