@@ -2303,16 +2303,32 @@ img {
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Touch-friendly scrolling for mobile */
-  @media (max-width: 768px) {
-    #thumbnail-container {
-      overscroll-behavior: contain;
-      scroll-snap-type: y mandatory;
-    }
+  /* Touch-friendly scrolling for mobile and desktop */
+  #thumbnail-container {
+    overscroll-behavior: contain;
+    scroll-snap-type: y mandatory;
+    scroll-padding: 0.75rem;
+  }
 
-    #thumbnail-container button {
-      scroll-snap-align: start;
-    }
+  #thumbnail-container button {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  /* Smooth scrolling for all devices */
+  #thumbnail-container {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  #thumbnail-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  #thumbnail-container {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 
   /* Product detail container fixes */

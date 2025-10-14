@@ -495,9 +495,21 @@ export default function ProductDetail() {
                             onScroll={(e) => {
                               const container = e.currentTarget;
                               const scrollTop = container.scrollTop;
+                              const scrollHeight = container.scrollHeight;
+                              const clientHeight = container.clientHeight;
                               const itemHeight = 92; // 80px height + 12px gap
-                              const visibleIndex = Math.round(scrollTop / itemHeight);
                               
+                              // Check if scrolled to bottom
+                              const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 5;
+                              
+                              let visibleIndex;
+                              if (isAtBottom) {
+                                // If at bottom, select last image
+                                visibleIndex = imageUrls.length - 1;
+                              } else {
+                                visibleIndex = Math.round(scrollTop / itemHeight);
+                              }
+
                               // Auto-select image based on scroll position
                               if (imageUrls[visibleIndex] && imageUrls[visibleIndex] !== selectedImageUrl) {
                                 setSelectedImageUrl(imageUrls[visibleIndex]);
@@ -550,21 +562,31 @@ export default function ProductDetail() {
                         {imageUrls.length > 3 && (
                           <>
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.preventDefault();
                                 const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
-                                const prevIndex = Math.max(0, currentIndex - 1);
-                                setSelectedImageUrl(imageUrls[prevIndex]);
                                 
+                                // Circular navigation - if on first image, go to last
+                                const prevIndex = currentIndex <= 0 ? imageUrls.length - 1 : currentIndex - 1;
+                                setSelectedImageUrl(imageUrls[prevIndex]);
+
                                 const container = document.getElementById('thumbnail-container');
                                 if (container) {
-                                  container.scrollTo({
-                                    top: prevIndex * 92,
-                                    behavior: 'smooth'
-                                  });
+                                  if (currentIndex <= 0) {
+                                    // Going to last image - scroll to bottom
+                                    container.scrollTo({
+                                      top: container.scrollHeight,
+                                      behavior: 'smooth'
+                                    });
+                                  } else {
+                                    container.scrollTo({
+                                      top: prevIndex * 92,
+                                      behavior: 'smooth'
+                                    });
+                                  }
                                 }
                               }}
-                              className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:bg-white transition-all duration-200 z-10"
-                              disabled={imageUrls.findIndex(img => img === selectedImageUrl) === 0}
+                              className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 z-10 hover:bg-white cursor-pointer"
                             >
                               <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -572,21 +594,43 @@ export default function ProductDetail() {
                             </button>
 
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.preventDefault();
                                 const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
-                                const nextIndex = Math.min(imageUrls.length - 1, currentIndex + 1);
-                                setSelectedImageUrl(imageUrls[nextIndex]);
                                 
+                                // Circular navigation - if on last image, go to first
+                                const nextIndex = currentIndex >= imageUrls.length - 1 ? 0 : currentIndex + 1;
                                 const container = document.getElementById('thumbnail-container');
+                                
                                 if (container) {
-                                  container.scrollTo({
-                                    top: nextIndex * 92,
-                                    behavior: 'smooth'
-                                  });
+                                  if (currentIndex >= imageUrls.length - 1) {
+                                    // Going to first image - scroll to top
+                                    container.scrollTo({
+                                      top: 0,
+                                      behavior: 'smooth'
+                                    });
+                                  } else if (nextIndex === imageUrls.length - 1) {
+                                    // Going to last image - scroll to bottom
+                                    container.scrollTo({
+                                      top: container.scrollHeight,
+                                      behavior: 'smooth'
+                                    });
+                                  } else {
+                                    container.scrollTo({
+                                      top: nextIndex * 92,
+                                      behavior: 'smooth'
+                                    });
+                                  }
+                                  
+                                  // Set image after a small delay to sync with scroll
+                                  setTimeout(() => {
+                                    setSelectedImageUrl(imageUrls[nextIndex]);
+                                  }, 100);
+                                } else {
+                                  setSelectedImageUrl(imageUrls[nextIndex]);
                                 }
                               }}
-                              className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:bg-white transition-all duration-200 z-10"
-                              disabled={imageUrls.findIndex(img => img === selectedImageUrl) === imageUrls.length - 1}
+                              className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 z-10 hover:bg-white cursor-pointer"
                             >
                               <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -608,49 +652,60 @@ export default function ProductDetail() {
                       </div>
                     )}
 
-                    {/* Main Image with Zoom */}
+                    {/* Main Image/Video with Zoom */}
                     <div className="flex-1 bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px' }}>
                       {selectedImageUrl || imageUrls[0] ? (
                         <div className="w-full h-full flex items-center justify-center p-2">
-                          <img
-                            src={selectedImageUrl || imageUrls[0] || product.imageUrl}
-                            alt={product.name}
-                             className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110"
-                            width={400}
-                            height={400}
-                     
-                            onClick={() => {
-                              // Create zoom modal
-                              const modal = document.createElement('div');
-                              modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
-                              modal.onclick = () => modal.remove();
+                          {selectedImageUrl?.includes('.mp4') || selectedImageUrl?.includes('video') ? (
+                            <video
+                              src={selectedImageUrl || imageUrls[0]}
+                              className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
+                              controls
+                              width={400}
+                              height={400}
+                            />
+                          ) : (
+                            <img
+                              src={selectedImageUrl || imageUrls[0] || product.imageUrl}
+                              alt={product.name}
+                              className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110"
+                              width={400}
+                              height={400}
+                              onClick={() => {
+                                // Create zoom modal
+                                const modal = document.createElement('div');
+                                modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
+                                modal.onclick = () => modal.remove();
 
-                              const img = document.createElement('img');
-                              img.src = selectedImageUrl || imageUrls[0] || product.imageUrl;
-                              img.className = 'max-w-full max-h-full object-contain rounded-lg';
-                              img.onclick = (e) => e.stopPropagation();
+                                const img = document.createElement('img');
+                                img.src = selectedImageUrl || imageUrls[0] || product.imageUrl;
+                                img.className = 'max-w-full max-h-full object-contain rounded-lg';
+                                img.onclick = (e) => e.stopPropagation();
 
-                              const closeBtn = document.createElement('button');
-                              closeBtn.innerHTML = '×';
-                              closeBtn.className = 'absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors';
-                              closeBtn.onclick = () => modal.remove();
+                                const closeBtn = document.createElement('button');
+                                closeBtn.innerHTML = '×';
+                                closeBtn.className = 'absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors';
+                                closeBtn.onclick = () => modal.remove();
 
-                              modal.appendChild(img);
-                              modal.appendChild(closeBtn);
-                              document.body.appendChild(modal);
-                            }}
-                          />
+                                modal.appendChild(img);
+                                modal.appendChild(closeBtn);
+                                document.body.appendChild(modal);
+                              }}
+                            />
+                          )}
                         </div>
                       ) : (
                         <div className="w-full h-full bg-gray-200 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                          <span className="text-gray-500">No image available</span>
+                          <span className="text-gray-500">No media available</span>
                         </div>
                       )}
 
-                      {/* Zoom Hint */}
-                      <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                        Click to zoom
-                      </div>
+                      {/* Zoom Hint - Only for images */}
+                      {!selectedImageUrl?.includes('.mp4') && !selectedImageUrl?.includes('video') && (
+                        <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                          Click to zoom
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -662,7 +717,7 @@ export default function ProductDetail() {
                   )}
                 </div>
 
-              
+
               </div>
             </div>
           </div>

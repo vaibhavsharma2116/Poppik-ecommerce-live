@@ -158,11 +158,11 @@ export default function BlogPostDetail() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section with Featured Image */}
+      {/* Hero Section with Featured Image - Mobile Responsive */}
       <div className="w-full bg-gray-100">
         {post.videoUrl ? (
           <video 
-            className="w-full h-[500px] object-cover"
+            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] object-cover"
             controls
             preload="metadata"
             poster={post.imageUrl}
@@ -173,25 +173,25 @@ export default function BlogPostDetail() {
           <img
             src={post.imageUrl}
             alt={post.title}
-            className="w-full h-[500px] object-cover"
+            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] object-cover"
           />
         )}
       </div>
 
-      {/* Title and Metadata Section - Below Image */}
+      {/* Title and Metadata Section - Mobile Responsive */}
       <div className="bg-white border-b">
-        <div className="max-w-6xl mx-auto px-8 md:px-12 py-8">
-          <div className="mb-4">
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-8 lg:px-12 py-4 sm:py-6 md:py-8">
+          <div className="mb-3 sm:mb-4 flex items-center flex-wrap gap-1">
             <Link href="/blog">
-              <Button variant="ghost" className="text-gray-600 hover:text-gray-900">
+              <Button variant="ghost" className="text-gray-600 hover:text-gray-900 px-2 sm:px-4 text-xs sm:text-sm">
                 Home
               </Button>
             </Link>
-            <span className="text-gray-400 mx-2">/</span>
-            <span className="text-gray-600">The World of Faces</span>
+            <span className="text-gray-400 mx-1">/</span>
+            <span className="text-gray-600 text-xs sm:text-sm">The World of Faces</span>
           </div>
 
-          <p className="text-gray-500 text-sm mb-4">
+          <p className="text-gray-500 text-xs sm:text-sm mb-3 sm:mb-4">
             {new Date(post.createdAt).toLocaleDateString('en-US', { 
               month: 'short', 
               day: '2-digit', 
@@ -199,45 +199,31 @@ export default function BlogPostDetail() {
             })}
           </p>
 
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 mb-4 sm:mb-6 leading-tight">
             {post.title}
           </h1>
-
-          {/* <div className="flex items-center gap-6 text-gray-600 text-sm">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              <span>{post.author}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span>{post.readTime}</span>
-            </div>
-            <Badge variant="outline" className="border-gray-300">
-              {post.category}
-            </Badge>
-          </div> */}
         </div>
       </div>
 
       {/* Main Content */}
       <article className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Author & Meta Info */}
-        <div className="py-8 border-b flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-              <User className="h-6 w-6 text-gray-600" />
+        {/* Author & Meta Info - Mobile Responsive */}
+        <div className="py-4 sm:py-6 md:py-8 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+              <User className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" />
             </div>
             <div>
-              <p className="font-medium text-gray-900">{post.author}</p>
-              <p className="text-sm text-gray-500">Beauty Expert</p>
+              <p className="font-medium text-sm sm:text-base text-gray-900">{post.author}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Beauty Expert</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <Share2 className="h-4 w-4 mr-2" />
+                <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
+                  <Share2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                   Share
                 </Button>
               </PopoverTrigger>
@@ -318,43 +304,44 @@ export default function BlogPostDetail() {
               variant={copied ? "default" : "ghost"} 
               size="sm" 
               onClick={handleCopyLink}
+              className="text-xs sm:text-sm"
             >
               {copied ? (
                 <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Copied
+                  <Check className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Copied</span>
                 </>
               ) : (
                 <>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Link
+                  <Copy className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Copy Link</span>
                 </>
               )}
             </Button>
           </div>
         </div>
 
-        {/* Excerpt */}
-        <div className="py-8">
-          <p className="text-xl text-gray-700 leading-relaxed font-light">
+        {/* Excerpt - Mobile Responsive */}
+        <div className="py-4 sm:py-6 md:py-8">
+          <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-700 leading-relaxed font-light">
             {post.excerpt}
           </p>
         </div>
 
-        {/* Content Sections */}
-        <div className="prose prose-lg max-w-none mb-12 blog-content">
+        {/* Content Sections - Mobile Responsive */}
+        <div className="prose prose-sm sm:prose-base md:prose-lg max-w-none mb-8 sm:mb-10 md:mb-12 blog-content">
           <div dangerouslySetInnerHTML={{ __html: post.content }} />
         </div>
 
-        {/* Tags */}
+        {/* Tags - Mobile Responsive */}
         {post.tags && post.tags.length > 0 && (
-          <div className="py-8 border-t border-b">
-            <div className="flex flex-wrap gap-2">
+          <div className="py-4 sm:py-6 md:py-8 border-t border-b">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {post.tags.map((tag, index) => (
                 <Badge 
                   key={index} 
                   variant="secondary" 
-                  className="bg-gray-100 text-gray-700 hover:bg-gray-200 px-4 py-2"
+                  className="bg-gray-100 text-gray-700 hover:bg-gray-200 px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 text-xs sm:text-sm"
                 >
                   {tag}
                 </Badge>
@@ -364,17 +351,17 @@ export default function BlogPostDetail() {
         )}
       </article>
 
-      {/* Related Posts Section */}
+      {/* Related Posts Section - Mobile Responsive */}
       {relatedPosts.length > 0 && (
-        <section className="py-16 bg-gray-50">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8">You may also like</h2>
+        <section className="py-8 sm:py-12 md:py-16 bg-gray-50">
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 md:mb-8">You may also like</h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
               {relatedPosts.map((relatedPost) => (
                 <Link key={relatedPost.id} href={`/blog/${relatedPost.slug}`}>
                   <div className="group cursor-pointer">
-                    <div className="relative overflow-hidden bg-gray-100 mb-4" style={{ paddingBottom: '66.67%' }}>
+                    <div className="relative overflow-hidden bg-gray-100 mb-3 sm:mb-4 rounded-lg sm:rounded-none" style={{ paddingBottom: '66.67%' }}>
                       <img
                         src={relatedPost.imageUrl}
                         alt={relatedPost.title}
@@ -382,7 +369,7 @@ export default function BlogPostDetail() {
                       />
                     </div>
 
-                    <p className="text-sm text-gray-500 mb-2">
+                    <p className="text-xs sm:text-sm text-gray-500 mb-1.5 sm:mb-2">
                       {new Date(relatedPost.createdAt).toLocaleDateString('en-US', { 
                         month: 'short', 
                         day: '2-digit', 
@@ -390,7 +377,7 @@ export default function BlogPostDetail() {
                       })}
                     </p>
 
-                    <h3 className="text-lg font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2">
+                    <h3 className="text-sm sm:text-base md:text-lg font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2 leading-tight">
                       {relatedPost.title}
                     </h3>
                   </div>
@@ -398,11 +385,11 @@ export default function BlogPostDetail() {
               ))}
             </div>
 
-            <div className="text-center mt-12">
+            <div className="text-center mt-8 sm:mt-10 md:mt-12">
               <Link href="/blog">
                 {/* <Button 
                   variant="default" 
-                  className="bg-red-600 hover:bg-red-700 text-white px-8 py-6 text-base"
+                  className="bg-red-600 hover:bg-red-700 text-white px-6 sm:px-8 py-4 sm:py-6 text-sm sm:text-base"
                 >
                   VIEW ALL
                 </Button> */}
@@ -412,11 +399,11 @@ export default function BlogPostDetail() {
         </section>
       )}
 
-      {/* Back to Blog CTA */}
-      <div className="py-12 text-center bg-white">
+      {/* Back to Blog CTA - Mobile Responsive */}
+      <div className="py-6 sm:py-8 md:py-12 text-center bg-white">
         <Link href="/blog">
-          <Button variant="outline" size="lg">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+          <Button variant="outline" size="lg" className="text-xs sm:text-sm md:text-base px-4 sm:px-6 py-2 sm:py-3">
+            <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
             Explore More Articles
           </Button>
         </Link>

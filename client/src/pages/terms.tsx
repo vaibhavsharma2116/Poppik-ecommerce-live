@@ -54,7 +54,7 @@ export default function Terms() {
     {
       icon: Mail,
       title: "Grievance Redressal & Contact",
-      content: "In compliance with the Information Technology Act 2000, our Grievance Officer is Mr. Vishal Karande (vishal@poppik.in) with a response time within 48 hours. For any questions regarding these Terms & Conditions, contact us at info@poppik.in."
+      content: "In compliance with the Information Technology Act 2000, our Grievance Officer is Mr. Hanmant Dadas (hanmnt@poppik.in) with a response time within 48 hours. For any questions regarding these Terms & Conditions, contact us at info@poppik.in."
     }
   ];
 

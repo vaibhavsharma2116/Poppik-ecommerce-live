@@ -242,7 +242,7 @@ export default function VideoTestimonials() {
           </div>
 
           {/* Mobile Navigation Dots */}
-          <div className="flex md:hidden justify-center gap-2 mt-6">
+          {/* <div className="flex md:hidden justify-center gap-2 mt-6">
             <button
               onClick={prevSlide}
               className="p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all"
@@ -257,7 +257,7 @@ export default function VideoTestimonials() {
             >
               <ChevronRight className="w-5 h-5 text-gray-800" />
             </button>
-          </div>
+          </div> */}
         </div>
       </div>
     </section>

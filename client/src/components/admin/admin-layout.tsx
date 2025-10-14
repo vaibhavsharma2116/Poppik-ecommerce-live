@@ -93,12 +93,6 @@ const sidebarItems = [
     badge: null,
   },
   {
-    title: "Featured Sections",
-    href: "/featured-sections",
-    icon: Sparkles,
-    badge: null,
-  },
-  {
     title: "Contact Submissions",
     href: "/contact-submissions",
     icon: Mail,

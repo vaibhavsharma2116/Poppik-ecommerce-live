@@ -635,8 +635,8 @@ export default function Home() {
       {/* <WhatsAppButton /> */}
 
       {/* Footer */}
-      <footer className="bg-black text-black py-16">
-      </footer>
+      {/* <footer className="bg-black text-black py-16">
+      </footer> */}
     </div>
   );
 }
