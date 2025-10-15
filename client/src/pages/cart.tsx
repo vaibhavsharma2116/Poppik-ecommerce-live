@@ -300,11 +300,25 @@ export default function Cart() {
                           Size: {item.variant}
                         </Badge>
                       )}
-                      <div className="flex items-center justify-center sm:justify-start mb-2">
-                        <span className="text-lg font-semibold text-gray-900">{item.price}</span>
-                        {item.originalPrice && (
-                          <span className="ml-2 text-sm text-gray-500 line-through">{item.originalPrice}</span>
-                        )}
+                      <div className="mb-2">
+                        <div className="flex items-center justify-center sm:justify-start space-x-2">
+                          <span className="text-lg font-semibold text-gray-900">{item.price}</span>
+                          {item.originalPrice && (
+                            <span className="text-sm text-gray-500 line-through">{item.originalPrice}</span>
+                          )}
+                        </div>
+                        {item.originalPrice && (() => {
+                          const originalPrice = parseInt(item.originalPrice.replace(/[₹,]/g, ""));
+                          const currentPrice = parseInt(item.price.replace(/[₹,]/g, ""));
+                          const discount = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+                          return discount > 0 ? (
+                            <div className="flex items-center justify-center sm:justify-start mt-1">
+                              <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                                {discount}% OFF • Save ₹{(originalPrice - currentPrice).toLocaleString()}
+                              </span>
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                       <p className={`text-sm ${item.inStock ? 'text-green-600' : 'text-red-600'}`}>
                         {item.inStock ? '✓ In Stock' : '⚠ Out of Stock'}
@@ -389,12 +403,34 @@ export default function Cart() {
                     <span className="text-gray-600">Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
                     <span className="font-medium">₹{subtotal.toLocaleString()}</span>
                   </div>
+                  
+                  {/* Product Discounts */}
+                  {(() => {
+                    const productDiscount = cartItems.reduce((total, item) => {
+                      if (item.originalPrice) {
+                        const original = parseInt(item.originalPrice.replace(/[₹,]/g, ""));
+                        const current = parseInt(item.price.replace(/[₹,]/g, ""));
+                        return total + ((original - current) * item.quantity);
+                      }
+                      return total;
+                    }, 0);
+                    
+                    return productDiscount > 0 ? (
+                      <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                        <span className="text-green-700 font-medium">Product Discount</span>
+                        <span className="font-bold text-green-600">-₹{productDiscount.toLocaleString()}</span>
+                      </div>
+                    ) : null;
+                  })()}
+                  
+                  {/* Promo Code Discount */}
                   {discount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Discount (SAVE10)</span>
-                      <span className="font-medium text-green-600">-₹{discount.toLocaleString()}</span>
+                    <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                      <span className="text-green-700 font-medium">Promo Code (SAVE10)</span>
+                      <span className="font-bold text-green-600">-₹{discount.toLocaleString()}</span>
                     </div>
                   )}
+                  
                   <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
                     💡 Shipping charges will be calculated at checkout
                   </div>

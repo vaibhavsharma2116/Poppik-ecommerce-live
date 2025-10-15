@@ -896,6 +896,22 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Get active shades with their associations (categories, subcategories, products)
+  async getActiveShadesWithAssociations(): Promise<Shade[]> {
+    try {
+      const db = await getDb();
+      const result = await db
+        .select()
+        .from(shades)
+        .where(eq(shades.isActive, true))
+        .orderBy(asc(shades.sortOrder));
+      return result;
+    } catch (error) {
+      console.error("Error fetching active shades with associations:", error);
+      return [];
+    }
+  }
+
   // Helper function to check if shade has references
   async checkShadeReferences(shadeId: number): Promise<boolean> {
     // This would check if the shade is used in any products

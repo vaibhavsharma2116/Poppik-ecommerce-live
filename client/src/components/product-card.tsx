@@ -226,19 +226,33 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           </div>
 
           <div className="space-y-3 mt-4">
-            <div className="flex items-baseline space-x-2">
-              <span className="text-xl font-bold text-gray-900">
-                ₹{product.price}
-              </span>
-              {product.originalPrice && (
-                <span className="text-sm text-gray-500 line-through">
-                  ₹{product.originalPrice}
+            <div className="space-y-2">
+              <div className="flex items-baseline space-x-2">
+                <span className="text-xl font-bold text-gray-900">
+                  ₹{product.price}
                 </span>
-              )}
-              {product.originalPrice && (
-                <span className="text-xs text-green-600 font-medium">
-                  {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% off
-                </span>
+                {product.originalPrice && product.originalPrice > product.price && (
+                  <span className="text-sm text-gray-500 line-through">
+                    ₹{product.originalPrice}
+                  </span>
+                )}
+              </div>
+              
+              {product.originalPrice && product.originalPrice > product.price && (
+                <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white p-4 rounded-lg shadow-xl border border-white/20">
+                  <div className="text-center">
+                    <div className="text-sm font-bold">GET LIPSTICK FREE</div>
+                    <div className="text-xs opacity-90 mt-1">WITH STROBE CREAM</div>
+                    <div className="flex items-center justify-center space-x-3 mt-2">
+                      <span className="text-base font-bold bg-white text-pink-600 px-3 py-1.5 rounded shadow">
+                        {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
+                      </span>
+                      <span className="text-sm font-semibold">
+                        Save ₹{(product.originalPrice - product.price).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -310,7 +324,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
               loading="lazy"
               decoding="async"
-
               style={{ width: '100%', height: '70%', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
@@ -347,19 +360,33 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         </Link>
 
         <div className="space-y-1 sm:space-y-2">
-          <div className="flex items-baseline space-x-1 sm:space-x-2">
-            <span className="mobile-product-price text-sm sm:text-base md:text-lg font-bold text-gray-900">
-              ₹{product.price}
-            </span>
-            {product.originalPrice && (
-              <span className="text-xs sm:text-sm text-gray-500 line-through">
-                ₹{product.originalPrice}
+          <div className="flex flex-col space-y-1">
+            <div className="flex items-baseline space-x-2">
+              <span className="mobile-product-price text-sm sm:text-base md:text-lg font-bold text-gray-900">
+                ₹{product.price}
               </span>
-            )}
-            {product.originalPrice && (
-              <span className="text-xs text-green-600 font-medium">
-                {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% off
-              </span>
+              {product.originalPrice && product.originalPrice > product.price && (
+                <span className="text-xs sm:text-sm text-gray-500 line-through">
+                  ₹{product.originalPrice}
+                </span>
+              )}
+            </div>
+            
+            {product.originalPrice && product.originalPrice > product.price && (
+              <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white p-3 rounded-lg shadow-lg border border-white/20">
+                <div className="text-center">
+                  <div className="text-xs font-semibold opacity-90">GET LIPSTICK FREE</div>
+                  <div className="text-xs opacity-80 mt-1">WITH STROBE CREAM</div>
+                  <div className="flex items-center justify-center space-x-2 mt-2">
+                    <span className="text-sm font-bold bg-white text-pink-600 px-2 py-1 rounded">
+                      {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
+                    </span>
+                    <span className="text-xs font-semibold">
+                      Save ₹{(product.originalPrice - product.price).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
@@ -380,8 +407,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             </Button>
           )}
         </div>
-
-
       </div>
     </div>
   );

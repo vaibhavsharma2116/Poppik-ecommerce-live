@@ -344,10 +344,12 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         return true;
       });
 
-      if (validFiles.length === 0) return;
+      if (validFiles.length === 0) {
+        event.target.value = '';
+        return;
+      }
 
-      setSelectedImages(validFiles);
-
+      // Create a batch to update both states together
       const previewPromises = validFiles.map(file => {
         return new Promise<string>((resolve) => {
           const reader = new FileReader();
@@ -357,10 +359,17 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       });
 
       Promise.all(previewPromises).then(previews => {
-        setImagePreviews(previews);
-        console.log(`Selected ${validFiles.length} images for upload`);
+        // Update both states in a single batch to prevent duplicates
+        setSelectedImages(prev => [...prev, ...validFiles]);
+        setImagePreviews(prev => [...prev, ...previews]);
+        
+        console.log(`Total images after update: ${selectedImages.length + validFiles.length}`);
+        console.log(`Total previews after update: ${imagePreviews.length + previews.length}`);
       });
     }
+    
+    // Reset input value to allow selecting same file again if needed
+    event.target.value = '';
   };
 
   const handleVideoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -391,10 +400,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
   };
 
   const removeImage = (index: number) => {
-    const newImages = selectedImages.filter((_, i) => i !== index);
-    const newPreviews = imagePreviews.filter((_, i) => i !== index);
-    setSelectedImages(newImages);
-    setImagePreviews(newPreviews);
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   return (

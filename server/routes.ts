@@ -5026,27 +5026,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products/:productId/shades", async (req, res) => {
     try {
       const { productId } = req.params;
-      // Fetch all shades that are active and have either categoryIds, subcategoryIds, or productIds defined.
-      const allShades = await storage.getActiveShadesWithAssociations();
+      console.log("Fetching shades for product ID:", productId);
 
-      // Filter shades to only include those specifically assigned to this product,
-      // or those that apply to the product's category/subcategory if no specific product is assigned.
+      // Fetch all active shades with associations
+      const allShades = await storage.getActiveShadesWithAssociations();
+      console.log("Total active shades found:", allShades.length);
+
+      // Filter shades to only include those specifically assigned to this product
       const applicableShades = allShades.filter(shade => {
-        // If the shade has specific productIds and this product is in it, include it.
+        // If the shade has specific productIds and this product is in it, include it
         if (shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(parseInt(productId))) {
           return true;
         }
-
-        // If the shade has no specific productIds, it might apply to categories/subcategories.
-        // For now, we'll assume shades are primarily product-specific or category-wide.
-        // If productIds is empty or null, and the shade belongs to the product's category/subcategory,
-        // it should be included if no product-specific assignment exists.
-        // (This logic might need refinement based on how categories/subcategories are associated with shades)
-        // For this fix, we are strictly looking for shades assigned directly to the product.
-
-        return false; // Default to false if not explicitly assigned to the product.
+        return false;
       });
 
+      console.log(`Found ${applicableShades.length} shades for product ${productId}`);
       res.json(applicableShades);
     } catch (error) {
       console.error("Error fetching product shades:", error);
