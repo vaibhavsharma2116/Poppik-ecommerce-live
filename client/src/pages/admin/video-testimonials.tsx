@@ -50,7 +50,7 @@ export default function AdminVideoTestimonials() {
     sortOrder: 0,
   });
 
-  // Fetch video testimonials
+  // Fetch UGC Video
   const { data: testimonials = [], isLoading } = useQuery<VideoTestimonial[]>({
     queryKey: ['/api/admin/video-testimonials'],
   });
@@ -217,8 +217,8 @@ export default function AdminVideoTestimonials() {
     <div className="flex-1 space-y-6 p-8 pt-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Video Testimonials</h2>
-          <p className="text-muted-foreground mt-1">Manage product video testimonials</p>
+          <h2 className="text-3xl font-bold tracking-tight">UGC Video</h2>
+          <p className="text-muted-foreground mt-1">Manage product UGC Video</p>
         </div>
         <Button onClick={() => { resetForm(); setIsAddModalOpen(true); }}>
           <Plus className="mr-2 h-4 w-4" />
@@ -228,8 +228,8 @@ export default function AdminVideoTestimonials() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Video Testimonials</CardTitle>
-          <CardDescription>View and manage video testimonials with product links</CardDescription>
+          <CardTitle>All UGC Video</CardTitle>
+          <CardDescription>View and manage UGC Video with product links</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (

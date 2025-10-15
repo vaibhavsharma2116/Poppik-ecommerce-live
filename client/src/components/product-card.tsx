@@ -113,6 +113,13 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     window.dispatchEvent(new Event("cartUpdated"));
   };
 
+  // Use admin-calculated discount or calculate if not available
+  const discountPercentage = product.discount 
+    ? Math.round(Number(product.discount))
+    : product.originalPrice 
+      ? Math.round(((Number(product.originalPrice) - Number(product.price)) / Number(product.originalPrice)) * 100)
+      : 0;
+
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
@@ -138,11 +145,11 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
       >
         <div className="relative w-48 flex-shrink-0">
-          {product.saleOffer && (
+          {/* {product.saleOffer && (
             <Badge className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs px-3 py-1 animate-pulse shadow-lg">
               {product.saleOffer}
             </Badge>
-          )}
+          )} */}
           <button
             onClick={toggleWishlist}
             className="absolute top-2 right-2 p-2 bg-white/95 backdrop-blur-sm rounded-full shadow-lg hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50 hover:scale-110 transition-all duration-300 z-10 border border-pink-100"
@@ -229,31 +236,21 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             <div className="space-y-2">
               <div className="flex items-baseline space-x-2">
                 <span className="text-xl font-bold text-gray-900">
-                  ₹{product.price}
+                  ₹{Number(product.price).toLocaleString()}
                 </span>
-                {product.originalPrice && product.originalPrice > product.price && (
-                  <span className="text-sm text-gray-500 line-through">
-                    ₹{product.originalPrice}
-                  </span>
+                {product.originalPrice && Number(product.originalPrice) > Number(product.price) && (
+                  <>
+                    <span className="text-sm text-gray-500 line-through">
+                      ₹{Number(product.originalPrice).toLocaleString()}
+                    </span>
+                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                      {discountPercentage}% OFF
+                    </span>
+                  </>
                 )}
               </div>
               
-              {product.originalPrice && product.originalPrice > product.price && (
-                <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white p-4 rounded-lg shadow-xl border border-white/20">
-                  <div className="text-center">
-                    <div className="text-sm font-bold">GET LIPSTICK FREE</div>
-                    <div className="text-xs opacity-90 mt-1">WITH STROBE CREAM</div>
-                    <div className="flex items-center justify-center space-x-3 mt-2">
-                      <span className="text-base font-bold bg-white text-pink-600 px-3 py-1.5 rounded shadow">
-                        {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
-                      </span>
-                      <span className="text-sm font-semibold">
-                        Save ₹{(product.originalPrice - product.price).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
+              
             </div>
 
             {product.variants?.colors || product.variants?.shades ? (
@@ -296,11 +293,11 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
-        {product.saleOffer && (
+        {/* {product.saleOffer && (
           <Badge className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 text-xs animate-pulse shadow-lg font-bold">
             {product.saleOffer}
           </Badge>
-        )}
+        )} */}
         <button
           onClick={toggleWishlist}
           className="absolute top-2 right-2 p-2 hover:from-red-50 hover:to-pink-50 hover:scale-110 transition-all duration-300 z-10 "
@@ -363,31 +360,21 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <div className="flex flex-col space-y-1">
             <div className="flex items-baseline space-x-2">
               <span className="mobile-product-price text-sm sm:text-base md:text-lg font-bold text-gray-900">
-                ₹{product.price}
+                ₹{Number(product.price).toLocaleString()}
               </span>
-              {product.originalPrice && product.originalPrice > product.price && (
-                <span className="text-xs sm:text-sm text-gray-500 line-through">
-                  ₹{product.originalPrice}
-                </span>
+              {product.originalPrice && Number(product.originalPrice) > Number(product.price) && (
+                <>
+                  <span className="text-xs sm:text-sm text-gray-500 line-through">
+                    ₹{Number(product.originalPrice).toLocaleString()}
+                  </span>
+                  <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
+                    {discountPercentage}% OFF
+                  </span>
+                </>
               )}
             </div>
             
-            {product.originalPrice && product.originalPrice > product.price && (
-              <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white p-3 rounded-lg shadow-lg border border-white/20">
-                <div className="text-center">
-                  <div className="text-xs font-semibold opacity-90">GET LIPSTICK FREE</div>
-                  <div className="text-xs opacity-80 mt-1">WITH STROBE CREAM</div>
-                  <div className="flex items-center justify-center space-x-2 mt-2">
-                    <span className="text-sm font-bold bg-white text-pink-600 px-2 py-1 rounded">
-                      {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
-                    </span>
-                    <span className="text-xs font-semibold">
-                      Save ₹{(product.originalPrice - product.price).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+           
           </div>
 
           {product.variants?.colors || product.variants?.shades ? (

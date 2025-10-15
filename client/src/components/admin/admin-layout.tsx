@@ -105,7 +105,7 @@ const sidebarItems = [
     badge: null,
   },
   {
-    title: "Video Testimonials",
+    title: "UGC Video",
     href: "/video-testimonials",
     icon: FileText,
     badge: null,

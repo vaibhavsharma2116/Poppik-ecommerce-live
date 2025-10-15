@@ -58,7 +58,7 @@ import type { InsertBlogCategory } from "../shared/schema";
 
 // Database connection with enhanced configuration
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
+ connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -3379,8 +3379,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: req.body.content,
         author: req.body.author,
         category: req.body.category,
-        tags: Array.isArray(req.body.tags) ? req.body.tags :
-              typeof req.body.tags === 'string' ? req.body.tags.split(',').map(t => t.trim()) : [],
         imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400',
         videoUrl,
         featured: req.body.featured === 'true',
@@ -3547,6 +3545,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin blog subcategories
+  app.get("/api/admin/blog/subcategories", async (req, res) => {
+    try {
+      const subcategories = await storage.getBlogSubcategories();
+      res.json(subcategories);
+    } catch (error) {
+      console.error("Error fetching blog subcategories:", error);
+      res.status(500).json({ error: "Failed to fetch blog subcategories" });
+    }
+  });
+
+  app.get("/api/admin/blog/categories/:categoryId/subcategories", async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+      const subcategories = await storage.getBlogSubcategoriesByCategory(parseInt(categoryId));
+      res.json(subcategories);
+    } catch (error) {
+      console.error("Error fetching blog subcategories by category:", error);
+      res.status(500).json({ error: "Failed to fetch blog subcategories" });
+    }
+  });
+
   app.post("/api/admin/blog/categories", async (req, res) => {
     try {
       const { name, description, isActive, sortOrder } = req.body;
@@ -3624,6 +3644,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const errorMessage = error instanceof Error ? error.message : "Failed to delete blog category";
       res.status(500).json({
         error: "Failed to delete blog category",
+        details: errorMessage
+      });
+    }
+  });
+
+  app.post("/api/admin/blog/subcategories", async (req, res) => {
+    try {
+      const { name, description, categoryId, isActive, sortOrder } = req.body;
+
+      if (!name || name.trim().length === 0) {
+        return res.status(400).json({ error: "Subcategory name is required" });
+      }
+
+      if (!categoryId) {
+        return res.status(400).json({ error: "Category ID is required" });
+      }
+
+      const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+      const subcategoryData: InsertBlogSubcategory = {
+        name: name.trim(),
+        slug,
+        description: description?.trim() || '',
+        categoryId: parseInt(categoryId),
+        isActive: isActive !== false && isActive !== 'false',
+        sortOrder: parseInt(sortOrder) || 0
+      };
+
+      const subcategory = await storage.createBlogSubcategory(subcategoryData);
+      res.status(201).json(subcategory);
+    } catch (error) {
+      console.error("Error creating blog subcategory:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to create blog subcategory";
+      res.status(500).json({
+        error: "Failed to create blog subcategory",
+        details: errorMessage
+      });
+    }
+  });
+
+  app.put("/api/admin/blog/subcategories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description, categoryId, isActive, sortOrder } = req.body;
+
+      const updateData: Partial<InsertBlogSubcategory> = {};
+
+      if (name !== undefined) {
+        updateData.name = name.trim();
+        updateData.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      }
+      if (description !== undefined) updateData.description = description.trim();
+      if (categoryId !== undefined) updateData.categoryId = parseInt(categoryId);
+      if (isActive !== undefined) updateData.isActive = isActive !== false && isActive !== 'false';
+      if (sortOrder !== undefined) updateData.sortOrder = parseInt(sortOrder) || 0;
+
+      const subcategory = await storage.updateBlogSubcategory(parseInt(id), updateData);
+
+      if (!subcategory) {
+        return res.status(404).json({ error: "Blog subcategory not found" });
+      }
+
+      res.json(subcategory);
+    } catch (error) {
+      console.error("Error updating blog subcategory:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to update blog subcategory";
+      res.status(500).json({
+        error: "Failed to update blog subcategory",
+        details: errorMessage
+      });
+    }
+  });
+
+  app.delete("/api/admin/blog/subcategories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const subcategoryId = parseInt(id);
+
+      if (isNaN(subcategoryId)) {
+        return res.status(400).json({ error: "Invalid subcategory ID" });
+      }
+
+      const success = await storage.deleteBlogSubcategory(subcategoryId);
+
+      if (!success) {
+        return res.status(404).json({ error: "Blog subcategory not found" });
+      }
+
+      res.json({ success: true, message: "Blog subcategory deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting blog subcategory:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete blog subcategory";
+      res.status(500).json({
+        error: "Failed to delete blog subcategory",
         details: errorMessage
       });
     }

@@ -199,9 +199,9 @@ export default function BlogPostDetail() {
             })}
           </p>
 
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 mb-4 sm:mb-6 leading-tight">
+          <h6 className="text-2sm lg:text-5xl xl:text-3xl  text-gray-900 mb-4 sm:mb-6 leading-tight">
             {post.title}
-          </h1>
+          </h6>
         </div>
       </div>
 
@@ -334,21 +334,7 @@ export default function BlogPostDetail() {
         </div>
 
         {/* Tags - Mobile Responsive */}
-        {post.tags && post.tags.length > 0 && (
-          <div className="py-4 sm:py-6 md:py-8 border-t border-b">
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              {post.tags.map((tag, index) => (
-                <Badge 
-                  key={index} 
-                  variant="secondary" 
-                  className="bg-gray-100 text-gray-700 hover:bg-gray-200 px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2 text-xs sm:text-sm"
-                >
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
+        
       </article>
 
       {/* Related Posts Section - Mobile Responsive */}

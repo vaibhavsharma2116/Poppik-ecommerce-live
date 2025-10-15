@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Heart, Share2 } from "lucide-react";
@@ -8,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from '@tanstack/react-query';
 
 interface CartItem {
   id: number;
@@ -26,6 +26,11 @@ export default function Cart() {
   const [loading, setLoading] = useState(true);
   const [savingToWishlist, setSavingToWishlist] = useState<number | null>(null);
   const { toast } = useToast();
+
+  // Fetch announcements for dynamic offers
+  const { data: announcements = [] } = useQuery({
+    queryKey: ['/api/announcements'],
+  });
 
   // Load cart from localStorage on component mount
   useEffect(() => {
@@ -63,7 +68,7 @@ export default function Cart() {
       removeItem(id);
       return;
     }
-    
+
     if (newQuantity > 10) {
       toast({
         title: "Maximum Quantity Reached",
@@ -73,12 +78,12 @@ export default function Cart() {
       return;
     }
 
-    setCartItems(items => 
-      items.map(item => 
+    setCartItems(items =>
+      items.map(item =>
         item.id === id ? { ...item, quantity: newQuantity } : item
       )
     );
-    
+
     toast({
       title: "Cart Updated",
       description: "Item quantity has been updated",
@@ -88,7 +93,7 @@ export default function Cart() {
   const removeItem = (id: number) => {
     const item = cartItems.find(item => item.id === id);
     setCartItems(items => items.filter(item => item.id !== id));
-    
+
     toast({
       title: "Item Removed",
       description: `${item?.name} has been removed from your cart`,
@@ -99,19 +104,19 @@ export default function Cart() {
   const saveForLater = async (id: number) => {
     setSavingToWishlist(id);
     const item = cartItems.find(item => item.id === id);
-    
+
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Add to wishlist (localStorage for now)
       const existingWishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
       const wishlistItem = { ...item, dateAdded: new Date().toISOString() };
       localStorage.setItem("wishlist", JSON.stringify([...existingWishlist, wishlistItem]));
-      
+
       // Remove from cart
       removeItem(id);
-      
+
       toast({
         title: "Saved for Later",
         description: `${item?.name} has been moved to your wishlist`,
@@ -129,7 +134,7 @@ export default function Cart() {
 
   const clearCart = () => {
     if (cartItems.length === 0) return;
-    
+
     setCartItems([]);
     toast({
       title: "Cart Cleared",
@@ -139,7 +144,7 @@ export default function Cart() {
 
   const applyPromoCode = () => {
     const code = promoCode.trim().toLowerCase();
-    
+
     if (!code) {
       toast({
         title: "Empty Promo Code",
@@ -154,15 +159,10 @@ export default function Cart() {
         title: "Promo Code Applied! 🎉",
         description: "10% discount has been applied to your order",
       });
-    } else if (code === "freeship") {
-      toast({
-        title: "Free Shipping Applied! 🚚",
-        description: "Shipping charges waived for this order",
-      });
     } else {
       toast({
         title: "Invalid Promo Code",
-        description: "The promo code you entered is not valid. Try SAVE10 or FREESHIP",
+        description: "The promo code you entered is not valid. Try SAVE10",
         variant: "destructive",
       });
     }
@@ -193,16 +193,49 @@ export default function Cart() {
     });
   };
 
-  const calculateSubtotal = () => {
-    return cartItems.reduce((total, item) => {
-      const price = parseInt(item.price.replace(/[₹,]/g, ""));
-      return total + (price * item.quantity);
-    }, 0);
-  };
+  // Calculate totals
+  const subtotal = cartItems.reduce((sum, item) => {
+    const price = parseInt(item.price.replace(/[₹,]/g, ""));
+    return sum + (price * item.quantity);
+  }, 0);
 
-  const subtotal = calculateSubtotal();
-  const discount = promoCode.toLowerCase() === "save10" ? Math.floor(subtotal * 0.1) : 0;
-  const total = subtotal - discount;
+  // Dynamic discount calculation based on announcements
+  let dynamicDiscount = 0;
+  let appliedOffers: string[] = [];
+
+  announcements.forEach((announcement: any) => {
+    if (!announcement.isActive) return;
+
+    const text = announcement.text.toLowerCase();
+
+    // Check for percentage discount on online payment
+    if (text.includes('5% off') && text.includes('online')) {
+      dynamicDiscount += Math.round(subtotal * 0.05);
+      appliedOffers.push('5% Online Payment Discount');
+    }
+
+    // Check for flat discount above threshold
+    const flatDiscountMatch = text.match(/rs\.?\s*(\d+)\s*off.*rs\.?\s*(\d+)/i);
+    if (flatDiscountMatch) {
+      const discountAmount = parseInt(flatDiscountMatch[1]);
+      const minAmount = parseInt(flatDiscountMatch[2]);
+
+      if (subtotal >= minAmount) {
+        dynamicDiscount += discountAmount;
+        appliedOffers.push(`Rs. ${discountAmount} off (above Rs. ${minAmount})`);
+      }
+    }
+  });
+
+  // Apply promo code discount
+  const promoDiscount = promoCode === 'SAVE10' ? Math.round(subtotal * 0.1) : 0;
+  if (promoDiscount > 0) {
+    appliedOffers.push('Promo Code SAVE10');
+  }
+
+  const totalDiscount = dynamicDiscount + promoDiscount;
+  const total = subtotal - totalDiscount;
+
 
   if (loading) {
     return (
@@ -384,7 +417,7 @@ export default function Cart() {
                   <label className="text-sm font-medium text-gray-700">Promo Code</label>
                   <div className="flex space-x-2">
                     <Input
-                      placeholder="Try SAVE10 or FREESHIP"
+                      placeholder="Try SAVE10"
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
                       className="flex-1"
@@ -403,7 +436,7 @@ export default function Cart() {
                     <span className="text-gray-600">Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
                     <span className="font-medium">₹{subtotal.toLocaleString()}</span>
                   </div>
-                  
+
                   {/* Product Discounts */}
                   {(() => {
                     const productDiscount = cartItems.reduce((total, item) => {
@@ -414,7 +447,7 @@ export default function Cart() {
                       }
                       return total;
                     }, 0);
-                    
+
                     return productDiscount > 0 ? (
                       <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
                         <span className="text-green-700 font-medium">Product Discount</span>
@@ -422,25 +455,45 @@ export default function Cart() {
                       </div>
                     ) : null;
                   })()}
-                  
-                  {/* Promo Code Discount */}
-                  {discount > 0 && (
+
+                  {/* Dynamic Offer Discounts */}
+                  {dynamicDiscount > 0 && (
                     <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
-                      <span className="text-green-700 font-medium">Promo Code (SAVE10)</span>
-                      <span className="font-bold text-green-600">-₹{discount.toLocaleString()}</span>
+                      <span className="text-green-700 font-medium">Offers Applied</span>
+                      <span className="font-bold text-green-600">-₹{dynamicDiscount.toLocaleString()}</span>
                     </div>
                   )}
-                  
+
+                  {/* Promo Code Discount */}
+                  {promoDiscount > 0 && (
+                    <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                      <span className="text-green-700 font-medium">Promo Code (SAVE10)</span>
+                      <span className="font-bold text-green-600">-₹{promoDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+
                   <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
                     💡 Shipping charges will be calculated at checkout
                   </div>
+
+                  {/* Free Shipping Notice */}
+                  {announcements.some((a: any) => a.isActive && a.text.toLowerCase().includes('free shipping')) && (
+                    <div className="text-xs text-green-600 bg-green-50 p-2 rounded font-medium">
+                      ✓ Free shipping applied on orders above Rs. 499
+                    </div>
+                  )}
                 </div>
 
-                <Separator />
-
-                <div className="flex justify-between text-lg font-semibold">
-                  <span>Total</span>
-                  <span>₹{total.toLocaleString()}</span>
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-bold text-gray-900">Total</span>
+                    <span className="text-2xl font-bold text-pink-600">₹{total.toLocaleString()}</span>
+                  </div>
+                  {totalDiscount > 0 && (
+                    <div className="text-xs text-green-600 text-right mt-1">
+                      You saved ₹{totalDiscount.toLocaleString()}!
+                    </div>
+                  )}
                 </div>
 
                 {/* Checkout Button */}

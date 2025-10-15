@@ -42,6 +42,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
     category: '',
     subcategory: '',
     price: '',
+    originalPrice: '',
+    discount: '',
     description: '',
     shortDescription: '',
     rating: '4.0',
@@ -205,6 +207,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         category: categoryName, // Use the category name, not the ID
         subcategory: formData.subcategory || null,
         price: parseFloat(formData.price),
+        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : null,
+        discount: formData.discount ? parseFloat(formData.discount) : null,
         description: formData.description,
         shortDescription: formData.shortDescription || formData.description.substring(0, 100),
         rating: parseFloat(formData.rating),
@@ -300,6 +304,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       category: '',
       subcategory: '',
       price: '',
+      originalPrice: '',
+      discount: '',
       description: '',
       shortDescription: '',
       rating: '4.0',
@@ -601,18 +607,59 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
           </div>
 
           {/* Price and Details */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="price">Price ($) *</Label>
+              <Label htmlFor="originalPrice">Original Price (₹)</Label>
+              <Input
+                id="originalPrice"
+                type="number"
+                step="0.01"
+                value={formData.originalPrice}
+                onChange={(e) => {
+                  handleInputChange('originalPrice', e.target.value);
+                  // Auto-calculate discount if price is set
+                  if (formData.price && e.target.value) {
+                    const discount = ((parseFloat(e.target.value) - parseFloat(formData.price)) / parseFloat(e.target.value) * 100).toFixed(2);
+                    handleInputChange('discount', discount);
+                  }
+                }}
+                placeholder="599"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="discount">Discount (%)</Label>
+              <Input
+                id="discount"
+                type="number"
+                step="0.01"
+                value={formData.discount}
+                onChange={(e) => {
+                  handleInputChange('discount', e.target.value);
+                  // Auto-calculate sale price if original price is set
+                  if (formData.originalPrice && e.target.value) {
+                    const salePrice = (parseFloat(formData.originalPrice) * (1 - parseFloat(e.target.value) / 100)).toFixed(2);
+                    handleInputChange('price', salePrice);
+                  }
+                }}
+                placeholder="e.g., 20"
+              />
+              <p className="text-xs text-gray-500">Enter discount percentage to calculate sale price</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="price">Sale Price (₹) *</Label>
               <Input
                 id="price"
                 type="number"
                 step="0.01"
                 value={formData.price}
                 onChange={(e) => handleInputChange('price', e.target.value)}
-                placeholder="29.99"
+                placeholder="Auto-calculated from discount"
+                disabled
                 required
               />
+              <p className="text-xs text-gray-500">Auto-calculated from original price and discount</p>
             </div>
 
             <div className="space-y-2">

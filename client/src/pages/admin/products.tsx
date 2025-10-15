@@ -104,6 +104,8 @@ export default function AdminProducts() {
   const [editFormData, setEditFormData] = useState({
     name: '',
     price: '',
+    originalPrice: '',
+    discount: '',
     description: '',
     shortDescription: '',
     category: '',
@@ -259,6 +261,8 @@ export default function AdminProducts() {
       setEditFormData({
         name: product.name,
         price: product.price?.toString() || '0',
+        originalPrice: product.originalPrice?.toString() || '',
+        discount: product.discount?.toString() || '',
         description: product.description || '',
         shortDescription: product.shortDescription || '',
         category: categoryValue,
@@ -359,6 +363,8 @@ export default function AdminProducts() {
           ...editFormData,
           category: categoryName, // Use the category name, not the ID
           price: parseFloat(editFormData.price) || 0,
+          originalPrice: editFormData.originalPrice ? parseFloat(editFormData.originalPrice) : null,
+          discount: editFormData.discount ? parseFloat(editFormData.discount) : null,
           rating: parseFloat(editFormData.rating) || 0,
           reviewCount: parseInt(editFormData.reviewCount) || 0,
           slug: editFormData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
@@ -1247,18 +1253,59 @@ export default function AdminProducts() {
             </div>
 
             {/* Price and Details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-price">Price (₹) *</Label>
+                <Label htmlFor="edit-originalPrice">Original Price (₹)</Label>
+                <Input
+                  id="edit-originalPrice"
+                  type="number"
+                  step="0.01"
+                  value={editFormData.originalPrice}
+                  onChange={(e) => {
+                    setEditFormData(prev => ({ ...prev, originalPrice: e.target.value }));
+                    // Auto-calculate discount
+                    if (editFormData.price && e.target.value) {
+                      const discount = ((parseFloat(e.target.value) - parseFloat(editFormData.price)) / parseFloat(e.target.value) * 100).toFixed(2);
+                      setEditFormData(prev => ({ ...prev, discount }));
+                    }
+                  }}
+                  placeholder="599"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-discount">Discount (%)</Label>
+                <Input
+                  id="edit-discount"
+                  type="number"
+                  step="0.01"
+                  value={editFormData.discount}
+                  onChange={(e) => {
+                    setEditFormData(prev => ({ ...prev, discount: e.target.value }));
+                    // Auto-calculate sale price
+                    if (editFormData.originalPrice && e.target.value) {
+                      const salePrice = (parseFloat(editFormData.originalPrice) * (1 - parseFloat(e.target.value) / 100)).toFixed(2);
+                      setEditFormData(prev => ({ ...prev, price: salePrice }));
+                    }
+                  }}
+                  placeholder="e.g., 20"
+                />
+                <p className="text-xs text-gray-500">Enter discount percentage to calculate sale price</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-price">Sale Price (₹) *</Label>
                 <Input
                   id="edit-price"
                   type="number"
                   step="0.01"
                   value={editFormData.price}
                   onChange={(e) => setEditFormData(prev => ({ ...prev, price: e.target.value }))}
-                  placeholder="299"
+                  placeholder="Auto-calculated from discount"
+                  disabled
                   required
                 />
+                <p className="text-xs text-gray-500">Auto-calculated from original price and discount</p>
               </div>
 
               <div className="space-y-2">
@@ -1363,14 +1410,7 @@ export default function AdminProducts() {
                   <Label htmlFor="edit-inStock-checkbox" className="text-sm cursor-pointer select-none">In Stock</Label>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="edit-featured-checkbox"
-                    checked={editFormData.featured}
-                    onCheckedChange={(checked) => setEditFormData(prev => ({ ...prev, featured: checked as boolean }))}
-                  />
-                  <Label htmlFor="edit-featured-checkbox" className="text-sm cursor-pointer select-none">Featured</Label>
-                </div>
+              
 
                 <div className="flex items-center space-x-2">
                   <Checkbox

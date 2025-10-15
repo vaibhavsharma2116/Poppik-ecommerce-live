@@ -23,8 +23,9 @@ export const products = pgTable("products", {
   description: text("description").notNull(),
   shortDescription: text("short_description"),
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
-  originalPrice: numeric("original_price", { precision: 10, scale: 2 }),
-  category: text("category").notNull(),
+  originalPrice: numeric('original_price', { precision: 10, scale: 2 }),
+  discount: numeric('discount', { precision: 5, scale: 2 }), // Discount percentage
+  category: text('category').notNull(),
   subcategory: text("subcategory"),
   imageUrl: text("image_url").notNull(),
   videoUrl: text("video_url"),
@@ -237,37 +238,50 @@ export type ProductImage = typeof productImages.$inferSelect;
 export type InsertProductImage = typeof productImages.$inferInsert;
 
 // Blog Posts Table
-export const blogPosts = pgTable("blog_posts", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  slug: text("slug").notNull().unique(),
-  excerpt: text("excerpt").notNull(),
-  content: text("content").notNull(),
-  author: text("author").notNull(),
-  category: text("category").notNull(),
-  tags: text("tags"),
-  imageUrl: text("image_url"),
-  videoUrl: text("video_url"),
-  featured: boolean("featured").default(false),
-  published: boolean("published").default(true),
-  likes: integer("likes").default(0),
-  comments: integer("comments").default(0),
-  readTime: text("read_time").default("5 min read"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const blogPosts = pgTable('blog_posts', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  slug: text('slug').notNull().unique(),
+  excerpt: text('excerpt').notNull(),
+  content: text('content').notNull(),
+  author: text('author').notNull(),
+  category: text('category').notNull(),
+  subcategory: text('subcategory'),
+  imageUrl: text('image_url'),
+  videoUrl: text('video_url'),
+  featured: boolean('featured').default(false),
+  published: boolean('published').default(true),
+  likes: integer('likes').default(0),
+  comments: integer('comments').default(0),
+  readTime: text('read_time').default('5 min read'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 
 
 // Blog Categories Table
-export const blogCategories = pgTable("blog_categories", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
-  description: text("description"),
-  isActive: boolean("is_active").default(true).notNull(),
-  sortOrder: integer("sort_order").default(0).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+export const blogCategories = pgTable('blog_categories', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  description: text('description'),
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+export const blogSubcategories = pgTable('blog_subcategories', {
+  id: serial('id').primaryKey(),
+  categoryId: integer('category_id').notNull().references(() => blogCategories.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  description: text('description'),
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
 
 export const announcements = pgTable('announcements', {
@@ -283,6 +297,8 @@ export type BlogPost = typeof blogPosts.$inferSelect;
 export type InsertBlogPost = typeof blogPosts.$inferInsert;
 export type BlogCategory = typeof blogCategories.$inferSelect;
 export type InsertBlogCategory = typeof blogCategories.$inferInsert;
+export type BlogSubcategory = typeof blogSubcategories.$inferSelect;
+export type InsertBlogSubcategory = typeof blogSubcategories.$inferInsert;
 
 // Category Sliders Table
 export const categorySliders = pgTable("category_sliders", {

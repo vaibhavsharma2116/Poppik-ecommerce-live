@@ -24,7 +24,7 @@ export default function VideoTestimonials() {
   const [autoplayEnabled, setAutoplayEnabled] = useState(true);
   const { toast } = useToast();
 
-  // Fetch video testimonials from API
+  // Fetch UGC Video from API
   const { data: videoTestimonials = [], isLoading: testimonialsLoading } = useQuery<VideoTestimonial[]>({
     queryKey: ["/api/video-testimonials"],
   });

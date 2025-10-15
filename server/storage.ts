@@ -2,41 +2,39 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, gte, lte, like, isNull, asc, or, sql } from "drizzle-orm";
 import { Pool } from "pg";
 import {
+  users,
   products,
   categories,
   subcategories,
-  users,
+  ordersTable,
+  orderItemsTable,
+  orderNotificationsTable,
+  sliders,
   contactSubmissions,
   shades,
   reviews,
-  ordersTable,
-  orderItemsTable,
+  productShades,
+  productImages,
   blogPosts,
   blogCategories,
-  sliders,
-  productImages,
-  type Product,
-  type Category,
-  type Subcategory,
-  type User,
-  type Shade,
-  type Review,
-  type BlogPost,
-  type BlogCategory,
-  type InsertProduct,
-  type InsertCategory,
-  type InsertSubcategory,
-  type InsertUser,
-  type InsertShade,
-  type InsertReview,
-  type InsertBlogPost,
-  type InsertBlogCategory,
-  // Import the productShades table
-  productShades,
+  blogSubcategories,
+  announcements,
   categorySliders,
   testimonials,
-  // Import the announcements table
-  announcements
+  videoTestimonials,
+  cashfreePayments,
+  type User,
+  type Product,
+  type InsertProduct,
+  type InsertSubcategory,
+  type InsertBlogPost,
+  type BlogPost,
+  type InsertBlogCategory,
+  type BlogCategory,
+  type BlogSubcategory,
+  type InsertBlogSubcategory,
+  type Subcategory,
+  type InsertCategorySlider,
 } from "@shared/schema";
 import dotenv from "dotenv";
 
@@ -45,7 +43,7 @@ dotenv.config();
 
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
+  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,
   max: 3, // Further reduced connections
   idleTimeoutMillis: 10000,
@@ -146,6 +144,14 @@ export interface IStorage {
   createBlogCategory(categoryData: InsertBlogCategory): Promise<BlogCategory>; // Changed from any to InsertBlogCategory and BlogCategory
   updateBlogCategory(id: number, categoryData: Partial<InsertBlogCategory>): Promise<BlogCategory | undefined>; // Changed from any to Partial<InsertBlogCategory> and BlogCategory | undefined
   deleteBlogCategory(id: number): Promise<boolean>;
+
+  // Blog Subcategories
+  getBlogSubcategories(): Promise<BlogSubcategory[]>;
+  getBlogSubcategoriesByCategory(categoryId: number): Promise<BlogSubcategory[]>;
+  getBlogSubcategoryBySlug(slug: string): Promise<BlogSubcategory | undefined>;
+  createBlogSubcategory(subcategoryData: InsertBlogSubcategory): Promise<BlogSubcategory>;
+  updateBlogSubcategory(id: number, subcategoryData: Partial<InsertBlogSubcategory>): Promise<BlogSubcategory | undefined>;
+  deleteBlogSubcategory(id: number): Promise<boolean>;
 
   // Sliders
   getSliders(): Promise<any[]>;
@@ -1157,15 +1163,9 @@ export class DatabaseStorage implements IStorage {
         .replace(/-+/g, '-')
         .trim();
 
-      // Ensure tags is properly formatted
-      const tags = Array.isArray(postData.tags) ?
-        JSON.stringify(postData.tags) :
-        typeof postData.tags === 'string' ? postData.tags : '[]';
-
       const postToInsert = {
         ...postData,
         slug,
-        tags,
         likes: 0,
         comments: 0,
         published: postData.published ?? true,
@@ -1195,10 +1195,6 @@ export class DatabaseStorage implements IStorage {
           .replace(/\s+/g, '-')
           .replace(/-+/g, '-')
           .trim();
-      }
-
-      if (postData.tags) {
-        updateData.tags = JSON.stringify(postData.tags);
       }
 
       updateData.updatedAt = new Date();
@@ -1344,27 +1340,115 @@ export class DatabaseStorage implements IStorage {
   async deleteBlogCategory(id: number): Promise<boolean> {
     try {
       const db = await getDb();
-      
+
       // Check if category exists
       const existing = await db
         .select()
         .from(blogCategories)
         .where(eq(blogCategories.id, id))
         .limit(1);
-      
+
       if (existing.length === 0) {
         return false;
       }
-      
+
       // Delete the category (without returning clause to avoid column issues)
       const result = await db
         .delete(blogCategories)
         .where(eq(blogCategories.id, id));
-      
+
       return true;
     } catch (error) {
       console.error("Error deleting blog category:", error);
       throw new Error('Failed to delete blog category: ' + (error.message || 'Unknown error'));
+    }
+  }
+
+  // Blog Subcategories
+  async getBlogSubcategories(): Promise<BlogSubcategory[]> {
+    try {
+      const db = await getDb();
+      const subcategories = await db
+        .select()
+        .from(blogSubcategories)
+        .orderBy(asc(blogSubcategories.sortOrder));
+      return subcategories;
+    } catch (error) {
+      console.error("Error fetching blog subcategories:", error);
+      throw error;
+    }
+  }
+
+  async getBlogSubcategoriesByCategory(categoryId: number): Promise<BlogSubcategory[]> {
+    try {
+      const db = await getDb();
+      const subcategories = await db
+        .select()
+        .from(blogSubcategories)
+        .where(eq(blogSubcategories.categoryId, categoryId))
+        .orderBy(asc(blogSubcategories.sortOrder));
+      return subcategories;
+    } catch (error) {
+      console.error("Error fetching blog subcategories by category:", error);
+      throw error;
+    }
+  }
+
+  async getBlogSubcategoryBySlug(slug: string): Promise<BlogSubcategory | undefined> {
+    try {
+      const db = await getDb();
+      const [subcategory] = await db
+        .select()
+        .from(blogSubcategories)
+        .where(eq(blogSubcategories.slug, slug))
+        .limit(1);
+      return subcategory;
+    } catch (error) {
+      console.error("Error fetching blog subcategory by slug:", error);
+      throw error;
+    }
+  }
+
+  async createBlogSubcategory(subcategoryData: InsertBlogSubcategory): Promise<BlogSubcategory> {
+    try {
+      const db = await getDb();
+      const [subcategory] = await db
+        .insert(blogSubcategories)
+        .values(subcategoryData)
+        .returning();
+      return subcategory;
+    } catch (error) {
+      console.error("Error creating blog subcategory:", error);
+      throw error;
+    }
+  }
+
+  async updateBlogSubcategory(id: number, subcategoryData: Partial<InsertBlogSubcategory>): Promise<BlogSubcategory | undefined> {
+    try {
+      const db = await getDb();
+      const [subcategory] = await db
+        .update(blogSubcategories)
+        .set(subcategoryData)
+        .where(eq(blogSubcategories.id, id))
+        .returning();
+      return subcategory;
+    } catch (error) {
+      console.error("Error updating blog subcategory:", error);
+      throw error;
+    }
+  }
+
+  async deleteBlogSubcategory(id: number): Promise<boolean> {
+    try {
+      const db = await getDb();
+      const result = await db
+        .delete(blogSubcategories)
+        .where(eq(blogSubcategories.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting blog subcategory:", error);
+      throw error;
     }
   }
 

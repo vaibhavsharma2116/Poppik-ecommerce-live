@@ -288,7 +288,7 @@ export default function AdminTestimonials() {
       <Dialog open={isAddModalOpen || isEditModalOpen} onOpenChange={(open) => {
         if (!open) { resetForm(); setIsAddModalOpen(false); setIsEditModalOpen(false); }
       }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>{selectedTestimonial ? 'Edit' : 'Add'} Testimonial</DialogTitle>
             <DialogDescription>
@@ -296,7 +296,7 @@ export default function AdminTestimonials() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-2">
             <div className="space-y-2">
               <Label htmlFor="customerName">Customer Name *</Label>
               <Input

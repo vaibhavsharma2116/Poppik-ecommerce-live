@@ -613,7 +613,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Video Testimonials Section */}
+      {/* UGC Video Section */}
 
       {/* Testimonials Section */}
       <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-rose-50 via-white to-pink-50">

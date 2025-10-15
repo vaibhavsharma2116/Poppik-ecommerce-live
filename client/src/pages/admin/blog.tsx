@@ -91,7 +91,7 @@ interface BlogPost {
   content: string;
   author: string;
   category: string;
-  tags: string[];
+  subcategory?: string;
   imageUrl: string;
   videoUrl?: string;
   featured: boolean;
@@ -110,7 +110,6 @@ interface InsertBlogPost {
   content: string;
   author: string;
   category: string;
-  tags?: string[] | string;
   imageUrl?: string;
   videoUrl?: string;
   featured?: boolean;
@@ -131,15 +130,15 @@ export default function AdminBlog() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
-  const [categories, setCategories] = useState<BlogCategory[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Using query data directly instead of local state to prevent re-render issues
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showSubcategoryModal, setShowSubcategoryModal] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [editingCategory, setEditingCategory] = useState<BlogCategory | null>(null);
+  const [editingSubcategory, setEditingSubcategory] = useState<any | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingPost, setDeletingPost] = useState<BlogPost | null>(null);
@@ -183,7 +182,7 @@ export default function AdminBlog() {
     content: '',
     author: '',
     category: '',
-    tags: '',
+    subcategory: '',
     imageUrl: '',
     videoUrl: '',
     featured: false,
@@ -194,6 +193,14 @@ export default function AdminBlog() {
   const [categoryFormData, setCategoryFormData] = useState({
     name: '',
     description: '',
+    isActive: true,
+    sortOrder: 0
+  });
+
+  const [subcategoryFormData, setSubcategoryFormData] = useState({
+    name: '',
+    description: '',
+    categoryId: '',
     isActive: true,
     sortOrder: 0
   });
@@ -223,11 +230,20 @@ export default function AdminBlog() {
     }
   });
 
-  useEffect(() => {
-    setBlogPosts(blogPostsData);
-    setCategories(blogCategories);
-    setLoading(postsLoading || categoriesLoading);
-  }, [blogPostsData, blogCategories, postsLoading, categoriesLoading]);
+  // Get blog subcategories
+  const { data: blogSubcategories = [], isLoading: subcategoriesLoading } = useQuery({
+    queryKey: ['/api/admin/blog/subcategories'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/blog/subcategories');
+      if (!response.ok) throw new Error('Failed to fetch blog subcategories');
+      return response.json();
+    },
+    staleTime: 5000, // Cache for 5 seconds to prevent excessive refetching
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+  });
+
+  // Removed useEffect - using query data directly instead of local state
+  // This prevents infinite re-render loops
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -318,7 +334,7 @@ export default function AdminBlog() {
       content: '',
       author: '',
       category: '',
-      tags: '',
+      subcategory: '',
       imageUrl: '',
       videoUrl: '',
       featured: false,
@@ -339,6 +355,37 @@ export default function AdminBlog() {
     });
   };
 
+  const resetSubcategoryForm = () => {
+    setSubcategoryFormData({
+      name: '',
+      description: '',
+      categoryId: '',
+      isActive: true,
+      sortOrder: 0
+    });
+  };
+
+  const openEditSubcategoryModal = (subcategory: any) => {
+    setEditingSubcategory(subcategory);
+    setSubcategoryFormData({
+      name: subcategory.name,
+      description: subcategory.description || '',
+      categoryId: subcategory.categoryId?.toString() || '',
+      isActive: subcategory.isActive ?? true,
+      sortOrder: subcategory.sortOrder || 0
+    });
+    setShowSubcategoryModal(true);
+  };
+
+  const handleSubcategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingSubcategory) {
+      updateSubcategoryMutation.mutate({ id: editingSubcategory.id, ...subcategoryFormData });
+    } else {
+      createSubcategoryMutation.mutate(subcategoryFormData);
+    }
+  };
+
   const openEditModal = (post: BlogPost) => {
     setEditingPost(post);
     setFormData({
@@ -347,7 +394,7 @@ export default function AdminBlog() {
       content: post.content,
       author: post.author,
       category: post.category,
-      tags: Array.isArray(post.tags) ? post.tags.join(', ') : post.tags,
+      subcategory: post.subcategory || '',
       imageUrl: post.imageUrl,
       videoUrl: post.videoUrl || '',
       featured: post.featured,
@@ -369,7 +416,7 @@ export default function AdminBlog() {
     setShowCategoryModal(true);
   };
 
-  const filteredPosts = blogPosts.filter(post => {
+  const filteredPosts = blogPostsData.filter(post => {
     const matchesSearch = !searchQuery || 
       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       post.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -414,9 +461,13 @@ export default function AdminBlog() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/categories'] });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/admin/blog/categories'],
+        exact: true 
+      });
       setShowCategoryModal(false);
       resetCategoryForm();
+      setEditingCategory(null);
       toast({ title: "Category created successfully" });
     },
     onError: (error) => {
@@ -440,7 +491,10 @@ export default function AdminBlog() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/categories'] });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/admin/blog/categories'],
+        exact: true 
+      });
       setShowCategoryModal(false);
       setEditingCategory(null);
       resetCategoryForm();
@@ -477,6 +531,82 @@ export default function AdminBlog() {
     }
   });
 
+  // Create blog subcategory
+  const createSubcategoryMutation = useMutation({
+    mutationFn: async (subcategoryData: any) => {
+      const response = await fetch('/api/admin/blog/subcategories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subcategoryData)
+      });
+      if (!response.ok) throw new Error('Failed to create subcategory');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/subcategories'] });
+      setShowSubcategoryModal(false);
+      setEditingSubcategory(null);
+      resetSubcategoryForm();
+      toast({ title: "Subcategory created successfully" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Error creating subcategory", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Update blog subcategory
+  const updateSubcategoryMutation = useMutation({
+    mutationFn: async ({ id, ...subcategoryData }: any) => {
+      const response = await fetch(`/api/admin/blog/subcategories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subcategoryData)
+      });
+      if (!response.ok) throw new Error('Failed to update subcategory');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/subcategories'] });
+      setShowSubcategoryModal(false);
+      setEditingSubcategory(null);
+      resetSubcategoryForm();
+      toast({ title: "Subcategory updated successfully" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Error updating subcategory", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Delete blog subcategory
+  const deleteSubcategoryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/admin/blog/subcategories/${id}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Failed to delete subcategory');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/subcategories'] });
+      toast({ title: "Subcategory deleted successfully" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Error deleting subcategory", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
   const handlePreview = () => {
     setShowPreview(true);
   };
@@ -496,6 +626,7 @@ export default function AdminBlog() {
         <TabsList>
           <TabsTrigger value="posts">Blog Posts</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
+          <TabsTrigger value="subcategories">Subcategories</TabsTrigger>
         </TabsList>
 
         <TabsContent value="posts" className="space-y-4">
@@ -548,7 +679,7 @@ export default function AdminBlog() {
           </div>
 
           {/* Posts Content */}
-          {loading ? (
+          {postsLoading ? (
             <div className="flex items-center justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
@@ -764,6 +895,71 @@ export default function AdminBlog() {
                     </TableCell>
                   </TableRow>
                 ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="subcategories" className="space-y-4">
+          {/* Subcategories Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Blog Subcategories</h2>
+            <Button onClick={() => { setShowSubcategoryModal(true); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Subcategory
+            </Button>
+          </div>
+
+          {/* Subcategories Content */}
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Sort Order</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {blogSubcategories.map((subcategory) => {
+                  const parentCategory = blogCategories.find(c => c.id === subcategory.categoryId);
+                  return (
+                    <TableRow key={subcategory.id}>
+                      <TableCell className="font-medium">{subcategory.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{parentCategory?.name || 'Unknown'}</Badge>
+                      </TableCell>
+                      <TableCell>{subcategory.description}</TableCell>
+                      <TableCell>
+                        <Badge variant={subcategory.isActive ? "default" : "secondary"}>
+                          {subcategory.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{subcategory.sortOrder}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditSubcategoryModal(subcategory)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteSubcategoryMutation.mutate(subcategory.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </Card>
@@ -1245,10 +1441,10 @@ export default function AdminBlog() {
               </Tabs>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
-                <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
+                <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value, subcategory: '' }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -1262,21 +1458,39 @@ export default function AdminBlog() {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="subcategory">Subcategory</Label>
+                <Select 
+                  value={formData.subcategory || ''} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, subcategory: value }))}
+                  disabled={!formData.category}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.category ? "Select subcategory" : "Select category first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {blogSubcategories
+                      .filter(sub => {
+                        const category = blogCategories.find(c => c.name === formData.category);
+                        return category && sub.categoryId === category.id && sub.isActive;
+                      })
+                      .map((subcategory) => (
+                        <SelectItem key={subcategory.id} value={subcategory.name}>
+                          {subcategory.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="readTime">Read Time</Label>
                 <Input
                   id="readTime"
                   value={formData.readTime}
                   onChange={(e) => setFormData({ ...formData, readTime: e.target.value })}
                   placeholder="5 min read"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tags">Tags (comma separated)</Label>
-                <Input
-                  id="tags"
-                  value={formData.tags}
-                  onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                  placeholder="tag1, tag2, tag3"
                 />
               </div>
             </div>
@@ -1442,6 +1656,99 @@ export default function AdminBlog() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add/Edit Subcategory Modal */}
+      <Dialog open={showSubcategoryModal} onOpenChange={(open) => {
+        setShowSubcategoryModal(open);
+        if (!open) {
+          setEditingSubcategory(null);
+          resetSubcategoryForm();
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingSubcategory ? 'Edit Subcategory' : 'Add New Subcategory'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingSubcategory ? 'Update the subcategory details' : 'Create a new blog subcategory'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubcategorySubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="subcategoryCategory">Parent Category *</Label>
+              <Select 
+                value={subcategoryFormData.categoryId} 
+                onValueChange={(value) => setSubcategoryFormData({ ...subcategoryFormData, categoryId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select parent category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {blogCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="subcategoryName">Name *</Label>
+              <Input
+                id="subcategoryName"
+                value={subcategoryFormData.name}
+                onChange={(e) => setSubcategoryFormData({ ...subcategoryFormData, name: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="subcategoryDescription">Description</Label>
+              <Textarea
+                id="subcategoryDescription"
+                value={subcategoryFormData.description}
+                onChange={(e) => setSubcategoryFormData({ ...subcategoryFormData, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="subcategorySortOrder">Sort Order</Label>
+                <Input
+                  id="subcategorySortOrder"
+                  type="number"
+                  value={subcategoryFormData.sortOrder}
+                  onChange={(e) => setSubcategoryFormData({ ...subcategoryFormData, sortOrder: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="flex items-center space-x-2 pt-6">
+                <Checkbox
+                  id="subcategoryActive"
+                  checked={subcategoryFormData.isActive}
+                  onCheckedChange={(checked) => setSubcategoryFormData({ ...subcategoryFormData, isActive: checked as boolean })}
+                />
+                <Label htmlFor="subcategoryActive">Active</Label>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => {
+                setShowSubcategoryModal(false);
+                setEditingSubcategory(null);
+                resetSubcategoryForm();
+              }}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingSubcategory ? 'Update' : 'Create'} Subcategory
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
