@@ -654,7 +654,18 @@ export default function ProductDetail() {
 
                     {/* Main Image/Video with Zoom */}
                     <div className="flex-1 bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px' }}>
-                      {selectedImageUrl || imageUrls[0] ? (
+                      {product.videoUrl ? (
+                        <div className="w-full h-full flex items-center justify-center p-2">
+                          <video
+                            src={product.videoUrl}
+                            className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
+                            controls
+                            poster={selectedImageUrl || imageUrls[0] || product.imageUrl}
+                            width={400}
+                            height={400}
+                          />
+                        </div>
+                      ) : selectedImageUrl || imageUrls[0] ? (
                         <div className="w-full h-full flex items-center justify-center p-2">
                           {selectedImageUrl?.includes('.mp4') || selectedImageUrl?.includes('video') ? (
                             <video
@@ -701,7 +712,7 @@ export default function ProductDetail() {
                       )}
 
                       {/* Zoom Hint - Only for images */}
-                      {!selectedImageUrl?.includes('.mp4') && !selectedImageUrl?.includes('video') && (
+                      {!product.videoUrl && !selectedImageUrl?.includes('.mp4') && !selectedImageUrl?.includes('video') && (
                         <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                           Click to zoom
                         </div>

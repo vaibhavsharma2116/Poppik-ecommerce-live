@@ -89,12 +89,19 @@ export default function AdminCategories() {
     queryKey: ['categories'],
     queryFn: async () => {
       const response = await fetch('/api/categories');
-      if (!response.ok) throw new Error('Failed to fetch categories');
-      return response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch categories:', errorText);
+        throw new Error('Failed to fetch categories');
+      }
+      const data = await response.json();
+      console.log('Categories fetched:', data);
+      return Array.isArray(data) ? data : [];
     },
     retry: 3,
     retryDelay: 1000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    staleTime: 0
   });
 
   // Fetch subcategories
@@ -102,12 +109,19 @@ export default function AdminCategories() {
     queryKey: ['subcategories'],
     queryFn: async () => {
       const response = await fetch('/api/subcategories');
-      if (!response.ok) throw new Error('Failed to fetch subcategories');
-      return response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch subcategories:', errorText);
+        throw new Error('Failed to fetch subcategories');
+      }
+      const data = await response.json();
+      console.log('Subcategories fetched:', data);
+      return Array.isArray(data) ? data : [];
     },
     retry: 3,
     retryDelay: 1000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    staleTime: 0
   });
 
   // Category mutations
@@ -430,10 +444,10 @@ export default function AdminCategories() {
   };
 
   const stats = [
-    { label: "Total Categories", value: categories.length.toString(), icon: Layers, color: "from-blue-500 to-cyan-500" },
-    { label: "Total Subcategories", value: subcategories.length.toString(), icon: Tag, color: "from-purple-500 to-pink-500" },
-    { label: "Active Categories", value: categories.filter((c: Category) => c.status === 'Active').length.toString(), icon: Package, color: "from-green-500 to-emerald-500" },
-    { label: "Total Products", value: categories.reduce((sum: number, cat: Category) => sum + (cat.productCount || 0), 0).toString(), icon: TrendingUp, color: "from-orange-500 to-red-500" }
+    { label: "Total Categories", value: (categories?.length || 0).toString(), icon: Layers, color: "from-blue-500 to-cyan-500" },
+    { label: "Total Subcategories", value: (subcategories?.length || 0).toString(), icon: Tag, color: "from-purple-500 to-pink-500" },
+    { label: "Active Categories", value: (categories?.filter((c: Category) => c.status === 'Active').length || 0).toString(), icon: Package, color: "from-green-500 to-emerald-500" },
+    { label: "Total Products", value: (categories?.reduce((sum: number, cat: Category) => sum + (cat.productCount || 0), 0) || 0).toString(), icon: TrendingUp, color: "from-orange-500 to-red-500" }
   ];
 
   if ((categoriesLoading && categories.length === 0) || (subcategoriesLoading && subcategories.length === 0)) {

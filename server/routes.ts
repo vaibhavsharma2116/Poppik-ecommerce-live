@@ -1158,7 +1158,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.sendFile(imagePath);
     }
   });
+ app.post("/api/upload/video", upload.single("video"), async (req, res) => {
+    try {
+      console.log("Video upload request received");
 
+      if (!req.file) {
+        console.error("No video file provided in request");
+        return res.status(400).json({ error: "No video file provided" });
+      }
+
+      console.log("Video uploaded successfully:", {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+
+      // Return the file URL
+      const videoUrl = `/api/images/${req.file.filename}`;
+      res.json({
+        videoUrl,
+        message: "Video uploaded successfully",
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size
+      });
+    } catch (error) {
+      console.error("Video upload error:", error);
+      res.status(500).json({
+        error: "Failed to upload video",
+        details: error.message
+      });
+    }
+  });
   // Image upload API
   app.post("/api/upload/image", upload.single("image"), async (req, res) => {
     try {
@@ -1582,27 +1614,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Categories API
-  app.get("/api/categories", async (req, res) => {
-    try {
-      const categories = await storage.getCategories();
+ app.get("/api/categories", async (req, res) => {
+  try {
+    const categories = await storage.getCategories();
+    console.log("categories", categories);
 
-      // Update product count for each category dynamically
-      const categoriesWithCount = await Promise.all(
-        categories.map(async (category) => {
-          const products = await storage.getProductsByCategory(category.name);
-          return {
-            ...category,
-            productCount: products.length
-          };
-        })
-      );
-
-      res.json(categoriesWithCount);
-    } catch (error) {
-      console.log("Database unavailable, using sample category data");
-      res.json(generateSampleCategories());
-    }
-  });
+    // const categoriesWithCount = await Promise.all(
+      categories.map(async (category) => {
+        // const products = await storage.getProductsByCategory(category.name);
+        // console.log(`Category: ${category.name}, Products:`, products);
+        return {
+          ...category,
+          // productCount: products.length
+        };
+      })
+    // );
+    
+    // console.log("categoriesWithCount", categoriesWithCount);
+    res.json(categories);
+  } catch (error) {
+    console.log("Database unavailable, using sample category data");
+    res.json(generateSampleCategories());
+  }
+});
 
   app.get("/api/categories/:slug", async (req, res) => {
     try {

@@ -55,12 +55,11 @@ function TestimonialsCarousel() {
 
   const getVisibleTestimonials = () => {
     if (activeTestimonials.length === 0) return [];
-    
+
     const visible = [];
-    // Always show 5 images on all screen sizes
-    const displayCount = 5;
+    const displayCount = 3;
     const offset = Math.floor(displayCount / 2);
-    
+
     for (let i = -offset; i <= offset; i++) {
       const index = (currentIndex + i + activeTestimonials.length) % activeTestimonials.length;
       visible.push({
@@ -76,7 +75,7 @@ function TestimonialsCarousel() {
       const interval = setInterval(nextTestimonial, 5000);
       return () => clearInterval(interval);
     }
-  }, [activeTestimonials.length, currentIndex]);
+  }, [activeTestimonials.length]);
 
   if (isLoading) {
     return (
@@ -101,7 +100,7 @@ function TestimonialsCarousel() {
     <div className="relative px-2 sm:px-4">
       {/* Profile Images Carousel */}
       <div className="flex items-center justify-center gap-2 sm:gap-4 md:gap-8 lg:gap-12 mb-6 sm:mb-8">
-        <button 
+        <button
           onClick={prevTestimonial}
           className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
           aria-label="Previous testimonial"
@@ -112,11 +111,10 @@ function TestimonialsCarousel() {
         <div className="flex items-center gap-1 sm:gap-3 md:gap-6 lg:gap-10 overflow-hidden">
           {visibleTestimonials.map(({ testimonial, position }) => {
             const isCenter = position === 0;
-            
-            // All screen sizes: 5 images (center large, near medium, far small)
+
             let opacity = 1;
             let size = '';
-            
+
             if (isCenter) {
               size = 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28';
               opacity = 1;
@@ -127,7 +125,7 @@ function TestimonialsCarousel() {
               size = 'w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-14 lg:h-14';
               opacity = 0.5;
             }
-            
+
             return (
               <div
                 key={testimonial.id}
@@ -146,7 +144,7 @@ function TestimonialsCarousel() {
           })}
         </div>
 
-        <button 
+        <button
           onClick={nextTestimonial}
           className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
           aria-label="Next testimonial"
@@ -219,7 +217,7 @@ export default function Home() {
     queryKey: ["/api/products"],
   });
 
-  
+
 
   const categoryImages = {
     skincare:
@@ -622,7 +620,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-10 md:mb-12">
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium mb-2 sm:mb-4">
-              <span className="text-gray-900">Testimonials</span>
+              <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
+                Testimonials
+              </span>
             </h2>
           </div>
 

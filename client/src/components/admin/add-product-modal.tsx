@@ -9,6 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Upload, X } from "lucide-react";
 import { Product } from "@/lib/types";
+import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 
 interface AddProductModalProps {
   onAddProduct: (product: any) => void;
@@ -16,11 +18,25 @@ interface AddProductModalProps {
 
 export default function AddProductModal({ onAddProduct }: AddProductModalProps) {
   const [open, setOpen] = useState(false);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
-  const [shades, setShades] = useState<any[]>([]);
-  const [selectedShades, setSelectedShades] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  // Fetch categories and subcategories
+  const { data: categories = [] } = useQuery({
+    queryKey: ['/api/categories'],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: subcategories = [] } = useQuery({
+    queryKey: ['/api/subcategories'],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: shades = [] } = useQuery({
+    queryKey: ['/api/admin/shades'], // Assuming /api/admin/shades is the correct endpoint for admin shades
+    staleTime: 5 * 60 * 1000,
+  });
+
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -39,12 +55,18 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
     ingredients: '',
     benefits: '',
     howToUse: '',
-    tags: ''
+    tags: '',
+    shadeIds: [] as number[] // Added to store selected shade IDs
   });
 
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
+
+  const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string>('');
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+
 
   const uploadImages = async (): Promise<string[]> => {
     if (selectedImages.length === 0) {
@@ -87,11 +109,46 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
     }
   };
 
+  const uploadVideo = async (): Promise<string | null> => {
+    if (!selectedVideo) {
+      return null;
+    }
+
+    setIsUploadingVideo(true);
+    try {
+      const formData = new FormData();
+      formData.append('video', selectedVideo);
+
+      console.log('Uploading video:', selectedVideo.name);
+
+      const response = await fetch('/api/upload/video', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Failed to upload video ${selectedVideo.name}:`, errorText);
+        throw new Error(`Failed to upload video ${selectedVideo.name}: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Video uploaded successfully:', data.videoUrl);
+      return data.videoUrl;
+    } catch (error) {
+      console.error('Video upload error:', error);
+      alert(`Video upload failed: ${error.message}`);
+      return null;
+    } finally {
+      setIsUploadingVideo(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Prevent multiple submissions
-    if (loading) return;
+    if (loading || isUploadingImages || isUploadingVideo) return;
 
     // Client-side validation
     if (!formData.name.trim()) {
@@ -122,14 +179,30 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       const imageUrls = await uploadImages();
       console.log('Images uploaded, URLs:', imageUrls);
 
+      // Upload video if selected
+      let videoUrl: string | null = null;
+      if (selectedVideo) {
+        console.log('Starting video upload process...');
+        videoUrl = await uploadVideo();
+        if (!videoUrl) {
+          alert('Video upload failed. Please try again.');
+          setLoading(false);
+          return;
+        }
+        console.log('Video uploaded, URL:', videoUrl);
+      }
+
       // Generate slug from product name
       const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-      const selectedCategory = categories.find(cat => cat.id === parseInt(formData.category));
+      // Find the category name from the category ID
+      const selectedCategory = categories?.find((cat: any) => cat.id === parseInt(formData.category));
+      const categoryName = selectedCategory ? selectedCategory.name : formData.category;
+
       const newProduct = {
         name: formData.name,
         slug: slug,
-        category: selectedCategory?.name || formData.category,
+        category: categoryName, // Use the category name, not the ID
         subcategory: formData.subcategory || null,
         price: parseFloat(formData.price),
         description: formData.description,
@@ -147,7 +220,9 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         howToUse: formData.howToUse || null,
         tags: formData.tags || null,
         imageUrl: imageUrls[0], // Primary thumbnail image
-        images: imageUrls // All uploaded images
+        images: imageUrls, // All uploaded images
+        videoUrl: videoUrl, // Uploaded video URL
+        shadeIds: formData.shadeIds // Include selected shade IDs
       };
 
       console.log('Product data to be sent:', newProduct);
@@ -181,17 +256,16 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
 
       const createdProduct = await response.json();
 
-      
 
       // Assign selected shades to the product
-      if (selectedShades.length > 0) {
+      if (formData.shadeIds.length > 0) {
         try {
           await fetch(`/api/admin/products/${createdProduct.id}/shades`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ shadeIds: selectedShades }),
+            body: JSON.stringify({ shadeIds: formData.shadeIds }),
           });
         } catch (shadeError) {
           console.error('Error assigning shades:', shadeError);
@@ -206,7 +280,10 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       // Close modal and reset form
       setOpen(false);
       resetForm();
-      alert('Product created successfully!');
+      toast({
+        title: 'Product Created',
+        description: 'The new product has been added successfully.',
+      });
     } catch (error) {
       console.error('Error creating product:', error);
       alert(`Failed to create product: ${error.message}`);
@@ -234,62 +311,26 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       ingredients: '',
       benefits: '',
       howToUse: '',
-      tags: ''
+      tags: '',
+      shadeIds: []
     });
     setSelectedImages([]);
     setImagePreviews([]);
-    setSelectedShades([]);
+    setSelectedVideo(null);
+    setVideoPreview('');
   };
 
-  // Fetch categories, subcategories, and shades when component mounts
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [categoriesRes, subcategoriesRes, shadesRes] = await Promise.all([
-          fetch('/api/categories'),
-          fetch('/api/subcategories'),
-          fetch('/api/admin/shades')
-        ]);
-
-        if (categoriesRes.ok) {
-          const categoriesData = await categoriesRes.json();
-          setCategories(categoriesData);
-        }
-
-        if (subcategoriesRes.ok) {
-          const subcategoriesData = await subcategoriesRes.json();
-          setSubcategories(subcategoriesData);
-        }
-
-        if (shadesRes.ok) {
-          const shadesData = await shadesRes.json();
-          setShades(shadesData.filter((shade: any) => shade.isActive));
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (open) {
-      fetchData();
-    }
-  }, [open]);
-
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (field: string, value: string | boolean | number[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length > 0) {
-      // Validate file types and sizes
       const validFiles = files.filter(file => {
         const isValidType = file.type.startsWith('image/');
         const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB limit
-        
+
         if (!isValidType) {
           alert(`${file.name} is not a valid image file`);
           return false;
@@ -304,8 +345,7 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       if (validFiles.length === 0) return;
 
       setSelectedImages(validFiles);
-      
-      // Create previews for all valid images
+
       const previewPromises = validFiles.map(file => {
         return new Promise<string>((resolve) => {
           const reader = new FileReader();
@@ -321,18 +361,38 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
     }
   };
 
+  const handleVideoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      const file = files[0];
+      const isValidType = file.type.startsWith('video/');
+      const isValidSize = file.size <= 50 * 1024 * 1024; // 50MB limit
+
+      if (!isValidType) {
+        alert(`${file.name} is not a valid video file`);
+        return;
+      }
+      if (!isValidSize) {
+        alert(`${file.name} is too large (max 50MB)`);
+        return;
+      }
+
+      setSelectedVideo(file);
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setVideoPreview(e.target?.result as string);
+        console.log('Video preview generated');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const removeImage = (index: number) => {
     const newImages = selectedImages.filter((_, i) => i !== index);
     const newPreviews = imagePreviews.filter((_, i) => i !== index);
     setSelectedImages(newImages);
     setImagePreviews(newPreviews);
-  };
-
-  // Get subcategories for selected category
-  const getSubcategoriesForCategory = (categoryId: string) => {
-    if (!categoryId) return [];
-
-    return subcategories.filter(sub => sub.categoryId === parseInt(categoryId));
   };
 
   return (
@@ -414,6 +474,45 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
             </div>
           </div>
 
+          {/* Product Video Upload */}
+          <div className="space-y-2">
+            <Label>Product Video (Optional)</Label>
+            {videoPreview && (
+              <div className="relative">
+                <video src={videoPreview} className="w-full h-48 object-cover rounded" controls />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-2 right-2"
+                  onClick={() => { setSelectedVideo(null); setVideoPreview(''); }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+              <input
+                type="file"
+                accept="video/*"
+                onChange={handleVideoSelect}
+                className="hidden"
+                id="video-upload"
+              />
+              <Label
+                htmlFor="video-upload"
+                className="cursor-pointer flex flex-col items-center"
+              >
+                <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600">Click to upload video</p>
+                <p className="text-xs text-gray-500 mt-1">MP4, WebM up to 50MB</p>
+              </Label>
+              {selectedVideo && (
+                <p className="text-sm text-green-600 mt-2">Selected video: {selectedVideo.name}</p>
+              )}
+            </div>
+          </div>
+
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -429,33 +528,64 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
 
             <div className="space-y-2">
               <Label htmlFor="category">Category *</Label>
-              <Select value={formData.category} onValueChange={(value) => {
-                handleInputChange('category', value);
-                handleInputChange('subcategory', ''); // Reset subcategory when category changes
-              }} required>
+              <Select
+                value={formData.category}
+                onValueChange={(value) => {
+                  handleInputChange('category', value);
+                  handleInputChange('subcategory', ''); // Reset subcategory when category changes
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
-                      {category.name}
+                  {categories.length > 0 ? (
+                    categories.map((category: any) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-categories" disabled>
+                      No categories available
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="subcategory">Subcategory</Label>
-              <Select value={formData.subcategory} onValueChange={(value) => handleInputChange('subcategory', value)}>
+              <Select
+                value={formData.subcategory}
+                onValueChange={(value) => handleInputChange('subcategory', value)}
+                disabled={!formData.category}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select subcategory" />
+                  <SelectValue placeholder={formData.category ? "Select subcategory" : "Select category first"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {getSubcategoriesForCategory(formData.category).map((sub) => (
-                    <SelectItem key={sub.id} value={sub.name || `subcategory-${sub.id}`}>{sub.name}</SelectItem>
-                  ))}
+                  {formData.category ? (
+                    subcategories
+                      .filter((sub: any) => sub.categoryId.toString() === formData.category)
+                      .length > 0 ? (
+                        subcategories
+                          .filter((sub: any) => sub.categoryId.toString() === formData.category)
+                          .map((subcategory: any) => (
+                            <SelectItem key={subcategory.id} value={subcategory.name}>
+                              {subcategory.name}
+                            </SelectItem>
+                          ))
+                      ) : (
+                        <SelectItem value="no-subcategories" disabled>
+                          No subcategories available
+                        </SelectItem>
+                      )
+                  ) : (
+                    <SelectItem value="select-category" disabled>
+                      Select category first
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -527,7 +657,40 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
           </div>
 
           {/* Shade Selection */}
-          
+          <div className="space-y-2">
+            <Label>Product Shades (Optional)</Label>
+            <p className="text-sm text-gray-500">Select shades available for this product</p>
+            <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+              {shades && shades.length > 0 ? (
+                shades.map((shade: any) => (
+                  <div key={shade.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                    <Checkbox
+                      id={`shade-${shade.id}`}
+                      checked={formData.shadeIds?.includes(shade.id) || false}
+                      onCheckedChange={(checked) => {
+                        handleInputChange('shadeIds', checked
+                          ? [...(formData.shadeIds || []), shade.id]
+                          : (formData.shadeIds || []).filter(id => id !== shade.id)
+                        );
+                      }}
+                    />
+                    <Label
+                      htmlFor={`shade-${shade.id}`}
+                      className="flex items-center gap-2 cursor-pointer flex-1"
+                    >
+                      <div
+                        className="w-6 h-6 rounded border border-gray-300"
+                        style={{ backgroundColor: shade.colorCode }}
+                      />
+                      <span>{shade.name}</span>
+                    </Label>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">No shades available. Create shades in the Shades section first.</p>
+              )}
+            </div>
+          </div>
 
           {/* Product Flags */}
           <div className="space-y-4">
@@ -537,25 +700,16 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
                 <Checkbox
                   id="add-inStock"
                   checked={formData.inStock}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, inStock: checked === true }))}
+                  onCheckedChange={(checked) => handleInputChange('inStock', checked === true)}
                 />
                 <Label htmlFor="add-inStock" className="text-sm cursor-pointer select-none">In Stock</Label>
               </div>
-
-              {/* <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="add-featured"
-                  checked={formData.featured}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, featured: checked === true }))}
-                />
-                <Label htmlFor="add-featured" className="text-sm cursor-pointer select-none">Featured</Label>
-              </div> */}
 
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="add-bestseller"
                   checked={formData.bestseller}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, bestseller: checked === true }))}
+                  onCheckedChange={(checked) => handleInputChange('bestseller', checked === true)}
                 />
                 <Label htmlFor="add-bestseller" className="text-sm cursor-pointer select-none">Bestseller</Label>
               </div>
@@ -564,7 +718,7 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
                 <Checkbox
                   id="add-newLaunch"
                   checked={formData.newLaunch}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, newLaunch: checked === true }))}
+                  onCheckedChange={(checked) => handleInputChange('newLaunch', checked === true)}
                 />
                 <Label htmlFor="add-newLaunch" className="text-sm cursor-pointer select-none">New Launch</Label>
               </div>
@@ -644,12 +798,12 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isUploadingImages || loading}
+            <Button
+              type="submit"
+              disabled={isUploadingImages || loading || isUploadingVideo}
               className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isUploadingImages ? 'Uploading Images...' : loading ? 'Creating Product...' : 'Add Product'}
+              {isUploadingImages ? 'Uploading Images...' : isUploadingVideo ? 'Uploading Video...' : loading ? 'Creating Product...' : 'Add Product'}
             </Button>
           </DialogFooter>
         </form>

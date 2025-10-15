@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Edit, Trash2, Star, Upload, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Testimonial {
   id: number;
@@ -30,6 +32,7 @@ export default function AdminTestimonials() {
   const [selectedTestimonial, setSelectedTestimonial] = useState<Testimonial | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
+  const { toast } = useToast();
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -40,11 +43,7 @@ export default function AdminTestimonials() {
     sortOrder: 0,
   });
 
-  useEffect(() => {
-    fetchTestimonials();
-  }, []);
-
-  const fetchTestimonials = async () => {
+  const fetchTestimonials = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/admin/testimonials');
@@ -54,10 +53,19 @@ export default function AdminTestimonials() {
       }
     } catch (error) {
       console.error('Error fetching testimonials:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch testimonials",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchTestimonials();
+  }, [fetchTestimonials]);
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -116,6 +124,10 @@ export default function AdminTestimonials() {
       });
 
       if (response.ok) {
+        toast({
+          title: "Success",
+          description: `Testimonial ${selectedTestimonial ? 'updated' : 'created'} successfully`,
+        });
         await fetchTestimonials();
         resetForm();
         setIsAddModalOpen(false);
@@ -123,6 +135,11 @@ export default function AdminTestimonials() {
       }
     } catch (error) {
       console.error('Error saving testimonial:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save testimonial",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -151,12 +168,21 @@ export default function AdminTestimonials() {
       });
 
       if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Testimonial deleted successfully",
+        });
         await fetchTestimonials();
         setIsDeleteModalOpen(false);
         setSelectedTestimonial(null);
       }
     } catch (error) {
       console.error('Error deleting testimonial:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete testimonial",
+        variant: "destructive",
+      });
     }
   };
 
