@@ -128,6 +128,8 @@ export default function AdminProducts() {
 
   const [editImages, setEditImages] = useState<File[]>([]);
   const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
+  const [editVideo, setEditVideo] = useState<File | null>(null);
+  const [editVideoPreview, setEditVideoPreview] = useState<string>('');
 
   // Fetch data from API
   useEffect(() => {
@@ -289,6 +291,15 @@ export default function AdminProducts() {
         setEditImagePreviews([]);
       }
       setEditImages([]);
+      
+      // Set video preview if exists
+      if (product.videoUrl) {
+        setEditVideoPreview(product.videoUrl);
+      } else {
+        setEditVideoPreview('');
+      }
+      setEditVideo(null);
+      
       setIsEditModalOpen(true);
     }
   };
@@ -321,6 +332,25 @@ export default function AdminProducts() {
           finalImages = [...editImagePreviews, ...newImageUrls];
         }
 
+        // Upload new video if selected
+        let finalVideoUrl = editVideoPreview;
+        if (editVideo) {
+          const videoFormData = new FormData();
+          videoFormData.append('video', editVideo);
+
+          const videoResponse = await fetch('/api/upload/video', {
+            method: 'POST',
+            body: videoFormData,
+          });
+
+          if (videoResponse.ok) {
+            const videoData = await videoResponse.json();
+            finalVideoUrl = videoData.videoUrl;
+          } else {
+            console.warn('Video upload failed, keeping existing video');
+          }
+        }
+
         // Find the category name from the category ID
         const selectedCategory = categories.find(cat => cat.id === parseInt(editFormData.category));
         const categoryName = selectedCategory ? selectedCategory.name : editFormData.category;
@@ -342,6 +372,7 @@ export default function AdminProducts() {
           skinType: editFormData.skinType || null,
           images: finalImages,
           imageUrl: finalImages[0] || editFormData.imageUrl,
+          videoUrl: finalVideoUrl || null,
           shadeIds: editFormData.shadeIds, // Include shadeIds in updateData
         };
 
@@ -499,6 +530,33 @@ export default function AdminProducts() {
       setEditImages(prev => prev.filter((_, i) => i !== index));
     }
   };
+
+  // Handle edit video selection
+  const handleEditVideoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      const file = files[0];
+      const isValidType = file.type.startsWith('video/');
+      const isValidSize = file.size <= 50 * 1024 * 1024; // 50MB limit
+
+      if (!isValidType) {
+        alert(`${file.name} is not a valid video file`);
+        return;
+      }
+      if (!isValidSize) {
+        alert(`${file.name} is too large (max 50MB)`);
+        return;
+      }
+
+      setEditVideo(file);
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setEditVideoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };;
 
     // State to track if dynamic filter is active
   const [isDynamicFilterActive, setIsDynamicFilterActive] = useState(false);
@@ -1451,6 +1509,42 @@ export default function AdminProducts() {
                       <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB each</p>
                     </Label>
                   </div>
+                </div>
+              </div>
+
+              {/* Product Video */}
+              <div className="space-y-2">
+                <Label>Product Video (Optional)</Label>
+                {editVideoPreview && (
+                  <div className="relative">
+                    <video src={editVideoPreview} className="w-full h-48 object-cover rounded" controls />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={() => { setEditVideo(null); setEditVideoPreview(''); }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={handleEditVideoSelect}
+                    className="hidden"
+                    id="edit-video-upload"
+                  />
+                  <Label
+                    htmlFor="edit-video-upload"
+                    className="cursor-pointer flex flex-col items-center"
+                  >
+                    <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-600">Click to upload video</p>
+                    <p className="text-xs text-gray-500 mt-1">MP4, WebM up to 50MB</p>
+                  </Label>
                 </div>
               </div>
 

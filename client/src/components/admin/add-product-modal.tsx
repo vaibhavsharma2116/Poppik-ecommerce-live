@@ -185,11 +185,11 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         console.log('Starting video upload process...');
         videoUrl = await uploadVideo();
         if (!videoUrl) {
-          alert('Video upload failed. Please try again.');
-          setLoading(false);
-          return;
+          console.warn('Video upload failed, continuing without video');
+          // Don't stop the process, just continue without video
+        } else {
+          console.log('Video uploaded, URL:', videoUrl);
         }
-        console.log('Video uploaded, URL:', videoUrl);
       }
 
       // Generate slug from product name
@@ -221,9 +221,11 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         tags: formData.tags || null,
         imageUrl: imageUrls[0], // Primary thumbnail image
         images: imageUrls, // All uploaded images
-        videoUrl: videoUrl, // Uploaded video URL
+        videoUrl: videoUrl || null, // Uploaded video URL (null if not uploaded)
         shadeIds: formData.shadeIds // Include selected shade IDs
       };
+
+      console.log('Product data with video:', { ...newProduct, videoUrl });
 
       console.log('Product data to be sent:', newProduct);
 

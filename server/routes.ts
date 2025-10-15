@@ -1176,6 +1176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Return the file URL
       const videoUrl = `/api/images/${req.file.filename}`;
+      console.log("Video upload successful, returning URL:", videoUrl);
       res.json({
         videoUrl,
         message: "Video uploaded successfully",
@@ -1289,7 +1290,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(productsWithImages);
     } catch (error) {
       console.error("Products API error:", error);
-      console.log("Database unavailable, using sample product data");
       res.json([]);
     }
   });
@@ -1629,7 +1629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       })
     // );
-    
+
     // console.log("categoriesWithCount", categoriesWithCount);
     res.json(categories);
   } catch (error) {
@@ -2995,7 +2995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const postId = parseInt(id);
 
       // Simple implementation without separate likes table for now
-      const db = await require('./storage').getDb();
+      const db = require('./storage').getDb();
       const post = await db.select().from(require('../shared/schema').blogPosts)
         .where(require('drizzle-orm').eq(require('../shared/schema').blogPosts.id, postId))
         .limit(1);
@@ -3567,9 +3567,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating blog category:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to create blog category";
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to create blog category",
-        details: errorMessage 
+        details: errorMessage
       });
     }
   });
@@ -3596,9 +3596,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating blog category:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to update blog category";
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to update blog category",
-        details: errorMessage 
+        details: errorMessage
       });
     }
   });
@@ -3622,173 +3622,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting blog category:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to delete blog category";
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to delete blog category",
-        details: errorMessage 
+        details: errorMessage
       });
-    }
-  });
-
-  // Generate sample customers for development
-  function generateSampleCustomers() {
-    const sampleCustomers = [];
-
-    return sampleCustomers.map(customer => ({
-      id: customer.id,
-      name: `${customer.firstName} ${customer.lastName}`,
-      email: customer.email,
-      phone: customer.phone,
-      orders: Math.floor(Math.random() * 10) + 1,
-      spent: `₹${(Math.random() * 8000 + 500).toFixed(2)}`,
-      status: Math.random() > 0.7 ? 'VIP' : Math.random() > 0.4 ? 'Active' : 'New',
-      joinedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      firstName: customer.firstName,
-      lastName: customer.lastName,
-    }));
-  }
-
-  // Generate sample products for development
-  function generateSampleProducts() {
-    return [
-
-    ];
-  }
-
-  // Admin Customers endpoints
-  app.get("/api/admin/customers", async (req, res) => {
-    try {
-      // Get all users from database
-      let allUsers;
-      try {
-        allUsers = await db.select({
-          id: schema.users.id,
-          firstName: schema.users.firstName,
-          lastName: schema.users.lastName,
-          email: schema.users.email,
-          phone: schema.users.phone,
-          createdAt: schema.users.createdAt,
-        }).from(schema.users);
-      } catch (dbError) {
-        // Fallback sample data when database is unavailable
-        console.log("Database unavailable, using sample customer data");
-        return res.json(generateSampleCustomers());
-      }
-
-      // Get order statistics for each customer
-      const customersWithStats = await Promise.all(
-        allUsers.map(async (user) => {
-          // Get order count and total spent for this user
-          const userOrders = await db
-            .select({
-              totalAmount: schema.ordersTable.totalAmount,
-              status: schema.ordersTable.status,
-            })
-            .from(schema.ordersTable)
-            .where(eq(schema.ordersTable.userId, user.id));
-
-          const orderCount = userOrders.length;
-          const totalSpent = userOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-
-          // Determine customer status based on orders and total spent
-          let status = 'New';
-          if (orderCount === 0) {
-            status = 'Inactive';
-          } else if (totalSpent > 2000) {
-            status = 'VIP';
-          } else if (orderCount > 0) {
-            status = 'Active';
-          }
-
-          return {
-            id: user.id,
-            name: `${user.firstName} ${user.lastName}`,
-            email: user.email,
-            phone: user.phone || 'N/A',
-            orders: orderCount,
-            spent: `₹${totalSpent.toFixed(2)}`,
-            status,
-            joinedDate: user.createdAt.toISOString().split('T')[0],
-            firstName: user.firstName,
-            lastName: user.lastName,
-          };
-        })
-      );
-
-      res.json(customersWithStats);
-    } catch (error) {
-      console.error("Error fetching customers:", error);
-      res.status(500).json({ error: "Failed to fetch customers" });
-    }
-  });
-
-  // Get individual customer details
-  app.get("/api/admin/customers/:id", async (req, res) => {
-    try {
-      const customerId = parseInt(req.params.id);
-
-      // Get user details
-      const user = await db
-        .select({
-          id: schema.users.id,
-          firstName: schema.users.firstName,
-          lastName: schema.users.lastName,
-          email: schema.users.email,
-          phone: schema.users.phone,
-          createdAt: schema.users.createdAt,
-        })
-        .from(schema.users)
-        .where(eq(schema.users.id, customerId))
-        .limit(1);
-
-      if (user.length === 0) {
-        return res.status(404).json({ error: "Customer not found" });
-      }
-
-      const customer = user[0];
-
-      // Get customer's orders
-      const customerOrders = await db
-        .select()
-        .from(schema.ordersTable)
-        .where(eq(schema.ordersTable.userId, customerId))
-        .orderBy(desc(schema.ordersTable.createdAt));
-
-      const orderCount = customerOrders.length;
-      const totalSpent = customerOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-
-      // Determine status
-      let status = 'New';
-      if (orderCount === 0) {
-        status = 'Inactive';
-      } else if (totalSpent > 2000) {
-        status = 'VIP';
-      } else if (orderCount > 0) {
-        status = 'Active';
-      }
-
-      const customerWithStats = {
-        id: customer.id,
-        name: `${customer.firstName} ${customer.lastName}`,
-        email: customer.email,
-        phone: customer.phone || 'N/A',
-        orders: orderCount,
-        spent: `₹${totalSpent.toFixed(2)}`,
-        status,
-        joinedDate: customer.createdAt.toISOString().split('T')[0],
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        recentOrders: customerOrders.slice(0, 5).map(order => ({
-          id: `ORD-${order.id.toString().padStart(3, '0')}`,
-          date: order.createdAt.toISOString().split('T')[0],
-          status: order.status,
-          total: `₹${order.totalAmount}`,
-        })),
-      };
-
-      res.json(customerWithStats);
-    } catch (error) {
-      console.error("Error fetching customer:", error);
-      res.status(500).json({ error: "Failed to fetch customer details" });
     }
   });
 
@@ -4447,7 +4284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allShades = await storage.getShades();
       res.json(allShades);
     } catch (error) {
-      console.error("Error fetching shades:", error);
+      console.error("Error fetching admin shades:", error);
       res.status(500).json({ error: "Failed to fetch shades" });
     }
   });
@@ -4518,41 +4355,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       console.log("Updating shade with ID:", id);
-      console.log("Update data:", req.body);
+      console.log("Update data received:", req.body);
 
-      const { name, colorCode, value, isActive, sortOrder, categoryIds, subcategoryIds, productIds, imageUrl } = req.body;
+      // Extract productIds from request body
+      const { productIds, categoryIds, subcategoryIds, ...shadeData } = req.body;
 
-      // Validation
-      if (name && name.trim().length === 0) {
-        return res.status(400).json({ error: "Name cannot be empty" });
-      }
+      // Update shade with only product-specific assignments
+      const shade = await storage.updateShade(parseInt(id), {
+        ...shadeData,
+        productIds: productIds || [], // Only store individually selected products
+        categoryIds: categoryIds || [],
+        subcategoryIds: subcategoryIds || []
+      });
 
-      if (colorCode && !colorCode.match(/^#[0-9A-Fa-f]{6}$/)) {
-        return res.status(400).json({ error: "Invalid color code format. Use hex format like #FF0000" });
-      }
-
-      // Process the update data
-      const updateData: any = {};
-
-      if (name !== undefined) updateData.name = name.trim();
-      if (colorCode !== undefined) updateData.colorCode = colorCode.trim().toUpperCase();
-      if (value !== undefined) updateData.value = value.trim() || name?.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      if (isActive !== undefined) updateData.isActive = Boolean(isActive);
-      if (sortOrder !== undefined) updateData.sortOrder = Number(sortOrder) || 0;
-      if (categoryIds !== undefined) updateData.categoryIds = Array.isArray(categoryIds) ? categoryIds : [];
-      if (subcategoryIds !== undefined) updateData.subcategoryIds = Array.isArray(subcategoryIds) ? subcategoryIds : [];
-      if (productIds !== undefined) updateData.productIds = Array.isArray(productIds) ? productIds : [];
-      if (imageUrl !== undefined) updateData.imageUrl = imageUrl || null;
-
-      console.log("Processed update data:", updateData);
-
-      const updatedShade = await storage.updateShade(parseInt(id), updateData);
-      if (!updatedShade) {
-        return res.status(404).json({ error: "Shade not found" });
-      }
-
-      console.log("Shade updated successfully:", updatedShade);
-      res.json(updatedShade);
+      console.log("Shade updated successfully:", shade);
+      res.json(shade);
     } catch (error) {
       console.error("Error updating shade:", error);
 
@@ -5209,8 +5026,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products/:productId/shades", async (req, res) => {
     try {
       const { productId } = req.params;
-      const shades = await storage.getProductShades(parseInt(productId));
-      res.json(shades);
+      // Fetch all shades that are active and have either categoryIds, subcategoryIds, or productIds defined.
+      const allShades = await storage.getActiveShadesWithAssociations();
+
+      // Filter shades to only include those specifically assigned to this product,
+      // or those that apply to the product's category/subcategory if no specific product is assigned.
+      const applicableShades = allShades.filter(shade => {
+        // If the shade has specific productIds and this product is in it, include it.
+        if (shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(parseInt(productId))) {
+          return true;
+        }
+
+        // If the shade has no specific productIds, it might apply to categories/subcategories.
+        // For now, we'll assume shades are primarily product-specific or category-wide.
+        // If productIds is empty or null, and the shade belongs to the product's category/subcategory,
+        // it should be included if no product-specific assignment exists.
+        // (This logic might need refinement based on how categories/subcategories are associated with shades)
+        // For this fix, we are strictly looking for shades assigned directly to the product.
+
+        return false; // Default to false if not explicitly assigned to the product.
+      });
+
+      res.json(applicableShades);
     } catch (error) {
       console.error("Error fetching product shades:", error);
       res.status(500).json({ error: "Failed to fetch product shades" });
@@ -5244,7 +5081,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
       res.json(result);
     } catch (error) {
-      console.error("Error checking review eligibility:", error);
+      console      .error("Error checking review eligibility:", error);
       res.status(500).json({ error: "Failed to check review eligibility" });
     }
   });
@@ -5348,31 +5185,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle product images update if provided
       if (req.body.images && Array.isArray(req.body.images)) {
-        try {
-          console.log("Updating product images:", req.body.images);
+        // Delete existing images
+        await db.delete(schema.productImages).where(eq(schema.productImages.productId, parseInt(id)));
 
-          // Delete existing images
-          await db.delete(schema.productImages).where(eq(schema.productImages.productId, productId));
+        // Remove duplicates and insert new images
+        const uniqueImages = Array.from(new Set(req.body.images.filter(url => url && url.trim() !== '')));
+        console.log("Updating product with unique images:", uniqueImages.length);
 
-          // Insert new images
-          if (req.body.images.length > 0) {
-            await Promise.all(
-              req.body.images.map(async (imageUrl: string, index: number) => {
-                await db.insert(schema.productImages).values({
-                  productId: productId,
-                  imageUrl: imageUrl,
-                  altText: `${product.name} - Image ${index + 1}`,
-                  isPrimary: index === 0, // First image is primary
-                  sortOrder: index
-                });
-              })
-            );
-          }
-
-          console.log("Product images updated successfully");
-        } catch (imageError) {
-          console.error('Error updating product images:', imageError);
-          // Continue even if image update fails
+        if (uniqueImages.length > 0) {
+          await Promise.all(
+            uniqueImages.map(async (imageUrl: string, index: number) => {
+              await db.insert(schema.productImages).values({
+                productId: parseInt(id),
+                imageUrl: imageUrl,
+                altText: `${req.body.name || 'Product'} - Image ${index + 1}`,
+                isPrimary: index === 0,
+                sortOrder: index
+              });
+            })
+          );
         }
       }
 

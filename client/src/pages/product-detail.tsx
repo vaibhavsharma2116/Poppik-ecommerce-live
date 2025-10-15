@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
-import { ChevronRight, Star, ShoppingCart, Heart, ChevronDown, ChevronUp, CheckCircle, Badge } from "lucide-react";
+import { ChevronRight, Star, ShoppingCart, Heart, ChevronDown, ChevronUp, CheckCircle, Badge, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -81,16 +81,33 @@ export default function ProductDetail() {
 
   // Get image URLs sorted by sortOrder
   const imageUrls = useMemo(() => {
+    const urls: string[] = [];
+
     if (productImages && productImages.length > 0) {
-      return productImages
+      // Get unique URLs from product images only - use Set to ensure uniqueness
+      const imageUrlsFromDb = productImages
         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
         .map(img => img.url || img.imageUrl)
-        .filter(Boolean);
+        .filter(url => url && url.trim() !== ''); // Filter out empty/null URLs
+      
+      // Remove duplicates using Set
+      const uniqueUrls = Array.from(new Set(imageUrlsFromDb));
+      urls.push(...uniqueUrls);
+      
+      console.log('Product images from DB:', productImages.length);
+      console.log('Unique URLs after processing:', uniqueUrls.length);
     } else if (product?.imageUrl) {
-      return [product.imageUrl];
+      urls.push(product.imageUrl);
     }
-    return [];
-  }, [productImages?.length, product?.imageUrl]); // Stable dependencies
+
+    // Add video URL at the end if it exists (only if not already in urls)
+    if (product?.videoUrl && !urls.includes(product.videoUrl)) {
+      urls.push(product.videoUrl);
+    }
+
+    console.log('Final image URLs:', urls.length);
+    return urls;
+  }, [productImages, product?.imageUrl, product?.videoUrl])
 
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
 
@@ -121,20 +138,14 @@ export default function ProductDetail() {
       }
       const shades = await response.json();
 
-      // Only return shades that are specifically assigned to this product
-      // Filter out shades that are only category-based and don't include this product
+      // ONLY return shades that have this specific product in their productIds array
       return shades.filter((shade: Shade) => {
-        // If shade has productIds array and this product is in it, include it
-        if (shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(product.id)) {
-          return true;
+        // Must have productIds array AND this product must be in it
+        if (shade.productIds && Array.isArray(shade.productIds)) {
+          return shade.productIds.includes(product.id);
         }
-
-        // If shade doesn't have specific product IDs but matches category/subcategory
-        // Only include if no specific products are selected (meaning it applies to all in category)
-        if (!shade.productIds || shade.productIds.length === 0) {
-          return true;
-        }
-
+        
+        // If no productIds specified, don't show this shade
         return false;
       });
     },
@@ -196,10 +207,14 @@ export default function ProductDetail() {
 
   // Set shades when data is available - Fixed dependencies
   useEffect(() => {
-    if (shadesFromAPI && shadesFromAPI.length > 0) {
+    if (shadesFromAPI && Array.isArray(shadesFromAPI)) {
+      console.log('Setting shades for product:', product?.id, shadesFromAPI);
       setShades(shadesFromAPI);
+    } else {
+      console.log('No shades available for product:', product?.id);
+      setShades([]);
     }
-  }, [shadesFromAPI?.length]); // Only depend on length to avoid object reference changes
+  }, [shadesFromAPI, product?.id]); // Depend on shadesFromAPI and product id
 
   const toggleWishlist = () => {
     if (!product) return;
@@ -498,10 +513,10 @@ export default function ProductDetail() {
                               const scrollHeight = container.scrollHeight;
                               const clientHeight = container.clientHeight;
                               const itemHeight = 92; // 80px height + 12px gap
-                              
+
                               // Check if scrolled to bottom
                               const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 5;
-                              
+
                               let visibleIndex;
                               if (isAtBottom) {
                                 // If at bottom, select last image
@@ -516,45 +531,76 @@ export default function ProductDetail() {
                               }
                             }}
                           >
-                            {imageUrls.map((imageUrl, index) => (
-                              <button
-                                key={`thumb-${index}`}
-                                onClick={() => {
-                                  setSelectedImageUrl(imageUrl);
-                                  // Smooth scroll to selected thumbnail
-                                  const container = document.getElementById('thumbnail-container');
-                                  if (container) {
-                                    const itemHeight = 92;
-                                    container.scrollTo({
-                                      top: index * itemHeight,
-                                      behavior: 'smooth'
-                                    });
-                                  }
-                                }}
-                                className={`w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-300 hover:border-purple-300 flex-shrink-0 ${
-                                  selectedImageUrl === imageUrl
-                                    ? 'border-purple-500 ring-2 ring-purple-200 scale-105'
-                                    : 'border-gray-200'
-                                }`}
-                                style={{ scrollSnapAlign: 'start' }}
-                              >
-                                <div className="w-full h-full flex items-center justify-center p-1 bg-white rounded-lg">
-                                  <OptimizedImage
-                                    src={imageUrl}
-                                    alt={`${product.name} view ${index + 1}`}
-                                    className="w-full h-full hover:scale-110 transition-transform duration-200"
-                                    width={80}
-                                    height={80}
-                                    style={{ 
-                                      objectFit: 'contain',
-                                      width: '100%',
-                                      height: '100%',
-                                      borderRadius: '6px'
-                                    }}
-                                  />
-                                </div>
-                              </button>
-                            ))}
+                            {imageUrls.map((imageUrl, index) => {
+                              // Better video detection
+                              const isVideo = imageUrl?.endsWith('.mp4') || 
+                                            imageUrl?.endsWith('.webm') || 
+                                            imageUrl?.endsWith('.mov') ||
+                                            imageUrl?.includes('video') ||
+                                            imageUrl?.match(/\.(mp4|webm|mov)(\?|$)/i);
+
+                              return (
+                                <button
+                                  key={`thumb-${index}`}
+                                  onClick={() => {
+                                    setSelectedImageUrl(imageUrl);
+                                    // Smooth scroll to selected thumbnail
+                                    const container = document.getElementById('thumbnail-container');
+                                    if (container) {
+                                      const itemHeight = 92;
+                                      container.scrollTo({
+                                        top: index * itemHeight,
+                                        behavior: 'smooth'
+                                      });
+                                    }
+                                  }}
+                                  className={`w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-300 hover:border-purple-300 flex-shrink-0 relative ${
+                                    selectedImageUrl === imageUrl
+                                      ? 'border-purple-500 ring-2 ring-purple-200 scale-105'
+                                      : 'border-gray-200'
+                                  }`}
+                                  style={{ scrollSnapAlign: 'start' }}
+                                >
+                                  <div className="w-full h-full flex items-center justify-center p-1 bg-white rounded-lg">
+                                    {isVideo ? (
+                                      <>
+                                        <video
+                                          src={imageUrl}
+                                          className="w-full h-full object-cover rounded"
+                                          muted
+                                          style={{ 
+                                            objectFit: 'cover',
+                                            width: '100%',
+                                            height: '100%',
+                                            borderRadius: '6px'
+                                          }}
+                                        />
+                                        {/* Video play icon overlay */}
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded-lg">
+                                          <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                                          </svg>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <OptimizedImage
+                                        src={imageUrl}
+                                        alt={`${product.name} view ${index + 1}`}
+                                        className="w-full h-full hover:scale-110 transition-transform duration-200"
+                                        width={80}
+                                        height={80}
+                                        style={{ 
+                                          objectFit: 'contain',
+                                          width: '100%',
+                                          height: '100%',
+                                          borderRadius: '6px'
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -565,7 +611,7 @@ export default function ProductDetail() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
-                                
+
                                 // Circular navigation - if on first image, go to last
                                 const prevIndex = currentIndex <= 0 ? imageUrls.length - 1 : currentIndex - 1;
                                 setSelectedImageUrl(imageUrls[prevIndex]);
@@ -597,11 +643,11 @@ export default function ProductDetail() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
-                                
+
                                 // Circular navigation - if on last image, go to first
                                 const nextIndex = currentIndex >= imageUrls.length - 1 ? 0 : currentIndex + 1;
                                 const container = document.getElementById('thumbnail-container');
-                                
+
                                 if (container) {
                                   if (currentIndex >= imageUrls.length - 1) {
                                     // Going to first image - scroll to top
@@ -621,7 +667,7 @@ export default function ProductDetail() {
                                       behavior: 'smooth'
                                     });
                                   }
-                                  
+
                                   // Set image after a small delay to sync with scroll
                                   setTimeout(() => {
                                     setSelectedImageUrl(imageUrls[nextIndex]);
@@ -654,69 +700,77 @@ export default function ProductDetail() {
 
                     {/* Main Image/Video with Zoom */}
                     <div className="flex-1 bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px' }}>
-                      {product.videoUrl ? (
-                        <div className="w-full h-full flex items-center justify-center p-2">
-                          <video
-                            src={product.videoUrl}
-                            className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
-                            controls
-                            poster={selectedImageUrl || imageUrls[0] || product.imageUrl}
-                            width={400}
-                            height={400}
-                          />
-                        </div>
-                      ) : selectedImageUrl || imageUrls[0] ? (
-                        <div className="w-full h-full flex items-center justify-center p-2">
-                          {selectedImageUrl?.includes('.mp4') || selectedImageUrl?.includes('video') ? (
-                            <video
-                              src={selectedImageUrl || imageUrls[0]}
-                              className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
-                              controls
-                              width={400}
-                              height={400}
-                            />
-                          ) : (
-                            <img
-                              src={selectedImageUrl || imageUrls[0] || product.imageUrl}
-                              alt={product.name}
-                              className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110"
-                              width={400}
-                              height={400}
-                              onClick={() => {
-                                // Create zoom modal
-                                const modal = document.createElement('div');
-                                modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
-                                modal.onclick = () => modal.remove();
+                      <div className="w-full h-full flex items-center justify-center p-2">
+                        {/* Better video detection */}
+                        {(() => {
+                          const currentUrl = selectedImageUrl || imageUrls[0];
+                          const isVideo = currentUrl?.endsWith('.mp4') || 
+                                        currentUrl?.endsWith('.webm') || 
+                                        currentUrl?.endsWith('.mov') ||
+                                        currentUrl?.includes('video') ||
+                                        currentUrl?.match(/\.(mp4|webm|mov)(\?|$)/i);
 
-                                const img = document.createElement('img');
-                                img.src = selectedImageUrl || imageUrls[0] || product.imageUrl;
-                                img.className = 'max-w-full max-h-full object-contain rounded-lg';
-                                img.onclick = (e) => e.stopPropagation();
+                          if (isVideo) {
+                            return (
+                              <video
+                                src={currentUrl}
+                                className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
+                                controls
+                                poster={imageUrls.find(url => !url.match(/\.(mp4|webm|mov)(\?|$)/i)) || product.imageUrl}
+                                width={400}
+                                height={400}
+                              />
+                            );
+                          } else if (currentUrl) {
+                            return (
+                              <img
+                                src={currentUrl}
+                                alt={product.name}
+                                className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110"
+                                width={400}
+                                height={400}
+                                onClick={() => {
+                                  // Create zoom modal
+                                  const modal = document.createElement('div');
+                                  modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
+                                  modal.onclick = () => modal.remove();
 
-                                const closeBtn = document.createElement('button');
-                                closeBtn.innerHTML = '×';
-                                closeBtn.className = 'absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors';
-                                closeBtn.onclick = () => modal.remove();
+                                  const img = document.createElement('img');
+                                  img.src = currentUrl;
+                                  img.className = 'max-w-full max-h-full object-contain rounded-lg';
+                                  img.onclick = (e) => e.stopPropagation();
 
-                                modal.appendChild(img);
-                                modal.appendChild(closeBtn);
-                                document.body.appendChild(modal);
-                              }}
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        <div className="w-full h-full bg-gray-200 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                          <span className="text-gray-500">No media available</span>
-                        </div>
-                      )}
+                                  const closeBtn = document.createElement('button');
+                                  closeBtn.innerHTML = '×';
+                                  closeBtn.className = 'absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors';
+                                  closeBtn.onclick = () => modal.remove();
+
+                                  modal.appendChild(img);
+                                  modal.appendChild(closeBtn);
+                                  document.body.appendChild(modal);
+                                }}
+                              />
+                            );
+                          } else {
+                            return (
+                              <div className="w-full h-full bg-gray-200 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                                <span className="text-gray-500">No media available</span>
+                              </div>
+                            );
+                          }
+                        })()}
+                      </div>
 
                       {/* Zoom Hint - Only for images */}
-                      {!product.videoUrl && !selectedImageUrl?.includes('.mp4') && !selectedImageUrl?.includes('video') && (
-                        <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          Click to zoom
-                        </div>
-                      )}
+                      {(() => {
+                        const currentUrl = selectedImageUrl || imageUrls[0];
+                        const isVideo = currentUrl?.match(/\.(mp4|webm|mov)(\?|$)/i);
+                        return !isVideo && (
+                          <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                            Click to zoom
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -804,7 +858,7 @@ export default function ProductDetail() {
                         </div>
                       )}
                       <div 
-                        className={`w-10 h-10 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl flex items-center justify-center ${
+                        className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl flex items-center justify-center ${
                           !selectedShade
                             ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105 bg-gray-100' 
                             : 'border-gray-300 hover:border-purple-400 bg-gray-50'
@@ -819,7 +873,7 @@ export default function ProductDetail() {
                         ? 'text-purple-700 font-semibold' 
                         : 'text-gray-600 group-hover:text-purple-600'
                     }`}>
-                      {/* No Shade */}
+                      Default
                     </span>
                   </div>
 
@@ -838,22 +892,35 @@ export default function ProductDetail() {
                               <div className="w-2 h-2 bg-white rounded-full"></div>
                             </div>
                           )}
-                          <div 
-                            className={`w-10 h-10 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
-                              selectedShade?.id === shade.id 
-                                ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105' 
-                                : 'border-gray-300 hover:border-purple-400'
-                            }`}
-                            style={{ backgroundColor: shade.colorCode }}
-                            title={shade.name}
-                          ></div>
+                          {shade.imageUrl ? (
+                            <img 
+                              src={shade.imageUrl} 
+                              alt={shade.name}
+                              className={`w-12 h-12 rounded-full border-3 object-cover transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
+                                selectedShade?.id === shade.id 
+                                  ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105' 
+                                  : 'border-gray-300 hover:border-purple-400'
+                              }`}
+                              title={shade.name}
+                            />
+                          ) : (
+                            <div 
+                              className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
+                                selectedShade?.id === shade.id 
+                                  ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105' 
+                                  : 'border-gray-300 hover:border-purple-400'
+                              }`}
+                              style={{ backgroundColor: shade.colorCode }}
+                              title={shade.name}
+                            ></div>
+                          )}
                         </div>
                         <span className={`text-xs mt-2 text-center leading-tight transition-colors ${
                           selectedShade?.id === shade.id 
                             ? 'text-purple-700 font-semibold' 
                             : 'text-gray-600 group-hover:text-purple-600'
                         }`}>
-                          {shade.name.split(' ')[0]}
+                          {shade.name.split(' ').slice(0, 2).join(' ')}
                         </span>
                       </div>
                     ));
@@ -1295,6 +1362,28 @@ export default function ProductDetail() {
             </Button>
           </div>
         </section>
+
+        {/* Product Video - Show if available */}
+            {product.videoUrl && (
+              <Card className="overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-pink-50 to-rose-50 border-b">
+                  <CardTitle className="flex items-center gap-2">
+                    <Video className="h-5 w-5 text-pink-600" />
+                    Product Video
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <video
+                    src={product.videoUrl.startsWith('/api/') ? product.videoUrl : `/api/images/${product.videoUrl}`}
+                    controls
+                    className="w-full aspect-video"
+                    poster={product.imageUrl}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </CardContent>
+              </Card>
+            )}
 
         {/* You May Also Like - Horizontal Scroll */}
         {filteredRelatedProducts.length > 0 && (

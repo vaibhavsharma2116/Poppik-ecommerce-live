@@ -363,30 +363,36 @@ export class DatabaseStorage implements IStorage {
       // Generate slug from name if not provided
       const slug = productData.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-      const productToInsert = {
+      const productToInsert: any = {
         name: String(name).trim(),
         slug,
         description: String(description).trim(),
         shortDescription: productData.shortDescription ? String(productData.shortDescription).trim() : String(description).slice(0, 100),
         price: Number(price),
-        originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
         category: String(category).trim(),
-        subcategory: productData.subcategory ? String(productData.subcategory).trim() : null,
         imageUrl: productData.imageUrl ? String(productData.imageUrl).trim() : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400',
-        rating: Number(productData.rating) || 4.0,
-        reviewCount: Number(productData.reviewCount) || 0,
-        inStock: Boolean(productData.inStock ?? true),
-        featured: Boolean(productData.featured ?? false),
-        bestseller: Boolean(productData.bestseller ?? false),
-        newLaunch: Boolean(productData.newLaunch ?? false),
-        saleOffer: productData.saleOffer ? String(productData.saleOffer).trim() : null,
-        variants: productData.variants ? String(productData.variants).trim() : null,
-        ingredients: productData.ingredients ? String(productData.ingredients).trim() : null,
-        benefits: productData.benefits ? String(productData.benefits).trim() : null,
-        howToUse: productData.howToUse ? String(productData.howToUse).trim() : null,
-        size: productData.size ? String(productData.size).trim() : null,
-        tags: productData.tags ? String(productData.tags).trim() : null,
       };
+
+      // Add optional fields only if they have values
+      if (productData.originalPrice) productToInsert.originalPrice = Number(productData.originalPrice);
+      if (productData.subcategory) productToInsert.subcategory = String(productData.subcategory).trim();
+      if (productData.videoUrl) {
+        productToInsert.videoUrl = String(productData.videoUrl).trim();
+        console.log("Adding videoUrl to product:", productToInsert.videoUrl);
+      }
+      if (productData.rating !== undefined) productToInsert.rating = Number(productData.rating);
+      if (productData.reviewCount !== undefined) productToInsert.reviewCount = Number(productData.reviewCount);
+      if (productData.inStock !== undefined) productToInsert.inStock = Boolean(productData.inStock);
+      if (productData.featured !== undefined) productToInsert.featured = Boolean(productData.featured);
+      if (productData.bestseller !== undefined) productToInsert.bestseller = Boolean(productData.bestseller);
+      if (productData.newLaunch !== undefined) productToInsert.newLaunch = Boolean(productData.newLaunch);
+      if (productData.saleOffer) productToInsert.saleOffer = String(productData.saleOffer).trim();
+      if (productData.variants) productToInsert.variants = String(productData.variants).trim();
+      if (productData.ingredients) productToInsert.ingredients = String(productData.ingredients).trim();
+      if (productData.benefits) productToInsert.benefits = String(productData.benefits).trim();
+      if (productData.howToUse) productToInsert.howToUse = String(productData.howToUse).trim();
+      if (productData.size) productToInsert.size = String(productData.size).trim();
+      if (productData.tags) productToInsert.tags = String(productData.tags).trim();
 
       console.log("Inserting product data:", productToInsert);
       const result = await db.insert(products).values(productToInsert).returning();
@@ -405,6 +411,8 @@ export class DatabaseStorage implements IStorage {
         throw new Error("A product with this name or slug already exists");
       } else if (error.message.includes('not null constraint')) {
         throw new Error("Missing required product information");
+      } else if (error.message.includes('does not exist')) {
+        throw new Error("Database column mismatch. Please check your database schema.");
       } else {
         throw new Error(error.message || "Failed to create product");
       }
