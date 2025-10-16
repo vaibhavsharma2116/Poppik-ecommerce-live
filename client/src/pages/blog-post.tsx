@@ -162,7 +162,7 @@ export default function BlogPostDetail() {
       <div className="w-full bg-gray-100">
         {post.videoUrl ? (
           <video 
-            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] object-cover"
+            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px]"
             controls
             preload="metadata"
             poster={post.imageUrl}
@@ -173,7 +173,7 @@ export default function BlogPostDetail() {
           <img
             src={post.imageUrl}
             alt={post.title}
-            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] object-cover"
+            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] "
           />
         )}
       </div>
@@ -351,7 +351,7 @@ export default function BlogPostDetail() {
                       <img
                         src={relatedPost.imageUrl}
                         alt={relatedPost.title}
-                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500"
                       />
                     </div>
 
