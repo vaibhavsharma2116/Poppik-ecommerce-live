@@ -238,7 +238,6 @@ export default function AdminVideoTestimonials() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Video</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Sort Order</TableHead>
@@ -251,16 +250,7 @@ export default function AdminVideoTestimonials() {
                   return (
                     <TableRow key={testimonial.id}>
                      
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={testimonial.thumbnailUrl}
-                            alt="Video thumbnail"
-                            className="w-16 h-12 rounded object-cover"
-                          />
-                          <Play className="h-4 w-4 text-gray-400" />
-                        </div>
-                      </TableCell>
+                      
                       <TableCell>
                         {product ? (
                           <div className="flex items-center gap-2">
@@ -350,36 +340,7 @@ export default function AdminVideoTestimonials() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Thumbnail *</Label>
-              {thumbnailPreview && (
-                <div className="relative w-full h-32">
-                  <img src={thumbnailPreview} alt="Thumbnail" className="w-full h-full object-cover rounded" />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => { setThumbnailFile(null); setThumbnailPreview(''); }}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
-              <div className="border-2 border-dashed rounded-lg p-4">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleThumbnailSelect}
-                  className="hidden"
-                  id="thumbnail-upload"
-                />
-                <Label htmlFor="thumbnail-upload" className="cursor-pointer flex flex-col items-center">
-                  <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-600">Click to upload thumbnail</p>
-                </Label>
-              </div>
-            </div>
+            
 
             <div className="space-y-2">
               <Label htmlFor="productId">Product *</Label>

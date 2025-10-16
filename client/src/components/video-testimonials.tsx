@@ -1,8 +1,8 @@
-
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, X, ShoppingCart } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import type { Product } from "@/lib/types";
@@ -22,6 +22,8 @@ export default function VideoTestimonials() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState<number | null>(null);
   const [autoplayEnabled, setAutoplayEnabled] = useState(true);
+  const [selectedVideo, setSelectedVideo] = useState<VideoTestimonial | null>(null);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const { toast } = useToast();
 
   // Fetch UGC Video from API
@@ -63,6 +65,11 @@ export default function VideoTestimonials() {
     }
   };
 
+  const handleVideoClick = (testimonial: VideoTestimonial) => {
+    setSelectedVideo(testimonial);
+    setIsVideoModalOpen(true);
+  };
+
   const addToCart = (product: Product) => {
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
     const existingItem = cart.find((cartItem: any) => cartItem.id === product.id);
@@ -97,7 +104,7 @@ export default function VideoTestimonials() {
   const getVisibleTestimonials = () => {
     const visible = [];
     const displayCount = Math.min(4, activeTestimonials.length);
-    
+
     for (let i = 0; i < displayCount; i++) {
       const index = (currentIndex + i) % activeTestimonials.length;
       const testimonial = activeTestimonials[index];
@@ -176,7 +183,10 @@ export default function VideoTestimonials() {
             {visibleTestimonials.map((testimonial) => (
               <Card key={testimonial.id} className="overflow-hidden group hover:shadow-xl transition-all duration-300">
                 {/* Video Section */}
-                <div className="relative aspect-[3/4] bg-gray-100">
+                <div 
+                  className="relative aspect-[3/4] bg-gray-100 cursor-pointer"
+                  onClick={() => handleVideoClick(testimonial)}
+                >
                   <video
                     src={testimonial.videoUrl}
                     className="w-full h-full object-cover"
@@ -186,6 +196,13 @@ export default function VideoTestimonials() {
                     loop
                     poster={testimonial.thumbnailUrl}
                   />
+
+                  {/* Play Icon Overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300">
+                    <div className="bg-white rounded-full p-3 opacity-0 group-hover:opacity-90 transform scale-75 group-hover:scale-100 transition-all duration-300">
+                      <Play className="w-6 h-6 text-pink-600 fill-pink-600" />
+                    </div>
+                  </div>
 
                   {/* Product Image Overlay - Bottom Left */}
                   {testimonial.product && (
@@ -218,8 +235,9 @@ export default function VideoTestimonials() {
                       </div>
                       <Button
                         onClick={() => addToCart(testimonial.product!)}
-                        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs sm:text-sm py-1.5 sm:py-2"
+                        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs sm:text-sm py-1.5 sm:py-2 flex items-center justify-center gap-1.5"
                       >
+                        <ShoppingCart className="h-3.5 w-3.5" />
                         ADD TO CART
                       </Button>
                     </>
@@ -260,6 +278,71 @@ export default function VideoTestimonials() {
           </div> */}
         </div>
       </div>
+
+      {/* Video Popup Modal */}
+      <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
+        <DialogContent className="max-w-md w-full p-0 bg-white border-0 overflow-hidden">
+          {/* Close Button */}
+          <button
+            onClick={() => setIsVideoModalOpen(false)}
+            className="absolute top-3 right-3 z-50 p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-lg"
+            aria-label="Close video"
+          >
+            <X className="w-5 h-5 text-gray-800" />
+          </button>
+
+          {/* Video Container */}
+          <div className="relative w-full bg-black" style={{ aspectRatio: '9/16' }}>
+            {selectedVideo && (
+              <video
+                src={selectedVideo.videoUrl}
+                className="w-full h-full object-cover"
+                controls
+                autoPlay
+                playsInline
+                poster={selectedVideo.thumbnailUrl}
+              />
+            )}
+          </div>
+
+          {/* Product Info Below Video */}
+          {selectedVideo && (
+            <div className="p-4 bg-white border-t">
+              {(() => {
+                const product = allProducts?.find(p => p.id === selectedVideo.productId);
+                return product ? (
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 mb-1">{product.name}</h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-base font-bold text-pink-600">₹{product.price}</p>
+                        {product.originalPrice && (
+                          <p className="text-sm text-gray-500 line-through">₹{product.originalPrice}</p>
+                        )}
+                      </div>
+                      <Button
+                        onClick={() => {
+                          addToCart(product);
+                          setIsVideoModalOpen(false);
+                        }}
+                        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm py-2 flex items-center justify-center gap-2"
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                        ADD TO CART
+                      </Button>
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

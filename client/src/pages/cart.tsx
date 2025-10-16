@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Heart, Share2 } from "lucide-react";
@@ -8,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from '@tanstack/react-query';
+import ProductCard from "@/components/product-card";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 interface CartItem {
   id: number;
@@ -32,40 +35,61 @@ export default function Cart() {
     queryKey: ['/api/announcements'],
   });
 
+  // Fetch recommended products
+  const { data: recommendedProducts = [] } = useQuery({
+    queryKey: ['/api/products', { limit: 12 }],
+  });
+
   // Load cart from localStorage on component mount
   useEffect(() => {
-    const savedCart = localStorage.getItem("cart");
-    if (savedCart) {
-      try {
-        const parsedCart = JSON.parse(savedCart);
-        setCartItems(parsedCart);
-      } catch (error) {
-        console.error("Error parsing cart data:", error);
-        setCartItems([]);
-        toast({
-          title: "Cart Error",
-          description: "There was an issue loading your cart. Please try again.",
-          variant: "destructive",
-        });
+    const loadCart = () => {
+      const savedCart = localStorage.getItem("cart");
+      if (savedCart) {
+        try {
+          const parsedCart = JSON.parse(savedCart);
+          // Ensure all items have required fields
+          const validCart = parsedCart.filter((item: any) =>
+            item && item.id && item.name && item.price
+          );
+          setCartItems(validCart);
+        } catch (error) {
+          console.error("Error parsing cart data:", error);
+          setCartItems([]);
+          toast({
+            title: "Cart Error",
+            description: "There was an issue loading your cart. Please try again.",
+            variant: "destructive",
+          });
+        }
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    loadCart();
+
+    // Listen for cart updates from other components
+    const handleCartUpdate = () => {
+      loadCart();
+    };
+
+    window.addEventListener("cartUpdated", handleCartUpdate);
+    return () => {
+      window.removeEventListener("cartUpdated", handleCartUpdate);
+    };
   }, []);
 
   // Save cart to localStorage whenever cartItems changes
   useEffect(() => {
     if (!loading) {
       localStorage.setItem("cart", JSON.stringify(cartItems));
-      // Update cart count in localStorage for layout component
       localStorage.setItem("cartCount", cartItems.reduce((total, item) => total + item.quantity, 0).toString());
-      // Dispatch custom event to update layout
       window.dispatchEvent(new Event("cartUpdated"));
     }
   }, [cartItems, loading]);
 
-  const updateQuantity = (id: number, newQuantity: number) => {
+  const updateQuantity = (id: number, newQuantity: number, itemIndex?: number) => {
     if (newQuantity === 0) {
-      removeItem(id);
+      removeItem(id, itemIndex);
       return;
     }
 
@@ -79,8 +103,10 @@ export default function Cart() {
     }
 
     setCartItems(items =>
-      items.map(item =>
-        item.id === id ? { ...item, quantity: newQuantity } : item
+      items.map((item, index) =>
+        (itemIndex !== undefined ? index === itemIndex : item.id === id)
+          ? { ...item, quantity: newQuantity }
+          : item
       )
     );
 
@@ -90,9 +116,15 @@ export default function Cart() {
     });
   };
 
-  const removeItem = (id: number) => {
-    const item = cartItems.find(item => item.id === id);
-    setCartItems(items => items.filter(item => item.id !== id));
+  const removeItem = (id: number, itemIndex?: number) => {
+    const item = cartItems.find((item, index) =>
+      itemIndex !== undefined ? index === itemIndex : item.id === id
+    );
+    setCartItems(items =>
+      items.filter((item, index) =>
+        itemIndex !== undefined ? index !== itemIndex : item.id !== id
+      )
+    );
 
     toast({
       title: "Item Removed",
@@ -106,15 +138,12 @@ export default function Cart() {
     const item = cartItems.find(item => item.id === id);
 
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Add to wishlist (localStorage for now)
       const existingWishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
       const wishlistItem = { ...item, dateAdded: new Date().toISOString() };
       localStorage.setItem("wishlist", JSON.stringify([...existingWishlist, wishlistItem]));
 
-      // Remove from cart
       removeItem(id);
 
       toast({
@@ -177,7 +206,6 @@ export default function Cart() {
           url: window.location.href,
         });
       } catch (error) {
-        // Fallback to clipboard
         copyCartLink();
       }
     } else {
@@ -193,11 +221,26 @@ export default function Cart() {
     });
   };
 
-  // Calculate totals
+  // Calculate subtotal (before product discounts)
   const subtotal = cartItems.reduce((sum, item) => {
-    const price = parseInt(item.price.replace(/[₹,]/g, ""));
+    const price = item.originalPrice
+      ? parseInt(item.originalPrice.replace(/[₹,]/g, ""))
+      : parseInt(item.price.replace(/[₹,]/g, ""));
     return sum + (price * item.quantity);
   }, 0);
+
+  // Calculate product discounts
+  const productDiscount = cartItems.reduce((total, item) => {
+    if (item.originalPrice) {
+      const original = parseInt(item.originalPrice.replace(/[₹,]/g, ""));
+      const current = parseInt(item.price.replace(/[₹,]/g, ""));
+      return total + ((original - current) * item.quantity);
+    }
+    return total;
+  }, 0);
+
+  // Calculate cart subtotal after product discounts
+  const cartSubtotal = subtotal - productDiscount;
 
   // Dynamic discount calculation based on announcements
   let dynamicDiscount = 0;
@@ -208,19 +251,17 @@ export default function Cart() {
 
     const text = announcement.text.toLowerCase();
 
-    // Check for percentage discount on online payment
     if (text.includes('5% off') && text.includes('online')) {
-      dynamicDiscount += Math.round(subtotal * 0.05);
+      dynamicDiscount += Math.round(cartSubtotal * 0.05);
       appliedOffers.push('5% Online Payment Discount');
     }
 
-    // Check for flat discount above threshold
     const flatDiscountMatch = text.match(/rs\.?\s*(\d+)\s*off.*rs\.?\s*(\d+)/i);
     if (flatDiscountMatch) {
       const discountAmount = parseInt(flatDiscountMatch[1]);
       const minAmount = parseInt(flatDiscountMatch[2]);
 
-      if (subtotal >= minAmount) {
+      if (cartSubtotal >= minAmount) {
         dynamicDiscount += discountAmount;
         appliedOffers.push(`Rs. ${discountAmount} off (above Rs. ${minAmount})`);
       }
@@ -228,14 +269,13 @@ export default function Cart() {
   });
 
   // Apply promo code discount
-  const promoDiscount = promoCode === 'SAVE10' ? Math.round(subtotal * 0.1) : 0;
+  const promoDiscount = promoCode.toLowerCase() === 'save10' ? Math.round(cartSubtotal * 0.1) : 0;
   if (promoDiscount > 0) {
     appliedOffers.push('Promo Code SAVE10');
   }
 
-  const totalDiscount = dynamicDiscount + promoDiscount;
-  const total = subtotal - totalDiscount;
-
+  const totalDiscount = productDiscount + dynamicDiscount + promoDiscount;
+  const total = cartSubtotal - dynamicDiscount - promoDiscount;
 
   if (loading) {
     return (
@@ -278,7 +318,6 @@ export default function Cart() {
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-6 sm:mb-8">
           <Link href="/" className="inline-flex items-center text-red-600 hover:text-red-700 mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -308,22 +347,19 @@ export default function Cart() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
-            {cartItems.map((item) => (
-              <Card key={item.id} className="overflow-hidden hover:shadow-md transition-shadow">
+            {cartItems.map((item, index) => (
+              <Card key={`${item.id}-${index}`} className="overflow-hidden hover:shadow-md transition-shadow">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
-                    {/* Product Image */}
                     <div className="flex-shrink-0">
                       <img
                         src={item.image}
                         alt={item.name}
-                        className="sm:h-28 sm:w-28 object-cover rounded-lg mx-auto sm:mx-0"
+                        className="h-24 w-24 sm:h-28 sm:w-28 object-cover rounded-lg mx-auto sm:mx-0"
                       />
                     </div>
 
-                    {/* Product Details */}
                     <div className="flex-1 min-w-0 text-center sm:text-left">
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
                         {item.name}
@@ -358,9 +394,7 @@ export default function Cart() {
                       </p>
                     </div>
 
-                    {/* Controls */}
                     <div className="flex flex-col space-y-3 sm:space-y-2 items-center">
-                      {/* Quantity Controls */}
                       <div className="flex items-center border border-gray-300 rounded-lg">
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
@@ -381,7 +415,6 @@ export default function Cart() {
                         </button>
                       </div>
 
-                      {/* Action Buttons */}
                       <div className="flex space-x-2">
                         <button
                           onClick={() => saveForLater(item.id)}
@@ -406,13 +439,11 @@ export default function Cart() {
             ))}
           </div>
 
-          {/* Order Summary */}
           <div className="lg:col-span-1">
             <Card className="sticky top-4">
               <CardContent className="p-4 sm:p-6 space-y-4">
                 <h2 className="text-xl font-semibold text-gray-900">Order Summary</h2>
 
-                {/* Promo Code */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Promo Code</label>
                   <div className="flex space-x-2">
@@ -430,33 +461,19 @@ export default function Cart() {
 
                 <Separator />
 
-                {/* Price Breakdown */}
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
                     <span className="font-medium">₹{subtotal.toLocaleString()}</span>
                   </div>
 
-                  {/* Product Discounts */}
-                  {(() => {
-                    const productDiscount = cartItems.reduce((total, item) => {
-                      if (item.originalPrice) {
-                        const original = parseInt(item.originalPrice.replace(/[₹,]/g, ""));
-                        const current = parseInt(item.price.replace(/[₹,]/g, ""));
-                        return total + ((original - current) * item.quantity);
-                      }
-                      return total;
-                    }, 0);
+                  {productDiscount > 0 && (
+                    <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                      <span className="text-green-700 font-medium">Product Discount</span>
+                      <span className="font-bold text-green-600">-₹{productDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
 
-                    return productDiscount > 0 ? (
-                      <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
-                        <span className="text-green-700 font-medium">Product Discount</span>
-                        <span className="font-bold text-green-600">-₹{productDiscount.toLocaleString()}</span>
-                      </div>
-                    ) : null;
-                  })()}
-
-                  {/* Dynamic Offer Discounts */}
                   {dynamicDiscount > 0 && (
                     <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
                       <span className="text-green-700 font-medium">Offers Applied</span>
@@ -464,7 +481,6 @@ export default function Cart() {
                     </div>
                   )}
 
-                  {/* Promo Code Discount */}
                   {promoDiscount > 0 && (
                     <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
                       <span className="text-green-700 font-medium">Promo Code (SAVE10)</span>
@@ -476,7 +492,6 @@ export default function Cart() {
                     💡 Shipping charges will be calculated at checkout
                   </div>
 
-                  {/* Free Shipping Notice */}
                   {announcements.some((a: any) => a.isActive && a.text.toLowerCase().includes('free shipping')) && (
                     <div className="text-xs text-green-600 bg-green-50 p-2 rounded font-medium">
                       ✓ Free shipping applied on orders above Rs. 499
@@ -496,14 +511,12 @@ export default function Cart() {
                   )}
                 </div>
 
-                {/* Checkout Button */}
                 <Link href="/checkout">
                   <Button className="w-full bg-red-600 hover:bg-red-700 text-white text-base py-3">
                     Proceed to Checkout
                   </Button>
                 </Link>
 
-                {/* Security & Policies */}
                 <div className="space-y-2 text-xs text-gray-500 text-center">
                   <p>🔒 Secure checkout with SSL encryption</p>
                   <p>📦 Shipping charges calculated based on delivery location</p>
@@ -513,6 +526,54 @@ export default function Cart() {
           </div>
         </div>
       </div>
+       {recommendedProducts.length > 0 && (
+          <section className="mt-12 sm:mt-16">
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                You May Also Like
+              </h2>
+              <p className="text-sm sm:text-base text-gray-600">
+                Complete your beauty routine with these products
+              </p>
+            </div>
+            
+            {/* Mobile: 2 Column Grid with Horizontal Scroll */}
+            <div className="block md:hidden">
+              <div className="overflow-x-auto scrollbar-hide pb-4">
+                <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
+                  {recommendedProducts.map((product: any) => (
+                    <div key={product.id} style={{ width: '160px', flexShrink: 0 }}>
+                      <ProductCard product={product} className="h-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop: Carousel */}
+            <div className="hidden md:block">
+              <div className="relative px-4 sm:px-8">
+                <Carousel
+                  opts={{
+                    align: "start",
+                    loop: true,
+                  }}
+                  className="w-full"
+                >
+                  <CarouselContent className="-ml-2 md:-ml-4">
+                    {recommendedProducts.map((product: any) => (
+                      <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+                        <ProductCard product={product} />
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="hidden sm:flex -left-4" />
+                  <CarouselNext className="hidden sm:flex -right-4" />
+                </Carousel>
+              </div>
+            </div>
+          </section>
+        )}
     </div>
   );
 }
