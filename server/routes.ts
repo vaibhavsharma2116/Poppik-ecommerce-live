@@ -58,7 +58,7 @@ import type { InsertBlogCategory } from "../shared/schema";
 
 // Database connection with enhanced configuration
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -1376,8 +1376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(products);
     } catch (error) {
       console.log("Database unavailable, using sample featured products");
-      const sampleProducts = generateSampleProducts();
-      res.json(sampleProducts.filter(p => p.featured));
+     
     }
   });
 
@@ -1387,8 +1386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(products);
     } catch (error) {
       console.log("Database unavailable, using sample bestseller products");
-      const sampleProducts = generateSampleProducts();
-      res.json(sampleProducts.filter(p => p.bestseller));
+      
     }
   });
 
@@ -1398,8 +1396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(products);
     } catch (error) {
       console.log("Database unavailable, using sample new launch products");
-      const sampleProducts = generateSampleProducts();
-      res.json(sampleProducts.filter(p => p.newLaunch));
+     
     }
   });
 
@@ -1432,18 +1429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(Array.from(uniqueProducts.values()));
     } catch (error) {
       console.log("Database unavailable, using sample product data with subcategory filter");
-      const sampleProducts = generateSampleProducts();
-      const { subcategory } = req.params;
-      const subcategorySlug = subcategory.toLowerCase().replace('-', ' ');
-
-      const filteredSampleProducts = sampleProducts.filter(product => {
-        if (!product.subcategory) return false;
-        const productSubcategory = product.subcategory.toLowerCase();
-        return productSubcategory === subcategorySlug ||
-               productSubcategory.replace(/[-\s]+/g, ' ') === subcategorySlug.replace(/[-\s]+/g, ' ');
-      });
-
-      res.json(filteredSampleProducts);
+      
     }
   });
 
@@ -1554,49 +1540,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(filteredProducts);
     } catch (error) {
       console.log("Database unavailable, using sample product data with category filter");
-      const sampleProducts = generateSampleProducts();
-      const { category } = req.params;
-      const searchCategory = category.toLowerCase().trim();
-
-      const filteredSampleProducts = sampleProducts.filter(product => {
-        if (!product.category) return false;
-
-        const productCategory = product.category.toLowerCase().trim();
-
-        // Exact match
-        if (productCategory === searchCategory) return true;
-
-        // Partial match
-        if (productCategory.includes(searchCategory) || searchCategory.includes(productCategory)) return true;
-
-        // Special mappings for common variations
-        const categoryMappings: Record<string, string[]> = {
-          'lips': ['lip', 'lipcare', 'lip care', 'lip-’care'],
-          'lip': ['lips', 'lipcare', 'lip care', 'lip-care'],
-          'lipcare': ['lip', 'lips', 'lip care', 'lip-care'],
-          'lip-care': ['lip', 'lips', 'lipcare', 'lip care'],
-          'lip care': ['lip', 'lips', 'lipcare', 'lip-care'],
-          'eyes': ['eye', 'eyecare', 'eye care', 'eye-care'],
-          'eye-care': ['eye', 'eyes', 'eyecare'],
-          'eyecare': ['eye', 'eyes', 'eye care', 'eye-care'],
-          'face': ['facial', 'foundation', 'concealer'],
-          'skincare': ['skin', 'serum', 'cleanser'],
-        };
-
-        const mappedCategories = categoryMappings[searchCategory] || [];
-        if (mappedCategories.some(mapped => productCategory.includes(mapped))) return true;
-
-        // Reverse mapping check
-        const reverseMappings = Object.entries(categoryMappings).find(([key, values]) =>
-          values.includes(searchCategory)
-        );
-        if (reverseMappings && productCategory.includes(reverseMappings[0])) return true;
-
-        return false;
-      });
-
-      console.log(`Sample data: Found ${filteredSampleProducts.length} products for category "${category}"`);
-      res.json(filteredSampleProducts);
     }
   });
 
@@ -2959,26 +2902,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return allSubcategories.filter(sub => subcategorySlugs.includes(sub.slug));
   }
 
-  // Generate sample categories for development with dynamic product count
-  function generateSampleCategories() {
-    const sampleProducts = generateSampleProducts();
 
-    const baseCategories = [
-
-    ];
-
-    // Calculate dynamic product count for each category
-    return baseCategories.map(category => {
-      const productCount = sampleProducts.filter(product =>
-        product.category.toLowerCase() === category.slug.toLowerCase()
-      ).length;
-
-      return {
-        ...category,
-        productCount
-      };
-    });
-  }
 
   // Blog API Routes
 
