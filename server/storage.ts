@@ -1267,14 +1267,7 @@ export class DatabaseStorage implements IStorage {
       return await db.select().from(blogCategories).where(eq(blogCategories.isActive, true)).orderBy(asc(blogCategories.sortOrder));
     } catch (error) {
       console.error("Database error in getBlogCategories:", error);
-      // Return fallback categories when database is not available
-      return [
-        { id: 1, name: "Beauty Tips", slug: "beauty-tips", isActive: true, sortOrder: 1 },
-        { id: 2, name: "Product Reviews", slug: "product-reviews", isActive: true, sortOrder: 2 },
-        { id: 3, name: "Tutorials", slug: "tutorials", isActive: true, sortOrder: 3 },
-        { id: 4, name: "Skincare", slug: "skincare", isActive: true, sortOrder: 4 },
-        { id: 5, name: "Makeup", slug: "makeup", isActive: true, sortOrder: 5 },
-      ];
+      
     }
   }
 

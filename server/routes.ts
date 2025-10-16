@@ -3040,173 +3040,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(postsWithParsedTags);
     } catch (error) {
-      console.error("Error fetching blog posts:", error);
-      // Return sample data as fallback
-      const samplePosts = [
-        {
-          id: 1,
-          title: "The Ultimate Guide to Korean Skincare Routine",
-          slug: "ultimate-guide-korean-skincare-routine",
-          excerpt: "Discover the secrets behind the famous 10-step Korean skincare routine and how to adapt it for your skin type.",
-          content: "Korean skincare has revolutionized the beauty industry with its emphasis on prevention, hydration, and gentle care. The famous 10-step routine focuses on layering products from thinnest to thickest consistency.\n\nStart with an oil-based cleanser to remove makeup and SPF, followed by a water-based cleanser for a deep clean. Exfoliation 2-3 times a week helps remove dead skin cells. Toner balances pH levels and prepares skin for better absorption.\n\nEssences are the heart of K-beauty, delivering concentrated hydration. Serums target specific concerns like dark spots or fine lines. Sheet masks provide an intensive treatment 2-3 times weekly. Eye cream addresses the delicate under-eye area.\n\nMoisturizer locks in all previous layers, while sunscreen is the final and most crucial step during the day. Remember, consistency is key, and you can customize this routine based on your skin's needs.",
-          author: "Sarah Kim",
-          category: "Skincare",
-          tags: ["K-Beauty", "Skincare", "Routine", "Tips"],
-          imageUrl: "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
-          videoUrl: null,
-          featured: true,
-          published: true,
-          likes: 124,
-          comments: 18,
-          readTime: "8 min read",
-          createdAt: new Date('2024-12-15'),
-          updatedAt: new Date('2024-12-15')
-        },
-        {
-          id: 2,
-          title: "Best Makeup Products Under $20",
-          slug: "best-makeup-products-under-20",
-          excerpt: "Achieve a flawless makeup look without breaking the bank with these affordable yet high-quality products.",
-          content: "You don't need to spend a fortune to look fabulous. Here are the best makeup products that deliver luxury quality at drugstore prices.\n\n# Foundation & Base\n\nFor base makeup, the Maybelline Fit Me foundation offers excellent coverage and a natural finish for under $10. E.L.F.'s Putty Primer creates a smooth canvas at just $8, ensuring your makeup stays in place all day long.\n\n# Lips That Pop\n\nNYX Professional Makeup offers incredible lip products, with their Soft Matte Lip Cream being a cult favorite at only $7. The color payoff is amazing and it lasts for hours without drying out your lips.\n\n# Glow and Highlight\n\nWet n Wild's MegaGlo highlighters rival high-end brands at only $5. The pigmentation is incredible and gives you that coveted dewy glow that everyone loves.\n\n# Eye-Catching Lashes\n\nEssence's Lash Princess Mascara gives dramatic volume for under $5. It's often compared to high-end mascaras but at a fraction of the price. Perfect for creating those Instagram-worthy lashes!\n\n# Colorful Eyes\n\nColourPop's eyeshadow palettes offer vibrant, blendable colors for around $15. The quality is comparable to luxury brands, and the color range is incredible.\n\n# Skincare Meets Makeup\n\nCeraVe and The Ordinary provide affordable skincare that works beautifully under makeup. These budget-friendly gems prove that price doesn't always equal quality!\n\nRemember, looking beautiful doesn't have to cost a fortune. These affordable products deliver amazing results and will leave you with money to spare!",
-          author: "Jessica Torres",
-          category: "Product Reviews",
-          tags: ["Makeup", "Budget Beauty", "Product Reviews", "Affordable"],
-          imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
-          videoUrl: null,
-          featured: true,
-          published: true,
-          likes: 287,
-          comments: 56,
-          readTime: "10 min read",
-          createdAt: new Date('2024-12-11'),
-          updatedAt: new Date('2024-12-11')
-        },
-        {
-          id: 3,
-          title: "Top 10 Hair Care Tips for Healthy, Shiny Hair",
-          slug: "top-10-hair-care-tips",
-          excerpt: "Transform your hair with these expert-approved tips for maintaining healthy, lustrous locks all year round.",
-          content: "Healthy hair starts with a proper care routine. Here are the top 10 tips to achieve gorgeous, shiny hair.\n\n1. Wash hair with lukewarm water, not hot, to prevent damage. 2. Use a sulfate-free shampoo suited to your hair type. 3. Condition every time you shampoo, focusing on mid-lengths to ends. 4. Apply a deep conditioning mask weekly for extra nourishment.\n\n5. Minimize heat styling and always use a heat protectant spray. 6. Trim your hair every 6-8 weeks to prevent split ends. 7. Eat a balanced diet rich in proteins, vitamins, and omega-3 fatty acids. 8. Protect hair from sun damage with UV-protective products or hats.\n\n9. Sleep on a silk pillowcase to reduce friction and breakage. 10. Stay hydrated - drinking water benefits your hair too! Remember, consistency is key to seeing results.",
-          author: "Lisa Chen",
-          category: "Hair Care",
-          tags: ["Hair Care", "Beauty Tips", "Healthy Hair"],
-          imageUrl: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
-          videoUrl: null,
-          featured: false,
-          published: true,
-          likes: 156,
-          comments: 32,
-          readTime: "7 min read",
-          createdAt: new Date('2024-12-13'),
-          updatedAt: new Date('2024-12-13')
-        },
-        {
-          id: 4,
-          title: "Natural Ingredients for Glowing Skin",
-          slug: "natural-ingredients-glowing-skin",
-          excerpt: "Explore powerful natural ingredients that can transform your skincare routine and give you radiant, healthy skin.",
-          content: "Nature offers incredible ingredients for achieving glowing skin. Let's explore some of the most effective natural skincare heroes.\n\nHoney is a natural humectant that attracts and retains moisture while having antibacterial properties. Aloe vera soothes inflammation and provides deep hydration. Turmeric contains curcumin, which brightens skin and reduces hyperpigmentation.\n\nGreen tea is rich in antioxidants that fight free radicals and reduce signs of aging. Vitamin C from citrus fruits brightens complexion and boosts collagen production. Coconut oil deeply moisturizes and has antimicrobial properties.\n\nRosehip oil is packed with vitamins A and C, perfect for anti-aging. Tea tree oil helps combat acne with its natural antibacterial properties. Always patch test new ingredients and introduce them gradually into your routine.",
-          author: "Maya Patel",
-          category: "Skincare",
-          tags: ["Natural Beauty", "Skincare", "DIY", "Organic"],
-          imageUrl: "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
-          videoUrl: null,
-          featured: false,
-          published: true,
-          likes: 203,
-          comments: 41,
-          readTime: "9 min read",
-          createdAt: new Date('2024-12-12'),
-          updatedAt: new Date('2024-12-12')
-        },
-        {
-          id: 5,
-          title: "Best Makeup Products Under $20",
-          slug: "best-makeup-products-under-20",
-          excerpt: "Achieve a flawless makeup look without breaking the bank with these affordable yet high-quality products.",
-          content: "You don't need to spend a fortune to look fabulous. Here are the best makeup products that deliver luxury quality at drugstore prices.\n\n# Foundation & Base\n\nFor base makeup, the Maybelline Fit Me foundation offers excellent coverage and a natural finish for under $10. E.L.F.'s Putty Primer creates a smooth canvas at just $8, ensuring your makeup stays in place all day long.\n\n# Lips That Pop\n\nNYX Professional Makeup offers incredible lip products, with their Soft Matte Lip Cream being a cult favorite at only $7. The color payoff is amazing and it lasts for hours without drying out your lips.\n\n# Glow and Highlight\n\nWet n Wild's MegaGlo highlighters rival high-end brands at only $5. The pigmentation is incredible and gives you that coveted dewy glow that everyone loves.\n\n# Eye-Catching Lashes\n\nEssence's Lash Princess Mascara gives dramatic volume for under $5. It's often compared to high-end mascaras but at a fraction of the price. Perfect for creating those Instagram-worthy lashes!\n\n# Colorful Eyes\n\nColourPop's eyeshadow palettes offer vibrant, blendable colors for around $15. The quality is comparable to luxury brands, and the color range is incredible.\n\n# Skincare Meets Makeup\n\nCeraVe and The Ordinary provide affordable skincare that works beautifully under makeup. These budget-friendly gems prove that price doesn't always equal quality!\n\nRemember, looking beautiful doesn't have to cost a fortune. These affordable products deliver amazing results and will leave you with money to spare!",
-          author: "Jessica Torres",
-          category: "Product Reviews",
-          tags: ["Makeup", "Budget Beauty", "Product Reviews", "Affordable"],
-          imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
-          videoUrl: null,
-          featured: true,
-          published: true,
-          likes: 287,
-          comments: 56,
-          readTime: "10 min read",
-          createdAt: new Date('2024-12-11'),
-          updatedAt: new Date('2024-12-11')
-        },
-        {
-          id: 6,
-          title: "Summer Skincare Routine Essentials",
-          slug: "summer-skincare-routine-essentials",
-          excerpt: "Protect and nourish your skin during hot summer months with these essential skincare tips and products.",
-          content: "Summer requires special attention to keep your skin healthy and protected. Here's your essential summer skincare guide.\n\nSunscreen is non-negotiable - apply SPF 30 or higher every 2 hours when outdoors. Choose a lightweight, oil-free moisturizer to prevent clogged pores in humid weather. Switch to a gel-based cleanser for a refreshing clean without stripping natural oils.\n\nExfoliate 2-3 times weekly to remove dead skin cells and prevent breakouts. Use a vitamin C serum in the morning for added sun protection and brightening. Hydrating face mists throughout the day keep skin refreshed and dewy.\n\nDon't forget your lips and hands - they need SPF too! Evening skincare should include retinol or AHAs to repair sun damage. Stay hydrated by drinking plenty of water, and consider adding hydrating foods like watermelon and cucumber to your diet.",
-          author: "Amanda Lee",
-          category: "Beauty Tips",
-          tags: ["Summer", "Skincare", "SPF", "Seasonal"],
-          imageUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f98b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
-          videoUrl: null,
-          featured: true,
-          published: true,
-          likes: 178,
-          comments: 29,
-          readTime: "8 min read",
-          createdAt: new Date('2024-12-10'),
-          updatedAt: new Date('2024-12-10')
-        }
-      ];
-      res.json(samplePosts);
+     
     }
   });
 
   app.get("/api/blog/posts/:slug", async (req, res) => {
-    try {
+   
       const { slug } = req.params;
 
-      // Sample posts data as fallback
-      const samplePosts = [
-        {
-          id: 1,
-          title: "The Ultimate Guide to Korean Skincare Routine",
-          slug: "ultimate-guide-korean-skincare-routine",
-          excerpt: "Discover the secrets behind the famous 10-step Korean skincare routine and how to adapt it for your skin type.",
-          content: "Korean skincare has revolutionized the beauty industry with its emphasis on prevention, hydration, and gentle care. The famous 10-step routine focuses on layering products from thinnest to thickest consistency.\n\nStart with an oil-based cleanser to remove makeup and SPF, followed by a water-based cleanser for a deep clean. Exfoliation 2-3 times a week helps remove dead skin cells. Toner balances pH levels and prepares skin for better absorption.\n\nEssences are the heart of K-beauty, delivering concentrated hydration. Serums target specific concerns like dark spots or fine lines. Sheet masks provide an intensive treatment 2-3 times weekly. Eye cream addresses the delicate under-eye area.\n\nMoisturizer locks in all previous layers, while sunscreen is the final and most crucial step during the day. Remember, consistency is key, and you can customize this routine based on your skin's needs.",
-          author: "Sarah Kim",
-          category: "Skincare",
-          tags: ["K-Beauty", "Skincare", "Routine", "Tips"],
-          imageUrl: "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
-          videoUrl: null,
-          featured: true,
-          published: true,
-          likes: 124,
-          comments: 18,
-          readTime: "8 min read",
-          createdAt: new Date('2024-12-15'),
-          updatedAt: new Date('2024-12-15')
-        },
-        {
-          id: 2,
-          title: "Perfect Winged Eyeliner Tutorial for Beginners",
-          slug: "perfect-winged-eyeliner-tutorial",
-          excerpt: "Master the art of winged eyeliner with our step-by-step guide, perfect for makeup beginners.",
-          content: "Creating the perfect winged eyeliner doesn't have to be intimidating. With the right technique and practice, anyone can achieve a flawless cat-eye look.\n\nStart by choosing the right eyeliner - gel or liquid liners work best for wings. Begin at the inner corner of your eye and draw a thin line along your lash line. The key is to keep your hand steady and work in small strokes.\n\nFor the wing, imagine a line extending from your lower lash line towards your temple. Mark this point lightly, then connect it to your upper lash line, creating a triangle. Fill in the triangle and you're done!\n\nPro tip: Use tape as a guide for sharp, even wings on both eyes. If you make mistakes, a cotton swab dipped in micellar water can clean up edges perfectly.",
-          author: "Emma Rodriguez",
-          category: "Makeup",
-          tags: ["Makeup", "Tutorial", "Eyeliner", "Beauty Tips"],
-          imageUrl: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
-          videoUrl: null,
-          featured: true,
-          published: true,
-          likes: 98,
-          comments: 24,
-          readTime: "6 min read",
-          createdAt: new Date('2024-12-14'),
-          updatedAt: new Date('2024-12-14')
-        }
-      ];
+     
+     
 
       try {
         const post = await storage.getBlogPostBySlug(slug);
@@ -3215,24 +3058,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Parse tags for frontend
           const postWithParsedTags = {
             ...post,
-            tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags
           };
           return res.json(postWithParsedTags);
         }
-      } catch (dbError) {
-        console.log("Database error, using sample data:", dbError.message);
-      }
-
-      // If no post found in database, check sample posts
-      const samplePost = samplePosts.find(p => p.slug === slug);
-      if (samplePost) {
-        return res.json(samplePost);
-      }
-
-      // If slug not found anywhere, return 404
-      return res.status(404).json({ error: "Blog post not found" });
-
-    } catch (error) {
+      }  catch (error) {
       console.error("Error fetching blog post:", error);
       res.status(500).json({ error: "Failed to fetch blog post" });
     }
@@ -3249,14 +3078,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching blog categories:", error);
       // Return default categories when database is unavailable
-      const defaultCategories = [
-        { id: 1, name: "Beauty Tips", slug: "beauty-tips", isActive: true, sortOrder: 1 },
-        { id: 2, name: "Skincare", slug: "skincare", isActive: true, sortOrder: 2 },
-        { id: 3, name: "Makeup", slug: "makeup", isActive: true, sortOrder: 3 },
-        { id: 4, name: "Hair Care", slug: "hair-care", isActive: true, sortOrder: 4 },
-        { id: 5, name: "Product Reviews", slug: "product-reviews", isActive: true, sortOrder: 5 }
-      ];
-      res.json(defaultCategories);
+   
     }
   });
 

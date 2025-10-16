@@ -100,14 +100,7 @@ export default function Blog() {
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
-      // Fallback categories if API fails
-      startTransition(() => {
-        setCategories([
-          { id: 1, name: "Beauty Tips", slug: "beauty-tips", isActive: true, sortOrder: 1 },
-          { id: 2, name: "Skincare", slug: "skincare", isActive: true, sortOrder: 2 },
-          { id: 3, name: "Makeup", slug: "makeup", isActive: true, sortOrder: 3 }
-        ]);
-      });
+     
     }
   };
 
