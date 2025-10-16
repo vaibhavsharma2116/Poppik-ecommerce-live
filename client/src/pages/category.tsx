@@ -21,6 +21,7 @@ export default function CategoryPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [activeFilters, setActiveFilters] = useState<any>({});
+  const hasInitializedFromUrl = React.useRef(false);
 
   // Get category data
   const { data: category, isLoading: categoryLoading } = useQuery<Category>({
@@ -39,13 +40,14 @@ export default function CategoryPage() {
     enabled: !!categorySlug,
   });
 
-  // Handle URL subcategory parameter
+  // Handle URL subcategory parameter - only on initial load
   useEffect(() => {
+    if (subcategories.length === 0 || hasInitializedFromUrl.current) return;
+    
     const urlParams = new URLSearchParams(window.location.search);
     const subcategoryParam = urlParams.get('subcategory');
 
-    if (subcategoryParam && subcategories.length > 0) {
-      // Find subcategory by slug
+    if (subcategoryParam) {
       const subcategory = subcategories.find(sub =>
         sub.slug === subcategoryParam ||
         sub.name.toLowerCase().replace(/\s+/g, '-') === subcategoryParam
@@ -54,10 +56,11 @@ export default function CategoryPage() {
       if (subcategory) {
         setSelectedSubcategoryId(subcategory.id.toString());
       }
-    } else if (!subcategoryParam && selectedSubcategoryId) {
-      setSelectedSubcategoryId("");
     }
-  }, [subcategories, selectedSubcategoryId]);
+    
+    hasInitializedFromUrl.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subcategories.length])
 
   // Get all products initially
   const { data: allProducts = [], isLoading: productsLoading } = useQuery<Product[]>({
@@ -147,19 +150,10 @@ export default function CategoryPage() {
 
   ];
 
-  // Use dynamic sliders if available, otherwise use fallback
-  const slidesToShow = categorySliderImages && categorySliderImages.length > 0 ? categorySliderImages : fallbackSliderImages;
-
-  // Debug log
-  React.useEffect(() => {
-    console.log('Category sliders state:', {
-      categorySlug,
-      slidersLoading,
-      slidersError,
-      categorySliderImages,
-      slidesToShow
-    });
-  }, [categorySlug, slidersLoading, slidersError, categorySliderImages, slidesToShow]);
+  // Use dynamic sliders if available, otherwise use fallback (memoized to prevent infinite loops)
+  const slidesToShow = React.useMemo(() => {
+    return categorySliderImages && categorySliderImages.length > 0 ? categorySliderImages : fallbackSliderImages;
+  }, [categorySliderImages]);
 
   const CategoryHeroSlider = () => {
     const [api, setApi] = React.useState<any>();
