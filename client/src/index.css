@@ -4,6 +4,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Extra small devices breakpoint */
+@media (min-width: 360px) {
+  .xs\:text-xs {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+}
+
+/* Announcement Bar Mobile Responsive */
+.announcement-bar-mobile {
+  font-size: clamp(0.625rem, 2.5vw, 0.875rem);
+  line-height: 1.2;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
 /* Navigation Menu Positioning Fix */
 [data-radix-navigation-menu-viewport] {
   position: absolute !important;
