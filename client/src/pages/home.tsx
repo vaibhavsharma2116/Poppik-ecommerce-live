@@ -24,6 +24,8 @@ import { Filter } from "lucide-react";
 import DynamicFilter from "@/components/dynamic-filter";
 import VideoTestimonials from "@/components/video-testimonials";
 import type { Product, Category } from "@/lib/types";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
+import OptimizedImage from "@/components/optimized-image"; // Assuming OptimizedImage is used
 
 interface Testimonial {
   id: number;
@@ -250,7 +252,7 @@ export default function Home() {
       /> */}
 
       {/* Enhanced Categories Section */}
-      <section className="py-24 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+      <section className="py-4 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-[0.02]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
@@ -258,24 +260,7 @@ export default function Home() {
         </div>
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center mb-20">
-            {/* <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-pink-50 to-purple-500 border border-pink-100 rounded-full mb-6 sm:mb-8 shadow-sm">
-              <span className="text-xs sm:text-sm font-semibold text-transparent bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text">
-                ✨ Premium Beauty Collection
-              </span>
-            </div> */}
-            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-medium mb-6 sm:mb-8 tracking-tight">
-              <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
-                Shop by Category
-              </span>
-            </h2>
-            {/* <p className="text-lg sm:text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-light">
-              Discover our complete range of beauty and wellness products
-              crafted with premium ingredients and designed for your unique
-              beauty journey
-            </p> */}
-            <div className="mt-6 sm:mt-8 w-16 sm:w-24 h-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full mx-auto"></div>
-          </div>
+          
 
           {/* Dynamic Categories Grid - Mobile-first Design */}
           {categoriesLoading ? (
@@ -289,72 +274,83 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mb-16 sm:mb-20 md:mb-24">
-              {categories?.map((category, index) => (
-                <Link key={category.id} href={`/category/${category.slug}`}>
-                  <div
-                    className="group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-white shadow-sm hover:shadow-lg sm:hover:shadow-xl md:hover:shadow-2xl transition-all duration-300 sm:duration-500 md:duration-700 transform hover:scale-105 sm:hover:-translate-y-1 md:hover:-translate-y-3 md:hover:rotate-1"
-                    style={{
-                      animationDelay: `${index * 100}ms`,
-                      animation: "fadeInUp 0.6s ease-out forwards",
-                    }}
-                  >
-                    <div className="aspect-square overflow-hidden relative">
-                      <div
-                        className={`relative h-full p-3 sm:p-4 md:p-6 lg:p-8 bg-gradient-to-br ${categoryGradients[category.slug as keyof typeof categoryGradients] || "from-gray-100 to-gray-200"}`}
-                      >
-                        {/* Decorative Elements - Hidden on mobile for cleaner look */}
-                        <div className="hidden sm:block absolute top-3 sm:top-4 right-3 sm:right-4 w-4 sm:w-6 md:w-8 h-4 sm:h-6 md:h-8 bg-white/20 rounded-full blur-sm"></div>
-                        <div className="hidden sm:block absolute bottom-3 sm:bottom-4 left-3 sm:left-4 w-3 sm:w-4 md:w-6 h-3 sm:h-4 md:h-6 bg-white/30 rounded-full blur-sm"></div>
-
-                        <img
-                          src={
-                            category.imageUrl ||
-                            categoryImages[
-                              category.slug as keyof typeof categoryImages
-                            ] ||
-                            "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400"
-                          }
-                          alt={category.name}
-                          className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110 transition-transform duration-300 sm:duration-500 md:duration-700 shadow-md sm:shadow-lg md:shadow-xl bg-white"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent rounded-xl sm:rounded-2xl group-hover:from-black/5 transition-all duration-300 sm:duration-500"></div>
-
-                        {/* Product count badge - Responsive sizing */}
-                        {/* <div className="absolute top-2 sm:top-3 md:top-4 lg:top-6 left-2 sm:left-3 md:left-4 lg:left-6 bg-white/90 backdrop-blur-sm px-2 sm:px-3 py-1 rounded-full shadow-sm sm:shadow-md md:shadow-lg">
-                          <span className="text-xs sm:text-xs md:text-sm font-semibold text-gray-700">{category.productCount}</span>
-                        </div> */}
-                      </div>
-                    </div>
-                    <div className="p-3 sm:p-4 md:p-6 lg:p-8 text-center relative">
-                      <h3 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 mb-1 sm:mb-2 md:mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-pink-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-1">
-                        {category.name}
-                      </h3>
-                      {/* <p className="text-xs sm:text-sm text-gray-500 group-hover:text-gray-600 transition-colors mb-2 sm:mb-3 md:mb-4 line-clamp-1">
-                        {category.productCount} products
-                      </p> */}
-                      <div className="hidden sm:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                        <span className="text-xs sm:text-sm font-medium text-gray-700">
-                          Shop Now
-                        </span>
-                        <svg
-                          className="w-3 sm:w-4 h-3 sm:h-4 text-gray-700"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+            <div className="relative">
+              <div className="overflow-auto scrollbar-hide pb-4" 
+                   >
+                <style>{`
+            .scrollbar-hide::-webkit-scrollbar {
+              display: none;
+            }
+            .scrollbar-hide {
+              -ms-overflow-style: none;
+              scrollbar-width: none;
+            }
+          `}</style>
+                <div className="flex gap-4">
+                  {categories?.map((category, index) => (
+                    <Link
+                      key={category.id}
+                      href={`/category/${category.slug}`}
+                      className="group inline-block flex-shrink-0"
+                      style={{ width: '280px' }}
+                    >
+                      <div className="aspect-square overflow-hidden rounded-2xl sm:rounded-3xl relative">
+                        <div
+                          className={`relative h-full p-3 sm:p-4 md:p-6 lg:p-8 bg-gradient-to-br ${categoryGradients[category.slug as keyof typeof categoryGradients] || "from-gray-100 to-gray-200"}`}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17 8l4 4m0 0l-4 4m4-4H3"
+                          {/* Decorative Elements - Hidden on mobile for cleaner look */}
+                          <div className="hidden sm:block absolute top-3 sm:top-4 right-3 sm:right-4 w-4 sm:w-6 md:w-8 h-4 sm:h-6 md:h-8 bg-white/20 rounded-full blur-sm"></div>
+                          <div className="hidden sm:block absolute bottom-3 sm:bottom-4 left-3 sm:left-4 w-3 sm:w-4 md:w-6 h-3 sm:h-4 md:h-6 bg-white/30 rounded-full blur-sm"></div>
+
+                          <img
+                            src={
+                              category.imageUrl ||
+                              categoryImages[
+                                category.slug as keyof typeof categoryImages
+                              ] ||
+                              "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400"
+                            }
+                            alt={category.name}
+                            className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110 transition-transform duration-300 sm:duration-500 md:duration-700 shadow-md sm:shadow-lg md:shadow-xl bg-white"
                           />
-                        </svg>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent rounded-xl sm:rounded-2xl group-hover:from-black/5 transition-all duration-300 sm:duration-500"></div>
+
+                          {/* Product count badge - Responsive sizing */}
+                          {/* <div className="absolute top-2 sm:top-3 md:top-4 lg:top-6 left-2 sm:left-3 md:left-4 lg:left-6 bg-white/90 backdrop-blur-sm px-2 sm:px-3 py-1 rounded-full shadow-sm sm:shadow-md md:shadow-lg">
+                            <span className="text-xs sm:text-xs md:text-sm font-semibold text-gray-700">{category.productCount}</span>
+                          </div> */}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                      <div className="p-3 sm:p-4 md:p-6 lg:p-8 text-center relative">
+                        <h3 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 mb-1 sm:mb-2 md:mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-pink-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-1">
+                          {category.name}
+                        </h3>
+                        {/* <p className="text-xs sm:text-sm text-gray-500 group-hover:text-gray-600 transition-colors mb-2 sm:mb-3 md:mb-4 line-clamp-1">
+                          {category.productCount} products
+                        </p> */}
+                        <div className="hidden sm:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">
+                            Shop Now
+                          </span>
+                          <svg
+                            className="w-3 sm:w-4 h-3 sm:h-4 text-gray-700"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17 8l4 4m0 0l-4 4m4-4H3"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
