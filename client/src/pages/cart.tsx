@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from '@tanstack/react-query';
 import ProductCard from "@/components/product-card";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface CartItem {
   id: number;
@@ -526,54 +527,92 @@ export default function Cart() {
           </div>
         </div>
       </div>
-       {recommendedProducts.length > 0 && (
-          <section className="mt-12 sm:mt-16">
-            <div className="mb-6 sm:mb-8">
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-                You May Also Like
-              </h2>
-              <p className="text-sm sm:text-base text-gray-600">
-                Complete your beauty routine with these products
-              </p>
-            </div>
-            
-            {/* Mobile: 2 Column Grid with Horizontal Scroll */}
-            <div className="block md:hidden">
-              <div className="overflow-x-auto scrollbar-hide pb-4">
-                <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
-                  {recommendedProducts.map((product: any) => (
-                    <div key={product.id} style={{ width: '160px', flexShrink: 0 }}>
-                      <ProductCard product={product} className="h-full" />
+       <section className="mt-12 sm:mt-16">
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+              You May Also Like
+            </h2>
+            <p className="text-sm sm:text-base text-gray-600">
+              Complete your beauty routine with these products
+            </p>
+          </div>
+          
+          {recommendedProducts.length === 0 ? (
+            <>
+              {/* Mobile: Loading Skeleton */}
+              <div className="block md:hidden">
+                <div className="overflow-x-auto scrollbar-hide pb-4">
+                  <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ width: '160px', flexShrink: 0 }}>
+                        <Skeleton className="aspect-square w-full" />
+                        <div className="p-3 space-y-2">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-6 w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop: Loading Skeleton */}
+              <div className="hidden md:block">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-8">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                      <Skeleton className="aspect-square w-full" />
+                      <div className="p-3 space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-6 w-1/2" />
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
-
-            {/* Desktop: Carousel */}
-            <div className="hidden md:block">
-              <div className="relative px-4 sm:px-8">
-                <Carousel
-                  opts={{
-                    align: "start",
-                    loop: true,
-                  }}
-                  className="w-full"
-                >
-                  <CarouselContent className="-ml-2 md:-ml-4">
+            </>
+          ) : (
+            <>
+              {/* Mobile: 2 Column Grid with Horizontal Scroll */}
+              <div className="block md:hidden">
+                <div className="overflow-x-auto scrollbar-hide pb-4">
+                  <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
                     {recommendedProducts.map((product: any) => (
-                      <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
-                        <ProductCard product={product} />
-                      </CarouselItem>
+                      <div key={product.id} style={{ width: '160px', flexShrink: 0 }}>
+                        <ProductCard product={product} className="h-full" />
+                      </div>
                     ))}
-                  </CarouselContent>
-                  <CarouselPrevious className="hidden sm:flex -left-4" />
-                  <CarouselNext className="hidden sm:flex -right-4" />
-                </Carousel>
+                  </div>
+                </div>
               </div>
-            </div>
-          </section>
-        )}
+
+              {/* Desktop: Carousel */}
+              <div className="hidden md:block">
+                <div className="relative px-4 sm:px-8">
+                  <Carousel
+                    opts={{
+                      align: "start",
+                      loop: true,
+                    }}
+                    className="w-full"
+                  >
+                    <CarouselContent className="-ml-2 md:-ml-4">
+                      {recommendedProducts.map((product: any) => (
+                        <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+                          <ProductCard product={product} />
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="hidden sm:flex -left-4" />
+                    <CarouselNext className="hidden sm:flex -right-4" />
+                  </Carousel>
+                </div>
+              </div>
+            </>
+          )}
+        </section>
     </div>
   );
 }

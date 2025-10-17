@@ -178,169 +178,165 @@ export default function VideoTestimonials() {
             <ChevronRight className="w-5 h-5 lg:w-6 lg:h-6 text-gray-800" />
           </button>
 
-          {/* Testimonials Grid - Responsive */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6 px-1 sm:px-0">
-            {visibleTestimonials.map((testimonial) => (
-              <Card key={testimonial.id} className="overflow-hidden group hover:shadow-xl transition-all duration-300">
-                {/* Video Section */}
-                <div 
-                  className="relative aspect-[3/4] bg-gray-100 cursor-pointer"
-                  onClick={() => handleVideoClick(testimonial)}
-                >
-                  <video
-                    src={testimonial.videoUrl}
-                    className="w-full h-full object-cover"
-                    autoPlay
-                    playsInline
-                    muted
-                    loop
-                    poster={testimonial.thumbnailUrl}
-                  />
+          {/* Horizontal Scrollable Testimonials - Instagram Reel Style */}
+          <div className="relative overflow-hidden px-4 md:px-0">
+            <div className="flex gap-3 sm:gap-4 md:gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+              {activeTestimonials.map((testimonial) => {
+                const product = allProducts?.find(p => p.id === testimonial.productId);
+                return (
+                  <div key={testimonial.id} className="flex-shrink-0 w-[160px] sm:w-[200px] md:w-[240px] lg:w-[280px]">
+                    <Card className="overflow-hidden group hover:shadow-xl transition-all duration-300 border-none">
+                      {/* Video Section with Reel-like aspect ratio */}
+                      <div
+                        className="relative bg-gray-100 cursor-pointer"
+                        style={{ aspectRatio: '9/14' }}
+                        onClick={() => handleVideoClick(testimonial)}
+                      >
+                        <video
+                          src={testimonial.videoUrl}
+                          className="w-full h-full object-cover"
+                          autoPlay
+                          playsInline
+                          muted
+                          loop
+                          poster={testimonial.thumbnailUrl}
+                        />
 
-                  {/* Play Icon Overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300">
-                    <div className="bg-white rounded-full p-3 opacity-0 group-hover:opacity-90 transform scale-75 group-hover:scale-100 transition-all duration-300">
-                      <Play className="w-6 h-6 text-pink-600 fill-pink-600" />
-                    </div>
-                  </div>
+                        {/* Play Icon Overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300">
+                          <div className="bg-white rounded-full p-2 sm:p-3 opacity-0 group-hover:opacity-90 transform scale-75 group-hover:scale-100 transition-all duration-300">
+                            <Play className="w-4 h-4 sm:w-6 sm:h-6 text-pink-600 fill-pink-600" />
+                          </div>
+                        </div>
 
-                  {/* Product Image Overlay - Bottom Left */}
-                  {testimonial.product && (
-                    <div className="absolute bottom-2 sm:bottom-3 md:bottom-4 left-2 sm:left-3 md:left-4 bg-white rounded-md sm:rounded-lg p-1.5 sm:p-2 shadow-lg">
-                      <img
-                        src={testimonial.product.imageUrl}
-                        alt={testimonial.product.name}
-                        className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 object-contain rounded"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Product Info */}
-                <div className="p-2 sm:p-3 md:p-4 bg-white">
-                  {testimonial.product ? (
-                    <>
-                      <h3 className="font-semibold text-xs sm:text-sm md:text-base text-gray-900 mb-1 sm:mb-1.5 line-clamp-2 leading-tight min-h-[2rem] sm:min-h-[2.5rem]">
-                        {testimonial.product.name}
-                      </h3>
-                      <div className="flex items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
-                        <p className="text-sm sm:text-base md:text-lg font-bold text-pink-600">
-                          ₹{testimonial.product.price}
-                        </p>
-                        {testimonial.product.originalPrice && (
-                          <p className="text-xs sm:text-sm text-gray-500 line-through">
-                            ₹{testimonial.product.originalPrice}
-                          </p>
+                        {/* Product Image Overlay - Bottom Left */}
+                        {product && (
+                          <div className="absolute bottom-2 left-2 bg-white rounded-md p-1 sm:p-1.5 shadow-lg">
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 object-contain rounded"
+                            />
+                          </div>
                         )}
                       </div>
-                      <Button
-                        onClick={() => addToCart(testimonial.product!)}
-                        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs sm:text-sm py-1.5 sm:py-2 flex items-center justify-center gap-1.5"
-                      >
-                        <ShoppingCart className="h-3.5 w-3.5" />
-                        ADD TO CART
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <h3 className="font-semibold text-xs sm:text-sm text-gray-900 mb-1 line-clamp-2">
-                        Product Loading...
-                      </h3>
-                      <Button
-                        className="w-full bg-gray-300 text-gray-500 cursor-not-allowed text-xs sm:text-sm py-1.5 sm:py-2"
-                        disabled
-                      >
-                        Loading...
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
 
-          {/* Mobile Navigation Dots */}
-          {/* <div className="flex md:hidden justify-center gap-2 mt-6">
-            <button
-              onClick={prevSlide}
-              className="p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all"
-              aria-label="Previous"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-800" />
-            </button>
-            <button
-              onClick={nextSlide}
-              className="p-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all"
-              aria-label="Next"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-800" />
-            </button>
-          </div> */}
+                      {/* Product Info - Compact */}
+                      <div className="p-2 sm:p-3 bg-white">
+                        {product ? (
+                          <>
+                            <h3 className="font-semibold text-xs sm:text-sm text-gray-900 mb-1 line-clamp-2 leading-tight min-h-[2rem]">
+                              {product.name}
+                            </h3>
+                            <div className="flex items-center gap-1 mb-2">
+                              <p className="text-sm sm:text-base font-bold text-pink-600">
+                                ₹{product.price}
+                              </p>
+                              {product.originalPrice && (
+                                <p className="text-xs text-gray-500 line-through">
+                                  ₹{product.originalPrice}
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              onClick={() => addToCart(product)}
+                              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs py-1.5 flex items-center justify-center gap-1"
+                            >
+                              <ShoppingCart className="h-3 w-3" />
+                              ADD
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <h3 className="font-semibold text-xs text-gray-900 mb-1 line-clamp-2">
+                              Product Loading...
+                            </h3>
+                            <Button
+                              className="w-full bg-gray-300 text-gray-500 cursor-not-allowed text-xs py-1.5"
+                              disabled
+                            >
+                              Loading...
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Video Popup Modal */}
+      {/* Video Popup Modal - Instagram Reel Style */}
       <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
-        <DialogContent className="max-w-md w-full p-0 bg-white border-0 overflow-hidden">
-          {/* Close Button */}
+        <DialogContent className="p-0 max-w-none w-auto h-auto bg-black/95 border-none shadow-2xl overflow-hidden">
+          {/* Close Button - Outside video container */}
           <button
             onClick={() => setIsVideoModalOpen(false)}
-            className="absolute top-3 right-3 z-50 p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-lg"
+            className="absolute top-4 right-4 z-50 p-2 bg-white/10 backdrop-blur-md rounded-full hover:bg-white/20 transition-all"
             aria-label="Close video"
           >
-            <X className="w-5 h-5 text-gray-800" />
+            <X className="w-6 h-6 text-white" />
           </button>
 
-          {/* Video Container */}
-          <div className="relative w-full bg-black" style={{ aspectRatio: '9/16' }}>
+          {/* Reel-style Video Container */}
+          <div className="relative bg-black rounded-lg overflow-hidden mx-auto" style={{ width: '340px', height: '550px' }}>
             {selectedVideo && (
-              <video
-                src={selectedVideo.videoUrl}
-                className="w-full h-full object-cover"
-                controls
-                autoPlay
-                playsInline
-                poster={selectedVideo.thumbnailUrl}
-              />
+              <>
+                {/* Video Player */}
+                <video
+                  src={selectedVideo.videoUrl}
+                  className="w-full h-full object-cover"
+                  controls
+                  autoPlay
+                  playsInline
+                  poster={selectedVideo.thumbnailUrl}
+                />
+
+                {/* Bottom Overlay - Product Info - Inside Video Container */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pb-6 pointer-events-none">
+                  {(() => {
+                    const product = allProducts?.find(p => p.id === selectedVideo.productId);
+                    return product ? (
+                      <div className="flex items-end gap-3 pointer-events-auto">
+                        {/* Product Image */}
+                        <div className="flex-shrink-0 bg-white rounded-lg p-2 shadow-lg">
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-16 h-16 object-contain"
+                          />
+                        </div>
+
+                        {/* Product Details */}
+                        <div className="flex-1 text-white">
+                          <h3 className="font-semibold text-sm line-clamp-2 mb-1">{product.name}</h3>
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="text-lg font-bold">₹{product.price}</p>
+                            {product.originalPrice && (
+                              <p className="text-sm text-gray-300 line-through">₹{product.originalPrice}</p>
+                            )}
+                          </div>
+                          <Button
+                            onClick={() => {
+                              addToCart(product);
+                              setIsVideoModalOpen(false);
+                            }}
+                            className="w-full bg-white text-gray-900 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
+                          >
+                            <ShoppingCart className="h-4 w-4" />
+                            ADD TO CART
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              </>
             )}
           </div>
-
-          {/* Product Info Below Video */}
-          {selectedVideo && (
-            <div className="p-4 bg-white border-t">
-              {(() => {
-                const product = allProducts?.find(p => p.id === selectedVideo.productId);
-                return product ? (
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 mb-1">{product.name}</h3>
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="text-base font-bold text-pink-600">₹{product.price}</p>
-                        {product.originalPrice && (
-                          <p className="text-sm text-gray-500 line-through">₹{product.originalPrice}</p>
-                        )}
-                      </div>
-                      <Button
-                        onClick={() => {
-                          addToCart(product);
-                          setIsVideoModalOpen(false);
-                        }}
-                        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm py-2 flex items-center justify-center gap-2"
-                      >
-                        <ShoppingCart className="h-4 w-4" />
-                        ADD TO CART
-                      </Button>
-                    </div>
-                  </div>
-                ) : null;
-              })()}
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </section>
