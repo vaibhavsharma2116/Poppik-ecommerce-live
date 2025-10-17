@@ -56,11 +56,7 @@ export default function Wishlist() {
   const removeFromWishlist = (id: number) => {
     const item = wishlistItems.find(item => item.id === id);
     setWishlistItems(items => items.filter(item => item.id !== id));
-    toast({
-      title: "Removed from Wishlist",
-      description: `${item?.name} has been removed from your wishlist`,
-      variant: "destructive",
-    });
+   
   };
 
   const addToCart = (item: WishlistItem) => {
@@ -85,18 +81,12 @@ export default function Wishlist() {
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
     
-    toast({
-      title: "Added to Cart",
-      description: `${item.name} has been added to your cart`,
-    });
+   
   };
 
   const clearWishlist = () => {
     setWishlistItems([]);
-    toast({
-      title: "Wishlist Cleared",
-      description: "All items have been removed from your wishlist",
-    });
+   
   };
 
   if (loading) {

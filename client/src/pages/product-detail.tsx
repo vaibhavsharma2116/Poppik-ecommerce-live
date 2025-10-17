@@ -237,10 +237,7 @@ export default function ProductDetail() {
     if (existingIndex >= 0) {
       wishlist.splice(existingIndex, 1);
       setIsInWishlist(false);
-      toast({
-        title: "Removed from Wishlist",
-        description: `${product.name} has been removed from your wishlist`,
-      });
+  
     } else {
       const wishlistItem = {
         id: product.id,
@@ -254,10 +251,7 @@ export default function ProductDetail() {
       };
       wishlist.push(wishlistItem);
       setIsInWishlist(true);
-      toast({
-        title: "Added to Wishlist",
-        description: `${product.name} has been added to your wishlist`,
-      });
+    
     }
 
     localStorage.setItem("wishlist", JSON.stringify(wishlist));
@@ -302,10 +296,7 @@ export default function ProductDetail() {
     window.dispatchEvent(new Event("cartUpdated"));
 
     const shadeText = selectedShade ? ` in ${selectedShade.name} shade` : '';
-    toast({
-      title: "Added to Cart",
-      description: `${product.name}${shadeText} has been added to your cart`,
-    });
+   
   };
 
   const handleShadeSelect = (shade: Shade) => {
@@ -321,10 +312,7 @@ export default function ProductDetail() {
       }
     }
 
-    toast({
-      title: "Shade Selected",
-      description: `You selected ${shade.name}`,
-    });
+  
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {

@@ -138,11 +138,7 @@ export default function Cart() {
     // Dispatch event after state update
     setTimeout(() => window.dispatchEvent(new Event("cartUpdated")), 0);
 
-    toast({
-      title: "Item Removed",
-      description: `${item?.name} has been removed from your cart`,
-      variant: "destructive",
-    });
+   
   };
 
   const saveForLater = async (id: number) => {

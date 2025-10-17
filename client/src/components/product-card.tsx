@@ -50,11 +50,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       // Remove from wishlist
       wishlist.splice(existingIndex, 1);
       setIsInWishlist(false);
-      toast({
-        title: "Removed from Wishlist",
-        description: `${product.name} has been removed from your wishlist`,
-        variant: "destructive",
-      });
+     
     } else {
       // Add to wishlist
       const wishlistItem = {
@@ -69,10 +65,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       };
       wishlist.push(wishlistItem);
       setIsInWishlist(true);
-      toast({
-        title: "Added to Wishlist",
-        description: `${product.name} has been added to your wishlist`,
-      });
+     
     }
 
     localStorage.setItem("wishlist", JSON.stringify(wishlist));
@@ -88,10 +81,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
     if (existingItem) {
       existingItem.quantity += 1;
-      toast({
-        title: "Cart Updated",
-        description: `${product.name} quantity increased to ${existingItem.quantity}`,
-      });
+    
     } else {
       cart.push({
         id: product.id,
@@ -102,10 +92,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         quantity: 1,
         inStock: true
       });
-      toast({
-        title: "Added to Cart",
-        description: `${product.name} has been successfully added to your cart`,
-      });
+    
     }
 
     localStorage.setItem("cart", JSON.stringify(cart));
