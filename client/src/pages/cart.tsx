@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Heart, Share2 } from "lucide-react";
@@ -43,34 +42,41 @@ export default function Cart() {
 
   // Load cart from localStorage on component mount
   useEffect(() => {
-    const loadCart = () => {
-      const savedCart = localStorage.getItem("cart");
-      if (savedCart) {
+    const savedCart = localStorage.getItem("cart");
+    if (savedCart) {
+      try {
+        const parsedCart = JSON.parse(savedCart);
+        // Ensure all items have required fields
+        const validCart = parsedCart.filter((item: any) =>
+          item && item.id && item.name && item.price
+        );
+        setCartItems(validCart);
+      } catch (error) {
+        console.error("Error parsing cart data:", error);
+        setCartItems([]);
+        toast({
+          title: "Cart Error",
+          description: "There was an issue loading your cart. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+    setLoading(false);
+
+    // Listen for cart updates from other components
+    const handleCartUpdate = () => {
+      const updatedCart = localStorage.getItem("cart");
+      if (updatedCart) {
         try {
-          const parsedCart = JSON.parse(savedCart);
-          // Ensure all items have required fields
+          const parsedCart = JSON.parse(updatedCart);
           const validCart = parsedCart.filter((item: any) =>
             item && item.id && item.name && item.price
           );
           setCartItems(validCart);
         } catch (error) {
           console.error("Error parsing cart data:", error);
-          setCartItems([]);
-          toast({
-            title: "Cart Error",
-            description: "There was an issue loading your cart. Please try again.",
-            variant: "destructive",
-          });
         }
       }
-      setLoading(false);
-    };
-
-    loadCart();
-
-    // Listen for cart updates from other components
-    const handleCartUpdate = () => {
-      loadCart();
     };
 
     window.addEventListener("cartUpdated", handleCartUpdate);
@@ -84,7 +90,6 @@ export default function Cart() {
     if (!loading) {
       localStorage.setItem("cart", JSON.stringify(cartItems));
       localStorage.setItem("cartCount", cartItems.reduce((total, item) => total + item.quantity, 0).toString());
-      window.dispatchEvent(new Event("cartUpdated"));
     }
   }, [cartItems, loading]);
 
@@ -111,6 +116,9 @@ export default function Cart() {
       )
     );
 
+    // Dispatch event after state update
+    setTimeout(() => window.dispatchEvent(new Event("cartUpdated")), 0);
+
     toast({
       title: "Cart Updated",
       description: "Item quantity has been updated",
@@ -126,6 +134,9 @@ export default function Cart() {
         itemIndex !== undefined ? index !== itemIndex : item.id !== id
       )
     );
+
+    // Dispatch event after state update
+    setTimeout(() => window.dispatchEvent(new Event("cartUpdated")), 0);
 
     toast({
       title: "Item Removed",
@@ -166,6 +177,10 @@ export default function Cart() {
     if (cartItems.length === 0) return;
 
     setCartItems([]);
+    
+    // Dispatch event after state update
+    setTimeout(() => window.dispatchEvent(new Event("cartUpdated")), 0);
+    
     toast({
       title: "Cart Cleared",
       description: "All items have been removed from your cart",
@@ -536,7 +551,7 @@ export default function Cart() {
               Complete your beauty routine with these products
             </p>
           </div>
-          
+
           {recommendedProducts.length === 0 ? (
             <>
               {/* Mobile: Loading Skeleton */}

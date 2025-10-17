@@ -277,7 +277,7 @@ export default function Home() {
             <div className="relative">
               <div 
                 id="categories-scroll-container"
-                className="overflow-x-auto scrollbar-hide pb-4 -mx-4 px-4" 
+                className="overflow-auto scrollbar-hide pb-4" 
               >
                 <style>{`
             .scrollbar-hide::-webkit-scrollbar {
@@ -288,19 +288,23 @@ export default function Home() {
               scrollbar-width: none;
             }
           `}</style>
-                <div className="flex gap-3 sm:gap-4 md:gap-6">
+                <div className="flex gap-4">
                   {categories?.map((category, index) => (
                     <Link
                       key={category.id}
                       href={`/category/${category.slug}`}
                       className="group inline-block flex-shrink-0"
-                      style={{ width: '180px', minWidth: '180px' }}
+                      style={{ width: '280px' }}
                     >
-                      <div className="relative bg-white/70 backdrop-blur-md rounded-lg sm:rounded-xl md:rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-white/20">
-                        <div className="aspect-square overflow-hidden rounded-lg sm:rounded-xl md:rounded-2xl relative">
+                      <div className="relative bg-white/70 backdrop-blur-md rounded-xl sm:rounded-2xl md:rounded-3xl overflow-hidden shadow-md sm:shadow-lg hover:shadow-xl sm:hover:shadow-2xl transition-all duration-300 sm:duration-500 transform hover:scale-105 group-hover:-translate-y-1 sm:group-hover:-translate-y-2 border border-white/20">
+                        <div className="aspect-square overflow-hidden rounded-xl sm:rounded-2xl md:rounded-3xl relative">
                           <div
-                            className={`relative h-full p-2 sm:p-3 md:p-4 lg:p-6 bg-gradient-to-br ${categoryGradients[category.slug as keyof typeof categoryGradients] || "from-gray-100 to-gray-200"}`}
+                            className={`relative h-full p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 bg-gradient-to-br ${categoryGradients[category.slug as keyof typeof categoryGradients] || "from-gray-100 to-gray-200"}`}
                           >
+                            {/* Decorative Elements - Hidden on mobile for cleaner look */}
+                            <div className="hidden sm:block absolute top-2 sm:top-3 md:top-4 right-2 sm:right-3 md:right-4 w-3 sm:w-4 md:w-6 lg:w-8 h-3 sm:h-4 md:h-6 lg:h-8 bg-white/20 rounded-full blur-sm"></div>
+                            <div className="hidden sm:block absolute bottom-2 sm:bottom-3 md:bottom-4 left-2 sm:left-3 md:left-4 w-2 sm:w-3 md:w-4 lg:w-6 h-2 sm:h-3 md:h-4 lg:h-6 bg-white/30 rounded-full blur-sm"></div>
+
                             <img
                               src={
                                 category.imageUrl ||
@@ -310,21 +314,21 @@ export default function Home() {
                                 "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400"
                               }
                               alt={category.name}
-                              className="w-full h-full object-contain rounded-lg sm:rounded-xl group-hover:scale-105 transition-transform duration-300 shadow-md bg-white"
+                              className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110 transition-transform duration-300 sm:duration-500 md:duration-700 shadow-md sm:shadow-lg md:shadow-xl bg-white"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent rounded-lg sm:rounded-xl group-hover:from-black/5 transition-all duration-300"></div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent rounded-xl sm:rounded-2xl group-hover:from-black/5 transition-all duration-300 sm:duration-500"></div>
                           </div>
                         </div>
-                        <div className="p-2 sm:p-3 md:p-4 text-center relative">
-                          <h3 className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-gray-900 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-pink-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-1">
+                        <div className="p-3 sm:p-4 md:p-6 lg:p-8 text-center relative">
+                          <h3 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold text-gray-900 mb-1 sm:mb-2 md:mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-pink-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-1">
                             {category.name}
                           </h3>
-                          <div className="hidden sm:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 mt-1">
-                            <span className="text-xs font-medium text-gray-700">
+                          <div className="hidden sm:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+                            <span className="text-xs sm:text-sm font-medium text-gray-700">
                               Shop Now
                             </span>
                             <svg
-                              className="w-3 h-3 text-gray-700"
+                              className="w-3 sm:w-4 h-3 sm:h-4 text-gray-700"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -345,22 +349,22 @@ export default function Home() {
               </div>
 
               {/* Navigation Buttons */}
-              {categories && categories.length > 2 && (
+              {categories && categories.length > 4 && (
                 <>
                   <button
                     onClick={() => {
                       const container = document.getElementById('categories-scroll-container');
                       if (container) {
                         container.scrollBy({
-                          left: -200,
+                          left: -300,
                           behavior: 'smooth'
                         });
                       }
                     }}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full p-2 transition-all duration-200 hidden md:flex items-center justify-center"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full p-2 sm:p-3 transition-all duration-200 hidden sm:flex items-center justify-center"
                     aria-label="Scroll left"
                   >
-                    <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
@@ -370,15 +374,15 @@ export default function Home() {
                       const container = document.getElementById('categories-scroll-container');
                       if (container) {
                         container.scrollBy({
-                          left: 200,
+                          left: 300,
                           behavior: 'smooth'
                         });
                       }
                     }}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full p-2 transition-all duration-200 hidden md:flex items-center justify-center"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full p-2 sm:p-3 transition-all duration-200 hidden sm:flex items-center justify-center"
                     aria-label="Scroll right"
                   >
-                    <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
