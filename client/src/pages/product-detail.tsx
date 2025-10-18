@@ -1007,13 +1007,22 @@ export default function ProductDetail() {
 
               {/* Actions */}
               <div className="flex product-detail-buttons sm:flex-row sm:space-x-4 sm:space-y-0 mb-4 sm:mb-6">
-                <Button size="lg" className="product-detail-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200" onClick={addToCart}>
-                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                  Add to Cart
-                </Button>
-                <Button size="lg" variant="outline" className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200" onClick={toggleWishlist}>
-                  <Heart className={`w-5 h-5 sm:w-6 sm:h-6 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />
-                </Button>
+                {product.inStock ? (
+                  <>
+                    <Button size="lg" className="product-detail-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200" onClick={addToCart}>
+                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                      Add to Cart
+                    </Button>
+                    <Button size="lg" variant="outline" className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200" onClick={toggleWishlist}>
+                      <Heart className={`w-5 h-5 sm:w-6 sm:h-6 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />
+                    </Button>
+                  </>
+                ) : (
+                  <Button size="lg" className="product-detail-button bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 flex-1" onClick={toggleWishlist}>
+                    <Heart className={`w-4 h-4 sm:w-5 sm:h-5 mr-2 ${isInWishlist ? 'fill-current' : ''}`} />
+                    {isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                  </Button>
+                )}
                 <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
                   <DialogTrigger asChild>
                     <Button size="lg" variant="outline" className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200">

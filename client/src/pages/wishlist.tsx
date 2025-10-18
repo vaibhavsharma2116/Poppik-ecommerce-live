@@ -215,21 +215,22 @@ export default function Wishlist() {
                 </div>
                 
                 <div className="mt-4 space-y-2">
-                  <Button
-                    onClick={() => addToCart(item)}
-                    disabled={!item.inStock}
-                    className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-300"
-                  >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    {item.inStock ? "Add to Cart" : "Out of Stock"}
-                  </Button>
+                  {item.inStock ? (
+                    <Button
+                      onClick={() => addToCart(item)}
+                      className="w-full bg-red-600 hover:bg-red-700"
+                    >
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      Add to Cart
+                    </Button>
+                  ) : null}
                   <Button
                     variant="outline"
                     onClick={() => removeFromWishlist(item.id)}
                     className="w-full text-red-600 border-red-600 hover:bg-red-50"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Remove
+                    Remove from Wishlist
                   </Button>
                 </div>
               </CardContent>

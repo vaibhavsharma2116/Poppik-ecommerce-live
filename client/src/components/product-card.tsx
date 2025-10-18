@@ -187,7 +187,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             </div>
 
             <Link href={`/product/${product.slug}`}>
-              <h3 className="font-bold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer text-lg leading-tight">
+              <h3 className="font-bold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer text-lg leading-tight line-clamp-2" style={{ minHeight: '3.5rem', maxHeight: '3.5rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                 {product.name}
               </h3>
             </Link>
@@ -259,7 +259,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   Select Shade
                 </Button>
               </Link>
-            ) : (
+            ) : product.inStock ? (
               <Button 
                 size="sm" 
                 className="w-full text-sm py-3 flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
@@ -267,6 +267,15 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               >
                 <ShoppingCart className="h-4 w-4" />
                 Add to Cart
+              </Button>
+            ) : (
+              <Button 
+                size="sm" 
+                className="w-full text-sm py-3 flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                onClick={toggleWishlist}
+              >
+                <Heart className={`h-4 w-4 ${isInWishlist ? 'fill-current' : ''}`} />
+                {isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
               </Button>
             )}
           </div>
@@ -351,7 +360,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         </div>
 
         <Link href={`/product/${product.slug}`}>
-          <h3 className="mobile-product-title font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-2 min-h-[2rem] text-xs sm:text-sm md:text-base">
+          <h3 className="mobile-product-title font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-2 text-xs sm:text-sm md:text-base" style={{ minHeight: '2.5rem', maxHeight: '2.5rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {product.name}
           </h3>
         </Link>
@@ -396,7 +405,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 Select Shade
               </Button>
             </Link>
-          ) : (
+          ) : product.inStock ? (
             <Button 
               size="sm" 
               className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
@@ -404,6 +413,15 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             >
               <ShoppingCart className="h-3.5 w-3.5" />
               <span className="hidden xs:inline">Add to</span> Cart
+            </Button>
+          ) : (
+            <Button 
+              size="sm" 
+              className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] flex items-center justify-center gap-1.5 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
+              onClick={toggleWishlist}
+            >
+              <Heart className={`h-3.5 w-3.5 ${isInWishlist ? 'fill-current' : ''}`} />
+              {isInWishlist ? 'Remove' : <><span className="hidden xs:inline">Add to</span> Wishlist</>}
             </Button>
           )}
         </div>
