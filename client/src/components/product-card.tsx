@@ -50,7 +50,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       // Remove from wishlist
       wishlist.splice(existingIndex, 1);
       setIsInWishlist(false);
-     
+
     } else {
       // Add to wishlist
       const wishlistItem = {
@@ -65,7 +65,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       };
       wishlist.push(wishlistItem);
       setIsInWishlist(true);
-     
+
     }
 
     localStorage.setItem("wishlist", JSON.stringify(wishlist));
@@ -81,7 +81,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
     if (existingItem) {
       existingItem.quantity += 1;
-    
+
     } else {
       cart.push({
         id: product.id,
@@ -92,7 +92,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         quantity: 1,
         inStock: true
       });
-    
+
     }
 
     localStorage.setItem("cart", JSON.stringify(cart));
@@ -236,8 +236,21 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   </>
                 )}
               </div>
-              
-              
+
+              {/* Stock status */}
+              <div className="flex items-center space-x-3 mb-6">
+                <div className={`w-4 h-4 rounded-full animate-pulse ${
+                  product.inStock 
+                    ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
+                    : 'bg-gradient-to-r from-red-400 to-rose-400'
+                }`}></div>
+                <span className={`font-bold text-lg ${
+                  product.inStock ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {product.inStock ? 'In Stock' : 'Out of Stock'}
+                </span>
+              </div>
+
             </div>
 
             {product.variants?.colors || product.variants?.shades ? (
@@ -360,8 +373,21 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 </>
               )}
             </div>
-            
-           
+
+            {/* Stock status */}
+            <div className="flex items-center space-x-3 mb-6">
+              <div className={`w-4 h-4 rounded-full animate-pulse ${
+                product.inStock 
+                  ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
+                  : 'bg-gradient-to-r from-red-400 to-rose-400'
+              }`}></div>
+              <span className={`font-bold text-lg ${
+                product.inStock ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {product.inStock ? 'In Stock' : 'Out of Stock'}
+              </span>
+            </div>
+
           </div>
 
           {product.variants?.colors || product.variants?.shades ? (
