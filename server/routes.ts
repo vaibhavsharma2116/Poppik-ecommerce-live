@@ -4624,6 +4624,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Combos Management Routes
+
+  // Public endpoint for active combos
+  app.get('/api/combos', async (req, res) => {
+    try {
+      const activeCombos = await db
+        .select()
+        .from(schema.combos)
+        .where(eq(schema.combos.isActive, true))
+        .orderBy(asc(schema.combos.sortOrder));
+
+      res.json(activeCombos);
+    } catch (error) {
+      console.error('Error fetching combos:', error);
+      res.status(500).json({ error: 'Failed to fetch combos' });
+    }
+  });
+
+  // Admin endpoints for combos management
+  app.get('/api/admin/combos', async (req, res) => {
+    try {
+      const allCombos = await db
+        .select()
+        .from(schema.combos)
+        .orderBy(desc(schema.combos.createdAt));
+
+      res.json(allCombos);
+    } catch (error) {
+      console.error('Error fetching combos:', error);
+      res.status(500).json({ error: 'Failed to fetch combos' });
+    }
+  });
+
+  app.post('/api/admin/combos', upload.single('image'), async (req, res) => {
+    try {
+      let imageUrl = req.body.imageUrl;
+
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      const slug = req.body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+      const comboData = {
+        name: req.body.name,
+        slug,
+        description: req.body.description,
+        price: parseFloat(req.body.price),
+        originalPrice: parseFloat(req.body.originalPrice),
+        discount: req.body.discount,
+        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop',
+        products: JSON.parse(req.body.products),
+        rating: parseFloat(req.body.rating) || 5.0,
+        reviewCount: parseInt(req.body.reviewCount) || 0,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+      };
+
+      const [combo] = await db
+        .insert(schema.combos)
+        .values(comboData)
+        .returning();
+
+      res.status(201).json(combo);
+    } catch (error) {
+      console.error('Error creating combo:', error);
+      res.status(500).json({ error: 'Failed to create combo' });
+    }
+  });
+
+  app.put('/api/admin/combos/:id', upload.single('image'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      let updateData: any = {
+        name: req.body.name,
+        description: req.body.description,
+        price: parseFloat(req.body.price),
+        originalPrice: parseFloat(req.body.originalPrice),
+        discount: req.body.discount,
+        products: JSON.parse(req.body.products),
+        rating: parseFloat(req.body.rating) || 5.0,
+        reviewCount: parseInt(req.body.reviewCount) || 0,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+        updatedAt: new Date(),
+      };
+
+      if (req.file) {
+        updateData.imageUrl = `/api/images/${req.file.filename}`;
+      } else if (req.body.imageUrl) {
+        updateData.imageUrl = req.body.imageUrl;
+      }
+
+      const [combo] = await db
+        .update(schema.combos)
+        .set(updateData)
+        .where(eq(schema.combos.id, id))
+        .returning();
+
+      if (!combo) {
+        return res.status(404).json({ error: 'Combo not found' });
+      }
+
+      res.json(combo);
+    } catch (error) {
+      console.error('Error updating combo:', error);
+      res.status(500).json({ error: 'Failed to update combo' });
+    }
+  });
+
+  app.delete('/api/admin/combos/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deletedCombo] = await db
+        .delete(schema.combos)
+        .where(eq(schema.combos.id, id))
+        .returning();
+
+      if (!deletedCombo) {
+        return res.status(404).json({ error: 'Combo not found' });
+      }
+
+      res.json({ message: 'Combo deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting combo:', error);
+      res.status(500).json({ error: 'Failed to delete combo' });
+    }
+  });
+
   // Testimonials Management Routes
 
   // Public endpoints for testimonials

@@ -43,6 +43,10 @@ import AdminShades from "./pages/admin/shades";
 import AdminFeaturedSections from "@/pages/admin/featured-sections";
 import BlogPost from "./pages/blog-post";
 import ComboPage from "@/pages/combo";
+import AdminCombos from "@/pages/admin/combos";
+
+const AcademyPage = lazy(() => import("./pages/academy"));
+const DropShippingPage = lazy(() => import("./pages/drop-shipping"));
 
 const AdminBlog = lazy(() => import("./pages/admin/blog"));
 const AdminReports = lazy(() => import("./pages/admin/reports"));
@@ -91,6 +95,7 @@ function Router() {
             <Route path="/testimonials" component={AdminTestimonials} />
             <Route path="/video-testimonials" component={AdminVideoTestimonials} />
             <Route path="/announcements" component={AdminAnnouncements} />
+            <Route path="/combos" component={AdminCombos} />
             <Route path="/settings" component={AdminSettings} />
             <Route path="/profile" component={AdminProfile} />
             <Route path="/change-password" component={AdminChangePassword} />
@@ -111,12 +116,22 @@ function Router() {
           <Switch>
             <Route path="/" component={Home} />
             <Route path="/combo" component={ComboPage} />
+            <Route path="/academy">
+              <Suspense fallback={<LoadingSpinner />}>
+                <AcademyPage />
+              </Suspense>
+            </Route>
+            <Route path="/drop-shipping">
+              <Suspense fallback={<LoadingSpinner />}>
+                <DropShippingPage />
+              </Suspense>
+            </Route>
             <Route path="/products" component={ProductsPage} />
             <Route path="/category/:slug" component={Category} />
             <Route path="/product/:slug" component={ProductDetail} />
             <Route path="/about" component={About} />
             <Route path="/combo" component={ComboPage} />
-            
+
             <Route path="/blog" component={Blog} />
           <Route path="/blog/:slug" component={BlogPost} />
             <Route path="/contact" component={Contact} />

@@ -1,4 +1,4 @@
-import { pgTable, text, integer, numeric, boolean, serial, jsonb, varchar, timestamp, json, real, sqliteTable, sql } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, numeric, boolean, serial, jsonb, varchar, timestamp, json, real} from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -24,7 +24,7 @@ export const products = pgTable("products", {
   shortDescription: text("short_description"),
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   originalPrice: numeric('original_price', { precision: 10, scale: 2 }),
-  discount: numeric('discount', { precision: 5, scale: 2 }), // Discount percentage
+  discount: numeric('discount', { precision: 10, scale: 2 }), // Discount percentage
   category: text('category').notNull(),
   subcategory: text("subcategory"),
   imageUrl: text("image_url").notNull(),
@@ -331,6 +331,42 @@ export const testimonials = pgTable("testimonials", {
 
 export type Testimonial = typeof testimonials.$inferSelect;
 export type InsertTestimonial = typeof testimonials.$inferInsert;
+
+// Combos Table
+export const combos = pgTable("combos", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description").notNull(),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+  originalPrice: numeric("original_price", { precision: 10, scale: 2 }).notNull(),
+  discount: text("discount").notNull(),
+  imageUrl: text("image_url").notNull(),
+  products: jsonb("products").notNull(),
+  rating: numeric("rating", { precision: 3, scale: 2 }).default("5.0"),
+  reviewCount: integer("review_count").default(0),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type Combo = typeof combos.$inferSelect;
+export type InsertCombo = typeof combos.$inferInsert;
+
+// Combo Images Table
+export const comboImages = pgTable("combo_images", {
+  id: serial("id").primaryKey(),
+  comboId: integer("combo_id").notNull().references(() => combos.id, { onDelete: "cascade" }),
+  imageUrl: text("image_url").notNull(),
+  altText: text("alt_text"),
+  isPrimary: boolean("is_primary").default(false).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ComboImage = typeof comboImages.$inferSelect;
+export type InsertComboImage = typeof comboImages.$inferInsert;
 
 export const videoTestimonials = pgTable("video_testimonials", {
   id: serial("id").primaryKey(),

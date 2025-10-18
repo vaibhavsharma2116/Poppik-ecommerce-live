@@ -21,7 +21,8 @@ import {
   ChevronDown,
   FileText,
   Images,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,6 +115,12 @@ const sidebarItems = [
     title: "Blog",
     href: "/blog",
     icon: FileText,
+    badge: null,
+  },
+  {
+    title: "Combos",
+    href: "/combos",
+    icon: Package,
     badge: null,
   },
   {
@@ -441,7 +448,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center space-x-3 border-l border-slate-200 pl-4 h-auto p-2">
                   <div className="relative">
-                    <div className="w-9 h-9 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center shadow-md">
+                    <div className="w-9 h-9 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl flex items-center justify-center shadow-md">
                       {(() => {
                         const userStr = localStorage.getItem('user');
                         if (userStr) {
@@ -523,7 +530,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

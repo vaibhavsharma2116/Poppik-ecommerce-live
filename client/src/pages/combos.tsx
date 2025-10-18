@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Heart, Star, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShoppingCart, Heart, Star, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ComboProduct {
@@ -14,7 +15,6 @@ interface ComboProduct {
   originalPrice: string | number;
   discount: string;
   imageUrl: string;
-  imageUrls: string[]; // Assuming a new field for multiple images
   products: string[] | string;
   rating: string | number;
   reviewCount: number;
@@ -23,7 +23,6 @@ interface ComboProduct {
 export default function ComboPage() {
   const { toast } = useToast();
   const [wishlist, setWishlist] = useState<number[]>([]);
-  const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: number]: number }>({});
 
   const { data: comboProducts = [], isLoading } = useQuery<ComboProduct[]>({
     queryKey: ["/api/combos"],
@@ -55,38 +54,6 @@ export default function ComboPage() {
     });
   };
 
-  // Function to get all images for a combo, including the main imageUrl if no specific imageUrls exist
-  const getAllImages = (combo: ComboProduct): string[] => {
-    return combo.imageUrls && combo.imageUrls.length > 0 ? combo.imageUrls : [combo.imageUrl];
-  };
-
-  // Initialize current image index for each combo
-  useMemo(() => {
-    const initialIndexState = comboProducts.reduce((acc, combo) => {
-      acc[combo.id] = 0;
-      return acc;
-    }, {} as { [key: number]: number });
-    setCurrentImageIndex(initialIndexState);
-  }, [comboProducts]);
-
-
-  const nextImage = (comboId: number, totalImages: number) => {
-    setCurrentImageIndex(prev => {
-      const currentIndex = prev[comboId] || 0;
-      const nextIndex = (currentIndex + 1) % totalImages;
-      return { ...prev, [comboId]: nextIndex };
-    });
-  };
-
-  const prevImage = (comboId: number, totalImages: number) => {
-    setCurrentImageIndex(prev => {
-      const currentIndex = prev[comboId] || 0;
-      const prevIndex = (currentIndex - 1 + totalImages) % totalImages;
-      return { ...prev, [comboId]: prevIndex };
-    });
-  };
-
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16 flex items-center justify-center">
@@ -117,74 +84,34 @@ export default function ComboPage() {
             const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
             const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice) : combo.originalPrice;
             const rating = typeof combo.rating === 'string' ? parseFloat(combo.rating) : combo.rating;
-            const allImages = getAllImages(combo);
-            const currentIndex = currentImageIndex[combo.id] || 0;
 
             return (
             <Card key={combo.id} className="overflow-hidden bg-white/70 backdrop-blur-md rounded-3xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
               <div className="relative">
-                {/* Product Image Carousel */}
-                <div className="relative overflow-hidden rounded-2xl h-80 group">
-                  <img
-                    src={allImages[currentIndex]}
-                    alt={combo.name}
-                    className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                <img
+                  src={combo.imageUrl}
+                  alt={combo.name}
+                  className="w-full h-64 object-cover"
+                />
+                <Badge className="absolute top-4 right-4 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 text-lg font-bold">
+                  {combo.discount}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`absolute top-4 left-4 rounded-full ${
+                    wishlist.includes(combo.id)
+                      ? "bg-red-500 text-white hover:bg-red-600"
+                      : "bg-white/90 hover:bg-white"
+                  }`}
+                  onClick={() => handleToggleWishlist(combo.id)}
+                >
+                  <Heart
+                    className={`h-5 w-5 ${
+                      wishlist.includes(combo.id) ? "fill-current" : ""
+                    }`}
                   />
-
-                  {/* Wishlist Button */}
-                  <button
-                    onClick={() => handleToggleWishlist(combo.id)}
-                    className="absolute top-4 right-4 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white transition-all duration-300 z-10"
-                  >
-                    <Heart
-                      className={`h-5 w-5 ${
-                        wishlist.includes(combo.id)
-                          ? "fill-red-500 text-red-500"
-                          : "text-gray-600"
-                      }`}
-                    />
-                  </button>
-
-                  {/* Discount Badge */}
-                  <div className="absolute top-4 left-4 z-10">
-                    <Badge className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1 text-sm font-bold shadow-lg">
-                      {combo.discount}
-                    </Badge>
-                  </div>
-
-                  {/* Image Navigation */}
-                  {allImages.length > 1 && (
-                    <>
-                      <button
-                        onClick={() => prevImage(combo.id, allImages.length)}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white transition-all duration-300 z-10"
-                      >
-                        <ChevronLeft className="h-5 w-5 text-gray-800" />
-                      </button>
-                      <button
-                        onClick={() => nextImage(combo.id, allImages.length)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white transition-all duration-300 z-10"
-                      >
-                        <ChevronRight className="h-5 w-5 text-gray-800" />
-                      </button>
-
-                      {/* Image Indicators */}
-                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-                        {allImages.map((_, imgIdx) => (
-                          <button
-                            key={imgIdx}
-                            onClick={() => setCurrentImageIndex(prev => ({ ...prev, [combo.id]: imgIdx }))}
-                            className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                              imgIdx === currentIndex
-                                ? "bg-white w-6"
-                                : "bg-white/50"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+                </Button>
               </div>
 
               <CardContent className="p-6">

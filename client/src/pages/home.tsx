@@ -26,6 +26,7 @@ import VideoTestimonials from "@/components/video-testimonials";
 import type { Product, Category } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 import OptimizedImage from "@/components/optimized-image"; // Assuming OptimizedImage is used
+import AnnouncementBar from "@/components/announcement-bar";
 
 interface Testimonial {
   id: number;
@@ -769,7 +770,26 @@ export default function Home() {
           <TestimonialsCarousel />
         </div>
       </section>
+       
       <VideoTestimonials />
+
+      {/* Blog Section */}
+     <section className="py-4 sm:py-4 md:py-4 bg-gradient-to-br from-slate-50 via-white to-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8 sm:mb-10 md:mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-4">
+              <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
+                Latest From Our Blog
+              </span>
+            </h2>
+            <p className="text-sm sm:text-base md:text-lg text-gray-600">
+              Stay updated with beauty tips, trends & expert advice
+            </p>
+          </div>
+
+          <LatestBlogPosts />
+        </div>
+      </section>
 
       {/* WhatsApp Floating Button */}
       {/* <WhatsAppButton /> */}
@@ -778,5 +798,87 @@ export default function Home() {
       {/* <footer className="bg-black text-black py-16">
       </footer> */}
     </div>
+  );
+}
+
+// Latest Blog Posts Component
+function LatestBlogPosts() {
+  const { data: blogPosts = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/blog/posts"],
+  });
+
+  const latestPosts = blogPosts
+    .filter(post => post.published)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 4);
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8 px-2 sm:px-0">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+            <Skeleton className="aspect-[4/3] w-full" />
+            <div className="p-3 sm:p-4 space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (latestPosts.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">No blog posts available yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8 px-2 sm:px-0">
+        {latestPosts.map((post) => (
+          <Link key={post.id} href={`/blog/${post.slug}`}>
+            <div className="group cursor-pointer bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+              <div className="relative overflow-hidden aspect-[4/3]">
+                <img
+                  src={post.imageUrl}
+                  alt={post.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+              </div>
+              <div className="p-3 sm:p-4">
+                <Badge variant="outline" className="mb-2 text-xs">
+                  {post.category}
+                </Badge>
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-pink-600 transition-colors">
+                  {post.title}
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 mb-3">
+                  {post.excerpt}
+                </p>
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  <span>{post.readTime}</span>
+                </div>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      <div className="text-center mt-8 sm:mt-10">
+        <Link href="/blog">
+          <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+            <span>View All Articles</span>
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </Link>
+      </div>
+      
+    </>
   );
 }

@@ -1,0 +1,63 @@
+
+import { Sparkles, BookOpen, GraduationCap, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+
+export default function AcademyPage() {
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+
+  const handleNotifyMe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email) {
+      toast({
+        title: "Thank you!",
+        description: "We'll notify you when Academy launches.",
+      });
+      setEmail("");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        <div className="text-center">
+          {/* Icon */}
+          <div className="flex justify-center mb-8">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full blur-xl opacity-50 animate-pulse"></div>
+              <div className="relative bg-white rounded-full p-6 shadow-2xl">
+                <GraduationCap className="h-16 w-16 text-purple-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Main Heading */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6">
+            <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent">
+              Poppik Academy
+            </span>
+          </h1>
+
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <Sparkles className="h-6 w-6 text-yellow-500 animate-pulse" />
+            <p className="text-xl sm:text-2xl font-semibold text-gray-700">
+              Coming Soon
+            </p>
+            <Sparkles className="h-6 w-6 text-yellow-500 animate-pulse" />
+          </div>
+
+          <p className="text-lg sm:text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
+            Get ready to elevate your beauty knowledge! Join our exclusive Academy to learn beauty tips, skincare routines, and makeup techniques from experts.
+          </p>
+
+          
+          
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -224,7 +224,8 @@ export default function Layout({ children }: LayoutProps) {
   const staticNavItems = [
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
-    
+    { name: "Academy", href: "/academy" },
+    { name: "Drop Shipping", href: "/drop-shipping" },
     { name: "Blog", href: "/blog" },
     { name: "Contact", href: "/contact" },
   ];
@@ -339,7 +340,7 @@ export default function Layout({ children }: LayoutProps) {
                     <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
                   </svg>
                 </a>
-               
+
               </div>
 
               {/* Left Spacer */}
@@ -581,7 +582,7 @@ export default function Layout({ children }: LayoutProps) {
                   <img
                     src={headerLogo}
                     alt="POPPIK LIFESTYLE"
-                    className="h-8 w-auto sm:h-10 md:h-12 lg:h-14 xl:h-16 object-contain hover:scale-105 transition-transform duration-300"
+                    className="h-8 w-auto sm:h-10 md:h-12 lg:h-16 object-contain hover:scale-105 transition-transform duration-300"
                   />
                 </Link>
               </div>
@@ -800,7 +801,7 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 </li>
 
-               
+
 
                 {/* Dynamic Categories */}
                 {!loading && categories.map((category) => {
@@ -870,6 +871,34 @@ export default function Layout({ children }: LayoutProps) {
                   >
                     Combo
                   </Link>
+                </li>
+                <li>
+                  <a
+                    href="/academy"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      startTransition(() => {
+                        window.location.href = '/academy';
+                      });
+                    }}
+                    className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
+                  >
+                    Academy
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/drop-shipping"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      startTransition(() => {
+                        window.location.href = '/drop-shipping';
+                      });
+                    }}
+                    className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
+                  >
+                    Drop Shipping
+                  </a>
                 </li>
                 <li>
                   <Link
@@ -1017,7 +1046,7 @@ export default function Layout({ children }: LayoutProps) {
                     <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
                   </svg>
                 </a>
-               
+
                 <a
                   href="https://pin.it/7zbVvhod9"
                   target="_blank"
@@ -1029,7 +1058,7 @@ export default function Layout({ children }: LayoutProps) {
                     <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.174-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.093.112.105.211.077.326-.083.346-.265 1.077-.301 1.223-.047.191-.154.232-.356.14-1.279-.593-2.077-2.459-2.077-3.965 0-3.23 2.348-6.195 6.766-6.195 3.55 0 6.312 2.53 6.312 5.918 0 3.528-2.222 6.367-5.307 6.367-1.036 0-2.01-.547-2.342-1.195l-.637 2.43c-.23.892-.851 2.006-1.269 2.686C9.434 23.762 10.701 24 12.017 24c6.624 0 11.99-5.367 11.99-11.987C24.007 5.367 18.641.001 12.017.001z"/>
                   </svg>
                 </a>
-                <a
+                {/* <a
                   href="https://whatsapp.com/channel/0029Vb6Zmsh1yT214jsWqS3D"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1039,7 +1068,7 @@ export default function Layout({ children }: LayoutProps) {
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.025-.57-.025-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.704"/>
                   </svg>
-                </a>
+                </a> */}
               </div>
             </div>
 
@@ -1064,73 +1093,93 @@ export default function Layout({ children }: LayoutProps) {
                 </li>
                 <li>
                   <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
-                    Contact
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Categories */}
-            <div>
-              <h4 className="font-semibold mb-4 text-white">Categories</h4>
-              <ul className="space-y-2">
-                {categories.slice(0, 6).map((category) => (
-                  <li key={category.id}>
-                    <Link
-                      href={`/category/${category.slug}`}
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      {category.name}
-                    </Link>
-                  </li>
-                ))}
-                {categories.length > 6 && (
-                  <li>
-                    <Link
-                      href="/categories"
-                      className="text-gray-400 hover:text-white transition-colors font-medium"
-                    >
-                      View All Categories →
-                    </Link>
-                  </li>
-                )}
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div>
-              <h4 className="font-semibold mb-4 text-white">Customer Support</h4>
-              <ul className="space-y-2">
-                {user && (
-                  <li>
-                    <Link href="/order-history" className="text-gray-400 hover:text-white transition-colors">
-                      Order History
-                    </Link>
-                  </li>
-                )}
-                <li>
-                  <Link href="/track-order" className="text-gray-400 hover:text-white transition-colors">
-                    Track Your Order
+                    Careers
                   </Link>
                 </li>
                 <li>
                   <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
-                    Contact Support
+                    Influencer Collab
                   </Link>
                 </li>
                 <li>
-                  <Link href="/about" className="text-gray-400 hover:text-white transition-colors">
-                    About Us
+                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                    Become an Affiliate
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                    Join as a Distributor
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Order & Support */}
+            <div>
+              <h4 className="font-semibold mb-4 text-white">Order & Support</h4>
+              <ul className="space-y-2">
+                <li>
+                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                    Contact Us
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/track-order" className="text-gray-400 hover:text-white transition-colors">
+                    Track Order
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/order-history" className="text-gray-400 hover:text-white transition-colors">
+                    Order History
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                    Store Location
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Policies */}
+            <div>
+              <h4 className="font-semibold mb-4 text-white">Policies</h4>
+              <ul className="space-y-2">
+                <li>
+                  <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">
+                    Privacy Policy
                   </Link>
                 </li>
                 <li>
                   <Link href="/terms" className="text-gray-400 hover:text-white transition-colors">
-                    Terms & Conditions
+                    Terms & Condition
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Our Initiatives */}
+            <div>
+              <h4 className="font-semibold mb-4 text-white">Our Initiatives</h4>
+              <ul className="space-y-2">
+                <li>
+                  <Link href="/academy" className="text-gray-400 hover:text-white transition-colors">
+                    Poppik Academy
                   </Link>
                 </li>
                 <li>
-                  <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">
-                    Privacy Policy
+                  <Link href="/drop-shipping" className="text-gray-400 hover:text-white transition-colors">
+                    Poppik Dropshipping
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                    Poppik Makeup Studio
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                    Poppik Fashion Show
                   </Link>
                 </li>
               </ul>
