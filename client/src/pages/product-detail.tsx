@@ -42,6 +42,7 @@ interface Shade {
   isActive: boolean;
   sortOrder: number;
   imageUrl?: string;
+  productIds?: number[]; // Added for filtering shades
 }
 
 // Mock Category type for query
@@ -99,11 +100,11 @@ export default function ProductDetail() {
         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
         .map(img => img.url || img.imageUrl)
         .filter(url => url && url.trim() !== ''); // Filter out empty/null URLs
-      
+
       // Remove duplicates using Set
       const uniqueUrls = Array.from(new Set(imageUrlsFromDb));
       urls.push(...uniqueUrls);
-      
+
       console.log('Product images from DB:', productImages.length);
       console.log('Unique URLs after processing:', uniqueUrls.length);
     } else if (product?.imageUrl) {
@@ -154,7 +155,7 @@ export default function ProductDetail() {
         if (shade.productIds && Array.isArray(shade.productIds)) {
           return shade.productIds.includes(product.id);
         }
-        
+
         // If no productIds specified, don't show this shade
         return false;
       });
@@ -196,27 +197,31 @@ export default function ProductDetail() {
     enabled: !!product?.id,
   });
 
+  // Consolidate all useEffect hooks to ensure consistent ordering
   useEffect(() => {
+    // Set reviews
     if (productReviews && Array.isArray(productReviews)) {
       setReviews(productReviews);
     }
-  }, [productReviews?.length]); // Only depend on length
+  }, [productReviews]);
 
   useEffect(() => {
+    // Set review eligibility
     if (reviewEligibility && typeof reviewEligibility === 'object') {
       setCanReview(reviewEligibility);
     }
-  }, [reviewEligibility?.canReview, reviewEligibility?.message]); // Specific properties
+  }, [reviewEligibility]);
 
   useEffect(() => {
+    // Set wishlist status
     if (product?.id) {
       const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
       setIsInWishlist(wishlist.some((item: any) => item.id === product.id));
     }
-  }, [product?.id]); // Only depend on product ID
+  }, [product?.id]);
 
-  // Set shades when data is available - Fixed dependencies
   useEffect(() => {
+    // Set shades
     if (shadesFromAPI && Array.isArray(shadesFromAPI)) {
       console.log('Setting shades for product:', product?.id, shadesFromAPI);
       setShades(shadesFromAPI);
@@ -224,7 +229,44 @@ export default function ProductDetail() {
       console.log('No shades available for product:', product?.id);
       setShades([]);
     }
-  }, [shadesFromAPI, product?.id]); // Depend on shadesFromAPI and product id
+  }, [shadesFromAPI, product?.id]);
+
+  useEffect(() => {
+    // Set Open Graph meta tags - simplified with primitive dependencies
+    if (!product?.id || !productSlug) return;
+
+    const metaTitle = document.querySelector('meta[property="og:title"]');
+    const metaDescription = document.querySelector('meta[property="og:description"]');
+    const metaImage = document.querySelector('meta[property="og:image"]');
+    const metaUrl = document.querySelector('meta[property="og:url"]');
+    const metaType = document.querySelector('meta[property="og:type"]');
+
+    if (metaTitle) {
+      metaTitle.setAttribute('content', `${product.name} - Poppik`);
+    }
+    if (metaDescription && product.shortDescription) {
+      metaDescription.setAttribute('content', product.shortDescription);
+    }
+    if (metaImage && product.imageUrl) {
+      const absoluteImageUrl = new URL(product.imageUrl, window.location.origin).href;
+      metaImage.setAttribute('content', absoluteImageUrl);
+    }
+    if (metaUrl) {
+      metaUrl.setAttribute('content', `${window.location.origin}/product/${productSlug}`);
+    }
+    if (metaType) {
+      metaType.setAttribute('content', 'product');
+    }
+
+    // Set canonical link
+    let canonicalLink = document.querySelector('link[rel="canonical"]');
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.setAttribute('href', `${window.location.origin}/product/${productSlug}`);
+  }, [product?.id, product?.name, product?.shortDescription, product?.imageUrl, productSlug]);
 
   const toggleWishlist = () => {
     if (!product) return;
@@ -247,7 +289,7 @@ export default function ProductDetail() {
     if (existingIndex >= 0) {
       wishlist.splice(existingIndex, 1);
       setIsInWishlist(false);
-  
+
     } else {
       const wishlistItem = {
         id: product.id,
@@ -261,7 +303,7 @@ export default function ProductDetail() {
       };
       wishlist.push(wishlistItem);
       setIsInWishlist(true);
-    
+
     }
 
     localStorage.setItem("wishlist", JSON.stringify(wishlist));
@@ -306,7 +348,7 @@ export default function ProductDetail() {
     window.dispatchEvent(new Event("cartUpdated"));
 
     const shadeText = selectedShade ? ` in ${selectedShade.name} shade` : '';
-   
+
   };
 
   const handleShadeSelect = (shade: Shade) => {
@@ -322,7 +364,7 @@ export default function ProductDetail() {
       }
     }
 
-  
+
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -502,8 +544,9 @@ export default function ProductDetail() {
   const filteredRelatedProducts = relatedProducts?.filter(p => p.id !== product.id).slice(0, 4) || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-16">
-      <div className="max-w-7xl mx-auto product-detail-container lg:px-8">
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-16">
+        <div className="max-w-7xl mx-auto product-detail-container lg:px-8">
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm mb-6 sm:mb-8 bg-white/60 backdrop-blur-md rounded-xl sm:rounded-2xl breadcrumb-mobile sm:px-6 sm:py-4 shadow-lg border border-white/20">
           <Link href="/" className="text-purple-600 hover:text-purple-700 font-medium transition-colors">
@@ -1026,7 +1069,7 @@ export default function ProductDetail() {
                 <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
                   <DialogTrigger asChild>
                     <Button size="lg" variant="outline" className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200">
-                      <Share2 className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />
+                      <Share2 className="w-5 h-5 sm:w-6 sm:h-5 text-purple-500" />
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
@@ -1049,7 +1092,7 @@ export default function ProductDetail() {
                         </svg>
                         WhatsApp
                       </Button>
-                      
+
                       <Button 
                         variant="outline" 
                         className="w-full justify-start gap-3 h-12 hover:bg-blue-50 hover:border-blue-300 transition-colors" 
@@ -1527,6 +1570,6 @@ export default function ProductDetail() {
           </section>
         )}
       </div>
-
+    </>
   );
 }
