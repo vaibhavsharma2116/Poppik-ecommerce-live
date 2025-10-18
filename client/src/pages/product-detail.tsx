@@ -1091,8 +1091,16 @@ export default function ProductDetail() {
 
               {/* Stock status */}
               <div className="flex items-center space-x-3 mb-6">
-                <div className="w-4 h-4 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full animate-pulse"></div>
-                <span className="text-green-600 font-bold text-lg">In Stock</span>
+                <div className={`w-4 h-4 rounded-full animate-pulse ${
+                  product.inStock 
+                    ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
+                    : 'bg-gradient-to-r from-red-400 to-rose-400'
+                }`}></div>
+                <span className={`font-bold text-lg ${
+                  product.inStock ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {product.inStock ? 'In Stock' : 'Out of Stock'}
+                </span>
               </div>
             </div>
           </div>
