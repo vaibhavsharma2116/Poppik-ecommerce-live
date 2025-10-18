@@ -112,7 +112,7 @@ export default function TestimonialsSection() {
                   key={testimonial.id}
                   className={`transition-all duration-300 ${scale} ${opacity}`}
                 >
-                  <div className={`rounded-2xl overflow-hidden ${isCenter ? 'w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 ring-4 ring-red-400' : 'w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28'}`}>
+                  <div className={`rounded-2xl overflow-hidden ${isCenter ? 'w-48 h-48 sm:w-44 sm:h-44 md:w-48 md:h-48 ring-4 ring-red-400' : 'w-36 h-36 sm:w-32 sm:h-32 md:w-36 md:h-36'}`}>
                     {testimonial.customerImage ? (
                       <img
                         src={testimonial.customerImage}

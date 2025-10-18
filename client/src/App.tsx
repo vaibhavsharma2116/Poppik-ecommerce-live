@@ -42,6 +42,7 @@ import { lazy, Suspense, startTransition, useEffect } from 'react';
 import AdminShades from "./pages/admin/shades";
 import AdminFeaturedSections from "@/pages/admin/featured-sections";
 import BlogPost from "./pages/blog-post";
+import ComboPage from "@/pages/combo";
 
 const AdminBlog = lazy(() => import("./pages/admin/blog"));
 const AdminReports = lazy(() => import("./pages/admin/reports"));
@@ -109,10 +110,13 @@ function Router() {
         <Layout>
           <Switch>
             <Route path="/" component={Home} />
-            <Route path="/category/:slug" component={Category} />
+            <Route path="/combo" component={ComboPage} />
             <Route path="/products" component={ProductsPage} />
+            <Route path="/category/:slug" component={Category} />
             <Route path="/product/:slug" component={ProductDetail} />
             <Route path="/about" component={About} />
+            <Route path="/combo" component={ComboPage} />
+            
             <Route path="/blog" component={Blog} />
           <Route path="/blog/:slug" component={BlogPost} />
             <Route path="/contact" component={Contact} />

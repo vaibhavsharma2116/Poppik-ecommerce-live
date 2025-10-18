@@ -252,7 +252,7 @@ export default function Home() {
       /> */}
 
       {/* Enhanced Categories Section */}
-      <section className="py-4 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+      <section className="py-12 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-[0.02]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
@@ -537,7 +537,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="text-center mt-10">
+                <div className="text-center">
                   <Link href="/products?filter=bestseller">
                     <Button className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                       <span>
@@ -572,7 +572,7 @@ export default function Home() {
       </section>
 
       {/* Our Products Section - Second */}
-      <section className="py-20 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+      <section className="py-0 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.02]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
         </div>
@@ -621,7 +621,7 @@ export default function Home() {
                 {!allProductsLoading &&
                   allProducts &&
                   allProducts.length > 10 && (
-                    <div className="text-center mt-12">
+                    <div className="text-center">
                       <Link href="/products">
                         <Button className="inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-10 py-4 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
                           View All Products ({allProducts.length})
@@ -649,13 +649,13 @@ export default function Home() {
       </section>
 
       {/* New Launches Section - Third */}
-      <section className="py-20 bg-gradient-to-br from-emerald-50 via-white to-teal-50 relative overflow-hidden">
+      <section className="py-0 bg-gradient-to-br from-emerald-50 via-white to-teal-50 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,_var(--tw-gradient-stops))] from-emerald-500 via-transparent to-transparent"></div>
         </div>
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="mb-16">
+          <div className="mb-10">
             <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-4 sm:mb-6 text-left">
               <span className="text-transparent bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-700 bg-clip-text">
                 New Launches
@@ -693,7 +693,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="text-center mt-10">
+              <div className="text-center mt-6 mb-4">
                 <Link href="/products?filter=newLaunch">
                   <Button className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                     <span>Explore New Launches</span>
@@ -756,7 +756,7 @@ export default function Home() {
       {/* UGC Video Section */}
 
       {/* Testimonials Section */}
-      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-rose-50 via-white to-pink-50">
+      <section className="py-12 sm:py-16 md:py-5 bg-gradient-to-br from-rose-50 via-white to-pink-50">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-10 md:mb-12">
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium mb-2 sm:mb-4">

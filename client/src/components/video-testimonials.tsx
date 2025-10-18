@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import React from "react";
 import { ChevronLeft, ChevronRight, Play, X, ShoppingCart } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ export default function VideoTestimonials() {
   const [selectedVideo, setSelectedVideo] = useState<VideoTestimonial | null>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const { toast } = useToast();
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Fetch UGC Video from API
   const { data: videoTestimonials = [], isLoading: testimonialsLoading } = useQuery<VideoTestimonial[]>({
@@ -41,10 +43,32 @@ export default function VideoTestimonials() {
     .filter(t => t.isActive)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
+  // Auto-slide effect
+  useEffect(() => {
+    if (activeTestimonials.length === 0) return;
+
+    const interval = setInterval(() => {
+      nextSlide();
+    }, 3000); // Auto-slide every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [currentIndex, activeTestimonials.length]);
+
   const nextSlide = () => {
     if (activeTestimonials.length > 0) {
       const newIndex = (currentIndex + 1) % activeTestimonials.length;
       setCurrentIndex(newIndex);
+      
+      // Smooth scroll to the next video
+      if (scrollContainerRef.current) {
+        const cardWidth = 280; // lg:w-[280px]
+        const gap = 24; // md:gap-6
+        scrollContainerRef.current.scrollTo({
+          left: newIndex * (cardWidth + gap),
+          behavior: 'smooth'
+        });
+      }
+      
       if (autoplayEnabled) {
         setIsPlaying(activeTestimonials[newIndex].id);
       } else {
@@ -57,6 +81,17 @@ export default function VideoTestimonials() {
     if (activeTestimonials.length > 0) {
       const newIndex = (currentIndex - 1 + activeTestimonials.length) % activeTestimonials.length;
       setCurrentIndex(newIndex);
+      
+      // Smooth scroll to the previous video
+      if (scrollContainerRef.current) {
+        const cardWidth = 280;
+        const gap = 24;
+        scrollContainerRef.current.scrollTo({
+          left: newIndex * (cardWidth + gap),
+          behavior: 'smooth'
+        });
+      }
+      
       if (autoplayEnabled) {
         setIsPlaying(activeTestimonials[newIndex].id);
       } else {
@@ -149,7 +184,7 @@ export default function VideoTestimonials() {
   }
 
   return (
-    <section className="py-12 sm:py-14 md:py-16 bg-gradient-to-br from-pink-50 via-white to-purple-50">
+    <section className="py-4 sm:py-4 md:py-4 bg-gradient-to-br from-pink-50 via-white to-purple-50">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
         <div className="text-center mb-8 sm:mb-10 md:mb-12">
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-4 px-4">
@@ -180,7 +215,10 @@ export default function VideoTestimonials() {
 
           {/* Horizontal Scrollable Testimonials - Instagram Reel Style */}
           <div className="relative overflow-hidden px-4 md:px-0">
-            <div className="flex gap-3 sm:gap-4 md:gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+            <div 
+              ref={scrollContainerRef}
+              className="flex gap-3 sm:gap-4 md:gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-4 -mx-4 px-4 md:mx-0 md:px-0"
+            >
               {activeTestimonials.map((testimonial) => {
                 const product = allProducts?.find(p => p.id === testimonial.productId);
                 return (
