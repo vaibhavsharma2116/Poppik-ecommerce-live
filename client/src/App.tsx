@@ -157,6 +157,14 @@ function Router() {
              <Route path="/terms" component={Terms} />
             <Route path="/privacy" component={Privacy} />
             <Route path="/careers" component={Careers} />
+            <Route path="/careers/:position" component={() => {
+              const CareersDetail = lazy(() => import("./pages/careers-detail"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <CareersDetail />
+                </Suspense>
+              );
+            }} />
             <Route path="/careers/apply/:position?" component={() => {
               const CareersApply = lazy(() => import("./pages/careers-apply"));
               return (

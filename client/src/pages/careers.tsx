@@ -4,8 +4,13 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from "react";
 
 export default function Careers() {
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
+  const [selectedLocation, setSelectedLocation] = useState<string>("all");
+
   const openPositions = [
     {
       title: "Beauty Consultant",
@@ -36,6 +41,17 @@ export default function Careers() {
       description: "Provide exceptional customer support and ensure customer satisfaction."
     }
   ];
+
+  // Get unique departments and locations
+  const departments = ["all", ...Array.from(new Set(openPositions.map(p => p.department)))];
+  const locations = ["all", ...Array.from(new Set(openPositions.map(p => p.location)))];
+
+  // Filter positions based on selected filters
+  const filteredPositions = openPositions.filter(position => {
+    const departmentMatch = selectedDepartment === "all" || position.department === selectedDepartment;
+    const locationMatch = selectedLocation === "all" || position.location === selectedLocation;
+    return departmentMatch && locationMatch;
+  });
 
   const benefits = [
     {
@@ -80,6 +96,51 @@ export default function Careers() {
           </div>
         </div>
 
+        {/* Filters */}
+        <Card className="mb-8 shadow-lg">
+          <CardContent className="py-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Department
+                </label>
+                <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    {departments.filter(d => d !== "all").map((dept) => (
+                      <SelectItem key={dept} value={dept}>
+                        {dept}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Location
+                </label>
+                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Locations</SelectItem>
+                    {locations.filter(l => l !== "all").map((loc) => (
+                      <SelectItem key={loc} value={loc}>
+                        {loc}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Why Join Us */}
         <Card className="mb-8 shadow-xl border-0 bg-gradient-to-r from-pink-500 to-purple-500 text-white">
           <CardContent className="py-8">
@@ -100,9 +161,18 @@ export default function Careers() {
 
         {/* Open Positions */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">Open Positions</h2>
-          <div className="grid grid-cols-1 gap-6">
-            {openPositions.map((position, index) => (
+          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
+            Open Positions {filteredPositions.length < openPositions.length && `(${filteredPositions.length} of ${openPositions.length})`}
+          </h2>
+          {filteredPositions.length === 0 ? (
+            <Card className="shadow-lg">
+              <CardContent className="py-12 text-center">
+                <p className="text-gray-500 text-lg">No positions found matching your criteria.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+              {filteredPositions.map((position, index) => (
               <Card key={index} className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -121,9 +191,9 @@ export default function Careers() {
                         </Badge>
                       </div>
                     </div>
-                    <Link href={`/careers/apply/${position.title.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <Link href={`/careers/${position.title.toLowerCase().replace(/\s+/g, '-')}`}>
                       <Button className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white">
-                        Apply Now
+                        View Details
                       </Button>
                     </Link>
                   </div>
@@ -132,8 +202,9 @@ export default function Careers() {
                   <p className="text-gray-600">{position.description}</p>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Contact Section */}
