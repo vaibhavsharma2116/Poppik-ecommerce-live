@@ -22,7 +22,8 @@ import {
   FileText,
   Images,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Briefcase
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,6 +122,12 @@ const sidebarItems = [
     title: "Combos",
     href: "/combos",
     icon: Package,
+    badge: null,
+  },
+  {
+    title: "Job Positions",
+    href: "/job-positions",
+    icon: Briefcase,
     badge: null,
   },
   {

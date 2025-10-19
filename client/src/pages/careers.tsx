@@ -6,52 +6,32 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Careers() {
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
 
-  const openPositions = [
-    {
-      title: "Beauty Consultant",
-      department: "Sales",
-      location: "Mumbai, India",
-      type: "Full-time",
-      description: "Help customers discover their perfect beauty products and provide expert advice on skincare and makeup."
+  // Fetch job positions from API
+  const { data: openPositions = [], isLoading } = useQuery({
+    queryKey: ['/api/job-positions', selectedDepartment, selectedLocation],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedDepartment !== 'all') params.append('department', selectedDepartment);
+      if (selectedLocation !== 'all') params.append('location', selectedLocation);
+      
+      const response = await fetch(`/api/job-positions?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch job positions');
+      return response.json();
     },
-    {
-      title: "Digital Marketing Specialist",
-      department: "Marketing",
-      location: "Remote",
-      type: "Full-time",
-      description: "Drive our digital presence through innovative campaigns and social media strategies."
-    },
-    {
-      title: "Product Development Manager",
-      department: "R&D",
-      location: "Bangalore, India",
-      type: "Full-time",
-      description: "Lead the development of new beauty products from concept to launch."
-    },
-    {
-      title: "Customer Service Representative",
-      department: "Support",
-      location: "Mumbai, India",
-      type: "Part-time",
-      description: "Provide exceptional customer support and ensure customer satisfaction."
-    }
-  ];
+  });
 
   // Get unique departments and locations
   const departments = ["all", ...Array.from(new Set(openPositions.map(p => p.department)))];
   const locations = ["all", ...Array.from(new Set(openPositions.map(p => p.location)))];
 
-  // Filter positions based on selected filters
-  const filteredPositions = openPositions.filter(position => {
-    const departmentMatch = selectedDepartment === "all" || position.department === selectedDepartment;
-    const locationMatch = selectedLocation === "all" || position.location === selectedLocation;
-    return departmentMatch && locationMatch;
-  });
+  // Positions are already filtered by the API
+  const filteredPositions = openPositions;
 
   const benefits = [
     {
@@ -174,7 +154,7 @@ export default function Careers() {
                         </Badge>
                       </div>
                     </div>
-                    <Link href={`/careers/${position.title.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <Link href={`/careers/${position.slug}`}>
                       <Button className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white">
                         View Details
                       </Button>

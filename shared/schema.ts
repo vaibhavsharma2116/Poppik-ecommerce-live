@@ -112,16 +112,42 @@ export const ordersTable = pgTable("orders", {
 
 export const cashfreePayments = pgTable("cashfree_payments", {
   id: serial("id").primaryKey(),
-  cashfreeOrderId: text("cashfree_order_id").notNull().unique(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  amount: integer("amount").notNull(),
-  status: text("status").notNull().default("created"), // created, completed, failed
-  orderData: jsonb("order_data").notNull(),
-  customerInfo: jsonb("customer_info").notNull(),
-  paymentId: text("payment_id"),
+  cashfreeOrderId: varchar("cashfree_order_id", { length: 100 }).notNull().unique(),
+  userId: integer("user_id").references(() => users.id),
+  amount: real("amount").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("created"),
+  paymentId: varchar("payment_id", { length: 100 }),
+  orderData: jsonb("order_data"),
+  customerInfo: jsonb("customer_info"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
 });
+
+export const jobPositions = pgTable("job_positions", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 200 }).notNull(),
+  slug: varchar("slug", { length: 200 }).notNull().unique(),
+  department: varchar("department", { length: 100 }).notNull(),
+  location: varchar("location", { length: 100 }).notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // Full-time, Part-time, Contract
+  jobId: varchar("job_id", { length: 50 }).notNull().unique(),
+  experienceLevel: varchar("experience_level", { length: 50 }).notNull(),
+  workExperience: varchar("work_experience", { length: 50 }).notNull(),
+  education: varchar("education", { length: 200 }).notNull(),
+  description: text("description").notNull(),
+  aboutRole: text("about_role").notNull(),
+  responsibilities: jsonb("responsibilities").notNull(), // Array of strings
+  requirements: jsonb("requirements").notNull(), // Array of strings
+  qualifications: jsonb("qualifications"), // Array of strings
+  skills: jsonb("skills").notNull(), // Array of strings
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type InsertJobPosition = typeof jobPositions.$inferInsert;
+export type SelectJobPosition = typeof jobPositions.$inferSelect;
 
 export const insertOrderSchema = createInsertSchema(ordersTable);
 export const selectOrderSchema = createSelectSchema(ordersTable);

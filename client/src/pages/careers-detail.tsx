@@ -4,13 +4,51 @@ import { Link, useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 
 export default function CareersDetail() {
   const [, params] = useRoute("/careers/:position");
   const positionSlug = params?.position || "";
   
-  // Position data - this should match the data from careers.tsx
-  const positionsData: Record<string, any> = {
+  // Fetch position data from API
+  const { data: position, isLoading, error } = useQuery({
+    queryKey: ['/api/job-positions', positionSlug],
+    queryFn: async () => {
+      const response = await fetch(`/api/job-positions/${positionSlug}`);
+      if (!response.ok) throw new Error('Failed to fetch job position');
+      return response.json();
+    },
+    enabled: !!positionSlug,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading position details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !position) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Position Not Found</h1>
+          <Link href="/careers">
+            <Button className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white">
+              Back to Careers
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Legacy position data for reference - can be removed
+  const positionsDataLegacy: Record<string, any> = {
     "beauty-consultant": {
       title: "Beauty Consultant",
       department: "Sales",
@@ -140,23 +178,6 @@ export default function CareersDetail() {
       skills: ["Customer Support", "Communication", "Problem Solving", "CRM Systems", "Multitasking"]
     }
   };
-
-  const position = positionsData[positionSlug];
-
-  if (!position) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Position Not Found</h1>
-          <Link href="/careers">
-            <Button className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white">
-              Back to Careers
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">

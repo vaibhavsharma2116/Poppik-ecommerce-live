@@ -35,6 +35,17 @@ import {
   type InsertBlogSubcategory,
   type Subcategory,
   type InsertCategorySlider,
+  type InsertUser,
+  type InsertReview,
+  type Review,
+  type Shade,
+  type InsertShade,
+  type Category,
+  type InsertCategory,
+  // Import jobPositions schema
+  jobPositions,
+  type JobPosition,
+  type InsertJobPosition
 } from "@shared/schema";
 import dotenv from "dotenv";
 
@@ -181,6 +192,15 @@ export interface IStorage {
   createAnnouncement(announcementData: any): Promise<any>;
   updateAnnouncement(id: number, announcementData: any): Promise<any>;
   deleteAnnouncement(id: number): Promise<boolean>;
+
+  // Job Positions management
+  getJobPositions(): Promise<JobPosition[]>;
+  getActiveJobPositions(): Promise<JobPosition[]>;
+  getJobPositionBySlug(slug: string): Promise<JobPosition | null>;
+  getJobPosition(id: number): Promise<JobPosition | undefined>;
+  createJobPosition(data: InsertJobPosition): Promise<JobPosition>;
+  updateJobPosition(id: number, data: Partial<InsertJobPosition>): Promise<JobPosition | undefined>;
+  deleteJobPosition(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1267,7 +1287,7 @@ export class DatabaseStorage implements IStorage {
       return await db.select().from(blogCategories).where(eq(blogCategories.isActive, true)).orderBy(asc(blogCategories.sortOrder));
     } catch (error) {
       console.error("Database error in getBlogCategories:", error);
-      
+
     }
   }
 
@@ -1672,6 +1692,92 @@ export class DatabaseStorage implements IStorage {
   async deleteAnnouncement(id: number): Promise<boolean> {
     const result = await db.delete(announcements).where(eq(announcements.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Job Positions methods
+  async getJobPositions(): Promise<JobPosition[]> {
+    const db = await getDb();
+    return await db.select().from(jobPositions).orderBy(desc(jobPositions.createdAt));
+  }
+
+  async getActiveJobPositions(): Promise<JobPosition[]> {
+    const db = await getDb();
+    return await db.select()
+      .from(jobPositions)
+      .where(eq(jobPositions.isActive, true))
+      .orderBy(asc(jobPositions.sortOrder));
+  }
+
+  async getJobPositionBySlug(slug: string): Promise<JobPosition | null> {
+    const db = await getDb();
+    const result = await db
+      .select()
+      .from(jobPositions)
+      .where(eq(jobPositions.slug, slug))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async getJobPosition(id: number): Promise<JobPosition | undefined> {
+    const db = await getDb();
+    const result = await db
+      .select()
+      .from(jobPositions)
+      .where(eq(jobPositions.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async createJobPosition(data: InsertJobPosition): Promise<JobPosition> {
+    const db = await getDb();
+    // Generate slug from title if not provided
+    const slug = data.title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim();
+
+    const jobPositionToInsert = {
+      ...data,
+      slug,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const [jobPosition] = await db.insert(jobPositions).values(jobPositionToInsert).returning();
+    return jobPosition;
+  }
+
+  async updateJobPosition(id: number, data: Partial<InsertJobPosition>): Promise<JobPosition | undefined> {
+    const db = await getDb();
+
+    const updateData = { ...data };
+    if (data.title) {
+      updateData.slug = data.title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim();
+    }
+    updateData.updatedAt = new Date();
+
+    const [jobPosition] = await db
+      .update(jobPositions)
+      .set(updateData)
+      .where(eq(jobPositions.id, id))
+      .returning();
+    return jobPosition;
+  }
+
+  async deleteJobPosition(id: number): Promise<boolean> {
+    const db = await getDb();
+    const result = await db
+      .delete(jobPositions)
+      .where(eq(jobPositions.id, id))
+      .returning();
+    return result.length > 0;
   }
 }
 

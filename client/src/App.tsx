@@ -96,7 +96,22 @@ function Router() {
             <Route path="/testimonials" component={AdminTestimonials} />
             <Route path="/video-testimonials" component={AdminVideoTestimonials} />
             <Route path="/announcements" component={AdminAnnouncements} />
-            <Route path="/combos" component={AdminCombos} />
+            <Route path="/combos" component={() => {
+              const Combos = lazy(() => import("./pages/admin/combos"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Combos />
+                </Suspense>
+              );
+            }} />
+            <Route path="/job-positions" component={() => {
+              const JobPositions = lazy(() => import("./pages/admin/job-positions"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <JobPositions />
+                </Suspense>
+              );
+            }} />
             <Route path="/settings" component={AdminSettings} />
             <Route path="/profile" component={AdminProfile} />
             <Route path="/change-password" component={AdminChangePassword} />

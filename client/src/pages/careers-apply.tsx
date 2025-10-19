@@ -57,17 +57,80 @@ export default function CareersApply() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.resume) {
+      toast({
+        title: "Error",
+        description: "Please upload your resume",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Create FormData for file upload
+      const submitData = new FormData();
+      submitData.append('fullName', formData.fullName);
+      submitData.append('email', formData.email);
+      submitData.append('phone', formData.phone);
+      submitData.append('position', formData.position);
+      submitData.append('location', formData.location);
+      submitData.append('isFresher', formData.isFresher.toString());
+      if (!formData.isFresher) {
+        submitData.append('experienceYears', formData.experienceYears);
+        submitData.append('experienceMonths', formData.experienceMonths);
+      }
+      submitData.append('coverLetter', formData.coverLetter);
+      submitData.append('resume', formData.resume);
+
+      const response = await fetch('/api/job-applications', {
+        method: 'POST',
+        body: submitData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to submit application');
+      }
+
       toast({
         title: "Application Submitted!",
-        description: "We'll review your application and get back to you soon.",
+        description: result.message || "We'll review your application and get back to you soon.",
       });
+
+      // Reset form
+      setFormData({
+        fullName: "",
+        email: "",
+        phone: "",
+        position: decodeURIComponent(position).replace(/-/g, " "),
+        location: "",
+        isFresher: false,
+        experienceYears: "",
+        experienceMonths: "",
+        coverLetter: "",
+        resume: null,
+      });
+
+      // Redirect to careers page after 2 seconds
+      setTimeout(() => {
+        window.location.href = '/careers';
+      }, 2000);
+
+    } catch (error) {
+      console.error('Application submission error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to submit application. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsSubmitting(false);
-      // Reset form or redirect
-    }, 2000);
+    }
   };
 
   return (

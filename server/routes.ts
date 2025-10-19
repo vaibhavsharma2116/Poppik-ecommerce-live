@@ -120,15 +120,27 @@ const upload = multer({
     }
   }),
   fileFilter: (req, file, cb) => {
-    // Accept image and video files
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+    // Accept image, video, and document files (for resumes)
+    const allowedMimeTypes = [
+      'image/',
+      'video/',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+    
+    const isAllowed = allowedMimeTypes.some(type => file.mimetype.startsWith(type) || file.mimetype === type);
+    
+    if (isAllowed) {
       cb(null, true);
     } else {
-      cb(new Error('Only image and video files are allowed'));
+      cb(new Error('Only image, video, and document files (PDF, DOC, DOCX) are allowed'));
     }
   },
   limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB limit for videos
+    fileSize: 50 * 1024 * 1024 // 50MB limit for videos and large documents
   }
 });
 
@@ -1578,9 +1590,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // console.log("categoriesWithCount", categoriesWithCount);
     res.json(categories);
   } catch (error) {
-    console.log("Database unavailable, using sample category data");
-    // Fallback to sample data if database is unavailable
-    res.json(generateSampleCategories());
+    console.log("Database unavailable, returning empty categories");
+    res.json([]);
   }
 });
 
@@ -4909,6 +4920,240 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting combo:', error);
       res.status(500).json({ error: 'Failed to delete combo' });
+    }
+  });
+
+  // Job application submission endpoint
+  app.post('/api/job-applications', upload.single('resume'), async (req, res) => {
+    try {
+      const { fullName, email, phone, position, location, isFresher, experienceYears, experienceMonths, coverLetter } = req.body;
+
+      // Validation
+      if (!fullName || !email || !phone || !position || !location || !coverLetter) {
+        return res.status(400).json({ error: 'All required fields must be provided' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'Resume file is required' });
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
+      }
+
+      const resumeUrl = `/api/images/${req.file.filename}`;
+
+      // Store application in database
+      const applicationData = {
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        position: position.trim(),
+        location: location.trim(),
+        isFresher: isFresher === 'true',
+        experienceYears: isFresher === 'true' ? null : experienceYears,
+        experienceMonths: isFresher === 'true' ? null : experienceMonths,
+        coverLetter: coverLetter.trim(),
+        resumeUrl: resumeUrl,
+        status: 'pending',
+        appliedAt: new Date()
+      };
+
+      console.log('Job application submitted:', {
+        fullName,
+        email,
+        position,
+        timestamp: applicationData.appliedAt
+      });
+
+      // In a real application, you would save this to a job_applications table
+      // For now, we'll just log it and send a success response
+
+      res.json({
+        success: true,
+        message: 'Application submitted successfully! We will review your application and get back to you soon.',
+        applicationId: Date.now() // Mock application ID
+      });
+
+    } catch (error) {
+      console.error('Job application submission error:', error);
+      res.status(500).json({ 
+        error: 'Failed to submit application',
+        details: error.message 
+      });
+    }
+  });
+
+  // Job Positions Management Routes
+
+  // Public endpoints for job positions
+  app.get('/api/job-positions', async (req, res) => {
+    try {
+      const { department, location } = req.query;
+      let positions = await storage.getActiveJobPositions();
+
+      // Filter by department if provided
+      if (department && department !== 'all') {
+        positions = positions.filter(pos => pos.department === department);
+      }
+
+      // Filter by location if provided
+      if (location && location !== 'all') {
+        positions = positions.filter(pos => pos.location === location);
+      }
+
+      res.json(positions);
+    } catch (error) {
+      console.error('Error fetching job positions:', error);
+      res.status(500).json({ error: 'Failed to fetch job positions' });
+    }
+  });
+
+  // Job application submission endpoint
+  app.post('/api/job-applications', upload.single('resume'), async (req, res) => {
+    try {
+      const { fullName, email, phone, position, location, isFresher, experienceYears, experienceMonths, coverLetter } = req.body;
+
+      // Validation
+      if (!fullName || !email || !phone || !position || !location || !coverLetter) {
+        return res.status(400).json({ error: 'All required fields must be provided' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'Resume file is required' });
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
+      }
+
+      const resumeUrl = `/api/images/${req.file.filename}`;
+
+      // Store application in database
+      const applicationData = {
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        position: position.trim(),
+        location: location.trim(),
+        isFresher: isFresher === 'true',
+        experienceYears: isFresher === 'true' ? null : experienceYears,
+        experienceMonths: isFresher === 'true' ? null : experienceMonths,
+        coverLetter: coverLetter.trim(),
+        resumeUrl: resumeUrl,
+        status: 'pending',
+        appliedAt: new Date()
+      };
+
+      console.log('Job application submitted:', {
+        fullName,
+        email,
+        position,
+        timestamp: applicationData.appliedAt
+      });
+
+      // In a real application, you would save this to a job_applications table
+      // For now, we'll just log it and send a success response
+
+      res.json({
+        success: true,
+        message: 'Application submitted successfully! We will review your application and get back to you soon.',
+        applicationId: Date.now() // Mock application ID
+      });
+
+    } catch (error) {
+      console.error('Job application submission error:', error);
+      res.status(500).json({ 
+        error: 'Failed to submit application',
+        details: error.message 
+      });
+    }
+  });
+
+  app.get('/api/job-positions/:slug', async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const position = await storage.getJobPositionBySlug(slug);
+      
+      if (!position) {
+        return res.status(404).json({ error: 'Job position not found' });
+      }
+
+      res.json(position);
+    } catch (error) {
+      console.error('Error fetching job position:', error);
+      res.status(500).json({ error: 'Failed to fetch job position' });
+    }
+  });
+
+  // Admin endpoints for job positions management
+  app.get('/api/admin/job-positions', async (req, res) => {
+    try {
+      const positions = await storage.getJobPositions();
+      res.json(positions);
+    } catch (error) {
+      console.error('Error fetching job positions:', error);
+      res.status(500).json({ error: 'Failed to fetch job positions' });
+    }
+  });
+
+  app.post('/api/admin/job-positions', async (req, res) => {
+    try {
+      const positionData = {
+        ...req.body,
+        slug: req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+        responsibilities: Array.isArray(req.body.responsibilities) ? req.body.responsibilities : JSON.parse(req.body.responsibilities || '[]'),
+        requirements: Array.isArray(req.body.requirements) ? req.body.requirements : JSON.parse(req.body.requirements || '[]'),
+        qualifications: Array.isArray(req.body.qualifications) ? req.body.qualifications : JSON.parse(req.body.qualifications || '[]'),
+        skills: Array.isArray(req.body.skills) ? req.body.skills : JSON.parse(req.body.skills || '[]'),
+      };
+
+      const position = await storage.createJobPosition(positionData);
+      res.status(201).json(position);
+    } catch (error) {
+      console.error('Error creating job position:', error);
+      res.status(500).json({ error: 'Failed to create job position' });
+    }
+  });
+
+  app.put('/api/admin/job-positions/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = {
+        ...req.body,
+        slug: req.body.title ? req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : undefined,
+        responsibilities: req.body.responsibilities ? (Array.isArray(req.body.responsibilities) ? req.body.responsibilities : JSON.parse(req.body.responsibilities)) : undefined,
+        requirements: req.body.requirements ? (Array.isArray(req.body.requirements) ? req.body.requirements : JSON.parse(req.body.requirements)) : undefined,
+        qualifications: req.body.qualifications ? (Array.isArray(req.body.qualifications) ? req.body.qualifications : JSON.parse(req.body.qualifications)) : undefined,
+        skills: req.body.skills ? (Array.isArray(req.body.skills) ? req.body.skills : JSON.parse(req.body.skills)) : undefined,
+      };
+
+      const position = await storage.updateJobPosition(id, updateData);
+      if (!position) {
+        return res.status(404).json({ error: 'Job position not found' });
+      }
+      res.json(position);
+    } catch (error) {
+      console.error('Error updating job position:', error);
+      res.status(500).json({ error: 'Failed to update job position' });
+    }
+  });
+
+  app.delete('/api/admin/job-positions/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteJobPosition(id);
+      if (!success) {
+        return res.status(404).json({ error: 'Job position not found' });
+      }
+      res.json({ message: 'Job position deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting job position:', error);
+      res.status(500).json({ error: 'Failed to delete job position' });
     }
   });
 
