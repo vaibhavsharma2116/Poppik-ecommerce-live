@@ -184,7 +184,15 @@ export default function AdminJobApplications() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => window.open(application.resumeUrl, '_blank')}
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = application.resumeUrl;
+                            link.download = `Resume_${application.fullName.replace(/\s+/g, '_')}_${application.position.replace(/\s+/g, '_')}.pdf`;
+                            link.target = '_blank';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
                         >
                           <Download className="h-4 w-4" />
                         </Button>
@@ -253,7 +261,15 @@ export default function AdminJobApplications() {
               <div>
                 <h3 className="font-semibold mb-2">Resume</h3>
                 <Button
-                  onClick={() => window.open(selectedApplication.resumeUrl, '_blank')}
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = selectedApplication.resumeUrl;
+                    link.download = `Resume_${selectedApplication.fullName.replace(/\s+/g, '_')}_${selectedApplication.position.replace(/\s+/g, '_')}.pdf`;
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
                   className="w-full"
                 >
                   <Download className="mr-2 h-4 w-4" />

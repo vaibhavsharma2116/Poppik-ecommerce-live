@@ -86,9 +86,8 @@ function Router() {
             <Route path="/orders" component={AdminOrders} />
             <Route path="/customers" component={AdminCustomers} />
             <Route path="/sliders" component={AdminSliders} />
+            <Route path="/job-applications" component={JobApplications} />
             <Route path="/blog">
-<Route path="/job-applications" component={JobApplications}/>
-
               <Suspense fallback={<LoadingSpinner />}>
                 <AdminBlog />
               </Suspense>
