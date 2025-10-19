@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ArrowLeft, Briefcase, Upload, X } from "lucide-react";
 import { Link, useRoute } from "wouter";
@@ -9,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function CareersApply() {
   const [, params] = useRoute("/careers/apply/:position?");
@@ -21,7 +27,9 @@ export default function CareersApply() {
     phone: "",
     position: decodeURIComponent(position).replace(/-/g, " "),
     location: "",
-    experience: "",
+    isFresher: false,
+    experienceYears: "",
+    experienceMonths: "",
     coverLetter: "",
     resume: null as File | null,
   });
@@ -41,6 +49,10 @@ export default function CareersApply() {
 
   const handleRemoveFile = () => {
     setFormData((prev) => ({ ...prev, resume: null }));
+  };
+
+  const handleSelectChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,7 +106,7 @@ export default function CareersApply() {
               {/* Personal Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="fullName">Full Name *</Label>
@@ -159,35 +171,85 @@ export default function CareersApply() {
               {/* Position Details */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">Position Details</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="position">Position Applied For *</Label>
-                    <Input
-                      id="position"
-                      name="position"
-                      type="text"
-                      required
-                      value={formData.position}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Beauty Consultant"
-                      className="mt-1"
+
+                <div>
+                  <Label htmlFor="position">Position Applied For *</Label>
+                  <Input
+                    id="position"
+                    name="position"
+                    type="text"
+                    required
+                    value={formData.position}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Beauty Consultant"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="experienceSection" className="text-base font-medium">
+                    Total years of experience *
+                  </Label>
+                  <div className="flex items-center mt-2 mb-3">
+                    <input
+                      type="checkbox"
+                      id="isFresher"
+                      checked={formData.isFresher}
+                      onChange={(e) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          isFresher: e.target.checked,
+                          experienceYears: e.target.checked ? "" : prev.experienceYears,
+                          experienceMonths: e.target.checked ? "" : prev.experienceMonths,
+                        }));
+                      }}
+                      className="h-4 w-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500 cursor-pointer"
                     />
+                    <Label htmlFor="isFresher" className="ml-2 text-sm font-normal cursor-pointer">
+                      I am a fresher
+                    </Label>
                   </div>
 
-                  <div>
-                    <Label htmlFor="experience">Years of Experience *</Label>
-                    <Input
-                      id="experience"
-                      name="experience"
-                      type="text"
-                      required
-                      value={formData.experience}
-                      onChange={handleInputChange}
-                      placeholder="e.g., 2-3 years"
-                      className="mt-1"
-                    />
-                  </div>
+                  {!formData.isFresher && (
+                    <div className="grid grid-cols-2 gap-4 mt-2">
+                      <div>
+                        <Select
+                          value={formData.experienceYears}
+                          onValueChange={(value) => handleSelectChange("experienceYears", value)}
+                          required={!formData.isFresher}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Years" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 31 }, (_, i) => (
+                              <SelectItem key={i} value={String(i)}>
+                                {i} {i === 1 ? "Year" : "Years"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Select
+                          value={formData.experienceMonths}
+                          onValueChange={(value) => handleSelectChange("experienceMonths", value)}
+                          required={!formData.isFresher}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Months" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 12 }, (_, i) => (
+                              <SelectItem key={i} value={String(i)}>
+                                {i} {i === 1 ? "Month" : "Months"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -207,7 +269,7 @@ export default function CareersApply() {
               {/* Resume Upload */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">Resume</h3>
-                
+
                 <div>
                   <Label htmlFor="resume">Upload Resume * (PDF, DOC, DOCX - Max 5MB)</Label>
                   <div className="mt-2">

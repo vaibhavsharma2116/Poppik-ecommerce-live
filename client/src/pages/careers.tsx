@@ -141,23 +141,6 @@ export default function Careers() {
           </CardContent>
         </Card>
 
-        {/* Why Join Us */}
-        <Card className="mb-8 shadow-xl border-0 bg-gradient-to-r from-pink-500 to-purple-500 text-white">
-          <CardContent className="py-8">
-            <h2 className="text-3xl font-bold text-center mb-8">Why Work With Us?</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {benefits.map((benefit, index) => (
-                <div key={index} className="text-center">
-                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <div className="text-white">{benefit.icon}</div>
-                  </div>
-                  <h3 className="font-bold text-lg mb-2">{benefit.title}</h3>
-                  <p className="text-pink-100 text-sm">{benefit.description}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Open Positions */}
         <div className="mb-8">
@@ -206,7 +189,22 @@ export default function Careers() {
             </div>
           )}
         </div>
-
+  <Card className="mb-8 shadow-xl border-0 bg-gradient-to-r from-pink-500 to-purple-500 text-white">
+          <CardContent className="py-8">
+            <h2 className="text-3xl font-bold text-center mb-8">Why Work With Us?</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {benefits.map((benefit, index) => (
+                <div key={index} className="text-center">
+                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="text-white">{benefit.icon}</div>
+                  </div>
+                  <h3 className="font-bold text-lg mb-2">{benefit.title}</h3>
+                  <p className="text-pink-100 text-sm">{benefit.description}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
         {/* Contact Section */}
         <Card className="shadow-xl border-0 bg-gradient-to-r from-gray-900 to-gray-800 text-white">
           <CardContent className="text-center py-8">
@@ -228,6 +226,7 @@ export default function Careers() {
           </CardContent>
         </Card>
       </div>
+      
     </div>
   );
 }

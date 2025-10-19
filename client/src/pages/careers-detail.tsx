@@ -1,5 +1,5 @@
 
-import { ArrowLeft, MapPin, Briefcase, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, MapPin, Briefcase, Clock, CheckCircle2, Calendar } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,12 @@ export default function CareersDetail() {
       department: "Sales",
       location: "Mumbai, India",
       type: "Full-time",
+      jobId: "279875",
+      experienceLevel: "Entry-Level",
+      workExperience: "2+ years",
+      education: "Bachelor's Degree",
       description: "Help customers discover their perfect beauty products and provide expert advice on skincare and makeup.",
+      aboutRole: "We are looking for a creative and detail-oriented Beauty Consultant to join our team. The ideal candidate should have a keen eye for storytelling, pacing, and aesthetics. You will work closely with the creative and marketing teams to produce engaging beauty content for social media, campaigns, product launches, and other brand communication needs.",
       responsibilities: [
         "Provide personalized beauty consultations to customers",
         "Demonstrate product features and benefits",
@@ -35,14 +40,20 @@ export default function CareersDetail() {
         "High school diploma or equivalent",
         "Beauty certification preferred",
         "Experience with POS systems"
-      ]
+      ],
+      skills: ["Customer Service", "Product Knowledge", "Sales", "Communication", "Makeup Application"]
     },
     "digital-marketing-specialist": {
       title: "Digital Marketing Specialist",
       department: "Marketing",
       location: "Remote",
       type: "Full-time",
+      jobId: "279876",
+      experienceLevel: "Mid-Level",
+      workExperience: "3+ years",
+      education: "Bachelor's Degree in Marketing",
       description: "Drive our digital presence through innovative campaigns and social media strategies.",
+      aboutRole: "We are seeking a talented Digital Marketing Specialist to elevate our brand's online presence. You will develop and execute comprehensive digital marketing strategies that engage our audience and drive business growth.",
       responsibilities: [
         "Develop and execute digital marketing campaigns",
         "Manage social media channels and content calendar",
@@ -61,14 +72,20 @@ export default function CareersDetail() {
         "Bachelor's degree in Marketing or related field",
         "Google Analytics and Ads certifications",
         "Experience in beauty/cosmetics industry preferred"
-      ]
+      ],
+      skills: ["Social Media Marketing", "Content Creation", "Analytics", "SEO", "Paid Advertising"]
     },
     "product-development-manager": {
       title: "Product Development Manager",
       department: "R&D",
       location: "Bangalore, India",
       type: "Full-time",
+      jobId: "279877",
+      experienceLevel: "Senior-Level",
+      workExperience: "5+ years",
+      education: "Bachelor's Degree in Chemistry/Cosmetic Science",
       description: "Lead the development of new beauty products from concept to launch.",
+      aboutRole: "We are looking for an experienced Product Development Manager to lead our innovation initiatives. You will oversee the entire product development lifecycle, from concept to market launch, ensuring our products meet the highest quality standards.",
       responsibilities: [
         "Oversee product development lifecycle",
         "Conduct market research and competitive analysis",
@@ -87,14 +104,20 @@ export default function CareersDetail() {
         "Bachelor's degree in Chemistry, Cosmetic Science, or related field",
         "MBA or advanced degree preferred",
         "Experience with product lifecycle management"
-      ]
+      ],
+      skills: ["Product Development", "Project Management", "Regulatory Compliance", "R&D", "Leadership"]
     },
     "customer-service-representative": {
       title: "Customer Service Representative",
       department: "Support",
       location: "Mumbai, India",
       type: "Part-time",
+      jobId: "279878",
+      experienceLevel: "Entry-Level",
+      workExperience: "1+ years",
+      education: "High School Diploma",
       description: "Provide exceptional customer support and ensure customer satisfaction.",
+      aboutRole: "Join our customer support team and help us deliver outstanding service to our valued customers. You will be the first point of contact for customer inquiries and play a crucial role in maintaining our high satisfaction standards.",
       responsibilities: [
         "Respond to customer inquiries via phone, email, and chat",
         "Resolve customer complaints and issues promptly",
@@ -113,7 +136,8 @@ export default function CareersDetail() {
         "High school diploma or equivalent",
         "Experience with CRM systems",
         "Fluency in English and Hindi"
-      ]
+      ],
+      skills: ["Customer Support", "Communication", "Problem Solving", "CRM Systems", "Multitasking"]
     }
   };
 
@@ -135,145 +159,161 @@ export default function CareersDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-white">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back Button */}
-        <Link href="/careers" className="inline-flex items-center text-pink-600 hover:text-pink-700 mb-8 transition-colors font-medium">
+        <Link href="/careers" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors font-medium">
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to All Positions
+          Back to All Jobs
         </Link>
-        
-        {/* Header Section */}
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden mb-8">
-          <div className="bg-gradient-to-r from-pink-600 via-purple-600 to-pink-500 p-8 sm:p-12 text-white">
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-              <div className="flex-1">
-                <h1 className="text-4xl sm:text-5xl font-bold mb-4">{position.title}</h1>
-                <p className="text-pink-100 text-lg mb-6 max-w-2xl">{position.description}</p>
-                <div className="flex flex-wrap gap-3">
-                  <Badge className="bg-white/20 text-white border-white/30 px-4 py-2 text-sm">
-                    <Briefcase className="h-4 w-4 mr-2" />
-                    {position.department}
-                  </Badge>
-                  <Badge className="bg-white/20 text-white border-white/30 px-4 py-2 text-sm">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    {position.location}
-                  </Badge>
-                  <Badge className="bg-white/20 text-white border-white/30 px-4 py-2 text-sm">
-                    <Clock className="h-4 w-4 mr-2" />
-                    {position.type}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content - Left Side */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Job Header */}
+            <div className="bg-white rounded-lg p-8 shadow-sm">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{position.title}</h1>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-sm">
+                    Job ID: {position.jobId}
                   </Badge>
                 </div>
-              </div>
-              <div className="lg:mt-0">
                 <Link href={`/careers/apply/${positionSlug}`}>
-                  <Button className="bg-white text-pink-600 hover:bg-pink-50 font-bold px-8 py-6 text-lg shadow-xl hover:shadow-2xl transition-all">
-                    Apply Now
+                  <Button className="bg-green-600 hover:bg-green-700 text-white px-6 py-2">
+                    Apply
                   </Button>
                 </Link>
               </div>
+
+              <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-6">
+                <span className="flex items-center">
+                  <Briefcase className="h-4 w-4 mr-1" />
+                  {position.department}
+                </span>
+                <span className="flex items-center">
+                  <MapPin className="h-4 w-4 mr-1" />
+                  {position.location}
+                </span>
+                <span className="flex items-center">
+                  <Calendar className="h-4 w-4 mr-1" />
+                  {position.type}
+                </span>
+              </div>
+
+              <p className="text-gray-700 leading-relaxed">
+                {position.description}
+              </p>
+            </div>
+
+            {/* About the Role */}
+            <div className="bg-white rounded-lg p-8 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">About the Role</h2>
+              <p className="text-gray-700 leading-relaxed">
+                {position.aboutRole}
+              </p>
+            </div>
+
+            {/* Key Responsibilities */}
+            <div className="bg-white rounded-lg p-8 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Key Responsibilities</h2>
+              <ul className="space-y-3">
+                {position.responsibilities.map((item: string, index: number) => (
+                  <li key={index} className="flex items-start">
+                    <CheckCircle2 className="h-5 w-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-700">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* What We're Looking For */}
+            <div className="bg-white rounded-lg p-8 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">What We're Looking For</h2>
+              <ul className="space-y-3">
+                {position.requirements.map((item: string, index: number) => (
+                  <li key={index} className="flex items-start">
+                    <CheckCircle2 className="h-5 w-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-700">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Additional Note */}
+            <div className="bg-white rounded-lg p-8 shadow-sm">
+              <p className="text-gray-700 leading-relaxed">
+                While this position is for a {position.type.toLowerCase()}, outstanding candidates may be considered for full-time positions based on performance and availability or the requirements within the company. We encourage you to demonstrate your skills and dedication throughout your time with us.
+              </p>
+            </div>
+          </div>
+
+          {/* Sidebar - Right Side */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-8 space-y-6">
+              {/* Apply CTA */}
+              <Card className="shadow-sm">
+                <CardContent className="p-6 text-center">
+                  <Link href={`/careers/apply/${positionSlug}`}>
+                    <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 mb-3">
+                      Apply
+                    </Button>
+                  </Link>
+                  <Link href="/careers">
+                    <Button variant="outline" className="w-full">
+                      See all jobs
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+
+              {/* Job Details */}
+              <Card className="shadow-sm">
+                <CardHeader className="border-b">
+                  <CardTitle className="text-lg font-semibold text-gray-900">Job Details</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Experience Level</h4>
+                    <p className="text-gray-600">{position.experienceLevel}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Work Experience (years)</h4>
+                    <p className="text-gray-600">{position.workExperience}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Education</h4>
+                    <p className="text-gray-600">{position.education}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Skills */}
+              <Card className="shadow-sm">
+                <CardHeader className="border-b">
+                  <CardTitle className="text-lg font-semibold text-gray-900">Skills</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="flex flex-wrap gap-2">
+                    {position.skills.map((skill: string, index: number) => (
+                      <Badge key={index} variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Share Job - Optional */}
+              <Card className="shadow-sm">
+                <CardContent className="p-6 text-center">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Share this job</h4>
+                  <p className="text-xs text-gray-500">Help us find the right candidate!</p>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
-
-        {/* Job Details Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content - 2 columns */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Key Responsibilities */}
-            <Card className="shadow-xl border-0 overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-pink-50 to-purple-50 border-b border-pink-100">
-                <CardTitle className="text-2xl font-bold text-gray-900 flex items-center">
-                  <div className="w-2 h-8 bg-gradient-to-b from-pink-500 to-purple-500 rounded-full mr-3"></div>
-                  Key Responsibilities
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <ul className="space-y-4">
-                  {position.responsibilities.map((item: string, index: number) => (
-                    <li key={index} className="flex items-start group">
-                      <CheckCircle2 className="h-6 w-6 text-pink-500 mr-3 flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-                      <span className="text-gray-700 text-base leading-relaxed">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Requirements */}
-            <Card className="shadow-xl border-0 overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100">
-                <CardTitle className="text-2xl font-bold text-gray-900 flex items-center">
-                  <div className="w-2 h-8 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full mr-3"></div>
-                  Requirements
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <ul className="space-y-4">
-                  {position.requirements.map((item: string, index: number) => (
-                    <li key={index} className="flex items-start group">
-                      <CheckCircle2 className="h-6 w-6 text-purple-500 mr-3 flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-                      <span className="text-gray-700 text-base leading-relaxed">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar - 1 column */}
-          <div className="space-y-6">
-            {/* Qualifications */}
-            <Card className="shadow-xl border-0 overflow-hidden sticky top-8">
-              <CardHeader className="bg-gradient-to-r from-pink-50 to-purple-50 border-b border-pink-100">
-                <CardTitle className="text-xl font-bold text-gray-900 flex items-center">
-                  <div className="w-2 h-8 bg-gradient-to-b from-pink-500 to-purple-500 rounded-full mr-3"></div>
-                  Preferred Qualifications
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <ul className="space-y-4">
-                  {position.qualifications.map((item: string, index: number) => (
-                    <li key={index} className="flex items-start group">
-                      <CheckCircle2 className="h-5 w-5 text-pink-500 mr-3 flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-                      <span className="text-gray-700 text-sm leading-relaxed">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Apply CTA Card */}
-            <Card className="shadow-xl border-0 overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 text-white">
-              <CardContent className="p-6 text-center">
-                <h3 className="text-xl font-bold mb-3">Ready to Apply?</h3>
-                <p className="text-gray-300 mb-5 text-sm">
-                  Take the next step in your career journey with us!
-                </p>
-                <Link href={`/careers/apply/${positionSlug}`}>
-                  <Button className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-bold py-3 shadow-lg hover:shadow-xl transition-all">
-                    Submit Application
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Bottom CTA */}
-        <Card className="mt-12 shadow-2xl border-0 bg-gradient-to-r from-pink-600 via-purple-600 to-pink-500 text-white overflow-hidden">
-          <CardContent className="text-center py-12 px-6">
-            <h3 className="text-3xl font-bold mb-4">Join the Poppik Family</h3>
-            <p className="text-pink-100 mb-8 text-lg max-w-3xl mx-auto">
-              Be part of a team that's revolutionizing the beauty industry. We can't wait to meet you!
-            </p>
-            <Link href={`/careers/apply/${positionSlug}`}>
-              <Button className="bg-white text-pink-600 hover:bg-pink-50 px-12 py-6 text-xl font-bold shadow-2xl hover:shadow-3xl transition-all">
-                Apply for this Position
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
