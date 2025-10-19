@@ -45,6 +45,10 @@ export default function AdminCombos() {
     reviewCount: "0",
     isActive: true,
     sortOrder: 0,
+    detailedDescription: "",
+    productsIncluded: "",
+    benefits: "",
+    howToUse: "",
   });
 
   const { data: combos = [], isLoading } = useQuery({
@@ -111,9 +115,11 @@ export default function AdminCombos() {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
-      setSelectedImages(prev => [...prev, ...files]);
+      // Limit to 10 images max
+      const newFiles = files.slice(0, 10 - selectedImages.length);
+      setSelectedImages(prev => [...prev, ...newFiles]);
       
-      files.forEach(file => {
+      newFiles.forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
           setImagePreviews(prev => [...prev, e.target?.result as string]);
@@ -150,51 +156,46 @@ export default function AdminCombos() {
     }
 
     const formDataToSend = new FormData();
-    formDataToSend.append("name", formData.name);
-    formDataToSend.append("description", formData.description);
-    formDataToSend.append("price", formData.price);
-    formDataToSend.append("originalPrice", formData.originalPrice);
-    formDataToSend.append("discount", formData.discount);
-
-    // Convert product IDs to product objects with details
+    
+    // Store only essential product data to avoid field length issues
     const selectedProducts = formData.products.map(productId => {
       const product = allProducts.find(p => p.id === productId);
       return {
         id: product?.id,
-        name: product?.name,
+        name: product?.name?.substring(0, 100) || '', // Limit name length
         price: product?.price,
-        imageUrl: product?.imageUrl,
+        imageUrl: product?.imageUrl?.substring(0, 200) || '', // Limit URL length
       };
     });
 
+    // Create a compact combo data object
     const comboData = {
-      name: formData.name,
-      slug: formData.name.toLowerCase().replace(/\s+/g, '-'),
-      description: formData.description,
-      price: parseFloat(formData.price),
-      originalPrice: parseFloat(formData.originalPrice),
-      discount: formData.discount,
-      imageUrl: formData.imageUrl,
+      name: formData.name.substring(0, 200),
+      description: formData.description.substring(0, 500),
+      price: formData.price,
+      originalPrice: formData.originalPrice,
+      discount: formData.discount.substring(0, 50),
       products: selectedProducts,
-      rating: parseFloat(formData.rating),
-      reviewCount: parseInt(formData.reviewCount),
+      rating: formData.rating,
+      reviewCount: formData.reviewCount,
       isActive: formData.isActive,
       sortOrder: formData.sortOrder,
+      detailedDescription: formData.detailedDescription,
+      productsIncluded: formData.productsIncluded,
+      benefits: formData.benefits,
+      howToUse: formData.howToUse,
     };
 
-    // Append combo data as JSON string
     formDataToSend.append("comboData", JSON.stringify(comboData));
 
-    // Append multiple images
+    // Append all selected images
     if (selectedImages.length > 0) {
-      selectedImages.forEach((image, index) => {
-        formDataToSend.append(`images`, image);
+      selectedImages.forEach((image) => {
+        formDataToSend.append("images", image);
       });
     } else if (editingCombo?.imageUrl) {
-      // If editing and no new images, keep existing imageUrl
       formDataToSend.append("imageUrl", editingCombo.imageUrl);
     }
-
 
     if (editingCombo) {
       updateMutation.mutate({ id: editingCombo.id, data: formDataToSend });
@@ -216,6 +217,10 @@ export default function AdminCombos() {
       reviewCount: '0',
       isActive: true,
       sortOrder: 0,
+      detailedDescription: '',
+      productsIncluded: '',
+      benefits: '',
+      howToUse: '',
     });
     setProductSearchTerm('');
     setImagePreviews([]);
@@ -244,12 +249,19 @@ export default function AdminCombos() {
       reviewCount: combo.reviewCount?.toString() || '0',
       isActive: combo.isActive ?? true,
       sortOrder: combo.sortOrder ?? 0,
+      detailedDescription: combo.detailedDescription || '',
+      productsIncluded: combo.productsIncluded || '',
+      benefits: combo.benefits || '',
+      howToUse: combo.howToUse || '',
     });
     
     // Load existing images if available
-    if (combo.imageUrl) {
-      setImagePreviews([combo.imageUrl]);
-    }
+    const existingImages = combo.imageUrls && combo.imageUrls.length > 0 
+      ? combo.imageUrls 
+      : combo.imageUrl ? [combo.imageUrl] : [];
+    
+    setImagePreviews(existingImages);
+    setSelectedImages([]);
     setIsModalOpen(true);
   };
 
@@ -458,11 +470,53 @@ export default function AdminCombos() {
             </div>
 
             <div>
-              <Label>Description *</Label>
+              <Label>Short Description *</Label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 required
+                rows={3}
+                placeholder="Brief description for combo card"
+              />
+            </div>
+
+            <div>
+              <Label>Detailed Description</Label>
+              <Textarea
+                value={formData.detailedDescription}
+                onChange={(e) => setFormData({ ...formData, detailedDescription: e.target.value })}
+                rows={5}
+                placeholder="Full description for combo detail page"
+              />
+            </div>
+
+            <div>
+              <Label>Products Included Details</Label>
+              <Textarea
+                value={formData.productsIncluded}
+                onChange={(e) => setFormData({ ...formData, productsIncluded: e.target.value })}
+                rows={5}
+                placeholder="Describe what products are included and their benefits"
+              />
+            </div>
+
+            <div>
+              <Label>Benefits</Label>
+              <Textarea
+                value={formData.benefits}
+                onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
+                rows={5}
+                placeholder="List the benefits of this combo (one per line or separated by commas)"
+              />
+            </div>
+
+            <div>
+              <Label>How to Use</Label>
+              <Textarea
+                value={formData.howToUse}
+                onChange={(e) => setFormData({ ...formData, howToUse: e.target.value })}
+                rows={5}
+                placeholder="Step-by-step instructions on how to use the products in this combo"
               />
             </div>
 

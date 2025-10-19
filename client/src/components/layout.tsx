@@ -1092,7 +1092,7 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/careers" className="text-gray-400 hover:text-white transition-colors">
                     Careers
                   </Link>
                 </li>

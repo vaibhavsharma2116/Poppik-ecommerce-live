@@ -24,6 +24,7 @@ import TrackOrder from "./pages/track-order";
 import ChangePassword from "./pages/change-password";
 import Terms from "./pages/terms";
 import Privacy from "./pages/privacy";
+import Careers from "@/pages/careers";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminProducts from "@/pages/admin/products";
 import AdminCategories from "@/pages/admin/category";
@@ -115,7 +116,15 @@ function Router() {
         <Layout>
           <Switch>
             <Route path="/" component={Home} />
-            <Route path="/combo" component={ComboPage} />
+            <Route path="/combos" component={ComboPage} />
+            <Route path="/combo/:id" component={() => {
+              const ComboDetail = lazy(() => import("./pages/combo-detail"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <ComboDetail />
+                </Suspense>
+              );
+            }} />
             <Route path="/academy">
               <Suspense fallback={<LoadingSpinner />}>
                 <AcademyPage />
@@ -147,6 +156,15 @@ function Router() {
             <Route path="/change-password" component={ChangePassword} />
              <Route path="/terms" component={Terms} />
             <Route path="/privacy" component={Privacy} />
+            <Route path="/careers" component={Careers} />
+            <Route path="/careers/apply/:position?" component={() => {
+              const CareersApply = lazy(() => import("./pages/careers-apply"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <CareersApply />
+                </Suspense>
+              );
+            }} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

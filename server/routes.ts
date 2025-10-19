@@ -54,7 +54,7 @@ import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
-import type { InsertBlogCategory } from "../shared/schema";
+import type { InsertBlogCategory, InsertBlogSubcategory } from "../shared/schema";
 
 // Database connection with enhanced configuration
 const pool = new Pool({
@@ -1376,7 +1376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(products);
     } catch (error) {
       console.log("Database unavailable, using sample featured products");
-     
+      res.status(500).json({ error: "Failed to fetch featured products" }); // Added error handling
     }
   });
 
@@ -1386,7 +1386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(products);
     } catch (error) {
       console.log("Database unavailable, using sample bestseller products");
-      
+      res.status(500).json({ error: "Failed to fetch bestseller products" }); // Added error handling
     }
   });
 
@@ -1396,7 +1396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(products);
     } catch (error) {
       console.log("Database unavailable, using sample new launch products");
-     
+      res.status(500).json({ error: "Failed to fetch new launch products" }); // Added error handling
     }
   });
 
@@ -1429,7 +1429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(Array.from(uniqueProducts.values()));
     } catch (error) {
       console.log("Database unavailable, using sample product data with subcategory filter");
-      
+      res.status(500).json({ error: "Failed to fetch products by subcategory" }); // Added error handling
     }
   });
 
@@ -1540,6 +1540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(filteredProducts);
     } catch (error) {
       console.log("Database unavailable, using sample product data with category filter");
+      res.status(500).json({ error: "Failed to fetch products by category" }); // Added error handling
     }
   });
 
@@ -1552,6 +1553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(product);
     } catch (error) {
+      console.error("Error fetching product by slug:", error);
       res.status(500).json({ error: "Failed to fetch product" });
     }
   });
@@ -1577,6 +1579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(categories);
   } catch (error) {
     console.log("Database unavailable, using sample category data");
+    // Fallback to sample data if database is unavailable
     res.json(generateSampleCategories());
   }
 });
@@ -1590,6 +1593,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(category);
     } catch (error) {
+      console.error("Error fetching category by slug:", error);
       res.status(500).json({ error: "Failed to fetch category" });
     }
   });
@@ -1655,6 +1659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(category);
     } catch (error) {
+      console.error("Error updating category:", error);
       res.status(500).json({ error: "Failed to update category" });
     }
   });
@@ -1668,6 +1673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({ success: true });
     } catch (error) {
+      console.error("Error deleting category:", error);
       res.status(500).json({ error: "Failed to delete category" });
     }
   });
@@ -1735,6 +1741,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const subcategories = await storage.getSubcategoriesByCategory(parseInt(categoryId));
       res.json(subcategories);
     } catch (error) {
+      console.error("Error fetching subcategories by category ID:", error);
       res.status(500).json({ error: "Failed to fetch subcategories" });
     }
   });
@@ -1748,6 +1755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(subcategory);
     } catch (error) {
+      console.error("Error fetching subcategory by slug:", error);
       res.status(500).json({ error: "Failed to fetch subcategory" });
     }
   });
@@ -1824,6 +1832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(subcategory);
     } catch (error) {
+      console.error("Error updating subcategory:", error);
       res.status(500).json({ error: "Failed to update subcategory" });
     }
   });
@@ -1837,6 +1846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json({ success: true });
     } catch (error) {
+      console.error("Error deleting subcategory:", error);
       res.status(500).json({ error: "Failed to delete subcategory" });
     }
   });
@@ -3040,16 +3050,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(postsWithParsedTags);
     } catch (error) {
-     
+      console.error("Error fetching blog posts:", error);
+      res.status(500).json({ error: "Failed to fetch blog posts" });
     }
   });
 
   app.get("/api/blog/posts/:slug", async (req, res) => {
-   
+
       const { slug } = req.params;
 
-     
-     
+
+
 
       try {
         const post = await storage.getBlogPostBySlug(slug);
@@ -3078,7 +3089,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching blog categories:", error);
       // Return default categories when database is unavailable
-   
+      res.json([
+        { id: 1, name: "Skincare", slug: "skincare", description: "All about skincare", isActive: true, sortOrder: 1 },
+        { id: 2, name: "Makeup", slug: "makeup", description: "All about makeup", isActive: true, sortOrder: 2 },
+        { id: 3, name: "Haircare", slug: "haircare", description: "All about haircare", isActive: true, sortOrder: 3 }
+      ]);
     }
   });
 
@@ -3951,6 +3966,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const products = await storage.getFeaturedProducts();
       res.json(products);
     } catch (error) {
+      console.error("Error fetching featured products:", error);
       res.status(500).json({ error: "Failed to fetch featured products" });
     }
   });
@@ -4635,7 +4651,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(schema.combos.isActive, true))
         .orderBy(asc(schema.combos.sortOrder));
 
-      res.json(activeCombos);
+      // Get images for each combo
+      const combosWithImages = await Promise.all(
+        activeCombos.map(async (combo) => {
+          try {
+            const images = await db
+              .select()
+              .from(schema.comboImages)
+              .where(eq(schema.comboImages.comboId, combo.id))
+              .orderBy(asc(schema.comboImages.sortOrder));
+
+            return {
+              ...combo,
+              imageUrls: images.map(img => img.imageUrl)
+            };
+          } catch (imgError) {
+            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
+            return {
+              ...combo,
+              imageUrls: []
+            };
+          }
+        })
+      );
+
+      res.json(combosWithImages);
     } catch (error) {
       console.error('Error fetching combos:', error);
       res.status(500).json({ error: 'Failed to fetch combos' });
@@ -4650,36 +4690,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(schema.combos)
         .orderBy(desc(schema.combos.createdAt));
 
-      res.json(allCombos);
+      // Get images for each combo
+      const combosWithImages = await Promise.all(
+        allCombos.map(async (combo) => {
+          try {
+            const images = await db
+              .select()
+              .from(schema.comboImages)
+              .where(eq(schema.comboImages.comboId, combo.id))
+              .orderBy(asc(schema.comboImages.sortOrder));
+
+            return {
+              ...combo,
+              imageUrls: images.map(img => img.imageUrl)
+            };
+          } catch (imgError) {
+            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
+            return {
+              ...combo,
+              imageUrls: []
+            };
+          }
+        })
+      );
+
+      res.json(combosWithImages);
     } catch (error) {
       console.error('Error fetching combos:', error);
       res.status(500).json({ error: 'Failed to fetch combos' });
     }
   });
 
-  app.post('/api/admin/combos', upload.single('image'), async (req, res) => {
+  app.post('/api/admin/combos', upload.fields([{ name: 'images', maxCount: 10 }]), async (req, res) => {
     try {
-      let imageUrl = req.body.imageUrl;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      if (req.file) {
-        imageUrl = `/api/images/${req.file.filename}`;
+      // Parse comboData if it was sent as JSON string
+      let comboDataParsed = req.body.comboData ? JSON.parse(req.body.comboData) : null;
+
+      const name = (comboDataParsed?.name || req.body.name || '').substring(0, 200);
+      const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 200);
+
+      // Get products array - ensure it's properly parsed and limited
+      let products = comboDataParsed?.products || [];
+      if (typeof products === 'string') {
+        try {
+          products = JSON.parse(products);
+        } catch (e) {
+          products = [];
+        }
       }
 
-      const slug = req.body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      // Ensure products is an array and limit to 20 items
+      if (!Array.isArray(products)) {
+        products = [];
+      }
+      products = products.slice(0, 20);
+
+      // Determine primary image URL
+      let primaryImageUrl = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop';
+
+      if (files?.images && files.images.length > 0) {
+        primaryImageUrl = `/api/images/${files.images[0].filename}`;
+      } else if (comboDataParsed?.imageUrl || req.body.imageUrl) {
+        primaryImageUrl = comboDataParsed?.imageUrl || req.body.imageUrl;
+      }
 
       const comboData = {
-        name: req.body.name,
+        name: name,
         slug,
-        description: req.body.description,
-        price: parseFloat(req.body.price),
-        originalPrice: parseFloat(req.body.originalPrice),
-        discount: req.body.discount,
-        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop',
-        products: JSON.parse(req.body.products),
-        rating: parseFloat(req.body.rating) || 5.0,
-        reviewCount: parseInt(req.body.reviewCount) || 0,
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
+        description: (comboDataParsed?.description || req.body.description || '').substring(0, 500),
+        detailedDescription: comboDataParsed?.detailedDescription || req.body.detailedDescription || null,
+        productsIncluded: comboDataParsed?.productsIncluded || req.body.productsIncluded || null,
+        benefits: comboDataParsed?.benefits || req.body.benefits || null,
+        howToUse: comboDataParsed?.howToUse || req.body.howToUse || null,
+        price: parseFloat(comboDataParsed?.price || req.body.price) || 0,
+        originalPrice: parseFloat(comboDataParsed?.originalPrice || req.body.originalPrice) || 0,
+        discount: (comboDataParsed?.discount || req.body.discount || '').substring(0, 50),
+        imageUrl: primaryImageUrl,
+        products: products,
+        rating: parseFloat(comboDataParsed?.rating || req.body.rating) || 5.0,
+        reviewCount: parseInt(comboDataParsed?.reviewCount || req.body.reviewCount) || 0,
+        isActive: comboDataParsed?.isActive !== false && req.body.isActive !== 'false',
+        sortOrder: parseInt(comboDataParsed?.sortOrder || req.body.sortOrder) || 0,
       };
 
       const [combo] = await db
@@ -4687,34 +4780,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .values(comboData)
         .returning();
 
+      // Store all combo images in combo_images table
+      if (files?.images && files.images.length > 0) {
+        await Promise.all(
+          files.images.map(async (file, index) => {
+            await db.insert(schema.comboImages).values({
+              comboId: combo.id,
+              imageUrl: `/api/images/${file.filename}`,
+              altText: `${combo.name} - Image ${index + 1}`,
+              isPrimary: index === 0,
+              sortOrder: index
+            });
+          })
+        );
+      }
+
       res.status(201).json(combo);
     } catch (error) {
       console.error('Error creating combo:', error);
-      res.status(500).json({ error: 'Failed to create combo' });
+      console.error('Error details:', error.message);
+      res.status(500).json({
+        error: 'Failed to create combo',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
-  app.put('/api/admin/combos/:id', upload.single('image'), async (req, res) => {
+  app.put('/api/admin/combos/:id', upload.fields([{ name: 'images', maxCount: 10 }]), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      // Parse comboData if it was sent as JSON string
+      let comboDataParsed = req.body.comboData ? JSON.parse(req.body.comboData) : null;
+
+      // Get products array - ensure it's properly parsed and limited
+      let products = comboDataParsed?.products || req.body.products || [];
+      if (typeof products === 'string') {
+        try {
+          products = JSON.parse(products);
+        } catch (e) {
+          products = [];
+        }
+      }
+
+      // Ensure products is an array and limit to 20 items
+      if (!Array.isArray(products)) {
+        products = [];
+      }
+      products = products.slice(0, 20);
+
       let updateData: any = {
-        name: req.body.name,
-        description: req.body.description,
-        price: parseFloat(req.body.price),
-        originalPrice: parseFloat(req.body.originalPrice),
-        discount: req.body.discount,
-        products: JSON.parse(req.body.products),
-        rating: parseFloat(req.body.rating) || 5.0,
-        reviewCount: parseInt(req.body.reviewCount) || 0,
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
+        name: (comboDataParsed?.name || req.body.name || '').substring(0, 200),
+        description: (comboDataParsed?.description || req.body.description || '').substring(0, 500),
+        detailedDescription: comboDataParsed?.detailedDescription || req.body.detailedDescription || null,
+        productsIncluded: comboDataParsed?.productsIncluded || req.body.productsIncluded || null,
+        benefits: comboDataParsed?.benefits || req.body.benefits || null,
+        howToUse: comboDataParsed?.howToUse || req.body.howToUse || null,
+        price: parseFloat(comboDataParsed?.price || req.body.price) || 0,
+        originalPrice: parseFloat(comboDataParsed?.originalPrice || req.body.originalPrice) || 0,
+        discount: (comboDataParsed?.discount || req.body.discount || '').substring(0, 50),
+        products: products,
+        rating: parseFloat(comboDataParsed?.rating || req.body.rating) || 5.0,
+        reviewCount: parseInt(comboDataParsed?.reviewCount || req.body.reviewCount) || 0,
+        isActive: comboDataParsed?.isActive !== false && req.body.isActive !== 'false',
+        sortOrder: parseInt(comboDataParsed?.sortOrder || req.body.sortOrder) || 0,
         updatedAt: new Date(),
       };
 
-      if (req.file) {
-        updateData.imageUrl = `/api/images/${req.file.filename}`;
-      } else if (req.body.imageUrl) {
-        updateData.imageUrl = req.body.imageUrl;
+      // Handle image updates
+      if (files?.images && files.images.length > 0) {
+        updateData.imageUrl = `/api/images/${files.images[0].filename}`;
+
+        // Delete existing combo images from combo_images table
+        await db.delete(schema.comboImages).where(eq(schema.comboImages.comboId, id));
+
+        // Insert new combo images into combo_images table
+        await Promise.all(
+          files.images.map(async (file, index) => {
+            await db.insert(schema.comboImages).values({
+              comboId: id,
+              imageUrl: `/api/images/${file.filename}`,
+              altText: `${updateData.name} - Image ${index + 1}`,
+              isPrimary: index === 0,
+              sortOrder: index
+            });
+          })
+        );
+      } else if (req.body.imageUrl || comboDataParsed?.imageUrl) {
+        updateData.imageUrl = req.body.imageUrl || comboDataParsed?.imageUrl;
       }
 
       const [combo] = await db
@@ -4730,7 +4884,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(combo);
     } catch (error) {
       console.error('Error updating combo:', error);
-      res.status(500).json({ error: 'Failed to update combo' });
+      console.error('Error details:', error.message);
+      res.status(500).json({
+        error: 'Failed to update combo',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
@@ -5066,7 +5224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
       res.json(result);
     } catch (error) {
-      console      .error("Error checking review eligibility:", error);
+      console.error("Error checking review eligibility:", error);
       res.status(500).json({ error: "Failed to check review eligibility" });
     }
   });
@@ -5292,6 +5450,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: error instanceof Error ? error.message : "Unknown error",
         success: false
       });
+    }
+  });
+
+  // Get single combo by ID
+  app.get("/api/combos/:id", async (req, res) => {
+    try {
+      const comboId = parseInt(req.params.id);
+
+      if (isNaN(comboId)) {
+        return res.status(400).json({ message: "Invalid combo ID" });
+      }
+
+      const combo = await db.query.combos.findFirst({
+        where: eq(schema.combos.id, comboId),
+      });
+
+      if (!combo) {
+        return res.status(404).json({ message: "Combo not found" });
+      }
+
+      // Fetch images from combo_images table
+      const images = await db
+        .select()
+        .from(schema.comboImages)
+        .where(eq(schema.comboImages.comboId, comboId))
+        .orderBy(asc(schema.comboImages.sortOrder));
+
+      // Parse products if it's a string
+      const comboData = {
+        ...combo,
+        products: typeof combo.products === 'string'
+          ? JSON.parse(combo.products)
+          : combo.products,
+        imageUrls: images.length > 0 
+          ? images.map(img => img.imageUrl)
+          : [combo.imageUrl]
+      };
+
+      res.json(comboData);
+    } catch (error: any) {
+      console.error("Error fetching combo:", error);
+      res.status(500).json({ message: error.message });
     }
   });
 

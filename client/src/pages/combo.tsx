@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Heart, Star, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShoppingCart, Heart, Star, Loader2, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ComboProduct {
@@ -14,7 +14,7 @@ interface ComboProduct {
   originalPrice: string | number;
   discount: string;
   imageUrl: string;
-  imageUrls: string[]; // Assuming a new field for multiple images
+  images?: string[];
   products: string[] | string;
   rating: string | number;
   reviewCount: number;
@@ -23,13 +23,34 @@ interface ComboProduct {
 export default function ComboPage() {
   const { toast } = useToast();
   const [wishlist, setWishlist] = useState<number[]>([]);
-  const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: number]: number }>({});
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
   const { data: comboProducts = [], isLoading } = useQuery<ComboProduct[]>({
     queryKey: ["/api/combos"],
   });
 
   const handleAddToCart = (combo: ComboProduct) => {
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id);
+
+    if (existingItem) {
+      existingItem.quantity += 1;
+    } else {
+      cart.push({
+        id: combo.id,
+        name: combo.name,
+        price: `₹${combo.price}`,
+        originalPrice: combo.originalPrice ? `₹${combo.originalPrice}` : undefined,
+        image: combo.imageUrl || (combo.images && combo.images.length > 0 ? combo.images[0] : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75'),
+        quantity: 1,
+        inStock: true
+      });
+    }
+
+    localStorage.setItem("cart", JSON.stringify(cart));
+    localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
+    window.dispatchEvent(new Event("cartUpdated"));
+
     toast({
       title: "Added to Cart",
       description: `${combo.name} has been added to your cart.`,
@@ -55,37 +76,18 @@ export default function ComboPage() {
     });
   };
 
-  // Function to get all images for a combo, including the main imageUrl if no specific imageUrls exist
-  const getAllImages = (combo: ComboProduct): string[] => {
-    return combo.imageUrls && combo.imageUrls.length > 0 ? combo.imageUrls : [combo.imageUrl];
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`w-4 h-4 ${
+          i < Math.floor(rating) 
+            ? "fill-yellow-400 text-yellow-400" 
+            : "text-gray-300"
+        }`}
+      />
+    ));
   };
-
-  // Initialize current image index for each combo
-  useMemo(() => {
-    const initialIndexState = comboProducts.reduce((acc, combo) => {
-      acc[combo.id] = 0;
-      return acc;
-    }, {} as { [key: number]: number });
-    setCurrentImageIndex(initialIndexState);
-  }, [comboProducts]);
-
-
-  const nextImage = (comboId: number, totalImages: number) => {
-    setCurrentImageIndex(prev => {
-      const currentIndex = prev[comboId] || 0;
-      const nextIndex = (currentIndex + 1) % totalImages;
-      return { ...prev, [comboId]: nextIndex };
-    });
-  };
-
-  const prevImage = (comboId: number, totalImages: number) => {
-    setCurrentImageIndex(prev => {
-      const currentIndex = prev[comboId] || 0;
-      const prevIndex = (currentIndex - 1 + totalImages) % totalImages;
-      return { ...prev, [comboId]: prevIndex };
-    });
-  };
-
 
   if (isLoading) {
     return (
@@ -99,168 +101,153 @@ export default function ComboPage() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 max-w-4xl mx-auto">
-            <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
-              Exclusive Combo Offers
-            </h1>
-            <p className="text-lg sm:text-xl text-gray-700 font-medium">
-              Save more with our specially curated combo packs
-            </p>
-          </div>
-        </div>
+        
 
         {/* Combo Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {comboProducts.map((combo) => {
             const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products;
             const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
             const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice) : combo.originalPrice;
             const rating = typeof combo.rating === 'string' ? parseFloat(combo.rating) : combo.rating;
-            const allImages = getAllImages(combo);
-            const currentIndex = currentImageIndex[combo.id] || 0;
+            const discountPercentage = Math.round(((originalPrice - price) / originalPrice) * 100);
+            const isHovered = hoveredCard === combo.id;
 
             return (
-            <Card key={combo.id} className="overflow-hidden bg-white/70 backdrop-blur-md rounded-3xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-              <div className="relative">
-                {/* Product Image Carousel */}
-                <div className="relative overflow-hidden rounded-2xl h-80 group">
-                  <img
-                    src={allImages[currentIndex]}
-                    alt={combo.name}
-                    className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
-                  />
-
-                  {/* Wishlist Button */}
+              <div
+                key={combo.id}
+                className="group transition-all duration-300 overflow-hidden bg-white rounded-xl cursor-pointer"
+                onMouseEnter={() => setHoveredCard(combo.id)}
+                onMouseLeave={() => setHoveredCard(null)}
+              >
+                {/* Image Section */}
+                <div 
+                  className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300"
+                  onClick={() => window.location.href = `/combo/${combo.id}`}
+                >
                   <button
-                    onClick={() => handleToggleWishlist(combo.id)}
-                    className="absolute top-4 right-4 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white transition-all duration-300 z-10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleWishlist(combo.id);
+                    }}
+                    className="absolute top-2 right-2 p-2 hover:scale-110 transition-all duration-300 z-10"
                   >
                     <Heart
-                      className={`h-5 w-5 ${
+                      className={`h-6 w-6 transition-all duration-300 ${
                         wishlist.includes(combo.id)
-                          ? "fill-red-500 text-red-500"
-                          : "text-gray-600"
+                          ? "text-red-500 fill-current animate-pulse"
+                          : "text-gray-400 hover:text-pink-500"
                       }`}
                     />
                   </button>
-
-                  {/* Discount Badge */}
-                  <div className="absolute top-4 left-4 z-10">
-                    <Badge className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1 text-sm font-bold shadow-lg">
-                      {combo.discount}
-                    </Badge>
-                  </div>
-
-                  {/* Image Navigation */}
-                  {allImages.length > 1 && (
-                    <>
-                      <button
-                        onClick={() => prevImage(combo.id, allImages.length)}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white transition-all duration-300 z-10"
-                      >
-                        <ChevronLeft className="h-5 w-5 text-gray-800" />
-                      </button>
-                      <button
-                        onClick={() => nextImage(combo.id, allImages.length)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white transition-all duration-300 z-10"
-                      >
-                        <ChevronRight className="h-5 w-5 text-gray-800" />
-                      </button>
-
-                      {/* Image Indicators */}
-                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-                        {allImages.map((_, imgIdx) => (
-                          <button
-                            key={imgIdx}
-                            onClick={() => setCurrentImageIndex(prev => ({ ...prev, [combo.id]: imgIdx }))}
-                            className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                              imgIdx === currentIndex
-                                ? "bg-white w-6"
-                                : "bg-white/50"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  {combo.name}
-                </h3>
-                <p className="text-gray-600 mb-4 text-sm">
-                  {combo.description}
-                </p>
-
-                {/* Rating */}
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="flex items-center">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i < Math.floor(rating)
-                            ? "text-yellow-400 fill-current"
-                            : "text-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-600">
-                    {rating} ({combo.reviewCount} reviews)
-                  </span>
-                </div>
-
-                {/* Products Included */}
-                <div className="mb-4">
-                  <p className="text-sm font-semibold text-gray-700 mb-2">
-                    Includes:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {products.map((product: string, index: number) => (
-                      <Badge
-                        key={index}
-                        variant="outline"
-                        className="text-xs"
-                      >
-                        {product}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Price */}
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-bold text-gray-900">
-                        ₹{price}
-                      </span>
-                      <span className="text-lg text-gray-500 line-through">
-                        ₹{originalPrice}
-                      </span>
+                  <div className="relative overflow-hidden bg-white">
+                    <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
+                      {combo.imageUrl || (combo.images && combo.images.length > 0) ? (
+                        <img 
+                          src={combo.imageUrl || combo.images[0]} 
+                          alt={combo.name}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
+                          }}
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <Package className="h-12 w-12 text-gray-400" />
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm text-green-600 font-medium">
-                      You save ₹{originalPrice - price}
+                    <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
+                    <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
+                  </div>
+                </div>
+
+                {/* Content Section */}
+                <div className="p-4 sm:p-5 space-y-3 bg-white">
+                  {/* Rating */}
+                  <div className="flex items-center justify-between bg-white rounded-lg p-2">
+                    <div className="flex items-center">
+                      {renderStars(rating)}
+                    </div>
+                    <span className="text-gray-700 text-sm font-bold bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
+                      {rating}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <h3 
+                    className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-2 text-sm sm:text-base" 
+                    style={{ minHeight: '2.5rem', maxHeight: '2.5rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                    onClick={() => window.location.href = `/combo/${combo.id}`}
+                  >
+                    {combo.name}
+                  </h3>
+
+                  {/* Description */}
+                  <p 
+                    className="text-gray-600 text-xs sm:text-sm line-clamp-2 cursor-pointer"
+                    onClick={() => window.location.href = `/combo/${combo.id}`}
+                  >
+                    {combo.description}
+                  </p>
+
+                  {/* Products Included */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-700">Includes:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {Array.isArray(products) && products.slice(0, 3).map((product: any, index: number) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="text-xs px-2 py-0.5"
+                        >
+                          {typeof product === 'string' ? product : product.name}
+                        </Badge>
+                      ))}
+                      {products.length > 3 && (
+                        <Badge variant="outline" className="text-xs px-2 py-0.5">
+                          +{products.length - 3} more
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Price Section */}
+                  <div className="space-y-2">
+                    <div className="flex items-baseline space-x-2">
+                      <span className="text-lg sm:text-xl font-bold text-gray-900">
+                        ₹{price.toLocaleString()}
+                      </span>
+                      {originalPrice > price && (
+                        <>
+                          <span className="text-sm text-gray-500 line-through">
+                            ₹{originalPrice.toLocaleString()}
+                          </span>
+                          <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                            {discountPercentage}% OFF
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <p className="text-xs text-green-600 font-medium">
+                      You save ₹{(originalPrice - price).toLocaleString()}
                     </p>
                   </div>
-                </div>
 
-                {/* Add to Cart Button */}
-                <Button
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                  onClick={() => handleAddToCart(combo)}
-                >
-                  <ShoppingCart className="h-5 w-5 mr-2" />
-                  Add to Cart
-                </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
+                  {/* Add to Cart Button */}
+                  <Button
+                    className="w-full text-sm py-2.5 sm:py-3 flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                    onClick={() => handleAddToCart(combo)}
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    Add to Cart
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Benefits Section */}

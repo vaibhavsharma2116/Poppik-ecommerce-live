@@ -756,6 +756,9 @@ export default function Home() {
 
       {/* UGC Video Section */}
 
+      {/* Combos Section */}
+      <ComboSection />
+
       {/* Testimonials Section */}
       <section className="py-12 sm:py-16 md:py-5 bg-gradient-to-br from-rose-50 via-white to-pink-50">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
@@ -798,6 +801,111 @@ export default function Home() {
       {/* <footer className="bg-black text-black py-16">
       </footer> */}
     </div>
+  );
+}
+
+// Combo Section Component
+function ComboSection() {
+  const { data: comboProducts = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/combos"],
+  });
+
+  const activeComboProducts = comboProducts.filter(combo => combo.isActive).slice(0, 4);
+
+  if (isLoading) {
+    return (
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8 sm:mb-10 md:mb-12">
+            <Skeleton className="h-12 w-64 mx-auto mb-4" />
+            <Skeleton className="h-6 w-48 mx-auto" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                <Skeleton className="aspect-square w-full" />
+                <div className="p-3 space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-6 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (activeComboProducts.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-8 sm:mb-10 md:mb-12">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium mb-2 sm:mb-4">
+            <span className="text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
+              Exclusive Combo Offers
+            </span>
+          </h2>
+          <p className="text-sm sm:text-base md:text-lg text-gray-600">
+            Save more with our specially curated combo packs
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8 px-2 sm:px-0">
+          {activeComboProducts.map((combo) => (
+            <Link key={combo.id} href={`/combo/${combo.id}`}>
+              <div className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+                <div className="relative overflow-hidden">
+                  <div className="aspect-square">
+                    <img
+                      src={combo.imageUrl}
+                      alt={combo.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  {combo.discount && (
+                    <Badge className="absolute top-2 right-2 bg-red-500 text-white">
+                      {combo.discount}
+                    </Badge>
+                  )}
+                </div>
+                <div className="p-3 sm:p-4 space-y-2">
+                  <h3 className="font-semibold text-sm sm:text-base text-gray-900 line-clamp-2 group-hover:text-pink-600 transition-colors">
+                    {combo.name}
+                  </h3>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-lg sm:text-xl font-bold text-pink-600">
+                      ₹{combo.price}
+                    </span>
+                    {combo.originalPrice && combo.originalPrice > combo.price && (
+                      <span className="text-sm text-gray-500 line-through">
+                        ₹{combo.originalPrice}
+                      </span>
+                    )}
+                  </div>
+                  <Button className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-sm py-2">
+                    View Combo
+                  </Button>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        <div className="text-center mt-8 sm:mt-10">
+          <Link href="/combos">
+            <Button className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+              <span>View All Combos</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
 
