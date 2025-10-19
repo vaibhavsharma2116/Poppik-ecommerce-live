@@ -130,9 +130,9 @@ const upload = multer({
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ];
-    
+
     const isAllowed = allowedMimeTypes.some(type => file.mimetype.startsWith(type) || file.mimetype === type);
-    
+
     if (isAllowed) {
       cb(null, true);
     } else {
@@ -4743,7 +4743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 200);
 
       // Get products array - ensure it's properly parsed and limited
-      let products = comboDataParsed?.products || [];
+      let products = comboDataParsed?.products || req.body.products || [];
       if (typeof products === 'string') {
         try {
           products = JSON.parse(products);
@@ -4957,24 +4957,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         experienceMonths: isFresher === 'true' ? null : experienceMonths,
         coverLetter: coverLetter.trim(),
         resumeUrl: resumeUrl,
-        status: 'pending',
-        appliedAt: new Date()
+        status: 'pending'
       };
 
-      console.log('Job application submitted:', {
+      console.log('Saving job application to database:', {
         fullName,
         email,
-        position,
-        timestamp: applicationData.appliedAt
+        position
       });
 
-      // In a real application, you would save this to a job_applications table
-      // For now, we'll just log it and send a success response
+      const [savedApplication] = await db.insert(schema.jobApplications)
+        .values(applicationData)
+        .returning();
+
+      console.log('Job application saved successfully:', savedApplication.id);
 
       res.json({
         success: true,
         message: 'Application submitted successfully! We will review your application and get back to you soon.',
-        applicationId: Date.now() // Mock application ID
+        applicationId: savedApplication.id
       });
 
     } catch (error) {
@@ -4983,6 +4984,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: 'Failed to submit application',
         details: error.message 
       });
+    }
+  });
+
+  // Admin endpoints for job applications
+  app.get('/api/admin/job-applications', async (req, res) => {
+    try {
+      const applications = await db
+        .select()
+        .from(schema.jobApplications)
+        .orderBy(desc(schema.jobApplications.appliedAt));
+      
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching job applications:', error);
+      res.status(500).json({ error: 'Failed to fetch job applications' });
+    }
+  });
+
+  app.get('/api/admin/job-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const [application] = await db
+        .select()
+        .from(schema.jobApplications)
+        .where(eq(schema.jobApplications.id, id))
+        .limit(1);
+      
+      if (!application) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+      
+      res.json(application);
+    } catch (error) {
+      console.error('Error fetching job application:', error);
+      res.status(500).json({ error: 'Failed to fetch job application' });
+    }
+  });
+
+  app.put('/api/admin/job-applications/:id/status', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+
+      const validStatuses = ['pending', 'reviewing', 'shortlisted', 'accepted', 'rejected'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const [updatedApplication] = await db
+        .update(schema.jobApplications)
+        .set({ 
+          status,
+          reviewedAt: status !== 'pending' ? new Date() : null
+        })
+        .where(eq(schema.jobApplications.id, id))
+        .returning();
+
+      if (!updatedApplication) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json(updatedApplication);
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      res.status(500).json({ error: 'Failed to update application status' });
+    }
+  });
+
+  app.delete('/api/admin/job-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const [deletedApplication] = await db
+        .delete(schema.jobApplications)
+        .where(eq(schema.jobApplications.id, id))
+        .returning();
+
+      if (!deletedApplication) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json({ message: 'Application deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      res.status(500).json({ error: 'Failed to delete application' });
     }
   });
 
@@ -5045,8 +5131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         experienceMonths: isFresher === 'true' ? null : experienceMonths,
         coverLetter: coverLetter.trim(),
         resumeUrl: resumeUrl,
-        status: 'pending',
-        appliedAt: new Date()
+        status: 'pending'
       };
 
       console.log('Job application submitted:', {
@@ -5078,7 +5163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { slug } = req.params;
       const position = await storage.getJobPositionBySlug(slug);
-      
+
       if (!position) {
         return res.status(404).json({ error: 'Job position not found' });
       }

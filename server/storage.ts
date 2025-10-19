@@ -42,10 +42,13 @@ import {
   type InsertShade,
   type Category,
   type InsertCategory,
-  // Import jobPositions schema
+  // Import jobPositions and jobApplications schema
   jobPositions,
   type JobPosition,
-  type InsertJobPosition
+  type InsertJobPosition,
+  jobApplications,
+  type JobApplication,
+  type InsertJobApplication
 } from "@shared/schema";
 import dotenv from "dotenv";
 

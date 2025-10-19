@@ -401,9 +401,16 @@ export default function Cart() {
                           ) : null;
                         })()}
                       </div>
-                      <p className={`text-sm ${item.inStock ? 'text-green-600' : 'text-red-600'}`}>
-                        {item.inStock ? '✓ In Stock' : '⚠ Out of Stock'}
-                      </p>
+                      <div className="flex items-center space-x-1.5 mt-1">
+                        <div className={`w-2 h-2 rounded-full ${
+                          item.inStock 
+                            ? 'bg-green-500' 
+                            : 'bg-red-500'
+                        }`}></div>
+                        <p className={`text-xs sm:text-sm font-medium ${item.inStock ? 'text-green-600' : 'text-red-600'}`}>
+                          {item.inStock ? 'In Stock' : 'Out of Stock'}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="flex flex-col space-y-3 sm:space-y-2 items-center">

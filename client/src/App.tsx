@@ -45,7 +45,7 @@ import AdminFeaturedSections from "@/pages/admin/featured-sections";
 import BlogPost from "./pages/blog-post";
 import ComboPage from "@/pages/combo";
 import AdminCombos from "@/pages/admin/combos";
-
+import JobApplications from "@/pages/admin/job-applications";
 const AcademyPage = lazy(() => import("./pages/academy"));
 const DropShippingPage = lazy(() => import("./pages/drop-shipping"));
 
@@ -87,6 +87,8 @@ function Router() {
             <Route path="/customers" component={AdminCustomers} />
             <Route path="/sliders" component={AdminSliders} />
             <Route path="/blog">
+<Route path="/job-applications" component={JobApplications}/>
+
               <Suspense fallback={<LoadingSpinner />}>
                 <AdminBlog />
               </Suspense>
@@ -155,6 +157,7 @@ function Router() {
             <Route path="/product/:slug" component={ProductDetail} />
             <Route path="/about" component={About} />
             <Route path="/combo" component={ComboPage} />
+
 
             <Route path="/blog" component={Blog} />
           <Route path="/blog/:slug" component={BlogPost} />

@@ -1784,6 +1784,19 @@ body {
     @apply h-40 sm:h-48;
   }
 
+  /* Responsive stock status */
+  .stock-indicator {
+    @apply flex items-center space-x-1.5 sm:space-x-2;
+  }
+
+  .stock-indicator-dot {
+    @apply w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 rounded-full animate-pulse;
+  }
+
+  .stock-indicator-text {
+    @apply font-bold text-xs sm:text-sm md:text-base;
+  }
+
   .mobile-product-card .mobile-product-content {
     @apply p-2 space-y-1;
   }

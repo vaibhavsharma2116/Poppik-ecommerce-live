@@ -238,13 +238,13 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               </div>
 
               {/* Stock status */}
-              <div className="flex items-center space-x-3 mb-6">
-                <div className={`w-4 h-4 rounded-full animate-pulse ${
+              <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
+                <div className={`w-2 h-2 sm:w-3 sm:h-3 md:w-4 md:h-4 rounded-full animate-pulse ${
                   product.inStock 
                     ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
                     : 'bg-gradient-to-r from-red-400 to-rose-400'
                 }`}></div>
-                <span className={`font-bold text-lg ${
+                <span className={`font-bold text-xs sm:text-sm md:text-base lg:text-lg ${
                   product.inStock ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {product.inStock ? 'In Stock' : 'Out of Stock'}
@@ -384,13 +384,13 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             </div>
 
             {/* Stock status */}
-            <div className="flex items-center space-x-3 mb-6">
-              <div className={`w-4 h-4 rounded-full animate-pulse ${
+            <div className="flex items-center space-x-1.5 sm:space-x-2 mb-3 sm:mb-4">
+              <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
                 product.inStock 
                   ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
                   : 'bg-gradient-to-r from-red-400 to-rose-400'
               }`}></div>
-              <span className={`font-bold text-lg ${
+              <span className={`font-bold text-xs sm:text-sm ${
                 product.inStock ? 'text-green-600' : 'text-red-600'
               }`}>
                 {product.inStock ? 'In Stock' : 'Out of Stock'}

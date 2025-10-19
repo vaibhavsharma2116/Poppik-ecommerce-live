@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
-import { 
-  LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
-  Users, 
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  Users,
   Settings,
   FolderTree,
   Menu,
@@ -127,6 +127,12 @@ const sidebarItems = [
   {
     title: "Job Positions",
     href: "/job-positions",
+    icon: Briefcase,
+    badge: null,
+  },
+  {
+    title: "Job Applications",
+    href: "/job-applications",
     icon: Briefcase,
     badge: null,
   },
@@ -387,7 +393,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Footer */}
         <div className="px-3 py-4 border-t border-slate-700/50">
-          {/* <Button 
+          {/* <Button
             variant="ghost"
             onClick={handleLogout}
             className={cn(
@@ -406,9 +412,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Header */}
         <header className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-sm shadow-sm border-b border-slate-200/60">
           <div className="flex items-center space-x-4">
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="text-slate-600 hover:text-slate-900"
             >
@@ -497,7 +503,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         if (userStr) {
                           try {
                             const user = JSON.parse(userStr);
-                            return user.firstName && user.lastName 
+                            return user.firstName && user.lastName
                               ? `${user.firstName} ${user.lastName}`
                               : user.name || user.email || 'Admin User';
                           } catch (error) {
@@ -552,8 +558,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </main>
 
         {/* Global Search Command */}
-        <AdminSearchCommand 
-          open={isSearchOpen} 
+        <AdminSearchCommand
+          open={isSearchOpen}
           onOpenChange={(open) => {
             setIsSearchOpen(open);
             if (!open) {

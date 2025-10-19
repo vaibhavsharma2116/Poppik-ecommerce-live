@@ -149,6 +149,26 @@ export const jobPositions = pgTable("job_positions", {
 export type InsertJobPosition = typeof jobPositions.$inferInsert;
 export type SelectJobPosition = typeof jobPositions.$inferSelect;
 
+export const jobApplications = pgTable("job_applications", {
+  id: serial("id").primaryKey(),
+  fullName: varchar("full_name", { length: 200 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  position: varchar("position", { length: 200 }).notNull(),
+  location: varchar("location", { length: 100 }).notNull(),
+  isFresher: boolean("is_fresher").default(false).notNull(),
+  experienceYears: varchar("experience_years", { length: 10 }),
+  experienceMonths: varchar("experience_months", { length: 10 }),
+  coverLetter: text("cover_letter").notNull(),
+  resumeUrl: text("resume_url").notNull(),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  appliedAt: timestamp("applied_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+});
+
+export type JobApplication = typeof jobApplications.$inferSelect;
+export type InsertJobApplication = typeof jobApplications.$inferInsert;
+
 export const insertOrderSchema = createInsertSchema(ordersTable);
 export const selectOrderSchema = createSelectSchema(ordersTable);
 
