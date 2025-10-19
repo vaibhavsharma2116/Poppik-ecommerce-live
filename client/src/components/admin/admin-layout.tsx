@@ -23,7 +23,10 @@ import {
   Images,
   Sparkles,
   MessageSquare,
-  Briefcase
+  Briefcase,
+  MapPin,
+  Mail,
+  Palette
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,8 +43,6 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import AdminSearchCommand from "./admin-search-command";
 import { cn } from "@/lib/utils";
-import { Mail } from "lucide-react";
-import { Palette } from "lucide-react";
 
 const sidebarItems = [
   {
@@ -92,6 +93,12 @@ const sidebarItems = [
     title: "Sliders",
     href: "/sliders",
     icon: Images,
+    badge: null,
+  },
+  {
+    title: "Stores",
+    href: "/stores",
+    icon: MapPin,
     badge: null,
   },
   {

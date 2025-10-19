@@ -8,6 +8,7 @@ import fs from "fs";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import sharp from "sharp";
+import { adminAuthMiddleware as adminMiddleware } from "./admin-middleware";
 
 // Simple rate limiting
 const rateLimitMap = new Map();
@@ -73,18 +74,7 @@ const pool = new Pool({
 const db = drizzle(pool, { schema }); // Pass schema to drizzle
 const dbMonitor = new DatabaseMonitor(pool);
 
-// Handle pool errors
-pool.on('error', (err) => {
-  console.error('Unexpected database pool error:', err);
-});
-
-pool.on('connect', () => {
-  console.log('New database connection established');
-});
-
-pool.on('remove', () => {
-  console.log('Database connection removed from pool');
-});
+// Pool error handlers are now in storage.ts
 
 // Cashfree configuration
 const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID || 'cashfree_app_id';
@@ -218,6 +208,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error killing long queries:", error);
       res.status(500).json({ error: "Failed to kill long running queries" });
+    }
+  });
+
+  // Store Management Routes
+  app.get("/api/stores", async (req, res) => {
+    try {
+      const allStores = await db.select().from(schema.stores).where(eq(schema.stores.isActive, true)).orderBy(schema.stores.sortOrder);
+      res.json(allStores);
+    } catch (error) {
+      console.error("Error fetching stores:", error);
+      res.status(500).json({ error: "Failed to fetch stores" });
+    }
+  });
+
+  app.get("/api/admin/stores", adminMiddleware, async (req, res) => {
+    try {
+      const allStores = await db.select().from(schema.stores).orderBy(schema.stores.sortOrder);
+      res.json(allStores);
+    } catch (error) {
+      console.error("Error fetching stores:", error);
+      res.status(500).json({ error: "Failed to fetch stores" });
+    }
+  });
+
+  app.post("/api/admin/stores", adminMiddleware, async (req, res) => {
+    try {
+      const newStore = await db.insert(schema.stores).values(req.body).returning();
+      res.json(newStore[0]);
+    } catch (error) {
+      console.error("Error creating store:", error);
+      res.status(500).json({ error: "Failed to create store" });
+    }
+  });
+
+  app.put("/api/admin/stores/:id", adminMiddleware, async (req, res) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const updatedStore = await db
+        .update(schema.stores)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(schema.stores.id, storeId))
+        .returning();
+      res.json(updatedStore[0]);
+    } catch (error) {
+      console.error("Error updating store:", error);
+      res.status(500).json({ error: "Failed to update store" });
+    }
+  });
+
+  app.delete("/api/admin/stores/:id", adminMiddleware, async (req, res) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      await db.delete(schema.stores).where(eq(schema.stores.id, storeId));
+      res.json({ message: "Store deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting store:", error);
+      res.status(500).json({ error: "Failed to delete store" });
     }
   });
 
@@ -404,6 +451,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Login error:", error);
+      res.status(500).json({ error: "Failed to login" });
+    }
+  });
+
+  app.post("/api/auth/admin-login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      // Validation
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+      }
+
+      // Find user
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      // Check if user is admin
+      if (user.role !== 'admin') {
+        return res.status(403).json({ error: "Access denied. Admin privileges required." });
+      }
+
+      // Check password
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        process.env.JWT_SECRET || "your-secret-key",
+        { expiresIn: "24h" }
+      );
+
+      // Return user data (without password) and token
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({
+        message: "Admin login successful",
+        user: userWithoutPassword,
+        token
+      });
+    } catch (error) {
+      console.error("Admin login error:", error);
       res.status(500).json({ error: "Failed to login" });
     }
   });

@@ -59,12 +59,26 @@ dotenv.config();
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
   ssl: false,
-  max: 3, // Further reduced connections
-  idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 5000,
+  max: 3,
+  idleTimeoutMillis: 30000, // 30 seconds
+  connectionTimeoutMillis: 10000,
   keepAlive: true,
-  keepAliveInitialDelayMillis: 0,
-  allowExitOnIdle: true,
+  keepAliveInitialDelayMillis: 10000,
+  allowExitOnIdle: false, // Changed to false to maintain connections
+});
+
+// Handle pool errors gracefully
+pool.on('error', (err, client) => {
+  console.error('Unexpected database pool error:', err);
+  // Don't exit the process, just log the error
+});
+
+pool.on('connect', (client) => {
+  console.log('New database connection established');
+});
+
+pool.on('remove', (client) => {
+  console.log('Database connection removed from pool');
 });
 
 // Single database instance - don't recreate

@@ -46,6 +46,7 @@ import BlogPost from "./pages/blog-post";
 import ComboPage from "@/pages/combo";
 import AdminCombos from "@/pages/admin/combos";
 import JobApplications from "@/pages/admin/job-applications";
+import AdminStores from "@/pages/admin/stores";
 const AcademyPage = lazy(() => import("./pages/academy"));
 const DropShippingPage = lazy(() => import("./pages/drop-shipping"));
 
@@ -113,6 +114,13 @@ function Router() {
                 </Suspense>
               );
             }} />
+            <Route path="/stores" component={() => {
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <AdminStores />
+                </Suspense>
+              );
+            }} />
             <Route path="/settings" component={AdminSettings} />
             <Route path="/profile" component={AdminProfile} />
             <Route path="/change-password" component={AdminChangePassword} />
@@ -173,6 +181,14 @@ function Router() {
             <Route path="/change-password" component={ChangePassword} />
              <Route path="/terms" component={Terms} />
             <Route path="/privacy" component={Privacy} />
+            <Route path="/store-locator" component={() => {
+              const StoreLocator = lazy(() => import("./pages/store-locator"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <StoreLocator />
+                </Suspense>
+              );
+            }} />
             <Route path="/careers" component={Careers} />
             <Route path="/careers/:position" component={() => {
               const CareersDetail = lazy(() => import("./pages/careers-detail"));
