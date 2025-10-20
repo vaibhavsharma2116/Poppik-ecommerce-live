@@ -994,7 +994,7 @@ export default function Layout({ children }: LayoutProps) {
                 />
               </div>
               <p className="text-gray-400 mb-4">
-                Your trusted partner for natural, effective beauty and wellness products.
+              Poppik Lifestyle is your trusted partner in holistic beauty, wellness, and self-care. We focus on enhancing your lifestyle through natural, safe, and effective products that nourish your body and mind. From skincare to wellness essentials, Poppik blends nature, science, and style — inspiring confidence, balance, and everyday well-being. 🌿✨
               </p>
               <div className="flex space-x-4">
                 <a
@@ -1165,38 +1165,9 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 </li>
               </ul>
-            </div>
-
-            {/* Our Initiatives */}
-            <div>
-              <h4 className="font-semibold mb-4 text-white">Our Initiatives</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="/academy" className="text-gray-400 hover:text-white transition-colors">
-                    Poppik Academy
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/drop-shipping" className="text-gray-400 hover:text-white transition-colors">
-                    Poppik Dropshipping
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/makeup-studio" className="text-gray-400 hover:text-white transition-colors">
-                    Poppik Makeup Studio
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/fashion-show" className="text-gray-400 hover:text-white transition-colors">
-                    Poppik Fashion Show
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Also Available On */}
-            <div>
-              <h4 className="font-semibold mb-4 text-white">Also Available On</h4>
+              
+              {/* Also Available On - moved under Policies */}
+              <h4 className="font-semibold mb-4 mt-6 text-white">Also Available On</h4>
               <ul className="space-y-2">
                 <li>
                   <a
@@ -1227,6 +1198,33 @@ export default function Layout({ children }: LayoutProps) {
                   >
                     Meesho
                   </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Our Initiatives */}
+            <div>
+              <h4 className="font-semibold mb-4 text-white">Our Initiatives</h4>
+              <ul className="space-y-2">
+                <li>
+                  <Link href="/academy" className="text-gray-400 hover:text-white transition-colors">
+                    Poppik Academy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/drop-shipping" className="text-gray-400 hover:text-white transition-colors">
+                    Poppik Dropshipping
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/makeup-studio" className="text-gray-400 hover:text-white transition-colors">
+                    Poppik Makeup Studio
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/fashion-show" className="text-gray-400 hover:text-white transition-colors">
+                    Poppik Fashion Show
+                  </Link>
                 </li>
               </ul>
             </div>

@@ -777,15 +777,15 @@ export default function Home() {
       <VideoTestimonials />
 
       {/* Blog Section */}
-     <section className="py-4 sm:py-4 md:py-4 bg-gradient-to-br from-slate-50 via-white to-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8 sm:mb-10 md:mb-12">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-4">
+      <section className="py-8 sm:py-10 md:py-12 lg:py-16 bg-gradient-to-br from-slate-50 via-white to-gray-50">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="text-center mb-6 sm:mb-8 md:mb-10 lg:mb-12">
+            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold mb-2 sm:mb-3 md:mb-4 px-2">
               <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
                 Latest From Our Blog
               </span>
             </h2>
-            <p className="text-sm sm:text-base md:text-lg text-gray-600">
+            <p className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-600 px-4">
               Stay updated with beauty tips, trends & expert advice
             </p>
           </div>
@@ -922,14 +922,14 @@ function LatestBlogPosts() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8 px-2 sm:px-0">
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 px-2 sm:px-3 md:px-0">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+          <div key={i} className="bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-sm">
             <Skeleton className="aspect-[4/3] w-full" />
-            <div className="p-3 sm:p-4 space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
+            <div className="p-2 sm:p-3 md:p-4 space-y-1.5 sm:space-y-2">
+              <Skeleton className="h-3 sm:h-4 w-full" />
+              <Skeleton className="h-3 sm:h-4 w-3/4" />
+              <Skeleton className="h-2.5 sm:h-3 w-1/2" />
             </div>
           </div>
         ))}
@@ -939,18 +939,18 @@ function LatestBlogPosts() {
 
   if (latestPosts.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">No blog posts available yet.</p>
+      <div className="text-center py-6 sm:py-8 px-4">
+        <p className="text-sm sm:text-base text-gray-500">No blog posts available yet.</p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8 px-2 sm:px-0">
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 px-2 sm:px-3 md:px-0">
         {latestPosts.map((post) => (
           <Link key={post.id} href={`/blog/${post.slug}`}>
-            <div className="group cursor-pointer bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="group cursor-pointer bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 h-full">
               <div className="relative overflow-hidden aspect-[4/3]">
                 <img
                   src={post.imageUrl}
@@ -958,19 +958,25 @@ function LatestBlogPosts() {
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
               </div>
-              <div className="p-3 sm:p-4">
-                <Badge variant="outline" className="mb-2 text-xs">
+              <div className="p-2 sm:p-3 md:p-4 flex flex-col h-full">
+                <Badge variant="outline" className="mb-1.5 sm:mb-2 text-[10px] sm:text-xs w-fit">
                   {post.category}
                 </Badge>
-                <h3 className="text-sm sm:text-base font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-pink-600 transition-colors">
+                <h3 className="text-xs sm:text-sm md:text-base font-semibold text-gray-900 line-clamp-2 mb-1.5 sm:mb-2 group-hover:text-pink-600 transition-colors leading-tight">
                   {post.title}
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 mb-3">
+                <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 line-clamp-2 mb-2 sm:mb-3 leading-relaxed">
                   {post.excerpt}
                 </p>
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                  <span>{post.readTime}</span>
+                <div className="flex items-center justify-between text-[9px] sm:text-[10px] md:text-xs text-gray-500 mt-auto pt-1.5 sm:pt-2">
+                  <span className="truncate max-w-[60%]">
+                    {new Date(post.createdAt).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric',
+                      year: window.innerWidth < 640 ? undefined : 'numeric'
+                    })}
+                  </span>
+                  <span className="whitespace-nowrap">{post.readTime}</span>
                 </div>
               </div>
             </div>
@@ -978,15 +984,14 @@ function LatestBlogPosts() {
         ))}
       </div>
 
-      <div className="text-center mt-8 sm:mt-10">
+      <div className="text-center mt-6 sm:mt-8 md:mt-10 px-4">
         <Link href="/blog">
-          <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+          <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full text-xs sm:text-sm md:text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto max-w-xs sm:max-w-none">
             <span>View All Articles</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
           </Button>
         </Link>
       </div>
-      
     </>
   );
 }

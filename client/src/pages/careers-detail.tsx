@@ -181,89 +181,89 @@ export default function CareersDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
         {/* Back Button */}
-        <Link href="/careers" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors font-medium">
-          <ArrowLeft className="h-4 w-4 mr-2" />
+        <Link href="/careers" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4 sm:mb-6 transition-colors font-medium text-sm sm:text-base">
+          <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
           Back to All Jobs
         </Link>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
           {/* Main Content - Left Side */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Job Header */}
-            <div className="bg-white rounded-lg p-8 shadow-sm">
-              <div className="flex items-start justify-between mb-4">
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3 sm:mb-4 gap-3 sm:gap-0">
                 <div className="flex-1">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{position.title}</h1>
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-sm">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">{position.title}</h1>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs sm:text-sm">
                     Job ID: {position.jobId}
                   </Badge>
                 </div>
-                <Link href={`/careers/apply/${positionSlug}`}>
-                  <Button className="bg-green-600 hover:bg-green-700 text-white px-6 py-2">
+                <Link href={`/careers/apply/${positionSlug}`} className="w-full sm:w-auto">
+                  <Button className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-2 text-sm sm:text-base">
                     Apply
                   </Button>
                 </Link>
               </div>
 
-              <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-6">
+              <div className="flex flex-wrap gap-2 sm:gap-3 md:gap-4 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
                 <span className="flex items-center">
-                  <Briefcase className="h-4 w-4 mr-1" />
+                  <Briefcase className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                   {position.department}
                 </span>
                 <span className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-1" />
+                  <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                   {position.location}
                 </span>
                 <span className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1" />
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                   {position.type}
                 </span>
               </div>
 
-              <p className="text-gray-700 leading-relaxed">
+              <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
                 {position.description}
               </p>
             </div>
 
             {/* About the Role */}
-            <div className="bg-white rounded-lg p-8 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">About the Role</h2>
-              <p className="text-gray-700 leading-relaxed">
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">About the Role</h2>
+              <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
                 {position.aboutRole}
               </p>
             </div>
 
             {/* Key Responsibilities */}
-            <div className="bg-white rounded-lg p-8 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Key Responsibilities</h2>
-              <ul className="space-y-3">
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Key Responsibilities</h2>
+              <ul className="space-y-2 sm:space-y-3">
                 {position.responsibilities.map((item: string, index: number) => (
                   <li key={index} className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">{item}</span>
+                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-700 text-sm sm:text-base">{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
             {/* What We're Looking For */}
-            <div className="bg-white rounded-lg p-8 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">What We're Looking For</h2>
-              <ul className="space-y-3">
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">What We're Looking For</h2>
+              <ul className="space-y-2 sm:space-y-3">
                 {position.requirements.map((item: string, index: number) => (
                   <li key={index} className="flex items-start">
-                    <CheckCircle2 className="h-5 w-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">{item}</span>
+                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-700 text-sm sm:text-base">{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
             {/* Additional Note */}
-            <div className="bg-white rounded-lg p-8 shadow-sm">
-              <p className="text-gray-700 leading-relaxed">
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
+              <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
                 While this position is for a {position.type.toLowerCase()}, outstanding candidates may be considered for full-time positions based on performance and availability or the requirements within the company. We encourage you to demonstrate your skills and dedication throughout your time with us.
               </p>
             </div>
@@ -271,17 +271,17 @@ export default function CareersDetail() {
 
           {/* Sidebar - Right Side */}
           <div className="lg:col-span-1">
-            <div className="sticky top-8 space-y-6">
+            <div className="sticky top-4 sm:top-8 space-y-4 sm:space-y-6">
               {/* Apply CTA */}
               <Card className="shadow-sm">
-                <CardContent className="p-6 text-center">
+                <CardContent className="p-4 sm:p-6 text-center">
                   <Link href={`/careers/apply/${positionSlug}`}>
-                    <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 mb-3">
+                    <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 sm:py-3 mb-2 sm:mb-3 text-sm sm:text-base">
                       Apply
                     </Button>
                   </Link>
                   <Link href="/careers">
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full text-sm sm:text-base">
                       See all jobs
                     </Button>
                   </Link>
@@ -290,34 +290,34 @@ export default function CareersDetail() {
 
               {/* Job Details */}
               <Card className="shadow-sm">
-                <CardHeader className="border-b">
-                  <CardTitle className="text-lg font-semibold text-gray-900">Job Details</CardTitle>
+                <CardHeader className="border-b p-4 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg font-semibold text-gray-900">Job Details</CardTitle>
                 </CardHeader>
-                <CardContent className="p-6 space-y-4">
+                <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Experience Level</h4>
-                    <p className="text-gray-600">{position.experienceLevel}</p>
+                    <h4 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">Experience Level</h4>
+                    <p className="text-gray-600 text-xs sm:text-base">{position.experienceLevel}</p>
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Work Experience (years)</h4>
-                    <p className="text-gray-600">{position.workExperience}</p>
+                    <h4 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">Work Experience (years)</h4>
+                    <p className="text-gray-600 text-xs sm:text-base">{position.workExperience}</p>
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Education</h4>
-                    <p className="text-gray-600">{position.education}</p>
+                    <h4 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">Education</h4>
+                    <p className="text-gray-600 text-xs sm:text-base">{position.education}</p>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Skills */}
               <Card className="shadow-sm">
-                <CardHeader className="border-b">
-                  <CardTitle className="text-lg font-semibold text-gray-900">Skills</CardTitle>
+                <CardHeader className="border-b p-4 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg font-semibold text-gray-900">Skills</CardTitle>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <div className="flex flex-wrap gap-2">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {position.skills.map((skill: string, index: number) => (
-                      <Badge key={index} variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+                      <Badge key={index} variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs sm:text-sm">
                         {skill}
                       </Badge>
                     ))}
@@ -327,8 +327,8 @@ export default function CareersDetail() {
 
               {/* Share Job - Optional */}
               <Card className="shadow-sm">
-                <CardContent className="p-6 text-center">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Share this job</h4>
+                <CardContent className="p-4 sm:p-6 text-center">
+                  <h4 className="text-xs sm:text-sm font-semibold text-gray-900 mb-2 sm:mb-3">Share this job</h4>
                   <p className="text-xs text-gray-500">Help us find the right candidate!</p>
                 </CardContent>
               </Card>

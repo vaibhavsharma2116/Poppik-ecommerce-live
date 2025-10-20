@@ -134,21 +134,21 @@ export default function CareersApply() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-4 sm:py-6 md:py-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <Link href="/careers" className="inline-flex items-center text-pink-600 hover:text-pink-700 mb-6 transition-colors">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+        <div className="mb-6 sm:mb-8">
+          <Link href="/careers" className="inline-flex items-center text-pink-600 hover:text-pink-700 mb-4 sm:mb-6 transition-colors text-sm sm:text-base">
+            <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
             Back to Careers
           </Link>
-          <div className="text-center">
-            <Badge variant="outline" className="mb-4 bg-pink-50 text-pink-700 border-pink-200">
-              <Briefcase className="h-4 w-4 mr-2" />
+          <div className="text-center px-2">
+            <Badge variant="outline" className="mb-3 sm:mb-4 bg-pink-50 text-pink-700 border-pink-200 text-xs sm:text-sm">
+              <Briefcase className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               Join Our Team
             </Badge>
-            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">Apply Now</h1>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4">Apply Now</h1>
+            <p className="text-gray-600 text-sm sm:text-base md:text-lg max-w-2xl mx-auto">
               Take the first step towards an exciting career at Poppik. Fill out the form below and we'll get back to you soon.
             </p>
           </div>
@@ -156,23 +156,23 @@ export default function CareersApply() {
 
         {/* Application Form */}
         <Card className="shadow-2xl border-0">
-          <CardHeader className="bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-t-lg">
-            <CardTitle className="text-2xl">Application Form</CardTitle>
+          <CardHeader className="bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-t-lg p-4 sm:p-6">
+            <CardTitle className="text-lg sm:text-xl md:text-2xl">Application Form</CardTitle>
             {formData.position && (
-              <p className="text-pink-100 mt-2">
+              <p className="text-pink-100 mt-1.5 sm:mt-2 text-sm sm:text-base">
                 Position: <span className="font-semibold">{formData.position}</span>
               </p>
             )}
           </CardHeader>
-          <CardContent className="p-6 sm:p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <CardContent className="p-4 sm:p-6 md:p-8">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Personal Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Personal Information</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <Label htmlFor="fullName">Full Name *</Label>
+                    <Label htmlFor="fullName" className="text-sm sm:text-base">Full Name *</Label>
                     <Input
                       id="fullName"
                       name="fullName"
@@ -181,12 +181,12 @@ export default function CareersApply() {
                       value={formData.fullName}
                       onChange={handleInputChange}
                       placeholder="John Doe"
-                      className="mt-1"
+                      className="mt-1 text-sm sm:text-base"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="email">Email Address *</Label>
+                    <Label htmlFor="email" className="text-sm sm:text-base">Email Address *</Label>
                     <Input
                       id="email"
                       name="email"
@@ -195,14 +195,14 @@ export default function CareersApply() {
                       value={formData.email}
                       onChange={handleInputChange}
                       placeholder="john.doe@example.com"
-                      className="mt-1"
+                      className="mt-1 text-sm sm:text-base"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Label htmlFor="phone" className="text-sm sm:text-base">Phone Number *</Label>
                     <Input
                       id="phone"
                       name="phone"
@@ -211,12 +211,12 @@ export default function CareersApply() {
                       value={formData.phone}
                       onChange={handleInputChange}
                       placeholder="+91 98765 43210"
-                      className="mt-1"
+                      className="mt-1 text-sm sm:text-base"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="location">Preferred Location *</Label>
+                    <Label htmlFor="location" className="text-sm sm:text-base">Preferred Location *</Label>
                     <Input
                       id="location"
                       name="location"
@@ -225,18 +225,18 @@ export default function CareersApply() {
                       value={formData.location}
                       onChange={handleInputChange}
                       placeholder="Mumbai, India"
-                      className="mt-1"
+                      className="mt-1 text-sm sm:text-base"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Position Details */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Position Details</h3>
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Position Details</h3>
 
                 <div>
-                  <Label htmlFor="position">Position Applied For *</Label>
+                  <Label htmlFor="position" className="text-sm sm:text-base">Position Applied For *</Label>
                   <Input
                     id="position"
                     name="position"
@@ -245,7 +245,7 @@ export default function CareersApply() {
                     value={formData.position}
                     onChange={handleInputChange}
                     placeholder="e.g., Beauty Consultant"
-                    className="mt-1"
+                    className="mt-1 text-sm sm:text-base"
                   />
                 </div>
 
@@ -316,7 +316,7 @@ export default function CareersApply() {
                 </div>
 
                 <div>
-                  <Label htmlFor="coverLetter">Cover Letter / Why do you want to join Poppik? *</Label>
+                  <Label htmlFor="coverLetter" className="text-sm sm:text-base">Cover Letter / Why do you want to join Poppik? *</Label>
                   <Textarea
                     id="coverLetter"
                     name="coverLetter"
@@ -324,17 +324,17 @@ export default function CareersApply() {
                     value={formData.coverLetter}
                     onChange={handleInputChange}
                     placeholder="Tell us about yourself and why you'd be a great fit for this position..."
-                    className="mt-1 min-h-[150px]"
+                    className="mt-1 min-h-[120px] sm:min-h-[150px] text-sm sm:text-base"
                   />
                 </div>
               </div>
 
               {/* Resume Upload */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Resume</h3>
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Resume</h3>
 
                 <div>
-                  <Label htmlFor="resume">Upload Resume * (PDF, DOC, DOCX - Max 5MB)</Label>
+                  <Label htmlFor="resume" className="text-sm sm:text-base">Upload Resume * (PDF, DOC, DOCX - Max 5MB)</Label>
                   <div className="mt-2">
                     {!formData.resume ? (
                       <label
@@ -385,15 +385,15 @@ export default function CareersApply() {
               </div>
 
               {/* Submit Button */}
-              <div className="pt-6 border-t border-gray-200">
+              <div className="pt-4 sm:pt-6 border-t border-gray-200">
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white py-6 text-lg font-semibold shadow-lg"
+                  className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white py-4 sm:py-5 md:py-6 text-base sm:text-lg font-semibold shadow-lg"
                 >
                   {isSubmitting ? (
                     <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin -ml-1 mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
@@ -403,7 +403,7 @@ export default function CareersApply() {
                     "Submit Application"
                   )}
                 </Button>
-                <p className="text-xs text-gray-500 text-center mt-4">
+                <p className="text-xs sm:text-sm text-gray-500 text-center mt-3 sm:mt-4 px-2">
                   By submitting this form, you agree to our Terms & Conditions and Privacy Policy
                 </p>
               </div>
@@ -412,30 +412,30 @@ export default function CareersApply() {
         </Card>
 
         {/* Additional Info */}
-        <Card className="mt-8 shadow-xl border-0 bg-gradient-to-r from-gray-900 to-gray-800 text-white">
-          <CardContent className="text-center py-8">
-            <h3 className="text-2xl font-semibold mb-4">What Happens Next?</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-              <div>
-                <div className="w-12 h-12 bg-pink-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <span className="text-xl font-bold">1</span>
+        <Card className="mt-6 sm:mt-8 shadow-xl border-0 bg-gradient-to-r from-gray-900 to-gray-800 text-white">
+          <CardContent className="text-center py-6 sm:py-8 px-3 sm:px-4">
+            <h3 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4">What Happens Next?</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mt-4 sm:mt-6">
+              <div className="px-2">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-500 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                  <span className="text-lg sm:text-xl font-bold">1</span>
                 </div>
-                <p className="text-gray-300">Application Review</p>
-                <p className="text-sm text-gray-400 mt-1">We'll review your application within 3-5 business days</p>
+                <p className="text-gray-300 text-sm sm:text-base">Application Review</p>
+                <p className="text-xs sm:text-sm text-gray-400 mt-1">We'll review your application within 3-5 business days</p>
               </div>
-              <div>
-                <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <span className="text-xl font-bold">2</span>
+              <div className="px-2">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                  <span className="text-lg sm:text-xl font-bold">2</span>
                 </div>
-                <p className="text-gray-300">Interview Process</p>
-                <p className="text-sm text-gray-400 mt-1">Shortlisted candidates will be contacted for interviews</p>
+                <p className="text-gray-300 text-sm sm:text-base">Interview Process</p>
+                <p className="text-xs sm:text-sm text-gray-400 mt-1">Shortlisted candidates will be contacted for interviews</p>
               </div>
-              <div>
-                <div className="w-12 h-12 bg-pink-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <span className="text-xl font-bold">3</span>
+              <div className="px-2">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-500 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                  <span className="text-lg sm:text-xl font-bold">3</span>
                 </div>
-                <p className="text-gray-300">Final Decision</p>
-                <p className="text-sm text-gray-400 mt-1">We'll notify you of our decision and next steps</p>
+                <p className="text-gray-300 text-sm sm:text-base">Final Decision</p>
+                <p className="text-xs sm:text-sm text-gray-400 mt-1">We'll notify you of our decision and next steps</p>
               </div>
             </div>
           </CardContent>

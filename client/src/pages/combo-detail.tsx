@@ -350,14 +350,14 @@ export default function ComboDetail() {
                   <div className="flex gap-4">
                     {/* Thumbnail Column - Swipeable Vertical Carousel */}
                     {allImageUrls.length > 1 && (
-                      <div className="w-20 flex-shrink-0 relative">
+                      <div className="w-14 sm:w-16 md:w-20 flex-shrink-0 relative">
                         <div 
-                          className="h-80 overflow-hidden scroll-smooth"
+                          className="h-64 sm:h-72 md:h-80 overflow-hidden scroll-smooth"
                           style={{ scrollBehavior: 'smooth' }}
                         >
                           <div 
                             id="thumbnail-container"
-                            className="flex flex-col gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
+                            className="flex flex-col gap-2 sm:gap-2.5 md:gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
                             style={{
                               scrollSnapType: 'y mandatory',
                               scrollBehavior: 'smooth',
@@ -630,139 +630,180 @@ export default function ComboDetail() {
         </div>
 
         {/* Tabs Section */}
-        <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 mb-16">
+        <div className="mb-8 sm:mb-12 md:mb-16">
           <Tabs defaultValue="description" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-8">
-              <TabsTrigger value="description" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white">
+            <TabsList className="grid w-full grid-cols-4 bg-white/70 backdrop-blur-md rounded-lg sm:rounded-xl md:rounded-2xl p-1 sm:p-1.5 md:p-2 shadow-lg border border-white/20 mb-6 sm:mb-8 gap-0.5 sm:gap-1">
+              <TabsTrigger 
+                value="description" 
+                className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+              >
                 Description
               </TabsTrigger>
-              <TabsTrigger value="products" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white">
-                Products Included
+              <TabsTrigger 
+                value="products" 
+                className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+              >
+                Products
               </TabsTrigger>
-              <TabsTrigger value="benefits" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white">
+              <TabsTrigger 
+                value="benefits" 
+                className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+              >
                 Benefits
               </TabsTrigger>
-              <TabsTrigger value="howto" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white">
+              <TabsTrigger 
+                value="howto" 
+                className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+              >
                 How to Use
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="description" className="space-y-4">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xl">📝</span>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900">Combo Description</h3>
-              </div>
-              <div className="text-gray-700 leading-relaxed text-lg">
-                <p>{combo.detailedDescription || combo.description}</p>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="products" className="space-y-4">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xl">📦</span>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900">Products Included</h3>
-              </div>
-              <div className="space-y-3">
-                {combo.productsIncluded ? (
-                  <div className="text-gray-700 leading-relaxed text-lg whitespace-pre-line">
-                    {combo.productsIncluded}
+            <TabsContent value="description" className="m-0">
+              <Card className="border-0 shadow-xl sm:shadow-2xl bg-gradient-to-br from-blue-50/80 to-white/80 backdrop-blur-md rounded-xl sm:rounded-3xl border border-white/20">
+                <CardHeader className="pb-4 sm:pb-6">
+                  <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl sm:rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full"></div>
+                    </div>
+                    Product Description
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="prose prose-gray max-w-none">
+                    <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-medium">{combo.detailedDescription || combo.description}</p>
                   </div>
-                ) : Array.isArray(products) && products.length > 0 ? (
-                  <ul className="space-y-3 text-gray-700 text-lg">
-                    {products.map((product: any, index: number) => (
-                      <li key={index} className="flex items-start">
-                        <span className="text-purple-500 mr-3 mt-1">✓</span>
-                        <span>{typeof product === 'string' ? product : product.name}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-700 leading-relaxed text-lg">
-                    This combo contains carefully selected premium beauty products.
-                  </p>
-                )}
-              </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
-            <TabsContent value="benefits" className="space-y-4">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xl">✨</span>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900">Benefits</h3>
-              </div>
-              {combo.benefits ? (
-                <div className="text-gray-700 leading-relaxed text-lg whitespace-pre-line">
-                  {combo.benefits}
-                </div>
-              ) : (
-                <ul className="space-y-3 text-gray-700 text-lg">
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>Complete beauty routine in one combo</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>Save ₹{(originalPrice - price).toLocaleString()} with this bundle</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>Get {discountPercentage}% discount on the original price</span>
-                  </li>
-                  <li className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span>Premium quality products at discounted price</span>
-                  </li>
-                  {Array.isArray(products) && products.length > 0 && (
-                    <li className="flex items-start">
-                      <span className="text-green-500 mr-2">✓</span>
-                      <span>Includes {products.length} carefully curated products</span>
-                    </li>
-                  )}
-                </ul>
-              )}
-            </TabsContent>
-
-            <TabsContent value="howto" className="space-y-4">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xl">💡</span>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900">How to Use</h3>
-              </div>
-              <div className="text-gray-700 leading-relaxed text-lg space-y-3">
-                {combo.howToUse ? (
-                  <div className="whitespace-pre-line">
-                    {combo.howToUse}
-                  </div>
-                ) : (
-                  <>
-                    <p>
-                      Follow the individual product instructions included in this combo for best results. 
-                      Use as part of your daily beauty routine.
-                    </p>
-                    {Array.isArray(products) && products.length > 0 && (
-                      <div className="mt-4">
-                        <p className="font-semibold mb-2">Usage Steps:</p>
-                        <ol className="list-decimal list-inside space-y-2">
-                          {products.map((product: any, index: number) => (
-                            <li key={index}>
-                              Use {typeof product === 'string' ? product : product.name} as directed
-                            </li>
-                          ))}
-                        </ol>
+            <TabsContent value="products" className="m-0">
+              <Card className="border-0 shadow-xl sm:shadow-2xl bg-gradient-to-br from-green-50/80 to-white/80 backdrop-blur-md rounded-xl sm:rounded-3xl border border-white/20">
+                <CardHeader className="pb-4 sm:pb-6">
+                  <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl sm:rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full"></div>
+                    </div>
+                    Products Included
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {combo.productsIncluded ? (
+                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line font-medium">
+                      {combo.productsIncluded}
+                    </div>
+                  ) : Array.isArray(products) && products.length > 0 ? (
+                    <div className="grid gap-3 sm:gap-4">
+                      {products.map((product: any, index: number) => (
+                        <div key={index} className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-green-100/50 transform hover:scale-105 transition-all duration-200">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
+                          <span className="text-gray-700 font-semibold text-base sm:text-lg">{typeof product === 'string' ? product : product.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 sm:py-12">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-300 to-emerald-300 rounded-xl sm:rounded-2xl"></div>
                       </div>
-                    )}
-                    <p className="mt-4 text-sm text-gray-600">
-                      For best results, use all products in the combo together as part of your daily routine.
-                    </p>
-                  </>
-                )}
-              </div>
+                      <p className="text-gray-500 text-lg sm:text-xl font-medium">This combo contains carefully selected premium beauty products.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="benefits" className="m-0">
+              <Card className="border-0 shadow-xl sm:shadow-2xl bg-gradient-to-br from-yellow-50/80 to-white/80 backdrop-blur-md rounded-xl sm:rounded-3xl border border-white/20">
+                <CardHeader className="pb-4 sm:pb-6">
+                  <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl sm:rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full"></div>
+                    </div>
+                    Key Benefits
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {combo.benefits ? (
+                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line font-medium">
+                      {combo.benefits}
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:gap-4">
+                      <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
+                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
+                        <span className="text-gray-700 font-semibold text-base sm:text-lg">Complete beauty routine in one combo</span>
+                      </div>
+                      <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
+                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
+                        <span className="text-gray-700 font-semibold text-base sm:text-lg">Save ₹{(originalPrice - price).toLocaleString()} with this bundle</span>
+                      </div>
+                      <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
+                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
+                        <span className="text-gray-700 font-semibold text-base sm:text-lg">Get {discountPercentage}% discount on the original price</span>
+                      </div>
+                      <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
+                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
+                        <span className="text-gray-700 font-semibold text-base sm:text-lg">Premium quality products at discounted price</span>
+                      </div>
+                      {Array.isArray(products) && products.length > 0 && (
+                        <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
+                          <span className="text-gray-700 font-semibold text-base sm:text-lg">Includes {products.length} carefully curated products</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="howto" className="m-0">
+              <Card className="border-0 shadow-xl sm:shadow-2xl bg-gradient-to-br from-purple-50/80 to-white/80 backdrop-blur-md rounded-xl sm:rounded-3xl border border-white/20">
+                <CardHeader className="pb-4 sm:pb-6">
+                  <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-xl sm:rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full"></div>
+                    </div>
+                    How to Use
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {combo.howToUse ? (
+                    <div className="bg-white/70 backdrop-blur-sm p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-purple-100/50">
+                      <div className="prose prose-gray max-w-none">
+                        <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-medium mb-0 whitespace-pre-line">
+                          {combo.howToUse}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white/70 backdrop-blur-sm p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-purple-100/50">
+                      <div className="text-gray-700 leading-relaxed text-base sm:text-lg space-y-3 sm:space-y-4">
+                        <p className="font-medium">
+                          Follow the individual product instructions included in this combo for best results. 
+                          Use as part of your daily beauty routine.
+                        </p>
+                        {Array.isArray(products) && products.length > 0 && (
+                          <div className="mt-4">
+                            <p className="font-semibold text-lg mb-3">Usage Steps:</p>
+                            <ol className="list-decimal list-inside space-y-2.5">
+                              {products.map((product: any, index: number) => (
+                                <li key={index} className="font-medium">
+                                  Use {typeof product === 'string' ? product : product.name} as directed
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+                        <p className="mt-4 text-sm text-gray-600 font-medium">
+                          For best results, use all products in the combo together as part of your daily routine.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
@@ -803,7 +844,7 @@ export default function ComboDetail() {
                 const distribution = calculateRatingDistribution();
                 const count = distribution[star as keyof typeof distribution];
                 const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
-                
+
                 return (
                   <div key={star} className="flex items-center space-x-3">
                     <span className="w-8 text-sm font-medium">{star}★</span>
