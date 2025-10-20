@@ -140,7 +140,7 @@ function TestimonialsCarousel() {
                 <img
                   src={testimonial.customerImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop'}
                   alt={testimonial.customerName}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full"
                 />
               </div>
             );
@@ -864,7 +864,7 @@ function ComboSection() {
                     <img
                       src={combo.imageUrl}
                       alt={combo.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full  group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
                   {combo.discount && (
@@ -955,7 +955,7 @@ function LatestBlogPosts() {
                 <img
                   src={post.imageUrl}
                   alt={post.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full  group-hover:scale-105 transition-transform duration-500"
                 />
               </div>
               <div className="p-2 sm:p-3 md:p-4 flex flex-col h-full">
