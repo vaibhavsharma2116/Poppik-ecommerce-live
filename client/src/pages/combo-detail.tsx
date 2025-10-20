@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { ChevronRight, Star, ShoppingCart, Heart, ArrowLeft, Share2, Package, ChevronLeft } from "lucide-react";
@@ -26,6 +26,7 @@ export default function ComboDetail() {
     comment: "",
     userName: "",
   });
+  const [canReview, setCanReview] = useState<{ canReview: boolean; orderId?: number; message: string }>({ canReview: false, message: "" });
   const { toast } = useToast();
 
   const { data: combo, isLoading, error } = useQuery<any>({
@@ -38,9 +39,35 @@ export default function ComboDetail() {
     enabled: !!comboId,
   });
 
+  // Check if user can review this combo
+  const { data: reviewEligibility } = useQuery({
+    queryKey: [`/api/combos/${comboId}/can-review`],
+    queryFn: async () => {
+      if (!comboId) return { canReview: false, message: "" };
+
+      const user = localStorage.getItem("user");
+      if (!user) return { canReview: false, message: "Please login to review" };
+
+      const userData = JSON.parse(user);
+      const response = await fetch(`/api/combos/${comboId}/can-review?userId=${userData.id}`);
+      if (!response.ok) {
+        return { canReview: false, message: "Unable to check review eligibility" };
+      }
+      return response.json();
+    },
+    enabled: !!comboId,
+  });
+
   console.log("Combo data:", combo);
   console.log("Loading:", isLoading);
   console.log("Error:", error);
+
+  // Update canReview state when eligibility data changes
+  useEffect(() => {
+    if (reviewEligibility && typeof reviewEligibility === 'object') {
+      setCanReview(reviewEligibility);
+    }
+  }, [reviewEligibility]);
 
   // Get all image URLs (from imageUrls array or fallback to imageUrl)
   const allImageUrls = combo?.imageUrls && combo.imageUrls.length > 0 
@@ -157,6 +184,15 @@ export default function ComboDetail() {
       return;
     }
 
+    if (!canReview.canReview) {
+      toast({
+        title: "Cannot Review",
+        description: canReview.message || "You must purchase this combo to leave a review",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!newReview.title.trim() || !newReview.comment.trim()) {
       toast({
         title: "Missing Information",
@@ -167,12 +203,14 @@ export default function ComboDetail() {
     }
 
     try {
+      const userData = JSON.parse(user);
       const response = await fetch(`/api/combos/${comboId}/reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...newReview,
-          userName: newReview.userName || JSON.parse(user).username || "Anonymous",
+          userName: newReview.userName || userData.username || "Anonymous",
+          orderId: canReview.orderId,
         }),
         credentials: "include",
       });
@@ -186,7 +224,12 @@ export default function ComboDetail() {
         setNewReview({ rating: 5, title: "", comment: "", userName: "" });
         window.location.reload();
       } else {
-        throw new Error("Failed to submit review");
+        const errorData = await response.json();
+        toast({
+          title: "Error",
+          description: errorData.error || "Failed to submit review",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       toast({
@@ -728,13 +771,20 @@ export default function ComboDetail() {
         <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-3xl font-bold">Customer Reviews</h2>
-            <Button
-              onClick={() => setShowReviewDialog(true)}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-            >
-              Write a Review
-            </Button>
+            {canReview.canReview && (
+              <Button
+                onClick={() => setShowReviewDialog(true)}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              >
+                Write a Review
+              </Button>
+            )}
           </div>
+          {!canReview.canReview && canReview.message && (
+            <div className="bg-gray-100 border border-gray-200 rounded-lg p-4 mb-4 text-center">
+              <p className="text-gray-600">{canReview.message}</p>
+            </div>
+          )}
           <p className="text-center text-gray-600 mb-8">What our customers are saying</p>
 
           <div className="bg-yellow-50 rounded-2xl p-8 mb-8">
@@ -781,13 +831,15 @@ export default function ComboDetail() {
             ) : reviews.length === 0 ? (
               <div className="bg-gray-50 rounded-2xl p-8 text-center">
                 <p className="text-gray-600 mb-4">No reviews yet. Be the first to review this combo!</p>
-                <Button
-                  onClick={() => setShowReviewDialog(true)}
-                  variant="outline"
-                  className="border-2 border-purple-200 hover:border-purple-400"
-                >
-                  Write the First Review
-                </Button>
+                {canReview.canReview && (
+                  <Button
+                    onClick={() => setShowReviewDialog(true)}
+                    variant="outline"
+                    className="border-2 border-purple-200 hover:border-purple-400"
+                  >
+                    Write the First Review
+                  </Button>
+                )}
               </div>
             ) : (
               reviews.map((review: any) => (

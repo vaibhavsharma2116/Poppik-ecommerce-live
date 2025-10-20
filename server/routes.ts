@@ -222,10 +222,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/stores", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/stores", async (req, res) => {
     try {
-      const allStores = await db.select().from(schema.stores).orderBy(schema.stores.sortOrder);
-      res.json(allStores);
+      // Check if authorization header exists
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log("No token provided for admin stores endpoint");
+        return res.status(401).json({ error: "Access denied. No token provided." });
+      }
+
+      const token = authHeader.substring(7);
+
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as any;
+
+        // Check if user has admin role
+        if (decoded.role !== 'admin') {
+          return res.status(403).json({ error: "Access denied. Admin privileges required." });
+        }
+
+        const allStores = await db.select().from(schema.stores).orderBy(schema.stores.sortOrder);
+        res.json(allStores);
+      } catch (jwtError) {
+        console.error("JWT verification error:", jwtError);
+        return res.status(401).json({ error: "Invalid token." });
+      }
     } catch (error) {
       console.error("Error fetching stores:", error);
       res.status(500).json({ error: "Failed to fetch stores" });
@@ -234,7 +256,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/stores", adminMiddleware, async (req, res) => {
     try {
-      const newStore = await db.insert(schema.stores).values(req.body).returning();
+      // Parse coordinates to remove degree symbols and direction letters
+      const storeData = { ...req.body };
+
+      if (storeData.latitude && typeof storeData.latitude === 'string') {
+        // Remove degree symbols, N/S/E/W, and extra spaces
+        storeData.latitude = parseFloat(storeData.latitude.replace(/[°NSEW\s]/g, ''));
+      }
+
+      if (storeData.longitude && typeof storeData.longitude === 'string') {
+        // Remove degree symbols, N/S/E/W, and extra spaces
+        storeData.longitude = parseFloat(storeData.longitude.replace(/[°NSEW\s]/g, ''));
+      }
+
+      const newStore = await db.insert(schema.stores).values(storeData).returning();
       res.json(newStore[0]);
     } catch (error) {
       console.error("Error creating store:", error);
@@ -245,9 +280,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/stores/:id", adminMiddleware, async (req, res) => {
     try {
       const storeId = parseInt(req.params.id);
+
+      // Parse coordinates to remove degree symbols and direction letters
+      const storeData = { ...req.body };
+
+      if (storeData.latitude && typeof storeData.latitude === 'string') {
+        // Remove degree symbols, N/S/E/W, and extra spaces
+        storeData.latitude = parseFloat(storeData.latitude.replace(/[°NSEW\s]/g, ''));
+      }
+
+      if (storeData.longitude && typeof storeData.longitude === 'string') {
+        // Remove degree symbols, N/S/E/W, and extra spaces
+        storeData.longitude = parseFloat(storeData.longitude.replace(/[°NSEW\s]/g, ''));
+      }
+
       const updatedStore = await db
         .update(schema.stores)
-        .set({ ...req.body, updatedAt: new Date() })
+        .set({ ...storeData, updatedAt: new Date() })
         .where(eq(schema.stores.id, storeId))
         .returning();
       res.json(updatedStore[0]);
@@ -5087,7 +5136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select()
         .from(schema.jobApplications)
         .orderBy(desc(schema.jobApplications.appliedAt));
-      
+
       res.json(applications);
     } catch (error) {
       console.error('Error fetching job applications:', error);
@@ -5103,11 +5152,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(schema.jobApplications)
         .where(eq(schema.jobApplications.id, id))
         .limit(1);
-      
+
       if (!application) {
         return res.status(404).json({ error: 'Application not found' });
       }
-      
+
       res.json(application);
     } catch (error) {
       console.error('Error fetching job application:', error);
@@ -5148,7 +5197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/admin/job-applications/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      
+
       const [deletedApplication] = await db
         .delete(schema.jobApplications)
         .where(eq(schema.jobApplications.id, id))
@@ -5917,6 +5966,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+
+  // Get combo reviews
+  app.get("/api/combos/:comboId/reviews", async (req, res) => {
+    try {
+      const { comboId } = req.params;
+      const reviews = await storage.getComboReviews(parseInt(comboId));
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching combo reviews:", error);
+      res.status(500).json({ error: "Failed to fetch combo reviews" });
+    }
+  });
+
+  // Check if user can review combo
+  app.get("/api/combos/:comboId/can-review", async (req, res) => {
+    try {
+      const { comboId } = req.params;
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.json({
+          canReview: false,
+          message: "Please login to review this combo"
+        });
+      }
+
+      const canReview = await storage.checkUserCanReviewCombo(parseInt(userId as string), parseInt(comboId));
+      res.json(canReview);
+    } catch (error) {
+      console.error("Error checking combo review eligibility:", error);
+      res.status(500).json({ 
+        canReview: false,
+        message: "Error checking review eligibility"
+      });
+    }
+  });
+
+  // Create combo review
+  app.post("/api/combos/:comboId/reviews", async (req, res) => {
+    try {
+      const { comboId } = req.params;
+      const { rating, title, comment, userName, orderId } = req.body;
+      const user = req.user;
+
+      if (!user) {
+        return res.status(401).json({ error: "Please login to submit a review" });
+      }
+
+      // Check if user can review this combo
+      const canReview = await storage.checkUserCanReviewCombo(user.id, parseInt(comboId));
+      if (!canReview.canReview) {
+        return res.status(403).json({ error: canReview.message });
+      }
+
+      const reviewData = {
+        userId: user.id,
+        comboId: parseInt(comboId),
+        orderId: orderId || canReview.orderId,
+        rating: parseInt(rating),
+        title: title || null,
+        comment: comment || null,
+        userName: userName || `${user.firstName} ${user.lastName}`,
+        isVerified: true,
+      };
+
+      const review = await db.insert(schema.comboReviews).values(reviewData).returning();
+      res.json(review[0]);
+    } catch (error) {
+      console.error("Error creating combo review:", error);
+      res.status(500).json({ error: "Failed to create combo review"
+      });
+    }
+  });
+
 
   const httpServer = createServer(app);
   return httpServer;

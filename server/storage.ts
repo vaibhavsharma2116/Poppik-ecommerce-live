@@ -48,7 +48,10 @@ import {
   type InsertJobPosition,
   jobApplications,
   type JobApplication,
-  type InsertJobApplication
+  type InsertJobApplication,
+  comboReviews,
+  type ComboReview,
+  type InsertComboReview
 } from "@shared/schema";
 import dotenv from "dotenv";
 
@@ -152,6 +155,10 @@ export interface IStorage {
   getUserReviews(userId: number): Promise<Review[]>;
   checkUserCanReview(userId: number, productId: number): Promise<{ canReview: boolean; orderId?: number; message: string }>;
   deleteReview(reviewId: number, userId: number): Promise<boolean>;
+
+  // Combo Review Management Functions
+  getComboReviews(comboId: number): Promise<any[]>;
+  checkUserCanReviewCombo(userId: number, comboId: number): Promise<{ canReview: boolean; orderId?: number; message: string }>;
 
   // Blog Management Functions
   getBlogPosts(): Promise<BlogPost[]>; // Changed from any[] to BlogPost[]
@@ -1120,6 +1127,80 @@ export class DatabaseStorage implements IStorage {
       console.error("Error deleting review:", error);
       throw error;
     }
+  }
+
+  // Combo Review Management Functions
+  async getComboReviews(comboId: number): Promise<any[]> {
+    const db = await getDb();
+    const comboReviews = await db
+      .select({
+        id: comboReviews.id,
+        userId: comboReviews.userId,
+        comboId: comboReviews.comboId,
+        rating: comboReviews.rating,
+        title: comboReviews.title,
+        comment: comboReviews.comment,
+        userName: comboReviews.userName,
+        createdAt: comboReviews.createdAt,
+      })
+      .from(comboReviews)
+      .where(eq(comboReviews.comboId, comboId))
+      .orderBy(desc(comboReviews.createdAt));
+
+    return comboReviews;
+  }
+
+  async checkUserCanReviewCombo(userId: number, comboId: number): Promise<{ canReview: boolean; orderId?: number; message: string }> {
+    const db = await getDb();
+
+    // Check if user has already reviewed this combo
+    const existingReview = await db
+      .select()
+      .from(comboReviews)
+      .where(
+        and(
+          eq(comboReviews.userId, userId),
+          eq(comboReviews.comboId, comboId)
+        )
+      )
+      .limit(1);
+
+    if (existingReview.length > 0) {
+      return {
+        canReview: false,
+        message: "You have already reviewed this combo"
+      };
+    }
+
+    // Check if user has purchased this combo
+    const userOrders = await db
+      .select({
+        orderId: ordersTable.id,
+        orderStatus: ordersTable.status,
+      })
+      .from(ordersTable)
+      .innerJoin(orderItemsTable, eq(ordersTable.id, orderItemsTable.orderId))
+      .where(
+        and(
+          eq(ordersTable.userId, userId),
+          eq(orderItemsTable.comboId, comboId),
+          eq(ordersTable.status, 'delivered')
+        )
+      )
+      .limit(1);
+
+    if (userOrders.length === 0) {
+      return {
+        canReview: false,
+        message: "You must purchase this combo to leave a review"
+      };
+    }
+
+    return {
+      canReview: true,
+      orderId: userOrders[0].orderId,
+      message: "You can review this combo"
+    };
   }
 
   // Blog Management Functions

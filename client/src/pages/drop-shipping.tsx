@@ -38,7 +38,7 @@ export default function DropShippingPage() {
           {/* Main Heading */}
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6">
             <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent">
-              Poppik Academy
+              Poppik Dropshipping
             </span>
           </h1>
 
@@ -51,7 +51,7 @@ export default function DropShippingPage() {
           </div>
 
           <p className="text-lg sm:text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
-            Get ready to elevate your beauty knowledge! Join our exclusive Academy to learn beauty tips, skincare routines, and makeup techniques from experts.
+            Get ready to start your own online business with ease! Join our exclusive Dropshipping platform to sell trending products without managing stock, shipping, or inventory. Grow our brand, earn profits, and let us handle the rest.
           </p>
 
           

@@ -63,19 +63,16 @@ const sidebarItems = [
     title: "Products",
     href: "/products",
     icon: Package,
-    badge: "127",
   },
   {
     title: "Orders",
     href: "/orders",
     icon: ShoppingCart,
-    badge: "8",
   },
   {
     title: "Customers",
     href: "/customers",
     icon: Users,
-    badge: "1.2k",
   },
   {
     title: "Announcements",

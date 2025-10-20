@@ -450,3 +450,21 @@ export const videoTestimonials = pgTable("video_testimonials", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Combo Reviews Table
+export const comboReviews = pgTable("combo_reviews", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  comboId: integer("combo_id").notNull().references(() => combos.id),
+  orderId: integer("order_id").notNull().references(() => ordersTable.id),
+  rating: integer("rating").notNull(),
+  title: text("title"),
+  comment: text("comment"),
+  userName: text("user_name"),
+  isVerified: boolean("is_verified").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type ComboReview = typeof comboReviews.$inferSelect;
+export type InsertComboReview = typeof comboReviews.$inferInsert;

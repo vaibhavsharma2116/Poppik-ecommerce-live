@@ -52,6 +52,18 @@ export default function AdminStores() {
 
   const { data: stores = [], isLoading } = useQuery<Store[]>({
     queryKey: ['/api/admin/stores'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/stores', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch stores');
+      }
+      return response.json();
+    }
   });
 
   const createMutation = useMutation({

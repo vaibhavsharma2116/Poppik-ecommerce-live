@@ -198,7 +198,7 @@ export default function Careers() {
                 Email: careers@poppik.in
               </a>
               <Link href="/contact">
-                <Button variant="outline" className="border-white text-white hover:bg-white/10 px-8 py-3">
+                <Button variant="outline" className="border-white text-black hover:bg-white/10 px-8 py-3">
                   Contact HR Team
                 </Button>
               </Link>

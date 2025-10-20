@@ -886,7 +886,7 @@ export default function Layout({ children }: LayoutProps) {
                     Academy
                   </a>
                 </li>
-                <li>
+                {/* <li>
                   <a
                     href="/drop-shipping"
                     onClick={(e) => {
@@ -899,7 +899,7 @@ export default function Layout({ children }: LayoutProps) {
                   >
                     Drop Shipping
                   </a>
-                </li>
+                </li> */}
                 <li>
                   <Link
                     href="/about"
