@@ -49,6 +49,8 @@ import JobApplications from "@/pages/admin/job-applications";
 import AdminStores from "@/pages/admin/stores";
 const AcademyPage = lazy(() => import("./pages/academy"));
 const DropShippingPage = lazy(() => import("./pages/drop-shipping"));
+const MakeupStudio = lazy(() => import("./pages/makeup-studio"));
+const FashionShow = lazy(() => import("./pages/fashion-show"));
 
 const AdminBlog = lazy(() => import("./pages/admin/blog"));
 const AdminReports = lazy(() => import("./pages/admin/reports"));
@@ -157,6 +159,16 @@ function Router() {
             <Route path="/drop-shipping">
               <Suspense fallback={<LoadingSpinner />}>
                 <DropShippingPage />
+              </Suspense>
+            </Route>
+            <Route path="/makeup-studio">
+              <Suspense fallback={<LoadingSpinner />}>
+                <MakeupStudio />
+              </Suspense>
+            </Route>
+            <Route path="/fashion-show">
+              <Suspense fallback={<LoadingSpinner />}>
+                <FashionShow />
               </Suspense>
             </Route>
             <Route path="/products" component={ProductsPage} />

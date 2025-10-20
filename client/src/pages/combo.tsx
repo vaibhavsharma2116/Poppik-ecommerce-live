@@ -116,7 +116,7 @@ export default function ComboPage() {
             return (
               <div
                 key={combo.id}
-                className="group transition-all duration-300 overflow-hidden bg-white rounded-xl cursor-pointer"
+                className="group transition-all duration-300 overflow-hidden bg-white rounded-xl cursor-pointer flex flex-col"
                 onMouseEnter={() => setHoveredCard(combo.id)}
                 onMouseLeave={() => setHoveredCard(null)}
               >
@@ -165,7 +165,7 @@ export default function ComboPage() {
                 </div>
 
                 {/* Content Section */}
-                <div className="p-4 sm:p-5 space-y-3 bg-white">
+                <div className="p-4 sm:p-5 space-y-3 bg-white flex-1 flex flex-col">
                   {/* Rating */}
                   <div className="flex items-center justify-between bg-white rounded-lg p-2">
                     <div className="flex items-center">
@@ -194,7 +194,7 @@ export default function ComboPage() {
                   </p>
 
                   {/* Products Included */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 flex-1">
                     <p className="text-xs font-semibold text-gray-700">Includes:</p>
                     <div className="flex flex-wrap gap-1">
                       {Array.isArray(products) && products.slice(0, 3).map((product: any, index: number) => (
@@ -215,7 +215,7 @@ export default function ComboPage() {
                   </div>
 
                   {/* Price Section */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 mt-auto">
                     <div className="flex items-baseline space-x-2">
                       <span className="text-lg sm:text-xl font-bold text-gray-900">
                         ₹{price.toLocaleString()}

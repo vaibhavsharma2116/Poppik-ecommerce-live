@@ -900,6 +900,34 @@ export default function Layout({ children }: LayoutProps) {
                     Drop Shipping
                   </a>
                 </li> */}
+                {/* <li>
+                  <a
+                    href="/makeup-studio"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      startTransition(() => {
+                        window.location.href = '/makeup-studio';
+                      });
+                    }}
+                    className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
+                  >
+                    Makeup Studio
+                  </a>
+                </li> */}
+                {/* <li>
+                  <a
+                    href="/fashion-show"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      startTransition(() => {
+                        window.location.href = '/fashion-show';
+                      });
+                    }}
+                    className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
+                  >
+                    Fashion Show
+                  </a>
+                </li> */}
                 <li>
                   <Link
                     href="/about"
@@ -909,7 +937,7 @@ export default function Layout({ children }: LayoutProps) {
                         : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
                     }`}
                   >
-                    About
+                    About Us
                   </Link>
                 </li>
 
@@ -935,7 +963,7 @@ export default function Layout({ children }: LayoutProps) {
                         : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
                     }`}
                   >
-                    Contact
+                    Contact Us
                   </Link>
                 </li>
               </ul>
@@ -1154,12 +1182,12 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/makeup-studio" className="text-gray-400 hover:text-white transition-colors">
                     Poppik Makeup Studio
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="/fashion-show" className="text-gray-400 hover:text-white transition-colors">
                     Poppik Fashion Show
                   </Link>
                 </li>
