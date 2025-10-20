@@ -16,6 +16,8 @@ import {
   Truck,
   ChevronLeft,
   ChevronRight,
+  Calendar,
+  User,
 } from "lucide-react";
 import { Link } from "wouter";
 import HeroBanner from "@/components/hero-banner";
@@ -922,14 +924,14 @@ function LatestBlogPosts() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 px-2 sm:px-3 md:px-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 px-2 sm:px-0">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-sm">
-            <Skeleton className="aspect-[4/3] w-full" />
-            <div className="p-2 sm:p-3 md:p-4 space-y-1.5 sm:space-y-2">
-              <Skeleton className="h-3 sm:h-4 w-full" />
-              <Skeleton className="h-3 sm:h-4 w-3/4" />
-              <Skeleton className="h-2.5 sm:h-3 w-1/2" />
+          <div key={i} className="bg-white rounded-lg sm:rounded-none overflow-hidden shadow-sm">
+            <Skeleton className="aspect-square w-full" style={{ paddingBottom: '66.67%' }} />
+            <div className="p-3 space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
             </div>
           </div>
         ))}
@@ -947,36 +949,58 @@ function LatestBlogPosts() {
 
   return (
     <>
-      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 px-2 sm:px-3 md:px-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 px-2 sm:px-0">
         {latestPosts.map((post) => (
           <Link key={post.id} href={`/blog/${post.slug}`}>
-            <div className="group cursor-pointer bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 h-full">
-              <div className="relative overflow-hidden aspect-[4/3]">
+            <div className="group cursor-pointer">
+              {/* Image - Same as blog page */}
+              <div className="relative overflow-hidden bg-gray-100 mb-3 sm:mb-4 rounded-lg sm:rounded-none" style={{ paddingBottom: '66.67%' }}>
                 <img
                   src={post.imageUrl}
                   alt={post.title}
-                  className="w-full h-full  group-hover:scale-105 transition-transform duration-500"
+                  className="absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500"
                 />
+                {post.videoUrl && (
+                  <div className="absolute inset-0">
+                    <video
+                      className="w-full h-full"
+                      controls
+                      preload="metadata"
+                      poster={post.imageUrl}
+                    >
+                      <source src={post.videoUrl} type="video/mp4" />
+                    </video>
+                  </div>
+                )}
               </div>
-              <div className="p-2 sm:p-3 md:p-4 flex flex-col h-full">
-                <Badge variant="outline" className="mb-1.5 sm:mb-2 text-[10px] sm:text-xs w-fit">
-                  {post.category}
-                </Badge>
-                <h3 className="text-xs sm:text-sm md:text-base font-semibold text-gray-900 line-clamp-2 mb-1.5 sm:mb-2 group-hover:text-pink-600 transition-colors leading-tight">
+
+              {/* Content - Same as blog page */}
+              <div className="space-y-2 sm:space-y-3 px-1 sm:px-0">
+                <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 flex-wrap">
+                  <Badge variant="outline" className="rounded-full sm:rounded-none border-gray-300 text-gray-600 text-xs px-2 py-0.5">
+                    {post.category}
+                  </Badge>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    <span className="hidden sm:inline">{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    <span className="sm:hidden">{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  </span>
+                </div>
+
+                <h3 className="text-base sm:text-lg md:text-xl font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2 leading-tight">
                   {post.title}
                 </h3>
-                <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 line-clamp-2 mb-2 sm:mb-3 leading-relaxed">
+
+                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 sm:line-clamp-3 leading-relaxed">
                   {post.excerpt}
                 </p>
-                <div className="flex items-center justify-between text-[9px] sm:text-[10px] md:text-xs text-gray-500 mt-auto pt-1.5 sm:pt-2">
-                  <span className="truncate max-w-[60%]">
-                    {new Date(post.createdAt).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric',
-                      year: window.innerWidth < 640 ? undefined : 'numeric'
-                    })}
-                  </span>
-                  <span className="whitespace-nowrap">{post.readTime}</span>
+
+                <div className="flex items-center justify-between pt-1 sm:pt-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-gray-500">
+                    <User className="h-3 w-3" />
+                    <span className="truncate max-w-[100px] sm:max-w-none">{post.author}</span>
+                  </div>
+                  <span className="text-xs text-gray-500 whitespace-nowrap">{post.readTime}</span>
                 </div>
               </div>
             </div>

@@ -585,27 +585,55 @@ export default function ProductDetail() {
                               WebkitOverflowScrolling: 'touch'
                             }}
                             onScroll={(e) => {
+                              // Skip auto-selection if user is manually scrolling after a click
+                              if ((window as any).thumbnailClickInProgress) {
+                                return;
+                              }
+                              
+                              // Capture container reference before setTimeout
                               const container = e.currentTarget;
-                              const scrollTop = container.scrollTop;
-                              const scrollHeight = container.scrollHeight;
-                              const clientHeight = container.clientHeight;
-                              const itemHeight = 92; // 80px height + 12px gap
+                              if (!container) return;
+                              
+                              // Debounce scroll handler to avoid conflicts with click
+                              clearTimeout((window as any).thumbnailScrollTimeout);
+                              (window as any).thumbnailScrollTimeout = setTimeout(() => {
+                                // Double check click is not in progress
+                                if ((window as any).thumbnailClickInProgress) {
+                                  return;
+                                }
 
-                              // Check if scrolled to bottom
-                              const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 5;
+                                const scrollTop = container.scrollTop;
+                                const scrollHeight = container.scrollHeight;
+                                const clientHeight = container.clientHeight;
+                                const itemHeight = 92; // 80px height + 12px gap
 
-                              let visibleIndex;
-                              if (isAtBottom) {
-                                // If at bottom, select last image
-                                visibleIndex = imageUrls.length - 1;
-                              } else {
-                                visibleIndex = Math.round(scrollTop / itemHeight);
-                              }
+                                // Check if scrolled to bottom
+                                const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 5;
+                                
+                                // Check if scrolled to top
+                                const isAtTop = scrollTop < 5;
 
-                              // Auto-select image based on scroll position
-                              if (imageUrls[visibleIndex] && imageUrls[visibleIndex] !== selectedImageUrl) {
-                                setSelectedImageUrl(imageUrls[visibleIndex]);
-                              }
+                                let visibleIndex;
+                                if (isAtTop) {
+                                  // If at top, select first image
+                                  visibleIndex = 0;
+                                } else if (isAtBottom) {
+                                  // If at bottom, select last image
+                                  visibleIndex = imageUrls.length - 1;
+                                } else {
+                                  // Calculate middle visible item with better accuracy
+                                  const scrollCenter = scrollTop + (clientHeight / 2);
+                                  visibleIndex = Math.min(
+                                    Math.max(0, Math.round(scrollCenter / itemHeight)),
+                                    imageUrls.length - 1
+                                  );
+                                }
+
+                                // Auto-select image based on scroll position only if not manually clicked
+                                if (imageUrls[visibleIndex] && imageUrls[visibleIndex] !== selectedImageUrl) {
+                                  setSelectedImageUrl(imageUrls[visibleIndex]);
+                                }
+                              }, 150); // 150ms debounce
                             }}
                           >
                             {imageUrls.map((imageUrl, index) => {
@@ -619,16 +647,45 @@ export default function ProductDetail() {
                               return (
                                 <button
                                   key={`thumb-${index}`}
-                                  onClick={() => {
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    
+                                    // Set flag to prevent scroll handler from interfering
+                                    (window as any).thumbnailClickInProgress = true;
+                                    
+                                    // Immediately set the selected image
                                     setSelectedImageUrl(imageUrl);
-                                    // Smooth scroll to selected thumbnail
+                                    
+                                    // Center the clicked thumbnail in view
                                     const container = document.getElementById('thumbnail-container');
                                     if (container) {
-                                      const itemHeight = 92;
-                                      container.scrollTo({
-                                        top: index * itemHeight,
-                                        behavior: 'smooth'
-                                      });
+                                      const itemHeight = 92; // 80px height + 12px gap
+                                      const containerHeight = container.clientHeight;
+                                      const scrollPosition = (index * itemHeight) - (containerHeight / 2) + (itemHeight / 2);
+                                      
+                                      // Ensure scroll position is within valid range
+                                      const maxScroll = container.scrollHeight - container.clientHeight;
+                                      const targetScroll = Math.max(0, Math.min(scrollPosition, maxScroll));
+                                      
+                                      // Use setTimeout to ensure state update happens first
+                                      setTimeout(() => {
+                                        container.scrollTo({
+                                          top: targetScroll,
+                                          behavior: 'smooth'
+                                        });
+                                        
+                                        // Clear the flag after scroll animation completes
+                                        setTimeout(() => {
+                                          (window as any).thumbnailClickInProgress = false;
+                                        }, 500);
+                                      }, 0);
+                                    } else {
+                                      // Clear flag if no container found
+                                      setTimeout(() => {
+                                        (window as any).thumbnailClickInProgress = false;
+                                      }, 100);
                                     }
                                   }}
                                   className={`w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-300 hover:border-purple-300 flex-shrink-0 relative ${
@@ -687,6 +744,10 @@ export default function ProductDetail() {
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
+                                
+                                // Set flag to prevent scroll handler interference
+                                (window as any).thumbnailClickInProgress = true;
+                                
                                 const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
 
                                 // Circular navigation - if on first image, go to last
@@ -707,6 +768,15 @@ export default function ProductDetail() {
                                       behavior: 'smooth'
                                     });
                                   }
+                                  
+                                  // Clear flag after animation
+                                  setTimeout(() => {
+                                    (window as any).thumbnailClickInProgress = false;
+                                  }, 500);
+                                } else {
+                                  setTimeout(() => {
+                                    (window as any).thumbnailClickInProgress = false;
+                                  }, 100);
                                 }
                               }}
                               className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 z-10 hover:bg-white cursor-pointer"
@@ -719,6 +789,10 @@ export default function ProductDetail() {
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
+                                
+                                // Set flag to prevent scroll handler interference
+                                (window as any).thumbnailClickInProgress = true;
+                                
                                 const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
 
                                 // Circular navigation - if on last image, go to first
@@ -748,9 +822,17 @@ export default function ProductDetail() {
                                   // Set image after a small delay to sync with scroll
                                   setTimeout(() => {
                                     setSelectedImageUrl(imageUrls[nextIndex]);
+                                    
+                                    // Clear flag after complete
+                                    setTimeout(() => {
+                                      (window as any).thumbnailClickInProgress = false;
+                                    }, 400);
                                   }, 100);
                                 } else {
                                   setSelectedImageUrl(imageUrls[nextIndex]);
+                                  setTimeout(() => {
+                                    (window as any).thumbnailClickInProgress = false;
+                                  }, 100);
                                 }
                               }}
                               className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 z-10 hover:bg-white cursor-pointer"
