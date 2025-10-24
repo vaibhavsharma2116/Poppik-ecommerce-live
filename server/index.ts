@@ -6,6 +6,10 @@ import { setupVite, serveStatic, log } from "./vite";
 import { pool } from "./storage";
 import path from "path";
 import { fileURLToPath } from "url";
+import { products } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import fs from "fs";
+import { drizzle } from "drizzle-orm/node-postgres";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,6 +75,73 @@ app.use((req, res, next) => {
   });
 
   next();
+});
+
+// Create db instance
+const db = drizzle(pool, { schema: { products } });
+
+// Server-side meta tag injection for product pages
+app.get("/product/:slug", async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+
+    // Fetch product from database
+    const product = await db.query.products.findFirst({
+      where: eq(products.slug, slug),
+    });
+
+    if (!product) {
+      return next();
+    }
+
+    // Read the index.html file
+    const indexPath = path.join(process.cwd(), "dist/public/index.html");
+    let html = fs.readFileSync(indexPath, "utf-8");
+
+    // Prepare meta tags
+    const productUrl = `https://poppiklifestyle.com/product/${slug}`;
+    const imageUrl = product.imageUrl?.startsWith('http')
+      ? product.imageUrl
+      : `https://poppiklifestyle.com${product.imageUrl}`;
+
+    const metaTags = `
+  <title>${product.name} - Poppik Lifestyle</title>
+  <meta name="description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="product" />
+  <meta property="og:url" content="${productUrl}" />
+  <meta property="og:title" content="${product.name} - Poppik Lifestyle" />
+  <meta property="og:description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
+  <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:site_name" content="Poppik Lifestyle" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="${productUrl}" />
+  <meta name="twitter:title" content="${product.name} - Poppik Lifestyle" />
+  <meta name="twitter:description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
+  <meta name="twitter:image" content="${imageUrl}" />
+
+  <!-- Product specific meta -->
+  <meta property="product:price:amount" content="${product.price}" />
+  <meta property="product:price:currency" content="INR" />
+  <meta property="product:availability" content="${product.inStock ? 'in stock' : 'out of stock'}" />
+
+  <link rel="canonical" href="${productUrl}" />
+    `;
+
+    // Inject meta tags into HTML head
+    html = html.replace("</head>", `${metaTags}</head>`);
+
+    // Send the modified HTML
+    res.send(html);
+  } catch (error) {
+    console.error("Error generating product meta tags:", error);
+    next();
+  }
 });
 
 (async () => {
