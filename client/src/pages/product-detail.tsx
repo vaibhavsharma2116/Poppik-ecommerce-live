@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
+import { Helmet } from "react-helmet";
 import { ChevronRight, Star, ShoppingCart, Heart, ChevronDown, ChevronUp, CheckCircle, Badge, Video, Share2, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -231,42 +232,7 @@ export default function ProductDetail() {
     }
   }, [shadesFromAPI, product?.id]);
 
-  useEffect(() => {
-    // Set Open Graph meta tags - simplified with primitive dependencies
-    if (!product?.id || !productSlug) return;
-
-    const metaTitle = document.querySelector('meta[property="og:title"]');
-    const metaDescription = document.querySelector('meta[property="og:description"]');
-    const metaImage = document.querySelector('meta[property="og:image"]');
-    const metaUrl = document.querySelector('meta[property="og:url"]');
-    const metaType = document.querySelector('meta[property="og:type"]');
-
-    if (metaTitle) {
-      metaTitle.setAttribute('content', `${product.name} - Poppik`);
-    }
-    if (metaDescription && product.shortDescription) {
-      metaDescription.setAttribute('content', product.shortDescription);
-    }
-    if (metaImage && product.imageUrl) {
-      const absoluteImageUrl = new URL(product.imageUrl, window.location.origin).href;
-      metaImage.setAttribute('content', absoluteImageUrl);
-    }
-    if (metaUrl) {
-      metaUrl.setAttribute('content', `${window.location.origin}/product/${productSlug}`);
-    }
-    if (metaType) {
-      metaType.setAttribute('content', 'product');
-    }
-
-    // Set canonical link
-    let canonicalLink = document.querySelector('link[rel="canonical"]');
-    if (!canonicalLink) {
-      canonicalLink = document.createElement('link');
-      canonicalLink.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonicalLink);
-    }
-    canonicalLink.setAttribute('href', `${window.location.origin}/product/${productSlug}`);
-  }, [product?.id, product?.name, product?.shortDescription, product?.imageUrl, productSlug]);
+  
 
   const toggleWishlist = () => {
     if (!product) return;
@@ -545,6 +511,32 @@ export default function ProductDetail() {
 
   return (
     <>
+      <Helmet>
+        <title>{product?.name ? `${product.name} - Poppik Lifestyle` : 'Product - Poppik Lifestyle'}</title>
+        <meta name="description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="product" />
+        <meta property="og:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
+        <meta property="og:title" content={product?.name ? `${product.name} - Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
+        <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
+        <meta property="og:image" content={product?.imageUrl ? new URL(product.imageUrl, window.location.origin).href : 'https://poppiklifestyle.com/logo.png'} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
+        <meta name="twitter:title" content={product?.name ? `${product.name} - Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
+        <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
+        <meta name="twitter:image" content={product?.imageUrl ? new URL(product.imageUrl, window.location.origin).href : 'https://poppiklifestyle.com/logo.png'} />
+        
+        {/* Product specific meta */}
+        {product?.price && <meta property="product:price:amount" content={product.price.toString()} />}
+        {product?.price && <meta property="product:price:currency" content="INR" />}
+        
+        <link rel="canonical" href={`https://poppiklifestyle.com/product/${productSlug}`} />
+      </Helmet>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-16">
         <div className="max-w-7xl mx-auto product-detail-container lg:px-8">
         {/* Breadcrumb */}
