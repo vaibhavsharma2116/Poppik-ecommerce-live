@@ -100,9 +100,22 @@ app.get("/product/:slug", async (req, res, next) => {
 
     // Prepare meta tags
     const productUrl = `https://poppiklifestyle.com/product/${slug}`;
-    const imageUrl = product.imageUrl?.startsWith('http')
-      ? product.imageUrl
-      : `https://poppiklifestyle.com${product.imageUrl}`;
+    
+    // Ensure image URL is absolute and properly formatted for social media
+    let imageUrl = product.imageUrl || '/favicon.png';
+    if (!imageUrl.startsWith('http')) {
+      // If it's a relative path, make it absolute
+      if (imageUrl.startsWith('/api/')) {
+        // Already has /api/, just add domain
+        imageUrl = `https://poppiklifestyle.com${imageUrl}`;
+      } else if (imageUrl.startsWith('/')) {
+        // Starts with /, just add domain
+        imageUrl = `https://poppiklifestyle.com${imageUrl}`;
+      } else {
+        // No leading slash, add both
+        imageUrl = `https://poppiklifestyle.com/${imageUrl}`;
+      }
+    }
 
     const metaTags = `
   <title>${product.name} - Poppik Lifestyle</title>
@@ -114,8 +127,11 @@ app.get("/product/:slug", async (req, res, next) => {
   <meta property="og:title" content="${product.name} - Poppik Lifestyle" />
   <meta property="og:description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
   <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image:secure_url" content="${imageUrl}" />
+  <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="${product.name}" />
   <meta property="og:site_name" content="Poppik Lifestyle" />
 
   <!-- Twitter -->
@@ -124,6 +140,7 @@ app.get("/product/:slug", async (req, res, next) => {
   <meta name="twitter:title" content="${product.name} - Poppik Lifestyle" />
   <meta name="twitter:description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
   <meta name="twitter:image" content="${imageUrl}" />
+  <meta name="twitter:image:alt" content="${product.name}" />
 
   <!-- Product specific meta -->
   <meta property="product:price:amount" content="${product.price}" />
