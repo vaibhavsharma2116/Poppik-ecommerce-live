@@ -80,7 +80,21 @@ app.use((req, res, next) => {
 // Create db instance
 const db = drizzle(pool, { schema: { products } });
 
-// Server-side meta tag injection for product pages
+(async () => {
+  // Simple database connection test
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT 1');
+    client.release();
+    console.log("✅ Database connection verified");
+  } catch (error) {
+    console.error("❌ Database connection failed:", error);
+  }
+
+  // Register API routes FIRST
+  const server = await registerRoutes(app);
+
+  // Server-side meta tag injection for product pages (BEFORE static files)
   app.get("/product/:slug", async (req, res, next) => {
     try {
       const { slug } = req.params;
@@ -111,15 +125,11 @@ const db = drizzle(pool, { schema: { products } });
       // Ensure image URL is absolute and properly formatted for social media
       let imageUrl = product.imageUrl || '/favicon.png';
       if (!imageUrl.startsWith('http')) {
-        // If it's a relative path, make it absolute
         if (imageUrl.startsWith('/api/')) {
-          // Already has /api/, just add domain
           imageUrl = `https://poppiklifestyle.com${imageUrl}`;
         } else if (imageUrl.startsWith('/')) {
-          // Starts with /, just add domain
           imageUrl = `https://poppiklifestyle.com${imageUrl}`;
         } else {
-          // No leading slash, add both
           imageUrl = `https://poppiklifestyle.com/${imageUrl}`;
         }
       }
@@ -177,9 +187,16 @@ const db = drizzle(pool, { schema: { products } });
     }
   });
 
-  // Catch-all route for SPA - Must be AFTER all API routes and specific routes
+  // Vite/Static setup
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
+
+  // Catch-all route for SPA - Must be LAST
   app.get('*', (req, res, next) => {
-    // Skip if it's an API route
+    // Skip API routes
     if (req.path.startsWith('/api/')) {
       return next();
     }
@@ -190,34 +207,13 @@ const db = drizzle(pool, { schema: { products } });
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
-        next();
+        res.status(404).send('Not Found');
       }
     } catch (error) {
       console.error("Error serving index.html:", error);
       next();
     }
   });
-
-
-// Simple database connection test
-  try {
-    const client = await pool.connect();
-    await client.query('SELECT 1');
-    client.release();
-    console.log("✅ Database connection verified");
-  } catch (error) {
-    console.error("❌ Database connection failed:", error);
-  }
-
-  // Register API routes FIRST before any middleware
-  const server = await registerRoutes(app);
-
-  // Vite/Static setup ko API routes ke baad karte hain
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
 
   // Final error handler
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
@@ -252,4 +248,4 @@ const db = drizzle(pool, { schema: { products } });
       }, 30000); // Run GC every 30 seconds
     }
   });
-;
+})();
