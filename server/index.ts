@@ -81,43 +81,50 @@ app.use((req, res, next) => {
 const db = drizzle(pool, { schema: { products } });
 
 // Server-side meta tag injection for product pages
-app.get("/product/:slug", async (req, res, next) => {
-  try {
-    const { slug } = req.params;
+  app.get("/product/:slug", async (req, res, next) => {
+    try {
+      const { slug } = req.params;
 
-    // Fetch product from database
-    const product = await db.query.products.findFirst({
-      where: eq(products.slug, slug),
-    });
+      // Fetch product from database
+      const product = await db.query.products.findFirst({
+        where: eq(products.slug, slug),
+      });
 
-    if (!product) {
-      return next();
-    }
+      // Read the index.html file
+      const indexPath = path.join(process.cwd(), "dist/public/index.html");
 
-    // Read the index.html file
-    const indexPath = path.join(process.cwd(), "dist/public/index.html");
-    let html = fs.readFileSync(indexPath, "utf-8");
-
-    // Prepare meta tags
-    const productUrl = `https://poppiklifestyle.com/product/${slug}`;
-    
-    // Ensure image URL is absolute and properly formatted for social media
-    let imageUrl = product.imageUrl || '/favicon.png';
-    if (!imageUrl.startsWith('http')) {
-      // If it's a relative path, make it absolute
-      if (imageUrl.startsWith('/api/')) {
-        // Already has /api/, just add domain
-        imageUrl = `https://poppiklifestyle.com${imageUrl}`;
-      } else if (imageUrl.startsWith('/')) {
-        // Starts with /, just add domain
-        imageUrl = `https://poppiklifestyle.com${imageUrl}`;
-      } else {
-        // No leading slash, add both
-        imageUrl = `https://poppiklifestyle.com/${imageUrl}`;
+      if (!fs.existsSync(indexPath)) {
+        console.error("index.html not found at:", indexPath);
+        return next();
       }
-    }
 
-    const metaTags = `
+      let html = fs.readFileSync(indexPath, "utf-8");
+
+      if (!product) {
+        // Even if product not found, send the HTML so React can handle 404
+        return res.send(html);
+      }
+
+      // Prepare meta tags
+      const productUrl = `https://poppiklifestyle.com/product/${slug}`;
+
+      // Ensure image URL is absolute and properly formatted for social media
+      let imageUrl = product.imageUrl || '/favicon.png';
+      if (!imageUrl.startsWith('http')) {
+        // If it's a relative path, make it absolute
+        if (imageUrl.startsWith('/api/')) {
+          // Already has /api/, just add domain
+          imageUrl = `https://poppiklifestyle.com${imageUrl}`;
+        } else if (imageUrl.startsWith('/')) {
+          // Starts with /, just add domain
+          imageUrl = `https://poppiklifestyle.com${imageUrl}`;
+        } else {
+          // No leading slash, add both
+          imageUrl = `https://poppiklifestyle.com/${imageUrl}`;
+        }
+      }
+
+      const metaTags = `
   <title>${product.name} - Poppik Lifestyle</title>
   <meta name="description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
 
@@ -159,19 +166,40 @@ app.get("/product/:slug", async (req, res, next) => {
   <link rel="canonical" href="${productUrl}" />
     `;
 
-    // Inject meta tags into HTML head
-    html = html.replace("</head>", `${metaTags}</head>`);
+      // Inject meta tags into HTML head
+      html = html.replace("</head>", `${metaTags}</head>`);
 
-    // Send the modified HTML
-    res.send(html);
-  } catch (error) {
-    console.error("Error generating product meta tags:", error);
-    next();
-  }
-});
+      // Send the modified HTML
+      res.send(html);
+    } catch (error) {
+      console.error("Error generating product meta tags:", error);
+      next();
+    }
+  });
 
-(async () => {
-  // Simple database connection test
+  // Catch-all route for SPA - Must be AFTER all API routes and specific routes
+  app.get('*', (req, res, next) => {
+    // Skip if it's an API route
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+
+    try {
+      const indexPath = path.join(process.cwd(), "dist/public/index.html");
+
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        next();
+      }
+    } catch (error) {
+      console.error("Error serving index.html:", error);
+      next();
+    }
+  });
+
+
+// Simple database connection test
   try {
     const client = await pool.connect();
     await client.query('SELECT 1');
@@ -184,7 +212,7 @@ app.get("/product/:slug", async (req, res, next) => {
   // Register API routes FIRST before any middleware
   const server = await registerRoutes(app);
 
-  // Vite/Static setup को API routes के बाद करते हैं
+  // Vite/Static setup ko API routes ke baad karte hain
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
@@ -224,4 +252,4 @@ app.get("/product/:slug", async (req, res, next) => {
       }, 30000); // Run GC every 30 seconds
     }
   });
-})();
+;
