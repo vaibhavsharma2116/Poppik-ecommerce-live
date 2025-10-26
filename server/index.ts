@@ -98,13 +98,9 @@ const db = drizzle(pool, { schema: { products } });
   app.get("/product/:slug", async (req, res, next) => {
     try {
       const { slug } = req.params;
+      console.log(`Product page requested for slug: ${slug}`);
 
-      // Fetch product from database
-      const product = await db.query.products.findFirst({
-        where: eq(products.slug, slug),
-      });
-
-      // Read the index.html file
+      // Read the index.html file first
       const indexPath = path.join(process.cwd(), "dist/public/index.html");
 
       if (!fs.existsSync(indexPath)) {
@@ -114,7 +110,20 @@ const db = drizzle(pool, { schema: { products } });
 
       let html = fs.readFileSync(indexPath, "utf-8");
 
+      // Try to fetch product from database
+      let product;
+      try {
+        product = await db.query.products.findFirst({
+          where: eq(products.slug, slug),
+        });
+      } catch (dbError) {
+        console.error("Database error fetching product:", dbError);
+        // Send HTML anyway so React can handle it
+        return res.send(html);
+      }
+
       if (!product) {
+        console.log(`Product not found for slug: ${slug}, sending default HTML`);
         // Even if product not found, send the HTML so React can handle 404
         return res.send(html);
       }
@@ -123,16 +132,16 @@ const db = drizzle(pool, { schema: { products } });
       const productUrl = `https://poppiklifestyle.com/product/${slug}`;
 
       // Ensure image URL is absolute and properly formatted for social media
-      let imageUrl = product.imageUrl || '/favicon.png';
-      if (!imageUrl.startsWith('http')) {
-        if (imageUrl.startsWith('/api/')) {
-          imageUrl = `https://poppiklifestyle.com${imageUrl}`;
-        } else if (imageUrl.startsWith('/')) {
-          imageUrl = `https://poppiklifestyle.com${imageUrl}`;
-        } else {
-          imageUrl = `https://poppiklifestyle.com/${imageUrl}`;
-        }
+      let imageUrl = product.imageUrl || 'https://poppiklifestyle.com/favicon.png';
+      
+      // Make sure image URL is always absolute with HTTPS
+      if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+        // Remove any leading slashes and add domain
+        imageUrl = imageUrl.replace(/^\/+/, '');
+        imageUrl = `https://poppiklifestyle.com/${imageUrl}`;
       }
+      
+      console.log(`Product image URL for OG tags: ${imageUrl}`);
 
       const metaTags = `
   <title>${product.name} - Poppik Lifestyle</title>
@@ -179,6 +188,10 @@ const db = drizzle(pool, { schema: { products } });
       // Inject meta tags into HTML head
       html = html.replace("</head>", `${metaTags}</head>`);
 
+      // Set headers for better caching and social media crawlers
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutes cache
+      
       // Send the modified HTML
       res.send(html);
     } catch (error) {

@@ -433,8 +433,9 @@ export default function ProductDetail() {
 
   const shareToWhatsApp = () => {
     const url = window.location.href;
-    const imageUrl = selectedImageUrl || imageUrls[0] || product?.imageUrl || '';
     const price = `₹${product?.price}`;
+    
+    // Simple text message - WhatsApp will fetch Open Graph image from URL
     const text = `🛍️ *${product?.name}*\n\n${product?.shortDescription || ''}\n\n💰 Price: ${price}\n\n✨ Check it out: ${url}`;
     
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
