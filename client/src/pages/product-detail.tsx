@@ -433,18 +433,22 @@ export default function ProductDetail() {
 
   const shareToWhatsApp = () => {
     const url = window.location.href;
-    const text = `Check out ${product?.name} on Poppik!`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank');
+    const imageUrl = selectedImageUrl || imageUrls[0] || product?.imageUrl || '';
+    const price = `₹${product?.price}`;
+    const text = `🛍️ *${product?.name}*\n\n${product?.shortDescription || ''}\n\n💰 Price: ${price}\n\n✨ Check it out: ${url}`;
+    
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const shareToFacebook = () => {
     const url = window.location.href;
+    // Facebook will automatically fetch Open Graph tags from the URL
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
   };
 
   const shareToTwitter = () => {
     const url = window.location.href;
-    const text = `Check out ${product?.name} on Poppik!`;
+    const text = `Check out ${product?.name} - ₹${product?.price} on Poppik! ${product?.shortDescription || ''}`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
   };
 
@@ -518,18 +522,25 @@ export default function ProductDetail() {
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="product" />
         <meta property="og:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
-        <meta property="og:title" content={product?.name ? `${product.name} - Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
+        <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
-        <meta property="og:image" content={product?.imageUrl ? new URL(product.imageUrl, window.location.origin).href : 'https://poppiklifestyle.com/logo.png'} />
+        <meta property="og:image" content={(() => {
+          const img = selectedImageUrl || imageUrls[0] || product?.imageUrl || '/logo.png';
+          return img.startsWith('http') ? img : `https://poppiklifestyle.com${img.startsWith('/') ? img : '/' + img}`;
+        })()} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={product?.name || 'Product Image'} />
         
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
-        <meta name="twitter:title" content={product?.name ? `${product.name} - Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
+        <meta name="twitter:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
-        <meta name="twitter:image" content={product?.imageUrl ? new URL(product.imageUrl, window.location.origin).href : 'https://poppiklifestyle.com/logo.png'} />
+        <meta name="twitter:image" content={(() => {
+          const img = selectedImageUrl || imageUrls[0] || product?.imageUrl || '/logo.png';
+          return img.startsWith('http') ? img : `https://poppiklifestyle.com${img.startsWith('/') ? img : '/' + img}`;
+        })()} />
         
         {/* Product specific meta */}
         {product?.price && <meta property="product:price:amount" content={product.price.toString()} />}

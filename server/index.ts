@@ -124,7 +124,7 @@ app.get("/product/:slug", async (req, res, next) => {
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="product" />
   <meta property="og:url" content="${productUrl}" />
-  <meta property="og:title" content="${product.name} - Poppik Lifestyle" />
+  <meta property="og:title" content="${product.name} - ₹${product.price} | Poppik Lifestyle" />
   <meta property="og:description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
   <meta property="og:image" content="${imageUrl}" />
   <meta property="og:image:secure_url" content="${imageUrl}" />
@@ -133,19 +133,28 @@ app.get("/product/:slug", async (req, res, next) => {
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="${product.name}" />
   <meta property="og:site_name" content="Poppik Lifestyle" />
-
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:url" content="${productUrl}" />
-  <meta name="twitter:title" content="${product.name} - Poppik Lifestyle" />
-  <meta name="twitter:description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
-  <meta name="twitter:image" content="${imageUrl}" />
-  <meta name="twitter:image:alt" content="${product.name}" />
-
-  <!-- Product specific meta -->
+  <meta property="product:brand" content="Poppik Lifestyle" />
   <meta property="product:price:amount" content="${product.price}" />
   <meta property="product:price:currency" content="INR" />
   <meta property="product:availability" content="${product.inStock ? 'in stock' : 'out of stock'}" />
+  <meta property="product:condition" content="new" />
+
+  <!-- WhatsApp Specific -->
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@PoppikLifestyle" />
+  <meta name="twitter:url" content="${productUrl}" />
+  <meta name="twitter:title" content="${product.name} - ₹${product.price} | Poppik Lifestyle" />
+  <meta name="twitter:description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
+  <meta name="twitter:image" content="${imageUrl}" />
+  <meta name="twitter:image:alt" content="${product.name}" />
+  <meta name="twitter:label1" content="Price" />
+  <meta name="twitter:data1" content="₹${product.price}" />
+  <meta name="twitter:label2" content="Availability" />
+  <meta name="twitter:data2" content="${product.inStock ? 'In Stock' : 'Out of Stock'}" />
 
   <link rel="canonical" href="${productUrl}" />
     `;
