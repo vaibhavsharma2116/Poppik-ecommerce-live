@@ -435,7 +435,7 @@ export default function ProductDetail() {
     const url = window.location.href;
     const price = `₹${product?.price}`;
     
-    // Simple text message - WhatsApp will fetch Open Graph image from URL
+    // WhatsApp will fetch Open Graph image from URL automatically
     const text = `🛍️ *${product?.name}*\n\n${product?.shortDescription || ''}\n\n💰 Price: ${price}\n\n✨ Check it out: ${url}`;
     
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
@@ -526,8 +526,20 @@ export default function ProductDetail() {
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
-          const img = selectedImageUrl || imageUrls[0] || product?.imageUrl || '/logo.png';
-          return img.startsWith('http') ? img : `https://poppiklifestyle.com${img.startsWith('/') ? img : '/' + img}`;
+          // Get the first available image
+          let img = selectedImageUrl || imageUrls[0] || product?.imageUrl || '/logo.png';
+          
+          // Clean up any query parameters for the OG tag to ensure it works across platforms
+          if (img.includes('?')) {
+            img = img.split('?')[0];
+          }
+          
+          // Ensure absolute URL
+          if (!img.startsWith('http')) {
+            img = `https://poppiklifestyle.com${img.startsWith('/') ? img : '/' + img}`;
+          }
+          
+          return img;
         })()} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -539,8 +551,20 @@ export default function ProductDetail() {
         <meta name="twitter:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta name="twitter:image" content={(() => {
-          const img = selectedImageUrl || imageUrls[0] || product?.imageUrl || '/logo.png';
-          return img.startsWith('http') ? img : `https://poppiklifestyle.com${img.startsWith('/') ? img : '/' + img}`;
+          // Get the first available image
+          let img = selectedImageUrl || imageUrls[0] || product?.imageUrl || '/logo.png';
+          
+          // Clean up any query parameters for the Twitter card
+          if (img.includes('?')) {
+            img = img.split('?')[0];
+          }
+          
+          // Ensure absolute URL
+          if (!img.startsWith('http')) {
+            img = `https://poppiklifestyle.com${img.startsWith('/') ? img : '/' + img}`;
+          }
+          
+          return img;
         })()} />
         
         {/* Product specific meta */}
