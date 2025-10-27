@@ -2579,7 +2579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log('📦 Customer data for Shiprocket:', customerData);
           console.log('📍 Full shipping address:', shippingAddress);
 
-          // Prepare Shiprocket order
+          // Prepare Shiprocket order with correct pickup location
           const shiprocketOrderData = shiprocketService.convertToShiprocketFormat({
             id: orderId,
             createdAt: newOrder.createdAt,
@@ -2588,7 +2588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             shippingAddress: shippingAddress,
             items: items,
             customer: customerData
-          });
+          }, "Office"); // Use "Office" as pickup location instead of "Primary"
 
           console.log('📋 Shiprocket order payload:', JSON.stringify(shiprocketOrderData, null, 2));
 
