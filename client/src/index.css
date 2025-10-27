@@ -478,6 +478,25 @@ body {
     perspective: 1000px;
   }
 
+  @keyframes scroll-continuous {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  .animate-scroll-continuous {
+    display: inline-block;
+    animation: scroll-continuous 30s linear infinite;
+    will-change: transform;
+  }
+
+  .animate-scroll-continuous:hover {
+    animation-play-state: paused;
+  }
+
   html {
     font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
   }
