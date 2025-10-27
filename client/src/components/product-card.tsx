@@ -367,7 +367,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
         <div className="space-y-1 sm:space-y-2">
           <div className="flex flex-col space-y-1">
-            <div className="flex items-baseline space-x-2">
+            <div className="flex items-baseline space-x-2 min-h-[28px]">
               <span className="mobile-product-price text-sm sm:text-base md:text-lg font-bold text-gray-900">
                 ₹{Number(product.price).toLocaleString()}
               </span>
@@ -376,7 +376,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   <span className="text-xs sm:text-sm text-gray-500 line-through">
                     ₹{Number(product.originalPrice).toLocaleString()}
                   </span>
-                  <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
+                  <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded whitespace-nowrap">
                     {discountPercentage}% OFF
                   </span>
                 </>

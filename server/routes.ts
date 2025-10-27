@@ -57,6 +57,9 @@ import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
 import type { InsertBlogCategory, InsertBlogSubcategory } from "../shared/schema";
 
+// Initialize Shiprocket service
+const shiprocketService = new ShiprocketService();
+
 // Database connection with enhanced configuration
 const pool = new Pool({
  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",

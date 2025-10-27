@@ -188,7 +188,7 @@ export default function BlogPostDetail() {
               </Button>
             </Link>
             <span className="text-gray-400 mx-1">/</span>
-            <span className="text-gray-600 text-xs sm:text-sm">The World of Faces</span>
+            <span className="text-gray-600 text-xs sm:text-sm">The World of Beauty and Lifestyle</span>
           </div>
 
           <p className="text-gray-500 text-xs sm:text-sm mb-3 sm:mb-4">
@@ -322,8 +322,8 @@ export default function BlogPostDetail() {
         </div>
 
         {/* Excerpt - Mobile Responsive */}
-        <div className="py-4 sm:py-6 md:py-8">
-          <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-700 leading-relaxed font-light">
+        <div className="py-4 sm:py-6 md:py-8 border-l-4 border-gray-900 pl-4 sm:pl-6 bg-gray-50">
+          <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-900 leading-relaxed font-medium italic">
             {post.excerpt}
           </p>
         </div>

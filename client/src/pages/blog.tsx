@@ -128,7 +128,7 @@ export default function Blog() {
               The World of Lifestyle Blog
             </h1>
             <p className="text-sm sm:text-base md:text-lg text-gray-600 mb-4 sm:mb-6 md:mb-8 px-2">
-              Discover expert tips, trends, and beauty secrets
+              Discover expert tips, trends, beauty and lifestyle secrets
             </p>
             <div className="relative max-w-md mx-auto px-2 sm:px-0">
               <Search className="absolute left-5 sm:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />

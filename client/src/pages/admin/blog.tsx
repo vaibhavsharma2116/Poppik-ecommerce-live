@@ -1000,14 +1000,23 @@ export default function AdminBlog() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="excerpt">Excerpt *</Label>
+              <Label htmlFor="excerpt">Excerpt * (Max 50 words)</Label>
               <Textarea
                 id="excerpt"
                 value={formData.excerpt}
-                onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
+                onChange={(e) => {
+                  const text = e.target.value;
+                  const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+                  if (wordCount <= 50) {
+                    setFormData({ ...formData, excerpt: text });
+                  }
+                }}
                 rows={2}
                 required
               />
+              <p className="text-xs text-gray-500">
+                {formData.excerpt.trim().split(/\s+/).filter(word => word.length > 0).length} / 50 words
+              </p>
             </div>
 
             <div className="space-y-2">
