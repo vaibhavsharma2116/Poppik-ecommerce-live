@@ -526,24 +526,40 @@ export default function ProductDetail() {
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
-          // Get the first available image
-          let img = selectedImageUrl || imageUrls[0] || product?.imageUrl || '/logo.png';
+          // Get the first available image - prioritize product images over selected shade
+          let img = imageUrls[0] || product?.imageUrl || '/logo.png';
           
-          // Clean up any query parameters for the OG tag to ensure it works across platforms
-          if (img.includes('?')) {
-            img = img.split('?')[0];
+          // If it's a relative path, make it absolute
+          if (img && !img.startsWith('http')) {
+            // Check if it starts with /api/
+            if (img.startsWith('/api/')) {
+              img = `https://poppiklifestyle.com${img}`;
+            } else if (img.startsWith('/')) {
+              img = `https://poppiklifestyle.com${img}`;
+            } else {
+              img = `https://poppiklifestyle.com/${img}`;
+            }
           }
           
-          // Ensure absolute URL
-          if (!img.startsWith('http')) {
-            img = `https://poppiklifestyle.com${img.startsWith('/') ? img : '/' + img}`;
+          return img;
+        })()} />
+        <meta property="og:image:secure_url" content={(() => {
+          let img = imageUrls[0] || product?.imageUrl || '/logo.png';
+          if (img && !img.startsWith('http')) {
+            if (img.startsWith('/api/')) {
+              img = `https://poppiklifestyle.com${img}`;
+            } else if (img.startsWith('/')) {
+              img = `https://poppiklifestyle.com${img}`;
+            } else {
+              img = `https://poppiklifestyle.com/${img}`;
+            }
           }
-          
           return img;
         })()} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content={product?.name || 'Product Image'} />
+        <meta property="og:image:type" content="image/jpeg" />
         
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
@@ -552,20 +568,22 @@ export default function ProductDetail() {
         <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta name="twitter:image" content={(() => {
           // Get the first available image
-          let img = selectedImageUrl || imageUrls[0] || product?.imageUrl || '/logo.png';
+          let img = imageUrls[0] || product?.imageUrl || '/logo.png';
           
-          // Clean up any query parameters for the Twitter card
-          if (img.includes('?')) {
-            img = img.split('?')[0];
-          }
-          
-          // Ensure absolute URL
-          if (!img.startsWith('http')) {
-            img = `https://poppiklifestyle.com${img.startsWith('/') ? img : '/' + img}`;
+          // If it's a relative path, make it absolute
+          if (img && !img.startsWith('http')) {
+            if (img.startsWith('/api/')) {
+              img = `https://poppiklifestyle.com${img}`;
+            } else if (img.startsWith('/')) {
+              img = `https://poppiklifestyle.com${img}`;
+            } else {
+              img = `https://poppiklifestyle.com/${img}`;
+            }
           }
           
           return img;
         })()} />
+        <meta name="twitter:image:alt" content={product?.name || 'Product Image'} />
         
         {/* Product specific meta */}
         {product?.price && <meta property="product:price:amount" content={product.price.toString()} />}
