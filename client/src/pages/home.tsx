@@ -504,7 +504,7 @@ export default function Home() {
           {/* Bestsellers Section - First */}
           <div className="space-y-8 sm:space-y-12">
             <div>
-              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center sm:text-left">
+              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-left">
                 <span className="text-transparent bg-gradient-to-r from-amber-700 via-yellow-600 to-amber-700 bg-clip-text">
                   Bestsellers
                 </span>
@@ -540,7 +540,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="text-center">
+                <div className="text-center mt-6 sm:mt-8 md:mt-10">
                   <Link href="/products?filter=bestseller">
                     <Button className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                       <span>
@@ -575,7 +575,7 @@ export default function Home() {
       </section>
 
       {/* Our Products Section - Second */}
-      <section className="py-0 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+      <section className="py-0 pb-16 sm:pb-20 md:pb-24 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.02]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
         </div>
@@ -583,7 +583,7 @@ export default function Home() {
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="space-y-8 sm:space-y-12">
             <div>
-              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center sm:text-left">
+              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-left">
                 <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
                   Our Products
                 </span>
@@ -624,7 +624,7 @@ export default function Home() {
                 {!allProductsLoading &&
                   allProducts &&
                   allProducts.length > 10 && (
-                    <div className="text-center">
+                    <div className="text-center mt-6 sm:mt-8 md:mt-10">
                       <Link href="/products">
                         <Button className="inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-10 py-4 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
                           View All Products ({allProducts.length})

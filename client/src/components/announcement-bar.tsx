@@ -18,16 +18,17 @@ export default function AnnouncementBar() {
 
   if (!isVisible || announcements.length === 0) return null;
 
-  // Combine all announcements with separator
-  const announcementText = announcements.map(a => a.text).join(' • ');
+  // Combine all announcements with separator and spacing (minimum 6 non-breaking spaces)
+  const spacing = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0'; // 6 non-breaking spaces
+  const announcementText = announcements.map(a => a.text).join(`${spacing}•${spacing}`);
   
   // Duplicate the text for seamless loop
-  const duplicatedText = `${announcementText} • ${announcementText}`;
+  const duplicatedText = `${announcementText}${spacing}•${spacing}${announcementText}`;
 
   return (
     <div className="relative bg-black text-white py-2.5 sm:py-2 overflow-hidden min-h-[40px] sm:min-h-[36px]">
       <div className="flex">
-        <div className="animate-scroll-continuous whitespace-nowrap text-[11px] leading-[1.3] xs:text-xs sm:text-sm md:text-base font-medium tracking-wide">
+        <div className="animate-scroll-continuous whitespace-pre text-[11px] leading-[1.3] xs:text-xs sm:text-sm md:text-base font-medium tracking-wide">
           {duplicatedText}
         </div>
       </div>

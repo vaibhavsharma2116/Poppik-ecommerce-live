@@ -43,16 +43,16 @@ export default function VideoTestimonials() {
     .filter(t => t.isActive)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
-  // Auto-slide effect
+  // Auto-slide effect - pause when modal is open
   useEffect(() => {
-    if (activeTestimonials.length === 0) return;
+    if (activeTestimonials.length === 0 || isVideoModalOpen) return;
 
     const interval = setInterval(() => {
       nextSlide();
     }, 3000); // Auto-slide every 3 seconds
 
     return () => clearInterval(interval);
-  }, [currentIndex, activeTestimonials.length]);
+  }, [currentIndex, activeTestimonials.length, isVideoModalOpen]);
 
   const nextSlide = () => {
     if (activeTestimonials.length > 0) {
