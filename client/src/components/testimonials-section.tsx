@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -35,7 +34,7 @@ export default function TestimonialsSection() {
 
   useEffect(() => {
     if (activeTestimonials.length === 0) return;
-    
+
     const interval = setInterval(() => {
       nextSlide();
     }, 5000);
@@ -101,27 +100,35 @@ export default function TestimonialsSection() {
           </Button>
 
           {/* Testimonial Images Carousel */}
-          <div className="flex justify-center items-center gap-4 sm:gap-6 mb-8 sm:mb-12">
+          <div className="flex justify-center items-center gap-2 sm:gap-4 md:gap-6 mb-8 sm:mb-12 px-2">
             {visibleTestimonials.map((testimonial, index) => {
               const isCenter = index === 2;
-              const scale = isCenter ? 'scale-125' : index === 1 || index === 3 ? 'scale-100' : 'scale-75';
-              const opacity = isCenter ? 'opacity-100' : index === 1 || index === 3 ? 'opacity-70' : 'opacity-40';
-              
+              const scale = isCenter ? 'scale-100' : index === 1 || index === 3 ? 'scale-90' : 'scale-70';
+              const opacity = isCenter ? 'opacity-100' : index === 1 || index === 3 ? 'opacity-50' : 'opacity-20';
+              const blur = isCenter ? '' : index === 1 || index === 3 ? 'blur-[4px]' : 'blur-[6px]';
+
               return (
                 <div
                   key={testimonial.id}
-                  className={`transition-all duration-300 ${scale} ${opacity}`}
+                  className={`transition-all duration-300 ${scale} ${opacity} ${blur} flex-shrink-0`}
+                  style={{
+                    width: isCenter ? '150px' : '120px',
+                    height: isCenter ? '150px' : '120px',
+                    minWidth: isCenter ? '150px' : '120px',
+                    minHeight: isCenter ? '150px' : '120px'
+                  }}
                 >
-                  <div className={`rounded-2xl overflow-hidden ${isCenter ? 'w-48 h-48 sm:w-44 sm:h-44 md:w-48 md:h-48 ring-4 ring-red-400' : 'w-36 h-36 sm:w-32 sm:h-32 md:w-36 md:h-36'}`}>
+                  <div className={`rounded-2xl overflow-hidden ${isCenter ? 'ring-4 ring-red-400 shadow-lg' : ''}`} style={{ width: '100%', height: '100%' }}>
                     {testimonial.customerImage ? (
                       <img
                         src={testimonial.customerImage}
                         alt={testimonial.customerName}
-                        className="w-full h-full object-cover"
+                        className="object-cover"
+                        style={{ width: '100%', height: '100%' }}
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center">
-                        <span className="text-2xl font-bold text-white">
+                        <span className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
                           {testimonial.customerName.charAt(0).toUpperCase()}
                         </span>
                       </div>
@@ -157,7 +164,7 @@ export default function TestimonialsSection() {
           </div>
 
           {/* Dots Navigation */}
-          
+
         </div>
       </div>
     </section>

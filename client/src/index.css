@@ -2023,6 +2023,17 @@ body {
     @apply p-2;
   }
 
+  /* Testimonial image carousel mobile sizes */
+  .testimonial-carousel-image {
+    width: 120px !important;
+    height: 120px !important;
+  }
+
+  .testimonial-carousel-image.center {
+    width: 150px !important;
+    height: 150px !important;
+  }
+
   /* Product detail page image sizing */
   .product-detail-image {
     width: 100% !important;
