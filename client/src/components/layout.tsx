@@ -398,6 +398,14 @@ export default function Layout({ children }: LayoutProps) {
                           {item.name}
                         </Link>
                       ))}
+                      
+                      {/* Offer - Clickable but no action */}
+                      <div 
+                        onClick={(e) => e.preventDefault()}
+                        className="flex items-center px-4 py-3 rounded-xl font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 cursor-pointer transition-all duration-200"
+                      >
+                        <span>Offer</span>
+                      </div>
                     </div>
 
                     {/* Categories Section */}
@@ -873,6 +881,14 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 </li>
                 <li>
+                  <button
+                    onClick={(e) => e.preventDefault()}
+                    className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
+                  >
+                    Offer
+                  </button>
+                </li>
+                <li>
                   <a
                     href="/academy"
                     onClick={(e) => {
@@ -1121,7 +1137,7 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors text-sm">
+                  <Link href="/influencer-collab" className="text-gray-400 hover:text-white transition-colors text-sm">
                     Influencer Collab
                   </Link>
                 </li>

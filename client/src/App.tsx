@@ -47,6 +47,7 @@ import ComboPage from "@/pages/combo";
 import AdminCombos from "@/pages/admin/combos";
 import JobApplications from "@/pages/admin/job-applications";
 import AdminStores from "@/pages/admin/stores";
+import InfluencerCollab from "@/pages/influencer-collab";
 const AcademyPage = lazy(() => import("./pages/academy"));
 const DropShippingPage = lazy(() => import("./pages/drop-shipping"));
 const MakeupStudio = lazy(() => import("./pages/makeup-studio"));
@@ -218,6 +219,7 @@ function Router() {
                 </Suspense>
               );
             }} />
+            <Route path="/influencer-collab" component={InfluencerCollab} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

@@ -130,7 +130,7 @@ export const jobPositions = pgTable("job_positions", {
   department: varchar("department", { length: 100 }).notNull(),
   location: varchar("location", { length: 100 }).notNull(),
   type: varchar("type", { length: 50 }).notNull(), // Full-time, Part-time, Contract
-  jobId: varchar("job_id", { length: 50 }).notNull().unique(),
+  jobId: varchar("job_id", { length: 50 }).unique(),
   experienceLevel: varchar("experience_level", { length: 50 }).notNull(),
   workExperience: varchar("work_experience", { length: 50 }).notNull(),
   education: varchar("education", { length: 200 }).notNull(),
@@ -178,6 +178,7 @@ export const stores = pgTable("stores", {
   pincode: varchar("pincode", { length: 10 }).notNull(),
   phone: varchar("phone", { length: 20 }),
   email: varchar("email", { length: 255 }),
+  website: text("website"),
   hours: text("hours"),
   latitude: numeric("latitude", { precision: 10, scale: 8 }).notNull(),
   longitude: numeric("longitude", { precision: 11, scale: 8 }).notNull(),

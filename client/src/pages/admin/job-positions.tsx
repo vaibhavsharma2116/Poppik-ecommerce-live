@@ -17,6 +17,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -30,6 +37,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function AdminJobPositions() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState(null);
+  const [selectedJobType, setSelectedJobType] = useState('Full-Time Job');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -103,7 +111,6 @@ export default function AdminJobPositions() {
       aboutRole: formData.get('aboutRole'),
       responsibilities: (formData.get('responsibilities') as string).split('\n').filter(r => r.trim()),
       requirements: (formData.get('requirements') as string).split('\n').filter(r => r.trim()),
-      qualifications: (formData.get('qualifications') as string).split('\n').filter(q => q.trim()),
       skills: (formData.get('skills') as string).split(',').map(s => s.trim()).filter(s => s),
       isActive: formData.get('isActive') === 'on',
       sortOrder: parseInt(formData.get('sortOrder') as string) || 0,
@@ -125,7 +132,10 @@ export default function AdminJobPositions() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingPosition(null)}>
+            <Button onClick={() => {
+              setEditingPosition(null);
+              setSelectedJobType('Full-Time Job');
+            }}>
               <Plus className="h-4 w-4 mr-2" />
               Add Position
             </Button>
@@ -149,12 +159,11 @@ export default function AdminJobPositions() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="jobId">Job ID *</Label>
+                  <Label htmlFor="jobId">Job ID</Label>
                   <Input
                     id="jobId"
                     name="jobId"
                     defaultValue={editingPosition?.jobId}
-                    required
                   />
                 </div>
               </div>
@@ -183,10 +192,34 @@ export default function AdminJobPositions() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="type">Type *</Label>
+                  <Select
+                    value={selectedJobType}
+                    onValueChange={(value) => {
+                      setSelectedJobType(value);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select job type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Full-Time Job">Full-Time Job</SelectItem>
+                      <SelectItem value="Part-Time Job">Part-Time Job</SelectItem>
+                      <SelectItem value="Contract Job">Contract Job</SelectItem>
+                      <SelectItem value="Freelance/Consulting">Freelance/Consulting</SelectItem>
+                      <SelectItem value="Internship">Internship</SelectItem>
+                      <SelectItem value="Temporary Job">Temporary Job</SelectItem>
+                      <SelectItem value="Remote Job">Remote Job</SelectItem>
+                      <SelectItem value="Hybrid Job">Hybrid Job</SelectItem>
+                      <SelectItem value="On-Call Job">On-Call Job</SelectItem>
+                      <SelectItem value="Apprenticeship">Apprenticeship</SelectItem>
+                      <SelectItem value="Shift-Based Job">Shift-Based Job</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Input
                     id="type"
                     name="type"
-                    defaultValue={editingPosition?.type || 'Full-time'}
+                    type="hidden"
+                    value={selectedJobType}
                     required
                   />
                 </div>
@@ -260,16 +293,6 @@ export default function AdminJobPositions() {
                   defaultValue={editingPosition?.requirements?.join('\n')}
                   rows={4}
                   required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="qualifications">Qualifications (one per line)</Label>
-                <Textarea
-                  id="qualifications"
-                  name="qualifications"
-                  defaultValue={editingPosition?.qualifications?.join('\n')}
-                  rows={3}
                 />
               </div>
 
@@ -366,6 +389,7 @@ export default function AdminJobPositions() {
                       size="sm"
                       onClick={() => {
                         setEditingPosition(position);
+                        setSelectedJobType(position.type || 'Full-Time Job');
                         setIsDialogOpen(true);
                       }}
                     >

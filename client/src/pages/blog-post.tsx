@@ -188,7 +188,7 @@ export default function BlogPostDetail() {
               </Button>
             </Link>
             <span className="text-gray-400 mx-1">/</span>
-            <span className="text-gray-600 text-xs sm:text-sm">The World of Beauty and Lifestyle</span>
+            <span className="text-gray-600 text-xs sm:text-sm">The World of Beauty,Lifestyle and wellness</span>
           </div>
 
           <p className="text-gray-500 text-xs sm:text-sm mb-3 sm:mb-4">

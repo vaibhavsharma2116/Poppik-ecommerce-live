@@ -43,6 +43,7 @@ export default function AdminStores() {
     pincode: "",
     phone: "",
     email: "",
+    website: "",
     hours: "",
     latitude: "",
     longitude: "",
@@ -137,6 +138,7 @@ export default function AdminStores() {
       pincode: "",
       phone: "",
       email: "",
+      website: "",
       hours: "",
       latitude: "",
       longitude: "",
@@ -156,6 +158,7 @@ export default function AdminStores() {
       pincode: store.pincode,
       phone: store.phone || "",
       email: store.email || "",
+      website: store.website || "",
       hours: store.hours || "",
       latitude: store.latitude,
       longitude: store.longitude,
@@ -302,6 +305,15 @@ export default function AdminStores() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+              <div className="col-span-2">
+                <Label>Website</Label>
+                <Input
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  placeholder="e.g., https://www.example.com"
                 />
               </div>
               <div className="col-span-2">
