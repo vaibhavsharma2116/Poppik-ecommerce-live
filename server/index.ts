@@ -47,6 +47,29 @@ app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 // Disable X-Powered-By header for security
 app.disable('x-powered-by');
 
+// Simple in-memory cache for GET requests
+const cache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_DURATION = 30000; // 30 seconds
+
+app.use((req, res, next) => {
+  if (req.method === 'GET' && req.path.startsWith('/api/')) {
+    const cacheKey = req.path + JSON.stringify(req.query);
+    const cached = cache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return res.json(cached.data);
+    }
+    
+    // Override res.json to cache response
+    const originalJson = res.json.bind(res);
+    res.json = function(data: any) {
+      cache.set(cacheKey, { data, timestamp: Date.now() });
+      return originalJson(data);
+    };
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -133,14 +156,14 @@ const db = drizzle(pool, { schema: { products } });
 
       // Ensure image URL is absolute and properly formatted for social media
       let imageUrl = product.imageUrl || 'https://poppiklifestyle.com/favicon.png';
-      
+
       // Make sure image URL is always absolute with HTTPS
       if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
         // Remove any leading slashes and add domain
         imageUrl = imageUrl.replace(/^\/+/, '');
         imageUrl = `https://poppiklifestyle.com/${imageUrl}`;
       }
-      
+
       console.log(`Product image URL for OG tags: ${imageUrl}`);
 
       const metaTags = `
@@ -191,7 +214,7 @@ const db = drizzle(pool, { schema: { products } });
       // Set headers for better caching and social media crawlers
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutes cache
-      
+
       // Send the modified HTML
       res.send(html);
     } catch (error) {
@@ -253,6 +276,16 @@ const db = drizzle(pool, { schema: { products } });
   const port = 8085;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
+
+    // Clear cache periodically
+    setInterval(() => {
+      const now = Date.now();
+      for (const [key, value] of cache.entries()) {
+        if (now - value.timestamp > CACHE_DURATION * 2) {
+          cache.delete(key);
+        }
+      }
+    }, 60000); // Clean every minute
 
     // Optimize garbage collection
     if ((global as any).gc) {

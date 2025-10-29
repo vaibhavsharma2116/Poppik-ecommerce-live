@@ -203,24 +203,28 @@ export default function Home() {
     Product[]
   >({
     queryKey: ["/api/products/bestsellers"],
+    staleTime: 60000, // Cache for 1 minute
   });
 
   const { data: featuredProducts, isLoading: featuredLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products/featured"],
+    staleTime: 60000,
   });
 
   const { data: newLaunchProducts, isLoading: newLaunchLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products/new-launches"],
+    staleTime: 60000,
   });
 
   const { data: allProducts, isLoading: allProductsLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products"],
+    staleTime: 60000, // Cache for 1 minute
   });
 
 
