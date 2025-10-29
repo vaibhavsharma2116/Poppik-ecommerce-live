@@ -1009,7 +1009,11 @@ export default function Layout({ children }: LayoutProps) {
               />
             </div>
             <p className="text-gray-300 text-sm leading-relaxed mb-6 text-justify px-0">
-              Poppik Lifestyle is your trusted partner in holistic beauty, wellness, and self-care. We focus on enhancing your lifestyle through natural, safe, and effective products that nourish your body and mind. From skincare to wellness essentials, Poppik blends nature, science, and style — inspiring confidence, balance, and everyday well-being. 🌿✨
+              Poppik Lifestyle brings together Beauty, Wellness, and Lifestyle to help you live naturally and beautifully. 🌿
+Our mission is to enhance your everyday life through safe, effective, and nature-inspired products that nourish your body, mind, and soul.
+From skincare and self-care essentials to wellness and lifestyle products, every creation blends nature, science, and mindfulness.
+At Poppik, we believe beauty begins with wellness and grows through balance.
+✨ Choose Poppik Lifestyle — where beauty meets wellness, and self-care becomes your way of living.
             </p>
             
             {/* Social Media Icons - Centered below description */}
@@ -1132,8 +1136,8 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/store-locator" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Store Locator
+                  <Link href="/influencer-collab" className="text-gray-400 hover:text-white transition-colors text-sm">
+                    Influencer Collab
                   </Link>
                 </li>
                 <li>
@@ -1143,7 +1147,7 @@ export default function Layout({ children }: LayoutProps) {
                 </li>
                 <li>
                   <Link href="/drop-shipping" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Join as a Distributor
+                    Join as a Channel Partner
                   </Link>
                 </li>
               </ul>
@@ -1199,7 +1203,8 @@ export default function Layout({ children }: LayoutProps) {
               <ul className="space-y-2">
                 <li>
                   <a
-                    href="https://www.amazon.in/stores/Poppik/page/YOUR_AMAZON_STORE_ID"
+                    // href="/"
+                    onClick={(e) => e.preventDefault()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-gray-400 hover:text-white transition-colors text-sm"
@@ -1209,7 +1214,8 @@ export default function Layout({ children }: LayoutProps) {
                 </li>
                 <li>
                   <a
-                    href="https://www.flipkart.com/poppik-store"
+                    // href="/"
+                    onClick={(e) => e.preventDefault()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-gray-400 hover:text-white transition-colors text-sm"
@@ -1219,7 +1225,8 @@ export default function Layout({ children }: LayoutProps) {
                 </li>
                 <li>
                   <a
-                    href="https://www.meesho.com/poppik-store"
+                    // href="/"
+                    onClick={(e) => e.preventDefault()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-gray-400 hover:text-white transition-colors text-sm"

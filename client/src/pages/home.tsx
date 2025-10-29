@@ -788,8 +788,8 @@ export default function Home() {
               </span>
             </h2>
             <p className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-600 px-4">
-              Stay updated with Beauty, Lifestyle and wellnes
-            </p>
+              Stay in style with the freshest beauty trends, tips, and expert advice         
+           </p>
           </div>
 
           <LatestBlogPosts />

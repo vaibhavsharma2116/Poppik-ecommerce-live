@@ -124,11 +124,11 @@ export default function Blog() {
       <section className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-8 sm:py-12 md:py-16">
           <div className="text-center max-w-3xl mx-auto">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light text-gray-900 mb-3 sm:mb-4 leading-tight">
-              The World of Lifestyle Blog
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-4xl font-light text-gray-900 mb-3 sm:mb-4 leading-tight">
+              Explore the World of Beauty, Lifestyle & Wellness
             </h1>
             <p className="text-sm sm:text-base md:text-lg text-gray-600 mb-4 sm:mb-6 md:mb-8 px-2">
-              Discover expert tips, trends, beauty and lifestyle secrets
+              Unveil expert insights and timeless secrets in beauty, lifestyle, and wellness
             </p>
             <div className="relative max-w-md mx-auto px-2 sm:px-0">
               <Search className="absolute left-5 sm:left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
