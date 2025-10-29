@@ -1142,12 +1142,12 @@ At Poppik, we believe beauty begins with wellness and grows through balance.
                   </Link>
                 </li>
                 <li>
-                  <Link href="/influencer-collab" className="text-gray-400 hover:text-white transition-colors text-sm">
+                  <Link href="/affiliate" className="text-gray-400 hover:text-white transition-colors text-sm">
                     Become an Affiliate
                   </Link>
                 </li>
                 <li>
-                  <Link href="/drop-shipping" className="text-gray-400 hover:text-white transition-colors text-sm">
+                  <Link href="/channel-partner" className="text-gray-400 hover:text-white transition-colors text-sm">
                     Join as a Channel Partner
                   </Link>
                 </li>

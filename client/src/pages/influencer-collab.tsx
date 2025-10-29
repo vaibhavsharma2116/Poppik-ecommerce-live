@@ -10,7 +10,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Check, ChevronDown, Gift, TrendingUp, Users, Sparkles, Award, Target } from "lucide-react";
+import { Gift, TrendingUp, Users, Sparkles, Award, Target, Star, Zap, Heart, Globe, CheckCircle2 } from "lucide-react";
 
 export default function InfluencerCollabPage() {
   const { toast } = useToast();
@@ -62,343 +62,362 @@ export default function InfluencerCollabPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section with Peach Background */}
-      <section className="relative bg-gradient-to-r from-[#FFD4C4] to-[#FFB8A3] py-16 sm:py-24 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="text-left">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
-                Become an<br />
-                <span className="text-gray-800">Ambassador!</span>
-              </h1>
-              <p className="text-lg sm:text-xl text-gray-700 mb-8">
-                Can't wait to help you build a brand that pays!
-              </p>
-              <div className="space-y-4">
-                <h3 className="text-2xl font-bold text-gray-900">Join Our Affiliate Program Today it's FREE</h3>
-                <p className="text-gray-700 leading-relaxed">
-                  If you have made an impact on Beauty & Personal Care, share your opinions, you have the influence to drive conversations and inspire journeys? Come, join our Poppik Lifestyle affiliate program today!
-                </p>
-                <p className="text-gray-700 leading-relaxed">
-                  It's an incredible opportunity to try our products, share your feedback, and earn the happy moolah! giving you the tools to share the goodness with your affiliate links!
-                </p>
-                <Button className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-8 py-6 text-lg rounded-full mt-4">
-                  JOIN NOW
-                </Button>
-              </div>
+      {/* Hero Section */}
+      <section className="relative py-16 md:py-24 bg-gradient-to-br from-pink-500 to-pink-600 overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00eiIvPjwvZz48L2c+PC9zdmc+')] bg-repeat"></div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
+              <Sparkles className="w-4 h-4 text-white" />
+              <span className="text-white text-sm font-medium">Join Our Influencer Network</span>
             </div>
-            <div className="relative">
-              <img
-                src="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&h=600&fit=crop"
-                alt="Become an Ambassador"
-                className="rounded-3xl shadow-2xl"
-              />
+            
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
+              Become a Poppik Influencer
+            </h1>
+            
+            <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+              Join India's fastest-growing beauty community and earn while promoting products you love
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                onClick={() => window.open('https://forms.gle/qAtXqvoDXeFmtQpPA', '_blank')}
+                size="lg"
+                className="bg-white text-pink-600 hover:bg-pink-50 font-semibold"
+              >
+                Apply Now
+              </Button>
+              <Button 
+                onClick={() => document.getElementById('benefits')?.scrollIntoView({ behavior: 'smooth' })}
+                size="lg"
+                variant="outline" 
+                className="border-2 border-white text-white hover:bg-white/10"
+              >
+                Learn More
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* What's in it for You Section */}
-      <section className="py-16 bg-white">
+      {/* Stats Section */}
+      <section className="py-12 bg-gray-50 border-y">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-12">
-            What's in it for You?
-          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {[
+              { number: "500+", label: "Active Influencers" },
+              { number: "10M+", label: "Combined Reach" },
+              { number: "₹50L+", label: "Paid to Influencers" },
+              { number: "95%", label: "Satisfaction Rate" }
+            ].map((stat, index) => (
+              <div key={index} className="text-center">
+                <div className="text-3xl md:text-4xl font-bold text-pink-600 mb-2">{stat.number}</div>
+                <div className="text-sm md:text-base text-gray-600">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section id="benefits" className="py-16 md:py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Why Partner With Us?
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Get access to exclusive benefits and grow your influence
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                icon: Gift,
+                title: "Free PR Packages",
+                description: "Receive our latest products to review and share with your followers"
+              },
+              {
+                icon: TrendingUp,
+                title: "Earn Commission",
+                description: "Get attractive commissions on every sale through your unique code"
+              },
+              {
+                icon: Users,
+                title: "Brand Features",
+                description: "Get featured on our official social media channels"
+              },
+              {
+                icon: Sparkles,
+                title: "Creative Freedom",
+                description: "Create content in your own style and voice"
+              },
+              {
+                icon: Award,
+                title: "Early Access",
+                description: "Be the first to try new product launches"
+              },
+              {
+                icon: Target,
+                title: "Dedicated Support",
+                description: "Get personal support from our team"
+              }
+            ].map((benefit, index) => (
+              <div 
+                key={index}
+                className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow"
+              >
+                <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center mb-4">
+                  <benefit.icon className="w-6 h-6 text-pink-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {benefit.title}
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  {benefit.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-16 md:py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              How It Works
+            </h2>
+            <p className="text-lg text-gray-600">
+              Get started in 3 simple steps
+            </p>
+          </div>
+
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center p-6">
-              <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Gift className="w-10 h-10 text-pink-500" />
+            {[
+              {
+                step: "1",
+                title: "Submit Application",
+                description: "Fill out the form with your details and social media handles"
+              },
+              {
+                step: "2",
+                title: "Get Approved",
+                description: "Our team reviews applications within 5-7 business days"
+              },
+              {
+                step: "3",
+                title: "Start Earning",
+                description: "Receive products and start creating content"
+              }
+            ].map((item, index) => (
+              <div key={index} className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-pink-600 text-white text-2xl font-bold rounded-full mb-4">
+                  {item.step}
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  {item.title}
+                </h3>
+                <p className="text-gray-600">
+                  {item.description}
+                </p>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Exclusive Poppik giveaways!</h3>
-            </div>
-            <div className="text-center p-6">
-              <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Award className="w-10 h-10 text-purple-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Generous discount codes & perks for your loved ones</h3>
-            </div>
-            <div className="text-center p-6">
-              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="w-10 h-10 text-blue-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Elevate your Social media game by doing exciting campaigns</h3>
-            </div>
-            <div className="text-center p-6">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="w-10 h-10 text-green-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Chance to collaborate & shine alongside your favorite brands</h3>
-            </div>
-            <div className="text-center p-6">
-              <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-10 h-10 text-orange-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Interact with our enthusiastic community making lifelong friendships</h3>
-            </div>
-            <div className="text-center p-6">
-              <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Target className="w-10 h-10 text-red-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Enjoy superior quality high-performing affordable products at your doorstep!</h3>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Ambassador Leaderboard Sections */}
-      <section className="py-8 bg-gradient-to-r from-[#FFD4C4] to-[#FFB8A3]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                Get featured on the
-              </h2>
-              <h3 className="text-4xl sm:text-5xl font-bold text-gray-800 mb-6">
-                Ambassador Leaderboard
-              </h3>
-            </div>
-            <div className="flex justify-center">
-              <img
-                src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop"
-                alt="Ambassador"
-                className="rounded-full w-64 h-64 object-cover shadow-xl border-8 border-white"
-              />
-              <div className="flex -ml-16 mt-24 space-x-4">
-                <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop"
-                  alt="Ambassador 2"
-                  className="rounded-full w-20 h-20 object-cover border-4 border-white shadow-lg"
-                />
-                <img
-                  src="https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=100&h=100&fit=crop"
-                  alt="Ambassador 3"
-                  className="rounded-full w-20 h-20 object-cover border-4 border-white shadow-lg"
+      {/* Application Form */}
+      <section id="application-form" className="py-16 md:py-20 bg-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Apply Now
+            </h2>
+            <p className="text-lg text-gray-600">
+              Join our community of successful influencers
+            </p>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 md:p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Full Name *
+                  </label>
+                  <Input
+                    required
+                    placeholder="Your name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address *
+                  </label>
+                  <Input
+                    required
+                    type="email"
+                    placeholder="your@email.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number *
+                  </label>
+                  <Input
+                    required
+                    type="tel"
+                    placeholder="+91 XXXXX XXXXX"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Instagram Handle *
+                  </label>
+                  <Input
+                    required
+                    placeholder="@yourusername"
+                    value={formData.instagram}
+                    onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Follower Count *
+                </label>
+                <Input
+                  required
+                  type="number"
+                  placeholder="e.g., 10000"
+                  value={formData.followers}
+                  onChange={(e) => setFormData({ ...formData, followers: e.target.value })}
                 />
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <section className="py-8 bg-gradient-to-r from-[#FFB8A3] to-[#FFD4C4]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="flex justify-center order-2 md:order-1">
-              <img
-                src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=400&fit=crop"
-                alt="Ambassador"
-                className="rounded-full w-64 h-64 object-cover shadow-xl border-8 border-white"
-              />
-              <div className="flex -ml-16 mt-24 space-x-4">
-                <img
-                  src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop"
-                  alt="Ambassador 2"
-                  className="rounded-full w-20 h-20 object-cover border-4 border-white shadow-lg"
-                />
-                <img
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop"
-                  alt="Ambassador 3"
-                  className="rounded-full w-20 h-20 object-cover border-4 border-white shadow-lg"
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Why do you want to collaborate?
+                </label>
+                <Textarea
+                  placeholder="Tell us about your content style and why you'd be a great fit..."
+                  rows={4}
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 />
               </div>
-            </div>
-            <div className="order-1 md:order-2">
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                Join our fam on the
-              </h2>
-              <h3 className="text-4xl sm:text-5xl font-bold text-gray-800 mb-6">
-                Ambassador Leaderboard
-              </h3>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Call to Action */}
-      <section className="py-12 bg-white text-center">
-        <div className="max-w-3xl mx-auto px-4">
-          <p className="text-lg text-gray-700 mb-6">
-            If you want to start off with us or have more queries, feel free to
-          </p>
-          <Button className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-8 py-6 text-lg rounded-full">
-            JOIN NOW
-          </Button>
+              <Button 
+                type="submit"
+                className="w-full bg-pink-600 hover:bg-pink-700"
+                size="lg"
+              >
+                Submit Application
+              </Button>
+            </form>
+          </div>
         </div>
       </section>
 
       {/* FAQ Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-12">
-            Affiliate Program
-          </h2>
+      <section className="py-16 md:py-20 bg-gray-50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-lg text-gray-600">
+              Get answers to common questions
+            </p>
+          </div>
           
           <Accordion type="single" collapsible className="space-y-4">
-            <AccordionItem value="item-1" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                Affiliate Program FAQs
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Get answers to all your questions about our affiliate program.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-2" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                How much can I make by joining?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Your earnings depend on your influence and engagement. Top affiliates can earn significant commissions on every sale through their unique affiliate link.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-3" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                What is the eligibility criteria and fees charged while onboard?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                There are no fees to join! We welcome influencers with authentic engagement and passion for beauty and wellness products.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-4" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                How long can I use the payout from affiliate program?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Your earnings are yours to use anytime! Payouts are processed monthly once you reach the minimum threshold.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-5" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                How long does it take for my payout to get settled?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Payouts are processed within 30 days of the end of each month, directly to your registered bank account.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-6" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                Is it valid at all offline stores?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                The affiliate program is primarily for online sales through your unique tracking links.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-7" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                Can I apply again if I was declined once?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Yes! You can reapply after 3 months. We encourage you to grow your engagement and try again.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-8" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                Will I get discount code on all Poppik Ambassador?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Yes! All approved ambassadors receive exclusive discount codes for themselves and their followers.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-9" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                What is the discount on all offline products?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Discount rates vary by product and campaign. Check your ambassador dashboard for current offers.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-10" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                Where can we order and how much time will order takes to get deliver?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Orders can be placed through our website. Delivery typically takes 3-7 business days depending on your location.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-11" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                Will I get my application if I am interested or withdraw at already filled form?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                You can withdraw your application anytime before approval by contacting our support team.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-12" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                What documents need to be submitted during the process?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Basic KYC documents and bank details are required for payout processing once you're approved.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-13" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                Is there any guidelines that we are on this Ambassador?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Yes, we have brand guidelines and content requirements that all ambassadors must follow. These will be shared upon approval.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-14" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                Where do I contact if I need have doubts about my eligibility?
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Contact our support team at support@poppiklifestyle.com or use the contact form on our website.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-15" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                POPPIK AFFILIATE PROGRAM
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Join thousands of influencers who are already earning with Poppik and building their personal brand alongside ours.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-16" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                PAYMENT TERMS
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Payments are processed monthly via bank transfer. Minimum payout threshold is ₹1000.
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-17" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                COMMISSION TIER (Tier-Based Approach)
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Earn 10-20% commission based on your performance tier. Higher sales mean higher commission rates!
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="item-18" className="bg-white border rounded-lg px-6">
-              <AccordionTrigger className="text-left font-semibold text-gray-900">
-                TERMINATION
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-700">
-                Either party may terminate the agreement with 30 days notice. All pending commissions will be paid out.
-              </AccordionContent>
-            </AccordionItem>
+            {[
+              {
+                question: "Who can apply?",
+                answer: "Anyone with an active social media presence and engaged followers can apply. We welcome creators from Instagram, YouTube, TikTok, and other platforms."
+              },
+              {
+                question: "What's the minimum follower requirement?",
+                answer: "We typically look for creators with at least 5,000 followers, but we value engagement quality over follower count."
+              },
+              {
+                question: "Is there any joining fee?",
+                answer: "No! Our influencer program is completely free. We never charge creators to join our program."
+              },
+              {
+                question: "What type of content is expected?",
+                answer: "We encourage authentic content like product reviews, tutorials, unboxing videos, reels, and stories in your unique style."
+              },
+              {
+                question: "How do I get paid?",
+                answer: "Influencers earn through commission on sales using their unique discount code, plus opportunities for paid collaborations."
+              },
+              {
+                question: "How long is the review process?",
+                answer: "We review all applications within 5-7 business days and reach out via email."
+              },
+              {
+                question: "Can I reapply if rejected?",
+                answer: "Yes, you can reapply after 3 months. We encourage growing your content quality and engagement in the meantime."
+              },
+              {
+                question: "Will I receive free products?",
+                answer: "Yes! Approved influencers receive PR packages with our latest products and early access to new launches."
+              }
+            ].map((faq, index) => (
+              <AccordionItem 
+                key={index} 
+                value={`item-${index}`} 
+                className="bg-white border border-gray-200 rounded-lg px-6"
+              >
+                <AccordionTrigger className="text-left font-medium text-gray-900 hover:text-pink-600">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-600">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
           </Accordion>
         </div>
       </section>
 
+      {/* CTA Section */}
+      <section className="py-16 bg-pink-600">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+            Ready to Get Started?
+          </h2>
+          <p className="text-lg text-white/90 mb-8">
+            Join our community and start earning today
+          </p>
+          <Button 
+            onClick={() => window.open('https://forms.gle/qAtXqvoDXeFmtQpPA', '_blank')}
+            size="lg"
+            className="bg-white text-pink-600 hover:bg-pink-50"
+          >
+            Apply for Collaboration
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }

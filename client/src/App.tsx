@@ -48,6 +48,7 @@ import AdminCombos from "@/pages/admin/combos";
 import JobApplications from "@/pages/admin/job-applications";
 import AdminStores from "@/pages/admin/stores";
 import InfluencerCollab from "@/pages/influencer-collab";
+import ChannelPartnerPage from "@/pages/channel-partner";
 const AcademyPage = lazy(() => import("./pages/academy"));
 const DropShippingPage = lazy(() => import("./pages/drop-shipping"));
 const MakeupStudio = lazy(() => import("./pages/makeup-studio"));
@@ -162,6 +163,7 @@ function Router() {
                 <DropShippingPage />
               </Suspense>
             </Route>
+            <Route path="/channel-partner" component={ChannelPartnerPage} />
             <Route path="/makeup-studio">
               <Suspense fallback={<LoadingSpinner />}>
                 <MakeupStudio />
@@ -220,6 +222,14 @@ function Router() {
               );
             }} />
             <Route path="/influencer-collab" component={InfluencerCollab} />
+            <Route path="/affiliate" component={() => {
+              const AffiliatePage = lazy(() => import("./pages/affiliate"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <AffiliatePage />
+                </Suspense>
+              );
+            }} />
             <Route component={NotFound} />
           </Switch>
         </Layout>
