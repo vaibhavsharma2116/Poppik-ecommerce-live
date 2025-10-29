@@ -104,8 +104,8 @@ export default function TestimonialsSection() {
             {visibleTestimonials.map((testimonial, index) => {
               const isCenter = index === 2;
               const scale = isCenter ? 'scale-100' : index === 1 || index === 3 ? 'scale-90' : 'scale-70';
-              const opacity = isCenter ? 'opacity-100' : index === 1 || index === 3 ? 'opacity-50' : 'opacity-20';
-              const blur = isCenter ? '' : index === 1 || index === 3 ? 'blur-[4px]' : 'blur-[6px]';
+              const opacity = isCenter ? 'opacity-100' : index === 1 || index === 3 ? 'opacity-30' : 'opacity-10';
+              const blur = isCenter ? '' : index === 1 || index === 3 ? 'blur-[14px]' : 'blur-[20px]';
 
               return (
                 <div

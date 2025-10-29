@@ -124,11 +124,11 @@ function TestimonialsCarousel() {
             size = 'w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32';
             opacity = 1;
           } else if (position === -1 || position === 1) {
-             size = 'w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28';
-            opacity = 0.8;
+             size = 'w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24';
+            opacity = 0.7;
           } else {
-              size = 'w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24';
-              opacity = 0.6;
+              size = 'w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20';
+              opacity = 0.5;
           }
 
 
@@ -137,7 +137,7 @@ function TestimonialsCarousel() {
                 key={testimonial.id}
                 className={`${size} rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-300 flex-shrink-0 ${
                   isCenter ? 'shadow-md sm:shadow-lg border-2 sm:border-4 border-white' : ''
-                }`}
+                } ${position === -1 || position === 1 ? 'blur-[2px]' : ''}`}
                 style={{ opacity }}
               >
                 <img
@@ -270,7 +270,7 @@ export default function Home() {
           {categoriesLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mb-12 sm:mb-16 md:mb-20">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="space-y-2 sm:space-y-3 md:space-y-4">
+                <div key={i} className="space-y-2 sm:space-3 md:space-y-4">
                   <Skeleton className="aspect-square rounded-2xl sm:rounded-3xl" />
                   <Skeleton className="h-4 sm:h-5 md:h-6 w-3/4 mx-auto" />
                   <Skeleton className="h-3 sm:h-4 w-1/2 mx-auto" />
@@ -279,7 +279,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="relative">
-              <div 
+              <div
                 id="categories-scroll-container"
                 className="overflow-auto scrollbar-hide pb-4"
                 style={{
@@ -296,7 +296,7 @@ export default function Home() {
               scrollbar-width: none;
             }
           `}</style>
-                <div 
+                <div
                   className="flex gap-4"
                   style={{
                     display: 'flex',
@@ -310,13 +310,13 @@ export default function Home() {
                       key={category.id}
                       href={`/category/${category.slug}`}
                       className="group inline-block flex-shrink-0"
-                      style={{ 
+                      style={{
                         width: 'clamp(140px, 40vw, 280px)',
                         minWidth: '140px',
                         maxWidth: '280px'
                       }}
                     >
-                      <div 
+                      <div
                         className="relative bg-white/70 backdrop-blur-md overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105 group-hover:-translate-y-1 border border-white/20"
                         style={{
                           borderRadius: 'clamp(12px, 3vw, 24px)',
@@ -324,7 +324,7 @@ export default function Home() {
                           transition: 'all 0.3s ease'
                         }}
                       >
-                        <div 
+                        <div
                           className="overflow-hidden relative"
                           style={{
                             aspectRatio: '1',
@@ -338,7 +338,7 @@ export default function Home() {
                             }}
                           >
                             {/* Decorative Elements - Hidden on mobile for cleaner look */}
-                            <div 
+                            <div
                               className="hidden sm:block absolute bg-white/20 rounded-full blur-sm"
                               style={{
                                 top: 'clamp(8px, 2vw, 16px)',
@@ -347,7 +347,7 @@ export default function Home() {
                                 height: 'clamp(12px, 3vw, 32px)'
                               }}
                             ></div>
-                            <div 
+                            <div
                               className="hidden sm:block absolute bg-white/30 rounded-full blur-sm"
                               style={{
                                 bottom: 'clamp(8px, 2vw, 16px)',
@@ -375,7 +375,7 @@ export default function Home() {
                                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                               }}
                             />
-                            <div 
+                            <div
                               className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent group-hover:from-black/5 transition-all duration-300"
                               style={{
                                 borderRadius: 'clamp(8px, 2vw, 16px)'
@@ -383,13 +383,13 @@ export default function Home() {
                             ></div>
                           </div>
                         </div>
-                        <div 
+                        <div
                           className="text-center relative"
                           style={{
                             padding: 'clamp(8px, 2vw, 32px)'
                           }}
                         >
-                          <h3 
+                          <h3
                             className="font-bold text-gray-900 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-pink-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-1"
                             style={{
                               fontSize: 'clamp(0.75rem, 2vw, 1.5rem)',
@@ -399,7 +399,7 @@ export default function Home() {
                           >
                             {category.name}
                           </h3>
-                          <div 
+                          <div
                             className="hidden sm:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0"
                             style={{
                               fontSize: 'clamp(0.65rem, 1.5vw, 0.875rem)'
@@ -453,10 +453,10 @@ export default function Home() {
                     }}
                     aria-label="Scroll left"
                   >
-                    <svg 
-                      className="text-gray-800" 
-                      fill="none" 
-                      stroke="currentColor" 
+                    <svg
+                      className="text-gray-800"
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                       style={{
                         width: 'clamp(20px, 4vw, 24px)',
@@ -484,10 +484,10 @@ export default function Home() {
                     }}
                     aria-label="Scroll right"
                   >
-                    <svg 
-                      className="text-gray-800" 
-                      fill="none" 
-                      stroke="currentColor" 
+                    <svg
+                      className="text-gray-800"
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                       style={{
                         width: 'clamp(20px, 4vw, 24px)',
@@ -776,7 +776,7 @@ export default function Home() {
           <TestimonialsCarousel />
         </div>
       </section>
-       
+
       <VideoTestimonials />
 
       {/* Blog Section */}
@@ -789,8 +789,8 @@ export default function Home() {
               </span>
             </h2>
             <p className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-600 px-4">
-              Stay in style with the freshest beauty trends, tips, and expert advice         
-           </p>
+              Stay in style with the freshest beauty trends, tips, and expert advice
+            </p>
           </div>
 
           <LatestBlogPosts />
