@@ -784,7 +784,7 @@ export default function ComboDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="prose prose-gray max-w-none">
-                    <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-medium">{combo.detailedDescription || combo.description}</p>
+                    <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">{combo.detailedDescription || combo.description}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -802,7 +802,7 @@ export default function ComboDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {combo.productsIncluded ? (
-                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line font-medium">
+                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line font-normal">
                       {combo.productsIncluded}
                     </div>
                   ) : Array.isArray(products) && products.length > 0 ? (
@@ -810,7 +810,7 @@ export default function ComboDetail() {
                       {products.map((product: any, index: number) => (
                         <div key={index} className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-green-100/50 transform hover:scale-105 transition-all duration-200">
                           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                          <span className="text-gray-700 font-semibold text-base sm:text-lg">{typeof product === 'string' ? product : product.name}</span>
+                          <span className="text-gray-700 font-normal text-base sm:text-lg">{typeof product === 'string' ? product : product.name}</span>
                         </div>
                       ))}
                     </div>
@@ -819,7 +819,7 @@ export default function ComboDetail() {
                       <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
                         <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-300 to-emerald-300 rounded-xl sm:rounded-2xl"></div>
                       </div>
-                      <p className="text-gray-500 text-lg sm:text-xl font-medium">This combo contains carefully selected premium beauty products.</p>
+                      <p className="text-gray-500 text-lg sm:text-xl font-normal">This combo contains carefully selected premium beauty products.</p>
                     </div>
                   )}
                 </CardContent>
@@ -838,31 +838,31 @@ export default function ComboDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {combo.benefits ? (
-                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line font-medium">
+                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line font-normal">
                       {combo.benefits}
                     </div>
                   ) : (
                     <div className="grid gap-3 sm:gap-4">
                       <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
                         <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                        <span className="text-gray-700 font-semibold text-base sm:text-lg">Complete beauty routine in one combo</span>
+                        <span className="text-gray-700 font-normal text-base sm:text-lg">Complete beauty routine in one combo</span>
                       </div>
                       <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
                         <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                        <span className="text-gray-700 font-semibold text-base sm:text-lg">Save ₹{(originalPrice - price).toLocaleString()} with this bundle</span>
+                        <span className="text-gray-700 font-normal text-base sm:text-lg">Save ₹{(originalPrice - price).toLocaleString()} with this bundle</span>
                       </div>
                       <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
                         <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                        <span className="text-gray-700 font-semibold text-base sm:text-lg">Get {discountPercentage}% discount on the original price</span>
+                        <span className="text-gray-700 font-normal text-base sm:text-lg">Get {discountPercentage}% discount on the original price</span>
                       </div>
                       <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
                         <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                        <span className="text-gray-700 font-semibold text-base sm:text-lg">Premium quality products at discounted price</span>
+                        <span className="text-gray-700 font-normal text-base sm:text-lg">Premium quality products at discounted price</span>
                       </div>
                       {Array.isArray(products) && products.length > 0 && (
                         <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
                           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                          <span className="text-gray-700 font-semibold text-base sm:text-lg">Includes {products.length} carefully curated products</span>
+                          <span className="text-gray-700 font-normal text-base sm:text-lg">Includes {products.length} carefully curated products</span>
                         </div>
                       )}
                     </div>
@@ -885,7 +885,7 @@ export default function ComboDetail() {
                   {combo.howToUse ? (
                     <div className="bg-white/70 backdrop-blur-sm p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-purple-100/50">
                       <div className="prose prose-gray max-w-none">
-                        <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-medium mb-0 whitespace-pre-line">
+                        <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal mb-0 whitespace-pre-line">
                           {combo.howToUse}
                         </p>
                       </div>
@@ -893,7 +893,7 @@ export default function ComboDetail() {
                   ) : (
                     <div className="bg-white/70 backdrop-blur-sm p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-purple-100/50">
                       <div className="text-gray-700 leading-relaxed text-base sm:text-lg space-y-3 sm:space-y-4">
-                        <p className="font-medium">
+                        <p className="font-normal">
                           Follow the individual product instructions included in this combo for best results. 
                           Use as part of your daily beauty routine.
                         </p>
@@ -902,14 +902,14 @@ export default function ComboDetail() {
                             <p className="font-semibold text-lg mb-3">Usage Steps:</p>
                             <ol className="list-decimal list-inside space-y-2.5">
                               {products.map((product: any, index: number) => (
-                                <li key={index} className="font-medium">
+                                <li key={index} className="font-normal">
                                   Use {typeof product === 'string' ? product : product.name} as directed
                                 </li>
                               ))}
                             </ol>
                           </div>
                         )}
-                        <p className="mt-4 text-sm text-gray-600 font-medium">
+                        <p className="mt-4 text-sm text-gray-600 font-normal">
                           For best results, use all products in the combo together as part of your daily routine.
                         </p>
                       </div>

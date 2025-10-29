@@ -4877,22 +4877,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/combos', upload.fields([{ name: 'images', maxCount: 10 }]), async (req, res) => {
+  app.post('/api/admin/combos', upload.fields([{ name: 'images', maxCount: 10 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      // Parse comboData if it was sent as JSON string
-      let comboDataParsed = req.body.comboData ? JSON.parse(req.body.comboData) : null;
-
-      const name = (comboDataParsed?.name || req.body.name || '').substring(0, 200);
+      const name = (req.body.name || '').substring(0, 200);
       const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 200);
 
       // Get products array - ensure it's properly parsed and limited
-      let products = comboDataParsed?.products || req.body.products || [];
+      let products = req.body.products || [];
       if (typeof products === 'string') {
         try {
           products = JSON.parse(products);
         } catch (e) {
+          console.error('Error parsing products:', e);
           products = [];
         }
       }
@@ -4912,23 +4910,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         primaryImageUrl = comboDataParsed?.imageUrl || req.body.imageUrl;
       }
 
+      // Handle video upload
+      let videoUrl = null;
+      if (files?.video?.[0]) {
+        videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.videoUrl) {
+        videoUrl = req.body.videoUrl;
+      }
+
       const comboData = {
         name: name,
         slug,
-        description: (comboDataParsed?.description || req.body.description || '').substring(0, 500),
-        detailedDescription: comboDataParsed?.detailedDescription || req.body.detailedDescription || null,
-        productsIncluded: comboDataParsed?.productsIncluded || req.body.productsIncluded || null,
-        benefits: comboDataParsed?.benefits || req.body.benefits || null,
-        howToUse: comboDataParsed?.howToUse || req.body.howToUse || null,
-        price: parseFloat(comboDataParsed?.price || req.body.price) || 0,
-        originalPrice: parseFloat(comboDataParsed?.originalPrice || req.body.originalPrice) || 0,
-        discount: (comboDataParsed?.discount || req.body.discount || '').substring(0, 50),
+        description: (req.body.description || '').substring(0, 500),
+        detailedDescription: req.body.detailedDescription || null,
+        productsIncluded: req.body.productsIncluded || null,
+        benefits: req.body.benefits || null,
+        howToUse: req.body.howToUse || null,
+        price: parseFloat(req.body.price) || 0,
+        originalPrice: parseFloat(req.body.originalPrice) || 0,
+        discount: (req.body.discount || '').substring(0, 50),
         imageUrl: primaryImageUrl,
-        products: products,
-        rating: parseFloat(comboDataParsed?.rating || req.body.rating) || 5.0,
-        reviewCount: parseInt(comboDataParsed?.reviewCount || req.body.reviewCount) || 0,
-        isActive: comboDataParsed?.isActive !== false && req.body.isActive !== 'false',
-        sortOrder: parseInt(comboDataParsed?.sortOrder || req.body.sortOrder) || 0,
+        videoUrl: videoUrl,
+        products: JSON.stringify(products),
+        rating: parseFloat(req.body.rating) || 5.0,
+        reviewCount: parseInt(req.body.reviewCount) || 0,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
       };
 
       const [combo] = await db
@@ -4962,20 +4969,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/combos/:id', upload.fields([{ name: 'images', maxCount: 10 }]), async (req, res) => {
+  app.put('/api/admin/combos/:id', upload.fields([{ name: 'images', maxCount: 10 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      // Parse comboData if it was sent as JSON string
-      let comboDataParsed = req.body.comboData ? JSON.parse(req.body.comboData) : null;
-
       // Get products array - ensure it's properly parsed and limited
-      let products = comboDataParsed?.products || req.body.products || [];
+      let products = req.body.products || [];
       if (typeof products === 'string') {
         try {
           products = JSON.parse(products);
         } catch (e) {
+          console.error('Error parsing products:', e);
           products = [];
         }
       }
@@ -4987,20 +4992,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       products = products.slice(0, 20);
 
       let updateData: any = {
-        name: (comboDataParsed?.name || req.body.name || '').substring(0, 200),
-        description: (comboDataParsed?.description || req.body.description || '').substring(0, 500),
-        detailedDescription: comboDataParsed?.detailedDescription || req.body.detailedDescription || null,
-        productsIncluded: comboDataParsed?.productsIncluded || req.body.productsIncluded || null,
-        benefits: comboDataParsed?.benefits || req.body.benefits || null,
-        howToUse: comboDataParsed?.howToUse || req.body.howToUse || null,
-        price: parseFloat(comboDataParsed?.price || req.body.price) || 0,
-        originalPrice: parseFloat(comboDataParsed?.originalPrice || req.body.originalPrice) || 0,
-        discount: (comboDataParsed?.discount || req.body.discount || '').substring(0, 50),
-        products: products,
-        rating: parseFloat(comboDataParsed?.rating || req.body.rating) || 5.0,
-        reviewCount: parseInt(comboDataParsed?.reviewCount || req.body.reviewCount) || 0,
-        isActive: comboDataParsed?.isActive !== false && req.body.isActive !== 'false',
-        sortOrder: parseInt(comboDataParsed?.sortOrder || req.body.sortOrder) || 0,
+        name: (req.body.name || '').substring(0, 200),
+        description: (req.body.description || '').substring(0, 500),
+        detailedDescription: req.body.detailedDescription || null,
+        productsIncluded: req.body.productsIncluded || null,
+        benefits: req.body.benefits || null,
+        howToUse: req.body.howToUse || null,
+        price: parseFloat(req.body.price) || 0,
+        originalPrice: parseFloat(req.body.originalPrice) || 0,
+        discount: (req.body.discount || '').substring(0, 50),
+        products: JSON.stringify(products),
+        rating: parseFloat(req.body.rating) || 5.0,
+        reviewCount: parseInt(req.body.reviewCount) || 0,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
         updatedAt: new Date(),
       };
 
@@ -5025,6 +5030,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       } else if (req.body.imageUrl || comboDataParsed?.imageUrl) {
         updateData.imageUrl = req.body.imageUrl || comboDataParsed?.imageUrl;
+      }
+
+      // Handle video upload
+      if (files?.video?.[0]) {
+        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.videoUrl || comboDataParsed?.videoUrl) {
+        updateData.videoUrl = req.body.videoUrl || comboDataParsed?.videoUrl;
       }
 
       const [combo] = await db

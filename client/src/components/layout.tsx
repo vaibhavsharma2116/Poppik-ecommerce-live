@@ -1138,7 +1138,12 @@ export default function Layout({ children }: LayoutProps) {
                 </li>
                 <li>
                   <Link href="/influencer-collab" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Influencer Collab
+                    Become an Affiliate
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/drop-shipping" className="text-gray-400 hover:text-white transition-colors text-sm">
+                    Join as a Distributor
                   </Link>
                 </li>
               </ul>

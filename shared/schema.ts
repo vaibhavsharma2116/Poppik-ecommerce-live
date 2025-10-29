@@ -1,4 +1,4 @@
-import { pgTable, text, integer, numeric, boolean, serial, jsonb, varchar, timestamp, json, real} from "drizzle-orm/pg-core";
+import { pgTable, text, integer, numeric, boolean, serial, jsonb, varchar, timestamp, json, real, decimal} from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -410,16 +410,18 @@ export const combos = pgTable("combos", {
   productsIncluded: text("products_included"),
   benefits: text("benefits"),
   howToUse: text("how_to_use"),
-  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
-  originalPrice: numeric("original_price", { precision: 10, scale: 2 }).notNull(),
-  discount: text("discount").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
+  discount: text("discount"),
   imageUrl: text("image_url").notNull(),
-  products: jsonb("products").notNull(),
-  rating: numeric("rating", { precision: 3, scale: 2 }).default("5.0"),
+  videoUrl: text("video_url"),
+  products: text("products").notNull(),
+  productShades: jsonb("product_shades"),
+  rating: decimal("rating", { precision: 3, scale: 2 }).default("5.0"),
   reviewCount: integer("review_count").default(0),
   isActive: boolean("is_active").default(true),
   sortOrder: integer("sort_order").default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

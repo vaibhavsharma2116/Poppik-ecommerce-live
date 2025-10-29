@@ -32,6 +32,9 @@ export default function AdminCombos() {
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [selectedCombo, setSelectedCombo] = useState<any>(null);
   const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string>('');
+  const [selectedProductShades, setSelectedProductShades] = useState<Record<number, number[]>>({});
 
   const [formData, setFormData] = useState({
     name: "",
@@ -58,6 +61,11 @@ export default function AdminCombos() {
   // Fetch all products for selection
   const { data: allProducts = [] } = useQuery<Product[]>({
     queryKey: ['/api/products'],
+  });
+
+  // Fetch shades for all products
+  const { data: allShades = [] } = useQuery({
+    queryKey: ['/api/admin/shades'],
   });
 
   // Filter products based on search
@@ -134,6 +142,40 @@ export default function AdminCombos() {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      const file = files[0];
+      const isValidType = file.type.startsWith('video/');
+      const isValidSize = file.size <= 50 * 1024 * 1024; // 50MB limit
+
+      if (!isValidType) {
+        toast({
+          title: "Invalid File",
+          description: `${file.name} is not a valid video file`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!isValidSize) {
+        toast({
+          title: "File Too Large",
+          description: `${file.name} is too large (max 50MB)`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSelectedVideo(file);
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setVideoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -168,25 +210,22 @@ export default function AdminCombos() {
       };
     });
 
-    // Create a compact combo data object
-    const comboData = {
-      name: formData.name.substring(0, 200),
-      description: formData.description.substring(0, 500),
-      price: formData.price,
-      originalPrice: formData.originalPrice,
-      discount: formData.discount.substring(0, 50),
-      products: selectedProducts,
-      rating: formData.rating,
-      reviewCount: formData.reviewCount,
-      isActive: formData.isActive,
-      sortOrder: formData.sortOrder,
-      detailedDescription: formData.detailedDescription,
-      productsIncluded: formData.productsIncluded,
-      benefits: formData.benefits,
-      howToUse: formData.howToUse,
-    };
-
-    formDataToSend.append("comboData", JSON.stringify(comboData));
+    // Append form fields directly instead of nested JSON
+    formDataToSend.append("name", formData.name.substring(0, 200));
+    formDataToSend.append("description", formData.description.substring(0, 500));
+    formDataToSend.append("price", formData.price);
+    formDataToSend.append("originalPrice", formData.originalPrice);
+    formDataToSend.append("discount", formData.discount.substring(0, 50));
+    formDataToSend.append("products", JSON.stringify(selectedProducts));
+    formDataToSend.append("productShades", JSON.stringify(selectedProductShades));
+    formDataToSend.append("rating", formData.rating);
+    formDataToSend.append("reviewCount", formData.reviewCount);
+    formDataToSend.append("isActive", formData.isActive.toString());
+    formDataToSend.append("sortOrder", formData.sortOrder.toString());
+    formDataToSend.append("detailedDescription", formData.detailedDescription || "");
+    formDataToSend.append("productsIncluded", formData.productsIncluded || "");
+    formDataToSend.append("benefits", formData.benefits || "");
+    formDataToSend.append("howToUse", formData.howToUse || "");
 
     // Append all selected images
     if (selectedImages.length > 0) {
@@ -196,6 +235,20 @@ export default function AdminCombos() {
     } else if (editingCombo?.imageUrl) {
       formDataToSend.append("imageUrl", editingCombo.imageUrl);
     }
+
+    // Append video if selected
+    if (selectedVideo) {
+      formDataToSend.append("video", selectedVideo);
+    } else if (editingCombo?.videoUrl) {
+      formDataToSend.append("videoUrl", editingCombo.videoUrl);
+    }
+
+    console.log("FormData being sent:", {
+      name: formData.name,
+      products: selectedProducts,
+      imageCount: selectedImages.length,
+      hasVideo: !!selectedVideo
+    });
 
     if (editingCombo) {
       updateMutation.mutate({ id: editingCombo.id, data: formDataToSend });
@@ -225,6 +278,9 @@ export default function AdminCombos() {
     setProductSearchTerm('');
     setImagePreviews([]);
     setSelectedImages([]);
+    setSelectedVideo(null);
+    setVideoPreview('');
+    setSelectedProductShades({});
     setEditingCombo(null);
     setIsModalOpen(false);
   };
@@ -262,6 +318,20 @@ export default function AdminCombos() {
     
     setImagePreviews(existingImages);
     setSelectedImages([]);
+    
+    // Load existing video if available
+    if (combo.videoUrl) {
+      setVideoPreview(combo.videoUrl);
+      setSelectedVideo(null);
+    }
+
+    // Load product shades if available
+    if (combo.productShades) {
+      setSelectedProductShades(combo.productShades);
+    } else {
+      setSelectedProductShades({});
+    }
+    
     setIsModalOpen(true);
   };
 
@@ -377,6 +447,38 @@ export default function AdminCombos() {
                   <Plus className="h-8 w-8 mb-2" />
                   <span>Click to upload multiple images</span>
                   <span className="text-xs text-gray-500 mt-1">First image will be primary</span>
+                </Label>
+              </div>
+            </div>
+
+            <div>
+              <Label>Combo Video (Optional)</Label>
+              {videoPreview && (
+                <div className="relative mb-2">
+                  <video src={videoPreview} className="w-full h-48 object-cover rounded" controls />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute top-2 right-2"
+                    onClick={() => { setSelectedVideo(null); setVideoPreview(''); }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              <div className="border-2 border-dashed rounded p-4">
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoSelect}
+                  className="hidden"
+                  id="combo-video"
+                />
+                <Label htmlFor="combo-video" className="cursor-pointer flex flex-col items-center">
+                  <Plus className="h-8 w-8 mb-2" />
+                  <span>Click to upload video</span>
+                  <span className="text-xs text-gray-500 mt-1">MP4, WebM up to 50MB</span>
                 </Label>
               </div>
             </div>
@@ -542,32 +644,97 @@ export default function AdminCombos() {
                     {formData.products.map(productId => {
                       const product = allProducts.find(p => p.id === productId);
                       if (!product) return null;
+                      
+                      // Get shades for this product
+                      const productShades = allShades.filter((shade: any) => 
+                        shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(productId)
+                      );
+
                       return (
-                        <div key={productId} className="flex items-center justify-between bg-white p-2 rounded border">
-                          <div className="flex items-center gap-2">
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-10 h-10 rounded object-cover"
-                            />
-                            <div>
-                              <p className="font-medium text-sm">{product.name}</p>
-                              <p className="text-xs text-gray-500">₹{product.price}</p>
+                        <div key={productId} className="bg-white p-3 rounded border space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="w-10 h-10 rounded object-cover"
+                              />
+                              <div>
+                                <p className="font-medium text-sm">{product.name}</p>
+                                <p className="text-xs text-gray-500">₹{product.price}</p>
+                              </div>
                             </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  products: formData.products.filter(id => id !== productId)
+                                });
+                                // Remove shades for this product
+                                const newShades = { ...selectedProductShades };
+                                delete newShades[productId];
+                                setSelectedProductShades(newShades);
+                              }}
+                            >
+                              <X className="h-4 w-4 text-red-500" />
+                            </Button>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setFormData({
-                                ...formData,
-                                products: formData.products.filter(id => id !== productId)
-                              });
-                            }}
-                          >
-                            <X className="h-4 w-4 text-red-500" />
-                          </Button>
+
+                          {/* Show shades if available */}
+                          {productShades.length > 0 && (
+                            <div className="space-y-2 border-t pt-2">
+                              <p className="text-xs font-medium text-gray-600">Select Shades (Optional):</p>
+                              <div className="flex flex-wrap gap-2">
+                                {productShades.map((shade: any) => {
+                                  const isSelected = selectedProductShades[productId]?.includes(shade.id);
+                                  return (
+                                    <div
+                                      key={shade.id}
+                                      onClick={() => {
+                                        const currentShades = selectedProductShades[productId] || [];
+                                        const newShades = { ...selectedProductShades };
+                                        
+                                        if (isSelected) {
+                                          newShades[productId] = currentShades.filter(id => id !== shade.id);
+                                        } else {
+                                          newShades[productId] = [...currentShades, shade.id];
+                                        }
+                                        
+                                        setSelectedProductShades(newShades);
+                                      }}
+                                      className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer transition-all ${
+                                        isSelected 
+                                          ? 'bg-purple-100 border-2 border-purple-500' 
+                                          : 'bg-gray-100 border border-gray-300 hover:border-purple-300'
+                                      }`}
+                                    >
+                                      {shade.imageUrl ? (
+                                        <img
+                                          src={shade.imageUrl}
+                                          alt={shade.name}
+                                          className="w-4 h-4 rounded-full object-cover"
+                                        />
+                                      ) : (
+                                        <div
+                                          className="w-4 h-4 rounded-full border"
+                                          style={{ backgroundColor: shade.colorCode }}
+                                        />
+                                      )}
+                                      <span className="text-xs">{shade.name}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              {selectedProductShades[productId]?.length > 0 && (
+                                <p className="text-xs text-purple-600">
+                                  {selectedProductShades[productId].length} shade(s) selected
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
