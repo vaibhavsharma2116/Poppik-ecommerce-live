@@ -120,16 +120,17 @@ function TestimonialsCarousel() {
             let opacity = 1;
             let size = '';
 
-            if (isCenter) {
-              size = 'w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28';
-              opacity = 1;
-            } else if (position === -1 || position === 1) {
-              size = 'w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20';
-              opacity = 0.7;
-            } else {
-              size = 'w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-14 lg:h-14';
-              opacity = 0.5;
-            }
+          if (isCenter) {
+            size = 'w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32';
+            opacity = 1;
+          } else if (position === -1 || position === 1) {
+             size = 'w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28';
+            opacity = 0.8;
+          } else {
+              size = 'w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24';
+              opacity = 0.6;
+          }
+
 
             return (
               <div

@@ -124,7 +124,6 @@ export default function TestimonialsSection() {
                         src={testimonial.customerImage}
                         alt={testimonial.customerName}
                         className="object-cover"
-                        style={{ width: '100%', height: '100%' }}
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center">
