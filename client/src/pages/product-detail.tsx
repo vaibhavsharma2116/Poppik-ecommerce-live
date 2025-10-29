@@ -1330,7 +1330,7 @@ export default function ProductDetail() {
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="prose prose-gray max-w-none">
-                      <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-medium">{product.description}</p>
+                      <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">{product.description}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -1355,7 +1355,7 @@ export default function ProductDetail() {
                         ).map((ingredient, index) => (
                           <div key={index} className="flex items-start p-4 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-red-100/50 transform hover:scale-105 transition-all duration-200">
                             <div className="w-3 h-3 bg-gradient-to-r from-red-400 to-pink-400 rounded-full mt-2 mr-4 flex-shrink-0"></div>
-                            <span className="text-gray-700 font-semibold text-lg">{ingredient.trim()}</span>
+                            <span className="text-gray-700 font-normal text-lg">{ingredient.trim()}</span>
                           </div>
                         ))}
                       </div>
@@ -1364,7 +1364,7 @@ export default function ProductDetail() {
                         <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-pink-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
                           <div className="w-10 h-10 bg-gradient-to-br from-red-300 to-pink-300 rounded-2xl"></div>
                         </div>
-                        <p className="text-gray-500 text-xl font-medium">Ingredient information not available.</p>
+                        <p className="text-gray-500 text-xl font-normal">Ingredient information not available.</p>
                       </div>
                     )}
                   </CardContent>
@@ -1390,7 +1390,7 @@ export default function ProductDetail() {
                         ).map((benefit, index) => (
                           <div key={index} className="flex items-start p-4 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-green-100/50 transform hover:scale-105 transition-all duration-200">
                             <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full mt-2 mr-4 flex-shrink-0"></div>
-                            <span className="text-gray-700 font-semibold text-lg">{benefit.trim()}</span>
+                            <span className="text-gray-700 font-normal text-lg">{benefit.trim()}</span>
                           </div>
                         ))}
                       </div>
@@ -1399,7 +1399,7 @@ export default function ProductDetail() {
                         <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-emerald-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
                           <div className="w-10 h-10 bg-gradient-to-br from-green-300 to-emerald-300 rounded-2xl"></div>
                         </div>
-                        <p className="text-gray-500 text-xl font-medium">Benefit information not available.</p>
+                        <p className="text-gray-500 text-xl font-normal">Benefit information not available.</p>
                       </div>
                     )}
                   </CardContent>
@@ -1420,7 +1420,7 @@ export default function ProductDetail() {
                     {product.howToUse ? (
                       <div className="bg-white/70 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-purple-100/50">
                         <div className="prose prose-gray max-w-none">
-                          <p className="text-gray-700 leading-relaxed text-lg font-medium mb-0">
+                          <p className="text-gray-700 leading-relaxed text-lg font-normal mb-0">
                             {product.howToUse}
                           </p>
                         </div>
@@ -1430,7 +1430,7 @@ export default function ProductDetail() {
                         <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
                           <div className="w-10 h-10 bg-gradient-to-br from-purple-300 to-indigo-300 rounded-2xl"></div>
                         </div>
-                        <p className="text-gray-500 text-xl font-medium">Usage instructions not available for this product.</p>
+                        <p className="text-gray-500 text-xl font-normal">Usage instructions not available for this product.</p>
                       </div>
                     )}
                   </CardContent>

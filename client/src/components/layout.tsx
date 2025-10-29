@@ -985,18 +985,18 @@ export default function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             {/* Company Info */}
-            <div>
-              <div className="mb-4">
+            <div className="text-center md:text-left">
+              <div className="mb-4 flex justify-center md:justify-start">
                 <img
                   src={logo}
                   alt="POPPIK Logo"
                   style={{ width: 'auto', height: '140px' }}
                 />
               </div>
-              <p className="text-gray-400 mb-4">
+              <p className="text-gray-400 mb-4 text-justify md:text-left">
               Poppik Lifestyle is your trusted partner in holistic beauty, wellness, and self-care. We focus on enhancing your lifestyle through natural, safe, and effective products that nourish your body and mind. From skincare to wellness essentials, Poppik blends nature, science, and style — inspiring confidence, balance, and everyday well-being. 🌿✨
               </p>
-              <div className="flex space-x-4">
+              <div className="flex space-x-4 justify-center md:justify-start">
                 <a
                   href="https://www.facebook.com/share/17jwSeQ3yU/"
                   target="_blank"

@@ -788,7 +788,7 @@ export default function Home() {
               </span>
             </h2>
             <p className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-600 px-4">
-              Stay updated with beauty tips, trends & expert advice
+              Stay updated with Beauty, Lifestyle and wellnes
             </p>
           </div>
 

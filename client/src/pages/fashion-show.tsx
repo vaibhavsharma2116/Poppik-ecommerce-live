@@ -47,20 +47,6 @@ export default function FashionShow() {
           <p className="text-sm sm:text-lg md:text-xl text-gray-600 mb-8 sm:mb-12 max-w-2xl mx-auto px-2">
             Experience the glamour and beauty! Join us for an exclusive fashion show featuring the latest trends, stunning looks, and unforgettable runway moments. Get ready to witness beauty redefined!
           </p>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-2">
-            <Link href="/">
-              <Button className="w-full sm:w-auto bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
-                Explore Products
-              </Button>
-            </Link>
-            <Link href="/contact">
-              <Button variant="outline" className="w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg rounded-full border-2 border-purple-600 text-purple-600 hover:bg-purple-50">
-                Contact Us
-              </Button>
-            </Link>
-          </div>
         </div>
       </div>
     </div>

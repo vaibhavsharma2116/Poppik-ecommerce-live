@@ -52,7 +52,6 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
     featured: false,
     bestseller: false,
     newLaunch: false,
-    saleOffer: '',
     size: '',
     ingredients: '',
     benefits: '',
@@ -217,7 +216,6 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         featured: formData.featured,
         bestseller: formData.bestseller,
         newLaunch: formData.newLaunch,
-        saleOffer: formData.saleOffer || null,
         size: formData.size || null,
         ingredients: formData.ingredients || null,
         benefits: formData.benefits || null,
@@ -314,7 +312,6 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       featured: false,
       bestseller: false,
       newLaunch: false,
-      saleOffer: '',
       size: '',
       ingredients: '',
       benefits: '',
@@ -836,16 +833,6 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
                 onChange={(e) => handleInputChange('howToUse', e.target.value)}
                 placeholder="Usage instructions..."
                 rows={2}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="saleOffer">Sale Offer</Label>
-              <Input
-                id="saleOffer"
-                value={formData.saleOffer}
-                onChange={(e) => handleInputChange('saleOffer', e.target.value)}
-                placeholder="e.g., 20% off"
               />
             </div>
           </div>
