@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -783,7 +783,7 @@ export default function Home() {
 
       <VideoTestimonials />
 
-      {/* Blog Section */}
+      {/* Blog Section - Latest Posts Per Category */}
       <section className="py-8 sm:py-10 md:py-12 lg:py-16 bg-gradient-to-br from-slate-50 via-white to-gray-50">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
           <div className="text-center mb-6 sm:mb-8 md:mb-10 lg:mb-12">
@@ -797,7 +797,7 @@ export default function Home() {
             </p>
           </div>
 
-          <LatestBlogPosts />
+          <LatestBlogPostsPerCategory />
         </div>
       </section>
 
@@ -916,16 +916,34 @@ function ComboSection() {
   );
 }
 
-// Latest Blog Posts Component
-function LatestBlogPosts() {
+// Latest Blog Posts Per Category Component
+function LatestBlogPostsPerCategory() {
   const { data: blogPosts = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/blog/posts"],
   });
 
-  const latestPosts = blogPosts
-    .filter(post => post.published)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 4);
+  const { data: blogCategories = [] } = useQuery<any[]>({
+    queryKey: ["/api/blog/categories"],
+  });
+
+  // Get latest post per category
+  const latestPostsPerCategory = React.useMemo(() => {
+    const categoryMap = new Map<string, any>();
+    
+    // Filter published posts and sort by createdAt
+    const publishedPosts = blogPosts
+      .filter(post => post.published)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    // Get the latest post for each category
+    publishedPosts.forEach(post => {
+      if (post.category && !categoryMap.has(post.category)) {
+        categoryMap.set(post.category, post);
+      }
+    });
+    
+    return Array.from(categoryMap.values());
+  }, [blogPosts]);
 
   if (isLoading) {
     return (
@@ -944,7 +962,7 @@ function LatestBlogPosts() {
     );
   }
 
-  if (latestPosts.length === 0) {
+  if (latestPostsPerCategory.length === 0) {
     return (
       <div className="text-center py-6 sm:py-8 px-4">
         <p className="text-sm sm:text-base text-gray-500">No blog posts available yet.</p>
@@ -955,20 +973,20 @@ function LatestBlogPosts() {
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 px-2 sm:px-0">
-        {latestPosts.map((post) => (
+        {latestPostsPerCategory.map((post) => (
           <Link key={post.id} href={`/blog/${post.slug}`}>
             <div className="group cursor-pointer">
-              {/* Image - Same as blog page */}
+              {/* Image */}
               <div className="relative overflow-hidden bg-gray-100 mb-3 sm:mb-4 rounded-lg sm:rounded-none" style={{ paddingBottom: '66.67%' }}>
                 <img
                   src={post.imageUrl}
                   alt={post.title}
-                  className="absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500"
+                  className="absolute inset-0 w-full h-full  group-hover:scale-105 transition-transform duration-500"
                 />
                 {post.videoUrl && (
                   <div className="absolute inset-0">
                     <video
-                      className="w-full h-full"
+                      className="w-full h-full object-cover"
                       controls
                       preload="metadata"
                       poster={post.imageUrl}
@@ -979,7 +997,7 @@ function LatestBlogPosts() {
                 )}
               </div>
 
-              {/* Content - Same as blog page */}
+              {/* Content */}
               <div className="space-y-2 sm:space-y-3 px-1 sm:px-0">
                 <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 flex-wrap">
                   <Badge variant="outline" className="rounded-full sm:rounded-none border-gray-300 text-gray-600 text-xs px-2 py-0.5">

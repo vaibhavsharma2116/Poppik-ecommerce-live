@@ -63,18 +63,18 @@ export default function AffiliatePage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with Peach Background */}
-      <section className="relative bg-gradient-to-r from-[#FFD4C4] to-[#FFB8A3] py-16 sm:py-24 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
+      <section className="relative bg-gradient-to-r from-[#FFD4C4] to-[#FFB8A3] py-8 xs:py-10 sm:py-12 md:py-16 lg:py-20 xl:py-24 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-4 xs:gap-5 sm:gap-6 md:gap-8 items-center">
             <div className="text-left">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+              <h1 className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 mb-3 xs:mb-4 sm:mb-5 md:mb-6 leading-tight">
                 Become an Affiliate<br />
                 <span className="text-gray-800">With Poppik Lifestyle!</span>
               </h1>
-              <p className="text-lg sm:text-xl text-gray-700 mb-8">
+              <p className="text-sm xs:text-base sm:text-lg md:text-xl text-gray-700 mb-4 xs:mb-5 sm:mb-6 md:mb-8 leading-relaxed">
                 Partner with us to earn commissions and grow together!
               </p>
-              <div className="space-y-4">
+              <div className="space-y-2 xs:space-y-3 sm:space-y-4">
                 <h3 className="text-2xl font-bold text-gray-900">Join Our Affiliate Community</h3>
                 <p className="text-gray-700 leading-relaxed">
                   Are you passionate about beauty and personal care? Do you love creating engaging content that inspires your audience? We're looking for creative influencers to collaborate with Poppik Lifestyle!

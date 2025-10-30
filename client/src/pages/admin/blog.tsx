@@ -41,7 +41,7 @@ import {
   Heading2,
   ListOrdered,
   ListIcon,
-  Pencil // Added Pencil icon
+  Pencil
 } from "lucide-react";
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -1094,6 +1094,54 @@ export default function AdminBlog() {
                             <span className="cursor-pointer flex items-center gap-1">
                               <Upload className="h-4 w-4" />
                               <span className="text-xs">Image</span>
+                            </span>
+                          </Button>
+                        </Label>
+                      </div>
+
+                      {/* Insert Video */}
+                      <div>
+                        <input
+                          type="file"
+                          accept="video/*"
+                          className="hidden"
+                          id="content-video-upload"
+                          onChange={async (e) => {
+                            const files = e.target.files;
+                            if (!files || files.length === 0) return;
+
+                            const file = files[0];
+                            const formData = new FormData();
+                            formData.append('video', file);
+
+                            try {
+                              const response = await fetch('/api/upload/video', {
+                                method: 'POST',
+                                body: formData,
+                              });
+
+                              if (response.ok) {
+                                const data = await response.json();
+                                const videoHtml = `<div class="video-container" style="margin: 20px 0;"><video controls style="width: 100%; max-width: 800px; border-radius: 8px;"><source src="${data.videoUrl}" type="video/mp4">Your browser does not support the video tag.</video></div>`;
+                                editor?.chain().focus().insertContent(videoHtml).run();
+                              }
+                            } catch (error) {
+                              console.error('Error uploading video:', error);
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                        <Label htmlFor="content-video-upload">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            asChild
+                            title="Insert Video"
+                          >
+                            <span className="cursor-pointer flex items-center gap-1">
+                              <Video className="h-4 w-4" />
+                              <span className="text-xs">Video</span>
                             </span>
                           </Button>
                         </Label>

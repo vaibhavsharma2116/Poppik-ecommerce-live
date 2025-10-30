@@ -62,7 +62,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -3273,12 +3273,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/blog/posts", upload.fields([
     { name: 'image', maxCount: 1 },
-    { name: 'video', maxCount: 1 }
+    { name: 'video', maxCount: 1 },
+    { name: 'contentVideos', maxCount: 10 }
   ]), async (req, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       let imageUrl = req.body.imageUrl;
       let videoUrl = req.body.videoUrl;
+      const contentVideoUrls: string[] = [];
 
       // Handle image upload
       if (files?.image?.[0]) {
@@ -3290,10 +3292,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         videoUrl = `/api/images/${files.video[0].filename}`;
       }
 
+      // Handle content videos upload
+      if (files?.contentVideos && files.contentVideos.length > 0) {
+        for (const videoFile of files.contentVideos) {
+          contentVideoUrls.push(`/api/images/${videoFile.filename}`);
+        }
+      }
+
+      // If content videos were uploaded, add them to the content
+      let content = req.body.content;
+      if (contentVideoUrls.length > 0 && content) {
+        // Insert video tags into content at specified positions or append
+        const videoInsertPositions = req.body.videoPositions ? JSON.parse(req.body.videoPositions) : [];
+        contentVideoUrls.forEach((url, index) => {
+          const videoHtml = `<div class="video-container" style="margin: 20px 0;"><video controls style="width: 100%; max-width: 800px; border-radius: 8px;"><source src="${url}" type="video/mp4">Your browser does not support the video tag.</video></div>`;
+          if (videoInsertPositions[index]) {
+            content = content.slice(0, videoInsertPositions[index]) + videoHtml + content.slice(videoInsertPositions[index]);
+          } else {
+            content += videoHtml;
+          }
+        });
+      }
+
       const postData = {
         title: req.body.title,
         excerpt: req.body.excerpt,
-        content: req.body.content,
+        content: content,
         author: req.body.author,
         category: req.body.category,
         imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400',
@@ -3313,7 +3337,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/blog/posts/:id", upload.fields([
     { name: 'image', maxCount: 1 },
-    { name: 'video', maxCount: 1 }
+    { name: 'video', maxCount: 1 },
+    { name: 'contentVideos', maxCount: 10 }
   ]), async (req, res) => {
     try {
       const { id } = req.params;
@@ -3324,7 +3349,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Only update fields that are provided
       if (req.body.title) updateData.title = req.body.title;
       if (req.body.excerpt) updateData.excerpt = req.body.excerpt;
-      if (req.body.content) updateData.content = req.body.content;
       if (req.body.author) updateData.author = req.body.author;
       if (req.body.category) updateData.category = req.body.category;
       if (req.body.readTime) updateData.readTime = req.body.readTime;
@@ -3336,6 +3360,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (req.body.featured !== undefined) updateData.featured = req.body.featured === 'true';
       if (req.body.published !== undefined) updateData.published = req.body.published === 'true';
+
+      // Handle content with new videos
+      let content = req.body.content;
+      if (files?.contentVideos && files.contentVideos.length > 0) {
+        const contentVideoUrls: string[] = [];
+        for (const videoFile of files.contentVideos) {
+          contentVideoUrls.push(`/api/images/${videoFile.filename}`);
+        }
+
+        const videoInsertPositions = req.body.videoPositions ? JSON.parse(req.body.videoPositions) : [];
+        contentVideoUrls.forEach((url, index) => {
+          const videoHtml = `<div class="video-container" style="margin: 20px 0;"><video controls style="width: 100%; max-width: 800px; border-radius: 8px;"><source src="${url}" type="video/mp4">Your browser does not support the video tag.</video></div>`;
+          if (videoInsertPositions[index]) {
+            content = content.slice(0, videoInsertPositions[index]) + videoHtml + content.slice(videoInsertPositions[index]);
+          } else {
+            content += videoHtml;
+          }
+        });
+      }
+
+      if (content) updateData.content = content;
 
       // Handle image upload
       if (files?.image?.[0]) {

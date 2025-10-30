@@ -63,31 +63,31 @@ export default function InfluencerCollabPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative py-16 md:py-24 bg-gradient-to-br from-pink-500 to-pink-600 overflow-hidden">
+      <section className="relative py-8 xs:py-10 sm:py-12 md:py-16 lg:py-20 xl:py-24 bg-gradient-to-br from-pink-500 to-pink-600 overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00eiIvPjwvZz48L2c+PC9zdmc+')] bg-repeat"></div>
         </div>
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
-              <Sparkles className="w-4 h-4 text-white" />
-              <span className="text-white text-sm font-medium">Join Our Influencer Network</span>
+            <div className="inline-flex items-center gap-1 xs:gap-1.5 sm:gap-2 bg-white/20 backdrop-blur-sm px-2 xs:px-3 sm:px-4 py-1 xs:py-1.5 sm:py-2 rounded-full mb-3 xs:mb-4 sm:mb-5 md:mb-6">
+              <Sparkles className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-white" />
+              <span className="text-white text-[10px] xs:text-xs sm:text-sm font-medium">Join Our Influencer Network</span>
             </div>
             
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
+            <h1 className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-3 xs:mb-4 sm:mb-5 md:mb-6 px-2 leading-tight">
               Become a Poppik Influencer
             </h1>
             
-            <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+            <p className="text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl text-white/90 mb-4 xs:mb-5 sm:mb-6 md:mb-8 max-w-2xl mx-auto px-3 xs:px-4 leading-relaxed">
               Join India's fastest-growing beauty community and earn while promoting products you love
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-2 xs:gap-3 sm:gap-4 justify-center px-2 xs:px-3">
               <Button 
                 onClick={() => window.open('https://forms.gle/qAtXqvoDXeFmtQpPA', '_blank')}
                 size="lg"
-                className="bg-white text-pink-600 hover:bg-pink-50 font-semibold"
+                className="bg-white text-pink-600 hover:bg-pink-50 font-semibold text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
               >
                 Apply Now
               </Button>
@@ -95,7 +95,7 @@ export default function InfluencerCollabPage() {
                 onClick={() => document.getElementById('benefits')?.scrollIntoView({ behavior: 'smooth' })}
                 size="lg"
                 variant="outline" 
-                className="border-2 border-white text-white hover:bg-white/10"
+                className="border-2 border-white text-white hover:bg-white/10 text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
               >
                 Learn More
               </Button>
@@ -105,9 +105,9 @@ export default function InfluencerCollabPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-12 bg-gray-50 border-y">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+      <section className="py-6 xs:py-8 sm:py-10 md:py-12 bg-gray-50 border-y">
+        <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 xs:gap-4 sm:gap-6 md:gap-8">
             {[
               { number: "500+", label: "Active Influencers" },
               { number: "10M+", label: "Combined Reach" },
@@ -115,8 +115,8 @@ export default function InfluencerCollabPage() {
               { number: "95%", label: "Satisfaction Rate" }
             ].map((stat, index) => (
               <div key={index} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-pink-600 mb-2">{stat.number}</div>
-                <div className="text-sm md:text-base text-gray-600">{stat.label}</div>
+                <div className="text-xl xs:text-2xl sm:text-3xl md:text-4xl font-bold text-pink-600 mb-1 xs:mb-1.5 sm:mb-2 leading-tight">{stat.number}</div>
+                <div className="text-[10px] xs:text-xs sm:text-sm md:text-base text-gray-600 leading-tight px-1">{stat.label}</div>
               </div>
             ))}
           </div>

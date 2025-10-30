@@ -8,7 +8,7 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
-  
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -99,12 +99,48 @@ body {
   min-height: 100vh;
 }
 
-:root {
-  --background: hsl(0, 0%, 100%);
-  --foreground: hsl(20, 14.3%, 4.1%);
-  --muted: hsl(60, 4.8%, 95.9%);
-  --muted-foreground: hsl(25, 5.3%, 44.7%);
-  --popover: hsl(0, 0%, 100%);
+/* Blog content video styles */
+.blog-content video {
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  border-radius: 8px;
+  margin: 20px auto;
+  display: block;
+  background-color: #000;
+}
+
+.blog-content .video-container {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.blog-content .video-container video {
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  border-radius: 8px;
+  margin: 0 auto;
+  display: block;
+  background-color: #000;
+}
+
+/* Ensure video controls are always visible */
+.blog-content video::-webkit-media-controls {
+  visibility: visible !important;
+}
+
+.blog-content video::-webkit-media-controls-panel {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+@layer base {
+  :root {
+    --background: hsl(0, 0%, 100%);
+    --foreground: hsl(20, 14.3%, 4.1%);
+    --muted: hsl(60, 4.8%, 95.9%);
+    --muted-foreground: hsl(25, 5.3%, 44.7%);
+    --popover: hsl(0, 0%, 100%);
 
 
 /* TipTap Editor Styles */
@@ -2031,7 +2067,7 @@ body {
   .video-testimonial-card {
     @apply rounded-lg;
   }
-  
+
   .video-testimonial-content {
     @apply p-2;
   }
@@ -2467,4 +2503,4 @@ img {
     overflow: hidden !important;
     border-radius: 12px !important;
     background-color: #f9fafb !important;
-  }
+   }}

@@ -161,19 +161,28 @@ export default function BlogPostDetail() {
       {/* Hero Section with Featured Image - Mobile Responsive */}
       <div className="w-full bg-gray-100">
         {post.videoUrl ? (
-          <video 
-            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px]"
+          <video
+            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] object-cover"
             controls
             preload="metadata"
             poster={post.imageUrl}
+            playsInline
           >
             <source src={post.videoUrl} type="video/mp4" />
+            <source src={post.videoUrl} type="video/webm" />
+            <p className="text-center p-8">
+              Your browser does not support the video tag. Please{" "}
+              <a href={post.videoUrl} className="text-blue-600 underline" download>
+                download the video
+              </a>{" "}
+              to view it.
+            </p>
           </video>
         ) : (
           <img
             src={post.imageUrl}
             alt={post.title}
-            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] "
+            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] object-cover"
           />
         )}
       </div>
@@ -192,10 +201,10 @@ export default function BlogPostDetail() {
           </div>
 
           <p className="text-gray-500 text-xs sm:text-sm mb-3 sm:mb-4">
-            {new Date(post.createdAt).toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: '2-digit', 
-              year: 'numeric' 
+            {new Date(post.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric'
             })}
           </p>
 
@@ -231,9 +240,9 @@ export default function BlogPostDetail() {
                 <div className="space-y-2">
                   <p className="text-sm font-medium mb-3">Share this article</p>
 
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start gap-3" 
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3"
                     onClick={shareToWhatsApp}
                   >
                     <svg className="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 24 24">
@@ -242,9 +251,9 @@ export default function BlogPostDetail() {
                     WhatsApp
                   </Button>
 
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start gap-3" 
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3"
                     onClick={shareToFacebook}
                   >
                     <svg className="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
@@ -253,9 +262,9 @@ export default function BlogPostDetail() {
                     Facebook
                   </Button>
 
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start gap-3" 
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3"
                     onClick={shareToTwitter}
                   >
                     <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
@@ -264,9 +273,9 @@ export default function BlogPostDetail() {
                     Twitter
                   </Button>
 
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start gap-3" 
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3"
                     onClick={() => {
                       const url = window.location.href;
                       window.open(`https://www.instagram.com/`, '_blank');
@@ -282,9 +291,9 @@ export default function BlogPostDetail() {
                     Instagram
                   </Button>
 
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start gap-3" 
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3"
                     onClick={() => {
                       const url = window.location.href;
                       const text = encodeURIComponent(post?.title || "Check out this blog post");
@@ -300,9 +309,9 @@ export default function BlogPostDetail() {
               </PopoverContent>
             </Popover>
 
-            <Button 
-              variant={copied ? "default" : "ghost"} 
-              size="sm" 
+            <Button
+              variant={copied ? "default" : "ghost"}
+              size="sm"
               onClick={handleCopyLink}
               className="text-xs sm:text-sm"
             >
@@ -334,7 +343,7 @@ export default function BlogPostDetail() {
         </div>
 
         {/* Tags - Mobile Responsive */}
-        
+
       </article>
 
       {/* Related Posts Section - Mobile Responsive */}
@@ -356,10 +365,10 @@ export default function BlogPostDetail() {
                     </div>
 
                     <p className="text-xs sm:text-sm text-gray-500 mb-1.5 sm:mb-2">
-                      {new Date(relatedPost.createdAt).toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: '2-digit', 
-                        year: 'numeric' 
+                      {new Date(relatedPost.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: '2-digit',
+                        year: 'numeric'
                       })}
                     </p>
 
@@ -373,8 +382,8 @@ export default function BlogPostDetail() {
 
             <div className="text-center mt-8 sm:mt-10 md:mt-12">
               <Link href="/blog">
-                {/* <Button 
-                  variant="default" 
+                {/* <Button
+                  variant="default"
                   className="bg-red-600 hover:bg-red-700 text-white px-6 sm:px-8 py-4 sm:py-6 text-sm sm:text-base"
                 >
                   VIEW ALL
