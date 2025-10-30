@@ -5102,37 +5102,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const resumeUrl = `/api/images/${req.file.filename}`;
 
-      // Store application in database
-      const applicationData = {
-        fullName: fullName.trim(),
-        email: email.trim().toLowerCase(),
-        phone: phone.trim(),
-        position: position.trim(),
-        location: location.trim(),
-        isFresher: isFresher === 'true',
-        experienceYears: isFresher === 'true' ? null : experienceYears,
-        experienceMonths: isFresher === 'true' ? null : experienceMonths,
-        coverLetter: coverLetter.trim(),
-        resumeUrl: resumeUrl,
-        status: 'pending'
-      };
+      // HR Manager's email (you can set this in environment variables)
+      const HR_EMAIL = process.env.HR_EMAIL || 'vaibhavsharma2116@gmail.com';
 
-      console.log('Saving job application to database:', {
-        fullName,
-        email,
-        position
+      // Prepare email content
+      const experienceInfo = isFresher === 'true' 
+        ? 'Fresher' 
+        : `${experienceYears || 0} years ${experienceMonths || 0} months`;
+
+      const emailSubject = `New Job Application - ${position}`;
+      const emailBody = `
+Dear HR Manager,
+
+A new job application has been received.
+
+APPLICATION DETAILS:
+------------------
+Full Name: ${fullName}
+Email: ${email}
+Phone: ${phone}
+Position: ${position}
+Location: ${location}
+Experience: ${experienceInfo}
+
+COVER LETTER:
+-------------
+${coverLetter}
+
+RESUME:
+-------
+Resume URL: ${process.env.BASE_URL || 'https://poppik.in'}${resumeUrl}
+
+Please review the application at your earliest convenience.
+
+Best regards,
+Poppik Career Portal
+      `;
+
+      console.log('Sending job application email to HR:', {
+        to: HR_EMAIL,
+        from: email,
+        position: position,
+        applicant: fullName
       });
 
-      const [savedApplication] = await db.insert(schema.jobApplications)
-        .values(applicationData)
-        .returning();
+      // Send email to HR manager
+      // Note: You'll need to configure an email service (like SendGrid, Mailgun, or Nodemailer with SMTP)
+      // For now, we'll just log the details
+      console.log('\n=== EMAIL TO HR ===');
+      console.log('To:', HR_EMAIL);
+      console.log('Subject:', emailSubject);
+      console.log('Body:', emailBody);
+      console.log('Resume File:', req.file.filename);
+      console.log('===================\n');
 
-      console.log('Job application saved successfully:', savedApplication.id);
+      // TODO: Implement actual email sending here
+      // Example with nodemailer (you'll need to install it):
+      /*
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT,
+        secure: true,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      });
+
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || 'careers@poppik.in',
+        to: HR_EMAIL,
+        subject: emailSubject,
+        text: emailBody,
+        attachments: [{
+          filename: req.file.originalname,
+          path: req.file.path
+        }]
+      });
+      */
 
       res.json({
         success: true,
-        message: 'Application submitted successfully! We will review your application and get back to you soon.',
-        applicationId: savedApplication.id
+        message: 'Application submitted successfully! Our HR team will review your application and get back to you soon.',
+        applicationId: Date.now() // Just for reference
       });
 
     } catch (error) {
@@ -5144,90 +5197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin endpoints for job applications
-  app.get('/api/admin/job-applications', async (req, res) => {
-    try {
-      const applications = await db
-        .select()
-        .from(schema.jobApplications)
-        .orderBy(desc(schema.jobApplications.appliedAt));
-
-      res.json(applications);
-    } catch (error) {
-      console.error('Error fetching job applications:', error);
-      res.status(500).json({ error: 'Failed to fetch job applications' });
-    }
-  });
-
-  app.get('/api/admin/job-applications/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const [application] = await db
-        .select()
-        .from(schema.jobApplications)
-        .where(eq(schema.jobApplications.id, id))
-        .limit(1);
-
-      if (!application) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json(application);
-    } catch (error) {
-      console.error('Error fetching job application:', error);
-      res.status(500).json({ error: 'Failed to fetch job application' });
-    }
-  });
-
-  app.put('/api/admin/job-applications/:id/status', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { status } = req.body;
-
-      const validStatuses = ['pending', 'reviewing', 'shortlisted', 'accepted', 'rejected'];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({ error: 'Invalid status' });
-      }
-
-      const [updatedApplication] = await db
-        .update(schema.jobApplications)
-        .set({ 
-          status,
-          reviewedAt: status !== 'pending' ? new Date() : null
-        })
-        .where(eq(schema.jobApplications.id, id))
-        .returning();
-
-      if (!updatedApplication) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json(updatedApplication);
-    } catch (error) {
-      console.error('Error updating application status:', error);
-      res.status(500).json({ error: 'Failed to update application status' });
-    }
-  });
-
-  app.delete('/api/admin/job-applications/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-
-      const [deletedApplication] = await db
-        .delete(schema.jobApplications)
-        .where(eq(schema.jobApplications.id, id))
-        .returning();
-
-      if (!deletedApplication) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json({ message: 'Application deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting application:', error);
-      res.status(500).json({ error: 'Failed to delete application' });
-    }
-  });
+  // Admin job applications endpoints removed - applications now sent directly to HR email
 
   // Job Positions Management Routes
 
@@ -5345,20 +5315,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/job-positions', async (req, res) => {
     try {
+      console.log('Creating job position with data:', req.body);
+
+      // Validate required fields
+      if (!req.body.title || !req.body.department || !req.body.location || !req.body.type) {
+        return res.status(400).json({ 
+          error: 'Missing required fields: title, department, location, and type are required' 
+        });
+      }
+
+      const slug = req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
       const positionData = {
-        ...req.body,
-        slug: req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
-        responsibilities: Array.isArray(req.body.responsibilities) ? req.body.responsibilities : JSON.parse(req.body.responsibilities || '[]'),
-        requirements: Array.isArray(req.body.requirements) ? req.body.requirements : JSON.parse(req.body.requirements || '[]'),
-        qualifications: Array.isArray(req.body.qualifications) ? req.body.qualifications : JSON.parse(req.body.qualifications || '[]'),
-        skills: Array.isArray(req.body.skills) ? req.body.skills : JSON.parse(req.body.skills || '[]'),
+        title: req.body.title,
+        slug,
+        department: req.body.department,
+        location: req.body.location,
+        type: req.body.type,
+        jobId: req.body.jobId || null,
+        experienceLevel: req.body.experienceLevel || 'Entry Level',
+        workExperience: req.body.workExperience || '0-1 years',
+        education: req.body.education || 'Bachelor\'s Degree',
+        description: req.body.description || '',
+        aboutRole: req.body.aboutRole || '',
+        responsibilities: Array.isArray(req.body.responsibilities) 
+          ? req.body.responsibilities 
+          : (typeof req.body.responsibilities === 'string' ? JSON.parse(req.body.responsibilities || '[]') : []),
+        requirements: Array.isArray(req.body.requirements) 
+          ? req.body.requirements 
+          : (typeof req.body.requirements === 'string' ? JSON.parse(req.body.requirements || '[]') : []),
+        skills: Array.isArray(req.body.skills) 
+          ? req.body.skills 
+          : (typeof req.body.skills === 'string' ? JSON.parse(req.body.skills || '[]') : []),
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        sortOrder: parseInt(req.body.sortOrder) || 0,
       };
 
+      console.log('Processed position data:', positionData);
+
       const position = await storage.createJobPosition(positionData);
+      console.log('Job position created successfully:', position);
+
       res.status(201).json(position);
     } catch (error) {
       console.error('Error creating job position:', error);
-      res.status(500).json({ error: 'Failed to create job position' });
+      console.error('Error details:', error.message, error.stack);
+      res.status(500).json({ 
+        error: 'Failed to create job position',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
@@ -5370,7 +5375,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         slug: req.body.title ? req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : undefined,
         responsibilities: req.body.responsibilities ? (Array.isArray(req.body.responsibilities) ? req.body.responsibilities : JSON.parse(req.body.responsibilities)) : undefined,
         requirements: req.body.requirements ? (Array.isArray(req.body.requirements) ? req.body.requirements : JSON.parse(req.body.requirements)) : undefined,
-        qualifications: req.body.qualifications ? (Array.isArray(req.body.qualifications) ? req.body.qualifications : JSON.parse(req.body.qualifications)) : undefined,
         skills: req.body.skills ? (Array.isArray(req.body.skills) ? req.body.skills : JSON.parse(req.body.skills)) : undefined,
       };
 

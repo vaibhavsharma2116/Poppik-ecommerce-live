@@ -1005,7 +1005,7 @@ export default function Layout({ children }: LayoutProps) {
               <img
                 src={logo}
                 alt="POPPIK Logo"
-                className="h-32 w-auto"
+                className="h-40 w-auto md:h-48"
               />
             </div>
             <p className="text-gray-300 text-sm leading-relaxed mb-6 text-justify px-0">

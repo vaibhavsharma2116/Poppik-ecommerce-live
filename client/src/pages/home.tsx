@@ -547,7 +547,7 @@ export default function Home() {
 
                 <div className="text-center mt-6 sm:mt-8 md:mt-10">
                   <Link href="/products?filter=bestseller">
-                    <Button className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+                    <Button className="font-poppins bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                       <span>
                         View All Bestsellers ({bestsellerProducts?.length || 0})
                       </span>
@@ -631,7 +631,7 @@ export default function Home() {
                   allProducts.length > 10 && (
                     <div className="text-center mt-6 sm:mt-8 md:mt-10">
                       <Link href="/products">
-                        <Button className="inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-10 py-4 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
+                        <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-10 py-4  font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
                           View All Products ({allProducts.length})
                           <svg
                             className="w-5 h-5"
@@ -703,7 +703,7 @@ export default function Home() {
 
               <div className="text-center mt-6 mb-4">
                 <Link href="/products?filter=newLaunch">
-                  <Button className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+                  <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                     <span>Explore New Launches</span>
                     <svg
                       className="w-4 h-4"
@@ -905,7 +905,7 @@ function ComboSection() {
 
         <div className="text-center mt-8 sm:mt-10">
           <Link href="/combos">
-            <Button className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+            <Button className="font-poppins bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
               <span>View All Combos</span>
               <ArrowRight className="w-4 h-4" />
             </Button>
@@ -1015,7 +1015,7 @@ function LatestBlogPosts() {
 
       <div className="text-center mt-6 sm:mt-8 md:mt-10 px-4">
         <Link href="/blog">
-          <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full text-xs sm:text-sm md:text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto max-w-xs sm:max-w-none">
+          <Button className="font-poppins bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 rounded-full text-xs sm:text-sm md:text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto max-w-xs sm:max-w-none">
             <span>View All Articles</span>
             <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
           </Button>

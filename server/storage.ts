@@ -60,7 +60,7 @@ dotenv.config();
 
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
   ssl: false,
   max: 20, // Maximum pool size
   idleTimeoutMillis: 30000,
@@ -1794,16 +1794,66 @@ export class DatabaseStorage implements IStorage {
 
   // Job Positions methods
   async getJobPositions(): Promise<JobPosition[]> {
-    const db = await getDb();
-    return await db.select().from(jobPositions).orderBy(desc(jobPositions.createdAt));
+    try {
+      const db = await getDb();
+      return await db.select({
+        id: jobPositions.id,
+        title: jobPositions.title,
+        slug: jobPositions.slug,
+        department: jobPositions.department,
+        location: jobPositions.location,
+        type: jobPositions.type,
+        jobId: jobPositions.jobId,
+        experienceLevel: jobPositions.experienceLevel,
+        workExperience: jobPositions.workExperience,
+        education: jobPositions.education,
+        description: jobPositions.description,
+        aboutRole: jobPositions.aboutRole,
+        responsibilities: jobPositions.responsibilities,
+        requirements: jobPositions.requirements,
+        skills: jobPositions.skills,
+        isActive: jobPositions.isActive,
+        sortOrder: jobPositions.sortOrder,
+        createdAt: jobPositions.createdAt,
+        updatedAt: jobPositions.updatedAt,
+      }).from(jobPositions).orderBy(desc(jobPositions.createdAt));
+    } catch (error) {
+      console.error("Error fetching job positions:", error);
+      throw error;
+    }
   }
 
   async getActiveJobPositions(): Promise<JobPosition[]> {
-    const db = await getDb();
-    return await db.select()
+    try {
+      const db = await getDb();
+      return await db.select({
+        id: jobPositions.id,
+        title: jobPositions.title,
+        slug: jobPositions.slug,
+        department: jobPositions.department,
+        location: jobPositions.location,
+        type: jobPositions.type,
+        jobId: jobPositions.jobId,
+        experienceLevel: jobPositions.experienceLevel,
+        workExperience: jobPositions.workExperience,
+        education: jobPositions.education,
+        description: jobPositions.description,
+        aboutRole: jobPositions.aboutRole,
+        responsibilities: jobPositions.responsibilities,
+        requirements: jobPositions.requirements,
+        skills: jobPositions.skills,
+        isActive: jobPositions.isActive,
+        sortOrder: jobPositions.sortOrder,
+        createdAt: jobPositions.createdAt,
+        updatedAt: jobPositions.updatedAt,
+      })
       .from(jobPositions)
       .where(eq(jobPositions.isActive, true))
       .orderBy(asc(jobPositions.sortOrder));
+    } catch (error) {
+      console.error("Error fetching active job positions:", error);
+      throw error;
+    }
   }
 
   async getJobPositionBySlug(slug: string): Promise<JobPosition | null> {
@@ -1828,23 +1878,49 @@ export class DatabaseStorage implements IStorage {
 
   async createJobPosition(data: InsertJobPosition): Promise<JobPosition> {
     const db = await getDb();
+    
+    console.log('Storage: Creating job position with data:', data);
+    
     // Generate slug from title if not provided
-    const slug = data.title
+    const slug = data.slug || data.title
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
       .trim();
 
+    // Ensure arrays are properly formatted as JSONB
     const jobPositionToInsert = {
-      ...data,
+      title: data.title,
       slug,
+      department: data.department,
+      location: data.location,
+      type: data.type,
+      jobId: data.jobId || null,
+      experienceLevel: data.experienceLevel || 'Entry Level',
+      workExperience: data.workExperience || '0-1 years',
+      education: data.education || 'Bachelor\'s Degree',
+      description: data.description || '',
+      aboutRole: data.aboutRole || '',
+      responsibilities: JSON.stringify(Array.isArray(data.responsibilities) ? data.responsibilities : []),
+      requirements: JSON.stringify(Array.isArray(data.requirements) ? data.requirements : []),
+      skills: JSON.stringify(Array.isArray(data.skills) ? data.skills : []),
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      sortOrder: data.sortOrder || 0,
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
-    const [jobPosition] = await db.insert(jobPositions).values(jobPositionToInsert).returning();
-    return jobPosition;
+    console.log('Storage: Inserting job position:', jobPositionToInsert);
+
+    try {
+      const [jobPosition] = await db.insert(jobPositions).values(jobPositionToInsert).returning();
+      console.log('Storage: Job position created successfully:', jobPosition.id);
+      return jobPosition;
+    } catch (error) {
+      console.error('Storage: Database insert error:', error);
+      throw error;
+    }
   }
 
   async updateJobPosition(id: number, data: Partial<InsertJobPosition>): Promise<JobPosition | undefined> {

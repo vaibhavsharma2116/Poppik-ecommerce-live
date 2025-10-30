@@ -138,7 +138,6 @@ export const jobPositions = pgTable("job_positions", {
   aboutRole: text("about_role").notNull(),
   responsibilities: jsonb("responsibilities").notNull(), // Array of strings
   requirements: jsonb("requirements").notNull(), // Array of strings
-  qualifications: jsonb("qualifications"), // Array of strings
   skills: jsonb("skills").notNull(), // Array of strings
   isActive: boolean("is_active").default(true).notNull(),
   sortOrder: integer("sort_order").default(0).notNull(),
