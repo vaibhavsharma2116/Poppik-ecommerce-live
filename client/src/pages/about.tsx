@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Leaf, FlaskConical, Heart, Users, Award, Sparkles } from "lucide-react";
-
+import aboutImage from "@assets/ABOUT_SECTION_IMAGE-01.jpg";
 export default function About() {
   const stats = [
     // { label: "Happy Customers", value: "5M+", icon: Users },
@@ -82,8 +82,8 @@ export default function About() {
 
           <div className="relative">
             <img
-              src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600"
-              alt="Beauty lab with scientists developing formulations"
+              src={aboutImage}
+              alt="Poppik makeup products showcase"
               className="rounded-2xl shadow-lg w-full h-auto"
             />
           </div>

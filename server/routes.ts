@@ -9,6 +9,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import sharp from "sharp";
 import { adminAuthMiddleware as adminMiddleware } from "./admin-middleware";
+import nodemailer from 'nodemailer';
 
 // Simple rate limiting
 const rateLimitMap = new Map();
@@ -134,6 +135,17 @@ const upload = multer({
   },
   limits: {
     fileSize: 50 * 1024 * 1024 // 50MB limit for videos and large documents
+  }
+});
+
+// Nodemailer transporter configuration
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || '587', 10),
+  secure: parseInt(process.env.SMTP_PORT || '587', 10) === 465, // Use SSL if port is 465
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
   }
 });
 
@@ -2080,7 +2092,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               firstName: userData.firstName,
               lastName: userData.lastName,
               email: userData.email,
-              phone: userData.phone
+              phone: userData.phone,
             }
           };
 
@@ -3305,7 +3317,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Insert video tags into content at specified positions or append
         const videoInsertPositions = req.body.videoPositions ? JSON.parse(req.body.videoPositions) : [];
         contentVideoUrls.forEach((url, index) => {
-          const videoHtml = `<div class="video-container" style="margin: 20px 0;"><video controls style="width: 100%; max-width: 800px; border-radius: 8px;"><source src="${url}" type="video/mp4">Your browser does not support the video tag.</video></div>`;
+          const videoHtml = `<div class="video-container" style="margin: 20px 0; text-align: center;"><video controls preload="metadata" style="width: 100%; max-width: 800px; border-radius: 8px;"><source src="${url}" type="video/mp4" />Your browser does not support the video tag.</video></div>`;
           if (videoInsertPositions[index]) {
             content = content.slice(0, videoInsertPositions[index]) + videoHtml + content.slice(videoInsertPositions[index]);
           } else {
@@ -5146,9 +5158,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const resumeUrl = `/api/images/${req.file.filename}`;
+      const resumePath = path.join(uploadsDir, req.file.filename);
 
-      // HR Manager's email (you can set this in environment variables)
-      const HR_EMAIL = process.env.HR_EMAIL || 'vaibhavsharma2116@gmail.com';
+      // HR Manager's email
+      const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
 
       // Prepare email content
       const experienceInfo = isFresher === 'true' 
@@ -5174,14 +5187,55 @@ COVER LETTER:
 -------------
 ${coverLetter}
 
-RESUME:
--------
-Resume URL: ${process.env.BASE_URL || 'https://poppik.in'}${resumeUrl}
-
-Please review the application at your earliest convenience.
+Please find the resume attached to this email.
 
 Best regards,
 Poppik Career Portal
+      `;
+
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #e74c3c;">New Job Application</h2>
+          
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #333;">Application Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Full Name:</td>
+                <td style="padding: 8px;">${fullName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Email:</td>
+                <td style="padding: 8px;">${email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Phone:</td>
+                <td style="padding: 8px;">${phone}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Position:</td>
+                <td style="padding: 8px;">${position}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Location:</td>
+                <td style="padding: 8px;">${location}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Experience:</td>
+                <td style="padding: 8px;">${experienceInfo}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #333;">Cover Letter</h3>
+            <p style="white-space: pre-wrap;">${coverLetter}</p>
+          </div>
+
+          <p style="color: #666; font-size: 12px; margin-top: 30px;">
+            Resume is attached to this email.
+          </p>
+        </div>
       `;
 
       console.log('Sending job application email to HR:', {
@@ -5191,47 +5245,39 @@ Poppik Career Portal
         applicant: fullName
       });
 
-      // Send email to HR manager
-      // Note: You'll need to configure an email service (like SendGrid, Mailgun, or Nodemailer with SMTP)
-      // For now, we'll just log the details
-      console.log('\n=== EMAIL TO HR ===');
-      console.log('To:', HR_EMAIL);
-      console.log('Subject:', emailSubject);
-      console.log('Body:', emailBody);
-      console.log('Resume File:', req.file.filename);
-      console.log('===================\n');
+      try {
+        // Send email to HR manager using the existing transporter
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'careers@poppik.in',
+          to: HR_EMAIL,
+          subject: emailSubject,
+          text: emailBody,
+          html: emailHtml,
+          attachments: [{
+            filename: req.file.originalname,
+            path: resumePath
+          }]
+        });
 
-      // TODO: Implement actual email sending here
-      // Example with nodemailer (you'll need to install it):
-      /*
-      const nodemailer = require('nodemailer');
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
-        secure: true,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        }
-      });
+        console.log('✅ Job application email sent successfully to:', HR_EMAIL);
 
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || 'careers@poppik.in',
-        to: HR_EMAIL,
-        subject: emailSubject,
-        text: emailBody,
-        attachments: [{
-          filename: req.file.originalname,
-          path: req.file.path
-        }]
-      });
-      */
+        res.json({
+          success: true,
+          message: 'Application submitted successfully! Our HR team will review your application and get back to you soon.',
+          applicationId: Date.now()
+        });
 
-      res.json({
-        success: true,
-        message: 'Application submitted successfully! Our HR team will review your application and get back to you soon.',
-        applicationId: Date.now() // Just for reference
-      });
+      } catch (emailError) {
+        console.error('❌ Failed to send job application email:', emailError);
+        
+        // Still return success to the user, but log the email failure
+        res.json({
+          success: true,
+          message: 'Application submitted successfully! Our HR team will review your application and get back to you soon.',
+          applicationId: Date.now(),
+          emailSent: false
+        });
+      }
 
     } catch (error) {
       console.error('Job application submission error:', error);

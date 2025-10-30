@@ -340,6 +340,21 @@ export default function BlogPostDetail() {
         {/* Content Sections - Mobile Responsive */}
         <div className="prose prose-sm sm:prose-base md:prose-lg max-w-none mb-8 sm:mb-10 md:mb-12 blog-content">
           <div dangerouslySetInnerHTML={{ __html: post.content }} />
+
+          {/* Render video if videoUrl exists and not already in content */}
+          {post.videoUrl && !post.content.includes('video') && (
+            <div className="video-container my-8">
+              <video 
+                controls 
+                preload="metadata"
+                className="w-full max-w-3xl mx-auto rounded-lg shadow-lg"
+                style={{ maxWidth: '800px' }}
+              >
+                <source src={post.videoUrl} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          )}
         </div>
 
         {/* Tags - Mobile Responsive */}

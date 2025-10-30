@@ -260,7 +260,7 @@ export default function Home() {
       /> */}
 
       {/* Enhanced Categories Section */}
-      <section className="py-12 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-[0.02]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
@@ -580,7 +580,7 @@ export default function Home() {
       </section>
 
       {/* Our Products Section - Second */}
-      <section className="py-0 pb-16 sm:pb-20 md:pb-24 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.02]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
         </div>
@@ -657,18 +657,20 @@ export default function Home() {
       </section>
 
       {/* New Launches Section - Third */}
-      <section className="py-0 bg-gradient-to-br from-emerald-50 via-white to-teal-50 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.03]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,_var(--tw-gradient-stops))] from-emerald-500 via-transparent to-transparent"></div>
+      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.02]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
         </div>
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="mb-10">
-            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-4 sm:mb-6 text-left">
-              <span className="text-transparent bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-700 bg-clip-text">
+          <div className="space-y-8 sm:space-y-12">
+            <div>
+              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-left">
+                <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
                 New Launches
               </span>
-            </h2>
+            </h3>
+            </div>
           </div>
 
           {allProductsLoading ? (

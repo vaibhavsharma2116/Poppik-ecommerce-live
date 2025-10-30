@@ -1115,6 +1115,11 @@ export default function AdminBlog() {
                             formData.append('video', file);
 
                             try {
+                              toast({
+                                title: "Uploading video...",
+                                description: "Please wait while the video is being uploaded."
+                              });
+
                               const response = await fetch('/api/upload/video', {
                                 method: 'POST',
                                 body: formData,
@@ -1122,11 +1127,32 @@ export default function AdminBlog() {
 
                               if (response.ok) {
                                 const data = await response.json();
-                                const videoHtml = `<div class="video-container" style="margin: 20px 0;"><video controls style="width: 100%; max-width: 800px; border-radius: 8px;"><source src="${data.videoUrl}" type="video/mp4">Your browser does not support the video tag.</video></div>`;
-                                editor?.chain().focus().insertContent(videoHtml).run();
+                                console.log('Video upload response:', data);
+                                
+                                // Use the videoUrl from the response
+                                const videoUrl = data.videoUrl || data.url;
+                                
+                                if (videoUrl) {
+                                  const videoHtml = `<div class="video-container" style="margin: 20px 0; text-align: center;"><video controls preload="metadata" style="width: 100%; max-width: 800px; border-radius: 8px;"><source src="${videoUrl}" type="video/mp4" /><source src="${videoUrl}" type="video/webm" />Your browser does not support the video tag.</video></div>`;
+                                  editor?.chain().focus().insertContent(videoHtml).run();
+                                  
+                                  toast({
+                                    title: "Video uploaded successfully!",
+                                    description: "Video has been added to your content."
+                                  });
+                                } else {
+                                  throw new Error('No video URL in response');
+                                }
+                              } else {
+                                throw new Error('Upload failed');
                               }
                             } catch (error) {
                               console.error('Error uploading video:', error);
+                              toast({
+                                title: "Video upload failed",
+                                description: "Please try again with a different video file.",
+                                variant: "destructive"
+                              });
                             }
                             e.target.value = '';
                           }}
