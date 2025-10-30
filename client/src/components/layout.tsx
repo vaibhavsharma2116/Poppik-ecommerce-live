@@ -257,12 +257,10 @@ export default function Layout({ children }: LayoutProps) {
         {/* Main Header */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Desktop Layout */}
+            {/* Desktop and Tablet Layout */}
             <div className="hidden md:flex items-center justify-between w-full">
-              {/* Left Spacer
-              <div className="flex-1"></div> */}
-                 {/* Left - Social Media Links */}
-              <div className="flex items-center space-x-4">
+              {/* Left - Social Media Links */}
+              <div className="flex items-center space-x-3 lg:space-x-4">
                 <a
                   href="https://www.facebook.com/share/17jwSeQ3yU/"
                   target="_blank"
@@ -351,7 +349,7 @@ export default function Layout({ children }: LayoutProps) {
                   <img
                     src={headerLogo}
                     alt="POPPIK LIFESTYLE"
-                    className="h-10 w-auto lg:h-12 xl:h-14 object-contain mt-2"
+                    className="h-8 w-auto md:h-10 lg:h-12 xl:h-14 object-contain mt-2"
                   />
                 </div>
               </Link>
@@ -361,12 +359,12 @@ export default function Layout({ children }: LayoutProps) {
             </div>
 
             {/* Mobile Layout - Left: Menu, Center: Logo, Right: Search & Cart Icons */}
-            <div className="md:hidden flex items-center justify-between w-full">
+            <div className="md:hidden flex items-center justify-between w-full px-2">
               {/* Left - Mobile Menu */}
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300" onClick={() => setIsMobileMenuOpen(true)}>
-                    <Menu className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10" onClick={() => setIsMobileMenuOpen(true)}>
+                    <Menu className="h-6 w-6" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80 p-0 overflow-hidden">
@@ -590,27 +588,27 @@ export default function Layout({ children }: LayoutProps) {
                   <img
                     src={headerLogo}
                     alt="POPPIK LIFESTYLE"
-                    className="h-8 w-auto sm:h-10 md:h-12 lg:h-16 object-contain hover:scale-105 transition-transform duration-300"
+                    className="h-10 w-auto sm:h-12 object-contain hover:scale-105 transition-transform duration-300"
                   />
                 </Link>
               </div>
 
               {/* Right - Search & Cart Icons */}
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={() => setShowSearchBar(true)}
-                  className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                  className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10"
                 >
-                  <Search className="h-5 w-5" />
+                  <Search className="h-6 w-6" />
                 </Button>
 
                 <Link href="/cart">
-                  <Button variant="ghost" size="sm" className="relative text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
-                    <ShoppingCart className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" className="relative text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10">
+                    <ShoppingCart className="h-6 w-6" />
                     {cartCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
+                      <span className="absolute -top-1 -right-1 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse font-semibold">
                         {cartCount}
                       </span>
                     )}
@@ -735,12 +733,12 @@ export default function Layout({ children }: LayoutProps) {
 
         {/* Mobile Search Bar - Only shows when search icon is clicked */}
         {showSearchBar && (
-          <div className="md:hidden px-2 pb-3">
-            <div className="relative max-w-xs mx-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+          <div className="md:hidden px-4 pb-4 bg-white border-t border-gray-100">
+            <div className="relative w-full">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search products..."
                 value={searchQuery}
                 onChange={handleSearchInputChange}
                 onFocus={handleSearchInputFocus}
@@ -752,7 +750,7 @@ export default function Layout({ children }: LayoutProps) {
                   }, 200);
                 }}
                 autoFocus
-                className="w-full pl-10 pr-4 py-2 text-sm bg-white/90 backdrop-blur-sm border-white/50 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-yellow-300 transition-all duration-300 rounded-full"
+                className="w-full pl-12 pr-4 py-3 text-base bg-gray-50 border-gray-200 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-300 rounded-lg"
               />
 
               {/* Mobile Search Results Dropdown */}
@@ -830,7 +828,7 @@ export default function Layout({ children }: LayoutProps) {
                         </button>
 
                         {/* Dropdown positioned under this specific menu item */}
-                        <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg border border-gray-200 rounded-md z-50 min-w-[200px] max-w-[400px] py-2">
+                        <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg border border-gray-200 rounded-md z-[100] min-w-[200px] max-w-[400px] py-2 mt-1">
                           <div className="border-t border-gray-100 my-1"></div>
                           {categorySubcategories.map((subcategory) => (
                             <Link
@@ -1111,7 +1109,7 @@ At Poppik, we believe beauty begins with wellness and grows through balance.
           </div>
 
           {/* Links Section - 5 Columns */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 md:gap-8 mb-8">
             {/* Quick Links */}
             <div>
               <h4 className="font-semibold mb-4 text-white text-sm">Quick Links</h4>

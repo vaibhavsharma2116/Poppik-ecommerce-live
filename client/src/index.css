@@ -44,6 +44,22 @@
   border-radius: 8px !important;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
   margin-top: 8px !important;
+  width: auto !important;
+  min-width: 200px !important;
+}
+
+/* Navigation dropdown for iPad/Tablets */
+@media only screen and (min-width: 768px) and (max-width: 1024px) {
+  nav .relative .group > div {
+    min-width: 220px !important;
+    max-width: 350px !important;
+  }
+  
+  nav button + div {
+    left: 0 !important;
+    right: auto !important;
+    transform: none !important;
+  }
 }
 
 [data-radix-navigation-menu-content] {
@@ -860,15 +876,15 @@ body {
   }
 
   .mobile-nav-link {
-    @apply block px-4 py-3 rounded-lg font-medium transition-all duration-200;
+    @apply block px-5 py-4 rounded-xl font-medium transition-all duration-200 text-base;
   }
 
   .mobile-nav-link-active {
-    @apply bg-red-500 text-white shadow-md;
+    @apply bg-red-500 text-white shadow-lg transform scale-[1.02];
   }
 
   .mobile-nav-link-inactive {
-    @apply text-gray-700 hover:bg-red-50 hover:text-red-600;
+    @apply text-gray-700 hover:bg-red-50 hover:text-red-600 active:scale-95;
   }
 
   .mobile-submenu-container {
@@ -2175,19 +2191,360 @@ body {
   }
 }
 
-@media (min-width: 641px) and (max-width: 768px) {
-  /* Small tablets */
+/* iPad and Tablet Specific Styles */
+
+/* iPad Mini, iPad Air (Portrait) */
+@media only screen 
+  and (min-device-width: 768px) 
+  and (max-device-width: 1024px) 
+  and (orientation: portrait) {
+  .container {
+    @apply px-6;
+  }
+
   .product-grid {
     @apply grid-cols-3 gap-4;
   }
 
-  .container {
-    @apply px-6;
+  .mobile-product-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 16px !important;
+    padding: 0 16px !important;
+    width: 100% !important;
+  }
+
+  /* Product card improvements for iPad */
+  .mobile-product-card,
+  .amazon-mobile-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .mobile-hero-title {
+    @apply text-3xl;
+  }
+
+  .mobile-slider-image {
+    height: 600px;
+    max-height: 70vh;
+  }
+
+  .product-detail-container {
+    @apply px-6 py-10;
+  }
+
+  .mobile-nav-item {
+    @apply py-4 text-lg;
+  }
+
+  /* Product cards optimized for iPad */
+  .mobile-product-card {
+    min-height: 320px;
+  }
+
+  .mobile-product-card .mobile-product-image {
+    @apply h-56;
+  }
+
+  .mobile-product-card .mobile-product-content {
+    @apply p-4 space-y-3;
+  }
+
+  .mobile-product-card .mobile-product-title {
+    @apply text-base font-medium;
+  }
+
+  .mobile-product-card .mobile-product-price {
+    @apply text-lg;
+  }
+
+  /* Category cards */
+  .mobile-category-grid {
+    @apply grid-cols-3 gap-6;
+  }
+
+  .mobile-category-title {
+    @apply text-lg;
+  }
+
+  /* Navigation improvements */
+  .responsive-logo {
+    height: 3rem;
+  }
+
+  /* Touch targets */
+  button, .btn-primary, .btn-secondary, .touch-target {
+    @apply min-h-[48px] min-w-[48px];
+  }
+
+  /* Hero section */
+  .mobile-hero {
+    @apply min-h-[500px];
+  }
+
+  .mobile-hero-content {
+    @apply px-8 py-14;
   }
 }
 
+/* iPad Mini, iPad Air (Landscape) */
+@media only screen 
+  and (min-device-width: 768px) 
+  and (max-device-width: 1024px) 
+  and (orientation: landscape) {
+  .container {
+    @apply px-8;
+  }
+
+  .product-grid {
+    @apply grid-cols-4 gap-5;
+  }
+
+  .mobile-product-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    padding: 0 20px;
+  }
+
+  .mobile-slider-image {
+    height: 500px;
+    max-height: 80vh;
+  }
+
+  .mobile-hero {
+    @apply min-h-[400px];
+  }
+
+  .mobile-nav-item {
+    @apply py-3;
+  }
+
+  .responsive-logo {
+    height: 3.5rem;
+  }
+}
+
+/* iPad Pro 11" (Portrait) */
+@media only screen 
+  and (min-device-width: 834px) 
+  and (max-device-width: 834px) 
+  and (orientation: portrait) {
+  .container {
+    @apply px-8;
+  }
+
+  .product-grid {
+    @apply grid-cols-3 gap-5;
+  }
+
+  .mobile-product-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .mobile-slider-image {
+    height: 650px;
+  }
+
+  .mobile-hero-title {
+    @apply text-4xl;
+  }
+}
+
+/* iPad Pro 11" (Landscape) */
+@media only screen 
+  and (min-device-width: 834px) 
+  and (max-device-width: 834px) 
+  and (orientation: landscape) {
+  .product-grid {
+    @apply grid-cols-5 gap-5;
+  }
+
+  .mobile-product-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 24px;
+  }
+}
+
+/* iPad Pro 12.9" (Portrait) */
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1024px) 
+  and (orientation: portrait) {
+  .container {
+    @apply px-10;
+  }
+
+  .product-grid {
+    @apply grid-cols-4 gap-6;
+  }
+
+  .mobile-product-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 28px;
+  }
+
+  .mobile-slider-image {
+    height: 700px;
+  }
+
+  .responsive-logo {
+    height: 4rem;
+  }
+}
+
+/* iPad Pro 12.9" (Landscape) */
+@media only screen 
+  and (min-device-width: 1024px) 
+  and (max-device-width: 1024px) 
+  and (orientation: landscape) {
+  .product-grid {
+    @apply grid-cols-6 gap-6;
+  }
+
+  .mobile-product-grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 28px;
+  }
+}
+
+/* General Tablet Optimization (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Force 3-column grid for all product displays */
+  .mobile-product-grid,
+  .product-grid,
+  .amazon-mobile-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 16px !important;
+    padding: 0 12px !important;
+  }
+
+  /* Ensure proper spacing */
+  .mobile-section-spacing {
+    @apply py-12;
+  }
+
+  .mobile-component-spacing {
+    @apply mb-8;
+  }
+
+  /* Fix product card widths */
+  .mobile-product-card,
+  .amazon-mobile-card,
+  .product-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Navigation fixes */
+  nav {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  nav ul {
+    flex-wrap: nowrap !important;
+    min-width: min-content !important;
+  }
+
+  /* Form elements */
+  .mobile-form-input {
+    @apply px-4 py-3 text-base;
+  }
+
+  .mobile-form-label {
+    @apply text-base;
+  }
+
+  /* Buttons */
+  .mobile-button {
+    @apply px-6 py-3 text-base;
+  }
+
+  /* Cart items */
+  .mobile-cart-image {
+    @apply w-24 h-24;
+  }
+
+  .mobile-cart-title {
+    @apply text-base;
+  }
+
+  /* Category cards */
+  .mobile-category-card {
+    @apply rounded-2xl;
+  }
+
+  .mobile-category-content {
+    @apply p-6;
+  }
+
+  /* Product detail page */
+  .product-detail-grid {
+    @apply grid-cols-2 gap-8;
+  }
+
+  .product-detail-title {
+    @apply text-3xl;
+  }
+
+  .product-detail-price {
+    @apply text-3xl;
+  }
+
+  /* Slider improvements */
+  .mobile-slider-title {
+    @apply text-2xl;
+  }
+
+  .mobile-slider-subtitle {
+    @apply text-lg;
+  }
+
+  .mobile-slider-button {
+    @apply px-6 py-3 text-base;
+  }
+
+  .slider-nav-button {
+    @apply p-3;
+  }
+
+  .slider-nav-icon {
+    @apply w-6 h-6;
+  }
+
+  /* Search bar */
+  .mobile-search-input-wrapper {
+    @apply max-w-md;
+  }
+
+  /* Navigation menu */
+  nav {
+    @apply block;
+  }
+
+  nav ul {
+    @apply space-x-2;
+  }
+
+  nav li a,
+  nav li button {
+    @apply px-3 py-2 text-sm;
+  }
+
+  /* Footer adjustments */
+  footer .grid {
+    @apply grid-cols-3 gap-8;
+  }
+}
+
+/* Large Tablet Breakpoint (769px - 1024px) */
 @media (min-width: 769px) and (max-width: 1024px) {
-  /* Large tablets */
   .product-grid {
     @apply grid-cols-4 gap-5;
   }
@@ -2195,31 +2552,43 @@ body {
   .container {
     @apply px-8;
   }
+
+  /* Optimize touch targets for tablets */
+  button, .btn-primary, .btn-secondary {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Improve readability */
+  .responsive-text {
+    @apply text-base;
+  }
+
+  .responsive-heading {
+    @apply text-3xl;
+  }
 }
 
-@media (min-width: 1025px) {
-  /* Desktop and larger */
+/* Medium Tablets (641px - 768px) */
+@media (min-width: 641px) and (max-width: 768px) {
   .product-grid {
-    @apply grid-cols-5 gap-6;
+    @apply grid-cols-3 gap-4;
   }
 
   .container {
-    @apply px-12;
-  }
-}
-
-/* Orientation-specific styles */
-@media (orientation: landscape) and (max-height: 600px) {
-  .mobile-hero {
-    @apply min-h-[250px];
+    @apply px-6;
   }
 
-  .mobile-hero-content {
-    @apply py-6;
+  .mobile-product-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
   }
 
-  .mobile-section-spacing {
-    @apply py-6;
+  .mobile-slider-image {
+    height: 500px;
+  }
+
+  .mobile-hero-title {
+    @apply text-2xl;
   }
 }
 
@@ -2503,4 +2872,4 @@ img {
     overflow: hidden !important;
     border-radius: 12px !important;
     background-color: #f9fafb !important;
-   }}
+  }}
