@@ -95,7 +95,7 @@ export default function InfluencerCollabPage() {
                 onClick={() => document.getElementById('benefits')?.scrollIntoView({ behavior: 'smooth' })}
                 size="lg"
                 variant="outline" 
-                className="border-2 border-white text-white hover:bg-white/10 text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
+                className="border-2 border-white text-pink-600 font-semibold hover:bg-white/10 text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
               >
                 Learn More
               </Button>
@@ -356,7 +356,7 @@ export default function InfluencerCollabPage() {
               },
               {
                 question: "What's the minimum follower requirement?",
-                answer: "We typically look for creators with at least 5,000 followers, but we value engagement quality over follower count."
+                answer: "We typically look for creators with at least 2,000 followers, but we value engagement quality over follower count."
               },
               {
                 question: "Is there any joining fee?",

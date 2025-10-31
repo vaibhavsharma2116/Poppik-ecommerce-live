@@ -409,7 +409,7 @@ export default function ChannelPartnerPage() {
               },
               {
                 question: "What are the profit margins?",
-                answer: "Our channel partners enjoy attractive margins ranging from 25-40% depending on product categories and order volumes."
+                answer: "Our channel partners enjoy attractive margins ranging from upto 70% depending on product categories and order volumes."
               },
               {
                 question: "Do I need a physical store?",

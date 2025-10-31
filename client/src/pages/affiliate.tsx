@@ -266,7 +266,7 @@ export default function AffiliatePage() {
                 What's the minimum follower requirement?
               </AccordionTrigger>
               <AccordionContent className="text-gray-700">
-                While we value quality over quantity, we typically look for creators with at least 5,000 engaged followers. However, if you have exceptional content and engagement, we're open to discussing opportunities regardless of follower count.
+                While we value quality over quantity, we typically look for creators with at least 2,000 engaged followers. However, if you have exceptional content and engagement, we're open to discussing opportunities regardless of follower count.
               </AccordionContent>
             </AccordionItem>
 
@@ -338,7 +338,8 @@ export default function AffiliatePage() {
                 Can international affiliates apply?
               </AccordionTrigger>
               <AccordionContent className="text-gray-700">
-                Currently, we're focusing on Indian creators, but we're expanding! International affiliates are welcome to apply, and we'll consider collaborations based on audience demographics and shipping feasibility.
+               We're currently collaborating primarily with Indian creators as part of our core focus. However, we’re excited to expand globally!
+International affiliates are welcome to apply — collaborations will be evaluated based on audience relevance and shipping feasibility.
               </AccordionContent>
             </AccordionItem>
 
@@ -365,7 +366,7 @@ export default function AffiliatePage() {
                 Where can I contact for more information?
               </AccordionTrigger>
               <AccordionContent className="text-gray-700">
-                For any queries about the affiliate program, reach out to us at affiliates@poppiklifestyle.com or use the contact form on our website. We're here to help!
+                For any queries about the affiliate program, reach out to us at info@poppik.in or use the contact form on our website. We're here to help!
               </AccordionContent>
             </AccordionItem>
           </Accordion>
