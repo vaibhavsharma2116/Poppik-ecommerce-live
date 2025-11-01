@@ -60,7 +60,7 @@ dotenv.config();
 
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
   ssl: false,
   max: 20, // Maximum pool size
   idleTimeoutMillis: 30000,
