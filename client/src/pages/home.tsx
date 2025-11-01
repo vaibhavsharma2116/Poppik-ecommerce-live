@@ -670,117 +670,116 @@ export default function Home() {
       </section>
 
       {/* New Launches Section - Third */}
-      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.02]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
-        </div>
+     <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+  <div className="absolute inset-0 opacity-[0.02]">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
+  </div>
 
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="space-y-8 sm:space-y-12">
-            <div>
-              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center">
-                <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
-                New Launches
-              </span>
-            </h3>
-            </div>
+  <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
+    <div className="space-y-8 sm:space-y-12">
+      <div>
+        <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center">
+          <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
+            New Launches
+          </span>
+        </h3>
+      </div>
+    </div>
+
+    {allProductsLoading ? (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i} className="overflow-hidden">
+            <Skeleton className="h-72 w-full" />
+            <CardContent className="p-6 space-y-3">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-6 w-1/2" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    ) : allProducts && allProducts.length > 0 ? (
+      <>
+        <div className="px-2 sm:px-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+            {(() => {
+              const newLaunches = allProducts.filter((product) => product.newLaunch);
+              const productsToShow = newLaunches.length > 0 ? newLaunches : allProducts;
+              return productsToShow.slice(0, 4).map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                />
+              ));
+            })()}
           </div>
-
-          {allProductsLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i} className="overflow-hidden">
-                  <Skeleton className="h-72 w-full" />
-                  <CardContent className="p-6 space-y-3">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-6 w-1/2" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : allProducts && allProducts.length > 0 ? (
-            <>
-              <div className="px-2 sm:px-4">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {newLaunchProducts && newLaunchProducts.length > 0 ? (
-                    newLaunchProducts.slice(0, 4).map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                      />
-                    ))
-                  ) : (
-                    allProducts?.slice(0, 4).map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                      />
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="text-center mt-6 mb-4">
-                <Link href="/products?filter=newLaunch">
-                  <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                    <span>Explore New Launches</span>
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 8l4 4m0 0l-4 4m4-4H3"
-                      />
-                    </svg>
-                  </Button>
-                </Link>
-              </div>
-
-              {newLaunchProducts?.length === 0 && allProducts?.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="mx-auto w-16 h-16 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mb-6">
-                    <svg
-                      className="w-8 h-8 text-emerald-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                      />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    New Products Coming Soon!
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    We're working on exciting new launches. Stay tuned!
-                  </p>
-                  <Link href="/products">
-                    <Button
-                      variant="outline"
-                      className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                    >
-                      Browse All Products
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </>
-          )}
         </div>
-      </section>
+
+        <div className="text-center mt-6 mb-4">
+          <Link href="/products?filter=newLaunch">
+            <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+              <span>Explore New Launches</span>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 8l4 4m0 0l-4 4m4-4H3"
+                />
+              </svg>
+            </Button>
+          </Link>
+        </div>
+
+        {allProducts?.filter((product) => product.newLaunch).length === 0 && (
+          <div className="text-center py-12">
+            <div className="mx-auto w-16 h-16 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mb-6">
+              <svg
+                className="w-8 h-8 text-emerald-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              New Products Coming Soon!
+            </h3>
+            <p className="text-gray-600 mb-6">
+              We're working on exciting new launches. Stay tuned!
+            </p>
+            <Link href="/products">
+              <Button
+                variant="outline"
+                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+              >
+                Browse All Products
+              </Button>
+            </Link>
+          </div>
+        )}
+      </>
+    ) : (
+      // Fallback for when there are no products at all
+      <div className="text-center py-12">
+        <p className="text-gray-600">No products available.</p>
+      </div>
+    )}
+  </div>
+</section>
 
       {/* UGC Video Section */}
 
