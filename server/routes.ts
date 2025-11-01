@@ -63,7 +63,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -1552,23 +1552,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/products/bestsellers", async (req, res) => {
     try {
-      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+      res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200');
+      res.setHeader('CDN-Cache-Control', 'public, max-age=600');
       const products = await storage.getBestsellerProducts();
       res.json(products);
     } catch (error) {
       console.log("Database unavailable, using sample bestseller products");
-      res.status(500).json({ error: "Failed to fetch bestseller products" }); // Added error handling
+      res.status(500).json({ error: "Failed to fetch bestseller products" });
     }
   });
 
   app.get("/api/products/new-launches", async (req, res) => {
     try {
-      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+      res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200');
+      res.setHeader('CDN-Cache-Control', 'public, max-age=600');
       const products = await storage.getNewLaunchProducts();
       res.json(products);
     } catch (error) {
       console.log("Database unavailable, using sample new launch products");
-      res.status(500).json({ error: "Failed to fetch new launch products" }); // Added error handling
+      res.status(500).json({ error: "Failed to fetch new launch products" });
     }
   });
 

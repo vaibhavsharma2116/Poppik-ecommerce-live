@@ -143,7 +143,7 @@ function TestimonialsCarousel() {
                 <img
                   src={testimonial.customerImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop'}
                   alt={testimonial.customerName}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full"
                 />
               </div>
             );
@@ -203,32 +203,41 @@ export default function Home() {
     Product[]
   >({
     queryKey: ["/api/products/bestsellers"],
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   const { data: featuredProducts, isLoading: featuredLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products/featured"],
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   const { data: newLaunchProducts, isLoading: newLaunchLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products/new-launches"],
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   const { data: allProducts, isLoading: allProductsLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products"],
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    gcTime: 10 * 60 * 1000,
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    select: (data) => data?.slice(0, 8) || [], // Only take first 8 products for home page
   });
 
 
@@ -618,15 +627,13 @@ export default function Home() {
               <>
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {allProducts
-                      ?.slice(0, 8)
-                      .map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                        />
-                      ))}
+                    {allProducts?.map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                      />
+                    ))}
                   </div>
                 </div>
 
@@ -680,35 +687,39 @@ export default function Home() {
           </div>
 
           {allProductsLoading ? (
-            <div className="px-2 sm:px-4">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
-                    <Skeleton className="aspect-square w-full" />
-                    <div className="p-3 space-y-2">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-6 w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="overflow-hidden">
+                  <Skeleton className="h-72 w-full" />
+                  <CardContent className="p-6 space-y-3">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-6 w-1/2" />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : allProducts && allProducts.length > 0 ? (
             <>
               <div className="px-2 sm:px-4">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {(() => {
-                    const newLaunches = allProducts.filter((product) => product.newLaunch);
-                    const productsToShow = newLaunches.length > 0 ? newLaunches : allProducts;
-                    return productsToShow.slice(0, 4).map((product) => (
+                  {newLaunchProducts && newLaunchProducts.length > 0 ? (
+                    newLaunchProducts.slice(0, 4).map((product) => (
                       <ProductCard
                         key={product.id}
                         product={product}
                         className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
                       />
-                    ));
-                  })()}
+                    ))
+                  ) : (
+                    allProducts?.slice(0, 4).map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                      />
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -733,8 +744,7 @@ export default function Home() {
                 </Link>
               </div>
 
-              {allProducts?.filter((product) => product.newLaunch).length ===
-                0 && (
+              {newLaunchProducts?.length === 0 && allProducts?.length === 0 && (
                 <div className="text-center py-12">
                   <div className="mx-auto w-16 h-16 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mb-6">
                     <svg
@@ -768,11 +778,7 @@ export default function Home() {
                 </div>
               )}
             </>
-          ) : !allProductsLoading ? (
-            <div className="text-center py-12">
-              <p className="text-gray-600">No products available at the moment.</p>
-            </div>
-          ) : null}
+          )}
         </div>
       </section>
 
@@ -944,19 +950,19 @@ function LatestBlogPostsPerCategory() {
   // Get latest post per category
   const latestPostsPerCategory = React.useMemo(() => {
     const categoryMap = new Map<string, any>();
-
+    
     // Filter published posts and sort by createdAt
     const publishedPosts = blogPosts
       .filter(post => post.published)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
+    
     // Get the latest post for each category
     publishedPosts.forEach(post => {
       if (post.category && !categoryMap.has(post.category)) {
         categoryMap.set(post.category, post);
       }
     });
-
+    
     return Array.from(categoryMap.values());
   }, [blogPosts]);
 
