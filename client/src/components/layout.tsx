@@ -1144,7 +1144,7 @@ At Poppik, we believe beauty begins with wellness and grows through balance.
                     Become an Affiliate
                   </Link>
                 </li>
-                <li style={{width:"400px"}}>
+                <li >
                   <Link href="/channel-partner"  className="text-gray-400 hover:text-white transition-colors text-sm">
                     Join as a Channel Partner
                   </Link>
@@ -1250,7 +1250,7 @@ At Poppik, we believe beauty begins with wellness and grows through balance.
                     Poppik Dropshipping
                   </Link>
                 </li>
-                <li style={{width:"400px"}} >
+                <li  >
                   <Link href="/makeup-studio"   className="text-gray-400 hover:text-white transition-colors text-sm">
                     Poppik Makeup Studio
                   </Link>
