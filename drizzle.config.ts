@@ -6,6 +6,6 @@ export default defineConfig({
   dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL 
-      || "postgresql://postgres:postgres@localhost:5432/poppik",
+      || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   },
 });

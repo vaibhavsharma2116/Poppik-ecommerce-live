@@ -223,11 +223,6 @@ export default function Layout({ children }: LayoutProps) {
 
   const staticNavItems = [
     { name: "Home", href: "/" },
-    { name: "About", href: "/about" },
-    { name: "Academy", href: "/academy" },
-    { name: "Drop Shipping", href: "/drop-shipping" },
-    { name: "Blog", href: "/blog" },
-    { name: "Contact", href: "/contact" },
   ];
 
   const isActiveLink = (href: string) => {
@@ -807,8 +802,6 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 </li>
 
-
-
                 {/* Dynamic Categories */}
                 {!loading && categories.map((category) => {
                   const categorySubcategories = getSubcategoriesForCategory(category.id);
@@ -886,6 +879,54 @@ export default function Layout({ children }: LayoutProps) {
                     Offer
                   </button>
                 </li>
+
+                {/* Design Your Beauty Kit with Dropdown */}
+                <li className="relative group">
+                  <button
+                    className="text-sm font-medium transition-colors px-4 py-2 text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                  >
+                    Design Your Beauty Kit
+                  </button>
+
+                  {/* Dropdown for Beauty Kit Sizes */}
+                  <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg border border-gray-200 rounded-md z-[100] min-w-[200px] py-2 mt-0">
+                    <Link
+                      href="/beauty-kit/micro"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                    >
+                      Micro
+                    </Link>
+                    <Link
+                      href="/beauty-kit/small"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                    >
+                      Small
+                    </Link>
+                    <Link
+                      href="/beauty-kit/medium"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                    >
+                      Medium
+                    </Link>
+                    <Link
+                      href="/beauty-kit/large"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                    >
+                      Large
+                    </Link>
+                  </div>
+                </li>
+
+                {/* Contest */}
+                <li>
+                  <button
+                    onClick={(e) => e.preventDefault()}
+                    className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
+                  >
+                    Contest
+                  </button>
+                </li>
+
                 <li>
                   <a
                     href="/academy"
@@ -944,19 +985,6 @@ export default function Layout({ children }: LayoutProps) {
                 </li> */}
                 <li>
                   <Link
-                    href="/about"
-                    className={`text-sm font-medium transition-colors px-4 py-2 block ${
-                      isActiveLink("/about")
-                        ? "text-yellow-300 bg-white/20 rounded-full"
-                        : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
-                    }`}
-                  >
-                    About Us
-                  </Link>
-                </li>
-
-                <li>
-                  <Link
                     href="/blog"
                     className={`text-sm font-medium transition-colors px-4 py-2 block ${
                       isActiveLink("/blog")
@@ -965,19 +993,6 @@ export default function Layout({ children }: LayoutProps) {
                     }`}
                   >
                     Blog
-                  </Link>
-                </li>
-
-                <li>
-                  <Link
-                    href="/contact"
-                    className={`text-sm font-medium transition-colors px-4 py-2 block ${
-                      isActiveLink("/contact")
-                        ? "text-yellow-300 bg-white/20 rounded-full"
-                        : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
-                    }`}
-                  >
-                    Contact Us
                   </Link>
                 </li>
               </ul>

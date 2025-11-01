@@ -164,6 +164,38 @@ function Router() {
               </Suspense>
             </Route>
             <Route path="/channel-partner" component={ChannelPartnerPage} />
+            <Route path="/beauty-kit/micro" component={() => {
+              const BeautyKitMicro = lazy(() => import("./pages/beauty-kit-micro"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <BeautyKitMicro />
+                </Suspense>
+              );
+            }} />
+            <Route path="/beauty-kit/small" component={() => {
+              const BeautyKitSmall = lazy(() => import("./pages/beauty-kit-small"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <BeautyKitSmall />
+                </Suspense>
+              );
+            }} />
+            <Route path="/beauty-kit/medium" component={() => {
+              const BeautyKitMedium = lazy(() => import("./pages/beauty-kit-medium"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <BeautyKitMedium />
+                </Suspense>
+              );
+            }} />
+            <Route path="/beauty-kit/large" component={() => {
+              const BeautyKitLarge = lazy(() => import("./pages/beauty-kit-large"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <BeautyKitLarge />
+                </Suspense>
+              );
+            }} />
             <Route path="/makeup-studio">
               <Suspense fallback={<LoadingSpinner />}>
                 <MakeupStudio />

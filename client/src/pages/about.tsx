@@ -1,6 +1,6 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Leaf, FlaskConical, Heart, Users, Award, Sparkles } from "lucide-react";
+import { Leaf, FlaskConical, Heart, Users, Award, Sparkles, Rabbit } from "lucide-react";
 import aboutImage from "@assets/ABOUT_SECTION_IMAGE-01.jpg";
 export default function About() {
   const stats = [
@@ -21,7 +21,7 @@ export default function About() {
       description: "Every product is developed with proven active ingredients and rigorous testing.",
     },
     {
-      icon: Heart,
+      icon: Rabbit,
       title: "Cruelty-Free",
       description: "We never test on animals and are committed to ethical beauty practices.",
     },
