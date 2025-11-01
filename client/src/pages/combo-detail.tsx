@@ -76,6 +76,12 @@ export default function ComboDetail() {
       ? [combo.imageUrl] 
       : [];
 
+  // Combine images and video for carousel
+  const mediaItems = [
+    ...allImageUrls.map((url: string) => ({ type: 'image', url })),
+    ...(combo?.videoUrl ? [{ type: 'video', url: combo.videoUrl }] : [])
+  ];
+
   // Declare rating early so it can be used in averageRating calculation
   const rating = combo ? (typeof combo.rating === 'string' ? parseFloat(combo.rating) : combo.rating) : 0;
 
@@ -349,7 +355,7 @@ export default function ComboDetail() {
                   {/* Vertical Layout: Thumbnails on Left, Main Image on Right */}
                   <div className="flex gap-4">
                     {/* Thumbnail Column - Swipeable Vertical Carousel */}
-                    {allImageUrls.length > 1 && (
+                    {mediaItems.length > 1 && (
                       <div className="w-14 sm:w-16 md:w-20 flex-shrink-0 relative">
                         <div 
                           className="h-64 sm:h-72 md:h-80 overflow-hidden scroll-smooth"
@@ -394,28 +400,28 @@ export default function ComboDetail() {
 
                                 let visibleIndex;
                                 if (isAtTop) {
-                                  // If at top, select first image
+                                  // If at top, select first item
                                   visibleIndex = 0;
                                 } else if (isAtBottom) {
-                                  // If at bottom, select last image
-                                  visibleIndex = allImageUrls.length - 1;
+                                  // If at bottom, select last item
+                                  visibleIndex = mediaItems.length - 1;
                                 } else {
                                   // Calculate middle visible item with better accuracy
                                   const scrollCenter = scrollTop + (clientHeight / 2);
                                   visibleIndex = Math.min(
                                     Math.max(0, Math.round(scrollCenter / itemHeight)),
-                                    allImageUrls.length - 1
+                                    mediaItems.length - 1
                                   );
                                 }
 
-                                // Auto-select image based on scroll position only if not manually clicked
-                                if (allImageUrls[visibleIndex] && visibleIndex !== currentImageIndex) {
+                                // Auto-select item based on scroll position only if not manually clicked
+                                if (mediaItems[visibleIndex] && visibleIndex !== currentImageIndex) {
                                   setCurrentImageIndex(visibleIndex);
                                 }
                               }, 150); // 150ms debounce
                             }}
                           >
-                            {allImageUrls.map((imageUrl: string, index: number) => (
+                            {mediaItems.map((item: any, index: number) => (
                               <button
                                 key={`thumb-${index}`}
                                 type="button"
@@ -426,7 +432,7 @@ export default function ComboDetail() {
                                   // Set flag to prevent scroll handler from interfering
                                   (window as any).thumbnailClickInProgress = true;
                                   
-                                  // Immediately set the selected image
+                                  // Immediately set the selected item
                                   setCurrentImageIndex(index);
                                   
                                   // Center the clicked thumbnail in view
@@ -467,21 +473,36 @@ export default function ComboDetail() {
                                 style={{ scrollSnapAlign: 'start' }}
                               >
                                 <div className="w-full h-full flex items-center justify-center p-1 bg-white rounded-lg">
-                                  <img
-                                    src={imageUrl}
-                                    alt={`${combo.name} view ${index + 1}`}
-                                    className="w-full h-full hover:scale-110 transition-transform duration-200"
-                                    style={{ 
-                                      objectFit: 'contain',
-                                      width: '100%',
-                                      height: '100%',
-                                      borderRadius: '6px'
-                                    }}
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80';
-                                    }}
-                                  />
+                                  {item.type === 'video' ? (
+                                    <div className="relative w-full h-full">
+                                      <video
+                                        src={item.url}
+                                        className="w-full h-full object-cover rounded-lg"
+                                        muted
+                                      />
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
+                                        <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                          <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                                        </svg>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <img
+                                      src={item.url}
+                                      alt={`${combo.name} view ${index + 1}`}
+                                      className="w-full h-full hover:scale-110 transition-transform duration-200"
+                                      style={{ 
+                                        objectFit: 'contain',
+                                        width: '100%',
+                                        height: '100%',
+                                        borderRadius: '6px'
+                                      }}
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80';
+                                      }}
+                                    />
+                                  )}
                                 </div>
                               </button>
                             ))}
@@ -489,7 +510,7 @@ export default function ComboDetail() {
                         </div>
 
                         {/* Navigation Arrows */}
-                        {allImageUrls.length > 3 && (
+                        {mediaItems.length > 3 && (
                           <>
                             <button
                               onClick={(e) => {
@@ -498,14 +519,14 @@ export default function ComboDetail() {
                                 // Set flag to prevent scroll handler interference
                                 (window as any).thumbnailClickInProgress = true;
 
-                                // Circular navigation - if on first image, go to last
-                                const prevIndex = currentImageIndex <= 0 ? allImageUrls.length - 1 : currentImageIndex - 1;
+                                // Circular navigation - if on first item, go to last
+                                const prevIndex = currentImageIndex <= 0 ? mediaItems.length - 1 : currentImageIndex - 1;
                                 setCurrentImageIndex(prevIndex);
 
                                 const container = document.getElementById('thumbnail-container');
                                 if (container) {
                                   if (currentImageIndex <= 0) {
-                                    // Going to last image - scroll to bottom
+                                    // Going to last item - scroll to bottom
                                     container.scrollTo({
                                       top: container.scrollHeight,
                                       behavior: 'smooth'
@@ -541,19 +562,19 @@ export default function ComboDetail() {
                                 // Set flag to prevent scroll handler interference
                                 (window as any).thumbnailClickInProgress = true;
 
-                                // Circular navigation - if on last image, go to first
-                                const nextIndex = currentImageIndex >= allImageUrls.length - 1 ? 0 : currentImageIndex + 1;
+                                // Circular navigation - if on last item, go to first
+                                const nextIndex = currentImageIndex >= mediaItems.length - 1 ? 0 : currentImageIndex + 1;
                                 const container = document.getElementById('thumbnail-container');
 
                                 if (container) {
-                                  if (currentImageIndex >= allImageUrls.length - 1) {
-                                    // Going to first image - scroll to top
+                                  if (currentImageIndex >= mediaItems.length - 1) {
+                                    // Going to first item - scroll to top
                                     container.scrollTo({
                                       top: 0,
                                       behavior: 'smooth'
                                     });
-                                  } else if (nextIndex === allImageUrls.length - 1) {
-                                    // Going to last image - scroll to bottom
+                                  } else if (nextIndex === mediaItems.length - 1) {
+                                    // Going to last item - scroll to bottom
                                     container.scrollTo({
                                       top: container.scrollHeight,
                                       behavior: 'smooth'
@@ -565,7 +586,7 @@ export default function ComboDetail() {
                                     });
                                   }
 
-                                  // Set image after a small delay to sync with scroll
+                                  // Set item after a small delay to sync with scroll
                                   setTimeout(() => {
                                     setCurrentImageIndex(nextIndex);
                                     
@@ -595,58 +616,74 @@ export default function ComboDetail() {
                           <div 
                             className="w-full bg-purple-500 rounded-full transition-all duration-300"
                             style={{
-                              height: `${Math.min(100, (3 / allImageUrls.length) * 100)}%`,
-                              transform: `translateY(${(currentImageIndex / Math.max(1, allImageUrls.length - 3)) * (64 - Math.min(64, (3 / allImageUrls.length) * 64))}px)`
+                              height: `${Math.min(100, (3 / mediaItems.length) * 100)}%`,
+                              transform: `translateY(${(currentImageIndex / Math.max(1, mediaItems.length - 3)) * (64 - Math.min(64, (3 / mediaItems.length) * 64))}px)`
                             }}
                           ></div>
                         </div>
                       </div>
                     )}
 
-                    {/* Main Image with Zoom */}
-                    <div className="flex-1 bg-white rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px' }}>
+                    {/* Main Display - Image or Video */}
+                    <div className="flex-1 bg-white rounded-2xl overflow-hidden shadow-lg relative group" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px' }}>
                       <div className="w-full h-full flex items-center justify-center p-2">
-                        <img
-                          src={allImageUrls.length > 0 ? allImageUrls[currentImageIndex] : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600&q=80'}
-                          alt={combo.name}
-                          className="w-full h-full object-contain rounded-2xl group-hover:scale-110"
-                          onClick={(e) => {
-                            const modal = document.createElement('div');
-                            modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
-                            modal.onclick = () => modal.remove();
+                        {mediaItems.length > 0 && mediaItems[currentImageIndex]?.type === 'video' ? (
+                          <video
+                            src={mediaItems[currentImageIndex].url}
+                            controls
+                            preload="metadata"
+                            className="w-full h-full object-contain rounded-2xl"
+                            style={{ maxHeight: '100%' }}
+                          >
+                            <source src={mediaItems[currentImageIndex].url} type="video/mp4" />
+                            <source src={mediaItems[currentImageIndex].url} type="video/webm" />
+                            Your browser does not support the video tag.
+                          </video>
+                        ) : (
+                          <img
+                            src={mediaItems.length > 0 ? mediaItems[currentImageIndex]?.url : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600&q=80'}
+                            alt={combo.name}
+                            className="w-full h-full object-contain rounded-2xl group-hover:scale-110 cursor-zoom-in"
+                            onClick={(e) => {
+                              const modal = document.createElement('div');
+                              modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
+                              modal.onclick = () => modal.remove();
 
-                            const img = document.createElement('img');
-                            img.src = allImageUrls.length > 0 ? allImageUrls[currentImageIndex] : combo.imageUrl;
-                            img.className = 'max-w-full max-h-full object-contain rounded-lg';
-                            img.onclick = (e) => e.stopPropagation();
+                              const img = document.createElement('img');
+                              img.src = mediaItems.length > 0 ? mediaItems[currentImageIndex]?.url : combo.imageUrl;
+                              img.className = 'max-w-full max-h-full object-contain rounded-lg';
+                              img.onclick = (e) => e.stopPropagation();
 
-                            const closeBtn = document.createElement('button');
-                            closeBtn.innerHTML = '×';
-                            closeBtn.className = 'absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors';
-                            closeBtn.onclick = () => modal.remove();
+                              const closeBtn = document.createElement('button');
+                              closeBtn.innerHTML = '×';
+                              closeBtn.className = 'absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors';
+                              closeBtn.onclick = () => modal.remove();
 
-                            modal.appendChild(img);
-                            modal.appendChild(closeBtn);
-                            document.body.appendChild(modal);
-                          }}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600&q=80';
-                          }}
-                        />
+                              modal.appendChild(img);
+                              modal.appendChild(closeBtn);
+                              document.body.appendChild(modal);
+                            }}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600&q=80';
+                            }}
+                          />
+                        )}
                       </div>
 
-                      {/* Zoom Hint */}
-                      <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                        Click to zoom
-                      </div>
+                      {/* Zoom Hint - Only for images */}
+                      {mediaItems.length > 0 && mediaItems[currentImageIndex]?.type !== 'video' && (
+                        <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                          Click to zoom
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Image Count Indicator */}
-                  {allImageUrls.length > 1 && (
+                  {/* Media Count Indicator */}
+                  {mediaItems.length > 1 && (
                     <div className="text-center text-sm text-gray-500">
-                      {currentImageIndex + 1} of {allImageUrls.length} images
+                      {currentImageIndex + 1} of {mediaItems.length} {mediaItems[currentImageIndex]?.type === 'video' ? 'video' : 'image'}
                     </div>
                   )}
                 </div>

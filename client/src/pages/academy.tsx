@@ -51,7 +51,7 @@ export default function AcademyPage() {
           </div>
 
           <p className="text-sm sm:text-lg md:text-xl text-gray-600 mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
-            Get ready to elevate your beauty knowledge! Join our exclusive Academy to learn beauty tips, skincare routines, and makeup techniques from experts.
+            Get ready to elevate your Beauty, Lifestyle & Wellness knowledge! Join our exclusive Academy to learn Beauty, Lifestyle & Wellness tips, skincare routines, and makeup techniques from experts.
           </p>
 
           

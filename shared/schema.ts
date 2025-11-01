@@ -140,11 +140,13 @@ export const jobPositions = pgTable("job_positions", {
   requirements: jsonb("requirements").notNull(), // Array of strings
   skills: jsonb("skills").notNull(), // Array of strings
   isActive: boolean("is_active").default(true).notNull(),
+  expiresAt: timestamp("expires_at"),
   sortOrder: integer("sort_order").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export type JobPosition = typeof jobPositions.$inferSelect;
 export type InsertJobPosition = typeof jobPositions.$inferInsert;
 export type SelectJobPosition = typeof jobPositions.$inferSelect;
 

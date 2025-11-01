@@ -41,9 +41,25 @@ export default function AdminJobPositions() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: positions = [], isLoading } = useQuery({
+  const { data: positions = [], isLoading, error } = useQuery({
     queryKey: ['/api/admin/job-positions'],
+    queryFn: async () => {
+      console.log('Fetching admin job positions...');
+      const response = await fetch('/api/admin/job-positions');
+      if (!response.ok) {
+        console.error('Failed to fetch admin job positions:', response.status);
+        throw new Error('Failed to fetch job positions');
+      }
+      const data = await response.json();
+      console.log('Admin job positions received:', data);
+      return data;
+    },
+    select: (data) => Array.isArray(data) ? data : [],
   });
+
+  if (error) {
+    console.error('Error loading job positions:', error);
+  }
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -325,6 +341,15 @@ export default function AdminJobPositions() {
                     className="w-24"
                   />
                 </div>
+                <div>
+                  <Label htmlFor="expiresAt">Expires At (15 days default)</Label>
+                  <Input
+                    id="expiresAt"
+                    name="expiresAt"
+                    type="date"
+                    defaultValue={editingPosition?.expiresAt ? new Date(editingPosition.expiresAt).toISOString().split('T')[0] : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
@@ -360,7 +385,19 @@ export default function AdminJobPositions() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {positions.map((position) => (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    Loading positions...
+                  </TableCell>
+                </TableRow>
+              ) : positions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    No job positions found
+                  </TableCell>
+                </TableRow>
+              ) : positions.map((position) => (
                 <TableRow key={position.id}>
                   <TableCell>
                     <div>

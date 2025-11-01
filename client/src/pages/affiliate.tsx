@@ -63,10 +63,20 @@ export default function AffiliatePage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with Peach Background */}
-      <section className="relative bg-gradient-to-r from-[#FFD4C4] to-[#FFB8A3] py-8 xs:py-10 sm:py-12 md:py-16 lg:py-20 xl:py-24 overflow-hidden">
+      <section className="relative bg-gradient-to-r from-pink-50 to-red-50 py-8 xs:py-10 sm:py-12 md:py-16 lg:py-20 xl:py-24 overflow-hidden">
         <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-4 xs:gap-5 sm:gap-6 md:gap-8 items-center">
-            <div className="text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 xs:gap-5 sm:gap-6 md:gap-8 items-center">
+            {/* Image - Shows first on mobile, second on desktop */}
+            <div className="relative order-1 md:order-2">
+              <img
+                src="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&h=600&fit=crop"
+                alt="Affiliate Partnership"
+                className="rounded-3xl shadow-2xl w-full"
+              />
+            </div>
+            
+            {/* Content - Shows second on mobile, first on desktop */}
+            <div className="text-left order-2 md:order-1">
               <h1 className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 mb-3 xs:mb-4 sm:mb-5 md:mb-6 leading-tight">
                 Become an Affiliate<br />
                 <span className="text-gray-800">With Poppik Lifestyle!</span>
@@ -75,27 +85,20 @@ export default function AffiliatePage() {
                 Partner with us to earn commissions and grow together!
               </p>
               <div className="space-y-2 xs:space-y-3 sm:space-y-4">
-                <h3 className="text-2xl font-bold text-gray-900">Join Our Affiliate Community</h3>
-                <p className="text-gray-700 leading-relaxed">
+                <h3 className="text-lg xs:text-xl sm:text-2xl font-bold text-gray-900">Join Our Affiliate Community</h3>
+                <p className="text-sm xs:text-base text-gray-700 leading-relaxed">
                   Are you passionate about beauty and personal care? Do you love creating engaging content that inspires your audience? We're looking for creative influencers to collaborate with Poppik Lifestyle!
                 </p>
-                <p className="text-gray-700 leading-relaxed">
+                <p className="text-sm xs:text-base text-gray-700 leading-relaxed">
                   Whether you're a makeup artist, beauty enthusiast, or lifestyle creator, we want to work with you. Get exclusive access to our products, create authentic content, and be part of a brand that celebrates beauty in all its forms!
                 </p>
                 <Button 
                   onClick={() => window.open('https://forms.gle/Ea86rP8VJaKMBizc6', '_blank')}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-8 py-6 text-lg rounded-full mt-4"
+                  className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-6 xs:px-8 py-4 xs:py-6 text-base xs:text-lg rounded-full mt-4 w-full sm:w-auto"
                 >
                   APPLY NOW
                 </Button>
               </div>
-            </div>
-            <div className="relative">
-              <img
-                src="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&h=600&fit=crop"
-                alt="Affiliate Partnership"
-                className="rounded-3xl shadow-2xl"
-              />
             </div>
           </div>
         </div>
@@ -155,73 +158,79 @@ export default function AffiliatePage() {
       </section>
 
       {/* Featured Affiliates Sections */}
-      <section className="py-8 bg-gradient-to-r from-[#FFD4C4] to-[#FFB8A3]">
+      <section className="py-8 bg-gradient-to-r from-red-50 to-pink-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                Meet Our Amazing
-              </h2>
-              <h3 className="text-4xl sm:text-5xl font-bold text-gray-800 mb-6">
-                Affiliate Community
-              </h3>
-              <p className="text-gray-700 text-lg">
-                Join hundreds of affiliates who are already creating stunning content with Poppik products
-              </p>
-            </div>
-            <div className="flex justify-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            {/* Images - First on mobile */}
+            <div className="flex justify-center order-1 md:order-2">
               <img
                 src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop"
                 alt="Featured Affiliate"
-                className="rounded-full w-64 h-64 object-cover shadow-xl border-8 border-white"
+                className="rounded-full w-48 h-48 sm:w-64 sm:h-64 object-cover shadow-xl border-8 border-white"
               />
-              <div className="flex -ml-16 mt-24 space-x-4">
+              <div className="flex -ml-12 sm:-ml-16 mt-20 sm:mt-24 space-x-2 sm:space-x-4">
                 <img
                   src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop"
                   alt="Affiliate 2"
-                  className="rounded-full w-20 h-20 object-cover border-4 border-white shadow-lg"
+                  className="rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-4 border-white shadow-lg"
                 />
                 <img
                   src="https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=100&h=100&fit=crop"
                   alt="Affiliate 3"
-                  className="rounded-full w-20 h-20 object-cover border-4 border-white shadow-lg"
+                  className="rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-4 border-white shadow-lg"
                 />
               </div>
+            </div>
+            
+            {/* Content - Second on mobile */}
+            <div className="order-2 md:order-1">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                Meet Our Amazing
+              </h2>
+              <h3 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-800 mb-6">
+                Affiliate Community
+              </h3>
+              <p className="text-gray-700 text-base sm:text-lg">
+                Join hundreds of affiliates who are already creating stunning content with Poppik products
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="py-8 bg-gradient-to-r from-[#FFB8A3] to-[#FFD4C4]">
+      <section className="py-8 bg-gradient-to-r from-pink-100 to-red-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="flex justify-center order-2 md:order-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            {/* Images - First on mobile */}
+            <div className="flex justify-center order-1">
               <img
                 src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=400&fit=crop"
                 alt="Featured Affiliate"
-                className="rounded-full w-64 h-64 object-cover shadow-xl border-8 border-white"
+                className="rounded-full w-48 h-48 sm:w-64 sm:h-64 object-cover shadow-xl border-8 border-white"
               />
-              <div className="flex -ml-16 mt-24 space-x-4">
+              <div className="flex -ml-12 sm:-ml-16 mt-20 sm:mt-24 space-x-2 sm:space-x-4">
                 <img
                   src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop"
                   alt="Affiliate 2"
-                  className="rounded-full w-20 h-20 object-cover border-4 border-white shadow-lg"
+                  className="rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-4 border-white shadow-lg"
                 />
                 <img
                   src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop"
                   alt="Affiliate 3"
-                  className="rounded-full w-20 h-20 object-cover border-4 border-white shadow-lg"
+                  className="rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-4 border-white shadow-lg"
                 />
               </div>
             </div>
-            <div className="order-1 md:order-2">
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            
+            {/* Content - Second on mobile */}
+            <div className="order-2">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                 Be Part of Our
               </h2>
-              <h3 className="text-4xl sm:text-5xl font-bold text-gray-800 mb-6">
+              <h3 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-800 mb-6">
                 Growing Family
               </h3>
-              <p className="text-gray-700 text-lg">
+              <p className="text-gray-700 text-base sm:text-lg">
                 Create authentic content, inspire your followers, and grow with a brand that values creativity
               </p>
             </div>

@@ -203,28 +203,32 @@ export default function Home() {
     Product[]
   >({
     queryKey: ["/api/products/bestsellers"],
-    staleTime: 60000, // Cache for 1 minute
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
   const { data: featuredProducts, isLoading: featuredLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products/featured"],
-    staleTime: 60000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const { data: newLaunchProducts, isLoading: newLaunchLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products/new-launches"],
-    staleTime: 60000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const { data: allProducts, isLoading: allProductsLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products"],
-    staleTime: 60000, // Cache for 1 minute
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000,
   });
 
 
@@ -509,7 +513,7 @@ export default function Home() {
           {/* Bestsellers Section - First */}
           <div className="space-y-8 sm:space-y-12">
             <div>
-              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-left">
+              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center">
                 <span className="text-transparent bg-gradient-to-r from-amber-700 via-yellow-600 to-amber-700 bg-clip-text">
                   Bestsellers
                 </span>
@@ -535,7 +539,7 @@ export default function Home() {
               <>
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {bestsellerProducts.slice(0, 8).map((product) => (
+                    {bestsellerProducts.slice(0, 4).map((product) => (
                       <ProductCard
                         key={product.id}
                         product={product}
@@ -588,7 +592,7 @@ export default function Home() {
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="space-y-8 sm:space-y-12">
             <div>
-              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-left">
+              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center">
                 <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
                   Our Products
                 </span>
@@ -615,7 +619,7 @@ export default function Home() {
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                     {allProducts
-                      ?.slice(0, 8)
+                      ?.slice(0, 4)
                       .map((product) => (
                         <ProductCard
                           key={product.id}
@@ -665,7 +669,7 @@ export default function Home() {
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="space-y-8 sm:space-y-12">
             <div>
-              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-left">
+              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center">
                 <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
                 New Launches
               </span>

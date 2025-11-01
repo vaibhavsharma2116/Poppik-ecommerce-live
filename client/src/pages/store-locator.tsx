@@ -214,7 +214,7 @@ export default function StoreLocator() {
               </div>
               <h3 className="font-semibold text-sm sm:text-base text-gray-900 mb-1.5 sm:mb-2">Expert Assistance</h3>
               <p className="text-xs sm:text-sm text-gray-600 px-2">
-                Our beauty experts are available to help you find the perfect products
+                Our Beauty, Lifestyle & Wellness experts are available to help you find the perfect products
               </p>
             </div>
             

@@ -60,7 +60,7 @@ dotenv.config();
 
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
+  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,
   max: 20, // Maximum pool size
   idleTimeoutMillis: 30000,
@@ -220,6 +220,8 @@ export interface IStorage {
   // Job Positions management
   getJobPositions(): Promise<JobPosition[]>;
   getActiveJobPositions(): Promise<JobPosition[]>;
+  getAllJobPositions(): Promise<JobPosition[]>;
+  autoExpireJobPositions(): Promise<void>;
   getJobPositionBySlug(slug: string): Promise<JobPosition | null>;
   getJobPosition(id: number): Promise<JobPosition | undefined>;
   createJobPosition(data: InsertJobPosition): Promise<JobPosition>;
@@ -1813,6 +1815,7 @@ export class DatabaseStorage implements IStorage {
         requirements: jobPositions.requirements,
         skills: jobPositions.skills,
         isActive: jobPositions.isActive,
+        expiresAt: jobPositions.expiresAt,
         sortOrder: jobPositions.sortOrder,
         createdAt: jobPositions.createdAt,
         updatedAt: jobPositions.updatedAt,
@@ -1826,6 +1829,58 @@ export class DatabaseStorage implements IStorage {
   async getActiveJobPositions(): Promise<JobPosition[]> {
     try {
       const db = await getDb();
+      const now = new Date();
+      
+      const results = await db.select({
+        id: jobPositions.id,
+        title: jobPositions.title,
+        slug: jobPositions.slug,
+        department: jobPositions.department,
+        location: jobPositions.location,
+        type: jobPositions.type,
+        jobId: jobPositions.jobId,
+        experienceLevel: jobPositions.experienceLevel,
+        workExperience: jobPositions.workExperience,
+        education: jobPositions.education,
+        description: jobPositions.description,
+        aboutRole: jobPositions.aboutRole,
+        responsibilities: jobPositions.responsibilities,
+        requirements: jobPositions.requirements,
+        skills: jobPositions.skills,
+        isActive: jobPositions.isActive,
+        expiresAt: jobPositions.expiresAt,
+        sortOrder: jobPositions.sortOrder,
+        createdAt: jobPositions.createdAt,
+        updatedAt: jobPositions.updatedAt,
+      })
+      .from(jobPositions)
+      .where(eq(jobPositions.isActive, true))
+      .orderBy(asc(jobPositions.sortOrder));
+
+      // Parse JSONB fields
+      return results.map(position => ({
+        ...position,
+        responsibilities: typeof position.responsibilities === 'string' 
+          ? JSON.parse(position.responsibilities) 
+          : position.responsibilities,
+        requirements: typeof position.requirements === 'string' 
+          ? JSON.parse(position.requirements) 
+          : position.requirements,
+        skills: typeof position.skills === 'string' 
+          ? JSON.parse(position.skills) 
+          : position.skills,
+      }));
+    } catch (error) {
+      console.error("Error fetching active job positions:", error);
+      throw error;
+    }
+  }
+
+  async getAllJobPositions(): Promise<JobPosition[]> {
+    try {
+      const db = await getDb();
+      const now = new Date();
+      
       return await db.select({
         id: jobPositions.id,
         title: jobPositions.title,
@@ -1843,16 +1898,39 @@ export class DatabaseStorage implements IStorage {
         requirements: jobPositions.requirements,
         skills: jobPositions.skills,
         isActive: jobPositions.isActive,
+        expiresAt: jobPositions.expiresAt,
         sortOrder: jobPositions.sortOrder,
         createdAt: jobPositions.createdAt,
         updatedAt: jobPositions.updatedAt,
       })
       .from(jobPositions)
-      .where(eq(jobPositions.isActive, true))
+      .where(
+        or(
+          isNull(jobPositions.expiresAt),
+          sql`${jobPositions.expiresAt} > ${now}`
+        )
+      )
       .orderBy(asc(jobPositions.sortOrder));
     } catch (error) {
-      console.error("Error fetching active job positions:", error);
+      console.error("Error fetching all job positions:", error);
       throw error;
+    }
+  }
+
+  async autoExpireJobPositions(): Promise<void> {
+    try {
+      const db = await getDb();
+      const now = new Date();
+
+      // Auto-expire positions where expiresAt is in the past
+      await db.update(jobPositions)
+        .set({ isActive: false, updatedAt: now })
+        .where(and(
+          eq(jobPositions.isActive, true),
+          lte(jobPositions.expiresAt, now)
+        ));
+    } catch (error) {
+      console.error("Error auto-expiring job positions:", error);
     }
   }
 
@@ -1878,9 +1956,9 @@ export class DatabaseStorage implements IStorage {
 
   async createJobPosition(data: InsertJobPosition): Promise<JobPosition> {
     const db = await getDb();
-    
+
     console.log('Storage: Creating job position with data:', data);
-    
+
     // Generate slug from title if not provided
     const slug = data.slug || data.title
       .toLowerCase()

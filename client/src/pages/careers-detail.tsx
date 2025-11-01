@@ -1,4 +1,3 @@
-
 import { ArrowLeft, MapPin, Briefcase, Clock, CheckCircle2, Calendar } from "lucide-react";
 import { Link, useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,14 +8,32 @@ import { useQuery } from "@tanstack/react-query";
 export default function CareersDetail() {
   const [, params] = useRoute("/careers/:position");
   const positionSlug = params?.position || "";
-  
+
   // Fetch position data from API
   const { data: position, isLoading, error } = useQuery({
     queryKey: ['/api/job-positions', positionSlug],
     queryFn: async () => {
       const response = await fetch(`/api/job-positions/${positionSlug}`);
       if (!response.ok) throw new Error('Failed to fetch job position');
-      return response.json();
+      const data = await response.json();
+
+      // Parse JSONB fields if they are strings
+      if (data) {
+        return {
+          ...data,
+          responsibilities: typeof data.responsibilities === 'string'
+            ? JSON.parse(data.responsibilities)
+            : data.responsibilities,
+          requirements: typeof data.requirements === 'string'
+            ? JSON.parse(data.requirements)
+            : data.requirements,
+          skills: typeof data.skills === 'string'
+            ? JSON.parse(data.skills)
+            : data.skills,
+        };
+      }
+
+      return data;
     },
     enabled: !!positionSlug,
   });
@@ -196,15 +213,28 @@ export default function CareersDetail() {
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3 sm:mb-4 gap-3 sm:gap-0">
                 <div className="flex-1">
                   <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">{position.title}</h1>
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs sm:text-sm">
-                    Job ID: {position.jobId}
-                  </Badge>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs sm:text-sm">
+                      Job ID: {position.jobId}
+                    </Badge>
+                    {!position.isActive && (
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs sm:text-sm">
+                        Position Not Available
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <Link href={`/careers/apply/${positionSlug}`} className="w-full sm:w-auto">
-                  <Button className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-2 text-sm sm:text-base">
-                    Apply
+                {position.isActive ? (
+                  <Link href={`/careers/apply/${positionSlug}`} className="w-full sm:w-auto">
+                    <Button className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-2 text-sm sm:text-base">
+                      Apply Now
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button disabled className="w-full sm:w-auto bg-gray-400 text-white px-4 sm:px-6 py-2 text-sm sm:text-base cursor-not-allowed">
+                    Applications Closed
                   </Button>
-                </Link>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-2 sm:gap-3 md:gap-4 text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
@@ -275,16 +305,32 @@ export default function CareersDetail() {
               {/* Apply CTA */}
               <Card className="shadow-sm">
                 <CardContent className="p-4 sm:p-6 text-center">
-                  <Link href={`/careers/apply/${positionSlug}`}>
-                    <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 sm:py-3 mb-2 sm:mb-3 text-sm sm:text-base">
-                      Apply
-                    </Button>
-                  </Link>
-                  <Link href="/careers">
-                    <Button variant="outline" className="w-full text-sm sm:text-base">
-                      See all jobs
-                    </Button>
-                  </Link>
+                  {position.isActive ? (
+                    <>
+                      <Link href={`/careers/apply/${positionSlug}`}>
+                        <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 sm:py-3 mb-2 sm:mb-3 text-sm sm:text-base">
+                          Apply Now
+                        </Button>
+                      </Link>
+                      <Link href="/careers">
+                        <Button variant="outline" className="w-full text-sm sm:text-base">
+                          See all jobs
+                        </Button>
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <div className="bg-amber-50 border-2 border-amber-300 text-amber-900 p-4 rounded-lg mb-3 text-sm">
+                        <p className="font-bold mb-1">⚠️ Vacancy Full</p>
+                        <p>Applications for this position are currently closed. Thank you for your interest!</p>
+                      </div>
+                      <Link href="/careers">
+                        <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2.5 sm:py-3 text-sm sm:text-base">
+                          Explore Other Opportunities
+                        </Button>
+                      </Link>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 

@@ -36,7 +36,7 @@ function rateLimit(req: any, res: any, next: any) {
   rateLimitMap.set(clientIP, recentRequests);
 
   // Clean up old entries periodically
-  if (Math.random() < 0.01) { // 1% chance to clean up
+  if (Math.random() < 0.01) { // 1% chance to cleanup
     const cutoff = now - (RATE_LIMIT_WINDOW * 2);
     rateLimitMap.forEach((times, ip) => {
       const validTimes = times.filter((time: number) => time > cutoff);
@@ -63,7 +63,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
+ connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -1102,8 +1102,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...(templateId && { templateid: templateId })
       };
 
-      console.log('🔗 Sending to:', `http://13.234.156.238/v1/sms/send`);
-      console.log('📝 Request payload:', JSON.stringify(requestData, null, 2));
+      console.log('Sending to:', `http://13.234.156.238/v1/sms/send`);
+      console.log('Request payload:', JSON.stringify(requestData, null, 2));
 
       const response = await fetch('http://13.234.156.238/v1/sms/send', {
         method: 'POST',
@@ -1117,8 +1117,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const result = await response.json();
 
-      console.log('📱 MDSSEND.IN Response Status:', response.status);
-      console.log('📱 MDSSEND.IN Response:', JSON.stringify(result, null, 2));
+      console.log('MDSSEND.IN Response Status:', response.status);
+      console.log('MDSSEND.IN Response:', JSON.stringify(result, null, 2));
 
       res.json({
         success: response.ok,
@@ -1422,6 +1422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("GET /api/products - Fetching products...");
 
       res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); // 5 min cache, 10 min stale
 
       const products = await storage.getProducts();
       console.log("Products fetched:", products?.length || 0);
@@ -1544,13 +1545,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const products = await storage.getFeaturedProducts();
       res.json(products);
     } catch (error) {
-      console.log("Database unavailable, using sample featured products");
-      res.status(500).json({ error: "Failed to fetch featured products" }); // Added error handling
+      console.error("Error fetching featured products:", error);
+      res.status(500).json({ error: "Failed to fetch featured products" });
     }
   });
 
   app.get("/api/products/bestsellers", async (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
       const products = await storage.getBestsellerProducts();
       res.json(products);
     } catch (error) {
@@ -1561,6 +1563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/products/new-launches", async (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
       const products = await storage.getNewLaunchProducts();
       res.json(products);
     } catch (error) {
@@ -2963,8 +2966,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           realTimeTracking: false,
           totalAmount: orderData.total_amount,
           shippingAddress: orderData.shipping_address,
-          createdAt: orderData.created_at.toISOString().split('T')[0],
-          message: "This order was not created through Shiprocket. Please use the regular tracking option."
+          createdAt: orderData.created_at.toISOString().split('T')[0]
         });
       }
 
@@ -2996,7 +2998,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate sample orders for development
-  function generateSampleOrders(customers = [], products = []) {
+  function generateSampleOrders() {
     const statuses = ['pending', 'processing', 'shipped', 'delivered'];
     const orders = [];
     const now = new Date();
@@ -5196,7 +5198,7 @@ Poppik Career Portal
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #e74c3c;">New Job Application</h2>
-          
+
           <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
             <h3 style="color: #333;">Application Details</h3>
             <table style="width: 100%; border-collapse: collapse;">
@@ -5269,7 +5271,7 @@ Poppik Career Portal
 
       } catch (emailError) {
         console.error('❌ Failed to send job application email:', emailError);
-        
+
         // Still return success to the user, but log the email failure
         res.json({
           success: true,
@@ -5292,101 +5294,73 @@ Poppik Career Portal
 
   // Job Positions Management Routes
 
-  // Public endpoints for job positions
+  // Get all job positions (public)
   app.get('/api/job-positions', async (req, res) => {
     try {
-      const { department, location } = req.query;
-      let positions = await storage.getActiveJobPositions();
+      console.log('GET /api/job-positions - Fetching all job positions');
 
-      // Filter by department if provided
-      if (department && department !== 'all') {
-        positions = positions.filter(pos => pos.department === department);
+      // Auto-expire old job positions
+      try {
+        await storage.autoExpireJobPositions();
+      } catch (expireError) {
+        console.log('Auto-expire error (continuing):', expireError.message);
       }
 
-      // Filter by location if provided
-      if (location && location !== 'all') {
-        positions = positions.filter(pos => pos.location === location);
-      }
+      // Get all positions (both active and inactive)
+      const positions = await storage.getAllJobPositions();
+      console.log('Total positions found:', positions.length);
+      console.log('Positions data:', JSON.stringify(positions, null, 2));
 
-      res.json(positions);
+      // Parse JSONB fields for all positions
+      const parsedPositions = positions.map(position => ({
+        ...position,
+        responsibilities: typeof position.responsibilities === 'string' 
+          ? JSON.parse(position.responsibilities) 
+          : position.responsibilities,
+        requirements: typeof position.requirements === 'string' 
+          ? JSON.parse(position.requirements) 
+          : position.requirements,
+        skills: typeof position.skills === 'string' 
+          ? JSON.parse(position.skills) 
+          : position.skills,
+      }));
+
+      res.json(parsedPositions);
     } catch (error) {
       console.error('Error fetching job positions:', error);
       res.status(500).json({ error: 'Failed to fetch job positions' });
     }
   });
 
-  // Job application submission endpoint
-  app.post('/api/job-applications', upload.single('resume'), async (req, res) => {
-    try {
-      const { fullName, email, phone, position, location, isFresher, experienceYears, experienceMonths, coverLetter } = req.body;
-
-      // Validation
-      if (!fullName || !email || !phone || !position || !location || !coverLetter) {
-        return res.status(400).json({ error: 'All required fields must be provided' });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({ error: 'Resume file is required' });
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: 'Please provide a valid email address' });
-      }
-
-      const resumeUrl = `/api/images/${req.file.filename}`;
-
-      // Store application in database
-      const applicationData = {
-        fullName: fullName.trim(),
-        email: email.trim().toLowerCase(),
-        phone: phone.trim(),
-        position: position.trim(),
-        location: location.trim(),
-        isFresher: isFresher === 'true',
-        experienceYears: isFresher === 'true' ? null : experienceYears,
-        experienceMonths: isFresher === 'true' ? null : experienceMonths,
-        coverLetter: coverLetter.trim(),
-        resumeUrl: resumeUrl,
-        status: 'pending'
-      };
-
-      console.log('Job application submitted:', {
-        fullName,
-        email,
-        position,
-        timestamp: applicationData.appliedAt
-      });
-
-      // In a real application, you would save this to a job_applications table
-      // For now, we'll just log it and send a success response
-
-      res.json({
-        success: true,
-        message: 'Application submitted successfully! We will review your application and get back to you soon.',
-        applicationId: Date.now() // Mock application ID
-      });
-
-    } catch (error) {
-      console.error('Job application submission error:', error);
-      res.status(500).json({ 
-        error: 'Failed to submit application',
-        details: error.message 
-      });
-    }
-  });
-
-  app.get('/api/job-positions/:slug', async (req, res) => {
+  app.get("/api/job-positions/:slug", async (req, res) => {
     try {
       const { slug } = req.params;
+      console.log(`GET /api/job-positions/${slug} - Fetching job position`);
+
+      // Auto-expire positions
+      await storage.autoExpireJobPositions();
+
       const position = await storage.getJobPositionBySlug(slug);
 
       if (!position) {
         return res.status(404).json({ error: 'Job position not found' });
       }
 
-      res.json(position);
+      // Parse JSONB fields if they are strings
+      const parsedPosition = {
+        ...position,
+        responsibilities: typeof position.responsibilities === 'string' 
+          ? JSON.parse(position.responsibilities) 
+          : position.responsibilities,
+        requirements: typeof position.requirements === 'string' 
+          ? JSON.parse(position.requirements) 
+          : position.requirements,
+        skills: typeof position.skills === 'string' 
+          ? JSON.parse(position.skills) 
+          : position.skills,
+      };
+
+      res.json(parsedPosition);
     } catch (error) {
       console.error('Error fetching job position:', error);
       res.status(500).json({ error: 'Failed to fetch job position' });
@@ -5396,7 +5370,11 @@ Poppik Career Portal
   // Admin endpoints for job positions management
   app.get('/api/admin/job-positions', async (req, res) => {
     try {
+      console.log('GET /api/admin/job-positions - Fetching all job positions for admin');
+
       const positions = await storage.getJobPositions();
+      console.log('Total positions found for admin:', positions.length);
+
       res.json(positions);
     } catch (error) {
       console.error('Error fetching job positions:', error);
@@ -5416,6 +5394,11 @@ Poppik Career Portal
       }
 
       const slug = req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+      // Set expiry date to 15 days from now if not provided
+      const expiresAt = req.body.expiresAt 
+        ? new Date(req.body.expiresAt) 
+        : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
 
       const positionData = {
         title: req.body.title,
@@ -5439,6 +5422,7 @@ Poppik Career Portal
           ? req.body.skills 
           : (typeof req.body.skills === 'string' ? JSON.parse(req.body.skills || '[]') : []),
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        expiresAt,
         sortOrder: parseInt(req.body.sortOrder) || 0,
       };
 
@@ -5467,6 +5451,7 @@ Poppik Career Portal
         responsibilities: req.body.responsibilities ? (Array.isArray(req.body.responsibilities) ? req.body.responsibilities : JSON.parse(req.body.responsibilities)) : undefined,
         requirements: req.body.requirements ? (Array.isArray(req.body.requirements) ? req.body.requirements : JSON.parse(req.body.requirements)) : undefined,
         skills: req.body.skills ? (Array.isArray(req.body.skills) ? req.body.skills : JSON.parse(req.body.skills)) : undefined,
+        expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : undefined,
       };
 
       const position = await storage.updateJobPosition(id, updateData);
@@ -5859,18 +5844,6 @@ Poppik Career Portal
     } catch (error) {
       console.error("Error creating review:", error);
       res.status(500).json({ error: "Failed to submit review" });
-    }
-  });
-
-  // Get user's reviews
-  app.get("/api/users/:userId/reviews", async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const userReviews = await storage.getUserReviews(parseInt(userId));
-      res.json(userReviews);
-    } catch (error) {
-      console.error("Error fetching user reviews:", error);
-      res.status(500).json({ error: "Failed to fetch user reviews" });
     }
   });
 

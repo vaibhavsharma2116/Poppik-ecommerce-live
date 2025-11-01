@@ -828,7 +828,7 @@ export default function Layout({ children }: LayoutProps) {
                         </button>
 
                         {/* Dropdown positioned under this specific menu item */}
-                        <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg border border-gray-200 rounded-md z-[100] min-w-[200px] max-w-[400px] py-2 mt-1">
+                        <div className="absolute left-0 top-full hidden group-hover:block bg-white shadow-lg border border-gray-200 rounded-md z-[100] min-w-[200px] max-w-[400px] py-2 mt-0">
                           <div className="border-t border-gray-100 my-1"></div>
                           {categorySubcategories.map((subcategory) => (
                             <Link
@@ -995,11 +995,11 @@ export default function Layout({ children }: LayoutProps) {
       <WhatsAppButton />
 
       {/* Footer */}
-      <footer className="bg-gradient-to-b from-gray-900 to-black text-white py-12">
+      <footer className="bg-gradient-to-b from-gray-900 to-black text-white py-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Top Section - Centered Logo and Description */}
           <div className="text-center mb-12">
-            <div className="mb-6 flex justify-center">
+            <div className="mb-0 flex justify-center">
               <img
                 src={logo}
                 alt="POPPIK Logo"
@@ -1144,8 +1144,8 @@ At Poppik, we believe beauty begins with wellness and grows through balance.
                     Become an Affiliate
                   </Link>
                 </li>
-                <li>
-                  <Link href="/channel-partner" className="text-gray-400 hover:text-white transition-colors text-sm">
+                <li style={{width:"400px"}}>
+                  <Link href="/channel-partner"  className="text-gray-400 hover:text-white transition-colors text-sm">
                     Join as a Channel Partner
                   </Link>
                 </li>
@@ -1250,8 +1250,8 @@ At Poppik, we believe beauty begins with wellness and grows through balance.
                     Poppik Dropshipping
                   </Link>
                 </li>
-                <li>
-                  <Link href="/makeup-studio" className="text-gray-400 hover:text-white transition-colors text-sm">
+                <li style={{width:"400px"}} >
+                  <Link href="/makeup-studio"   className="text-gray-400 hover:text-white transition-colors text-sm">
                     Poppik Makeup Studio
                   </Link>
                 </li>

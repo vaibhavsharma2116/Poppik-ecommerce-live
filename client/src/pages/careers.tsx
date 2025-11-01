@@ -14,24 +14,45 @@ export default function Careers() {
 
   // Fetch job positions from API
   const { data: openPositions = [], isLoading } = useQuery({
-    queryKey: ['/api/job-positions', selectedDepartment, selectedLocation],
+    queryKey: ['/api/job-positions'],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (selectedDepartment !== 'all') params.append('department', selectedDepartment);
-      if (selectedLocation !== 'all') params.append('location', selectedLocation);
+      console.log('Fetching job positions...');
+      const response = await fetch('/api/job-positions');
+      if (!response.ok) {
+        console.error('Failed to fetch job positions:', response.status);
+        throw new Error('Failed to fetch job positions');
+      }
+      const data = await response.json();
+      console.log('Job positions received:', data);
       
-      const response = await fetch(`/api/job-positions?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch job positions');
-      return response.json();
+      // Parse JSONB fields if they are strings
+      if (Array.isArray(data)) {
+        return data.map(position => ({
+          ...position,
+          responsibilities: typeof position.responsibilities === 'string' 
+            ? JSON.parse(position.responsibilities) 
+            : position.responsibilities,
+          requirements: typeof position.requirements === 'string' 
+            ? JSON.parse(position.requirements) 
+            : position.requirements,
+          skills: typeof position.skills === 'string' 
+            ? JSON.parse(position.skills) 
+            : position.skills,
+        }));
+      }
+      
+      return data;
     },
+    select: (data) => Array.isArray(data) ? data : [],
   });
 
-  // Get unique departments and locations
-  const departments = ["all", ...Array.from(new Set(openPositions.map(p => p.department)))];
-  const locations = ["all", ...Array.from(new Set(openPositions.map(p => p.location)))];
+  // Get unique departments and locations with safety check
+  const validPositions = Array.isArray(openPositions) ? openPositions : [];
+  const departments = ["all", ...Array.from(new Set(validPositions.map(p => p.department)))];
+  const locations = ["all", ...Array.from(new Set(validPositions.map(p => p.location)))];
 
   // Positions are already filtered by the API
-  const filteredPositions = openPositions;
+  const filteredPositions = validPositions;
 
   const benefits = [
     {
@@ -136,7 +157,7 @@ export default function Careers() {
           ) : (
             <div className="grid grid-cols-1 gap-3 xs:gap-4 sm:gap-5 md:gap-6">
               {filteredPositions.map((position, index) => (
-              <Card key={index} className="shadow-md sm:shadow-lg hover:shadow-xl transition-shadow">
+              <Card key={index} className={`shadow-md sm:shadow-lg hover:shadow-xl transition-shadow ${!position.isActive ? 'opacity-90 bg-gray-50 border-2 border-gray-300' : ''}`}>
                 <CardHeader className="p-3 xs:p-4 sm:p-5 md:p-6">
                   <div className="flex flex-col lg:flex-row gap-2 xs:gap-3 sm:gap-4 lg:items-start lg:justify-between">
                     <div className="flex-1">
@@ -152,10 +173,15 @@ export default function Careers() {
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] xs:text-xs sm:text-sm px-1.5 xs:px-2 py-0.5">
                           {position.type}
                         </Badge>
+                        {!position.isActive && (
+                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-[10px] xs:text-xs sm:text-sm px-1.5 xs:px-2 py-0.5 font-semibold">
+                            Vacancy Full - Applications Closed
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <Link href={`/careers/${position.slug}`} className="w-full lg:w-auto lg:flex-shrink-0">
-                      <Button className="w-full lg:w-auto bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white text-xs xs:text-sm sm:text-base px-3 xs:px-4 sm:px-6 py-1.5 xs:py-2 min-h-[36px] xs:min-h-[40px]">
+                      <Button className={`w-full lg:w-auto ${position.isActive ? 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600' : 'bg-gray-400 hover:bg-gray-500 cursor-default'} text-white text-xs xs:text-sm sm:text-base px-3 xs:px-4 sm:px-6 py-1.5 xs:py-2 min-h-[36px] xs:min-h-[40px]`}>
                         View Details
                       </Button>
                     </Link>
@@ -163,6 +189,13 @@ export default function Careers() {
                 </CardHeader>
                 <CardContent className="p-3 xs:p-4 sm:p-5 md:p-6 pt-0">
                   <p className="text-gray-600 text-xs xs:text-sm sm:text-base leading-relaxed">{position.description}</p>
+                  {!position.isActive && (
+                    <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                      <p className="text-amber-800 text-xs xs:text-sm font-medium">
+                        ℹ️ This position is currently closed. Please check back later or explore other opportunities.
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               ))}
@@ -194,8 +227,8 @@ export default function Careers() {
               We're always looking for talented individuals. Send us your resume and we'll keep you in mind for future opportunities.
             </p>
             <div className="flex flex-col sm:flex-row gap-2 xs:gap-3 sm:gap-4 justify-center px-2">
-              <a href="mailto:careers@poppik.in" className="bg-pink-600 hover:bg-pink-700 text-white px-4 xs:px-5 sm:px-6 md:px-8 py-2 xs:py-2.5 sm:py-3 rounded-lg font-medium transition-colors inline-block text-xs xs:text-sm sm:text-base min-h-[36px] xs:min-h-[40px] flex items-center justify-center">
-                Email: careers@poppik.in
+              <a href="mailto:info@poppik.in" className="bg-pink-600 hover:bg-pink-700 text-white px-4 xs:px-5 sm:px-6 md:px-8 py-2 xs:py-2.5 sm:py-3 rounded-lg font-medium transition-colors inline-block text-xs xs:text-sm sm:text-base min-h-[36px] xs:min-h-[40px] flex items-center justify-center">
+                Email: info@poppik.in
               </a>
               <Link href="/contact" className="w-full sm:w-auto">
                 <Button variant="outline" className="w-full sm:w-auto border-white text-black hover:bg-white/10 px-4 xs:px-5 sm:px-6 md:px-8 py-2 xs:py-2.5 sm:py-3 text-xs xs:text-sm sm:text-base min-h-[36px] xs:min-h-[40px]">

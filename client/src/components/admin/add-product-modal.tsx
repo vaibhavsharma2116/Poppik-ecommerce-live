@@ -424,7 +424,7 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         <DialogHeader>
           <DialogTitle>Add New Product</DialogTitle>
           <DialogDescription>
-            Create a new product for your beauty store inventory.
+            Create a new product for your Beauty, Lifestyle & Wellness store inventory.
           </DialogDescription>
         </DialogHeader>
 

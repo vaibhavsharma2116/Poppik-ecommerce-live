@@ -18,7 +18,7 @@ export default function MakeupStudio() {
         </div>
 
         {/* Main Content */}
-        <div className="text-center space-y-4 sm:space-y-8 bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-12 shadow-2xl">
+        <div className="text-center ">
           {/* Icon */}
           <div className="flex justify-center">
             <div className="relative">
@@ -45,7 +45,7 @@ export default function MakeupStudio() {
           </div>
 
           <p className="text-sm sm:text-lg md:text-xl text-gray-600 mb-8 sm:mb-12 max-w-2xl mx-auto px-2">
-            Get ready for a transformative beauty experience! Our exclusive Makeup Studio will offer professional makeup services, personalized consultations, and expert beauty transformations. Stay tuned for the grand opening!
+            Get ready for a transformative Beauty, Lifestyle & Wellness experience! Our exclusive Makeup Studio will offer professional makeup services, personalized consultations, and expert Beauty, Lifestyle & Wellness transformations. Stay tuned for the grand opening!
           </p>
         </div>
       </div>

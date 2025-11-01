@@ -18,7 +18,7 @@ export default function FashionShow() {
         </div>
 
         {/* Main Content */}
-        <div className="text-center space-y-4 sm:space-y-8 bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-12 shadow-2xl">
+        <div className="text-center ">
           {/* Icon */}
           <div className="flex justify-center">
             <div className="relative">

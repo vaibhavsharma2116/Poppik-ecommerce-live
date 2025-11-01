@@ -104,7 +104,7 @@ export default function InfluencerCollabPage() {
         </div>
       </section>
 
-      {/* Stats Section */}
+      {/* Stats Section
       <section className="py-6 xs:py-8 sm:py-10 md:py-12 bg-gray-50 border-y">
         <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 xs:gap-4 sm:gap-6 md:gap-8">
@@ -121,7 +121,7 @@ export default function InfluencerCollabPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Benefits Section */}
       <section id="benefits" className="py-16 md:py-20 bg-white">

@@ -54,7 +54,7 @@ export default function About() {
               <br></br>
 
               <h4 className="text-xl font-medium text-gray-900 ">* Our Vision</h4> 
-             To create a beauty community where every woman shines her way – confident, unstoppable, and always fresh with Poppik
+             To create a Beauty, Lifestyle & Wellness community where every woman shines her way – confident, unstoppable, and always fresh with Poppik
               </p>
               {/* <p>
                 Today, we're proud to offer a comprehensive range of skincare, haircare, makeup, and body care 

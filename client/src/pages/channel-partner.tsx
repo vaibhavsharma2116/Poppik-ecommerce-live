@@ -98,7 +98,7 @@ export default function ChannelPartnerPage() {
                 onClick={() => document.getElementById('benefits')?.scrollIntoView({ behavior: 'smooth' })}
                 size="lg"
                 variant="outline" 
-                className="border-2 border-white text-white hover:bg-white/10 text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
+                className="border-2 border-white text-purple-600 font-semibold hover:bg-white/10 text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
               >
                 Explore Benefits
               </Button>
@@ -108,7 +108,7 @@ export default function ChannelPartnerPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-12 bg-gray-50 border-y">
+      {/* <section className="py-12 bg-gray-50 border-y">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
@@ -124,7 +124,7 @@ export default function ChannelPartnerPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Benefits Section */}
       <section id="benefits" className="py-16 md:py-20 bg-white">

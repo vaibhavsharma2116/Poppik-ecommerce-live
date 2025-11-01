@@ -1847,7 +1847,7 @@ body {
   }
 
   .slider-nav-button {
-    @apply p-2 bg-black/30 hover:bg-black/50;
+    @apply p-2 bg-black/30;
   }
 
   .slider-nav-icon {

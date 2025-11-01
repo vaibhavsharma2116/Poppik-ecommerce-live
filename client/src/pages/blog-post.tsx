@@ -182,7 +182,7 @@ export default function BlogPostDetail() {
           <img
             src={post.imageUrl}
             alt={post.title}
-            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] object-cover"
+            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] "
           />
         )}
       </div>
