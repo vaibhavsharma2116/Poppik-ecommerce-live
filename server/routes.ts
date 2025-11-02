@@ -5294,6 +5294,105 @@ Poppik Career Portal
 
   // Admin job applications endpoints removed - applications now sent directly to HR email
 
+  // Influencer Applications Routes
+  
+  // Submit influencer application (public)
+  app.post('/api/influencer-applications', async (req, res) => {
+    try {
+      const { fullName, email, mobile, city, state } = req.body;
+
+      // Validate required fields
+      if (!fullName || !email || !mobile || !city || !state) {
+        return res.status(400).json({ error: 'All fields are required' });
+      }
+
+      // Save to database
+      const application = await storage.createInfluencerApplication({
+        fullName,
+        email,
+        mobile,
+        city,
+        state,
+        status: 'pending'
+      });
+
+      console.log('Influencer application created:', application.id);
+
+      res.json({
+        success: true,
+        message: 'Application submitted successfully! We will review your application and get back to you soon.',
+        applicationId: application.id
+      });
+    } catch (error) {
+      console.error('Error submitting influencer application:', error);
+      res.status(500).json({ error: 'Failed to submit application' });
+    }
+  });
+
+  // Admin endpoints for influencer applications
+  app.get('/api/admin/influencer-applications', async (req, res) => {
+    try {
+      const applications = await storage.getInfluencerApplications();
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching influencer applications:', error);
+      res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  });
+
+  app.get('/api/admin/influencer-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const application = await storage.getInfluencerApplication(id);
+      
+      if (!application) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+      
+      res.json(application);
+    } catch (error) {
+      console.error('Error fetching influencer application:', error);
+      res.status(500).json({ error: 'Failed to fetch application' });
+    }
+  });
+
+  app.put('/api/admin/influencer-applications/:id/status', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (!['pending', 'accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const application = await storage.updateInfluencerApplicationStatus(id, status);
+      
+      if (!application) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `Application ${status} successfully`,
+        application 
+      });
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      res.status(500).json({ error: 'Failed to update application status' });
+    }
+  });
+
+  app.delete('/api/admin/influencer-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteInfluencerApplication(id);
+      res.json({ success: true, message: 'Application deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting influencer application:', error);
+      res.status(500).json({ error: 'Failed to delete application' });
+    }
+  });
+
   // Job Positions Management Routes
 
   // Get all job positions (public)

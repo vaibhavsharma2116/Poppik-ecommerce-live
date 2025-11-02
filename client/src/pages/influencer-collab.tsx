@@ -15,12 +15,11 @@ import { Gift, TrendingUp, Users, Sparkles, Award, Target, Star, Zap, Heart, Glo
 export default function InfluencerCollabPage() {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    name: "",
+    fullName: "",
     email: "",
-    phone: "",
-    instagram: "",
-    followers: "",
-    message: "",
+    mobile: "",
+    city: "",
+    state: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {

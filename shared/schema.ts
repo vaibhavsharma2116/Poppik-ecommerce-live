@@ -472,3 +472,19 @@ export const comboReviews = pgTable("combo_reviews", {
 
 export type ComboReview = typeof comboReviews.$inferSelect;
 export type InsertComboReview = typeof comboReviews.$inferInsert;
+
+// Influencer Applications Table
+export const influencerApplications = pgTable("influencer_applications", {
+  id: serial("id").primaryKey(),
+  fullName: varchar("full_name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  mobile: varchar("mobile", { length: 20 }).notNull(),
+  city: varchar("city", { length: 100 }).notNull(),
+  state: varchar("state", { length: 100 }).notNull(),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+});
+
+export type InfluencerApplication = typeof influencerApplications.$inferSelect;
+export type InsertInfluencerApplication = typeof influencerApplications.$inferInsert;

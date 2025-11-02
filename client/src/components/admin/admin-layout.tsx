@@ -141,6 +141,12 @@ const sidebarItems = [
     badge: null,
   },
   {
+    title: "Influencer Applications",
+    href: "/influencer-applications",
+    icon: Users,
+    badge: null,
+  },
+  {
     title: "Settings",
     href: "/settings",
     icon: Settings,

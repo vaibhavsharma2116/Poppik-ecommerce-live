@@ -92,21 +92,11 @@ function Router() {
             <Route path="/customers" component={AdminCustomers} />
             <Route path="/sliders" component={AdminSliders} />
             <Route path="/job-applications" component={JobApplications} />
-            <Route path="/blog">
-              <Suspense fallback={<LoadingSpinner />}>
-                <AdminBlog />
-              </Suspense>
-            </Route>
-            <Route path="/shades" component={AdminShades} />
-            <Route path="/featured-sections" component={AdminFeaturedSections} />
-            <Route path="/testimonials" component={AdminTestimonials} />
-            <Route path="/video-testimonials" component={AdminVideoTestimonials} />
-            <Route path="/announcements" component={AdminAnnouncements} />
-            <Route path="/combos" component={() => {
-              const Combos = lazy(() => import("./pages/admin/combos"));
+            <Route path="/influencer-applications" component={() => {
+              const InfluencerApplications = lazy(() => import("./pages/admin/influencer-applications"));
               return (
                 <Suspense fallback={<LoadingSpinner />}>
-                  <Combos />
+                  <InfluencerApplications />
                 </Suspense>
               );
             }} />

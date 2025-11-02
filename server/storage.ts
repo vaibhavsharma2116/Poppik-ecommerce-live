@@ -51,7 +51,10 @@ import {
   type InsertJobApplication,
   comboReviews,
   type ComboReview,
-  type InsertComboReview
+  type InsertComboReview,
+  // Import influencerApplications schema
+  influencerApplications,
+  type InfluencerApplication
 } from "@shared/schema";
 import dotenv from "dotenv";
 
@@ -60,7 +63,7 @@ dotenv.config();
 
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik",
   ssl: false,
   max: 20, // Maximum pool size
   idleTimeoutMillis: 30000,
@@ -227,6 +230,13 @@ export interface IStorage {
   createJobPosition(data: InsertJobPosition): Promise<JobPosition>;
   updateJobPosition(id: number, data: Partial<InsertJobPosition>): Promise<JobPosition | undefined>;
   deleteJobPosition(id: number): Promise<boolean>;
+
+  // Influencer Applications
+  createInfluencerApplication(data: any): Promise<any>;
+  getInfluencerApplications(): Promise<any[]>;
+  getInfluencerApplication(id: number): Promise<any | undefined>;
+  updateInfluencerApplicationStatus(id: number, status: string): Promise<any | undefined>;
+  deleteInfluencerApplication(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1132,9 +1142,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Combo Review Management Functions
-  async getComboReviews(comboId: number): Promise<any[]> {
+  async getComboReviews(comboId: number): Promise<ComboReview[]> {
     const db = await getDb();
-    const comboReviews = await db
+    const comboReviewsResult = await db
       .select({
         id: comboReviews.id,
         userId: comboReviews.userId,
@@ -1149,7 +1159,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(comboReviews.comboId, comboId))
       .orderBy(desc(comboReviews.createdAt));
 
-    return comboReviews;
+    return comboReviewsResult;
   }
 
   async checkUserCanReviewCombo(userId: number, comboId: number): Promise<{ canReview: boolean; orderId?: number; message: string }> {
@@ -1387,7 +1397,8 @@ export class DatabaseStorage implements IStorage {
       return await db.select().from(blogCategories).where(eq(blogCategories.isActive, true)).orderBy(asc(blogCategories.sortOrder));
     } catch (error) {
       console.error("Database error in getBlogCategories:", error);
-
+      // Ensure an empty array is returned or re-throw the error
+      return [];
     }
   }
 
@@ -1470,7 +1481,7 @@ export class DatabaseStorage implements IStorage {
         .delete(blogCategories)
         .where(eq(blogCategories.id, id));
 
-      return true;
+      return result.rowCount > 0;
     } catch (error) {
       console.error("Error deleting blog category:", error);
       throw new Error('Failed to delete blog category: ' + (error.message || 'Unknown error'));
@@ -1665,9 +1676,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Category slider management
-  async getCategorySliders(categoryId: number): Promise<any[]>;
-  async createCategorySlider(sliderData: any): Promise<any>;
-  async updateCategorySlider(id: number, sliderData: any): Promise<any>;
+  async getCategorySliders(categoryId: number): Promise<any[]> {
+    const db = await getDb();
+    return await db.select().from(categorySliders).where(eq(categorySliders.categoryId, categoryId));
+  }
+  async createCategorySlider(sliderData: any): Promise<any> {
+    const db = await getDb();
+    const [result] = await db.insert(categorySliders).values(sliderData).returning();
+    return result;
+  }
+  async updateCategorySlider(id: number, sliderData: any): Promise<any> {
+    const db = await getDb();
+    const [result] = await db
+      .update(categorySliders)
+      .set(sliderData)
+      .where(eq(categorySliders.id, id))
+      .returning();
+    return result;
+  }
   async deleteCategorySlider(id: number): Promise<boolean> {
     try {
       const db = await getDb();
@@ -1830,7 +1856,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const db = await getDb();
       const now = new Date();
-      
+
       const results = await db.select({
         id: jobPositions.id,
         title: jobPositions.title,
@@ -1860,14 +1886,14 @@ export class DatabaseStorage implements IStorage {
       // Parse JSONB fields
       return results.map(position => ({
         ...position,
-        responsibilities: typeof position.responsibilities === 'string' 
-          ? JSON.parse(position.responsibilities) 
+        responsibilities: typeof position.responsibilities === 'string'
+          ? JSON.parse(position.responsibilities)
           : position.responsibilities,
-        requirements: typeof position.requirements === 'string' 
-          ? JSON.parse(position.requirements) 
+        requirements: typeof position.requirements === 'string'
+          ? JSON.parse(position.requirements)
           : position.requirements,
-        skills: typeof position.skills === 'string' 
-          ? JSON.parse(position.skills) 
+        skills: typeof position.skills === 'string'
+          ? JSON.parse(position.skills)
           : position.skills,
       }));
     } catch (error) {
@@ -1880,7 +1906,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const db = await getDb();
       const now = new Date();
-      
+
       return await db.select({
         id: jobPositions.id,
         title: jobPositions.title,
@@ -2030,6 +2056,42 @@ export class DatabaseStorage implements IStorage {
       .where(eq(jobPositions.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  // Influencer Applications
+  async createInfluencerApplication(data: any) {
+    const applicationData = {
+      fullName: data.fullName,
+      email: data.email,
+      mobile: data.mobile,
+      city: data.city,
+      state: data.state,
+      status: data.status || 'pending'
+    };
+    const [application] = await db.insert(influencerApplications).values(applicationData).returning();
+    return application;
+  }
+
+  async getInfluencerApplications() {
+    return await db.select().from(influencerApplications).orderBy(desc(influencerApplications.createdAt));
+  }
+
+  async getInfluencerApplication(id: number) {
+    const [application] = await db.select().from(influencerApplications).where(eq(influencerApplications.id, id));
+    return application;
+  }
+
+  async updateInfluencerApplicationStatus(id: number, status: string) {
+    const [updated] = await db
+      .update(influencerApplications)
+      .set({ status, reviewedAt: new Date() })
+      .where(eq(influencerApplications.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteInfluencerApplication(id: number) {
+    await db.delete(influencerApplications).where(eq(influencerApplications.id, id));
   }
 }
 
