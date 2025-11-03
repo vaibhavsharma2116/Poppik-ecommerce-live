@@ -56,7 +56,7 @@ import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
-import type { InsertBlogCategory, InsertBlogSubcategory } from "../shared/schema";
+import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication } from "../shared/schema";
 
 // Initialize Shiprocket service
 const shiprocketService = new ShiprocketService();
@@ -2531,7 +2531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newOrderData = {
         userId: Number(userId),
         totalAmount: Number(totalAmount),
-        status: status || 'confirmed',
+        status: status || 'confirmed', // Default to 'confirmed' if not provided
         paymentMethod: paymentMethod || 'Cash on Delivery',
         shippingAddress: shippingAddress,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
@@ -4967,8 +4967,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (files?.images && files.images.length > 0) {
         primaryImageUrl = `/api/images/${files.images[0].filename}`;
-      } else if (comboDataParsed?.imageUrl || req.body.imageUrl) {
-        primaryImageUrl = comboDataParsed?.imageUrl || req.body.imageUrl;
+      } else if (req.body.imageUrl) { // Fallback to imageUrl from body if no file uploaded
+        primaryImageUrl = req.body.imageUrl;
       }
 
       // Handle video upload
@@ -5089,15 +5089,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           })
         );
-      } else if (req.body.imageUrl || comboDataParsed?.imageUrl) {
-        updateData.imageUrl = req.body.imageUrl || comboDataParsed?.imageUrl;
+      } else if (req.body.imageUrl) {
+        updateData.imageUrl = req.body.imageUrl;
       }
 
       // Handle video upload
       if (files?.video?.[0]) {
         updateData.videoUrl = `/api/images/${files.video[0].filename}`;
-      } else if (req.body.videoUrl || comboDataParsed?.videoUrl) {
-        updateData.videoUrl = req.body.videoUrl || comboDataParsed?.videoUrl;
+      } else if (req.body.videoUrl) {
+        updateData.videoUrl = req.body.videoUrl;
       }
 
       const [combo] = await db
@@ -5295,24 +5295,52 @@ Poppik Career Portal
   // Admin job applications endpoints removed - applications now sent directly to HR email
 
   // Influencer Applications Routes
-  
+
   // Submit influencer application (public)
   app.post('/api/influencer-applications', async (req, res) => {
     try {
-      const { fullName, email, mobile, city, state } = req.body;
+      const { 
+        firstName, 
+        lastName, 
+        email, 
+        contactNumber, 
+        fullAddress, 
+        landmark, 
+        city, 
+        pinCode, 
+        state, 
+        country,
+        instagramProfile,
+        youtubeChannel,
+        facebookProfile
+      } = req.body;
 
       // Validate required fields
-      if (!fullName || !email || !mobile || !city || !state) {
-        return res.status(400).json({ error: 'All fields are required' });
+      if (!firstName || !lastName || !email || !contactNumber || !fullAddress || !city || !pinCode || !state || !country) {
+        return res.status(400).json({ error: 'All required fields must be provided' });
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
       }
 
       // Save to database
       const application = await storage.createInfluencerApplication({
-        fullName,
+        firstName,
+        lastName,
         email,
-        mobile,
+        contactNumber,
+        fullAddress,
+        landmark: landmark || null,
         city,
+        pinCode,
         state,
+        country,
+        instagramProfile: instagramProfile || null,
+        youtubeChannel: youtubeChannel || null,
+        facebookProfile: facebookProfile || null,
         status: 'pending'
       });
 
@@ -5344,11 +5372,11 @@ Poppik Career Portal
     try {
       const id = parseInt(req.params.id);
       const application = await storage.getInfluencerApplication(id);
-      
+
       if (!application) {
         return res.status(404).json({ error: 'Application not found' });
       }
-      
+
       res.json(application);
     } catch (error) {
       console.error('Error fetching influencer application:', error);
@@ -5366,11 +5394,11 @@ Poppik Career Portal
       }
 
       const application = await storage.updateInfluencerApplicationStatus(id, status);
-      
+
       if (!application) {
         return res.status(404).json({ error: 'Application not found' });
       }
-      
+
       res.json({ 
         success: true, 
         message: `Application ${status} successfully`,
@@ -5842,7 +5870,7 @@ Poppik Career Portal
   app.get("/api/products/:productId/shades", async (req, res) => {
     try {
       const { productId } = req.params;
-      console.log("Fetching shades for product ID:", productId);
+      console.log("Fetching shades for product:", productId);
 
       // Fetch all active shades with associations
       const allShades = await storage.getActiveShadesWithAssociations();
@@ -6141,7 +6169,7 @@ Poppik Career Portal
           : combo.products,
         imageUrls: images.length > 0 
           ? images.map(img => img.imageUrl)
-          : [combo.imageUrl]
+          : [combo.imageUrl] // Fallback to the main imageUrl if no specific combo_images
       };
 
       res.json(comboData);
@@ -6192,7 +6220,7 @@ Poppik Career Portal
     try {
       const { comboId } = req.params;
       const { rating, title, comment, userName, orderId } = req.body;
-      const user = req.user;
+      const user = req.user; // Assuming user is attached to req after auth middleware
 
       if (!user) {
         return res.status(401).json({ error: "Please login to submit a review" });
@@ -6207,12 +6235,12 @@ Poppik Career Portal
       const reviewData = {
         userId: user.id,
         comboId: parseInt(comboId),
-        orderId: orderId || canReview.orderId,
+        orderId: orderId || canReview.orderId, // Use orderId from body or from checkUserCanReviewCombo
         rating: parseInt(rating),
         title: title || null,
         comment: comment || null,
         userName: userName || `${user.firstName} ${user.lastName}`,
-        isVerified: true,
+        isVerified: true, // Assuming verified if they can review
       };
 
       const review = await db.insert(schema.comboReviews).values(reviewData).returning();
@@ -6223,7 +6251,6 @@ Poppik Career Portal
       });
     }
   });
-
 
   const httpServer = createServer(app);
   return httpServer;

@@ -2081,10 +2081,14 @@ export class DatabaseStorage implements IStorage {
     return application;
   }
 
-  async updateInfluencerApplicationStatus(id: number, status: string) {
+  async updateInfluencerApplicationStatus(id: number, status: string, reviewNotes?: string) {
     const [updated] = await db
       .update(influencerApplications)
-      .set({ status, reviewedAt: new Date() })
+      .set({ 
+        status, 
+        reviewedAt: new Date(),
+        reviewNotes: reviewNotes || null
+      })
       .where(eq(influencerApplications.id, id))
       .returning();
     return updated;

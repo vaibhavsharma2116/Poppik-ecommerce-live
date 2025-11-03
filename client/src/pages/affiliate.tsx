@@ -15,51 +15,10 @@ import { Check, ChevronDown, Gift, TrendingUp, Users, Sparkles, Award, Target } 
 export default function AffiliatePage() {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    instagram: "",
-    followers: "",
-    message: "",
+   
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const response = await fetch("/api/influencer-applications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Application Submitted!",
-          description: "We'll review your application and get back to you soon.",
-        });
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          instagram: "",
-          followers: "",
-          message: "",
-        });
-      } else {
-        throw new Error("Failed to submit application");
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to submit application. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
+ 
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with Peach Background */}
@@ -92,12 +51,11 @@ export default function AffiliatePage() {
                 <p className="text-sm xs:text-base text-gray-700 leading-relaxed">
                   Whether you're a makeup artist, beauty enthusiast, or lifestyle creator, we want to work with you. Get exclusive access to our products, create authentic content, and be part of a brand that celebrates beauty in all its forms!
                 </p>
-                <Button 
-                  onClick={() => window.open('https://forms.gle/Ea86rP8VJaKMBizc6', '_blank')}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-6 xs:px-8 py-4 xs:py-6 text-base xs:text-lg rounded-full mt-4 w-full sm:w-auto"
-                >
-                  APPLY NOW
-                </Button>
+                  <Button 
+                    className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-6 xs:px-8 py-4 xs:py-6 text-base xs:text-lg rounded-full mt-4 w-full sm:w-auto"
+                  >
+                    APPLY NOW
+                  </Button>
               </div>
             </div>
           </div>
@@ -245,7 +203,7 @@ export default function AffiliatePage() {
             Ready to start your journey with Poppik? We'd love to hear from you!
           </p>
           <Button 
-            onClick={() => window.open('https://forms.gle/Ea86rP8VJaKMBizc6', '_blank')}
+            onClick={() => window.open('https://forms.gle/XMttjRBYg5wzMHKw7', '_blank')}
             className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-8 py-6 text-lg rounded-full"
           >
             APPLY FOR AFFILIATE PROGRAM

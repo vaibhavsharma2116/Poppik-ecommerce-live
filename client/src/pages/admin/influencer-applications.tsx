@@ -4,12 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -26,12 +28,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, Trash2, Mail, Phone, Instagram, Users } from "lucide-react";
+import { Eye, Trash2, Mail, Phone, MapPin, Instagram, Youtube, Facebook, CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminInfluencerApplications() {
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [reviewNotes, setReviewNotes] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -40,17 +43,19 @@ export default function AdminInfluencerApplications() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: any) => {
+    mutationFn: async ({ id, status, notes }: any) => {
       const response = await fetch(`/api/admin/influencer-applications/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, reviewNotes: notes }),
       });
       if (!response.ok) throw new Error('Failed to update status');
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/influencer-applications'] });
+      setIsViewDialogOpen(false);
+      setReviewNotes('');
       toast({ title: 'Success', description: 'Application status updated' });
     },
   });
@@ -69,15 +74,34 @@ export default function AdminInfluencerApplications() {
     },
   });
 
+  const handleApprove = () => {
+    if (selectedApplication) {
+      updateStatusMutation.mutate({ 
+        id: selectedApplication.id, 
+        status: 'approved',
+        notes: reviewNotes
+      });
+    }
+  };
+
+  const handleReject = () => {
+    if (selectedApplication) {
+      updateStatusMutation.mutate({ 
+        id: selectedApplication.id, 
+        status: 'rejected',
+        notes: reviewNotes
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
       pending: { variant: 'secondary', label: 'Pending' },
-      reviewing: { variant: 'default', label: 'Reviewing' },
-      approved: { variant: 'default', label: 'Approved' },
+      approved: { variant: 'default', label: 'Approved', className: 'bg-green-500' },
       rejected: { variant: 'destructive', label: 'Rejected' },
     };
     const config = variants[status] || variants.pending;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return <Badge variant={config.variant} className={config.className}>{config.label}</Badge>;
   };
 
   return (
@@ -94,7 +118,7 @@ export default function AdminInfluencerApplications() {
       <Card>
         <CardHeader>
           <CardTitle>All Applications</CardTitle>
-          <CardDescription>Manage and review influencer/affiliate applications</CardDescription>
+          <CardDescription>Manage and review influencer collaboration applications</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -109,8 +133,8 @@ export default function AdminInfluencerApplications() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Contact</TableHead>
-                  <TableHead>Instagram</TableHead>
-                  <TableHead>Followers</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Social Media</TableHead>
                   <TableHead>Applied Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -120,7 +144,7 @@ export default function AdminInfluencerApplications() {
                 {applications.map((application: any) => (
                   <TableRow key={application.id}>
                     <TableCell>
-                      <div className="font-medium">{application.name}</div>
+                      <div className="font-medium">{application.firstName} {application.lastName}</div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
@@ -130,42 +154,33 @@ export default function AdminInfluencerApplications() {
                         </div>
                         <div className="text-sm flex items-center gap-1">
                           <Phone className="h-3 w-3" />
-                          {application.phone}
+                          {application.contactNumber}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Instagram className="h-3 w-3" />
-                        {application.instagram || 'N/A'}
+                      <div className="text-sm">
+                        {application.city}, {application.state}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {application.followers || 'N/A'}
+                      <div className="flex gap-2">
+                        {application.instagramProfile && (
+                          <Instagram className="h-4 w-4 text-pink-600" />
+                        )}
+                        {application.youtubeChannel && (
+                          <Youtube className="h-4 w-4 text-red-600" />
+                        )}
+                        {application.facebookProfile && (
+                          <Facebook className="h-4 w-4 text-blue-600" />
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
                       {new Date(application.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Select
-                        value={application.status}
-                        onValueChange={(status) =>
-                          updateStatusMutation.mutate({ id: application.id, status })
-                        }
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="reviewing">Reviewing</SelectItem>
-                          <SelectItem value="approved">Approved</SelectItem>
-                          <SelectItem value="rejected">Rejected</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {getStatusBadge(application.status)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -174,6 +189,7 @@ export default function AdminInfluencerApplications() {
                           size="icon"
                           onClick={() => {
                             setSelectedApplication(application);
+                            setReviewNotes(application.reviewNotes || '');
                             setIsViewDialogOpen(true);
                           }}
                         >
@@ -201,11 +217,11 @@ export default function AdminInfluencerApplications() {
       </Card>
 
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Application Details</DialogTitle>
             <DialogDescription>
-              Review the complete application
+              Review the complete application and approve or reject
             </DialogDescription>
           </DialogHeader>
           {selectedApplication && (
@@ -214,26 +230,75 @@ export default function AdminInfluencerApplications() {
                 <div>
                   <h3 className="font-semibold mb-2">Personal Information</h3>
                   <div className="space-y-2 text-sm">
-                    <p><strong>Name:</strong> {selectedApplication.name}</p>
+                    <p><strong>Name:</strong> {selectedApplication.firstName} {selectedApplication.lastName}</p>
                     <p><strong>Email:</strong> {selectedApplication.email}</p>
-                    <p><strong>Phone:</strong> {selectedApplication.phone}</p>
+                    <p><strong>Phone:</strong> {selectedApplication.contactNumber}</p>
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-2">Social Media</h3>
+                  <h3 className="font-semibold mb-2">Address Details</h3>
                   <div className="space-y-2 text-sm">
-                    <p><strong>Instagram:</strong> {selectedApplication.instagram || 'N/A'}</p>
-                    <p><strong>Followers:</strong> {selectedApplication.followers || 'N/A'}</p>
+                    <p><strong>Address:</strong> {selectedApplication.fullAddress}</p>
+                    {selectedApplication.landmark && (
+                      <p><strong>Landmark:</strong> {selectedApplication.landmark}</p>
+                    )}
+                    <p><strong>City:</strong> {selectedApplication.city}</p>
+                    <p><strong>State:</strong> {selectedApplication.state}</p>
+                    <p><strong>Pin Code:</strong> {selectedApplication.pinCode}</p>
+                    <p><strong>Country:</strong> {selectedApplication.country}</p>
                   </div>
                 </div>
               </div>
 
-              {selectedApplication.message && (
-                <div>
-                  <h3 className="font-semibold mb-2">Message</h3>
-                  <div className="p-4 bg-muted rounded-lg text-sm whitespace-pre-wrap">
-                    {selectedApplication.message}
-                  </div>
+              <div>
+                <h3 className="font-semibold mb-2">Social Media Profiles</h3>
+                <div className="space-y-2 text-sm">
+                  {selectedApplication.instagramProfile && (
+                    <p className="flex items-center gap-2">
+                      <Instagram className="h-4 w-4 text-pink-600" />
+                      <strong>Instagram:</strong>
+                      <a href={selectedApplication.instagramProfile} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {selectedApplication.instagramProfile}
+                      </a>
+                    </p>
+                  )}
+                  {selectedApplication.youtubeChannel && (
+                    <p className="flex items-center gap-2">
+                      <Youtube className="h-4 w-4 text-red-600" />
+                      <strong>YouTube:</strong>
+                      <a href={selectedApplication.youtubeChannel} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {selectedApplication.youtubeChannel}
+                      </a>
+                    </p>
+                  )}
+                  {selectedApplication.facebookProfile && (
+                    <p className="flex items-center gap-2">
+                      <Facebook className="h-4 w-4 text-blue-600" />
+                      <strong>Facebook:</strong>
+                      <a href={selectedApplication.facebookProfile} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {selectedApplication.facebookProfile}
+                      </a>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">Review Notes</h3>
+                <Textarea
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  placeholder="Add notes about this application..."
+                  rows={4}
+                />
+              </div>
+
+              {selectedApplication.reviewedAt && (
+                <div className="text-sm text-muted-foreground">
+                  <p>Reviewed on {new Date(selectedApplication.reviewedAt).toLocaleDateString()}</p>
+                  {selectedApplication.reviewNotes && (
+                    <p className="mt-2"><strong>Previous Notes:</strong> {selectedApplication.reviewNotes}</p>
+                  )}
                 </div>
               )}
 
@@ -245,6 +310,31 @@ export default function AdminInfluencerApplications() {
               </div>
             </div>
           )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+              Close
+            </Button>
+            {selectedApplication?.status === 'pending' && (
+              <>
+                <Button
+                  variant="destructive"
+                  onClick={handleReject}
+                  disabled={updateStatusMutation.isPending}
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Reject
+                </Button>
+                <Button
+                  onClick={handleApprove}
+                  disabled={updateStatusMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve
+                </Button>
+              </>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

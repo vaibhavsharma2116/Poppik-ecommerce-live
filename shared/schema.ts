@@ -476,14 +476,23 @@ export type InsertComboReview = typeof comboReviews.$inferInsert;
 // Influencer Applications Table
 export const influencerApplications = pgTable("influencer_applications", {
   id: serial("id").primaryKey(),
-  fullName: varchar("full_name", { length: 255 }).notNull(),
+  firstName: varchar("first_name", { length: 255 }).notNull(),
+  lastName: varchar("last_name", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }).notNull(),
-  mobile: varchar("mobile", { length: 20 }).notNull(),
+  contactNumber: varchar("contact_number", { length: 20 }).notNull(),
+  fullAddress: text("full_address").notNull(),
+  landmark: varchar("landmark", { length: 255 }),
   city: varchar("city", { length: 100 }).notNull(),
+  pinCode: varchar("pin_code", { length: 10 }).notNull(),
   state: varchar("state", { length: 100 }).notNull(),
+  country: varchar("country", { length: 100 }).notNull(),
+  instagramProfile: varchar("instagram_profile", { length: 255 }),
+  youtubeChannel: varchar("youtube_channel", { length: 255 }),
+  facebookProfile: varchar("facebook_profile", { length: 255 }),
   status: varchar("status", { length: 20 }).default("pending").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
 });
 
 export type InfluencerApplication = typeof influencerApplications.$inferSelect;
