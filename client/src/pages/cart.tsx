@@ -21,6 +21,12 @@ interface CartItem {
   quantity: number;
   variant?: string;
   inStock: boolean;
+  selectedShade?: {
+    id: number;
+    name: string;
+    colorCode: string;
+    imageUrl?: string;
+  };
 }
 
 export default function Cart() {
@@ -376,6 +382,25 @@ export default function Cart() {
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
                         {item.name}
                       </h3>
+                      {item.selectedShade && (
+                        <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
+                          <Badge variant="secondary" className="flex items-center gap-1.5">
+                            {item.selectedShade.imageUrl ? (
+                              <img
+                                src={item.selectedShade.imageUrl}
+                                alt={item.selectedShade.name}
+                                className="w-4 h-4 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div
+                                className="w-4 h-4 rounded-full border"
+                                style={{ backgroundColor: item.selectedShade.colorCode }}
+                              />
+                            )}
+                            <span>Shade: {item.selectedShade.name}</span>
+                          </Badge>
+                        </div>
+                      )}
                       {item.variant && (
                         <Badge variant="secondary" className="mb-2">
                           Size: {item.variant}

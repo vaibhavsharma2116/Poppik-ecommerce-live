@@ -58,6 +58,10 @@ export default function ProductDetail() {
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [showAllShades, setShowAllShades] = useState(false);
   const [selectedShade, setSelectedShade] = useState<Shade | null>(null);
+
+  // Get shade ID from URL query parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const shadeIdFromUrl = urlParams.get('shade');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [canReview, setCanReview] = useState<{ canReview: boolean; orderId?: number; message: string }>({ canReview: false, message: "" });
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -226,13 +230,33 @@ export default function ProductDetail() {
     if (shadesFromAPI && Array.isArray(shadesFromAPI)) {
       console.log('Setting shades for product:', product?.id, shadesFromAPI);
       setShades(shadesFromAPI);
+
+      // Auto-select shade from URL if provided, otherwise select first shade
+      if (shadeIdFromUrl && !selectedShade) {
+        const shadeToSelect = shadesFromAPI.find(s => s.id === parseInt(shadeIdFromUrl));
+        if (shadeToSelect) {
+          setSelectedShade(shadeToSelect);
+          // Set the shade's image as selected image
+          if (shadeToSelect.imageUrl) {
+            setSelectedImageUrl(shadeToSelect.imageUrl);
+          }
+        }
+      } else if (shadesFromAPI.length > 0 && !selectedShade) {
+        // Auto-select first shade by default
+        const firstShade = shadesFromAPI[0];
+        setSelectedShade(firstShade);
+        // Set the shade's image as selected image
+        if (firstShade.imageUrl) {
+          setSelectedImageUrl(firstShade.imageUrl);
+        }
+      }
     } else {
       console.log('No shades available for product:', product?.id);
       setShades([]);
     }
-  }, [shadesFromAPI, product?.id]);
+  }, [shadesFromAPI, product?.id, shadeIdFromUrl]);
 
-  
+
 
   const toggleWishlist = () => {
     if (!product) return;
@@ -249,31 +273,47 @@ export default function ProductDetail() {
       return;
     }
 
-    const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
-    const existingIndex = wishlist.findIndex((item: any) => item.id === product.id);
+    try {
+      const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
+      const existingIndex = wishlist.findIndex((item: any) => item.id === product.id);
 
-    if (existingIndex >= 0) {
-      wishlist.splice(existingIndex, 1);
-      setIsInWishlist(false);
+      if (existingIndex >= 0) {
+        wishlist.splice(existingIndex, 1);
+        setIsInWishlist(false);
+        toast({
+          title: "Removed from Wishlist",
+          description: `${product.name} has been removed from your wishlist`,
+        });
+      } else {
+        // Only store essential data to prevent quota issues
+        const wishlistItem = {
+          id: product.id,
+          name: product.name.substring(0, 100), // Limit name length
+          price: `₹${product.price}`,
+          originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
+          image: product.imageUrl?.substring(0, 200) || '', // Limit image URL length
+          inStock: true,
+          category: product.category,
+          rating: product.rating,
+        };
+        wishlist.push(wishlistItem);
+        setIsInWishlist(true);
+        toast({
+          title: "Added to Wishlist",
+          description: `${product.name} has been added to your wishlist`,
+        });
+      }
 
-    } else {
-      const wishlistItem = {
-        id: product.id,
-        name: product.name,
-        price: `₹${product.price}`,
-        originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
-        image: product.imageUrl,
-        inStock: true,
-        category: product.category,
-        rating: product.rating,
-      };
-      wishlist.push(wishlistItem);
-      setIsInWishlist(true);
-
+      localStorage.setItem("wishlist", JSON.stringify(wishlist));
+      window.dispatchEvent(new Event("wishlistUpdated"));
+    } catch (error) {
+      console.error("Wishlist storage error:", error);
+      toast({
+        title: "Storage Error",
+        description: "Your wishlist is full. Please remove some items to add new ones.",
+        variant: "destructive",
+      });
     }
-
-    localStorage.setItem("wishlist", JSON.stringify(wishlist));
-    window.dispatchEvent(new Event("wishlistUpdated"));
   };
 
   const addToCart = () => {
@@ -318,6 +358,7 @@ export default function ProductDetail() {
   };
 
   const handleShadeSelect = (shade: Shade) => {
+    // Always update selected shade and its image, even if same shade is clicked again
     setSelectedShade(shade);
 
     // If shade has an image, set it as the selected image
@@ -329,8 +370,6 @@ export default function ProductDetail() {
         setSelectedImageUrl(imageUrls[0]);
       }
     }
-
-
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -434,10 +473,10 @@ export default function ProductDetail() {
   const shareToWhatsApp = () => {
     const url = window.location.href;
     const price = `₹${product?.price}`;
-    
+
     // WhatsApp will fetch Open Graph image from URL automatically
     const text = `🛍️ *${product?.name}*\n\n${product?.shortDescription || ''}\n\n💰 Price: ${price}\n\n✨ Check it out: ${url}`;
-    
+
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -519,7 +558,7 @@ export default function ProductDetail() {
       <Helmet>
         <title>{product?.name ? `${product.name} - Poppik Lifestyle` : 'Product - Poppik Lifestyle'}</title>
         <meta name="description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
-        
+
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="product" />
         <meta property="og:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
@@ -528,7 +567,7 @@ export default function ProductDetail() {
         <meta property="og:image" content={(() => {
           // Get the first available image - prioritize product images over selected shade
           let img = imageUrls[0] || product?.imageUrl || '/logo.png';
-          
+
           // If it's a relative path, make it absolute
           if (img && !img.startsWith('http')) {
             // Check if it starts with /api/
@@ -540,7 +579,7 @@ export default function ProductDetail() {
               img = `https://poppiklifestyle.com/${img}`;
             }
           }
-          
+
           return img;
         })()} />
         <meta property="og:image:secure_url" content={(() => {
@@ -560,7 +599,7 @@ export default function ProductDetail() {
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content={product?.name || 'Product Image'} />
         <meta property="og:image:type" content="image/jpeg" />
-        
+
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
@@ -569,7 +608,7 @@ export default function ProductDetail() {
         <meta name="twitter:image" content={(() => {
           // Get the first available image
           let img = imageUrls[0] || product?.imageUrl || '/logo.png';
-          
+
           // If it's a relative path, make it absolute
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/')) {
@@ -580,15 +619,15 @@ export default function ProductDetail() {
               img = `https://poppiklifestyle.com/${img}`;
             }
           }
-          
+
           return img;
         })()} />
         <meta name="twitter:image:alt" content={product?.name || 'Product Image'} />
-        
+
         {/* Product specific meta */}
         {product?.price && <meta property="product:price:amount" content={product.price.toString()} />}
         {product?.price && <meta property="product:price:currency" content="INR" />}
-        
+
         <link rel="canonical" href={`https://poppiklifestyle.com/product/${productSlug}`} />
       </Helmet>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-16">
@@ -635,11 +674,11 @@ export default function ProductDetail() {
                               if ((window as any).thumbnailClickInProgress) {
                                 return;
                               }
-                              
+
                               // Capture container reference before setTimeout
                               const container = e.currentTarget;
                               if (!container) return;
-                              
+
                               // Debounce scroll handler to avoid conflicts with click
                               clearTimeout((window as any).thumbnailScrollTimeout);
                               (window as any).thumbnailScrollTimeout = setTimeout(() => {
@@ -655,7 +694,7 @@ export default function ProductDetail() {
 
                                 // Check if scrolled to bottom
                                 const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 5;
-                                
+
                                 // Check if scrolled to top
                                 const isAtTop = scrollTop < 5;
 
@@ -697,31 +736,31 @@ export default function ProductDetail() {
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    
+
                                     // Set flag to prevent scroll handler from interfering
                                     (window as any).thumbnailClickInProgress = true;
-                                    
+
                                     // Immediately set the selected image
                                     setSelectedImageUrl(imageUrl);
-                                    
+
                                     // Center the clicked thumbnail in view
                                     const container = document.getElementById('thumbnail-container');
                                     if (container) {
                                       const itemHeight = 92; // 80px height + 12px gap
                                       const containerHeight = container.clientHeight;
                                       const scrollPosition = (index * itemHeight) - (containerHeight / 2) + (itemHeight / 2);
-                                      
+
                                       // Ensure scroll position is within valid range
                                       const maxScroll = container.scrollHeight - container.clientHeight;
                                       const targetScroll = Math.max(0, Math.min(scrollPosition, maxScroll));
-                                      
+
                                       // Use setTimeout to ensure state update happens first
                                       setTimeout(() => {
                                         container.scrollTo({
                                           top: targetScroll,
                                           behavior: 'smooth'
                                         });
-                                        
+
                                         // Clear the flag after scroll animation completes
                                         setTimeout(() => {
                                           (window as any).thumbnailClickInProgress = false;
@@ -790,10 +829,10 @@ export default function ProductDetail() {
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
-                                
+
                                 // Set flag to prevent scroll handler interference
                                 (window as any).thumbnailClickInProgress = true;
-                                
+
                                 const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
 
                                 // Circular navigation - if on first image, go to last
@@ -814,7 +853,7 @@ export default function ProductDetail() {
                                       behavior: 'smooth'
                                     });
                                   }
-                                  
+
                                   // Clear flag after animation
                                   setTimeout(() => {
                                     (window as any).thumbnailClickInProgress = false;
@@ -835,10 +874,10 @@ export default function ProductDetail() {
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
-                                
+
                                 // Set flag to prevent scroll handler interference
                                 (window as any).thumbnailClickInProgress = true;
-                                
+
                                 const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
 
                                 // Circular navigation - if on last image, go to first
@@ -868,7 +907,7 @@ export default function ProductDetail() {
                                   // Set image after a small delay to sync with scroll
                                   setTimeout(() => {
                                     setSelectedImageUrl(imageUrls[nextIndex]);
-                                    
+
                                     // Clear flag after complete
                                     setTimeout(() => {
                                       (window as any).thumbnailClickInProgress = false;
@@ -909,11 +948,7 @@ export default function ProductDetail() {
                         {/* Better video detection */}
                         {(() => {
                           const currentUrl = selectedImageUrl || imageUrls[0];
-                          const isVideo = currentUrl?.endsWith('.mp4') || 
-                                        currentUrl?.endsWith('.webm') || 
-                                        currentUrl?.endsWith('.mov') ||
-                                        currentUrl?.includes('video') ||
-                                        currentUrl?.match(/\.(mp4|webm|mov)(\?|$)/i);
+                          const isVideo = currentUrl?.match(/\.(mp4|webm|mov)(\?|$)/i);
 
                           if (isVideo) {
                             return (
@@ -1045,45 +1080,8 @@ export default function ProductDetail() {
                     )}
                   </label>
                 <div className="grid grid-cols-5 gap-3">
-                  {/* None/No Shade Option */}
-                  <div 
-                    className="flex flex-col items-center group cursor-pointer"
-                    onClick={() => {
-                      setSelectedShade(null);
-                      // Reset to original image when no shade is selected
-                      if (imageUrls.length > 0) {
-                        setSelectedImageUrl(imageUrls[0]);
-                      }
-                    }}
-                  >
-                    <div className="relative">
-                      {!selectedShade && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center z-10">
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
-                        </div>
-                      )}
-                      <div 
-                        className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl flex items-center justify-center ${
-                          !selectedShade
-                            ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105 bg-gray-100' 
-                            : 'border-gray-300 hover:border-purple-400 bg-gray-50'
-                        }`}
-                        title="No specific shade"
-                      >
-                        <span className="text-xs font-bold text-gray-600">None</span>
-                      </div>
-                    </div>
-                    <span className={`text-xs mt-2 text-center leading-tight transition-colors ${
-                      !selectedShade
-                        ? 'text-purple-700 font-semibold' 
-                        : 'text-gray-600 group-hover:text-purple-600'
-                    }`}>
-                      Default
-                    </span>
-                  </div>
-
                   {(() => {
-                    const shadesToShow = showAllShades ? shades : shades.slice(0, 4);
+                    const shadesToShow = showAllShades ? shades : shades.slice(0, 5);
 
                     return shadesToShow.map((shade) => (
                       <div 
@@ -1133,7 +1131,7 @@ export default function ProductDetail() {
                 </div>
 
                 {/* View All Button */}
-                {!showAllShades && shades.length > 3 && (
+                {!showAllShades && shades.length > 5 && (
                   <div className="text-center">
                     <Button
                       variant="outline"
@@ -1148,7 +1146,7 @@ export default function ProductDetail() {
                 )}
 
                 {/* Show Less Button */}
-                {showAllShades && shades.length > 3 && (
+                {showAllShades && shades.length > 5 && (
                   <div className="text-center">
                     <Button
                       variant="outline"
@@ -1162,9 +1160,17 @@ export default function ProductDetail() {
                   </div>
                 )}
 
-                <p className="text-sm text-gray-500 mt-3">
-                    💡 Click on a shade to select it. Not sure about your shade? Our beauty experts can help you find the perfect match!
-                  </p>
+                {/* Only show warning if no shade is selected */}
+                {!selectedShade && (
+                  <>
+                    <p className="text-sm text-red-500 font-semibold mt-3">
+                      ⚠️ Please select a shade before adding to cart
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      💡 Not sure about your shade? Our beauty experts can help you find the perfect match!
+                    </p>
+                  </>
+                )}
                 </div>
               )}
 
@@ -1180,7 +1186,12 @@ export default function ProductDetail() {
               <div className="flex product-detail-buttons sm:flex-row sm:space-x-4 sm:space-y-0 mb-4 sm:mb-6">
                 {product.inStock ? (
                   <>
-                    <Button size="lg" className="product-detail-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200" onClick={addToCart}>
+                    <Button 
+                      size="lg" 
+                      className="product-detail-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
+                      onClick={addToCart}
+                      disabled={shades.length > 0 && !selectedShade}
+                    >
                       <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                       Add to Cart
                     </Button>
@@ -1216,7 +1227,7 @@ export default function ProductDetail() {
                         onClick={shareToWhatsApp}
                       >
                         <svg className="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                         </svg>
                         WhatsApp
                       </Button>

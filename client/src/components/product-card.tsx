@@ -5,7 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import type { Product } from "@/lib/types";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+interface Shade {
+  id: number;
+  name: string;
+  colorCode: string;
+  imageUrl?: string;
+  isActive: boolean;
+}
 
 interface ProductCardProps {
   product: Product;
@@ -16,7 +26,57 @@ interface ProductCardProps {
 export default function ProductCard({ product, className = "", viewMode = 'grid' }: ProductCardProps) {
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [selectedShade, setSelectedShade] = useState<Shade | null>(null);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+
+  // Fetch product shades
+  const { data: productShades = [] } = useQuery<Shade[]>({
+    queryKey: [`/api/products/${product?.id}/shades`],
+    queryFn: async () => {
+      if (!product?.id) return [];
+      const response = await fetch(`/api/products/${product.id}/shades`);
+      if (!response.ok) return [];
+      const shades = await response.json();
+      return shades.filter((shade: Shade) => 
+        shade.isActive && shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(product.id)
+      );
+    },
+    enabled: !!product?.id,
+  });
+
+  // Auto-select first shade when shades are loaded (but don't show shade image in card)
+  // Also check if shade was previously selected from URL or localStorage
+  useEffect(() => {
+    if (productShades.length > 0) {
+      // Check if there's a previously selected shade from URL or localStorage
+      const urlParams = new URLSearchParams(window.location.search);
+      const shadeIdFromUrl = urlParams.get('shade');
+      const storedShadeKey = `selectedShade_${product?.id}`;
+      const storedShadeId = localStorage.getItem(storedShadeKey);
+      
+      if (shadeIdFromUrl) {
+        const shadeToSelect = productShades.find(s => s.id === parseInt(shadeIdFromUrl));
+        if (shadeToSelect) {
+          setSelectedShade(shadeToSelect);
+          localStorage.setItem(storedShadeKey, shadeToSelect.id.toString());
+          return;
+        }
+      } else if (storedShadeId) {
+        const shadeToSelect = productShades.find(s => s.id === parseInt(storedShadeId));
+        if (shadeToSelect) {
+          setSelectedShade(shadeToSelect);
+          return;
+        }
+      }
+      
+      // Default to first shade if no previous selection
+      if (!selectedShade) {
+        setSelectedShade(productShades[0]);
+        localStorage.setItem(storedShadeKey, productShades[0].id.toString());
+      }
+    }
+  }, [productShades, product?.id]);
 
   // Check if product is in wishlist
   useEffect(() => {
@@ -43,33 +103,48 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       return;
     }
 
-    const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
-    const existingIndex = wishlist.findIndex((item: any) => item.id === product.id);
+    try {
+      const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
+      const existingIndex = wishlist.findIndex((item: any) => item.id === product.id);
 
-    if (existingIndex >= 0) {
-      // Remove from wishlist
-      wishlist.splice(existingIndex, 1);
-      setIsInWishlist(false);
+      if (existingIndex >= 0) {
+        // Remove from wishlist
+        wishlist.splice(existingIndex, 1);
+        setIsInWishlist(false);
+        toast({
+          title: "Removed from Wishlist",
+          description: `${product.name} has been removed from your wishlist`,
+        });
+      } else {
+        // Add to wishlist - only store essential data
+        const wishlistItem = {
+          id: product.id,
+          name: product.name.substring(0, 100), // Limit name length
+          price: `₹${product.price}`,
+          originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
+          image: product.imageUrl?.substring(0, 200) || '', // Limit image URL length
+          inStock: true,
+          category: product.category,
+          rating: product.rating,
+        };
+        wishlist.push(wishlistItem);
+        setIsInWishlist(true);
+        toast({
+          title: "Added to Wishlist",
+          description: `${product.name} has been added to your wishlist`,
+        });
+      }
 
-    } else {
-      // Add to wishlist
-      const wishlistItem = {
-        id: product.id,
-        name: product.name,
-        price: `₹${product.price}`,
-        originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
-        image: product.imageUrl,
-        inStock: true,
-        category: product.category,
-        rating: product.rating,
-      };
-      wishlist.push(wishlistItem);
-      setIsInWishlist(true);
-
+      localStorage.setItem("wishlist", JSON.stringify(wishlist));
+      window.dispatchEvent(new Event("wishlistUpdated"));
+    } catch (error) {
+      console.error("Wishlist storage error:", error);
+      toast({
+        title: "Storage Error",
+        description: "Your wishlist is full. Please remove some items to add new ones.",
+        variant: "destructive",
+      });
     }
-
-    localStorage.setItem("wishlist", JSON.stringify(wishlist));
-    window.dispatchEvent(new Event("wishlistUpdated"));
   };
 
   const addToCart = (e: React.MouseEvent) => {
@@ -77,27 +152,41 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     e.stopPropagation();
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    const existingItem = cart.find((cartItem: any) => cartItem.id === product.id);
+
+    // Create unique item key based on product and shade
+    const itemKey = selectedShade ? `${product.id}-${selectedShade.id}` : `${product.id}`;
+    const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
 
     if (existingItem) {
       existingItem.quantity += 1;
-
     } else {
       cart.push({
         id: product.id,
+        itemKey,
         name: product.name,
         price: `₹${product.price}`,
         originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
-        image: product.imageUrl,
+        image: selectedShade?.imageUrl || product.imageUrl,
         quantity: 1,
-        inStock: true
+        inStock: true,
+        selectedShade: selectedShade ? {
+          id: selectedShade.id,
+          name: selectedShade.name,
+          colorCode: selectedShade.colorCode,
+          imageUrl: selectedShade.imageUrl
+        } : null
       });
-
     }
 
     localStorage.setItem("cart", JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
+
+    const shadeText = selectedShade ? ` (${selectedShade.name})` : '';
+    toast({
+      title: "Added to Cart",
+      description: `${product.name}${shadeText} has been added to your cart`,
+    });
   };
 
   // Use admin-calculated discount or calculate if not available
@@ -175,6 +264,58 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
             </div>
           </Link>
+
+          {/* Product Shades Display for List View - Color circles only */}
+          {productShades.length > 0 && (
+            <div className="px-3 py-2 bg-white border-t border-gray-100 rounded-b-lg">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-purple-600">
+                  {productShades.length} Shades Available
+                </span>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                {productShades.slice(0, 8).map((shade) => (
+                  <Link 
+                    key={shade.id} 
+                    href={`/product/${product.slug}?shade=${shade.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedShade(shade);
+                      // Store selected shade in localStorage for persistence
+                      localStorage.setItem(`selectedShade_${product.id}`, shade.id.toString());
+                    }}
+                  >
+                    <div
+                      className="flex-shrink-0 cursor-pointer"
+                      title={shade.name}
+                    >
+                      <div className="relative p-0.5 group/shade">
+                        {/* Outer Ring - Shows on both hover and selection */}
+                        {selectedShade?.id === shade.id ? (
+                          <div className="absolute -inset-1 rounded-full ring-3 ring-purple-600 ring-offset-2 bg-transparent"></div>
+                        ) : (
+                          <div className="absolute -inset-1 rounded-full ring-2 ring-gray-400 ring-offset-2 bg-transparent opacity-0 group-hover/shade:opacity-100 transition-opacity duration-200"></div>
+                        )}
+                        <div
+                          className={`w-7 h-7 rounded-full transition-all ${
+                            selectedShade?.id === shade.id 
+                              ? 'border-2 border-white shadow-xl scale-110 ring-2 ring-purple-600' 
+                              : 'border-2 border-gray-300 hover:border-purple-400 hover:scale-105 hover:shadow-lg'
+                          }`}
+                          style={{ backgroundColor: shade.colorCode }}
+                        />
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+                {productShades.length > 8 && (
+                  <Link href={`/product/${product.slug}`}>
+                    <span className="text-xs text-gray-500 font-medium ml-1 cursor-pointer hover:text-purple-600">+{productShades.length - 8}</span>
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 p-6 flex flex-col justify-between bg-gradient-to-br from-white via-pink-25 to-purple-25">
@@ -339,17 +480,55 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             />
             <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
             <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
-
-            {/* Shade indicator if product has shades */}
-            {(product.variants?.colors || product.variants?.shades) && (
-              <div className="absolute bottom-2 left-2 flex space-x-1">
-                {[1,2,3].map((i) => (
-                  <div key={i} className="w-2 h-2 rounded-full bg-white/70 border border-gray-300"></div>
-                ))}
-              </div>
-            )}
           </div>
         </Link>
+
+        {/* Product Shades Display - Color circles only */}
+        {productShades.length > 0 && (
+          <div className="px-2 py-2 bg-white border-t border-gray-100">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+              {productShades.slice(0, 6).map((shade) => (
+                <Link 
+                  key={shade.id} 
+                  href={`/product/${product.slug}?shade=${shade.id}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedShade(shade);
+                    // Store selected shade in localStorage for persistence
+                    localStorage.setItem(`selectedShade_${product.id}`, shade.id.toString());
+                  }}
+                >
+                  <div
+                    className="flex-shrink-0 cursor-pointer"
+                    title={shade.name}
+                  >
+                    <div className="relative p-0.5 group/shade">
+                      {/* Outer Ring - Shows on both hover and selection */}
+                      {selectedShade?.id === shade.id ? (
+                        <div className="absolute -inset-1 rounded-full ring-3 ring-purple-600 ring-offset-2 bg-transparent"></div>
+                      ) : (
+                        <div className="absolute -inset-1 rounded-full ring-2 ring-gray-400 ring-offset-2 bg-transparent opacity-0 group-hover/shade:opacity-100 transition-opacity duration-200"></div>
+                      )}
+                      <div
+                        className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full transition-all ${
+                          selectedShade?.id === shade.id 
+                            ? 'border-2 border-white shadow-xl scale-110 ring-2 ring-purple-600' 
+                            : 'border-2 border-gray-300 hover:border-purple-400 hover:scale-105 hover:shadow-lg'
+                        }`}
+                        style={{ backgroundColor: shade.colorCode }}
+                      />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+              {productShades.length > 6 && (
+                <Link href={`/product/${product.slug}`}>
+                  <span className="text-xs text-gray-500 font-medium ml-1 cursor-pointer hover:text-purple-600">+{productShades.length - 6}</span>
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mobile-product-content p-2 sm:p-3 md:p-4 lg:p-5 space-y-1 sm:space-y-2 md:space-y-3 bg-white">

@@ -106,19 +106,36 @@ export default function ComboDetail() {
       wishlist.splice(existingIndex, 1);
       setIsInWishlist(false);
     } else {
-      wishlist.push({
+      const wishlistItem = {
         id: combo.id,
-        name: combo.name,
+        name: combo.name.substring(0, 100), // Limit name length
         price: `₹${combo.price}`,
         originalPrice: combo.originalPrice ? `₹${combo.originalPrice}` : undefined,
-        image: combo.imageUrl,
+        image: combo.imageUrl?.substring(0, 200) || '', // Limit image URL length
         inStock: true,
-        isCombo: true,
-      });
+        category: 'combo',
+        rating: '5.0',
+      };
+      wishlist.push(wishlistItem);
       setIsInWishlist(true);
     }
 
-    localStorage.setItem("wishlist", JSON.stringify(wishlist));
+    try {
+      localStorage.setItem("wishlist", JSON.stringify(wishlist));
+    } catch (error) {
+      console.error("Wishlist storage error:", error);
+      toast({
+        title: "Storage Error",
+        description: "Your wishlist is full. Please remove some items to add new ones.",
+        variant: "destructive",
+      });
+      // Revert the change if storage failed
+      if (existingIndex < 0) {
+        wishlist.pop();
+        setIsInWishlist(false);
+      }
+      return;
+    }
     window.dispatchEvent(new Event("wishlistUpdated"));
   };
 
@@ -374,11 +391,11 @@ export default function ComboDetail() {
                               if ((window as any).thumbnailClickInProgress) {
                                 return;
                               }
-                              
+
                               // Capture container reference before setTimeout
                               const container = e.currentTarget;
                               if (!container) return;
-                              
+
                               // Debounce scroll handler to avoid conflicts with click
                               clearTimeout((window as any).thumbnailScrollTimeout);
                               (window as any).thumbnailScrollTimeout = setTimeout(() => {
@@ -394,7 +411,7 @@ export default function ComboDetail() {
 
                                 // Check if scrolled to bottom
                                 const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 5;
-                                
+
                                 // Check if scrolled to top
                                 const isAtTop = scrollTop < 5;
 
@@ -428,31 +445,31 @@ export default function ComboDetail() {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  
+
                                   // Set flag to prevent scroll handler from interfering
                                   (window as any).thumbnailClickInProgress = true;
-                                  
+
                                   // Immediately set the selected item
                                   setCurrentImageIndex(index);
-                                  
+
                                   // Center the clicked thumbnail in view
                                   const container = document.getElementById('thumbnail-container');
                                   if (container) {
                                     const itemHeight = 92; // 80px height + 12px gap
                                     const containerHeight = container.clientHeight;
                                     const scrollPosition = (index * itemHeight) - (containerHeight / 2) + (itemHeight / 2);
-                                    
+
                                     // Ensure scroll position is within valid range
                                     const maxScroll = container.scrollHeight - container.clientHeight;
                                     const targetScroll = Math.max(0, Math.min(scrollPosition, maxScroll));
-                                    
+
                                     // Use setTimeout to ensure state update happens first
                                     setTimeout(() => {
                                       container.scrollTo({
                                         top: targetScroll,
                                         behavior: 'smooth'
                                       });
-                                      
+
                                       // Clear the flag after scroll animation completes
                                       setTimeout(() => {
                                         (window as any).thumbnailClickInProgress = false;
@@ -515,7 +532,7 @@ export default function ComboDetail() {
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
-                                
+
                                 // Set flag to prevent scroll handler interference
                                 (window as any).thumbnailClickInProgress = true;
 
@@ -537,7 +554,7 @@ export default function ComboDetail() {
                                       behavior: 'smooth'
                                     });
                                   }
-                                  
+
                                   // Clear flag after animation
                                   setTimeout(() => {
                                     (window as any).thumbnailClickInProgress = false;
@@ -558,7 +575,7 @@ export default function ComboDetail() {
                             <button
                               onClick={(e) => {
                                 e.preventDefault();
-                                
+
                                 // Set flag to prevent scroll handler interference
                                 (window as any).thumbnailClickInProgress = true;
 
@@ -589,7 +606,7 @@ export default function ComboDetail() {
                                   // Set item after a small delay to sync with scroll
                                   setTimeout(() => {
                                     setCurrentImageIndex(nextIndex);
-                                    
+
                                     // Clear flag after complete
                                     setTimeout(() => {
                                       (window as any).thumbnailClickInProgress = false;
