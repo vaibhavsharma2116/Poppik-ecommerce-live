@@ -1,24 +1,17 @@
 
-import { useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Check, ChevronDown, Gift, TrendingUp, Users, Sparkles, Award, Target } from "lucide-react";
+import { Gift, TrendingUp, Users, Sparkles, Award, Target } from "lucide-react";
 
 export default function AffiliatePage() {
-  const { toast } = useToast();
-  const [formData, setFormData] = useState({
-   
-  });
+  const [, setLocation] = useLocation();
 
- 
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with Peach Background */}
@@ -51,11 +44,12 @@ export default function AffiliatePage() {
                 <p className="text-sm xs:text-base text-gray-700 leading-relaxed">
                   Whether you're a makeup artist, beauty enthusiast, or lifestyle creator, we want to work with you. Get exclusive access to our products, create authentic content, and be part of a brand that celebrates beauty in all its forms!
                 </p>
-                  <Button 
-                    className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-6 xs:px-8 py-4 xs:py-6 text-base xs:text-lg rounded-full mt-4 w-full sm:w-auto"
-                  >
-                    APPLY NOW
-                  </Button>
+                <Button 
+                  onClick={() => setLocation("/affiliate-application")}
+                  className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-6 xs:px-8 py-4 xs:py-6 text-base xs:text-lg rounded-full mt-4 w-full sm:w-auto"
+                >
+                  APPLY NOW
+                </Button>
               </div>
             </div>
           </div>
@@ -203,7 +197,7 @@ export default function AffiliatePage() {
             Ready to start your journey with Poppik? We'd love to hear from you!
           </p>
           <Button 
-            onClick={() => window.open('https://forms.gle/XMttjRBYg5wzMHKw7', '_blank')}
+            onClick={() => setLocation("/affiliate-application")}
             className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-8 py-6 text-lg rounded-full"
           >
             APPLY FOR AFFILIATE PROGRAM
@@ -305,7 +299,7 @@ export default function AffiliatePage() {
                 Can international affiliates apply?
               </AccordionTrigger>
               <AccordionContent className="text-gray-700">
-               We're currently collaborating primarily with Indian creators as part of our core focus. However, we’re excited to expand globally!
+               We're currently collaborating primarily with Indian creators as part of our core focus. However, we're excited to expand globally!
 International affiliates are welcome to apply — collaborations will be evaluated based on audience relevance and shipping feasibility.
               </AccordionContent>
             </AccordionItem>

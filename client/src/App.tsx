@@ -49,6 +49,8 @@ import JobApplications from "@/pages/admin/job-applications";
 import AdminStores from "@/pages/admin/stores";
 import InfluencerCollab from "@/pages/influencer-collab";
 import ChannelPartnerPage from "@/pages/channel-partner";
+import AffiliatePage from "@/pages/affiliate";
+import AffiliateApplicationPage from "@/pages/affiliate-application";
 const AcademyPage = lazy(() => import("./pages/academy"));
 const DropShippingPage = lazy(() => import("./pages/drop-shipping"));
 const MakeupStudio = lazy(() => import("./pages/makeup-studio"));
@@ -252,6 +254,7 @@ function Router() {
                 </Suspense>
               );
             }} />
+            <Route path="/affiliate-application" component={AffiliateApplicationPage} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

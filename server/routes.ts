@@ -5294,6 +5294,212 @@ Poppik Career Portal
 
   // Admin job applications endpoints removed - applications now sent directly to HR email
 
+  // Affiliate Applications Routes
+
+  // Submit affiliate application (public)
+  app.post('/api/affiliate-applications', async (req, res) => {
+    try {
+      const { 
+        firstName, 
+        lastName, 
+        email, 
+        phone,
+        address,
+        city,
+        state,
+        pincode,
+        instagramHandle,
+        instagramFollowers,
+        youtubeChannel,
+        youtubeSubscribers,
+        tiktokHandle,
+        facebookProfile,
+        contentNiche,
+        avgEngagementRate,
+        whyJoin
+      } = req.body;
+
+      // Validate required fields
+      if (!firstName || !lastName || !email || !phone || !address || !instagramHandle || !instagramFollowers || !whyJoin) {
+        return res.status(400).json({ error: 'All required fields must be provided' });
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
+      }
+
+      // Save to database first
+      const savedApplication = await db.insert(schema.affiliateApplications).values({
+        firstName,
+        lastName,
+        email,
+        phone,
+        address,
+        city,
+        state,
+        pincode,
+        instagramHandle,
+        instagramFollowers,
+        youtubeChannel,
+        youtubeSubscribers,
+        tiktokHandle,
+        facebookProfile,
+        contentNiche,
+        avgEngagementRate,
+        whyJoin,
+        status: 'pending' // Default status
+      }).returning();
+
+      console.log('Affiliate application saved to DB:', savedApplication[0].id);
+
+      // For now, just send email notification to admin
+      const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
+
+      const emailSubject = `New Affiliate Application - ${firstName} ${lastName}`;
+      const emailBody = `
+Dear Admin,
+
+A new affiliate application has been received.
+
+APPLICANT DETAILS:
+------------------
+Application ID: #${savedApplication.id}
+Name: ${firstName} ${lastName}
+Email: ${email}
+Phone: ${phone}
+Address: ${address}, ${city}, ${state} - ${pincode}
+
+SOCIAL MEDIA:
+-------------
+Instagram: ${instagramHandle} (${instagramFollowers} followers)
+YouTube: ${youtubeChannel || 'Not provided'} (${youtubeSubscribers || 0} subscribers)
+TikTok: ${tiktokHandle || 'Not provided'}
+Facebook: ${facebookProfile || 'Not provided'}
+
+CONTENT DETAILS:
+----------------
+Niche: ${contentNiche || 'Not specified'}
+Avg Engagement Rate: ${avgEngagementRate || 'Not specified'}
+
+WHY JOIN POPPIK:
+----------------
+${whyJoin}
+
+Please review this application in the admin panel at:
+${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/admin/influencer-applications` : 'Admin Panel'}
+
+Best regards,
+Poppik Affiliate Portal
+      `;
+
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #e74c3c;">New Affiliate Application #${savedApplication.id}</h2>
+
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #333;">Application Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Application ID:</td>
+                <td style="padding: 8px;">#${savedApplication.id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Name:</td>
+                <td style="padding: 8px;">${firstName} ${lastName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Email:</td>
+                <td style="padding: 8px;">${email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Phone:</td>
+                <td style="padding: 8px;">${phone}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Address:</td>
+                <td style="padding: 8px;">${address}, ${city}, ${state} - ${pincode}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #333;">Social Media</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Instagram:</td>
+                <td style="padding: 8px;">${instagramHandle} (${instagramFollowers} followers)</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">YouTube:</td>
+                <td style="padding: 8px;">${youtubeChannel || 'Not provided'} (${youtubeSubscribers || 0} subscribers)</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">TikTok:</td>
+                <td style="padding: 8px;">${tiktokHandle || 'Not provided'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Facebook:</td>
+                <td style="padding: 8px;">${facebookProfile || 'Not provided'}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #333;">Content Details</h3>
+            <p><strong>Niche:</strong> ${contentNiche || 'Not specified'}</p>
+            <p><strong>Avg Engagement Rate:</strong> ${avgEngagementRate || 'Not specified'}</p>
+          </div>
+
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #333;">Why Join Poppik</h3>
+            <p style="white-space: pre-wrap;">${whyJoin}</p>
+          </div>
+        </div>
+      `;
+
+      console.log('Sending affiliate application email to:', HR_EMAIL);
+
+      try {
+        // Send email notification
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'affiliates@poppik.in',
+          to: HR_EMAIL,
+          subject: emailSubject,
+          text: emailBody,
+          html: emailHtml
+        });
+
+        console.log('✅ Affiliate application email sent successfully');
+
+        res.json({
+          success: true,
+          message: 'Application submitted successfully! Our team will review your application and get back to you within 5-7 business days.',
+          applicationId: savedApplication.id
+        });
+
+      } catch (emailError) {
+        console.error('❌ Failed to send affiliate application email:', emailError);
+
+        // Still return success to user since application was saved to database
+        res.json({
+          success: true,
+          message: 'Application submitted successfully! Our team will review your application and get back to you within 5-7 business days.',
+          applicationId: savedApplication.id,
+          emailSent: false
+        });
+      }
+
+    } catch (error) {
+      console.error('Error submitting affiliate application:', error);
+      res.status(500).json({ 
+        error: 'Failed to submit application',
+        details: error.message 
+      });
+    }
+  });
+
   // Influencer Applications Routes
 
   // Submit influencer application (public)

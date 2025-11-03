@@ -2061,11 +2061,19 @@ export class DatabaseStorage implements IStorage {
   // Influencer Applications
   async createInfluencerApplication(data: any) {
     const applicationData = {
-      fullName: data.fullName,
+      firstName: data.firstName,
+      lastName: data.lastName,
       email: data.email,
-      mobile: data.mobile,
+      contactNumber: data.contactNumber,
+      fullAddress: data.fullAddress,
+      landmark: data.landmark || null,
       city: data.city,
+      pinCode: data.pinCode,
       state: data.state,
+      country: data.country,
+      instagramProfile: data.instagramProfile || null,
+      youtubeChannel: data.youtubeChannel || null,
+      facebookProfile: data.facebookProfile || null,
       status: data.status || 'pending'
     };
     const [application] = await db.insert(influencerApplications).values(applicationData).returning();
