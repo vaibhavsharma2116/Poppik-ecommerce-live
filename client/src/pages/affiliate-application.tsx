@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ export default function AffiliateApplicationPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -32,6 +32,56 @@ export default function AffiliateApplicationPage() {
     whyJoin: "",
   });
 
+  useEffect(() => {
+    const checkAuthAndApplication = async () => {
+      // Check if user is logged in
+      const userData = localStorage.getItem("user");
+      if (!userData) {
+        // Redirect to signup if not logged in
+        toast({
+          title: "Login Required",
+          description: "Please sign up or login to apply for affiliate program",
+          variant: "destructive",
+        });
+        setLocation("/auth/signup");
+        return;
+      }
+
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+
+      // Check if user already has an application
+      try {
+        const response = await fetch(`/api/affiliate/my-application?userId=${parsedUser.id}`);
+        if (response.ok) {
+          const application = await response.json();
+          if (application) {
+            toast({
+              title: "Application Already Exists",
+              description: `Your application status is: ${application.status}`,
+              variant: "default",
+            });
+            setLocation("/affiliate");
+            return;
+          }
+        }
+      } catch (error) {
+        console.log("No existing application found");
+      }
+
+      // Pre-fill form with user data
+      setFormData((prev) => ({
+        ...prev,
+        firstName: parsedUser.firstName || "",
+        lastName: parsedUser.lastName || "",
+        email: parsedUser.email || "",
+        phone: parsedUser.phone || "",
+      }));
+    };
+
+    checkAuthAndApplication();
+  }, [setLocation, toast]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -39,6 +89,17 @@ export default function AffiliateApplicationPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user || !user.id) {
+      toast({
+        title: "Error",
+        description: "User not authenticated. Please login first.",
+        variant: "destructive",
+      });
+      setLocation("/auth/signup");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -47,30 +108,58 @@ export default function AffiliateApplicationPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          userId: user.id,
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
         toast({
-          title: "Application Submitted Successfully!",
-          description: "We'll review your application and get back to you within 5-7 business days.",
+          title: "Success!",
+          description: data.message || "Application submitted successfully! We will review your application and get back to you within 5-7 business days.",
         });
-        setLocation("/affiliate");
+
+        // Store application data in localStorage temporarily
+        localStorage.setItem('pendingAffiliateApplication', JSON.stringify({
+          status: 'pending',
+          submittedAt: new Date().toISOString(),
+          applicationId: data.applicationId
+        }));
+
+        // Redirect to affiliate page after short delay to ensure DB commit
+        setTimeout(() => {
+          setLocation("/affiliate");
+        }, 1500);
       } else {
-        throw new Error(data.error || "Failed to submit application");
+        toast({
+          title: "Error",
+          description: data.error || "Failed to submit application",
+          variant: "destructive",
+        });
       }
-    } catch (error: any) {
+    } catch (error) {
+      console.error("Error submitting application:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to submit application. Please try again.",
+        description: "An error occurred while submitting your application",
         variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Show loading while checking authentication
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-pink-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-red-50 py-12">
@@ -98,7 +187,7 @@ export default function AffiliateApplicationPage() {
             {/* Personal Information */}
             <div className="space-y-4">
               <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">Personal Information</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">First Name *</Label>
@@ -135,6 +224,7 @@ export default function AffiliateApplicationPage() {
                     onChange={handleInputChange}
                     required
                     placeholder="your.email@example.com"
+                    disabled
                   />
                 </div>
                 <div>
@@ -203,7 +293,7 @@ export default function AffiliateApplicationPage() {
             {/* Social Media Information */}
             <div className="space-y-4">
               <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">Social Media Profiles</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="instagramHandle">Instagram Handle *</Label>
@@ -283,7 +373,7 @@ export default function AffiliateApplicationPage() {
             {/* Additional Information */}
             <div className="space-y-4">
               <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">Content & Engagement</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="contentNiche">Content *</Label>

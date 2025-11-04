@@ -147,6 +147,12 @@ const sidebarItems = [
     badge: null,
   },
   {
+    title: "Affiliate Applications",
+    href: "/affiliate-applications",
+    icon: Users,
+    badge: null,
+  },
+  {
     title: "Settings",
     href: "/settings",
     icon: Settings,

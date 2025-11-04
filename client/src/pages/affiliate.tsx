@@ -1,5 +1,6 @@
-
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -11,6 +12,86 @@ import { Gift, TrendingUp, Users, Sparkles, Award, Target } from "lucide-react";
 
 export default function AffiliatePage() {
   const [, setLocation] = useLocation();
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  // Check if user has approved affiliate application
+  const { data: application, isLoading } = useQuery({
+    queryKey: ["/api/affiliate/my-application", user.id],
+    queryFn: async () => {
+      if (!user.id) return null;
+      const res = await fetch(`/api/affiliate/my-application?userId=${user.id}`);
+      if (!res.ok) {
+        console.log('Failed to fetch application, checking localStorage');
+        // Check localStorage for pending application
+        const pending = localStorage.getItem('pendingAffiliateApplication');
+        if (pending) {
+          const pendingApp = JSON.parse(pending);
+          // Only use if submitted within last 24 hours
+          const submittedTime = new Date(pendingApp.submittedAt).getTime();
+          if (Date.now() - submittedTime < 24 * 60 * 60 * 1000) {
+            return pendingApp;
+          } else {
+            localStorage.removeItem('pendingAffiliateApplication');
+          }
+        }
+        return null;
+      }
+      // Clear localStorage if we got data from server
+      localStorage.removeItem('pendingAffiliateApplication');
+      const data = await res.json();
+      console.log('Application data received:', data);
+      return data;
+    },
+    enabled: !!user.id,
+    retry: 1,
+    retryDelay: 1000,
+  });
+
+  // Redirect to dashboard if approved
+  useEffect(() => {
+    console.log('Checking application status:', application);
+    if (application) {
+      console.log('Application status:', application.status);
+      const status = application.status?.toLowerCase();
+      if (status === "approved") {
+        console.log('Redirecting to affiliate dashboard');
+        // Clear localStorage before redirect
+        localStorage.removeItem('pendingAffiliateApplication');
+        setLocation("/affiliate-dashboard");
+      }
+    }
+  }, [application, setLocation]);
+
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-red-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If approved, show dashboard link (this part will be skipped due to useEffect redirect)
+  if (application && application.status === "approved") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-red-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold mb-4">Welcome Back, Affiliate!</h1>
+          <p className="text-gray-600 mb-8">You're already an approved affiliate</p>
+          <Button
+            onClick={() => setLocation("/affiliate-dashboard")}
+            className="bg-pink-600 hover:bg-pink-700"
+          >
+            Go to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -26,7 +107,7 @@ export default function AffiliatePage() {
                 className="rounded-3xl shadow-2xl w-full"
               />
             </div>
-            
+
             {/* Content - Shows second on mobile, first on desktop */}
             <div className="text-left order-2 md:order-1">
               <h1 className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 mb-3 xs:mb-4 sm:mb-5 md:mb-6 leading-tight">
@@ -44,12 +125,46 @@ export default function AffiliatePage() {
                 <p className="text-sm xs:text-base text-gray-700 leading-relaxed">
                   Whether you're a makeup artist, beauty enthusiast, or lifestyle creator, we want to work with you. Get exclusive access to our products, create authentic content, and be part of a brand that celebrates beauty in all its forms!
                 </p>
-                <Button 
-                  onClick={() => setLocation("/affiliate-application")}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-6 xs:px-8 py-4 xs:py-6 text-base xs:text-lg rounded-full mt-4 w-full sm:w-auto"
-                >
-                  APPLY NOW
-                </Button>
+                {!application ? (
+                  <Button
+                    onClick={() => setLocation("/affiliate-application")}
+                    className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-6 xs:px-8 py-4 xs:py-6 text-base xs:text-lg rounded-full mt-4 w-full sm:w-auto"
+                  >
+                    APPLY NOW
+                  </Button>
+                ) : (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800 mb-2">
+                      <strong>Application Status:</strong> {
+                        !application.status || application.status === 'pending'
+                          ? 'Pending Review'
+                          : application.status === 'approved'
+                            ? 'Approved'
+                            : application.status === 'rejected'
+                              ? 'Not Approved'
+                              : 'Under Review'
+                      }
+                    </p>
+                    {(!application.status || application.status === 'pending') && (
+                      <p className="text-xs text-blue-600">
+                        Thank you for applying! We will review your application and get back to you within 5-7 business days.
+                      </p>
+                    )}
+                    {application.status === 'approved' && (
+                      <Button
+                        onClick={() => setLocation("/affiliate-dashboard")}
+                        className="bg-green-600 hover:bg-green-700 text-white mt-3"
+                      >
+                        Go to Dashboard
+                      </Button>
+                    )}
+                    {application.status === 'rejected' && (
+                      <p className="text-xs text-red-600 mt-2">
+                        Unfortunately, your application was not approved at this time. You may reapply after 3 months.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -133,7 +248,7 @@ export default function AffiliatePage() {
                 />
               </div>
             </div>
-            
+
             {/* Content - Second on mobile */}
             <div className="order-2 md:order-1">
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">
@@ -173,7 +288,7 @@ export default function AffiliatePage() {
                 />
               </div>
             </div>
-            
+
             {/* Content - Second on mobile */}
             <div className="order-2">
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">
@@ -196,7 +311,7 @@ export default function AffiliatePage() {
           <p className="text-lg text-gray-700 mb-6">
             Ready to start your journey with Poppik? We'd love to hear from you!
           </p>
-          <Button 
+          <Button
             onClick={() => setLocation("/affiliate-application")}
             className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-8 py-6 text-lg rounded-full"
           >
@@ -211,7 +326,7 @@ export default function AffiliatePage() {
           <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-12">
             Affiliate Program FAQs
           </h2>
-          
+
           <Accordion type="single" collapsible className="space-y-4">
             <AccordionItem value="item-1" className="bg-white border rounded-lg px-6">
               <AccordionTrigger className="text-left font-semibold text-gray-900">

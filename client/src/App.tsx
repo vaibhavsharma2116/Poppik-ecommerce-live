@@ -51,6 +51,8 @@ import InfluencerCollab from "@/pages/influencer-collab";
 import ChannelPartnerPage from "@/pages/channel-partner";
 import AffiliatePage from "@/pages/affiliate";
 import AffiliateApplicationPage from "@/pages/affiliate-application";
+import AdminInfluencerApplications from './pages/admin/influencer-applications';
+import AdminAffiliateApplications from './pages/admin/affiliate-applications';
 const AcademyPage = lazy(() => import("./pages/academy"));
 const DropShippingPage = lazy(() => import("./pages/drop-shipping"));
 const MakeupStudio = lazy(() => import("./pages/makeup-studio"));
@@ -94,14 +96,8 @@ function Router() {
             <Route path="/customers" component={AdminCustomers} />
             <Route path="/sliders" component={AdminSliders} />
             <Route path="/job-applications" component={JobApplications} />
-            <Route path="/influencer-applications" component={() => {
-              const InfluencerApplications = lazy(() => import("./pages/admin/influencer-applications"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <InfluencerApplications />
-                </Suspense>
-              );
-            }} />
+            <Route path="/influencer-applications" component={AdminInfluencerApplications} />
+            <Route path="/affiliate-applications" component={AdminAffiliateApplications} />
             <Route path="/job-positions" component={() => {
               const JobPositions = lazy(() => import("./pages/admin/job-positions"));
               return (
@@ -255,6 +251,14 @@ function Router() {
               );
             }} />
             <Route path="/affiliate-application" component={AffiliateApplicationPage} />
+            <Route path="/affiliate-dashboard" component={() => {
+              const AffiliateDashboard = lazy(() => import("./pages/affiliate-dashboard"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <AffiliateDashboard />
+                </Suspense>
+              );
+            }} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

@@ -497,3 +497,33 @@ export const influencerApplications = pgTable("influencer_applications", {
 
 export type InfluencerApplication = typeof influencerApplications.$inferSelect;
 export type InsertInfluencerApplication = typeof influencerApplications.$inferInsert;
+
+// Affiliate Applications Table
+export const affiliateApplications = pgTable("affiliate_applications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  firstName: varchar("first_name", { length: 255 }).notNull(),
+  lastName: varchar("last_name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  address: text("address").notNull(),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  pincode: varchar("pincode", { length: 10 }),
+  instagramHandle: varchar("instagram_handle", { length: 255 }).notNull(),
+  instagramFollowers: varchar("instagram_followers", { length: 50 }).notNull(),
+  youtubeChannel: varchar("youtube_channel", { length: 255 }),
+  youtubeSubscribers: varchar("youtube_subscribers", { length: 50 }),
+  tiktokHandle: varchar("tiktok_handle", { length: 255 }),
+  facebookProfile: varchar("facebook_profile", { length: 255 }),
+  contentNiche: varchar("content_niche", { length: 255 }),
+  avgEngagementRate: varchar("avg_engagement_rate", { length: 50 }),
+  whyJoin: text("why_join").notNull(),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+});
+
+export type AffiliateApplication = typeof affiliateApplications.$inferSelect;
+export type InsertAffiliateApplication = typeof affiliateApplications.$inferInsert;

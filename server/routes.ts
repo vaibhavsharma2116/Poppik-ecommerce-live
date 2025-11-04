@@ -140,13 +140,18 @@ const upload = multer({
 
 // Nodemailer transporter configuration
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587', 10),
   secure: parseInt(process.env.SMTP_PORT || '587', 10) === 465, // Use SSL if port is 465
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
-  }
+  },
+  tls: {
+    rejectUnauthorized: false
+  },
+  // Force IPv4
+  family: 4
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -5300,6 +5305,7 @@ Poppik Career Portal
   app.post('/api/affiliate-applications', async (req, res) => {
     try {
       const { 
+        userId,
         firstName, 
         lastName, 
         email, 
@@ -5320,7 +5326,7 @@ Poppik Career Portal
       } = req.body;
 
       // Validate required fields
-      if (!firstName || !lastName || !email || !phone || !address || !instagramHandle || !instagramFollowers || !whyJoin) {
+      if (!userId || !firstName || !lastName || !email || !phone || !address || !instagramHandle || !instagramFollowers || !whyJoin) {
         return res.status(400).json({ error: 'All required fields must be provided' });
       }
 
@@ -5330,24 +5336,50 @@ Poppik Career Portal
         return res.status(400).json({ error: 'Please provide a valid email address' });
       }
 
+      // Check if user already has an application (by userId or email)
+      const existingApplicationByUser = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(
+          or(
+            eq(schema.affiliateApplications.userId, parseInt(userId)),
+            eq(schema.affiliateApplications.email, email.toLowerCase())
+          )
+        )
+        .limit(1);
+
+      if (existingApplicationByUser && existingApplicationByUser.length > 0) {
+        const application = existingApplicationByUser[0];
+        const status = application.status || 'pending';
+        
+        return res.status(400).json({ 
+          error: `You have already submitted an affiliate application. Status: ${status}`,
+          application: {
+            ...application,
+            status: status
+          }
+        });
+      }
+
       // Save to database first
       const savedApplication = await db.insert(schema.affiliateApplications).values({
+        userId: parseInt(userId),
         firstName,
         lastName,
         email,
         phone,
         address,
-        city,
-        state,
-        pincode,
+        city: city || null,
+        state: state || null,
+        pincode: pincode || null,
         instagramHandle,
         instagramFollowers,
-        youtubeChannel,
-        youtubeSubscribers,
-        tiktokHandle,
-        facebookProfile,
-        contentNiche,
-        avgEngagementRate,
+        youtubeChannel: youtubeChannel || null,
+        youtubeSubscribers: youtubeSubscribers || null,
+        tiktokHandle: tiktokHandle || null,
+        facebookProfile: facebookProfile || null,
+        contentNiche: contentNiche || null,
+        avgEngagementRate: avgEngagementRate || null,
         whyJoin,
         status: 'pending' // Default status
       }).returning();
@@ -5497,6 +5529,302 @@ Poppik Affiliate Portal
         error: 'Failed to submit application',
         details: error.message 
       });
+    }
+  });
+
+  // Get user's affiliate application
+  app.get('/api/affiliate/my-application', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      console.log('Fetching affiliate application for userId:', userId);
+
+      // Find application by userId using proper eq operator
+      const application = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.userId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateApplications.createdAt))
+        .limit(1);
+
+      console.log('Application found:', application.length > 0 ? 'Yes' : 'No');
+
+      if (!application || application.length === 0) {
+        // Check localStorage fallback
+        return res.status(404).json({ error: 'No application found' });
+      }
+
+      // Ensure status field exists - default to 'pending' if not set
+      const appData = {
+        ...application[0],
+        status: application[0].status || 'pending'
+      };
+
+      console.log('Application data:', {
+        id: appData.id,
+        userId: appData.userId,
+        status: appData.status,
+        email: appData.email
+      });
+
+      res.json(appData);
+    } catch (error) {
+      console.error('Error fetching affiliate application:', error);
+      res.status(500).json({ error: 'Failed to fetch application' });
+    }
+  });
+
+  // Get affiliate statistics
+  app.get('/api/affiliate/stats', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      // Generate affiliate code for tracking
+      const user = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, parseInt(userId as string)))
+        .limit(1);
+
+      if (!user || user.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const affiliateCode = `POPPIK${user[0].email?.substring(0, 4).toUpperCase() || "USER"}${userId}`;
+
+      // TODO: Implement actual tracking of affiliate sales
+      // For now, return sample data that shows growth
+      const stats = {
+        totalEarnings: 0,
+        pendingEarnings: 0,
+        totalClicks: 0,
+        totalSales: 0,
+        conversionRate: 0,
+        monthlyGrowth: 0,
+        affiliateCode: affiliateCode
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching affiliate stats:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate stats' });
+    }
+  });
+
+  // Get affiliate sales
+  app.get('/api/affiliate/sales', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      // TODO: Implement actual tracking of affiliate sales from orders
+      // For now, return empty array
+      const sales = [];
+
+      res.json(sales);
+    } catch (error) {
+      console.error('Error fetching affiliate sales:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate sales' });
+    }
+  });
+
+  // Admin endpoints for affiliate applications
+  app.get('/api/admin/affiliate-applications', async (req, res) => {
+    try {
+      const applications = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .orderBy(desc(schema.affiliateApplications.createdAt));
+      
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching affiliate applications:', error);
+      res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  });
+
+  app.get('/api/admin/affiliate-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const application = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.id, id))
+        .limit(1);
+
+      if (!application || application.length === 0) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json(application[0]);
+    } catch (error) {
+      console.error('Error fetching affiliate application:', error);
+      res.status(500).json({ error: 'Failed to fetch application' });
+    }
+  });
+
+  app.put('/api/admin/affiliate-applications/:id/status', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, reviewNotes } = req.body;
+
+      if (!['pending', 'approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const [application] = await db
+        .update(schema.affiliateApplications)
+        .set({
+          status,
+          reviewNotes,
+          reviewedAt: new Date()
+        })
+        .where(eq(schema.affiliateApplications.id, id))
+        .returning();
+
+      if (!application) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      // Send email notification to applicant
+      try {
+        const emailSubject = status === 'approved' 
+          ? 'Congratulations! Your Poppik Affiliate Application is Approved'
+          : 'Update on Your Poppik Affiliate Application';
+
+        const emailBody = status === 'approved'
+          ? `Dear ${application.firstName} ${application.lastName},
+
+Congratulations! We are excited to inform you that your application to join the Poppik Affiliate Program has been approved!
+
+You can now access your Affiliate Dashboard by logging into your account at:
+${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate` : 'https://poppik.in/affiliate'}
+
+In your dashboard, you will find:
+- Your unique affiliate code and links
+- Real-time tracking of your sales and commissions
+- Marketing materials and product information
+- Payment details and history
+
+${reviewNotes ? `\nAdmin Notes: ${reviewNotes}` : ''}
+
+Thank you for partnering with Poppik! We look forward to a successful collaboration.
+
+Best regards,
+Poppik Affiliate Team`
+          : `Dear ${application.firstName} ${application.lastName},
+
+Thank you for your interest in the Poppik Affiliate Program.
+
+After careful review, we regret to inform you that we are unable to approve your application at this time.
+
+${reviewNotes ? `\nReason: ${reviewNotes}` : ''}
+
+We encourage you to reapply in the future as your social media presence grows. Keep creating amazing content!
+
+Best regards,
+Poppik Affiliate Team`;
+
+        const emailHtml = status === 'approved'
+          ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">Congratulations! 🎉</h1>
+            </div>
+            <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <p style="font-size: 16px; color: #333;">Dear ${application.firstName} ${application.lastName},</p>
+              <p style="font-size: 16px; color: #333; line-height: 1.6;">
+                We are excited to inform you that your application to join the <strong>Poppik Affiliate Program</strong> has been <strong style="color: #27ae60;">APPROVED</strong>!
+              </p>
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #e74c3c; margin-top: 0;">What's Next?</h3>
+                <ul style="color: #555; line-height: 1.8;">
+                  <li>Log in to your account to access your Affiliate Dashboard</li>
+                  <li>Get your unique affiliate code and links</li>
+                  <li>Start sharing and earning commissions!</li>
+                </ul>
+              </div>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate` : 'https://poppik.in/affiliate'}" 
+                   style="background: #e74c3c; color: white; padding: 15px 40px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
+                  Access Dashboard
+                </a>
+              </div>
+              ${reviewNotes ? `<p style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin: 20px 0;"><strong>Admin Notes:</strong> ${reviewNotes}</p>` : ''}
+              <p style="color: #666; margin-top: 30px;">Welcome to the Poppik family! We look forward to a successful partnership.</p>
+              <p style="color: #666; margin-top: 20px;">Best regards,<br><strong>Poppik Affiliate Team</strong></p>
+            </div>
+          </div>`
+          : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #f5f5f5; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: #555; margin: 0;">Application Update</h1>
+            </div>
+            <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              <p style="font-size: 16px; color: #333;">Dear ${application.firstName} ${application.lastName},</p>
+              <p style="font-size: 16px; color: #333; line-height: 1.6;">
+                Thank you for your interest in the Poppik Affiliate Program.
+              </p>
+              <p style="font-size: 16px; color: #333; line-height: 1.6;">
+                After careful review, we are unable to approve your application at this time.
+              </p>
+              ${reviewNotes ? `<p style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;"><strong>Feedback:</strong> ${reviewNotes}</p>` : ''}
+              <p style="color: #666; margin-top: 20px;">We encourage you to reapply in the future as your social media presence grows. Keep creating amazing content!</p>
+              <p style="color: #666; margin-top: 20px;">Best regards,<br><strong>Poppik Affiliate Team</strong></p>
+            </div>
+          </div>`;
+
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'affiliates@poppik.in',
+          to: application.email,
+          subject: emailSubject,
+          text: emailBody,
+          html: emailHtml
+        });
+
+        console.log(`✅ Status update email sent to ${application.email}`);
+      } catch (emailError) {
+        console.error('❌ Failed to send status update email:', emailError);
+        // Continue even if email fails
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Application ${status} successfully`,
+        application 
+      });
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      res.status(500).json({ error: 'Failed to update application status' });
+    }
+  });
+
+  app.delete('/api/admin/affiliate-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const [deleted] = await db
+        .delete(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json({ success: true, message: 'Application deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting affiliate application:', error);
+      res.status(500).json({ error: 'Failed to delete application' });
     }
   });
 

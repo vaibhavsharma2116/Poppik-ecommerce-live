@@ -54,7 +54,11 @@ import {
   type InsertComboReview,
   // Import influencerApplications schema
   influencerApplications,
-  type InfluencerApplication
+  type InfluencerApplication,
+  // Import affiliateApplications schema
+  affiliateApplications,
+  type AffiliateApplication,
+  type InsertAffiliateApplication
 } from "@shared/schema";
 import dotenv from "dotenv";
 
