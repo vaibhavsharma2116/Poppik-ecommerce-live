@@ -56,7 +56,7 @@ import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
-import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, InsertAnnouncement } from "../shared/schema";
+import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication } from "../shared/schema";
 
 // Initialize Shiprocket service
 const shiprocketService = new ShiprocketService();
@@ -2559,7 +2559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       await db.insert(schema.orderItemsTable).values(orderItems);
-      console.log("ZZZZZZZZZZZ",items);
+
       // Calculate total cashback from items
       let totalCashback = 0;
       for (const item of items) {
@@ -2568,46 +2568,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // If there's cashback, credit it immediately to user wallet
+      // Calculate and credit cashback immediately after order placement
       if (totalCashback > 0) {
         try {
-          // Get current wallet
-          let wallet = await db
+          console.log(`💰 Processing cashback of ₹${totalCashback.toFixed(2)} for user ${userId}`);
+          
+          // Ensure user wallet exists
+          let existingWallet = await db
             .select()
             .from(schema.userWallet)
             .where(eq(schema.userWallet.userId, Number(userId)))
             .limit(1);
 
-          if (!wallet || wallet.length === 0) {
-            // Create wallet if doesn't exist
-            const [newWallet] = await db.insert(schema.userWallet).values({
+          if (existingWallet.length === 0) {
+            console.log(`Creating new wallet for user ${userId}`);
+            await db.insert(schema.userWallet).values({
               userId: Number(userId),
-              cashbackBalance: "0.00",
-              totalEarned: "0.00",
-              totalRedeemed: "0.00"
-            }).returning();
-            wallet = [newWallet];
+              cashbackBalance: '0.00',
+              totalEarned: '0.00',
+              totalRedeemed: '0.00'
+            });
+
+            // Fetch the newly created wallet
+            existingWallet = await db
+              .select()
+              .from(schema.userWallet)
+              .where(eq(schema.userWallet.userId, Number(userId)))
+              .limit(1);
           }
 
-          const currentBalance = parseFloat(wallet[0].cashbackBalance);
-          const creditAmount = totalCashback;
-          const newBalance = currentBalance + creditAmount;
+          const currentBalance = Number(existingWallet[0].cashbackBalance) || 0;
+          const newBalance = currentBalance + totalCashback;
+          const totalEarned = (Number(existingWallet[0].totalEarned) || 0) + totalCashback;
 
-          // Update wallet
+          console.log(`Wallet update: Current balance: ₹${currentBalance.toFixed(2)} → New balance: ₹${newBalance.toFixed(2)}`);
+
+          // Update wallet balance immediately
           await db
             .update(schema.userWallet)
             .set({
               cashbackBalance: newBalance.toFixed(2),
-              totalEarned: (parseFloat(wallet[0].totalEarned) + creditAmount).toFixed(2),
+              totalEarned: totalEarned.toFixed(2),
               updatedAt: new Date()
             })
             .where(eq(schema.userWallet.userId, Number(userId)));
 
-          // Create transaction record
+          // Create completed cashback transaction
           await db.insert(schema.userWalletTransactions).values({
             userId: Number(userId),
             type: 'credit',
-            amount: creditAmount.toFixed(2),
+            amount: totalCashback.toFixed(2),
             description: `Cashback from Order ORD-${newOrder.id.toString().padStart(3, '0')}`,
             orderId: newOrder.id,
             balanceBefore: currentBalance.toFixed(2),
@@ -2615,10 +2625,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: 'completed'
           });
 
-          console.log(`✅ Cashback of ₹${totalCashback.toFixed(2)} credited to user ${userId} wallet for order ORD-${newOrder.id.toString().padStart(3, '0')}`);
-        } catch (walletError) {
-          console.error('Error crediting cashback to wallet:', walletError);
-          // Continue with order creation even if wallet credit fails
+          console.log(`✅ Cashback of ₹${totalCashback.toFixed(2)} credited successfully to user ${userId} wallet for order ORD-${newOrder.id.toString().padStart(3, '0')}`);
+        } catch (cashbackError) {
+          console.error(`❌ Error crediting cashback for user ${userId}:`, cashbackError);
+          // Don't fail the order if cashback credit fails, just log it
         }
       }
 
@@ -4900,29 +4910,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/announcements/:id', async (req, res) => {
     try {
-      const { id } = req.params;
-      const { text, isActive, sortOrder } = req.body;
-
-      const updateData: any = {};
-
-      if (text !== undefined) updateData.text = text.trim();
-      if (isActive !== undefined) updateData.isActive = isActive !== false && isActive !== 'false';
-      if (sortOrder !== undefined) updateData.sortOrder = parseInt(sortOrder) || 0;
-
-      const announcement = await storage.updateAnnouncement(parseInt(id), updateData);
-
+      const id = parseInt(req.params.id);
+      const announcement = await storage.updateAnnouncement(id, req.body);
       if (!announcement) {
-        return res.status(404).json({ error: "Announcement not found" });
+        return res.status(404).json({ error: 'Announcement not found' });
       }
-
       res.json(announcement);
     } catch (error) {
-      console.error("Error updating announcement:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to update announcement";
-      res.status(500).json({
-        error: "Failed to update announcement",
-        details: errorMessage
-      });
+      console.error('Error updating announcement:', error);
+      res.status(500).json({ error: 'Failed to update announcement' });
     }
   });
 
@@ -5582,30 +5578,16 @@ Poppik Career Portal
         city,
         state,
         pincode,
-<<<<<<< HEAD
-       landmark,
-       country,
-       instagramHandle,
-       instagramFollowers,
-       youtubeChannel,
-       youtubeSubscribers,
-       tiktokHandle,
-       facebookProfile,
-       contentNiche,
-       avgEngagementRate,
-       whyJoin
-=======
         landmark,
         country,
         bankName,
         branchName,
         ifscCode,
         accountNumber
->>>>>>> bc57994fc15b9674de268d2882d2947362bdf1c6
       } = req.body;
 
       // Validate required fields
-      if (!userId || !firstName || !lastName || !email || !phone || !address || !country || !instagramHandle || !whyJoin) {
+      if (!userId || !firstName || !lastName || !email || !phone || !address || !country) {
         return res.status(400).json({ error: 'All required fields must be provided' });
       }
 
@@ -5651,26 +5633,12 @@ Poppik Career Portal
         city: city || null,
         state: state || null,
         pincode: pincode || null,
-<<<<<<< HEAD
-       landmark:landmark || null,
-       country,
-       instagramHandle,
-       instagramFollowers: parseInt(instagramFollowers) || 0,
-       youtubeChannel,
-       youtubeSubscribers: parseInt(youtubeSubscribers) || 0,
-       tiktokHandle: tiktokHandle || null,
-       facebookProfile: facebookProfile || null,
-       contentNiche: contentNiche || null,
-       avgEngagementRate: avgEngagementRate || null,
-       whyJoin,
-=======
         landmark: landmark || null,
         country,
         bankName: bankName || null,
         branchName: branchName || null,
         ifscCode: ifscCode || null,
         accountNumber: accountNumber || null,
->>>>>>> bc57994fc15b9674de268d2882d2947362bdf1c6
         status: 'pending' // Default status
       }).returning();
 
@@ -5713,7 +5681,7 @@ Poppik Affiliate Portal
 
           <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
             <h3 style="color: #333;">Application Details</h3>
-            <table style="width: 100%; border-collapse;">
+            <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 8px; font-weight: bold;">Application ID:</td>
                 <td style="padding: 8px;">#${savedApplication.id}</td>
