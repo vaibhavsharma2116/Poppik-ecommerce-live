@@ -39,7 +39,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
-  
+
   // Fetch product shades
   const { data: productShades = [] } = useQuery<Shade[]>({
     queryKey: [`/api/products/${product?.id}/shades`],
@@ -158,7 +158,9 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           name: selectedShade.name,
           colorCode: selectedShade.colorCode,
           imageUrl: selectedShade.imageUrl
-        } : null
+        } : null,
+        cashbackPercentage: product.cashbackPercentage || undefined,
+        cashbackPrice: product.cashbackPrice || undefined,
       });
     }
 
@@ -254,7 +256,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             </div>
           </Link>
 
-        
+
         </div>
 
         <div className="flex-1 p-6 flex flex-col justify-between bg-gradient-to-br from-white via-pink-25 to-purple-25">
@@ -316,6 +318,23 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   </>
                 )}
               </div>
+
+              {/* Cashback Badge */}
+              {product.cashbackPercentage && product.cashbackPrice && (
+                <div className="mb-3 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-lg p-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-orange-700">Cashback</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-orange-600">
+                        ₹{Number(product.cashbackPrice).toFixed(2)}
+                      </span>
+                      <span className="text-xs bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full">
+                        {product.cashbackPercentage}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Stock status */}
               <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
@@ -430,7 +449,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           </div>
         </Link>
 
-        
+
       </div>
 
       <div className="mobile-product-content p-2 sm:p-3 md:p-4 lg:p-5 space-y-1 sm:space-y-2 md:space-y-3 bg-white">
@@ -464,6 +483,23 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 </>
               )}
             </div>
+
+            {/* Cashback Badge */}
+            {product.cashbackPercentage && product.cashbackPrice && (
+              <div className="mb-2 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-orange-700">Cashback</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-bold text-orange-600">
+                      ₹{Number(product.cashbackPrice).toFixed(2)}
+                    </span>
+                    <span className="text-xs bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full">
+                      {product.cashbackPercentage}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Stock status */}
             <div className="flex items-center space-x-1.5 sm:space-x-2 mb-3 sm:mb-4">
@@ -693,7 +729,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   )}
                 </div>
               )}
-              
+
               <Button
                 className={`w-full py-6 text-lg font-semibold transition-all duration-300 ${
                   selectedShade
@@ -706,7 +742,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 <ShoppingCart className="h-5 w-5 mr-2" />
                 {selectedShade ? 'Add to Cart' : 'Select a Shade First'}
               </Button>
-              
+
               {!selectedShade && (
                 <div className="flex items-center justify-center gap-2 text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
                   <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />

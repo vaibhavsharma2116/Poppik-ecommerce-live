@@ -380,6 +380,23 @@ export default function AffiliateDashboard() {
     }
   });
 
+  // Fetch affiliate wallet
+  const { data: wallet, isLoading: walletLoading } = useQuery({
+    queryKey: ["/api/affiliate/wallet", user.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`);
+      if (!res.ok) throw new Error("Failed to fetch wallet");
+      return res.json();
+    },
+    enabled: !!user.id && !!application && application.status === "approved",
+    initialData: {
+      cashbackBalance: "0.00",
+      commissionBalance: "0.00",
+      totalEarnings: "0.00",
+      totalWithdrawn: "0.00"
+    }
+  });
+
   // Fetch recent sales
   const { data: recentSales, isLoading: salesLoading } = useQuery({
     queryKey: ["/api/affiliate/sales", user.id],
@@ -481,7 +498,7 @@ export default function AffiliateDashboard() {
     <div className="min-h-screen bg-gray-50">
       {/* Modern Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -500,7 +517,7 @@ export default function AffiliateDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Banner */}
         <div className="mb-8 bg-gradient-to-r from-purple-600 via-purple-700 to-pink-600 rounded-2xl p-8 text-white shadow-xl">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
@@ -671,51 +688,93 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
           </CardContent>
         </Card>
 
+        {/* Wallet Summary Card - Full Width */}
+        <Card className="mb-8 border-2 border-purple-200 shadow-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-pink-600 p-6">
+            <div className="flex items-center justify-between text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <DollarSign className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">Wallet Balance</h3>
+                  <p className="text-purple-100 text-sm">Your affiliate earnings</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-purple-100 mb-1">Total Available</p>
+                <p className="text-4xl font-bold">
+                  ₹{(parseFloat(wallet?.cashbackBalance || "0") + parseFloat(wallet?.commissionBalance || "0")).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+          </div>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {/* Cashback Balance */}
+              <div className="text-center p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
+                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <DollarSign className="h-6 w-6 text-white" />
+                </div>
+                <p className="text-sm text-gray-600 font-medium mb-1">Cashback Balance</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  ₹{parseFloat(wallet?.cashbackBalance || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+
+              {/* Commission Balance */}
+              <div className="text-center p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+                <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <DollarSign className="h-6 w-6 text-white" />
+                </div>
+                <p className="text-sm text-gray-600 font-medium mb-1">Commission Balance</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  ₹{parseFloat(wallet?.commissionBalance || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+
+              {/* Total Earnings */}
+              <div className="text-center p-4 bg-green-50 rounded-xl border-2 border-green-200">
+                <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <p className="text-sm text-gray-600 font-medium mb-1">Total Earnings</p>
+                <p className="text-2xl font-bold text-green-600">
+                  ₹{parseFloat(wallet?.totalEarnings || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+
+              {/* Total Withdrawn */}
+              <div className="text-center p-4 bg-amber-50 rounded-xl border-2 border-amber-200">
+                <div className="w-12 h-12 bg-amber-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                  <Download className="h-6 w-6 text-white" />
+                </div>
+                <p className="text-sm text-gray-600 font-medium mb-1">Total Withdrawn</p>
+                <p className="text-2xl font-bold text-amber-600">
+                  ₹{parseFloat(wallet?.totalWithdrawn || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+
+            {/* Withdrawal Button */}
+            <div className="mt-6 flex justify-center">
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg px-8"
+                disabled={(parseFloat(wallet?.cashbackBalance || "0") + parseFloat(wallet?.commissionBalance || "0")) < 500}
+              >
+                <Download className="h-5 w-5 mr-2" />
+                Request Withdrawal
+                {(parseFloat(wallet?.cashbackBalance || "0") + parseFloat(wallet?.commissionBalance || "0")) < 500 && (
+                  <span className="ml-2 text-xs">(Min ₹500)</span>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Stats Grid - Professional Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-white overflow-hidden group">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <DollarSign className="h-7 w-7 text-white" />
-                </div>
-                {stats?.earningsGrowth !== undefined && stats?.earningsGrowth !== 0 && (
-                  <div className={`flex items-center gap-1 font-semibold text-sm ${stats.earningsGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {stats.earningsGrowth > 0 ? <ArrowUpRight className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                    <span>{stats.earningsGrowth > 0 ? '+' : ''}{stats.earningsGrowth}%</span>
-                  </div>
-                )}
-              </div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">
-                ₹{(stats?.totalEarnings || 0).toLocaleString('en-IN')}
-              </div>
-              <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">Total Earnings</p>
-              <div className="mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-500" style={{ width: stats?.totalEarnings > 0 ? '75%' : '5%' }}></div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-white overflow-hidden group">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <Clock className="h-7 w-7 text-white" />
-                </div>
-                <div className="flex items-center gap-1 text-amber-600 font-semibold text-sm">
-                  <Clock className="h-4 w-4" />
-                  <span>Pending</span>
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">
-                ₹{(stats?.pendingEarnings || 0).toLocaleString('en-IN')}
-              </div>
-              <p className="text-sm text-gray-500 font-medium uppercase tracking-wide">Pending Payout</p>
-              <div className="mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-amber-500 to-orange-600 transition-all duration-500" style={{ width: stats?.pendingEarnings > 0 ? '50%' : '5%' }}></div>
-              </div>
-            </CardContent>
-          </Card>
 
           <Card className="border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-white overflow-hidden group">
             <CardContent className="p-6">
@@ -1106,7 +1165,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
             <Card className="border-0 shadow-lg">
               <CardHeader className="border-b bg-gradient-to-r from-pink-50 to-purple-50">
                 <CardTitle className="text-xl">Affiliate Profile</CardTitle>
-                <CardDescription className="mt-1">Your account information and social media connections</CardDescription>
+                <CardDescription className="mt-1">Your account information and payment details</CardDescription>
               </CardHeader>
               <CardContent className="pt-8">
                 <div className="grid gap-8">
@@ -1130,8 +1189,49 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Phone Number</label>
                     <p className="text-gray-900 text-xl font-semibold">{application.phone}</p>
                   </div>
+
+                  <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Full Address</label>
+                    <p className="text-gray-900 text-lg">{application.address}</p>
+                    {application.city && <p className="text-gray-700">{application.city}, {application.state} - {application.pincode}</p>}
+                    <p className="text-gray-700">{application.country}</p>
+                  </div>
                   
-                 
+                  {/* Bank Details Section */}
+                  {(application.bankName || application.accountNumber) && (
+                    <div className="border-t pt-6">
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <DollarSign className="h-5 w-5 text-purple-600" />
+                        Bank Details
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {application.bankName && (
+                          <div className="space-y-2 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                            <label className="text-xs font-bold text-blue-700 uppercase tracking-wide">Bank Name</label>
+                            <p className="text-gray-900 text-lg font-semibold">{application.bankName}</p>
+                          </div>
+                        )}
+                        {application.branchName && (
+                          <div className="space-y-2 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                            <label className="text-xs font-bold text-blue-700 uppercase tracking-wide">Branch Name</label>
+                            <p className="text-gray-900 text-lg font-semibold">{application.branchName}</p>
+                          </div>
+                        )}
+                        {application.ifscCode && (
+                          <div className="space-y-2 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                            <label className="text-xs font-bold text-blue-700 uppercase tracking-wide">IFSC Code</label>
+                            <p className="text-gray-900 text-lg font-semibold">{application.ifscCode}</p>
+                          </div>
+                        )}
+                        {application.accountNumber && (
+                          <div className="space-y-2 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                            <label className="text-xs font-bold text-blue-700 uppercase tracking-wide">Account Number</label>
+                            <p className="text-gray-900 text-lg font-semibold">****{application.accountNumber.slice(-4)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

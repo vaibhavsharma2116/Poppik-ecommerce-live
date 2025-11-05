@@ -109,7 +109,7 @@ export default function ChannelPartnerPage() {
 
       {/* Stats Section */}
       {/* <section className="py-12 bg-gray-50 border-y">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
               { number: "200+", label: "Active Partners" },
@@ -128,7 +128,7 @@ export default function ChannelPartnerPage() {
 
       {/* Benefits Section */}
       <section id="benefits" className="py-16 md:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Partnership Benefits
@@ -192,7 +192,7 @@ export default function ChannelPartnerPage() {
 
       {/* Why Choose Us */}
       <section className="py-16 md:py-20 bg-gradient-to-br from-purple-50 to-pink-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Why Partner With Poppik?

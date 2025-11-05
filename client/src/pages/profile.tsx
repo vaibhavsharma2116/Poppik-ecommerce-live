@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { User, Mail, Phone, Calendar, LogOut, Edit } from "lucide-react";
+import { User, Mail, Phone, Calendar, LogOut, Edit, Wallet, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 interface UserProfile {
   id: number;
@@ -33,7 +34,20 @@ export default function Profile() {
     address: ''
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
+
+  // Fetch wallet data
+  const { data: walletData } = useQuery({
+    queryKey: ['/api/wallet', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/wallet?userId=${user.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
 
   useEffect(() => {
     // Get user data from localStorage
@@ -220,8 +234,51 @@ export default function Profile() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Profile Card */}
+          {/* Wallet Card */}
           <div className="lg:col-span-1">
+            <Link href="/wallet">
+              <Card className="shadow-lg mb-6 border-2 border-blue-200 hover:shadow-xl transition-shadow cursor-pointer">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                      <Wallet className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl">My Wallet</CardTitle>
+                      <CardDescription>Your earnings & balance</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Gift className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm text-gray-700">Cashback Wallet</p>
+                          <p className="text-xs text-gray-500">Your cashback balance</p>
+                        </div>
+                      </div>
+                      <p className="text-2xl font-bold text-blue-600">
+                        ₹{walletData?.cashbackBalance || "0.00"}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-md">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-gray-600">Total Balance</p>
+                        <p className="text-xl font-bold text-gray-900">
+                          ₹{walletData?.cashbackBalance || "0.00"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            {/* Profile Card */}
             <Card className="shadow-lg">
               <CardHeader className="text-center">
                 <Avatar className="w-24 h-24 mx-auto mb-4">

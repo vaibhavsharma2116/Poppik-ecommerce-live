@@ -299,7 +299,7 @@ export default function ComboDetail() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <Skeleton className="h-6 w-64 mb-8" />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             <Skeleton className="aspect-square rounded-3xl" />
@@ -318,7 +318,7 @@ export default function ComboDetail() {
   if (!combo) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-2xl mx-auto">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">Combo Not Found</h1>
             <p className="text-gray-600 mb-8">The combo you're looking for doesn't exist.</p>
@@ -340,7 +340,7 @@ export default function ComboDetail() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Back Button */}
         <Link href="/combos">
           <Button variant="outline" className="mb-6">

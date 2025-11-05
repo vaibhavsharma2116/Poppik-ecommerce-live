@@ -122,7 +122,7 @@ export default function Blog() {
     <div className="min-h-screen bg-white">
       {/* Simple Header - Mobile Responsive */}
       <section className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-8 sm:py-12 md:py-16">
+        <div className="max-w-12xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-8 sm:py-12 md:py-16">
           <div className="text-center max-w-3xl mx-auto">
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-4xl font-light text-gray-900 mb-3 sm:mb-4 leading-tight">
               Explore the World of Beauty, Lifestyle & Wellness
@@ -149,7 +149,7 @@ export default function Blog() {
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Category Filter - Mobile Responsive Horizontal Tabs */}
         <div className="mb-6 sm:mb-8 md:mb-12 border-b overflow-x-auto scrollbar-hide">
           <div className="flex gap-4 sm:gap-6 md:gap-8 min-w-max px-2 sm:px-0">

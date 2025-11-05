@@ -173,7 +173,7 @@ export default function AffiliatePage() {
 
       {/* What's in it for You Section */}
       <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-12">
             Why Become an Affiliate?
           </h2>
@@ -226,7 +226,7 @@ export default function AffiliatePage() {
 
       {/* Featured Affiliates Sections */}
       <section className="py-8 bg-gradient-to-r from-red-50 to-pink-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             {/* Images - First on mobile */}
             <div className="flex justify-center order-1 md:order-2">
@@ -266,7 +266,7 @@ export default function AffiliatePage() {
       </section>
 
       <section className="py-8 bg-gradient-to-r from-pink-100 to-red-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             {/* Images - First on mobile */}
             <div className="flex justify-center order-1">

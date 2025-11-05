@@ -949,19 +949,19 @@ function LatestBlogPostsPerCategory() {
   // Get latest post per category
   const latestPostsPerCategory = React.useMemo(() => {
     const categoryMap = new Map<string, any>();
-    
+
     // Filter published posts and sort by createdAt
     const publishedPosts = blogPosts
       .filter(post => post.published)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    
+
     // Get the latest post for each category
     publishedPosts.forEach(post => {
       if (post.category && !categoryMap.has(post.category)) {
         categoryMap.set(post.category, post);
       }
     });
-    
+
     return Array.from(categoryMap.values());
   }, [blogPosts]);
 

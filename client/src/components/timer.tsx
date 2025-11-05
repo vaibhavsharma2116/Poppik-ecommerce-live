@@ -44,7 +44,7 @@
 
 //   return (
 //     <section className="py-16 bg-gradient-to-r from-red-50 via-pink-50 to-red-50">
-//       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+//       <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
 //         <div className="text-center mb-12">
 //           <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-6">
 //             <Zap className="h-8 w-8 text-red-600" />

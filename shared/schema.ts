@@ -25,6 +25,8 @@ export const products = pgTable("products", {
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   originalPrice: numeric('original_price', { precision: 10, scale: 2 }),
   discount: numeric('discount', { precision: 10, scale: 2 }), // Discount percentage
+  cashbackPercentage: numeric('cashback_percentage', { precision: 5, scale: 2 }), // Cashback percentage
+  cashbackPrice: numeric('cashback_price', { precision: 10, scale: 2 }), // Auto-calculated cashback amount
   category: text('category').notNull(),
   subcategory: text("subcategory"),
   imageUrl: text("image_url").notNull(),
@@ -106,6 +108,7 @@ export const ordersTable = pgTable("orders", {
   paymentSessionId: text("payment_session_id"),
   paymentId: text("payment_id"),
   notes: text("notes"),
+  cashbackAmount: decimal("cashback_amount", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -512,7 +515,77 @@ export const affiliateApplications = pgTable("affiliate_applications", {
   pincode: varchar("pincode", { length: 10 }),
   landmark: text("landmark"),
   country: text("country").notNull(),
+  bankName: varchar("bank_name", { length: 255 }),
+  branchName: varchar("branch_name", { length: 255 }),
+  ifscCode: varchar("ifsc_code", { length: 20 }),
+  accountNumber: varchar("account_number", { length: 50 }),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
 });
 
 export type AffiliateApplication = typeof affiliateApplications.$inferSelect;
 export type InsertAffiliateApplication = typeof affiliateApplications.$inferInsert;
+
+// Affiliate Wallet Table
+export const affiliateWallet = pgTable("affiliate_wallet", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  cashbackBalance: decimal("cashback_balance", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  commissionBalance: decimal("commission_balance", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  totalWithdrawn: decimal("total_withdrawn", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type AffiliateWallet = typeof affiliateWallet.$inferSelect;
+export type InsertAffiliateWallet = typeof affiliateWallet.$inferInsert;
+
+// Affiliate Transactions Table
+export const affiliateTransactions = pgTable("affiliate_transactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 20 }).notNull(), // 'cashback', 'commission', 'withdrawal'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  balanceType: varchar("balance_type", { length: 20 }).notNull(), // 'cashback' or 'commission'
+  description: text("description").notNull(),
+  orderId: integer("order_id").references(() => ordersTable.id),
+  status: varchar("status", { length: 20 }).default("completed").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AffiliateTransaction = typeof affiliateTransactions.$inferSelect;
+export type InsertAffiliateTransaction = typeof affiliateTransactions.$inferInsert;
+
+// User Wallet Table - for regular user cashback from orders
+export const userWallet = pgTable("user_wallet", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  cashbackBalance: decimal("cashback_balance", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  totalEarned: decimal("total_earned", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  totalRedeemed: decimal("total_redeemed", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type UserWallet = typeof userWallet.$inferSelect;
+export type InsertUserWallet = typeof userWallet.$inferInsert;
+
+// User Wallet Transactions Table
+export const userWalletTransactions = pgTable("user_wallet_transactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 20 }).notNull(), // 'credit', 'debit', 'redeem', 'pending'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description").notNull(),
+  orderId: integer("order_id").references(() => ordersTable.id),
+  balanceBefore: decimal("balance_before", { precision: 10, scale: 2 }).notNull(),
+  balanceAfter: decimal("balance_after", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).default("completed").notNull(), // 'completed', 'pending', 'failed'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type UserWalletTransaction = typeof userWalletTransactions.$inferSelect;
+export type InsertUserWalletTransaction = typeof userWalletTransactions.$inferInsert;

@@ -21,6 +21,8 @@ interface CartItem {
   quantity: number;
   variant?: string;
   inStock: boolean;
+  cashbackPercentage?: string;
+  cashbackPrice?: string;
   selectedShade?: {
     id: number;
     name: string;
@@ -295,6 +297,14 @@ export default function Cart() {
   const totalDiscount = productDiscount + dynamicDiscount + promoDiscount;
   const total = cartSubtotal - dynamicDiscount - promoDiscount;
 
+  // Calculate total cashback
+  const totalCashback = cartItems.reduce((sum, item) => {
+    if (item.cashbackPrice) {
+      return sum + (Number(item.cashbackPrice) * item.quantity);
+    }
+    return sum;
+  }, 0);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -425,6 +435,31 @@ export default function Cart() {
                             </div>
                           ) : null;
                         })()}
+                        
+                        {/* Cashback Badge for Cart Item - Enhanced Display */}
+                        {item.cashbackPercentage && item.cashbackPrice && (
+                          <div className="mt-2 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 rounded-lg p-3 shadow-sm">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                                  <span className="text-white text-xs font-bold">₹</span>
+                                </div>
+                                <span className="text-sm font-bold text-orange-700">Cashback Earned</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg font-bold text-orange-600">
+                                  ₹{(Number(item.cashbackPrice) * item.quantity).toFixed(2)}
+                                </span>
+                                <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full font-semibold">
+                                  {item.cashbackPercentage}%
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-xs text-orange-600 mt-1.5 text-center sm:text-left">
+                              Will be credited after delivery
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center space-x-1.5 mt-1">
                         <div className={`w-2 h-2 rounded-full ${
@@ -551,6 +586,26 @@ export default function Cart() {
                   {totalDiscount > 0 && (
                     <div className="text-xs text-green-600 text-right mt-1">
                       You saved ₹{totalDiscount.toLocaleString()}!
+                    </div>
+                  )}
+                  {totalCashback > 0 && (
+                    <div className="mt-3 bg-gradient-to-r from-orange-400 to-amber-400 rounded-lg p-4 shadow-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                            <span className="text-orange-600 text-sm font-bold">₹</span>
+                          </div>
+                          <span className="text-sm font-bold text-white">Total Cashback</span>
+                        </div>
+                        <span className="text-2xl font-bold text-white">
+                          ₹{totalCashback.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="bg-white/20 backdrop-blur-sm rounded px-2 py-1.5">
+                        <p className="text-xs text-white font-medium text-center">
+                          🎉 This amount will be credited to your wallet after delivery
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>

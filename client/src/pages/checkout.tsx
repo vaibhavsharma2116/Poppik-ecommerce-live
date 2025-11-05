@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 interface CartItem {
   id: number;
@@ -19,6 +21,14 @@ interface CartItem {
   image: string;
   quantity: number;
   inStock: boolean;
+  cashbackPrice?: string;
+  cashbackPercentage?: string;
+  selectedShade?: {
+    id?: number;
+    name: string;
+    imageUrl?: string;
+    colorCode?: string;
+  };
 }
 
 export default function CheckoutPage() {
@@ -1285,57 +1295,6 @@ export default function CheckoutPage() {
                         <option value="compiegne">Compiegne</option>
                         <option value="kishanganj">Kishanganj</option>
                         <option value="supaul">Supaul</option>
-                        <option value="jaunpur">Jaunpur</option>
-                        <option value="lakhimpur">Lakhimpur</option>
-                        <option value="haldwani">Haldwani</option>
-                        <option value="katihar">Katihar</option>
-                        <option value="raigarh">Raigarh</option>
-                        <option value="unnao">Unnao</option>
-                        <option value="jind">Jind</option>
-                        <option value="santipur">Santipur</option>
-                        <option value="margao">Margao</option>
-                        <option value="phagwara">Phagwara</option>
-                        <option value="dimapur">Dimapur</option>
-                        <option value="abids">Abids</option>
-                        <option value="hindupur">Hindupur</option>
-                        <option value="mohali">Mohali</option>
-                        <option value="hospet">Hospet</option>
-                        <option value="bharuch">Bharuch</option>
-                        <option value="berhampore">Berhampore</option>
-                        <option value="kokrajhar">Kokrajhar</option>
-                        <option value="ranaghat">Ranaghat</option>
-                        <option value="tindivanam">Tindivanam</option>
-                        <option value="mandsaur">Mandsaur</option>
-                        <option value="uran">Uran</option>
-                        <option value="balurghat">Balurghat</option>
-                        <option value="northanandapur">North Anandapur</option>
-                        <option value="sirpur">Sirpur</option>
-                        <option value="patan">Patan</option>
-                        <option value="bagalkot">Bagalkot</option>
-                        <option value="zirakpur">Zirakpur</option>
-                        <option value="malout">Malout</option>
-                        <option value="navsari">Navsari</option>
-                        <option value="mahad">Mahad</option>
-                        <option value="porbandar">Porbandar</option>
-                        <option value="ankleshwar">Ankleshwar</option>
-                        <option value="surendranagar_dudhrej">Surendranagar Dudhrej</option>
-                        <option value="kanhangad">Kanhangad</option>
-                        <option value="gandevi">Gandevi</option>
-                        <option value="kovvur">Kovvur</option>
-                        <option value="nirmal">Nirmal</option>
-                        <option value="umarkhed">Umarkhed</option>
-                        <option value="ballia">Ballia</option>
-                        <option value="pratapgarh">Pratapgarh</option>
-                        <option value="padrauna">Padrauna</option>
-                        <option value="himmatnagar">Himmatnagar</option>
-                        <option value="lunglei">Lunglei</option>
-                        <option value="vinchhiya">Vinchhiya</option>
-                        <option value="jetpur">Jetpur</option>
-                        <option value="sikkim_namchi">Sikkim Namchi</option>
-                        <option value="mangaldoi">Mangaldoi</option>
-                        <option value="kalyani">Kalyani</option>
-                        <option value="saharsa">Saharsa</option>
-                        <option value="supaul">Supaul</option>
                         <option value="godda">Godda</option>
                         <option value="hazaribagh">Hazaribagh</option>
                         <option value="pakur">Pakur</option>
@@ -1477,12 +1436,43 @@ export default function CheckoutPage() {
                           alt={item.name}
                           className="h-16 w-16 object-cover rounded-lg"
                         />
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{item.name}</h4>
-                          <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900">{item.price}</p>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-gray-900 truncate">{item.name}</h4>
+                          {item.selectedShade && (
+                            <Badge variant="secondary" className="mt-1 flex items-center gap-1.5 w-fit">
+                              {item.selectedShade.imageUrl ? (
+                                <img
+                                  src={item.selectedShade.imageUrl}
+                                  alt={item.selectedShade.name}
+                                  className="w-3 h-3 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div
+                                  className="w-3 h-3 rounded-full border"
+                                  style={{ backgroundColor: item.selectedShade.colorCode }}
+                                />
+                              )}
+                              <span className="text-xs">{item.selectedShade.name}</span>
+                            </Badge>
+                          )}
+                          <p className="text-sm text-gray-600 mt-1">Qty: {item.quantity}</p>
+
+                          {/* Cashback Badge for Item */}
+                          {item.cashbackPrice && item.cashbackPercentage && (
+                            <div className="mt-2 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-md p-1.5">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-orange-700">Cashback</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-orange-600">
+                                    ₹{(Number(item.cashbackPrice) * item.quantity).toFixed(2)}
+                                  </span>
+                                  <span className="bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full text-xs">
+                                    {item.cashbackPercentage}%
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1493,15 +1483,45 @@ export default function CheckoutPage() {
                       <span>Subtotal</span>
                       <span>₹{subtotal.toLocaleString()}</span>
                     </div>
-                    {/* Display shipping cost with loading indicator */}
                     <div className="flex justify-between text-gray-600">
-                      <span>Shipping {loadingShipping && <span className="text-xs">(calculating...)</span>}</span>
+                      <span>Shipping</span>
                       <span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
                     </div>
-                    <div className="flex justify-between text-lg font-semibold text-gray-900 pt-2 border-t">
+
+                    <Separator />
+                    <div className="flex justify-between text-lg font-bold">
                       <span>Total</span>
-                      <span>₹{total.toLocaleString()}</span>
+                      <span className="text-pink-600">₹{total.toLocaleString()}</span>
                     </div>
+
+                    {/* Display total cashback prominently if any items have cashback */}
+                    {(() => {
+                      const totalCashback = cartItems.reduce((sum, item) => {
+                        if (item.cashbackPrice) {
+                          return sum + (Number(item.cashbackPrice) * item.quantity);
+                        }
+                        return sum;
+                      }, 0);
+
+                      return totalCashback > 0 ? (
+                        <div className="mt-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-4 shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                <CheckCircle className="h-5 w-5 text-white" />
+                              </div>
+                              <span className="text-base font-bold text-green-800">Cashback Earned!</span>
+                            </div>
+                            <span className="text-2xl font-bold text-green-600">
+                              ₹{totalCashback.toFixed(2)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-green-700 font-medium">
+                            This amount will be credited to your wallet after successful delivery
+                          </p>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
 
                   <Button

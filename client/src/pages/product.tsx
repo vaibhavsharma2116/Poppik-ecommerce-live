@@ -35,14 +35,14 @@ export default function ProductsPage() {
       const searchParams = new URLSearchParams(search);
       const filterParam = searchParams.get('filter');
       const categoryParam = searchParams.get('category');
-      
+
       // Set initial active filters based on URL parameters
       const initialFilters = {
         featured: filterParam === 'featured',
         bestseller: filterParam === 'bestseller',
         newLaunch: filterParam === 'newLaunch',
       };
-      
+
       setActiveFilters(prev => ({
         ...prev,
         ...initialFilters
@@ -78,11 +78,11 @@ export default function ProductsPage() {
   const handleFilterChange = (products: Product[], filters: any) => {
     setFilteredProducts([...products]); // Force array update
     setActiveFilters({...filters}); // Force object update
-    
+
     // Update URL if needed to reflect filter changes
     const searchParams = new URLSearchParams(search);
     const currentFilter = searchParams.get('filter');
-    
+
     // If user has manually changed filters, remove the URL filter parameter
     if (currentFilter && !filters[currentFilter]) {
       searchParams.delete('filter');

@@ -1,6 +1,6 @@
 import { useState, useEffect, startTransition } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, ShoppingCart, Menu, X, User, Heart, LogOut, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, ShoppingCart, Menu, X, User, Heart, LogOut, ChevronDown, ChevronRight, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -22,6 +22,17 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 import AnnouncementBar from "@/components/announcement-bar";
 import loUntitled_design from "@assets/Untitled_design.png";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { Gift, DollarSign } from "lucide-react";
+
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -241,6 +252,57 @@ export default function Layout({ children }: LayoutProps) {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  // Fetch wishlist count
+  // const { data: wishlistCount } = useQuery({
+  //   queryKey: ['/api/wishlist/count', user?.id],
+  //   queryFn: async () => {
+  //     if (!user?.id) return 0;
+  //     const res = await fetch(`/api/wishlist/count?userId=${user.id}`);
+  //     if (!res.ok) return 0;
+  //     const data = await res.json();
+  //     return data.count || 0;
+  //   },
+  //   enabled: !!user?.id,
+  // });
+
+  // Fetch wallet data (cashback)
+  const { data: walletData } = useQuery({
+    queryKey: ['/api/wallet', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/wallet?userId=${user.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch affiliate wallet data
+  const { data: affiliateWallet } = useQuery({
+    queryKey: ['/api/affiliate/wallet', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  // Check if user is an approved affiliate
+  const { data: affiliateApplication } = useQuery({
+    queryKey: ['/api/affiliate/my-application', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/affiliate/my-application?userId=${user.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  const isApprovedAffiliate = affiliateApplication?.status === 'approved';
 
   return (
     <div className="min-h-screen bg-white">
@@ -683,25 +745,105 @@ export default function Layout({ children }: LayoutProps) {
 
               {/* Wishlist Icon */}
               <Link href="/wishlist">
-                <Button variant="ghost" size="sm" className="relative text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
+                <div className="relative hover:text-pink-600 transition-colors cursor-pointer">
                   <Heart className="h-5 w-5" />
                   {wishlistCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-pink-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
+                    <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-pink-600 hover:bg-pink-700 text-white text-xs">
                       {wishlistCount}
-                    </span>
+                    </Badge>
                   )}
-                </Button>
+                </div>
               </Link>
 
+              {/* Wallet Dropdown */}
+              {user && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="relative hover:text-pink-600 transition-colors cursor-pointer focus:outline-none">
+                      <Wallet className="h-5 w-5" />
+                      {isApprovedAffiliate && affiliateWallet && (
+                        <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-green-600 hover:bg-green-700 text-white text-xs">
+                          ₹
+                        </Badge>
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-72">
+                    <DropdownMenuLabel className="text-base font-bold flex items-center gap-2">
+                      <Wallet className="h-5 w-5 text-gray-600" /> My Wallet
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+
+                    {/* Cashback Wallet */}
+                    <DropdownMenuItem asChild>
+                      <Link href="/wallet">
+                        <div className="flex items-center justify-between w-full py-2 cursor-pointer">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <Gift className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm">Cashback Wallet</p>
+                              <p className="text-xs text-gray-500">Your cashback balance</p>
+                            </div>
+                          </div>
+                          <p className="font-bold text-blue-600">
+                            ₹{walletData?.cashbackBalance || "0.00"}
+                          </p>
+                        </div>
+                      </Link>
+                    </DropdownMenuItem>
+
+                    {/* Affiliate Wallet - Only show if approved affiliate */}
+                    {isApprovedAffiliate && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link href="/affiliate-dashboard">
+                            <div className="flex items-center justify-between w-full py-2 cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                  <DollarSign className="h-5 w-5 text-purple-600" />
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-sm">Affiliate Wallet</p>
+                                  <p className="text-xs text-gray-500">Commission earnings</p>
+                                </div>
+                              </div>
+                              <p className="font-bold text-purple-600">
+                                ₹{affiliateWallet?.commissionBalance || "0.00"}
+                              </p>
+                            </div>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-3 bg-gray-50 rounded-md">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-gray-600">Total Balance</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          ₹{(
+                            parseFloat(walletData?.cashbackBalance || "0") +
+                            parseFloat(affiliateWallet?.commissionBalance || "0")
+                          ).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
               <Link href="/cart">
-                <Button variant="ghost" size="sm" className="relative text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
+                <div className="relative hover:text-pink-600 transition-colors cursor-pointer">
                   <ShoppingCart className="h-5 w-5" />
                   {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse">
+                    <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-pink-600 hover:bg-pink-700 text-white text-xs">
                       {cartCount}
-                    </span>
+                    </Badge>
                   )}
-                </Button>
+                </div>
               </Link>
               {user ? (
                 <Link href="/profile">
