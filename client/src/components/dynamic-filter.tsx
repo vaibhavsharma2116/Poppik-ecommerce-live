@@ -53,7 +53,7 @@ export default function DynamicFilter({
 
   // Calculate max price from products and initialize filters
   useEffect(() => {
-    if (products.length > 0) {
+    if (Array.isArray(products) && products.length > 0) {
       const max = Math.max(...products.map(p => p.price));
       const roundedMax = Math.ceil(max / 100) * 100;
       setMaxPrice(roundedMax);
@@ -103,6 +103,12 @@ export default function DynamicFilter({
 
   // Apply filters whenever filters change
   useEffect(() => {
+    // Ensure products is an array
+    if (!Array.isArray(products)) {
+      onFilterChange([], { ...filters });
+      return;
+    }
+
     // Force a fresh computation every time
     const filteredProducts = products.filter(product => {
       // Price range filter

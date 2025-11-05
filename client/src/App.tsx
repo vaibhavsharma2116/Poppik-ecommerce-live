@@ -38,13 +38,13 @@ import AdminContactSubmissions from "@/pages/admin/contact-submissions";
 import AdminTestimonials from "@/pages/admin/testimonials";
 import AdminVideoTestimonials from "@/pages/admin/video-testimonials";
 import AdminAnnouncements from "@/pages/admin/announcements";
+import AdminCombos from "@/pages/admin/combos";
 import NotFound from "@/pages/not-found";
 import { lazy, Suspense, startTransition, useEffect } from 'react';
 import AdminShades from "./pages/admin/shades";
 import AdminFeaturedSections from "@/pages/admin/featured-sections";
 import BlogPost from "./pages/blog-post";
 import ComboPage from "@/pages/combo";
-import AdminCombos from "@/pages/admin/combos";
 import JobApplications from "@/pages/admin/job-applications";
 import AdminStores from "@/pages/admin/stores";
 import InfluencerCollab from "@/pages/influencer-collab";
@@ -117,6 +117,20 @@ function Router() {
             <Route path="/profile" component={AdminProfile} />
             <Route path="/change-password" component={AdminChangePassword} />
              <Route path="/contact-submissions" component={AdminContactSubmissions} />
+            <Route path="/testimonials" component={AdminTestimonials} />
+            <Route path="/video-testimonials" component={AdminVideoTestimonials} />
+            <Route path="/blog" component={() => {
+              const AdminBlog = lazy(() => import("./pages/admin/blog"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <AdminBlog />
+                </Suspense>
+              );
+            }} />
+            <Route path="/combos" component={AdminCombos} />
+            <Route path="/announcements" component={AdminAnnouncements} />
+            <Route path="/shades" component={AdminShades} />
+            <Route path="/featured-sections" component={AdminFeaturedSections} />
             <Route path="/reports">
               <Suspense fallback={<LoadingSpinner />}>
                 <AdminReports />

@@ -5598,7 +5598,9 @@ Poppik Affiliate Portal
         return res.status(404).json({ error: 'User not found' });
       }
 
-      const affiliateCode = `POPPIK${user[0].email?.substring(0, 4).toUpperCase() || "USER"}${userId}`;
+      // Format user ID as 2-digit number (01, 02, 03, etc.)
+      const formattedUserId = userId.toString().padStart(2, '0');
+      const affiliateCode = `POPPIKAP${formattedUserId}`;
 
       // TODO: Implement actual tracking of affiliate sales
       // For now, return sample data that shows growth

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Star, Heart, ShoppingCart } from "lucide-react";
+import { Star, Heart, ShoppingCart, X, Plus, Minus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import type { Product } from "@/lib/types";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 interface Shade {
   id: number;
@@ -27,10 +34,27 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [selectedShade, setSelectedShade] = useState<Shade | null>(null);
+  const [isShadeDrawerOpen, setIsShadeDrawerOpen] = useState(false);
+  const [quantity, setQuantity] = useState(1);
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
   
+  // Fetch product shades
+  const { data: productShades = [] } = useQuery<Shade[]>({
+    queryKey: [`/api/products/${product?.id}/shades`],
+    queryFn: async () => {
+      if (!product?.id) return [];
+      const response = await fetch(`/api/products/${product.id}/shades`);
+      if (!response.ok) return [];
+      const shades = await response.json();
+      return shades.filter((shade: Shade) => 
+        shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(product.id)
+      );
+    },
+    enabled: !!product?.id,
+  });
+
   // Check if product is in wishlist
   useEffect(() => {
     if (product?.id) {
@@ -100,9 +124,16 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     }
   };
 
-  const addToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const addToCart = (e?: React.MouseEvent, fromDrawer = false) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    if (productShades.length > 0 && !selectedShade && !fromDrawer) {
+      setIsShadeDrawerOpen(true);
+      return;
+    }
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
@@ -111,7 +142,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
 
     if (existingItem) {
-      existingItem.quantity += 1;
+      existingItem.quantity += quantity;
     } else {
       cart.push({
         id: product.id,
@@ -120,7 +151,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         price: `₹${product.price}`,
         originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
         image: selectedShade?.imageUrl || product.imageUrl,
-        quantity: 1,
+        quantity: quantity,
         inStock: true,
         selectedShade: selectedShade ? {
           id: selectedShade.id,
@@ -135,11 +166,16 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
 
-    const shadeText = selectedShade ? ` (${selectedShade.name})` : '';
+    const shadeText = selectedShade ? ` in ${selectedShade.name}` : '';
     toast({
       title: "Added to Cart",
-      description: `${product.name}${shadeText} has been added to your cart`,
+      description: `${product.name}${shadeText} (${quantity}) has been added to your cart`,
     });
+
+    if (fromDrawer) {
+      setIsShadeDrawerOpen(false);
+      setQuantity(1);
+    }
   };
 
   // Use admin-calculated discount or calculate if not available
@@ -297,12 +333,18 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
             </div>
 
-            {product.variants?.colors || product.variants?.shades ? (
-              <Link href={`/product/${product.slug}`}>
-                <Button size="sm" className="w-full text-sm py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                  Select Shade
-                </Button>
-              </Link>
+            {productShades.length > 0 ? (
+              <Button 
+                size="sm" 
+                className="w-full text-sm py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsShadeDrawerOpen(true);
+                }}
+              >
+                Select Shades
+              </Button>
             ) : product.inStock ? (
               <Button 
                 size="sm" 
@@ -437,12 +479,18 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
           </div>
 
-          {product.variants?.colors || product.variants?.shades ? (
-            <Link href={`/product/${product.slug}`}>
-              <Button size="sm" className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target">
-                Select Shade
-              </Button>
-            </Link>
+          {productShades.length > 0 ? (
+            <Button 
+              size="sm" 
+              className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsShadeDrawerOpen(true);
+              }}
+            >
+              Select Shades
+            </Button>
           ) : product.inStock ? (
             <Button 
               size="sm" 
@@ -464,6 +512,207 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           )}
         </div>
       </div>
+
+      {/* Shade Selection Drawer */}
+      <Sheet open={isShadeDrawerOpen} onOpenChange={setIsShadeDrawerOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="border-b pb-4 mb-4">
+            <SheetTitle className="text-xl font-bold">{product.name}</SheetTitle>
+            <SheetDescription>
+              Select shade and quantity
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-6">
+            {/* Product Image - Dynamic based on selected shade */}
+            <div className="relative bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg overflow-hidden aspect-square transition-all duration-300">
+              <img
+                src={(() => {
+                  if (selectedShade?.imageUrl) {
+                    return selectedShade.imageUrl;
+                  }
+                  if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+                    return product.images[0].url || product.images[0].imageUrl;
+                  }
+                  return product.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
+                })()}
+                alt={selectedShade?.name || product.name}
+                className="w-full h-full object-contain transition-opacity duration-300"
+                loading="lazy"
+              />
+              {selectedShade && (
+                <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-md">
+                  <span className="text-xs font-semibold text-purple-600">{selectedShade.name}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Price Section - Dynamic total */}
+            <div className="space-y-2 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-100">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  ₹{Number(product.price).toLocaleString()}
+                </span>
+                {product.originalPrice && Number(product.originalPrice) > Number(product.price) && (
+                  <>
+                    <span className="text-lg text-gray-500 line-through">
+                      ₹{Number(product.originalPrice).toLocaleString()}
+                    </span>
+                    <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full animate-pulse">
+                      {discountPercentage}% OFF
+                    </span>
+                  </>
+                )}
+              </div>
+              {selectedShade && (
+                <div className="flex items-center gap-2 text-sm">
+                  <div 
+                    className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
+                    style={{ backgroundColor: selectedShade.colorCode }}
+                  />
+                  <span className="text-gray-600">Selected Shade:</span>
+                  <span className="font-semibold text-purple-700">{selectedShade.name}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Shade Selection - Enhanced interactivity */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">Select Shade:</h3>
+                {selectedShade && (
+                  <button
+                    onClick={() => setSelectedShade(null)}
+                    className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                  >
+                    Clear Selection
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                {productShades.map((shade) => {
+                  const isSelected = selectedShade?.id === shade.id;
+                  return (
+                    <div
+                      key={shade.id}
+                      onClick={() => setSelectedShade(shade)}
+                      className={`cursor-pointer group relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 hover:shadow-lg ${
+                        isSelected
+                          ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md scale-105'
+                          : 'border-gray-200 hover:border-purple-300 hover:bg-purple-25'
+                      }`}
+                    >
+                      {shade.imageUrl ? (
+                        <div className="relative">
+                          <img
+                            src={shade.imageUrl}
+                            alt={shade.name}
+                            className={`w-12 h-12 rounded-full object-cover border-2 shadow-md transition-all ${
+                              isSelected ? 'border-purple-500' : 'border-white'
+                            }`}
+                          />
+                          {isSelected && (
+                            <div className="absolute inset-0 rounded-full bg-purple-500/20 animate-pulse" />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <div
+                            className={`w-12 h-12 rounded-full border-2 shadow-md transition-all ${
+                              isSelected ? 'border-purple-500 scale-110' : 'border-white'
+                            }`}
+                            style={{ backgroundColor: shade.colorCode }}
+                          />
+                          {isSelected && (
+                            <div className="absolute inset-0 rounded-full bg-white/30 animate-pulse" />
+                          )}
+                        </div>
+                      )}
+                      <span className={`text-xs text-center font-medium line-clamp-2 transition-colors ${
+                        isSelected ? 'text-purple-700' : 'text-gray-700'
+                      }`}>
+                        {shade.name}
+                      </span>
+                      {isSelected && (
+                        <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-1 shadow-lg animate-bounce">
+                          <Check className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quantity Selector - Enhanced design */}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-gray-900">Quantity:</h3>
+              <div className="flex items-center justify-center gap-6 bg-gray-50 rounded-lg p-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1}
+                  className="h-12 w-12 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 disabled:opacity-30 transition-all"
+                >
+                  <Minus className="h-5 w-5 text-purple-600" />
+                </Button>
+                <div className="text-center min-w-[4rem]">
+                  <span className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{quantity}</span>
+                  <p className="text-xs text-gray-500 mt-1">Items</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="h-12 w-12 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all"
+                >
+                  <Plus className="h-5 w-5 text-purple-600" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Add to Cart Button - Enhanced with dynamic total */}
+            <div className="space-y-3 pt-4 border-t-2 border-purple-100">
+              {selectedShade && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Subtotal:</span>
+                    <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                      ₹{(Number(product.price) * quantity).toLocaleString()}
+                    </span>
+                  </div>
+                  {quantity > 1 && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      {quantity} × ₹{Number(product.price).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              )}
+              
+              <Button
+                className={`w-full py-6 text-lg font-semibold transition-all duration-300 ${
+                  selectedShade
+                    ? 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 hover:shadow-xl transform hover:scale-105'
+                    : 'bg-gray-300 cursor-not-allowed'
+                }`}
+                disabled={!selectedShade}
+                onClick={() => addToCart(undefined, true)}
+              >
+                <ShoppingCart className="h-5 w-5 mr-2" />
+                {selectedShade ? 'Add to Cart' : 'Select a Shade First'}
+              </Button>
+              
+              {!selectedShade && (
+                <div className="flex items-center justify-center gap-2 text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="font-medium">Please select a shade to continue</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
