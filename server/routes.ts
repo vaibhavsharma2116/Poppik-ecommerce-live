@@ -5314,19 +5314,12 @@ Poppik Career Portal
         city,
         state,
         pincode,
-        instagramHandle,
-        instagramFollowers,
-        youtubeChannel,
-        youtubeSubscribers,
-        tiktokHandle,
-        facebookProfile,
-        contentNiche,
-        avgEngagementRate,
-        whyJoin
+       landmark,
+       country
       } = req.body;
 
       // Validate required fields
-      if (!userId || !firstName || !lastName || !email || !phone || !address || !instagramHandle || !instagramFollowers || !whyJoin) {
+      if (!userId || !firstName || !lastName || !email || !phone || !address || !country) {
         return res.status(400).json({ error: 'All required fields must be provided' });
       }
 
@@ -5351,7 +5344,7 @@ Poppik Career Portal
       if (existingApplicationByUser && existingApplicationByUser.length > 0) {
         const application = existingApplicationByUser[0];
         const status = application.status || 'pending';
-        
+
         return res.status(400).json({ 
           error: `You have already submitted an affiliate application. Status: ${status}`,
           application: {
@@ -5372,15 +5365,8 @@ Poppik Career Portal
         city: city || null,
         state: state || null,
         pincode: pincode || null,
-        instagramHandle,
-        instagramFollowers,
-        youtubeChannel: youtubeChannel || null,
-        youtubeSubscribers: youtubeSubscribers || null,
-        tiktokHandle: tiktokHandle || null,
-        facebookProfile: facebookProfile || null,
-        contentNiche: contentNiche || null,
-        avgEngagementRate: avgEngagementRate || null,
-        whyJoin,
+       landmark:landmark || null,
+       country,
         status: 'pending' // Default status
       }).returning();
 
@@ -5648,7 +5634,7 @@ Poppik Affiliate Portal
         .select()
         .from(schema.affiliateApplications)
         .orderBy(desc(schema.affiliateApplications.createdAt));
-      
+
       res.json(applications);
     } catch (error) {
       console.error('Error fetching affiliate applications:', error);
@@ -5813,7 +5799,7 @@ Poppik Affiliate Team`;
   app.delete('/api/admin/affiliate-applications/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      
+
       const [deleted] = await db
         .delete(schema.affiliateApplications)
         .where(eq(schema.affiliateApplications.id, id))

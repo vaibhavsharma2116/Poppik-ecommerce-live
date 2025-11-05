@@ -227,34 +227,7 @@ export default function AdminAffiliateApplications() {
                     {selectedApplication.pincode && <p><strong>Pincode:</strong> {selectedApplication.pincode}</p>}
                   </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Social Media Presence</h3>
-                  <div className="space-y-2 text-sm">
-                    <p className="flex items-center gap-2">
-                      <Instagram className="h-4 w-4 text-pink-600" />
-                      <strong>Instagram:</strong> {selectedApplication.instagramHandle}
-                    </p>
-                    <p><strong>Followers:</strong> {selectedApplication.instagramFollowers}</p>
-                    {selectedApplication.youtubeChannel && (
-                      <>
-                        <p className="flex items-center gap-2">
-                          <Youtube className="h-4 w-4 text-red-600" />
-                          <strong>YouTube:</strong> {selectedApplication.youtubeChannel}
-                        </p>
-                        <p><strong>Subscribers:</strong> {selectedApplication.youtubeSubscribers}</p>
-                      </>
-                    )}
-                    {selectedApplication.tiktokHandle && (
-                      <p><strong>TikTok:</strong> {selectedApplication.tiktokHandle}</p>
-                    )}
-                    {selectedApplication.facebookProfile && (
-                      <p className="flex items-center gap-2">
-                        <Facebook className="h-4 w-4 text-blue-600" />
-                        <strong>Facebook:</strong> {selectedApplication.facebookProfile}
-                      </p>
-                    )}
-                  </div>
-                </div>
+               
               </div>
 
               <div>

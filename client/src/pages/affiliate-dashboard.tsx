@@ -1131,41 +1131,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                     <p className="text-gray-900 text-xl font-semibold">{application.phone}</p>
                   </div>
                   
-                  <div className="space-y-4">
-                    <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">Social Media Profiles</label>
-                    <div className="grid gap-4">
-                      {application.instagramHandle && (
-                        <div className="flex items-center gap-4 p-5 bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 rounded-xl border border-pink-200 hover:shadow-md transition-shadow">
-                          <div className="w-14 h-14 bg-gradient-to-br from-pink-500 via-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                            <Instagram className="h-7 w-7 text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-bold text-gray-900 text-lg">{application.instagramHandle}</p>
-                            <Badge variant="secondary" className="mt-2 bg-purple-100 text-purple-700 border-purple-200">
-                              <Users className="h-3 w-3 mr-1" />
-                              {application.instagramFollowers} followers
-                            </Badge>
-                          </div>
-                        </div>
-                      )}
-                      {application.youtubeChannel && (
-                        <div className="flex items-center gap-4 p-5 bg-gradient-to-r from-red-50 to-pink-50 rounded-xl border border-red-200 hover:shadow-md transition-shadow">
-                          <div className="w-14 h-14 bg-red-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                            <Youtube className="h-7 w-7 text-white" />
-                          </div>
-                          <p className="font-bold text-gray-900 text-lg">{application.youtubeChannel}</p>
-                        </div>
-                      )}
-                      {application.facebookProfile && (
-                        <div className="flex items-center gap-4 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 hover:shadow-md transition-shadow">
-                          <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                            <Facebook className="h-7 w-7 text-white" />
-                          </div>
-                          <p className="font-bold text-gray-900 text-lg">{application.facebookProfile}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                 
                 </div>
               </CardContent>
             </Card>

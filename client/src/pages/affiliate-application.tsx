@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Landmark } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"; // Assuming these are available in your components
+import { useQuery } from "@tanstack/react-query"; // Assuming you are using react-query
 
 export default function AffiliateApplicationPage() {
   const { toast } = useToast();
@@ -21,15 +23,15 @@ export default function AffiliateApplicationPage() {
     city: "",
     state: "",
     pincode: "",
-    instagramHandle: "",
-    instagramFollowers: "",
-    youtubeChannel: "",
-    youtubeSubscribers: "",
-    tiktokHandle: "",
-    facebookProfile: "",
-    contentNiche: "",
-    avgEngagementRate: "",
-    whyJoin: "",
+    landmark: "",
+    country: "",
+
+  });
+
+  // Fetch existing application status using react-query
+  const { data: existingApplication, isLoading: checkingApplication } = useQuery({
+    queryKey: ['/api/affiliate-applications/check'],
+    enabled: !!user, // Only run this query if user is available
   });
 
   useEffect(() => {
@@ -49,25 +51,6 @@ export default function AffiliateApplicationPage() {
 
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
-
-      // Check if user already has an application
-      try {
-        const response = await fetch(`/api/affiliate/my-application?userId=${parsedUser.id}`);
-        if (response.ok) {
-          const application = await response.json();
-          if (application) {
-            toast({
-              title: "Application Already Exists",
-              description: `Your application status is: ${application.status}`,
-              variant: "default",
-            });
-            setLocation("/affiliate");
-            return;
-          }
-        }
-      } catch (error) {
-        console.log("No existing application found");
-      }
 
       // Pre-fill form with user data
       setFormData((prev) => ({
@@ -161,6 +144,42 @@ export default function AffiliateApplicationPage() {
     );
   }
 
+  // Show loading while checking application status
+  if (checkingApplication) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mx-auto text-center">
+          <p>Checking application status...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle case where application already exists
+  if (existingApplication && existingApplication.status) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle>Application Already Exists</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>Your application status is: <span className="font-semibold capitalize">{existingApplication.status}</span></p>
+              {existingApplication.status === 'pending' && (
+                <p className="mt-2 text-sm text-gray-600">We are reviewing your application and will get back to you soon.</p>
+              )}
+              {existingApplication.status === 'rejected' && (
+                <p className="mt-2 text-sm text-red-600">Your application was not approved. Please contact support for more information.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Render the application form
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-red-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -240,20 +259,7 @@ export default function AffiliateApplicationPage() {
                   />
                 </div>
               </div>
-
-              <div>
-                <Label htmlFor="address">Address *</Label>
-                <Input
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="Your full address"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="city">City *</Label>
                   <Input
@@ -288,129 +294,45 @@ export default function AffiliateApplicationPage() {
                   />
                 </div>
               </div>
-            </div>
-
-            {/* Social Media Information */}
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">Social Media Profiles</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="instagramHandle">Instagram Handle *</Label>
-                  <Input
-                    id="instagramHandle"
-                    name="instagramHandle"
-                    value={formData.instagramHandle}
+                 <Label htmlFor="address">Address *</Label>
+                  <Textarea
+                    id="address"
+                    name="address"
+                    value={formData.address}
                     onChange={handleInputChange}
                     required
-                    placeholder="@yourhandle"
+                    placeholder="Your full address"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="instagramFollowers">Instagram Followers *</Label>
-                  <Input
-                    id="instagramFollowers"
-                    name="instagramFollowers"
-                    type="number"
-                    value={formData.instagramFollowers}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="e.g., 5000"
-                  />
+                  <Label htmlFor="landmark">Landmark</Label>
+                    <Input
+                      id="landmark"
+                      name="landmark"
+                      value={formData.landmark}
+                      onChange={handleInputChange}
+                      placeholder="Landmark"
+                    />
                 </div>
+                 <div>
+                    <Label htmlFor="country">Country *</Label>
+                    <Input
+                      id="country"
+                      name="country"
+                      value={formData.country}
+                      onChange={handleInputChange}
+                      placeholder="Country"
+                      required
+                    />
+                  </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="youtubeChannel">YouTube Channel Link</Label>
-                  <Input
-                    id="youtubeChannel"
-                    name="youtubeChannel"
-                    type="url"
-                    value={formData.youtubeChannel}
-                    onChange={handleInputChange}
-                    placeholder="https://youtube.com/@yourchannel"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="youtubeSubscribers">YouTube Subscribers</Label>
-                  <Input
-                    id="youtubeSubscribers"
-                    name="youtubeSubscribers"
-                    type="number"
-                    value={formData.youtubeSubscribers}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 1000"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="tiktokHandle">TikTok Handle</Label>
-                  <Input
-                    id="tiktokHandle"
-                    name="tiktokHandle"
-                    value={formData.tiktokHandle}
-                    onChange={handleInputChange}
-                    placeholder="@yourhandle"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="facebookProfile">Facebook Profile</Label>
-                  <Input
-                    id="facebookProfile"
-                    name="facebookProfile"
-                    type="url"
-                    value={formData.facebookProfile}
-                    onChange={handleInputChange}
-                    placeholder="https://facebook.com/yourprofile"
-                  />
-                </div>
-              </div>
+              
+              
             </div>
 
-            {/* Additional Information */}
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">Content & Engagement</h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="contentNiche">Content *</Label>
-                  <Input
-                    id="contentNiche"
-                    name="contentNiche"
-                    value={formData.contentNiche}
-                    onChange={handleInputChange}
-                    required
-                    placeholder="e.g., Beauty, Fashion, Lifestyle"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="avgEngagementRate">Average Engagement Rate</Label>
-                  <Input
-                    id="avgEngagementRate"
-                    name="avgEngagementRate"
-                    value={formData.avgEngagementRate}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 5%"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="whyJoin">Why do you want to join Poppik Lifestyle? *</Label>
-                <Textarea
-                  id="whyJoin"
-                  name="whyJoin"
-                  value={formData.whyJoin}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="Tell us about yourself and why you'd be a great fit for our affiliate program..."
-                  className="min-h-[150px]"
-                />
-              </div>
-            </div>
 
             <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t">
               <Button
