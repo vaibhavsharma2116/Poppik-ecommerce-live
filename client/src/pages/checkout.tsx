@@ -774,6 +774,9 @@ export default function CheckoutPage() {
           localStorage.setItem("cartCount", "0");
           window.dispatchEvent(new Event("cartUpdated"));
 
+          // Trigger wallet update event
+          window.dispatchEvent(new CustomEvent('walletUpdated'));
+
           toast({
             title: "Order Placed Successfully!",
             description: redeemAmount > 0 

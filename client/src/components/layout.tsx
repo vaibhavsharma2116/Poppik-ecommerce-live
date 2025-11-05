@@ -253,30 +253,29 @@ export default function Layout({ children }: LayoutProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Fetch wishlist count
-  // const { data: wishlistCount } = useQuery({
-  //   queryKey: ['/api/wishlist/count', user?.id],
-  //   queryFn: async () => {
-  //     if (!user?.id) return 0;
-  //     const res = await fetch(`/api/wishlist/count?userId=${user.id}`);
-  //     if (!res.ok) return 0;
-  //     const data = await res.json();
-  //     return data.count || 0;
-  //   },
-  //   enabled: !!user?.id,
-  // });
-
-  // Fetch wallet data (cashback)
-  const { data: walletData } = useQuery({
+  // Fetch wallet data
+  const { data: walletData, refetch: refetchWallet } = useQuery({
     queryKey: ['/api/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       const res = await fetch(`/api/wallet?userId=${user.id}`);
-      if (!res.ok) return null;
+      if (!res.ok) throw new Error('Failed to fetch wallet');
       return res.json();
     },
     enabled: !!user?.id,
   });
+
+  // Listen for wallet update events
+  useEffect(() => {
+    const handleWalletUpdate = () => {
+      refetchWallet();
+    };
+
+    window.addEventListener('walletUpdated', handleWalletUpdate);
+    return () => {
+      window.removeEventListener('walletUpdated', handleWalletUpdate);
+    };
+  }, [refetchWallet]);
 
   // Fetch affiliate wallet data
   const { data: affiliateWallet } = useQuery({
@@ -799,7 +798,7 @@ export default function Layout({ children }: LayoutProps) {
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
-                          <Link href="/affiliate-dashboard">
+                          <Link href="/affiliate-wallet">
                             <div className="flex items-center justify-between w-full py-2 cursor-pointer">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">

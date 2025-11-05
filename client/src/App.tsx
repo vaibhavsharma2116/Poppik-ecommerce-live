@@ -281,6 +281,14 @@ function Router() {
                 </Suspense>
               );
             }} />
+            <Route path="/affiliate-wallet" component={() => {
+              const AffiliateWallet = lazy(() => import("./pages/affiliate-wallet"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <AffiliateWallet />
+                </Suspense>
+              );
+            }} />
             <Route component={NotFound} />
           </Switch>
         </Layout>
