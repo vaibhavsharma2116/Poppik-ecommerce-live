@@ -588,26 +588,7 @@ export default function Cart() {
                       You saved ₹{totalDiscount.toLocaleString()}!
                     </div>
                   )}
-                  {totalCashback > 0 && (
-                    <div className="mt-3 bg-gradient-to-r from-orange-400 to-amber-400 rounded-lg p-4 shadow-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                            <span className="text-orange-600 text-sm font-bold">₹</span>
-                          </div>
-                          <span className="text-sm font-bold text-white">Total Cashback</span>
-                        </div>
-                        <span className="text-2xl font-bold text-white">
-                          ₹{totalCashback.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="bg-white/20 backdrop-blur-sm rounded px-2 py-1.5">
-                        <p className="text-xs text-white font-medium text-center">
-                          🎉 This amount will be credited to your wallet after delivery
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  
                 </div>
 
                 <Link href="/checkout">

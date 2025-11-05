@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle } from "lucide-react";
+import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,6 +60,30 @@ export default function CheckoutPage() {
   // Initialize shipping cost state and loading indicator
   const [shippingCost, setShippingCost] = useState<number>(99);
   const [loadingShipping, setLoadingShipping] = useState(false);
+
+  // Wallet state and redemption amount
+  const [redeemAmount, setRedeemAmount] = useState(0);
+
+  // Get user from localStorage
+  const getCurrentUser = () => {
+    const userStr = localStorage.getItem("user");
+    return userStr ? JSON.parse(userStr) : null;
+  };
+
+  const user = getCurrentUser();
+
+  // Fetch wallet data
+  const { data: walletData } = useQuery({
+    queryKey: ['/api/wallet', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/wallet?userId=${user.id}`);
+      if (!res.ok) throw new Error('Failed to fetch wallet');
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
 
   useEffect(() => {
     // Check if user is logged in when accessing checkout
@@ -281,11 +307,6 @@ export default function CheckoutPage() {
     setLoading(false);
   };
 
-  const getCurrentUser = () => {
-    const userStr = localStorage.getItem("user");
-    return userStr ? JSON.parse(userStr) : null;
-  };
-
   const calculateSubtotal = () => {
     return cartItems.reduce((total, item) => {
       const price = parseInt(item.price.replace(/[₹,]/g, ""));
@@ -296,9 +317,11 @@ export default function CheckoutPage() {
   const subtotal = calculateSubtotal();
   // Use the dynamic shippingCost, default to 99 if subtotal is less than 599, otherwise free.
   const shipping = subtotal > 599 ? 0 : shippingCost;
-  const total = subtotal + shipping;
+  const totalBeforeDiscount = subtotal + shipping;
+  const total = Math.max(0, totalBeforeDiscount - redeemAmount);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -445,6 +468,8 @@ export default function CheckoutPage() {
               productImage: item.image,
               quantity: item.quantity,
               price: item.price,
+              cashbackPrice: item.cashbackPrice || null,
+              cashbackPercentage: item.cashbackPercentage || null,
             }))
           }
         }),
@@ -489,7 +514,8 @@ export default function CheckoutPage() {
         paymentSessionId: orderData.paymentSessionId,
         customerData: formData,
         cartItems: cartItems,
-        totalAmount: total
+        totalAmount: total,
+        redeemAmount: redeemAmount, // Include redeemAmount
       }));
 
       // Load Cashfree SDK and redirect to payment
@@ -609,7 +635,7 @@ export default function CheckoutPage() {
     if (!formData.city || formData.city.trim().length < 3) {
       toast({
         title: "Invalid City",
-        description: "Please select a valid city from the dropdown",
+        description: "Please select a valid city",
         variant: "destructive",
       });
       return false;
@@ -618,7 +644,7 @@ export default function CheckoutPage() {
     if (!formData.state || formData.state.trim().length < 3) {
       toast({
         title: "Invalid State",
-        description: "Please select a valid state from the dropdown",
+        description: "Please select a valid state",
         variant: "destructive",
       });
       return false;
@@ -637,7 +663,7 @@ export default function CheckoutPage() {
     if (formData.city === "" || formData.state === "") {
       toast({
         title: "Address Incomplete",
-        description: "Please select city and state from the dropdown menus",
+        description: "Please select city and state",
         variant: "destructive",
       });
       return false;
@@ -671,14 +697,52 @@ export default function CheckoutPage() {
           customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
           customerEmail: formData.email.trim(),
           customerPhone: formData.phone.trim(),
+          redeemAmount: redeemAmount, // Include redeemAmount in order data
           items: cartItems.map(item => ({
             productId: item.id,
             productName: item.name,
             productImage: item.image,
             quantity: item.quantity,
             price: item.price,
+            cashbackPrice: item.cashbackPrice || null,
+            cashbackPercentage: item.cashbackPercentage || null,
           }))
         };
+
+        // If cashback is being redeemed, process it first
+        if (redeemAmount > 0) {
+          try {
+            const redeemResponse = await fetch('/api/wallet/redeem', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: user.id,
+                amount: redeemAmount,
+                description: 'Cashback redeemed during checkout'
+              }),
+            });
+
+            if (!redeemResponse.ok) {
+              const redeemError = await redeemResponse.json();
+              throw new Error(redeemError.error || 'Failed to redeem cashback');
+            }
+
+            console.log('Cashback redeemed successfully:', redeemAmount);
+            
+            // Invalidate wallet queries to refresh the balance
+            window.dispatchEvent(new CustomEvent('walletUpdated'));
+          } catch (redeemError) {
+            console.error('Error redeeming cashback:', redeemError);
+            toast({
+              title: "Cashback Redemption Failed",
+              description: redeemError.message || "Failed to redeem cashback. Please try again.",
+              variant: "destructive",
+            });
+            return; // Stop order placement if redemption fails
+          }
+        }
 
         const response = await fetch('/api/orders', {
           method: 'POST',
@@ -706,12 +770,15 @@ export default function CheckoutPage() {
 
           // Clear cart
           localStorage.removeItem("cart");
+          sessionStorage.removeItem('pendingOrder');
           localStorage.setItem("cartCount", "0");
           window.dispatchEvent(new Event("cartUpdated"));
 
           toast({
             title: "Order Placed Successfully!",
-            description: "You will receive a confirmation email shortly",
+            description: redeemAmount > 0 
+              ? `Order placed with ₹${redeemAmount.toFixed(2)} cashback redeemed!` 
+              : "You will receive a confirmation email shortly",
           });
         } else {
           throw new Error(result.error || 'Failed to place order');
@@ -919,15 +986,7 @@ export default function CheckoutPage() {
                       <User className="h-5 w-5 mr-2" />
                       Contact Information
                     </div>
-                    {/* <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowProfileDialog(true)}
-                      className="text-xs"
-                    >
-                      Use Profile Data
-                    </Button> */}
+                    {/* Removed "Use Profile Data" button from here to avoid redundancy */}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -984,15 +1043,7 @@ export default function CheckoutPage() {
                       <MapPin className="h-5 w-5 mr-2" />
                       Shipping Address
                     </div>
-                    {/* <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowProfileDialog(true)}
-                      className="text-xs"
-                    >
-                      Use Profile Data
-                    </Button> */}
+                    {/* Removed "Use Profile Data" button from here to avoid redundancy */}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1185,7 +1236,6 @@ export default function CheckoutPage() {
                         <option value="sonipat">Sonipat</option>
                         <option value="farrukhabad">Farrukhabad</option>
                         <option value="sagar">Sagar</option>
-                        <option value="rourkela">Rourkela</option>
                         <option value="durg">Durg</option>
                         <option value="imphal">Imphal</option>
                         <option value="ratlam">Ratlam</option>
@@ -1419,6 +1469,93 @@ export default function CheckoutPage() {
                   </RadioGroup>
                 </CardContent>
               </Card>
+
+              {/* Wallet Cashback Redemption */}
+              {walletData && parseFloat(walletData.cashbackBalance) > 0 && (
+                <Card className="border-2 border-blue-200 shadow-lg">
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                          <Gift className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Use Wallet Cashback</CardTitle>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Available Balance: ₹{parseFloat(walletData.cashbackBalance).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="space-y-4">
+                      {/* Redeem Amount Input */}
+                      <div>
+                        <Label htmlFor="redeemAmount">Enter Amount to Redeem</Label>
+                        <div className="flex gap-2 mt-2">
+                          <div className="relative flex-1">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₹</span>
+                            <Input
+                              id="redeemAmount"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max={Math.min(parseFloat(walletData.cashbackBalance), total)}
+                              value={redeemAmount}
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
+                                const maxRedeem = Math.min(parseFloat(walletData.cashbackBalance), total);
+                                setRedeemAmount(Math.min(value, maxRedeem));
+                              }}
+                              placeholder="0.00"
+                              className="pl-8"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              const maxRedeem = Math.min(parseFloat(walletData.cashbackBalance), total);
+                              setRedeemAmount(maxRedeem);
+                            }}
+                            className="px-6"
+                          >
+                            Max
+                          </Button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Maximum redeemable: ₹{Math.min(parseFloat(walletData.cashbackBalance), total).toFixed(2)}
+                        </p>
+                      </div>
+
+                      {/* Apply/Remove Cashback Button */}
+                      {redeemAmount > 0 && (
+                        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                              <span className="font-semibold text-green-800">Cashback Applied</span>
+                            </div>
+                            <span className="text-xl font-bold text-green-600">
+                              -₹{redeemAmount.toFixed(2)}
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setRedeemAmount(0)}
+                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            Remove Cashback
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Order Summary */}
@@ -1487,11 +1624,16 @@ export default function CheckoutPage() {
                       <span>Shipping</span>
                       <span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
                     </div>
-
+                    {redeemAmount > 0 && (
+                      <div className="flex justify-between text-green-600 font-semibold">
+                        <span>Wallet Cashback</span>
+                        <span>-₹{redeemAmount.toFixed(2)}</span>
+                      </div>
+                    )}
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total</span>
-                      <span className="text-pink-600">₹{total.toLocaleString()}</span>
+                      <span>₹{total.toLocaleString()}</span>
                     </div>
 
                     {/* Display total cashback prominently if any items have cashback */}

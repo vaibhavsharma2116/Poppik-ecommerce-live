@@ -2572,7 +2572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (totalCashback > 0) {
         try {
           console.log(`💰 Processing cashback of ₹${totalCashback.toFixed(2)} for user ${userId}`);
-          
+
           // Ensure user wallet exists
           let existingWallet = await db
             .select()
@@ -5397,7 +5397,7 @@ Poppik Career Portal
           totalEarned: "0.00",
           totalRedeemed: "0.00"
         }).returning();
-        
+
         wallet = [newWallet];
       }
 
@@ -5816,7 +5816,7 @@ Poppik Affiliate Portal
     }
   });
 
-  // Get affiliate statistics
+  // Get affiliate stats
   app.get('/api/affiliate/stats', async (req, res) => {
     try {
       const { userId } = req.query;
@@ -5915,7 +5915,7 @@ Poppik Affiliate Portal
           totalEarnings: "0.00",
           totalWithdrawn: "0.00"
         }).returning();
-        
+
         wallet = [newWallet];
       }
 

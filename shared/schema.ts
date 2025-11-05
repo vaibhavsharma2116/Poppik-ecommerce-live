@@ -207,6 +207,8 @@ export const orderItemsTable = pgTable("order_items", {
   productImage: text("product_image").notNull(),
   quantity: integer("quantity").notNull(),
   price: text("price").notNull(),
+  cashbackPrice: decimal("cashback_price", { precision: 10, scale: 2 }),
+  cashbackPercentage: decimal("cashback_percentage", { precision: 5, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
