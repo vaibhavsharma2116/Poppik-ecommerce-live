@@ -1813,7 +1813,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateAnnouncement(id: number, announcementData: any): Promise<any> {
     const result = await db.update(announcements)
-      .set({ ...announcementData, updatedAt: new Date() })
+      .set(announcementData)
       .where(eq(announcements.id, id))
       .returning();
     return result[0];

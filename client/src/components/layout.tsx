@@ -919,12 +919,18 @@ export default function Layout({ children }: LayoutProps) {
 
                 {/* Contest */}
                 <li>
-                  <button
-                    onClick={(e) => e.preventDefault()}
+                  <a
+                    href="/contest"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      startTransition(() => {
+                        window.location.href = '/contest';
+                      });
+                    }}
                     className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
                   >
                     Contest
-                  </button>
+                  </a>
                 </li>
 
                 <li>

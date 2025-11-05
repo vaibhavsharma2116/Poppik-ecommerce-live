@@ -56,7 +56,7 @@ import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
-import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication } from "../shared/schema";
+import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, InsertAnnouncement } from "../shared/schema";
 
 // Initialize Shiprocket service
 const shiprocketService = new ShiprocketService();
@@ -4836,15 +4836,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/admin/announcements/:id', async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const announcement = await storage.updateAnnouncement(id, req.body);
+      const { id } = req.params;
+      const { text, isActive, sortOrder } = req.body;
+
+      const updateData: any = {};
+
+      if (text !== undefined) updateData.text = text.trim();
+      if (isActive !== undefined) updateData.isActive = isActive !== false && isActive !== 'false';
+      if (sortOrder !== undefined) updateData.sortOrder = parseInt(sortOrder) || 0;
+
+      const announcement = await storage.updateAnnouncement(parseInt(id), updateData);
+
       if (!announcement) {
-        return res.status(404).json({ error: 'Announcement not found' });
+        return res.status(404).json({ error: "Announcement not found" });
       }
+
       res.json(announcement);
     } catch (error) {
-      console.error('Error updating announcement:', error);
-      res.status(500).json({ error: 'Failed to update announcement' });
+      console.error("Error updating announcement:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to update announcement";
+      res.status(500).json({
+        error: "Failed to update announcement",
+        details: errorMessage
+      });
     }
   });
 
@@ -5315,11 +5329,20 @@ Poppik Career Portal
         state,
         pincode,
        landmark,
-       country
+       country,
+       instagramHandle,
+       instagramFollowers,
+       youtubeChannel,
+       youtubeSubscribers,
+       tiktokHandle,
+       facebookProfile,
+       contentNiche,
+       avgEngagementRate,
+       whyJoin
       } = req.body;
 
       // Validate required fields
-      if (!userId || !firstName || !lastName || !email || !phone || !address || !country) {
+      if (!userId || !firstName || !lastName || !email || !phone || !address || !country || !instagramHandle || !whyJoin) {
         return res.status(400).json({ error: 'All required fields must be provided' });
       }
 
@@ -5367,6 +5390,15 @@ Poppik Career Portal
         pincode: pincode || null,
        landmark:landmark || null,
        country,
+       instagramHandle,
+       instagramFollowers: parseInt(instagramFollowers) || 0,
+       youtubeChannel,
+       youtubeSubscribers: parseInt(youtubeSubscribers) || 0,
+       tiktokHandle: tiktokHandle || null,
+       facebookProfile: facebookProfile || null,
+       contentNiche: contentNiche || null,
+       avgEngagementRate: avgEngagementRate || null,
+       whyJoin,
         status: 'pending' // Default status
       }).returning();
 
@@ -5418,7 +5450,7 @@ Poppik Affiliate Portal
 
           <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
             <h3 style="color: #333;">Application Details</h3>
-            <table style="width: 100%; border-collapse: collapse;">
+            <table style="width: 100%; border-collapse;">
               <tr>
                 <td style="padding: 8px; font-weight: bold;">Application ID:</td>
                 <td style="padding: 8px;">#${savedApplication.id}</td>

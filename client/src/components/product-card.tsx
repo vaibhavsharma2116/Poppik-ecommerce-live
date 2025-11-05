@@ -333,27 +333,29 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
             </div>
 
-            {productShades.length > 0 ? (
-              <Button 
-                size="sm" 
-                className="w-full text-sm py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsShadeDrawerOpen(true);
-                }}
-              >
-                Select Shades
-              </Button>
-            ) : product.inStock ? (
-              <Button 
-                size="sm" 
-                className="w-full text-sm py-3 flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                onClick={addToCart}
-              >
-                <ShoppingCart className="h-4 w-4" />
-                Add to Cart
-              </Button>
+            {product.inStock ? (
+              productShades.length > 0 ? (
+                <Button 
+                  size="sm" 
+                  className="w-full text-sm py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsShadeDrawerOpen(true);
+                  }}
+                >
+                  Select Shades
+                </Button>
+              ) : (
+                <Button 
+                  size="sm" 
+                  className="w-full text-sm py-3 flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  onClick={addToCart}
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  Add to Cart
+                </Button>
+              )
             ) : (
               <Button 
                 size="sm" 
@@ -479,27 +481,29 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
           </div>
 
-          {productShades.length > 0 ? (
-            <Button 
-              size="sm" 
-              className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsShadeDrawerOpen(true);
-              }}
-            >
-              Select Shades
-            </Button>
-          ) : product.inStock ? (
-            <Button 
-              size="sm" 
-              className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
-              onClick={addToCart}
-            >
-              <ShoppingCart className="h-3.5 w-3.5" />
-              <span className="hidden xs:inline">Add to</span> Cart
-            </Button>
+          {product.inStock ? (
+            productShades.length > 0 ? (
+              <Button 
+                size="sm" 
+                className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsShadeDrawerOpen(true);
+                }}
+              >
+                Select Shades
+              </Button>
+            ) : (
+              <Button 
+                size="sm" 
+                className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
+                onClick={addToCart}
+              >
+                <ShoppingCart className="h-3.5 w-3.5" />
+                <span className="hidden xs:inline">Add to</span> Cart
+              </Button>
+            )
           ) : (
             <Button 
               size="sm" 

@@ -55,6 +55,7 @@ import AdminInfluencerApplications from './pages/admin/influencer-applications';
 import AdminAffiliateApplications from './pages/admin/affiliate-applications';
 const AcademyPage = lazy(() => import("./pages/academy"));
 const DropShippingPage = lazy(() => import("./pages/drop-shipping"));
+const ContestPage = lazy(() => import("./pages/contest"));
 const MakeupStudio = lazy(() => import("./pages/makeup-studio"));
 const FashionShow = lazy(() => import("./pages/fashion-show"));
 
@@ -163,6 +164,11 @@ function Router() {
             <Route path="/drop-shipping">
               <Suspense fallback={<LoadingSpinner />}>
                 <DropShippingPage />
+              </Suspense>
+            </Route>
+            <Route path="/contest">
+              <Suspense fallback={<LoadingSpinner />}>
+                <ContestPage />
               </Suspense>
             </Route>
             <Route path="/channel-partner" component={ChannelPartnerPage} />
