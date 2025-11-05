@@ -164,7 +164,7 @@ export default function VideoTestimonials() {
   if (testimonialsLoading || productsLoading) {
     return (
       <section className="py-16 bg-gradient-to-br from-pink-50 via-white to-purple-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <Skeleton className="h-12 w-64 mx-auto mb-4" />
             <Skeleton className="h-6 w-48 mx-auto" />
@@ -185,7 +185,7 @@ export default function VideoTestimonials() {
 
   return (
     <section className="py-4 sm:py-4 md:py-4 bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
+      <div className="max-w-12xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
         <div className="text-center mb-8 sm:mb-10 md:mb-12">
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-4 px-4">
             <span className="text-transparent bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text">

@@ -4431,7 +4431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let statusCode = 500;
 
       if (error.message) {
-        if (error.message.includes('unique constraint') || error.message.includes('duplicate key')) {
+        if (error.message.includes('uniqueconstraint') || error.message.includes('duplicate key')) {
           errorMessage = "A shade with this name or similar properties already exists. The system will automatically generate a unique identifier.";
           statusCode = 400;
         } else if (error.message.includes('not null constraint')) {
@@ -5314,8 +5314,12 @@ Poppik Career Portal
         city,
         state,
         pincode,
-       landmark,
-       country
+        landmark,
+        country,
+        bankName,
+        branchName,
+        ifscCode,
+        accountNumber
       } = req.body;
 
       // Validate required fields
@@ -5365,8 +5369,12 @@ Poppik Career Portal
         city: city || null,
         state: state || null,
         pincode: pincode || null,
-       landmark:landmark || null,
-       country,
+        landmark: landmark || null,
+        country,
+        bankName: bankName || null,
+        branchName: branchName || null,
+        ifscCode: ifscCode || null,
+        accountNumber: accountNumber || null,
         status: 'pending' // Default status
       }).returning();
 
@@ -5389,24 +5397,15 @@ Email: ${email}
 Phone: ${phone}
 Address: ${address}, ${city}, ${state} - ${pincode}
 
-SOCIAL MEDIA:
--------------
-Instagram: ${instagramHandle} (${instagramFollowers} followers)
-YouTube: ${youtubeChannel || 'Not provided'} (${youtubeSubscribers || 0} subscribers)
-TikTok: ${tiktokHandle || 'Not provided'}
-Facebook: ${facebookProfile || 'Not provided'}
-
-CONTENT DETAILS:
+BANKING DETAILS:
 ----------------
-Niche: ${contentNiche || 'Not specified'}
-Avg Engagement Rate: ${avgEngagementRate || 'Not specified'}
-
-WHY JOIN POPPIK:
-----------------
-${whyJoin}
+Bank Name: ${bankName || 'Not provided'}
+Branch Name: ${branchName || 'Not provided'}
+IFSC Code: ${ifscCode || 'Not provided'}
+Account Number: ${accountNumber ? '****' + accountNumber.slice(-4) : 'Not provided'}
 
 Please review this application in the admin panel at:
-${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/admin/influencer-applications` : 'Admin Panel'}
+${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/admin/affiliate-applications` : 'Admin Panel'}
 
 Best regards,
 Poppik Affiliate Portal
@@ -5443,36 +5442,25 @@ Poppik Affiliate Portal
           </div>
 
           <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="color: #333;">Social Media</h3>
+            <h3 style="color: #333;">Banking Details</h3>
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
-                <td style="padding: 8px; font-weight: bold;">Instagram:</td>
-                <td style="padding: 8px;">${instagramHandle} (${instagramFollowers} followers)</td>
+                <td style="padding: 8px; font-weight: bold;">Bank Name:</td>
+                <td style="padding: 8px;">${bankName || 'Not provided'}</td>
               </tr>
               <tr>
-                <td style="padding: 8px; font-weight: bold;">YouTube:</td>
-                <td style="padding: 8px;">${youtubeChannel || 'Not provided'} (${youtubeSubscribers || 0} subscribers)</td>
+                <td style="padding: 8px; font-weight: bold;">Branch Name:</td>
+                <td style="padding: 8px;">${branchName || 'Not provided'}</td>
               </tr>
               <tr>
-                <td style="padding: 8px; font-weight: bold;">TikTok:</td>
-                <td style="padding: 8px;">${tiktokHandle || 'Not provided'}</td>
+                <td style="padding: 8px; font-weight: bold;">IFSC Code:</td>
+                <td style="padding: 8px;">${ifscCode || 'Not provided'}</td>
               </tr>
               <tr>
-                <td style="padding: 8px; font-weight: bold;">Facebook:</td>
-                <td style="padding: 8px;">${facebookProfile || 'Not provided'}</td>
+                <td style="padding: 8px; font-weight: bold;">Account Number:</td>
+                <td style="padding: 8px;">${accountNumber ? '****' + accountNumber.slice(-4) : 'Not provided'}</td>
               </tr>
             </table>
-          </div>
-
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="color: #333;">Content Details</h3>
-            <p><strong>Niche:</strong> ${contentNiche || 'Not specified'}</p>
-            <p><strong>Avg Engagement Rate:</strong> ${avgEngagementRate || 'Not specified'}</p>
-          </div>
-
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="color: #333;">Why Join Poppik</h3>
-            <p style="white-space: pre-wrap;">${whyJoin}</p>
           </div>
         </div>
       `;
@@ -5627,6 +5615,53 @@ Poppik Affiliate Portal
     }
   });
 
+  // Get affiliate wallet
+  app.get('/api/affiliate/wallet', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      // Check if user has an approved affiliate application
+      const application = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.userId, parseInt(userId as string)))
+        .limit(1);
+
+      if (!application || application.length === 0 || application[0].status !== 'approved') {
+        return res.status(403).json({ error: 'Not an approved affiliate' });
+      }
+
+      // Get or create wallet
+      let wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        // Create new wallet if it doesn't exist
+        const [newWallet] = await db.insert(schema.affiliateWallet).values({
+          userId: parseInt(userId as string),
+          cashbackBalance: "0.00",
+          commissionBalance: "0.00",
+          totalEarnings: "0.00",
+          totalWithdrawn: "0.00"
+        }).returning();
+        
+        wallet = [newWallet];
+      }
+
+      res.json(wallet[0]);
+    } catch (error) {
+      console.error('Error fetching affiliate wallet:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate wallet' });
+    }
+  });
+
   // Admin endpoints for affiliate applications
   app.get('/api/admin/affiliate-applications', async (req, res) => {
     try {
@@ -5664,25 +5699,53 @@ Poppik Affiliate Portal
 
   app.put('/api/admin/affiliate-applications/:id/status', async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const { status, reviewNotes } = req.body;
+      const { id } = req.params;
+      const { status, notes } = req.body; // Changed 'reviewNotes' to 'notes' to match the old code
 
       if (!['pending', 'approved', 'rejected'].includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
       }
 
-      const [application] = await db
+      const [updatedApplication] = await db
         .update(schema.affiliateApplications)
         .set({
           status,
-          reviewNotes,
+          reviewNotes: notes, // Use 'reviewNotes' here
           reviewedAt: new Date()
         })
-        .where(eq(schema.affiliateApplications.id, id))
+        .where(eq(schema.affiliateApplications.id, parseInt(id)))
         .returning();
 
-      if (!application) {
+      if (!updatedApplication) {
         return res.status(404).json({ error: 'Application not found' });
+      }
+
+      // If approved, create affiliate wallet
+      if (status === 'approved' && updatedApplication.userId) {
+        try {
+          // Check if wallet already exists
+          const existingWallet = await db
+            .select()
+            .from(schema.affiliateWallet)
+            .where(eq(schema.affiliateWallet.userId, updatedApplication.userId))
+            .limit(1);
+
+          if (existingWallet.length === 0) {
+            // Create new wallet
+            await db.insert(schema.affiliateWallet).values({
+              userId: updatedApplication.userId,
+              cashbackBalance: "0.00",
+              commissionBalance: "0.00",
+              totalEarnings: "0.00",
+              totalWithdrawn: "0.00"
+            });
+
+            console.log(`Affiliate wallet created for user ${updatedApplication.userId}`);
+          }
+        } catch (walletError) {
+          console.error('Error creating affiliate wallet:', walletError);
+          // Continue even if wallet creation fails
+        }
       }
 
       // Send email notification to applicant
@@ -5692,7 +5755,7 @@ Poppik Affiliate Portal
           : 'Update on Your Poppik Affiliate Application';
 
         const emailBody = status === 'approved'
-          ? `Dear ${application.firstName} ${application.lastName},
+          ? `Dear ${updatedApplication.firstName} ${updatedApplication.lastName},
 
 Congratulations! We are excited to inform you that your application to join the Poppik Affiliate Program has been approved!
 
@@ -5705,19 +5768,19 @@ In your dashboard, you will find:
 - Marketing materials and product information
 - Payment details and history
 
-${reviewNotes ? `\nAdmin Notes: ${reviewNotes}` : ''}
+${notes ? `\nAdmin Notes: ${notes}` : ''}
 
 Thank you for partnering with Poppik! We look forward to a successful collaboration.
 
 Best regards,
 Poppik Affiliate Team`
-          : `Dear ${application.firstName} ${application.lastName},
+          : `Dear ${updatedApplication.firstName} ${updatedApplication.lastName},
 
 Thank you for your interest in the Poppik Affiliate Program.
 
 After careful review, we regret to inform you that we are unable to approve your application at this time.
 
-${reviewNotes ? `\nReason: ${reviewNotes}` : ''}
+${notes ? `\nReason: ${notes}` : ''}
 
 We encourage you to reapply in the future as your social media presence grows. Keep creating amazing content!
 
@@ -5730,7 +5793,7 @@ Poppik Affiliate Team`;
               <h1 style="color: white; margin: 0;">Congratulations! 🎉</h1>
             </div>
             <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-              <p style="font-size: 16px; color: #333;">Dear ${application.firstName} ${application.lastName},</p>
+              <p style="font-size: 16px; color: #333;">Dear ${updatedApplication.firstName} ${updatedApplication.lastName},</p>
               <p style="font-size: 16px; color: #333; line-height: 1.6;">
                 We are excited to inform you that your application to join the <strong>Poppik Affiliate Program</strong> has been <strong style="color: #27ae60;">APPROVED</strong>!
               </p>
@@ -5748,7 +5811,7 @@ Poppik Affiliate Team`;
                   Access Dashboard
                 </a>
               </div>
-              ${reviewNotes ? `<p style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin: 20px 0;"><strong>Admin Notes:</strong> ${reviewNotes}</p>` : ''}
+              ${notes ? `<p style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin: 20px 0;"><strong>Admin Notes:</strong> ${notes}</p>` : ''}
               <p style="color: #666; margin-top: 30px;">Welcome to the Poppik family! We look forward to a successful partnership.</p>
               <p style="color: #666; margin-top: 20px;">Best regards,<br><strong>Poppik Affiliate Team</strong></p>
             </div>
@@ -5758,14 +5821,14 @@ Poppik Affiliate Team`;
               <h1 style="color: #555; margin: 0;">Application Update</h1>
             </div>
             <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-              <p style="font-size: 16px; color: #333;">Dear ${application.firstName} ${application.lastName},</p>
+              <p style="font-size: 16px; color: #333;">Dear ${updatedApplication.firstName} ${updatedApplication.lastName},</p>
               <p style="font-size: 16px; color: #333; line-height: 1.6;">
                 Thank you for your interest in the Poppik Affiliate Program.
               </p>
               <p style="font-size: 16px; color: #333; line-height: 1.6;">
                 After careful review, we are unable to approve your application at this time.
               </p>
-              ${reviewNotes ? `<p style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;"><strong>Feedback:</strong> ${reviewNotes}</p>` : ''}
+              ${notes ? `<p style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;"><strong>Feedback:</strong> ${notes}</p>` : ''}
               <p style="color: #666; margin-top: 20px;">We encourage you to reapply in the future as your social media presence grows. Keep creating amazing content!</p>
               <p style="color: #666; margin-top: 20px;">Best regards,<br><strong>Poppik Affiliate Team</strong></p>
             </div>
@@ -5773,22 +5836,23 @@ Poppik Affiliate Team`;
 
         await transporter.sendMail({
           from: process.env.SMTP_FROM || 'affiliates@poppik.in',
-          to: application.email,
+          to: updatedApplication.email, // Send email to applicant
           subject: emailSubject,
           text: emailBody,
           html: emailHtml
         });
 
-        console.log(`✅ Status update email sent to ${application.email}`);
+        console.log(`Status update email sent to ${updatedApplication.email}`);
       } catch (emailError) {
-        console.error('❌ Failed to send status update email:', emailError);
+        console.error('Failed to send status update email:', emailError);
         // Continue even if email fails
       }
+
 
       res.json({ 
         success: true, 
         message: `Application ${status} successfully`,
-        application 
+        application: updatedApplication 
       });
     } catch (error) {
       console.error('Error updating application status:', error);

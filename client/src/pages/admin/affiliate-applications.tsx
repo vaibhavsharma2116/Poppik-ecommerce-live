@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, Trash2, Mail, Phone, MapPin, Instagram, Youtube, Facebook, CheckCircle, XCircle } from "lucide-react";
+import { Eye, Trash2, Mail, Phone, MapPin, Landmark, CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminAffiliateApplications() {
@@ -40,7 +40,7 @@ export default function AdminAffiliateApplications() {
       const response = await fetch(`/api/admin/affiliate-applications/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, reviewNotes: notes }),
+        body: JSON.stringify({ status, notes }),
       });
       if (!response.ok) throw new Error('Failed to update status');
       return response.json();
@@ -127,7 +127,7 @@ export default function AdminAffiliateApplications() {
                   <TableHead>Name</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Instagram</TableHead>
+                  <TableHead>Bank</TableHead>
                   <TableHead>Applied Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -157,11 +157,9 @@ export default function AdminAffiliateApplications() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">
-                        <div className="flex items-center gap-1">
-                          <Instagram className="h-3 w-3 text-pink-600" />
-                          {application.instagramFollowers}
-                        </div>
+                      <div className="text-sm flex items-center gap-1">
+                        <Landmark className="h-3 w-3" />
+                        {application.bankName || 'Not provided'}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -221,30 +219,38 @@ export default function AdminAffiliateApplications() {
                     <p><strong>Name:</strong> {selectedApplication.firstName} {selectedApplication.lastName}</p>
                     <p><strong>Email:</strong> {selectedApplication.email}</p>
                     <p><strong>Phone:</strong> {selectedApplication.phone}</p>
-                    <p><strong>Address:</strong> {selectedApplication.address}</p>
-                    {selectedApplication.city && <p><strong>City:</strong> {selectedApplication.city}</p>}
-                    {selectedApplication.state && <p><strong>State:</strong> {selectedApplication.state}</p>}
-                    {selectedApplication.pincode && <p><strong>Pincode:</strong> {selectedApplication.pincode}</p>}
                   </div>
                 </div>
-               
-              </div>
-
-              <div>
-                <h3 className="font-semibold mb-2">Content Details</h3>
-                <div className="space-y-2 text-sm">
-                  {selectedApplication.contentNiche && (
-                    <p><strong>Content Niche:</strong> {selectedApplication.contentNiche}</p>
-                  )}
-                  {selectedApplication.avgEngagementRate && (
-                    <p><strong>Avg Engagement Rate:</strong> {selectedApplication.avgEngagementRate}</p>
-                  )}
+                <div>
+                  <h3 className="font-semibold mb-2">Address</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><strong>Address:</strong> {selectedApplication.address}</p>
+                    {selectedApplication.landmark && <p><strong>Landmark:</strong> {selectedApplication.landmark}</p>}
+                    <p><strong>City:</strong> {selectedApplication.city || 'N/A'}</p>
+                    <p><strong>State:</strong> {selectedApplication.state || 'N/A'}</p>
+                    <p><strong>Pincode:</strong> {selectedApplication.pincode || 'N/A'}</p>
+                    <p><strong>Country:</strong> {selectedApplication.country}</p>
+                  </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">Why Join Poppik</h3>
-                <p className="text-sm whitespace-pre-wrap bg-gray-50 p-4 rounded">{selectedApplication.whyJoin}</p>
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <Landmark className="h-5 w-5 text-purple-600" />
+                  Banking Details
+                </h3>
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 text-sm">
+                      <p><strong>Bank Name:</strong> {selectedApplication.bankName || 'Not provided'}</p>
+                      <p><strong>Branch Name:</strong> {selectedApplication.branchName || 'Not provided'}</p>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <p><strong>IFSC Code:</strong> {selectedApplication.ifscCode || 'Not provided'}</p>
+                      <p><strong>Account Number:</strong> {selectedApplication.accountNumber ? `****${selectedApplication.accountNumber.slice(-4)}` : 'Not provided'}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -258,8 +264,8 @@ export default function AdminAffiliateApplications() {
               </div>
 
               {selectedApplication.reviewedAt && (
-                <div className="text-sm text-muted-foreground">
-                  <p>Reviewed on {new Date(selectedApplication.reviewedAt).toLocaleDateString()}</p>
+                <div className="text-sm text-muted-foreground bg-gray-50 p-4 rounded">
+                  <p><strong>Reviewed on:</strong> {new Date(selectedApplication.reviewedAt).toLocaleDateString()}</p>
                   {selectedApplication.reviewNotes && (
                     <p className="mt-2"><strong>Previous Notes:</strong> {selectedApplication.reviewNotes}</p>
                   )}

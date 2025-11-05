@@ -127,7 +127,7 @@ export default function ProductsPage() {
 
   return (
     <div className="mobile-page-container min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         {/* <div className="text-center mb-12">
           <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 max-w-4xl mx-auto">

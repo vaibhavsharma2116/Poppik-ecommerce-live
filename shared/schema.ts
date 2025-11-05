@@ -512,7 +512,46 @@ export const affiliateApplications = pgTable("affiliate_applications", {
   pincode: varchar("pincode", { length: 10 }),
   landmark: text("landmark"),
   country: text("country").notNull(),
+  bankName: varchar("bank_name", { length: 255 }),
+  branchName: varchar("branch_name", { length: 255 }),
+  ifscCode: varchar("ifsc_code", { length: 20 }),
+  accountNumber: varchar("account_number", { length: 50 }),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
 });
 
 export type AffiliateApplication = typeof affiliateApplications.$inferSelect;
 export type InsertAffiliateApplication = typeof affiliateApplications.$inferInsert;
+
+// Affiliate Wallet Table
+export const affiliateWallet = pgTable("affiliate_wallet", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  cashbackBalance: decimal("cashback_balance", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  commissionBalance: decimal("commission_balance", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  totalWithdrawn: decimal("total_withdrawn", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type AffiliateWallet = typeof affiliateWallet.$inferSelect;
+export type InsertAffiliateWallet = typeof affiliateWallet.$inferInsert;
+
+// Affiliate Transactions Table
+export const affiliateTransactions = pgTable("affiliate_transactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 20 }).notNull(), // 'cashback', 'commission', 'withdrawal'
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  balanceType: varchar("balance_type", { length: 20 }).notNull(), // 'cashback' or 'commission'
+  description: text("description").notNull(),
+  orderId: integer("order_id").references(() => ordersTable.id),
+  status: varchar("status", { length: 20 }).default("completed").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AffiliateTransaction = typeof affiliateTransactions.$inferSelect;
+export type InsertAffiliateTransaction = typeof affiliateTransactions.$inferInsert;

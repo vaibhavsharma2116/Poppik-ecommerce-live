@@ -45,7 +45,7 @@ export default function TestimonialsSection() {
   if (isLoading) {
     return (
       <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-b from-pink-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center mb-12 sm:mb-16 text-gray-900">
             Testimonials
           </h2>
@@ -72,7 +72,7 @@ export default function TestimonialsSection() {
 
   return (
     <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-b from-pink-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Title */}
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center mb-12 sm:mb-16 text-gray-900">
           Testimonials
