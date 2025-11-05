@@ -43,7 +43,7 @@ export default function CategoryPage() {
   // Handle URL subcategory parameter - only on initial load
   useEffect(() => {
     if (subcategories.length === 0 || hasInitializedFromUrl.current) return;
-    
+
     const urlParams = new URLSearchParams(window.location.search);
     const subcategoryParam = urlParams.get('subcategory');
 
@@ -57,7 +57,7 @@ export default function CategoryPage() {
         setSelectedSubcategoryId(subcategory.id.toString());
       }
     }
-    
+
     hasInitializedFromUrl.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subcategories.length])
@@ -387,7 +387,30 @@ export default function CategoryPage() {
                       product={product}
                       viewMode={viewMode}
                       className="mobile-category-product-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300"
-                    />
+                    >
+                      {/* ProductCard content rendering is assumed to be inside ProductCard component */}
+                      {/* The following is a hypothetical structure if ProductCard were to directly render price and cashback */}
+                      <div>
+                        <p className="text-2xl font-bold text-gray-900 mb-2">
+                          ₹{product.price}
+                        </p>
+                        {product.cashbackPercentage && product.cashbackPrice && (
+                          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-2 mb-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-semibold text-orange-700">Cashback</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-orange-600">
+                                  ₹{Number(product.cashbackPrice).toFixed(2)}
+                                </span>
+                                <span className="text-xs bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full">
+                                  {product.cashbackPercentage}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </ProductCard>
                   ))}
                 </div>
               ) : (

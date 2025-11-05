@@ -1,6 +1,6 @@
 import { useState, useEffect, startTransition } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, ShoppingCart, Menu, X, User, Heart, LogOut, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, ShoppingCart, Menu, X, User, Heart, LogOut, ChevronDown, ChevronRight, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -31,7 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, DollarSign, Gift } from "lucide-react";
+import { Gift, DollarSign } from "lucide-react";
 
 
 interface LayoutProps {
@@ -253,8 +253,8 @@ export default function Layout({ children }: LayoutProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // // Fetch wishlist count
-  // const { wishlistCount } = useQuery({
+  // Fetch wishlist count
+  // const { data: wishlistCount } = useQuery({
   //   queryKey: ['/api/wishlist/count', user?.id],
   //   queryFn: async () => {
   //     if (!user?.id) return 0;
@@ -265,6 +265,18 @@ export default function Layout({ children }: LayoutProps) {
   //   },
   //   enabled: !!user?.id,
   // });
+
+  // Fetch wallet data (cashback)
+  const { data: walletData } = useQuery({
+    queryKey: ['/api/wallet', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/wallet?userId=${user.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
 
   // Fetch affiliate wallet data
   const { data: affiliateWallet } = useQuery({
@@ -300,7 +312,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Header */}
       <header className="sticky top-0 bg-white shadow-lg z-50">
         {/* Main Header */}
-        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Desktop and Tablet Layout */}
             <div className="hidden md:flex items-center justify-between w-full">
@@ -663,7 +675,7 @@ export default function Layout({ children }: LayoutProps) {
             </div>
 
             {/* Desktop Layout - Keep existing */}
-            <div className="hidden md:flex items-center space-x-4">
+            <div className="hidden md:flex items-center space-x-2">
               {/* Desktop Search */}
               <div className="flex items-center relative">
                 {showSearchBar ? (
@@ -757,12 +769,14 @@ export default function Layout({ children }: LayoutProps) {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-72">
-                    <DropdownMenuLabel className="text-base font-bold">My Wallet</DropdownMenuLabel>
+                    <DropdownMenuLabel className="text-base font-bold flex items-center gap-2">
+                      <Wallet className="h-5 w-5 text-gray-600" /> My Wallet
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
 
                     {/* Cashback Wallet */}
                     <DropdownMenuItem asChild>
-                      <Link href="/profile">
+                      <Link href="/wallet">
                         <div className="flex items-center justify-between w-full py-2 cursor-pointer">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -774,7 +788,7 @@ export default function Layout({ children }: LayoutProps) {
                             </div>
                           </div>
                           <p className="font-bold text-blue-600">
-                            ₹{affiliateWallet?.cashbackBalance || "0.00"}
+                            ₹{walletData?.cashbackBalance || "0.00"}
                           </p>
                         </div>
                       </Link>
@@ -811,7 +825,7 @@ export default function Layout({ children }: LayoutProps) {
                         <p className="text-xs font-medium text-gray-600">Total Balance</p>
                         <p className="text-lg font-bold text-gray-900">
                           ₹{(
-                            parseFloat(affiliateWallet?.cashbackBalance || "0") +
+                            parseFloat(walletData?.cashbackBalance || "0") +
                             parseFloat(affiliateWallet?.commissionBalance || "0")
                           ).toFixed(2)}
                         </p>
@@ -914,7 +928,7 @@ export default function Layout({ children }: LayoutProps) {
 
         {/* Navigation - Desktop */}
         <nav className="bg-white hidden md:block shadow-md">
-          <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-center h-12">
               <ul className="flex items-center space-x-4">
                 <li>
@@ -1139,7 +1153,7 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Footer */}
       <footer className="bg-gradient-to-b from-gray-900 to-black text-white py-2">
-        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Top Section - Centered Logo and Description */}
           <div className="text-center mb-12">
             <div className="mb-0 flex justify-center">

@@ -35,14 +35,14 @@ export default function ProductsPage() {
       const searchParams = new URLSearchParams(search);
       const filterParam = searchParams.get('filter');
       const categoryParam = searchParams.get('category');
-      
+
       // Set initial active filters based on URL parameters
       const initialFilters = {
         featured: filterParam === 'featured',
         bestseller: filterParam === 'bestseller',
         newLaunch: filterParam === 'newLaunch',
       };
-      
+
       setActiveFilters(prev => ({
         ...prev,
         ...initialFilters
@@ -78,11 +78,11 @@ export default function ProductsPage() {
   const handleFilterChange = (products: Product[], filters: any) => {
     setFilteredProducts([...products]); // Force array update
     setActiveFilters({...filters}); // Force object update
-    
+
     // Update URL if needed to reflect filter changes
     const searchParams = new URLSearchParams(search);
     const currentFilter = searchParams.get('filter');
-    
+
     // If user has manually changed filters, remove the URL filter parameter
     if (currentFilter && !filters[currentFilter]) {
       searchParams.delete('filter');
@@ -127,7 +127,7 @@ export default function ProductsPage() {
 
   return (
     <div className="mobile-page-container min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
-      <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         {/* <div className="text-center mb-12">
           <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 max-w-4xl mx-auto">

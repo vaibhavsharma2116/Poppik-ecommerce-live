@@ -1499,6 +1499,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const productData = {
         ...req.body,
         price: Number(price),
+        cashbackPercentage: req.body.cashbackPercentage ? Number(req.body.cashbackPercentage) : null,
+        cashbackPrice: req.body.cashbackPrice ? Number(req.body.cashbackPrice) : null,
         rating: Number(req.body.rating) || 4.0,
         reviewCount: Number(req.body.reviewCount) || 0,
         inStock: Boolean(req.body.inStock ?? true),
@@ -2557,6 +2559,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       await db.insert(schema.orderItemsTable).values(orderItems);
+      console.log("ZZZZZZZZZZZ",items);
+      // Calculate total cashback from items
+      let totalCashback = 0;
+      for (const item of items) {
+        if (item.cashbackPrice) {
+          totalCashback += Number(item.cashbackPrice) * item.quantity;
+        }
+      }
+
+      // If there's cashback, credit it immediately to user wallet
+      if (totalCashback > 0) {
+        try {
+          // Get current wallet
+          let wallet = await db
+            .select()
+            .from(schema.userWallet)
+            .where(eq(schema.userWallet.userId, Number(userId)))
+            .limit(1);
+
+          if (!wallet || wallet.length === 0) {
+            // Create wallet if doesn't exist
+            const [newWallet] = await db.insert(schema.userWallet).values({
+              userId: Number(userId),
+              cashbackBalance: "0.00",
+              totalEarned: "0.00",
+              totalRedeemed: "0.00"
+            }).returning();
+            wallet = [newWallet];
+          }
+
+          const currentBalance = parseFloat(wallet[0].cashbackBalance);
+          const creditAmount = totalCashback;
+          const newBalance = currentBalance + creditAmount;
+
+          // Update wallet
+          await db
+            .update(schema.userWallet)
+            .set({
+              cashbackBalance: newBalance.toFixed(2),
+              totalEarned: (parseFloat(wallet[0].totalEarned) + creditAmount).toFixed(2),
+              updatedAt: new Date()
+            })
+            .where(eq(schema.userWallet.userId, Number(userId)));
+
+          // Create transaction record
+          await db.insert(schema.userWalletTransactions).values({
+            userId: Number(userId),
+            type: 'credit',
+            amount: creditAmount.toFixed(2),
+            description: `Cashback from Order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+            orderId: newOrder.id,
+            balanceBefore: currentBalance.toFixed(2),
+            balanceAfter: newBalance.toFixed(2),
+            status: 'completed'
+          });
+
+          console.log(`✅ Cashback of ₹${totalCashback.toFixed(2)} credited to user ${userId} wallet for order ORD-${newOrder.id.toString().padStart(3, '0')}`);
+        } catch (walletError) {
+          console.error('Error crediting cashback to wallet:', walletError);
+          // Continue with order creation even if wallet credit fails
+        }
+      }
 
       const orderId = `ORD-${newOrder.id.toString().padStart(3, '0')}`;
 
@@ -5299,6 +5363,196 @@ Poppik Career Portal
 
   // Admin job applications endpoints removed - applications now sent directly to HR email
 
+  // User Wallet endpoint - get wallet balance
+  app.get('/api/wallet', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      // Get or create wallet
+      let wallet = await db
+        .select()
+        .from(schema.userWallet)
+        .where(eq(schema.userWallet.userId, parseInt(userId as string)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        // Create new wallet if it doesn't exist
+        const [newWallet] = await db.insert(schema.userWallet).values({
+          userId: parseInt(userId as string),
+          cashbackBalance: "0.00",
+          totalEarned: "0.00",
+          totalRedeemed: "0.00"
+        }).returning();
+        
+        wallet = [newWallet];
+      }
+
+      res.json({
+        userId: parseInt(userId as string),
+        cashbackBalance: parseFloat(wallet[0].cashbackBalance),
+        totalEarned: parseFloat(wallet[0].totalEarned),
+        totalRedeemed: parseFloat(wallet[0].totalRedeemed),
+        createdAt: wallet[0].createdAt,
+        updatedAt: wallet[0].updatedAt
+      });
+    } catch (error) {
+      console.error('Error fetching wallet:', error);
+      res.status(500).json({ error: 'Failed to fetch wallet' });
+    }
+  });
+
+  // Get wallet transactions
+  app.get('/api/wallet/transactions', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      const transactions = await db
+        .select()
+        .from(schema.userWalletTransactions)
+        .where(eq(schema.userWalletTransactions.userId, parseInt(userId as string)))
+        .orderBy(desc(schema.userWalletTransactions.createdAt));
+
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error fetching wallet transactions:', error);
+      res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  });
+
+  // Credit cashback to wallet (when order is delivered)
+  app.post('/api/wallet/credit', async (req, res) => {
+    try {
+      const { userId, amount, orderId, description } = req.body;
+
+      if (!userId || !amount) {
+        return res.status(400).json({ error: 'User ID and amount required' });
+      }
+
+      // Get current wallet
+      let wallet = await db
+        .select()
+        .from(schema.userWallet)
+        .where(eq(schema.userWallet.userId, parseInt(userId)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        // Create wallet if doesn't exist
+        const [newWallet] = await db.insert(schema.userWallet).values({
+          userId: parseInt(userId),
+          cashbackBalance: "0.00",
+          totalEarned: "0.00",
+          totalRedeemed: "0.00"
+        }).returning();
+        wallet = [newWallet];
+      }
+
+      const currentBalance = parseFloat(wallet[0].cashbackBalance);
+      const creditAmount = parseFloat(amount);
+      const newBalance = currentBalance + creditAmount;
+
+      // Update wallet
+      await db
+        .update(schema.userWallet)
+        .set({
+          cashbackBalance: newBalance.toFixed(2),
+          totalEarned: (parseFloat(wallet[0].totalEarned) + creditAmount).toFixed(2),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.userWallet.userId, parseInt(userId)));
+
+      // Create transaction record
+      await db.insert(schema.userWalletTransactions).values({
+        userId: parseInt(userId),
+        type: 'credit',
+        amount: creditAmount.toFixed(2),
+        description: description || `Cashback from order #${orderId}`,
+        orderId: orderId ? parseInt(orderId) : null,
+        balanceBefore: currentBalance.toFixed(2),
+        balanceAfter: newBalance.toFixed(2),
+        status: 'completed'
+      });
+
+      res.json({
+        success: true,
+        message: 'Cashback credited successfully',
+        newBalance: newBalance.toFixed(2)
+      });
+    } catch (error) {
+      console.error('Error crediting wallet:', error);
+      res.status(500).json({ error: 'Failed to credit cashback' });
+    }
+  });
+
+  // Redeem cashback
+  app.post('/api/wallet/redeem', async (req, res) => {
+    try {
+      const { userId, amount, description } = req.body;
+
+      if (!userId || !amount) {
+        return res.status(400).json({ error: 'User ID and amount required' });
+      }
+
+      // Get current wallet
+      const wallet = await db
+        .select()
+        .from(schema.userWallet)
+        .where(eq(schema.userWallet.userId, parseInt(userId)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        return res.status(404).json({ error: 'Wallet not found' });
+      }
+
+      const currentBalance = parseFloat(wallet[0].cashbackBalance);
+      const redeemAmount = parseFloat(amount);
+
+      if (currentBalance < redeemAmount) {
+        return res.status(400).json({ error: 'Insufficient cashback balance' });
+      }
+
+      const newBalance = currentBalance - redeemAmount;
+
+      // Update wallet
+      await db
+        .update(schema.userWallet)
+        .set({
+          cashbackBalance: newBalance.toFixed(2),
+          totalRedeemed: (parseFloat(wallet[0].totalRedeemed) + redeemAmount).toFixed(2),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.userWallet.userId, parseInt(userId)));
+
+      // Create transaction record
+      await db.insert(schema.userWalletTransactions).values({
+        userId: parseInt(userId),
+        type: 'redeem',
+        amount: redeemAmount.toFixed(2),
+        description: description || 'Cashback redeemed',
+        orderId: null,
+        balanceBefore: currentBalance.toFixed(2),
+        balanceAfter: newBalance.toFixed(2),
+        status: 'completed'
+      });
+
+      res.json({
+        success: true,
+        message: 'Cashback redeemed successfully',
+        newBalance: newBalance.toFixed(2)
+      });
+    } catch (error) {
+      console.error('Error redeeming cashback:', error);
+      res.status(500).json({ error: 'Failed to redeem cashback' });
+    }
+  });
+
   // Affiliate Applications Routes
 
   // Submit affiliate application (public)
@@ -6591,7 +6845,14 @@ Poppik Affiliate Team`;
 
       console.log("Updating product:", productId, "with data:", req.body);
 
-      const product = await storage.updateProduct(productId, req.body);
+      // Process cashback fields
+      const updateData = {
+        ...req.body,
+        cashbackPercentage: req.body.cashbackPercentage ? Number(req.body.cashbackPercentage) : null,
+        cashbackPrice: req.body.cashbackPrice ? Number(req.body.cashbackPrice) : null
+      };
+
+      const product = await storage.updateProduct(productId, updateData);
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }

@@ -462,8 +462,8 @@ export default function ProductDetail() {
       <Star
         key={i}
         className={`w-5 h-5 ${
-          i < Math.floor(rating) 
-            ? "fill-yellow-400 text-yellow-400" 
+          i < Math.floor(rating)
+            ? "fill-yellow-400 text-yellow-400"
             : "text-gray-300"
         }`}
       />
@@ -514,7 +514,7 @@ export default function ProductDetail() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
-        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Skeleton className="h-6 w-64 mb-8" />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             <Skeleton className="aspect-square rounded-3xl" />
@@ -533,7 +533,7 @@ export default function ProductDetail() {
   if (!product) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
-        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-2xl mx-auto">
             <div className="w-24 h-24 bg-gradient-to-br from-red-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-pink-400 rounded-full"></div>
@@ -657,11 +657,11 @@ export default function ProductDetail() {
                     {/* Thumbnail Column - Swipeable Vertical Carousel */}
                     {imageUrls.length > 1 && (
                       <div className="w-20 flex-shrink-0 relative">
-                        <div 
+                        <div
                           className="h-80 overflow-hidden scroll-smooth"
                           style={{ scrollBehavior: 'smooth' }}
                         >
-                          <div 
+                          <div
                             id="thumbnail-container"
                             className="flex flex-col gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
                             style={{
@@ -723,8 +723,8 @@ export default function ProductDetail() {
                           >
                             {imageUrls.map((imageUrl, index) => {
                               // Better video detection
-                              const isVideo = imageUrl?.endsWith('.mp4') || 
-                                            imageUrl?.endsWith('.webm') || 
+                              const isVideo = imageUrl?.endsWith('.mp4') ||
+                                            imageUrl?.endsWith('.webm') ||
                                             imageUrl?.endsWith('.mov') ||
                                             imageUrl?.includes('video') ||
                                             imageUrl?.match(/\.(mp4|webm|mov)(\?|$)/i);
@@ -787,7 +787,7 @@ export default function ProductDetail() {
                                           src={imageUrl}
                                           className="w-full h-full object-cover rounded"
                                           muted
-                                          style={{ 
+                                          style={{
                                             objectFit: 'cover',
                                             width: '100%',
                                             height: '100%',
@@ -808,7 +808,7 @@ export default function ProductDetail() {
                                         className="w-full h-full hover:scale-110 transition-transform duration-200"
                                         width={80}
                                         height={80}
-                                        style={{ 
+                                        style={{
                                           objectFit: 'contain',
                                           width: '100%',
                                           height: '100%',
@@ -931,7 +931,7 @@ export default function ProductDetail() {
 
                         {/* Scroll Indicator */}
                         <div className="absolute right-1 top-1/2 transform -translate-y-1/2 w-1 h-16 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="w-full bg-purple-500 rounded-full transition-all duration-300"
                             style={{
                               height: `${Math.min(100, (3 / imageUrls.length) * 100)}%`,
@@ -1084,8 +1084,8 @@ export default function ProductDetail() {
                     const shadesToShow = showAllShades ? shades : shades.slice(0, 5);
 
                     return shadesToShow.map((shade) => (
-                      <div 
-                        key={shade.value} 
+                      <div
+                        key={shade.value}
                         className="flex flex-col items-center group cursor-pointer"
                         onClick={() => handleShadeSelect(shade)}
                       >
@@ -1096,21 +1096,21 @@ export default function ProductDetail() {
                             </div>
                           )}
                           {shade.imageUrl ? (
-                            <img 
-                              src={shade.imageUrl} 
+                            <img
+                              src={shade.imageUrl}
                               alt={shade.name}
                               className={`w-12 h-12 rounded-full border-3 object-cover transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
-                                selectedShade?.id === shade.id 
-                                  ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105' 
+                                selectedShade?.id === shade.id
+                                  ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
                                   : 'border-gray-300 hover:border-purple-400'
                               }`}
                               title={shade.name}
                             />
                           ) : (
-                            <div 
+                            <div
                               className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
-                                selectedShade?.id === shade.id 
-                                  ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105' 
+                                selectedShade?.id === shade.id
+                                  ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
                                   : 'border-gray-300 hover:border-purple-400'
                               }`}
                               style={{ backgroundColor: shade.colorCode }}
@@ -1119,8 +1119,8 @@ export default function ProductDetail() {
                           )}
                         </div>
                         <span className={`text-xs mt-2 text-center leading-tight transition-colors ${
-                          selectedShade?.id === shade.id 
-                            ? 'text-purple-700 font-semibold' 
+                          selectedShade?.id === shade.id
+                            ? 'text-purple-700 font-semibold'
                             : 'text-gray-600 group-hover:text-purple-600'
                         }`}>
                           {shade.name.split(' ').slice(0, 2).join(' ')}
@@ -1182,13 +1182,33 @@ export default function ProductDetail() {
                 )}
               </div>
 
+              {/* Cashback Badge */}
+              {product.cashbackPercentage && product.cashbackPrice && (
+                <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-semibold text-orange-700">Get Cashback</span>
+                      <p className="text-xs text-orange-600 mt-1">Earn on this purchase</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl font-bold text-orange-600">
+                        ₹{Number(product.cashbackPrice).toFixed(2)}
+                      </span>
+                      <span className="text-sm bg-orange-200 text-orange-800 px-3 py-1 rounded-full font-semibold">
+                        {product.cashbackPercentage}% Cashback
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex product-detail-buttons sm:flex-row sm:space-x-4 sm:space-y-0 mb-4 sm:mb-6">
                 {product.inStock ? (
                   <>
-                    <Button 
-                      size="lg" 
-                      className="product-detail-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
+                    <Button
+                      size="lg"
+                      className="product-detail-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                       onClick={addToCart}
                       disabled={shades.length > 0 && !selectedShade}
                     >
@@ -1196,7 +1216,7 @@ export default function ProductDetail() {
                       Add to Cart
                     </Button>
                     <Button size="lg" variant="outline" className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200" onClick={toggleWishlist}>
-                      <Heart className={`w-5 h-5 sm:w-6 sm:h-6 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />
+                      <Heart className={`w-5 h-5 sm:w-6 sm:h-5 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />
                     </Button>
                   </>
                 ) : (
@@ -1221,9 +1241,9 @@ export default function ProductDetail() {
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3 py-4">
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-start gap-3 h-12 hover:bg-green-50 hover:border-green-300 transition-colors" 
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-3 h-12 hover:bg-green-50 hover:border-green-300 transition-colors"
                         onClick={shareToWhatsApp}
                       >
                         <svg className="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
@@ -1232,9 +1252,9 @@ export default function ProductDetail() {
                         WhatsApp
                       </Button>
 
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-start gap-3 h-12 hover:bg-blue-50 hover:border-blue-300 transition-colors" 
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-3 h-12 hover:bg-blue-50 hover:border-blue-300 transition-colors"
                         onClick={shareToFacebook}
                       >
                         <svg className="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
@@ -1243,9 +1263,9 @@ export default function ProductDetail() {
                         Facebook
                       </Button>
 
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-start gap-3 h-12 hover:bg-sky-50 hover:border-sky-300 transition-colors" 
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-3 h-12 hover:bg-sky-50 hover:border-sky-300 transition-colors"
                         onClick={shareToTwitter}
                       >
                         <svg className="h-6 w-6 text-sky-500" fill="currentColor" viewBox="0 0 24 24">
@@ -1263,9 +1283,9 @@ export default function ProductDetail() {
                         </div>
                       </div>
 
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-start gap-3 h-12 hover:bg-purple-50 hover:border-purple-300 transition-colors" 
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-3 h-12 hover:bg-purple-50 hover:border-purple-300 transition-colors"
                         onClick={copyProductLink}
                       >
                         {copied ? (
@@ -1283,8 +1303,8 @@ export default function ProductDetail() {
               {/* Stock status */}
               <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
                 <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 rounded-full animate-pulse ${
-                  product.inStock 
-                    ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
+                  product.inStock
+                    ? 'bg-gradient-to-r from-green-400 to-emerald-400'
                     : 'bg-gradient-to-r from-red-400 to-rose-400'
                 }`}></div>
                 <span className={`font-bold text-sm sm:text-base md:text-lg ${
@@ -1302,26 +1322,26 @@ export default function ProductDetail() {
         <div className="product-detail-tabs sm:mb-16">
           <Tabs defaultValue="description" className="w-full">
             <TabsList className="product-detail-tab-list grid w-full grid-cols-2 lg:grid-cols-4 bg-white/70 backdrop-blur-md rounded-xl sm:rounded-2xl p-1 sm:p-2 shadow-lg border border-white/20">
-              <TabsTrigger 
-                value="description" 
+              <TabsTrigger
+                value="description"
                 className="product-detail-tab-trigger sm:py-4 sm:px-6 sm:text-sm rounded-lg sm:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
               >
                 Description
               </TabsTrigger>
-              <TabsTrigger 
-                value="ingredients" 
+              <TabsTrigger
+                value="ingredients"
                 className="product-detail-tab-trigger sm:py-4 sm:px-6 sm:text-sm rounded-lg sm:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
               >
                 Ingredients
               </TabsTrigger>
-              <TabsTrigger 
-                value="benefits" 
+              <TabsTrigger
+                value="benefits"
                 className="product-detail-tab-trigger sm:py-4 sm:px-6 sm:text-sm rounded-lg sm:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
               >
                 Benefits
               </TabsTrigger>
-              <TabsTrigger 
-                value="how-to-use" 
+              <TabsTrigger
+                value="how-to-use"
                 className="product-detail-tab-trigger sm:py-4 sm:px-6 sm:text-sm rounded-lg sm:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
               >
                 How to Use
@@ -1360,8 +1380,8 @@ export default function ProductDetail() {
                   <CardContent className="pt-0">
                     {product.ingredients ? (
                       <div className="grid gap-4">
-                        {(Array.isArray(product.ingredients) 
-                          ? product.ingredients 
+                        {(Array.isArray(product.ingredients)
+                          ? product.ingredients
                           : product.ingredients.split('\n').filter(ingredient => ingredient.trim())
                         ).map((ingredient, index) => (
                           <div key={index} className="flex items-start p-4 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-red-100/50 transform hover:scale-105 transition-all duration-200">
@@ -1395,8 +1415,8 @@ export default function ProductDetail() {
                   <CardContent className="pt-0">
                     {product.benefits ? (
                       <div className="grid gap-4">
-                        {(Array.isArray(product.benefits) 
-                          ? product.benefits 
+                        {(Array.isArray(product.benefits)
+                          ? product.benefits
                           : product.benefits.split('\n').filter(benefit => benefit.trim())
                         ).map((benefit, index) => (
                           <div key={index} className="flex items-start p-4 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-green-100/50 transform hover:scale-105 transition-all duration-200">
@@ -1463,7 +1483,7 @@ export default function ProductDetail() {
             <div className="mb-8">
               {!showReviewForm ? (
                 <div className="text-center">
-                  <Button 
+                  <Button
                     onClick={() => setShowReviewForm(true)}
                     className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-3 rounded-xl font-semibold"
                   >
@@ -1582,10 +1602,10 @@ export default function ProductDetail() {
                     <div key={stars} className="flex items-center space-x-2">
                       <span className="text-sm font-medium w-8">{stars}★</span>
                       <div className="flex-1 bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-gradient-to-r from-yellow-400 to-orange-400 h-2 rounded-full transition-all duration-300"
-                          style={{ 
-                            width: `${percentage}%` 
+                          style={{
+                            width: `${percentage}%`
                           }}
                         ></div>
                       </div>
@@ -1615,10 +1635,10 @@ export default function ProductDetail() {
                             {review.userName || 'Anonymous User'}
                           </h4>
                           <p className="text-sm text-gray-500">
-                            Verified Purchase • {new Date(review.createdAt).toLocaleDateString('en-IN', { 
-                              year: 'numeric', 
-                              month: 'long', 
-                              day: 'numeric' 
+                            Verified Purchase • {new Date(review.createdAt).toLocaleDateString('en-IN', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
                             })}
                           </p>
                         </div>
@@ -1633,9 +1653,9 @@ export default function ProductDetail() {
                       )}
                       {review.imageUrl && (
                         <div className="mt-3">
-                          <img 
-                            src={review.imageUrl} 
-                            alt="Review" 
+                          <img
+                            src={review.imageUrl}
+                            alt="Review"
                             className="max-w-xs rounded-lg shadow-md"
                           />
                         </div>

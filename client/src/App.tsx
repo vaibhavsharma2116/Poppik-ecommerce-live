@@ -22,6 +22,7 @@ import Wishlist from "./pages/wishlist";
 import OrderHistory from "./pages/order-history";
 import TrackOrder from "./pages/track-order";
 import ChangePassword from "./pages/change-password";
+import Wallet from "./pages/wallet";
 import Terms from "./pages/terms";
 import Privacy from "./pages/privacy";
 import Careers from "@/pages/careers";
@@ -225,6 +226,7 @@ function Router() {
             <Route path="/cart" component={CartPage} />
             <Route path="/checkout" component={Checkout} />
             <Route path="/wishlist" component={Wishlist} />
+            <Route path="/wallet" component={Wallet} />
             <Route path="/order-history" component={OrderHistory} />
             <Route path="/track-order" component={TrackOrder} />
             <Route path="/change-password" component={ChangePassword} />
