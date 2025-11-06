@@ -586,7 +586,7 @@ export default function ProductDetail() {
 
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="product" />
-        <meta property="og:url" content={`http://localhost:8085/product/${productSlug}`} />
+        <meta property="og:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
@@ -653,7 +653,7 @@ export default function ProductDetail() {
         {product?.price && <meta property="product:price:amount" content={product.price.toString()} />}
         {product?.price && <meta property="product:price:currency" content="INR" />}
 
-        <link rel="canonical" href={`http://localhost:8085/product/${productSlug}`} />
+        <link rel="canonical" href={`https://poppiklifestyle.com/product/${productSlug}`} />
       </Helmet>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-16">
         <div className="max-w-7xl mx-auto product-detail-container lg:px-8">

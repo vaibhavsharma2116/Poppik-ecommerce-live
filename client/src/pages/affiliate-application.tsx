@@ -436,9 +436,8 @@ export default function AffiliateDashboard() {
   };
 
   const copyAffiliateLink = (productId?: number) => {
-    const baseUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8085' 
-      : window.location.origin;
+    const baseUrl = 'https://poppiklifestyle.com';
+     
     const affiliateLink = productId 
       ? `${baseUrl}/product/${productId}?ref=${affiliateCode}`
       : `${baseUrl}/?ref=${affiliateCode}`;
@@ -451,35 +450,31 @@ export default function AffiliateDashboard() {
   };
 
   const shareToWhatsApp = () => {
-    const baseUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8085' 
-      : window.location.origin;
+    const baseUrl =  'https://poppiklifestyle.com' 
+     
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     const message = `🌟 Check out Poppik Lifestyle! Use my code ${affiliateCode} for amazing beauty products. ${affiliateLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const shareToFacebook = () => {
-    const baseUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8085' 
-      : window.location.origin;
+    const baseUrl =  'https://poppiklifestyle.com' 
+     
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(affiliateLink)}`, '_blank');
   };
 
   const shareToTwitter = () => {
-    const baseUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8085' 
-      : window.location.origin;
+    const baseUrl =  'https://poppiklifestyle.com' 
+     
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     const message = `Check out @PoppikLifestyle! Use code ${affiliateCode} for amazing beauty products.`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(affiliateLink)}`, '_blank');
   };
 
   const shareToInstagram = () => {
-    const baseUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8085' 
-      : window.location.origin;
+    const baseUrl =  'https://poppiklifestyle.com' 
+     
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     window.open('https://www.instagram.com/', '_blank');
     toast({

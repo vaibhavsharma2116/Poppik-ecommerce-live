@@ -152,16 +152,16 @@ const db = drizzle(pool, { schema: { products } });
       }
 
       // Prepare meta tags
-      const productUrl = `http://localhost:8085/product/${slug}`;
+      const productUrl = `https://poppiklifestyle.com/product/${slug}`;
 
       // Ensure image URL is absolute and properly formatted for social media
-      let imageUrl = product.imageUrl || 'http://localhost:8085/favicon.png';
+      let imageUrl = product.imageUrl || 'https://poppiklifestyle.com/favicon.png';
 
       // Make sure image URL is always absolute with HTTPS
       if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
         // Remove any leading slashes and add domain
         imageUrl = imageUrl.replace(/^\/+/, '');
-        imageUrl = `http://localhost:8085/${imageUrl}`;
+        imageUrl = `https://poppiklifestyle.com/${imageUrl}`;
       }
 
       console.log(`Product image URL for OG tags: ${imageUrl}`);
