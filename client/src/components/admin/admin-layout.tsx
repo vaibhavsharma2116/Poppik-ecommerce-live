@@ -26,7 +26,8 @@ import {
   Briefcase,
   MapPin,
   Mail,
-  Palette
+  Palette,
+  Wallet // Added Wallet icon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -150,6 +151,13 @@ const sidebarItems = [
     title: "Affiliate Applications",
     href: "/affiliate-applications",
     icon: Users,
+    badge: null,
+  },
+  // Added Affiliate Withdrawals menu item
+  {
+    title: "Affiliate Withdrawals",
+    href: "/affiliate-withdrawals",
+    icon: Wallet,
     badge: null,
   },
   {

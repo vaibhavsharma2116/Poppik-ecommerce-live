@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift } from "lucide-react";
+import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 
@@ -52,6 +52,8 @@ export default function CheckoutPage() {
     zipCode: "",
     phone: "",
     paymentMethod: "cashfree",
+    affiliateCode: "",
+    affiliateDiscount: 0,
   });
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
@@ -96,6 +98,32 @@ export default function CheckoutPage() {
       });
       window.location.href = "/auth/login";
       return;
+    }
+
+    // Check for affiliate code in localStorage
+    const affiliateRef = localStorage.getItem("affiliateRef");
+    if (affiliateRef && user) {
+      const userData = JSON.parse(user);
+
+      // Get order count for this affiliate code
+      fetch(`/api/orders/count?userId=${userData.id}&affiliateCode=${affiliateRef}`)
+        .then(res => res.json())
+        .then(data => {
+          const orderCount = data.count || 0;
+          const discountPercentage = orderCount === 0 ? 15 : 10; // 15% for first order, 10% for subsequent
+
+          setFormData(prev => ({
+            ...prev,
+            affiliateCode: affiliateRef,
+            affiliateDiscount: discountPercentage,
+          }));
+
+          toast({
+            title: "Affiliate Discount Applied!",
+            description: `${discountPercentage}% OFF on your order`,
+          });
+        })
+        .catch(err => console.error("Error fetching order count:", err));
     }
 
     // Parse user data and set profile
@@ -315,11 +343,21 @@ export default function CheckoutPage() {
   };
 
   const subtotal = calculateSubtotal();
+  // Apply affiliate discount
+  const affiliateDiscountAmount = formData.affiliateDiscount > 0
+    ? Math.round(subtotal * (formData.affiliateDiscount / 100))
+    : 0;
+  const subtotalAfterDiscount = subtotal - affiliateDiscountAmount;
+
   // Use the dynamic shippingCost, default to 99 if subtotal is less than 599, otherwise free.
-  const shipping = subtotal > 599 ? 0 : shippingCost;
-  const totalBeforeDiscount = subtotal + shipping;
+  const shipping = subtotalAfterDiscount > 599 ? 0 : shippingCost;
+  const totalBeforeDiscount = subtotalAfterDiscount + shipping;
   const total = Math.max(0, totalBeforeDiscount - redeemAmount);
 
+  // Calculate affiliate commission (25% of payable price)
+  const affiliateCommission = formData.affiliateCode
+    ? Math.round(total * 0.25)
+    : 0;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -462,6 +500,8 @@ export default function CheckoutPage() {
             userId: user.id,
             totalAmount: total,
             shippingAddress: `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`,
+            affiliateCode: formData.affiliateCode || null,
+            affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
             items: cartItems.map(item => ({
               productId: item.id,
               productName: item.name,
@@ -516,6 +556,7 @@ export default function CheckoutPage() {
         cartItems: cartItems,
         totalAmount: total,
         redeemAmount: redeemAmount, // Include redeemAmount
+        affiliateCommission: affiliateCommission, // Include affiliateCommission
       }));
 
       // Load Cashfree SDK and redirect to payment
@@ -673,6 +714,9 @@ export default function CheckoutPage() {
     try {
       let paymentSuccessful = false;
       let paymentMethod = 'Cash on Delivery';
+      const totalWithShipping = total; // This variable was not defined, using 'total' instead.
+      const fullAddress = `${formData.address.trim()}, ${formData.city.trim()}, ${formData.state.trim()} ${formData.zipCode.trim()}`; // This variable was not defined, constructing it.
+
 
       // Process payment based on selected method
       if (formData.paymentMethod === 'cashfree') {
@@ -688,16 +732,16 @@ export default function CheckoutPage() {
         paymentSuccessful = true;
         paymentMethod = 'Cash on Delivery';
 
+        // Get affiliate reference from localStorage
+        const affiliateRef = localStorage.getItem('affiliateRef');
+
         const orderData = {
           userId: user.id,
           totalAmount: total,
-          status: 'confirmed',
-          paymentMethod,
-          shippingAddress: `${formData.address.trim()}, ${formData.city.trim()}, ${formData.state.trim()} ${formData.zipCode.trim()}`,
-          customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
-          customerEmail: formData.email.trim(),
-          customerPhone: formData.phone.trim(),
-          redeemAmount: redeemAmount, // Include redeemAmount in order data
+          paymentMethod: paymentMethod,
+          shippingAddress: fullAddress,
+          affiliateCode: formData.affiliateCode || null,
+          affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
           items: cartItems.map(item => ({
             productId: item.id,
             productName: item.name,
@@ -706,7 +750,11 @@ export default function CheckoutPage() {
             price: item.price,
             cashbackPrice: item.cashbackPrice || null,
             cashbackPercentage: item.cashbackPercentage || null,
-          }))
+          })),
+          customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+          customerEmail: formData.email.trim(),
+          customerPhone: formData.phone.trim(),
+          redeemAmount: redeemAmount,
         };
 
         // If cashback is being redeemed, process it first
@@ -730,7 +778,7 @@ export default function CheckoutPage() {
             }
 
             console.log('Cashback redeemed successfully:', redeemAmount);
-            
+
             // Invalidate wallet queries to refresh the balance
             window.dispatchEvent(new CustomEvent('walletUpdated'));
           } catch (redeemError) {
@@ -779,8 +827,8 @@ export default function CheckoutPage() {
 
           toast({
             title: "Order Placed Successfully!",
-            description: redeemAmount > 0 
-              ? `Order placed with ₹${redeemAmount.toFixed(2)} cashback redeemed!` 
+            description: redeemAmount > 0
+              ? `Order placed with ₹${redeemAmount.toFixed(2)} cashback redeemed!`
               : "You will receive a confirmation email shortly",
           });
         } else {
@@ -1187,7 +1235,6 @@ export default function CheckoutPage() {
                         <option value="bhagalpur">Bhagalpur</option>
                         <option value="muzaffarnagar">Muzaffarnagar</option>
                         <option value="bhatpara">Bhatpara</option>
-                        <option value="panihati">Panihati</option>
                         <option value="latur">Latur</option>
                         <option value="dhule">Dhule</option>
                         <option value="rohtak">Rohtak</option>
@@ -1623,6 +1670,12 @@ export default function CheckoutPage() {
                       <span>Subtotal</span>
                       <span>₹{subtotal.toLocaleString()}</span>
                     </div>
+                    {affiliateDiscountAmount > 0 && (
+                      <div className="flex justify-between text-purple-600 font-semibold">
+                        <span>Affiliate Discount ({formData.affiliateDiscount}%)</span>
+                        <span>-₹{affiliateDiscountAmount.toLocaleString()}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-gray-600">
                       <span>Shipping</span>
                       <span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
@@ -1638,35 +1691,24 @@ export default function CheckoutPage() {
                       <span>Total</span>
                       <span>₹{total.toLocaleString()}</span>
                     </div>
-
-                    {/* Display total cashback prominently if any items have cashback */}
-                    {(() => {
-                      const totalCashback = cartItems.reduce((sum, item) => {
-                        if (item.cashbackPrice) {
-                          return sum + (Number(item.cashbackPrice) * item.quantity);
-                        }
-                        return sum;
-                      }, 0);
-
-                      return totalCashback > 0 ? (
-                        <div className="mt-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-4 shadow-sm">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                                <CheckCircle className="h-5 w-5 text-white" />
-                              </div>
-                              <span className="text-base font-bold text-green-800">Cashback Earned!</span>
+                    {affiliateCommission > 0 && (
+                      <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                              <Award className="h-5 w-5 text-white" />
                             </div>
-                            <span className="text-2xl font-bold text-green-600">
-                              ₹{totalCashback.toFixed(2)}
-                            </span>
+                            <span className="text-base font-bold text-purple-800">Affiliate Earns!</span>
                           </div>
-                          <p className="text-sm text-green-700 font-medium">
-                            This amount will be credited to your wallet after successful delivery
-                          </p>
+                          <span className="text-2xl font-bold text-purple-600">
+                            ₹{affiliateCommission.toLocaleString()}
+                          </span>
                         </div>
-                      ) : null;
-                    })()}
+                        <p className="text-sm text-purple-700 font-medium">
+                          25% commission on payable amount will be credited to affiliate wallet
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <Button

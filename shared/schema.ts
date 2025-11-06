@@ -107,8 +107,9 @@ export const ordersTable = pgTable("orders", {
   cashfreeOrderId: text("cashfree_order_id"),
   paymentSessionId: text("payment_session_id"),
   paymentId: text("payment_id"),
+  affiliateCode: text("affiliate_code"),
+  affiliateDiscount: integer("affiliate_discount").default(0),
   notes: text("notes"),
-  cashbackAmount: decimal("cashback_amount", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -118,7 +119,7 @@ export const cashfreePayments = pgTable("cashfree_payments", {
   cashfreeOrderId: varchar("cashfree_order_id", { length: 100 }).notNull().unique(),
   userId: integer("user_id").references(() => users.id),
   amount: real("amount").notNull(),
-  status: varchar("status", { length: 20 }).notNull().default("created"),
+  status: varchar("status", { length: 20 }).default("created").notNull(),
   paymentId: varchar("payment_id", { length: 100 }),
   orderData: jsonb("order_data"),
   customerInfo: jsonb("customer_info"),
@@ -554,12 +555,61 @@ export const affiliateTransactions = pgTable("affiliate_transactions", {
   balanceType: varchar("balance_type", { length: 20 }).notNull(), // 'cashback' or 'commission'
   description: text("description").notNull(),
   orderId: integer("order_id").references(() => ordersTable.id),
-  status: varchar("status", { length: 20 }).default("completed").notNull(),
+  status: varchar("status", { length: 20 }).default("completed").notNull(), // 'pending', 'completed', 'failed'
+  transactionId: varchar("transaction_id", { length: 255 }), // Bank transaction ID
+  notes: text("notes"), // Admin notes
+  processedAt: timestamp("processed_at"), // When approved/rejected
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export type AffiliateTransaction = typeof affiliateTransactions.$inferSelect;
 export type InsertAffiliateTransaction = typeof affiliateTransactions.$inferInsert;
+
+// Affiliate Clicks Table - Track all clicks on affiliate links
+export const affiliateClicks = pgTable("affiliate_clicks", {
+  id: serial("id").primaryKey(),
+  affiliateUserId: integer("affiliate_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  affiliateCode: varchar("affiliate_code", { length: 50 }).notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  referrer: text("referrer"),
+  productId: integer("product_id").references(() => products.id),
+  comboId: integer("combo_id").references(() => combos.id),
+  converted: boolean("converted").default(false).notNull(),
+  orderId: integer("order_id").references(() => ordersTable.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AffiliateClick = typeof affiliateClicks.$inferSelect;
+export type InsertAffiliateClick = typeof affiliateClicks.$inferInsert;
+
+// Affiliate Sales Table - Track completed sales from affiliate links
+export const affiliateSales = pgTable("affiliate_sales", {
+  id: serial("id").primaryKey(),
+  affiliateUserId: integer("affiliate_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  affiliateCode: varchar("affiliate_code", { length: 50 }).notNull(),
+  orderId: integer("order_id").notNull().references(() => ordersTable.id, { onDelete: "cascade" }),
+  customerId: integer("customer_id").notNull().references(() => users.id),
+  customerName: varchar("customer_name", { length: 255 }).notNull(),
+  customerEmail: varchar("customer_email", { length: 255 }).notNull(),
+  customerPhone: varchar("customer_phone", { length: 20 }),
+  productId: integer("product_id").references(() => products.id),
+  comboId: integer("combo_id").references(() => combos.id),
+  productName: text("product_name").notNull(),
+  saleAmount: decimal("sale_amount", { precision: 10, scale: 2 }).notNull(),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).default("10.00").notNull(),
+  commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).default("pending").notNull(), // pending, confirmed, paid
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  referrer: text("referrer"),
+  converted: boolean("converted").default(true).notNull(),
+  paidAt: timestamp("paid_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AffiliateSale = typeof affiliateSales.$inferSelect;
+export type InsertAffiliateSale = typeof affiliateSales.$inferInsert;
 
 // User Wallet Table - for regular user cashback from orders
 export const userWallet = pgTable("user_wallet", {

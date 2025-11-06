@@ -19,7 +19,7 @@ import {
   Calendar,
   User,
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import HeroBanner from "@/components/hero-banner";
 import ProductCard from "@/components/product-card";
 import { Filter } from "lucide-react";
@@ -188,10 +188,22 @@ function TestimonialsCarousel() {
 }
 
 // WhatsApp Integration Component has been moved to Layout
-export default function Home() {
+export default function HomePage() {
+  const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filteredAllProducts, setFilteredAllProducts] = useState<Product[]>([]);
   const [showAllProductsFilter, setShowAllProductsFilter] = useState(false);
+
+  // Store affiliate code from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const affiliateRef = urlParams.get('ref');
+
+    if (affiliateRef) {
+      localStorage.setItem('affiliateRef', affiliateRef);
+      console.log('Affiliate code stored:', affiliateRef);
+    }
+  }, []);
 
   const { data: categories, isLoading: categoriesLoading } = useQuery<
     Category[]

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -50,7 +49,7 @@ import { useToast } from "@/hooks/use-toast";
 // Combos List Component
 function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: string; copyAffiliateLink: (comboId?: number) => void }) {
   const [showAllCombos, setShowAllCombos] = useState(false);
-  
+
   const { data: combos, isLoading } = useQuery({
     queryKey: ["/api/combos"],
     queryFn: async () => {
@@ -90,7 +89,7 @@ function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
           const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
           const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice) : combo.originalPrice;
           const discountPercentage = originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-          
+
           return (
             <Card key={combo.id} className="border-2 border-gray-200 hover:border-pink-300 hover:shadow-lg transition-all">
               <CardContent className="p-0">
@@ -136,7 +135,7 @@ function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
           );
         })}
       </div>
-      
+
       {activeCombos.length > 6 && (
         <div className="flex justify-center mt-8">
           <Button
@@ -243,7 +242,7 @@ function BeautyKitsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: s
 // Products List Component
 function ProductsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: string; copyAffiliateLink: (productId?: number) => void }) {
   const [showAllProducts, setShowAllProducts] = useState(false);
-  
+
   const { data: products, isLoading } = useQuery({
     queryKey: ["/api/products"],
     queryFn: async () => {
@@ -315,7 +314,7 @@ function ProductsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: str
           </Card>
         ))}
       </div>
-      
+
       {products.length > 6 && (
         <div className="flex justify-center mt-8">
           <Button
@@ -414,7 +413,7 @@ export default function AffiliateDashboard() {
     if (application) {
       const status = application.status?.toLowerCase();
       console.log('Dashboard - Application status:', status);
-      
+
       if (status === "approved") {
         // Format user ID as 2-digit number (01, 02, 03, etc.)
         const formattedUserId = user.id.toString().padStart(2, '0');
@@ -437,12 +436,14 @@ export default function AffiliateDashboard() {
   };
 
   const copyAffiliateLink = (productId?: number) => {
-    const baseUrl = window.location.origin;
-    const link = productId 
+    const baseUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:8085' 
+      : window.location.origin;
+    const affiliateLink = productId 
       ? `${baseUrl}/product/${productId}?ref=${affiliateCode}`
-      : `${baseUrl}?ref=${affiliateCode}`;
-    
-    navigator.clipboard.writeText(link);
+      : `${baseUrl}/?ref=${affiliateCode}`;
+
+    navigator.clipboard.writeText(affiliateLink);
     toast({
       title: "Copied!",
       description: "Affiliate link copied to clipboard",
@@ -450,29 +451,41 @@ export default function AffiliateDashboard() {
   };
 
   const shareToWhatsApp = () => {
-    const url = `${window.location.origin}?ref=${affiliateCode}`;
-    const text = `🌟 Check out amazing beauty products at Poppik! Use my affiliate code ${affiliateCode} for exclusive deals! 💄✨`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text + '\n' + url)}`, '_blank');
+    const baseUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:8085' 
+      : window.location.origin;
+    const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
+    const message = `🌟 Check out Poppik Lifestyle! Use my code ${affiliateCode} for amazing beauty products. ${affiliateLink}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const shareToFacebook = () => {
-    const url = `${window.location.origin}?ref=${affiliateCode}`;
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+    const baseUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:8085' 
+      : window.location.origin;
+    const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(affiliateLink)}`, '_blank');
   };
 
   const shareToTwitter = () => {
-    const url = `${window.location.origin}?ref=${affiliateCode}`;
-    const text = `🌟 Discover amazing beauty products at Poppik! Use my code ${affiliateCode} for exclusive deals! 💄`;
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+    const baseUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:8085' 
+      : window.location.origin;
+    const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
+    const message = `Check out @PoppikLifestyle! Use code ${affiliateCode} for amazing beauty products.`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(affiliateLink)}`, '_blank');
   };
 
   const shareToInstagram = () => {
-    const url = `${window.location.origin}?ref=${affiliateCode}`;
-    navigator.clipboard.writeText(url);
+    const baseUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:8085' 
+      : window.location.origin;
+    const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     window.open('https://www.instagram.com/', '_blank');
     toast({
-      title: "Link Copied!",
-      description: "Instagram doesn't support direct sharing. The link has been copied - paste it in your Instagram bio or story!",
+      title: "Instagram",
+      description: `Copy your link: ${affiliateLink}`,
+      duration: 5000,
     });
   };
 
@@ -621,7 +634,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                   a.click();
                   window.URL.revokeObjectURL(url);
                   document.body.removeChild(a);
-                  
+
                   toast({
                     title: "Resources Downloaded!",
                     description: "Your affiliate marketing kit has been downloaded successfully.",
@@ -1179,12 +1192,12 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                       <p className="text-gray-900 text-xl font-semibold">{application.lastName}</p>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Email Address</label>
                     <p className="text-gray-900 text-xl font-semibold">{application.email}</p>
                   </div>
-                  
+
                   <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Phone Number</label>
                     <p className="text-gray-900 text-xl font-semibold">{application.phone}</p>
@@ -1196,7 +1209,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                     {application.city && <p className="text-gray-700">{application.city}, {application.state} - {application.pincode}</p>}
                     <p className="text-gray-700">{application.country}</p>
                   </div>
-                  
+
                   {/* Bank Details Section */}
                   {(application.bankName || application.accountNumber) && (
                     <div className="border-t pt-6">

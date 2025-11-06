@@ -54,7 +54,7 @@ interface Category {
 
 export default function ProductDetail() {
   const [, params] = useRoute("/product/:slug");
-  const productSlug = params?.slug || "";
+  const productSlugOrId = params?.slug || "";
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [showAllShades, setShowAllShades] = useState(false);
   const [selectedShade, setSelectedShade] = useState<Shade | null>(null);
@@ -74,9 +74,13 @@ export default function ProductDetail() {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
+  // Check if the slug is actually an ID (numeric)
+  const isProductId = /^\d+$/.test(productSlugOrId);
+  
   const { data: product, isLoading } = useQuery<Product>({
-    queryKey: [`/api/products/${productSlug}`],
-    enabled: !!productSlug,
+    queryKey: [`/api/products/${productSlugOrId}`],
+    enabled: !!productSlugOrId,
+    retry: false,
   });
 
   // Fetch product images from database
@@ -209,6 +213,27 @@ export default function ProductDetail() {
       setReviews(productReviews);
     }
   }, [productReviews]);
+
+  useEffect(() => {
+    // Track affiliate click if ref parameter exists
+    const urlParams = new URLSearchParams(window.location.search);
+    const affiliateRef = urlParams.get('ref');
+    
+    if (affiliateRef && product?.id) {
+      // Track the click
+      fetch('/api/affiliate/track-click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          affiliateCode: affiliateRef,
+          productId: product.id,
+        }),
+      }).catch(err => console.error('Error tracking affiliate click:', err));
+
+      // Store in localStorage for checkout
+      localStorage.setItem('affiliateRef', affiliateRef);
+    }
+  }, [product?.id]);
 
   useEffect(() => {
     // Set review eligibility
@@ -561,7 +586,7 @@ export default function ProductDetail() {
 
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="product" />
-        <meta property="og:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
+        <meta property="og:url" content={`http://localhost:8085/product/${productSlug}`} />
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
@@ -572,11 +597,11 @@ export default function ProductDetail() {
           if (img && !img.startsWith('http')) {
             // Check if it starts with /api/
             if (img.startsWith('/api/')) {
-              img = `https://poppiklifestyle.com${img}`;
+              img = `https://localhost:8085${img}`;
             } else if (img.startsWith('/')) {
-              img = `https://poppiklifestyle.com${img}`;
+              img = `https://localhost:8085${img}`;
             } else {
-              img = `https://poppiklifestyle.com/${img}`;
+              img = `https://localhost:8085/${img}`;
             }
           }
 
@@ -586,11 +611,11 @@ export default function ProductDetail() {
           let img = imageUrls[0] || product?.imageUrl || '/logo.png';
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/')) {
-              img = `https://poppiklifestyle.com${img}`;
+              img = `https://localhost:8085${img}`;
             } else if (img.startsWith('/')) {
-              img = `https://poppiklifestyle.com${img}`;
+              img = `https://localhost:8085${img}`;
             } else {
-              img = `https://poppiklifestyle.com/${img}`;
+              img = `https://localhost:8085/${img}`;
             }
           }
           return img;
@@ -602,7 +627,7 @@ export default function ProductDetail() {
 
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
+        <meta name="twitter:url" content={`https://localhost:8085/product/${productSlug}`} />
         <meta name="twitter:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta name="twitter:image" content={(() => {
@@ -612,11 +637,11 @@ export default function ProductDetail() {
           // If it's a relative path, make it absolute
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/')) {
-              img = `https://poppiklifestyle.com${img}`;
+              img = `https://localhost:8085${img}`;
             } else if (img.startsWith('/')) {
-              img = `https://poppiklifestyle.com${img}`;
+              img = `https://localhost:8085${img}`;
             } else {
-              img = `https://poppiklifestyle.com/${img}`;
+              img = `https://localhost:8085/${img}`;
             }
           }
 
@@ -628,7 +653,7 @@ export default function ProductDetail() {
         {product?.price && <meta property="product:price:amount" content={product.price.toString()} />}
         {product?.price && <meta property="product:price:currency" content="INR" />}
 
-        <link rel="canonical" href={`https://poppiklifestyle.com/product/${productSlug}`} />
+        <link rel="canonical" href={`http://localhost:8085/product/${productSlug}`} />
       </Helmet>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-16">
         <div className="max-w-7xl mx-auto product-detail-container lg:px-8">

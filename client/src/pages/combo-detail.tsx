@@ -69,6 +69,27 @@ export default function ComboDetail() {
     }
   }, [reviewEligibility]);
 
+  useEffect(() => {
+    // Track affiliate click if ref parameter exists
+    const urlParams = new URLSearchParams(window.location.search);
+    const affiliateRef = urlParams.get('ref');
+    
+    if (affiliateRef && combo?.id) {
+      // Track the click
+      fetch('/api/affiliate/track-click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          affiliateCode: affiliateRef,
+          comboId: combo.id,
+        }),
+      }).catch(err => console.error('Error tracking affiliate click:', err));
+
+      // Store in localStorage for checkout
+      localStorage.setItem('affiliateRef', affiliateRef);
+    }
+  }, [combo?.id]);
+
   // Get all image URLs (from imageUrls array or fallback to imageUrl)
   const allImageUrls = combo?.imageUrls && combo.imageUrls.length > 0 
     ? combo.imageUrls 

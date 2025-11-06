@@ -54,6 +54,7 @@ import AffiliatePage from "@/pages/affiliate";
 import AffiliateApplicationPage from "@/pages/affiliate-application";
 import AdminInfluencerApplications from './pages/admin/influencer-applications';
 import AdminAffiliateApplications from './pages/admin/affiliate-applications';
+import AdminAffiliateWithdrawals from "@/pages/admin/affiliate-withdrawals";
 const AcademyPage = lazy(() => import("./pages/academy"));
 const DropShippingPage = lazy(() => import("./pages/drop-shipping"));
 const ContestPage = lazy(() => import("./pages/contest"));
@@ -100,6 +101,7 @@ function Router() {
             <Route path="/job-applications" component={JobApplications} />
             <Route path="/influencer-applications" component={AdminInfluencerApplications} />
             <Route path="/affiliate-applications" component={AdminAffiliateApplications} />
+            <Route path="/affiliate-withdrawals" component={AdminAffiliateWithdrawals} />
             <Route path="/job-positions" component={() => {
               const JobPositions = lazy(() => import("./pages/admin/job-positions"));
               return (

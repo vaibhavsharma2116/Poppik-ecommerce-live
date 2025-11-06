@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -50,7 +49,7 @@ import { useToast } from "@/hooks/use-toast";
 // Combos List Component
 function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: string; copyAffiliateLink: (comboId?: number) => void }) {
   const [showAllCombos, setShowAllCombos] = useState(false);
-  
+
   const { data: combos, isLoading } = useQuery({
     queryKey: ["/api/combos"],
     queryFn: async () => {
@@ -90,7 +89,7 @@ function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
           const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
           const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice) : combo.originalPrice;
           const discountPercentage = originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-          
+
           return (
             <Card key={combo.id} className="border-2 border-gray-200 hover:border-pink-300 hover:shadow-lg transition-all">
               <CardContent className="p-0">
@@ -136,7 +135,7 @@ function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
           );
         })}
       </div>
-      
+
       {activeCombos.length > 6 && (
         <div className="flex justify-center mt-8">
           <Button
@@ -243,7 +242,7 @@ function BeautyKitsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: s
 // Products List Component
 function ProductsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: string; copyAffiliateLink: (productId?: number) => void }) {
   const [showAllProducts, setShowAllProducts] = useState(false);
-  
+
   const { data: products, isLoading } = useQuery({
     queryKey: ["/api/products"],
     queryFn: async () => {
@@ -315,7 +314,7 @@ function ProductsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: str
           </Card>
         ))}
       </div>
-      
+
       {products.length > 6 && (
         <div className="flex justify-center mt-8">
           <Button
@@ -346,6 +345,8 @@ export default function AffiliateDashboard() {
   const { toast } = useToast();
   const [affiliateCode, setAffiliateCode] = useState<string>("");
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [sales, setSales] = useState([]);
+  const [loadingSales, setLoadingSales] = useState(true);
 
   // Get user from localStorage
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -363,13 +364,14 @@ export default function AffiliateDashboard() {
 
   // Fetch affiliate statistics
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["/api/affiliate/stats", user.id],
+    queryKey: ['/api/affiliate/stats', user?.id],
     queryFn: async () => {
-      const res = await fetch(`/api/affiliate/stats?userId=${user.id}`);
-      if (!res.ok) throw new Error("Failed to fetch stats");
-      return res.json();
+      const response = await fetch(`/api/affiliate/stats?userId=${user?.id}`);
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      return response.json();
     },
-    enabled: !!user.id && !!application && application.status === "approved",
+    enabled: !!user?.id && !!application && application.status === "approved",
+    refetchInterval: 30000, // Refetch every 30 seconds
     initialData: {
       totalEarnings: 0,
       pendingEarnings: 0,
@@ -377,6 +379,7 @@ export default function AffiliateDashboard() {
       totalSales: 0,
       conversionRate: 0,
       monthlyGrowth: 0,
+      avgCommission: 0, // Added avgCommission to initialData
     }
   });
 
@@ -397,24 +400,68 @@ export default function AffiliateDashboard() {
     }
   });
 
-  // Fetch recent sales
-  const { data: recentSales, isLoading: salesLoading } = useQuery({
-    queryKey: ["/api/affiliate/sales", user.id],
+  // Fetch affiliate clicks
+  const { data: clicksData, isLoading: clicksLoading } = useQuery({
+    queryKey: ["/api/affiliate/clicks", user.id],
     queryFn: async () => {
-      const res = await fetch(`/api/affiliate/sales?userId=${user.id}`);
-      if (!res.ok) throw new Error("Failed to fetch sales");
+      const res = await fetch(`/api/affiliate/clicks?userId=${user.id}`);
+      if (!res.ok) throw new Error("Failed to fetch clicks");
       return res.json();
     },
     enabled: !!user.id && !!application && application.status === "approved",
-    initialData: []
+    initialData: { total: 0, recent: [] }
   });
+
+  const [clicks, setClicks] = useState({
+    total: 0,
+    converted: 0,
+    conversionRate: 0,
+    recent: []
+  });
+
+  const fetchAffiliateData = async () => {
+    if (!user.id || !application || application.status !== "approved") {
+      return;
+    }
+    try {
+      // Fetch affiliate code (if not already set)
+      if (!affiliateCode) {
+        const formattedUserId = user.id.toString().padStart(2, '0');
+        setAffiliateCode(`POPPIKAP${formattedUserId}`);
+      }
+
+      // Fetch clicks data
+      const clicksRes = await fetch(`/api/affiliate/clicks?userId=${user.id}`);
+      if (clicksRes.ok) {
+        const clicksData = await clicksRes.json();
+        setClicks(clicksData);
+      }
+
+      // Fetch sales data
+      setLoadingSales(true);
+      const salesRes = await fetch(`/api/affiliate/sales?userId=${user.id}`);
+      if (salesRes.ok) {
+        const salesData = await salesRes.json();
+        setSales(salesData);
+      }
+      setLoadingSales(false);
+    } catch (error) {
+      console.error("Error fetching affiliate data:", error);
+      setLoadingSales(false);
+      toast({
+        title: "Error",
+        description: "Failed to load affiliate data",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     console.log('Dashboard - Application status check:', application);
     if (application) {
       const status = application.status?.toLowerCase();
       console.log('Dashboard - Application status:', status);
-      
+
       if (status === "approved") {
         // Format user ID as 2-digit number (01, 02, 03, etc.)
         const formattedUserId = user.id.toString().padStart(2, '0');
@@ -428,6 +475,10 @@ export default function AffiliateDashboard() {
     }
   }, [application, user.id, user.email, setLocation]);
 
+  useEffect(() => {
+    fetchAffiliateData();
+  }, [application, user.id]); // Re-fetch when application or user ID changes
+
   const copyAffiliateCode = () => {
     navigator.clipboard.writeText(affiliateCode);
     toast({
@@ -436,13 +487,15 @@ export default function AffiliateDashboard() {
     });
   };
 
-  const copyAffiliateLink = (productId?: number) => {
-    const baseUrl = window.location.origin;
-    const link = productId 
-      ? `${baseUrl}/product/${productId}?ref=${affiliateCode}`
-      : `${baseUrl}?ref=${affiliateCode}`;
-    
-    navigator.clipboard.writeText(link);
+  const copyAffiliateLink = (product?: any) => {
+    const baseUrl = window.location.hostname === 'localhost'
+      ? 'https://poppiklifestyle.com'
+      : window.location.origin;
+    const affiliateLink = product
+      ? `${baseUrl}/product/${product.slug || product.id}?ref=${affiliateCode}`
+      : `${baseUrl}/?ref=${affiliateCode}`;
+
+    navigator.clipboard.writeText(affiliateLink);
     toast({
       title: "Copied!",
       description: "Affiliate link copied to clipboard",
@@ -450,33 +503,45 @@ export default function AffiliateDashboard() {
   };
 
   const shareToWhatsApp = () => {
-    const url = `${window.location.origin}?ref=${affiliateCode}`;
-    const text = `🌟 Check out amazing beauty products at Poppik! Use my affiliate code ${affiliateCode} for exclusive deals! 💄✨`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text + '\n' + url)}`, '_blank');
+    const baseUrl = window.location.hostname === 'localhost'
+      ? 'https://poppiklifestyle.com'
+      : window.location.origin;
+    const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
+    const message = `🌟 Check out Poppik Lifestyle! Use my code ${affiliateCode} for amazing beauty products. ${affiliateLink}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const shareToFacebook = () => {
-    const url = `${window.location.origin}?ref=${affiliateCode}`;
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+    const baseUrl = window.location.hostname === 'localhost'
+      ? 'https://poppiklifestyle.com'
+      : window.location.origin;
+    const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(affiliateLink)}`, '_blank');
   };
 
   const shareToTwitter = () => {
-    const url = `${window.location.origin}?ref=${affiliateCode}`;
-    const text = `🌟 Discover amazing beauty products at Poppik! Use my code ${affiliateCode} for exclusive deals! 💄`;
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+    const baseUrl = window.location.hostname === 'localhost'
+      ? 'https://poppiklifestyle.com'
+      : window.location.origin;
+    const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
+    const message = `Check out @PoppikLifestyle! Use code ${affiliateCode} for amazing beauty products.`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(affiliateLink)}`, '_blank');
   };
 
   const shareToInstagram = () => {
-    const url = `${window.location.origin}?ref=${affiliateCode}`;
-    navigator.clipboard.writeText(url);
+    const baseUrl = window.location.hostname === 'localhost'
+      ? 'https://poppiklifestyle.com'
+      : window.location.origin;
+    const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     window.open('https://www.instagram.com/', '_blank');
     toast({
-      title: "Link Copied!",
-      description: "Instagram doesn't support direct sharing. The link has been copied - paste it in your Instagram bio or story!",
+      title: "Instagram",
+      description: `Copy your link: ${affiliateLink}`,
+      duration: 5000,
     });
   };
 
-  if (isLoading || statsLoading) {
+  if (isLoading || statsLoading || walletLoading || clicksLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -533,7 +598,7 @@ export default function AffiliateDashboard() {
                 <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
                   <Calendar className="h-4 w-4" />
                   <span className="text-sm font-medium">
-                    Member since {application?.createdAt 
+                    Member since {application?.createdAt
                       ? new Date(application.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
                       : new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
                   </span>
@@ -568,26 +633,26 @@ Your Unique Affiliate Code: ${affiliateCode}
 
 QUICK LINKS:
 ------------
-🔗 Your Affiliate Link: ${window.location.origin}?ref=${affiliateCode}
+🔗 Your Affiliate Link: ${window.location.origin}/?ref=${affiliateCode}
 📊 Dashboard: ${window.location.origin}/affiliate-dashboard
 
 SAMPLE PROMOTIONAL MESSAGES:
 ----------------------------
 
 Instagram Caption:
-"✨ Discover amazing beauty products at Poppik! Use my code ${affiliateCode} for exclusive deals! 💄💅 
-Shop now: ${window.location.origin}?ref=${affiliateCode}
+"✨ Discover amazing beauty products at Poppik! Use my code ${affiliateCode} for exclusive deals! 💄💅
+Shop now: ${window.location.origin}/?ref=${affiliateCode}
 #PoppikBeauty #BeautyAffiliate #SkincareLover"
 
 Facebook Post:
-"Hey everyone! 🌟 I'm excited to share my favorite beauty brand - Poppik! 
+"Hey everyone! 🌟 I'm excited to share my favorite beauty brand - Poppik!
 Get amazing skincare & makeup products. Use my special code: ${affiliateCode}
-Shop here: ${window.location.origin}?ref=${affiliateCode}"
+Shop here: ${window.location.origin}/?ref=${affiliateCode}"
 
 YouTube Description:
 "Shop Poppik Beauty Products
 Use Code: ${affiliateCode}
-Link: ${window.location.origin}?ref=${affiliateCode}
+Link: ${window.location.origin}/?ref=${affiliateCode}
 
 Get exclusive deals on premium beauty products!"
 
@@ -595,7 +660,7 @@ Email Template:
 "Hi there!
 I wanted to share this amazing beauty brand I've been loving - Poppik!
 Use my affiliate code ${affiliateCode} when you shop to get the best deals.
-Shop now: ${window.location.origin}?ref=${affiliateCode}
+Shop now: ${window.location.origin}/?ref=${affiliateCode}
 
 Happy Shopping! 💕"
 
@@ -621,13 +686,12 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                   a.click();
                   window.URL.revokeObjectURL(url);
                   document.body.removeChild(a);
-                  
+
                   toast({
                     title: "Resources Downloaded!",
                     description: "Your affiliate marketing kit has been downloaded successfully.",
                   });
                 }}
-                size="lg"
                 variant="outline"
                 className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm font-semibold"
               >
@@ -824,29 +888,29 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="bg-white shadow-md p-1.5 rounded-xl border border-gray-200 inline-flex gap-1">
-            <TabsTrigger 
-              value="overview" 
+            <TabsTrigger
+              value="overview"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-6 py-2.5 rounded-lg font-semibold transition-all"
             >
               <BarChart3 className="h-4 w-4 mr-2" />
               Overview
             </TabsTrigger>
-            <TabsTrigger 
-              value="products" 
+            <TabsTrigger
+              value="products"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-6 py-2.5 rounded-lg font-semibold transition-all"
             >
               <Package className="h-4 w-4 mr-2" />
               Products
             </TabsTrigger>
-            <TabsTrigger 
-              value="sales" 
+            <TabsTrigger
+              value="sales"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-6 py-2.5 rounded-lg font-semibold transition-all"
             >
               <TrendingUp className="h-4 w-4 mr-2" />
               Sales
             </TabsTrigger>
-            <TabsTrigger 
-              value="profile" 
+            <TabsTrigger
+              value="profile"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-6 py-2.5 rounded-lg font-semibold transition-all"
             >
               <Users className="h-4 w-4 mr-2" />
@@ -855,132 +919,191 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="border-b bg-gray-50">
+            {/* Recent Sales Activity */}
+            <Card className="shadow-lg border-0">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 border-b">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-xl flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-purple-600" />
-                      Recent Sales Activity
-                    </CardTitle>
-                    <CardDescription className="mt-1">Your latest commission earnings and transactions</CardDescription>
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-purple-600" />
+                    <CardTitle>Recent Sales Activity</CardTitle>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="border-purple-200 text-purple-700 hover:bg-purple-50"
-                    onClick={() => {
-                      if (!recentSales || recentSales.length === 0) {
-                        toast({
-                          title: "No Data",
-                          description: "No sales data available to export",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
-
-                      // Prepare CSV content
-                      const headers = ['Date', 'Product', 'Customer', 'Sale Amount', 'Commission', 'Status'];
+                  <Button variant="outline" size="sm" onClick={() => {
+                    // Export sales data as CSV
+                    if (sales && sales.length > 0) {
                       const csvContent = [
-                        headers.join(','),
-                        ...recentSales.map((sale: any) => [
-                          new Date(sale.date).toLocaleDateString('en-IN'),
-                          `"${sale.product}"`,
-                          `"${sale.customer}"`,
-                          sale.amount,
-                          sale.commission,
+                        ['Order ID', 'Product', 'Customer Name', 'Customer Email', 'Customer Phone', 'Sale Amount', 'Commission', 'Date', 'Status'].join(','),
+                        ...sales.map(sale => [
+                          sale.orderId || 'N/A',
+                          `"${sale.productName || 'N/A'}"`,
+                          `"${sale.customerName || 'N/A'}"`,
+                          `"${sale.customerEmail || 'N/A'}"`,
+                          `"${sale.customerPhone || 'N/A'}"`,
+                          sale.saleAmount || '0',
+                          sale.commissionAmount || '0',
+                          new Date(sale.createdAt).toLocaleDateString('en-IN'),
                           sale.status
                         ].join(','))
                       ].join('\n');
 
-                      // Create and download file
-                      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                      const blob = new Blob([csvContent], { type: 'text/csv' });
                       const url = window.URL.createObjectURL(blob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = `Poppik_Affiliate_Sales_${affiliateCode}_${new Date().toLocaleDateString('en-IN').replace(/\//g, '-')}.csv`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `affiliate-sales-${new Date().toISOString().split('T')[0]}.csv`;
+                      a.click();
                       window.URL.revokeObjectURL(url);
 
                       toast({
-                        title: "Exported Successfully!",
-                        description: "Your sales data has been downloaded as CSV",
+                        title: "Export Successful",
+                        description: "Sales data exported to CSV with customer details",
                       });
-                    }}
-                  >
+                    }
+                  }}>
                     <Download className="h-4 w-4 mr-2" />
                     Export
                   </Button>
                 </div>
+                <CardDescription>Your latest commission earnings and transactions</CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b border-gray-200">
-                      <TableHead className="font-bold text-gray-700">Product</TableHead>
-                      <TableHead className="font-bold text-gray-700">Customer</TableHead>
-                      <TableHead className="font-bold text-gray-700">Sale Amount</TableHead>
-                      <TableHead className="font-bold text-gray-700">Commission</TableHead>
-                      <TableHead className="font-bold text-gray-700">Date</TableHead>
-                      <TableHead className="font-bold text-gray-700">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {salesLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
-                          <div className="flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                            <span className="ml-3 text-gray-600">Loading sales...</span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : recentSales && recentSales.length > 0 ? (
-                      recentSales.map((sale: any) => (
-                        <TableRow key={sale.id} className="hover:bg-purple-50/50 border-b border-gray-100">
-                          <TableCell className="font-semibold text-gray-900">{sale.product}</TableCell>
-                          <TableCell className="text-gray-600">{sale.customer}</TableCell>
-                          <TableCell className="font-medium">₹{sale.amount}</TableCell>
-                          <TableCell className="font-bold text-emerald-600 text-lg">
-                            ₹{sale.commission}
-                          </TableCell>
-                          <TableCell className="text-gray-600">{new Date(sale.date).toLocaleDateString('en-IN')}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={sale.status === "paid" ? "default" : "secondary"}
-                              className={sale.status === "paid" 
-                                ? "bg-emerald-100 text-emerald-700 border-emerald-200" 
-                                : "bg-amber-100 text-amber-700 border-amber-200"
-                              }
-                            >
-                              {sale.status === "paid" ? <CheckCircle className="h-3 w-3 mr-1" /> : <Clock className="h-3 w-3 mr-1" />}
-                              {sale.status}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-12">
-                          <div className="flex flex-col items-center justify-center">
-                            <ShoppingBag className="h-16 w-16 text-gray-300 mb-4" />
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Sales Yet</h3>
-                            <p className="text-gray-500 mb-6">Start sharing your affiliate links to earn commissions!</p>
-                            <Button 
-                              onClick={() => copyAffiliateLink()}
-                              className="bg-purple-600 hover:bg-purple-700"
-                            >
-                              <Share2 className="h-4 w-4 mr-2" />
-                              Copy Affiliate Link
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                {loadingSales ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading sales data...</p>
+                  </div>
+                ) : sales && sales.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="font-semibold">Order ID</TableHead>
+                            <TableHead className="font-semibold">Product</TableHead>
+                            <TableHead className="font-semibold">Customer Details</TableHead>
+                            <TableHead className="text-right font-semibold">Sale Amount</TableHead>
+                            <TableHead className="text-right font-semibold">Commission</TableHead>
+                            <TableHead className="font-semibold">Date</TableHead>
+                            <TableHead className="font-semibold">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sales.slice(0, 10).map((sale) => (
+                            <TableRow key={sale.id}>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                                    <ShoppingBag className="h-4 w-4 text-purple-600" />
+                                  </div>
+                                  <span className="font-semibold text-purple-700">
+                                    #{String(sale.orderId).padStart(3, '0')}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="max-w-[200px]">
+                                  <p className="font-medium text-gray-900 truncate">{sale.productName || 'N/A'}</p>
+                                  {(sale.productId || sale.comboId) && (
+                                    <p className="text-xs text-gray-500">
+                                      {sale.productId ? `Product ID: ${sale.productId}` : `Combo ID: ${sale.comboId}`}
+                                    </p>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                      <Users className="h-4 w-4 text-blue-600" />
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-gray-900">{sale.customerName || 'N/A'}</p>
+                                      <p className="text-xs text-gray-600">{sale.customerEmail || 'N/A'}</p>
+                                      {sale.customerPhone && (
+                                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                                          <span>📱</span> {sale.customerPhone}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex flex-col items-end">
+                                  <span className="text-lg font-bold text-gray-900">
+                                    ₹{parseFloat(sale.saleAmount || '0').toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {sale.commissionRate}% rate
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Badge className="bg-green-100 text-green-700 border-green-200 px-3 py-1 text-sm font-semibold">
+                                  ₹{parseFloat(sale.commissionAmount || '0').toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {new Date(sale.createdAt).toLocaleDateString('en-IN', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(sale.createdAt).toLocaleTimeString('en-IN', {
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={sale.status === 'confirmed' ? 'default' : sale.status === 'pending' ? 'secondary' : 'outline'}
+                                  className={
+                                    sale.status === 'confirmed'
+                                      ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                      : sale.status === 'pending'
+                                      ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                      : ''
+                                  }
+                                >
+                                  {sale.status === 'confirmed' && <CheckCircle className="h-3 w-3 mr-1" />}
+                                  {sale.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
+                                  {sale.status.charAt(0).toUpperCase() + sale.status.slice(1)}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {sales.length > 10 && (
+                      <div className="text-center pt-4 border-t">
+                        <Button variant="outline" size="lg" className="gap-2">
+                          <Package className="h-4 w-4" />
+                          View All {sales.length} Sales
+                        </Button>
+                      </div>
                     )}
-                  </TableBody>
-                </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Sales Yet</h3>
+                    <p className="text-gray-600 mb-6">Start sharing your affiliate links to earn commissions!</p>
+                    <Button
+                      onClick={() => copyAffiliateLink()}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Copy Affiliate Link
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1046,13 +1169,14 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                 </CardHeader>
                 <CardContent className="pt-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="p-6 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-200">
+                    {/* Conversion Rate */}
+                    <div className="text-center p-4 bg-emerald-50 rounded-xl border-2 border-emerald-200">
                       <div className="flex items-center justify-between mb-4">
                         <div className="w-12 h-12 bg-emerald-600 rounded-lg flex items-center justify-center">
                           <Target className="h-6 w-6 text-white" />
                         </div>
                         <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                          {stats?.conversionRate || 0}%
+                          {(stats?.conversionRate || 0).toFixed(1)}%
                         </Badge>
                       </div>
                       <p className="text-sm text-gray-600 font-medium mb-2">Conversion Rate</p>
@@ -1061,7 +1185,8 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                       </p>
                     </div>
 
-                    <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200">
+                    {/* Average Commission */}
+                    <div className="text-center p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
                       <div className="flex items-center justify-between mb-4">
                         <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
                           <DollarSign className="h-6 w-6 text-white" />
@@ -1072,11 +1197,12 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                       </div>
                       <p className="text-sm text-gray-600 font-medium mb-2">Avg. Commission</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        ₹{stats?.totalSales > 0 ? Math.round((stats?.totalEarnings || 0) / stats.totalSales) : 0}
+                        ₹{(stats?.avgCommission || 0).toFixed(2)}
                       </p>
                     </div>
 
-                    <div className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200">
+                    {/* Monthly Growth */}
+                    <div className="text-center p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
                       <div className="flex items-center justify-between mb-4">
                         <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
                           {(stats?.monthlyGrowth || 0) >= 0 ? <TrendingUp className="h-6 w-6 text-white" /> : <TrendingDown className="h-6 w-6 text-white" />}
@@ -1087,7 +1213,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                       </div>
                       <p className="text-sm text-gray-600 font-medium mb-2">Monthly Growth</p>
                       <p className={`text-2xl font-bold ${(stats?.monthlyGrowth || 0) >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                        {(stats?.monthlyGrowth || 0) > 0 ? '+' : ''}{stats?.monthlyGrowth || 0}%
+                        {(stats?.monthlyGrowth || 0) > 0 ? '+' : ''}{(stats?.monthlyGrowth || 0).toFixed(1)}%
                       </p>
                     </div>
                   </div>
@@ -1106,7 +1232,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-3xl font-bold text-blue-600">{stats?.totalClicks?.toLocaleString('en-IN') || 0}</p>
+                          <p className="text-3xl font-bold text-blue-600">{clicksData?.total?.toLocaleString('en-IN') || 0}</p>
                           {stats?.clicksGrowth !== undefined && stats?.clicksGrowth !== 0 && (
                             <p className={`text-sm font-semibold mt-1 ${stats.clicksGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                               {stats.clicksGrowth > 0 ? '↑' : '↓'} {Math.abs(stats.clicksGrowth)}% this month
@@ -1126,10 +1252,10 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-3xl font-bold text-emerald-600">{stats?.totalSales?.toLocaleString('en-IN') || 0}</p>
-                          {stats?.conversionRate !== undefined && stats?.conversionRate > 0 && (
+                          <p className="text-3xl font-bold text-emerald-600">{sales?.length?.toLocaleString('en-IN') || 0}</p>
+                          {clicksData?.total > 0 && sales?.length > 0 && (
                             <p className="text-sm font-semibold text-emerald-600 mt-1">
-                              {stats.conversionRate.toFixed(1)}% conversion rate
+                              {((sales.length / clicksData.total) * 100).toFixed(1)}% conversion rate
                             </p>
                           )}
                         </div>
@@ -1146,7 +1272,9 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-3xl font-bold text-purple-600">₹{stats?.totalEarnings?.toLocaleString('en-IN') || 0}</p>
+                          <p className="text-3xl font-bold text-purple-600">
+                            ₹{sales?.reduce((sum, sale) => sum + parseFloat(sale.commissionAmount || '0'), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                          </p>
                           {stats?.earningsGrowth !== undefined && stats?.earningsGrowth !== 0 && (
                             <p className={`text-sm font-semibold mt-1 ${stats.earningsGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                               {stats.earningsGrowth > 0 ? '↑' : '↓'} {Math.abs(stats.earningsGrowth)}% this month
@@ -1179,12 +1307,12 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                       <p className="text-gray-900 text-xl font-semibold">{application.lastName}</p>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Email Address</label>
                     <p className="text-gray-900 text-xl font-semibold">{application.email}</p>
                   </div>
-                  
+
                   <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Phone Number</label>
                     <p className="text-gray-900 text-xl font-semibold">{application.phone}</p>
@@ -1196,7 +1324,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                     {application.city && <p className="text-gray-700">{application.city}, {application.state} - {application.pincode}</p>}
                     <p className="text-gray-700">{application.country}</p>
                   </div>
-                  
+
                   {/* Bank Details Section */}
                   {(application.bankName || application.accountNumber) && (
                     <div className="border-t pt-6">
@@ -1251,20 +1379,20 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-4">
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-3 h-12 hover:bg-green-50 hover:border-green-300 transition-colors" 
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 h-12 hover:bg-green-50 hover:border-green-300 transition-colors"
               onClick={shareToWhatsApp}
             >
               <svg className="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
               </svg>
               WhatsApp
             </Button>
 
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-3 h-12 hover:bg-blue-50 hover:border-blue-300 transition-colors" 
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 h-12 hover:bg-blue-50 hover:border-blue-300 transition-colors"
               onClick={shareToFacebook}
             >
               <svg className="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
@@ -1273,9 +1401,9 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
               Facebook
             </Button>
 
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-3 h-12 hover:bg-sky-50 hover:border-sky-300 transition-colors" 
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 h-12 hover:bg-sky-50 hover:border-sky-300 transition-colors"
               onClick={shareToTwitter}
             >
               <svg className="h-6 w-6 text-sky-500" fill="currentColor" viewBox="0 0 24 24">
@@ -1284,13 +1412,13 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
               Twitter
             </Button>
 
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-3 h-12 hover:bg-pink-50 hover:border-pink-300 transition-colors" 
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 h-12 hover:bg-pink-50 hover:border-pink-300 transition-colors"
               onClick={shareToInstagram}
             >
               <svg className="h-6 w-6 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zM12 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z"/>
+                <path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z"/>
               </svg>
               Instagram
             </Button>
