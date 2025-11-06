@@ -57,6 +57,7 @@ import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
 import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication } from "../shared/schema";
+import { users } from "../shared/schema"; // Import users table explicitly
 
 // Initialize Shiprocket service
 const shiprocketService = new ShiprocketService();
@@ -3073,50 +3074,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add cashback to user's wallet for items that have cashback
       if (items && Array.isArray(items)) {
+        let totalCashback = 0;
+        const cashbackItems = [];
+
         for (const item of items) {
           if (item.cashbackPrice && item.cashbackPercentage) {
             const cashbackAmount = Number(item.cashbackPrice) * item.quantity;
+            totalCashback += cashbackAmount;
+            cashbackItems.push({
+              name: item.productName,
+              amount: cashbackAmount
+            });
+          }
+        }
 
-            // Get or create wallet
-            let wallet = await db
-              .select()
-              .from(schema.walletTable)
-              .where(eq(schema.walletTable.userId, userId))
-              .limit(1);
+        if (totalCashback > 0) {
+          // Get or create wallet
+          const existingWallet = await db
+            .select()
+            .from(schema.userWallet)
+            .where(eq(schema.userWallet.userId, parseInt(userId)))
+            .limit(1);
 
-            if (wallet.length === 0) {
-              // Create wallet
-              await db.insert(schema.walletTable).values({
-                userId,
-                cashbackBalance: cashbackAmount.toFixed(2),
-                totalEarned: cashbackAmount.toFixed(2),
-                totalRedeemed: "0.00"
-              });
-            } else {
-              // Update wallet
-              const currentBalance = parseFloat(wallet[0].cashbackBalance);
-              const currentEarned = parseFloat(wallet[0].totalEarned);
-
-              await db.update(schema.walletTable)
-                .set({
-                  cashbackBalance: (currentBalance + cashbackAmount).toFixed(2),
-                  totalEarned: (currentEarned + cashbackAmount).toFixed(2)
-                })
-                .where(eq(schema.walletTable.userId, userId));
-            }
-
-            // Add cashback transaction
-            await db.insert(schema.userWalletTransactions).values({
-              userId,
-              orderId: newOrder.id,
-              amount: cashbackAmount.toFixed(2),
-              type: 'cashback',
-              description: `Cashback from ${item.productName}`,
-              status: 'pending'
+          if (existingWallet.length === 0) {
+            // Create new wallet with cashback
+            await db.insert(schema.userWallet).values({
+              userId: parseInt(userId),
+              cashbackBalance: totalCashback.toFixed(2),
+              totalEarned: totalCashback.toFixed(2),
+              totalRedeemed: "0.00"
             });
 
-            console.log(`Added ₹${cashbackAmount.toFixed(2)} cashback for ${item.productName}`);
+            console.log(`Created new wallet for user ${userId} with ₹${totalCashback.toFixed(2)} cashback`);
+          } else {
+            // Update existing wallet
+            const currentBalance = parseFloat(existingWallet[0].cashbackBalance || '0');
+            const currentEarned = parseFloat(existingWallet[0].totalEarned || '0');
+
+            await db.update(schema.userWallet)
+              .set({
+                cashbackBalance: (currentBalance + totalCashback).toFixed(2),
+                totalEarned: (currentEarned + totalCashback).toFixed(2),
+                updatedAt: new Date()
+              })
+              .where(eq(schema.userWallet.userId, parseInt(userId)));
+
+            console.log(`Updated wallet for user ${userId}: Added ₹${totalCashback.toFixed(2)} cashback`);
           }
+
+          // Create individual cashback transactions for each item
+          for (const cashbackItem of cashbackItems) {
+            // Get current balance for transaction record
+            const walletForBalance = await db
+              .select()
+              .from(schema.userWallet)
+              .where(eq(schema.userWallet.userId, parseInt(userId)))
+              .limit(1);
+
+            const balanceBefore = parseFloat(walletForBalance[0].cashbackBalance || '0') - cashbackItem.amount;
+            const balanceAfter = parseFloat(walletForBalance[0].cashbackBalance || '0');
+
+            await db.insert(schema.userWalletTransactions).values({
+              userId: parseInt(userId),
+              orderId: newOrder.id,
+              amount: cashbackItem.amount.toFixed(2),
+              type: 'credit',
+              description: `Cashback from ${cashbackItem.name}`,
+              balanceBefore: balanceBefore.toFixed(2),
+              balanceAfter: balanceAfter.toFixed(2),
+              status: 'completed'
+            });
+
+            console.log(`Added cashback transaction: ₹${cashbackItem.amount.toFixed(2)} for ${cashbackItem.name}`);
+          }
+
+          console.log(`Total cashback credited: ₹${totalCashback.toFixed(2)} from ${cashbackItems.length} items`);
         }
       }
 
@@ -3179,7 +3211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: 'completed'
           });
 
-          console.log(`✅ Credited ₹${affiliateCommission} commission to affiliate ${affiliateUserId}`);
+          console.log(`Credited ₹${affiliateCommission} commission to affiliate ${affiliateUserId}`);
         }
       }
 
@@ -3193,7 +3225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if Shiprocket is configured
       if (process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
         try {
-          console.log('🚀 Starting Shiprocket order creation for:', orderId);
+          console.log('Starting Shiprocket order creation for:', orderId);
 
           // Get user details from database
           const user = await db
@@ -3223,8 +3255,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
           }
 
-          console.log('📦 Customer data for Shiprocket:', customerData);
-          console.log('📍 Full shipping address:', shippingAddress);
+          console.log('Customer data for Shiprocket:', customerData);
+          console.log('Full shipping address:', shippingAddress);
 
           // Prepare Shiprocket order with correct pickup location
           const shiprocketOrderData = shiprocketService.convertToShiprocketFormat({
@@ -3237,17 +3269,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             customer: customerData
           }, "Office"); // Use "Office" as pickup location instead of "Primary"
 
-          console.log('📋 Shiprocket order payload:', JSON.stringify(shiprocketOrderData, null, 2));
+          console.log('Shiprocket order payload:', JSON.stringify(shiprocketOrderData, null, 2));
 
           // Create order on Shiprocket
           const shiprocketResponse = await shiprocketService.createOrder(shiprocketOrderData);
-          console.log('✅ Shiprocket API response:', JSON.stringify(shiprocketResponse, null, 2));
+          console.log('Shiprocket API response:', JSON.stringify(shiprocketResponse, null, 2));
 
           if (shiprocketResponse && shiprocketResponse.order_id) {
             shiprocketOrderId = shiprocketResponse.order_id;
             shiprocketAwb = shiprocketResponse.awb_code || shiprocketResponse.shipment_id || null;
 
-            console.log(`✅ Shiprocket order created: ${shiprocketOrderId} with AWB: ${shiprocketAwb || 'Pending'}`);
+            console.log(`Shiprocket order created: ${shiprocketOrderId} with AWB: ${shiprocketAwb || 'Pending'}`);
 
             // Update order with Shiprocket details immediately
             await db.update(schema.ordersTable)
@@ -3258,14 +3290,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               })
               .where(eq(schema.ordersTable.id, newOrder.id));
 
-            console.log(`✅ Database updated with Shiprocket details for order ${orderId}`);
+            console.log(`Database updated with Shiprocket details for order ${orderId}`);
           } else {
             shiprocketError = 'Invalid Shiprocket response - no order_id';
-            console.error('❌ Shiprocket response missing order_id:', shiprocketResponse);
+            console.error('Shiprocket response missing order_id:', shiprocketResponse);
           }
         } catch (shiprocketErrorCatch) {
           shiprocketError = shiprocketErrorCatch.message;
-          console.error('❌ Shiprocket order creation failed:', {
+          console.error('Shiprocket order creation failed:', {
             orderId: orderId,
             error: shiprocketErrorCatch.message,
             stack: shiprocketErrorCatch.stack
@@ -3280,7 +3312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else {
         shiprocketError = 'Shiprocket credentials not configured';
-        console.warn('⚠️ Shiprocket not configured - skipping integration');
+        console.warn('Shiprocket not configured - skipping integration');
       }
 
       res.json({
@@ -3299,7 +3331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error("❌ Order creation error:", error);
+      console.error("Order creation error:", error);
       console.error("Error details:", {
         message: error.message,
         stack: error.stack,
@@ -5004,8 +5036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/shades", async (req, res) => {
     try {
       const allShades = await storage.getShades();
-      res.json(allShades);
-    } catch (error) {
+      res.json(allShades);    } catch (error) {
       console.error("Error fetching admin shades:", error);
       res.status(500).json({ error: "Failed to fetch shades" });
     }
@@ -6029,7 +6060,7 @@ Poppik Career Portal
         userId: parseInt(userId),
         type: 'credit',
         amount: creditAmount.toFixed(2),
-        description: description || `Cashback from order #${orderId}`,
+        description: description || 'Cashback credited',
         orderId: orderId ? parseInt(orderId) : null,
         balanceBefore: currentBalance.toFixed(2),
         balanceAfter: newBalance.toFixed(2),
@@ -6410,7 +6441,7 @@ Poppik Affiliate Portal
       const totalSales = sales.length;
       const conversionRate = totalClicks > 0 ? (totalSales / totalClicks) * 100 : 0;
 
-      const totalEarnings = wallet && wallet[0] ? parseFloat(wallet[0].balance.toString()) : 0;
+      const totalEarnings = wallet && wallet[0] ? parseFloat(wallet[0].totalEarnings || '0') : 0;
 
       // Calculate average commission from sales
       const totalCommission = sales.reduce((sum, sale) => {
@@ -6545,7 +6576,7 @@ Poppik Affiliate Portal
   // Affiliate stats endpoint
   app.get('/api/affiliate/stats', async (req: Request, res: Response) => {
     try {
-      const userId = req.query.userId;
+      const { userId } = req.query;
 
       if (!userId) {
         return res.status(401).json({ error: 'User ID required' });
@@ -6798,29 +6829,19 @@ Poppik Affiliate Portal
         .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)));
 
       const totalClicks = clicks.length;
-      const totalSales = sales.length;
-      const conversionRate = totalClicks > 0 ? (totalSales / totalClicks) * 100 : 0;
-
+      const totalConversions = sales.length;
       const totalEarnings = wallet && wallet.length > 0 
         ? parseFloat(wallet[0].totalEarnings || '0') 
         : 0;
-
-      const pendingEarnings = sales
-        .filter(s => s.status === 'confirmed')
-        .reduce((sum, sale) => sum + parseFloat(sale.commissionAmount || '0'), 0);
+      const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
+      const avgCommission = totalConversions > 0 ? totalEarnings / totalConversions : 0;
 
       res.json({
-        totalEarnings: totalEarnings,
-        availableBalance: wallet && wallet.length > 0 
-          ? parseFloat(wallet[0].commissionBalance || '0') 
-          : 0,
-        pendingCommission: pendingEarnings.toFixed(2),
-        totalWithdrawn: wallet && wallet.length > 0 
-          ? parseFloat(wallet[0].totalWithdrawn || '0') 
-          : 0,
-        thisMonthEarnings: 0, // TODO: Calculate actual monthly earnings
-        monthlyGrowth: 0, // TODO: Calculate actual monthly growth
-        affiliateCode: `POPPIKAP${parseInt(userId as string).toString().padStart(2, '0')}`,
+        totalClicks,
+        totalConversions,
+        totalEarnings,
+        conversionRate,
+        avgCommission
       });
     } catch (error) {
       console.error('Error fetching affiliate stats:', error);
