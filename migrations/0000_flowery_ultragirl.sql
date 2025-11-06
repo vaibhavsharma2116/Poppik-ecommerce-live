@@ -337,3 +337,253 @@ CREATE TABLE IF NOT EXISTS blog_posts
 -- Add dateOfBirth and address columns to users table
 ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth VARCHAR(10);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT;
+
+
+
+CREATE TABLE IF NOT EXISTS public.affiliate_applications
+(
+    id SERIAL PRIMARY KEY,
+    first_name character varying(255) NOT NULL,
+    last_name character varying(255) NOT NULL,
+    email character varying(255) NOT NULL,
+    phone character varying(20) NOT NULL,
+    address text NOT NULL,
+    city character varying(100),
+    state character varying(100),
+    pincode character varying(10),
+    review_notes text,
+    user_id integer,
+    landmark text,
+    country text NOT NULL,
+    bank_name character varying(100),
+    branch_name character varying(100),
+    ifsc_code character varying(20),
+    account_number character varying(30),
+    status character varying(100),
+    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at timestamp without time zone,
+    CONSTRAINT affiliate_applications_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (id)
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS public.affiliate_clicks
+(
+    id SERIAL PRIMARY KEY,
+    affiliate_user_id integer NOT NULL,
+    affiliate_code varchar(50) NOT NULL,
+    ip_address varchar(45),
+    user_agent text,
+    referrer text,
+    product_id integer,
+    combo_id integer,
+    converted boolean NOT NULL DEFAULT false,
+    order_id integer,
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
+    
+    CONSTRAINT affiliate_clicks_affiliate_user_id_fkey FOREIGN KEY (affiliate_user_id)
+        REFERENCES public.users (id)
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+
+    CONSTRAINT affiliate_clicks_combo_id_fkey FOREIGN KEY (combo_id)
+        REFERENCES public.combos (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+
+    CONSTRAINT affiliate_clicks_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+
+    CONSTRAINT affiliate_clicks_product_id_fkey FOREIGN KEY (product_id)
+        REFERENCES public.products (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+CREATE TABLE IF NOT EXISTS public.affiliate_sales
+(
+    id SERIAL PRIMARY KEY,
+    affiliate_user_id integer NOT NULL,
+    affiliate_code varchar(50) NOT NULL,
+    order_id integer NOT NULL,
+    customer_id integer NOT NULL,
+    customer_name varchar(255) NOT NULL,
+    customer_email varchar(255) NOT NULL,
+    customer_phone varchar(20),
+    product_id integer,
+    combo_id integer,
+    product_name text NOT NULL,
+    sale_amount numeric(10,2) NOT NULL,
+    commission_rate numeric(5,2) NOT NULL,
+    commission_amount numeric(10,2) NOT NULL,
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
+    
+    CONSTRAINT affiliate_sales_affiliate_user_id_fkey FOREIGN KEY (affiliate_user_id)
+        REFERENCES public.users (id)
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+
+    CONSTRAINT affiliate_sales_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+
+    CONSTRAINT affiliate_sales_product_id_fkey FOREIGN KEY (product_id)
+        REFERENCES public.products (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+
+    CONSTRAINT affiliate_sales_combo_id_fkey FOREIGN KEY (combo_id)
+        REFERENCES public.combos (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+CREATE TABLE IF NOT EXISTS public.affiliate_transactions
+(
+    id SERIAL PRIMARY KEY,
+    user_id integer NOT NULL,
+    type varchar(20) NOT NULL,
+    amount numeric(10,2) NOT NULL,
+    balance_type varchar(20) NOT NULL,
+    description text NOT NULL,
+    order_id integer,
+    status varchar(20) NOT NULL DEFAULT 'completed',
+    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    transaction_id varchar(255),
+    notes text,
+    processed_at timestamp without time zone,
+
+    CONSTRAINT affiliate_transactions_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+
+    CONSTRAINT affiliate_transactions_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (id)
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.affiliate_transactions
+    OWNER TO postgres;
+CREATE TABLE IF NOT EXISTS public.affiliate_wallet
+(
+    id SERIAL PRIMARY KEY,
+    user_id integer NOT NULL UNIQUE,
+    cashback_balance numeric(10,2) NOT NULL DEFAULT 0.00,
+    commission_balance numeric(10,2) NOT NULL DEFAULT 0.00,
+    total_earnings numeric(10,2) NOT NULL DEFAULT 0.00,
+    total_withdrawn numeric(10,2) NOT NULL DEFAULT 0.00,
+    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT affiliate_wallet_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (id)
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.affiliate_wallet
+    OWNER TO postgres;
+ 
+ CREATE TABLE IF NOT EXISTS public.user_wallet
+(
+    id SERIAL PRIMARY KEY,
+    user_id integer NOT NULL UNIQUE,
+    cashback_balance numeric(10,2) NOT NULL DEFAULT 0.00,
+    total_earned numeric(10,2) NOT NULL DEFAULT 0.00,
+    total_redeemed numeric(10,2) NOT NULL DEFAULT 0.00,
+    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT user_wallet_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (id)
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.user_wallet
+    OWNER TO postgres;
+
+-- Index for faster lookup
+CREATE INDEX IF NOT EXISTS idx_user_wallet_user_id
+    ON public.user_wallet USING btree (user_id ASC NULLS LAST)
+    TABLESPACE pg_default;
+CREATE TABLE IF NOT EXISTS public.user_wallet_transactions
+(
+    id SERIAL PRIMARY KEY,
+    user_id integer NOT NULL,
+    type varchar(20) NOT NULL,
+    amount numeric(10,2) NOT NULL,
+    description text NOT NULL,
+    order_id integer,
+    balance_before numeric(10,2) NOT NULL,
+    balance_after numeric(10,2) NOT NULL,
+    status varchar(20) NOT NULL DEFAULT 'completed',
+    created_at timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT user_wallet_transactions_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+
+    CONSTRAINT user_wallet_transactions_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (id)
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+)
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.user_wallet_transactions
+    OWNER TO postgres;
+
+-- Index: created_at
+CREATE INDEX IF NOT EXISTS idx_user_wallet_transactions_created_at
+    ON public.user_wallet_transactions USING btree
+    (created_at ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+-- Index: user_id
+CREATE INDEX IF NOT EXISTS idx_user_wallet_transactions_user_id
+    ON public.user_wallet_transactions USING btree
+    (user_id ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+	ALTER TABLE public.orders
+ADD COLUMN IF NOT EXISTS cashback_amount NUMERIC(10,2) DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS affiliate_code TEXT COLLATE pg_catalog."default",
+ADD COLUMN IF NOT EXISTS affiliate_discount INTEGER DEFAULT 0;
+
+
+CREATE OR REPLACE FUNCTION public.calculate_cashback_price()
+RETURNS trigger AS $$
+BEGIN
+    -- Only calculate if both price and cashback_percentage are provided
+    IF NEW.cashback_percentage IS NOT NULL AND NEW.cashback_percentage > 0 THEN
+        -- Assuming your products table has a column named "price"
+        NEW.cashback_price := ROUND(NEW.price * (NEW.cashback_percentage / 100), 2);
+    ELSE
+        NEW.cashback_price := 0;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trigger_calculate_cashback_price
+BEFORE INSERT OR UPDATE
+ON public.products
+FOR EACH ROW
+EXECUTE FUNCTION public.calculate_cashback_price();
+ALTER TABLE public.products
+ADD COLUMN IF NOT EXISTS cashback_percentage numeric(5,2),
+ADD COLUMN IF NOT EXISTS cashback_price numeric(10,2);
+
+
+ALTER TABLE public.order_items
+ADD COLUMN cashback_price REAL,
+ADD COLUMN cashback_percentage REAL;
+
