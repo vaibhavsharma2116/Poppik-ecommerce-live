@@ -6142,6 +6142,100 @@ Poppik Career Portal
 
   // Affiliate Applications Routes
 
+  // Submit affiliate application (public) - alternative endpoint
+  app.post('/api/affiliate/apply', async (req, res) => {
+    try {
+      const { 
+        userId,
+        firstName, 
+        lastName, 
+        email, 
+        phone,
+        address,
+        city,
+        state,
+        pincode,
+        landmark,
+        country,
+        bankName,
+        branchName,
+        ifscCode,
+        accountNumber
+      } = req.body;
+
+      // Validate required fields
+      if (!userId || !firstName || !lastName || !email || !phone || !address || !country) {
+        return res.status(400).json({ error: 'All required fields must be provided' });
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
+      }
+
+      // Check if user already has an application
+      const existingApplicationByUser = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(
+          or(
+            eq(schema.affiliateApplications.userId, parseInt(userId)),
+            eq(schema.affiliateApplications.email, email.toLowerCase())
+          )
+        )
+        .limit(1);
+
+      if (existingApplicationByUser && existingApplicationByUser.length > 0) {
+        const application = existingApplicationByUser[0];
+        const status = application.status || 'pending';
+
+        return res.status(400).json({ 
+          error: `You have already submitted an affiliate application. Status: ${status}`,
+          application: {
+            ...application,
+            status: status
+          }
+        });
+      }
+
+      // Save to database
+      const savedApplication = await db.insert(schema.affiliateApplications).values({
+        userId: parseInt(userId),
+        firstName,
+        lastName,
+        email,
+        phone,
+        address,
+        city: city || null,
+        state: state || null,
+        pincode: pincode || null,
+        landmark: landmark || null,
+        country,
+        bankName: bankName || null,
+        branchName: branchName || null,
+        ifscCode: ifscCode || null,
+        accountNumber: accountNumber || null,
+        status: 'pending'
+      }).returning();
+
+      console.log('Affiliate application saved:', savedApplication[0].id);
+
+      res.json({
+        success: true,
+        message: 'Application submitted successfully! Our team will review your application and get back to you within 5-7 business days.',
+        applicationId: savedApplication[0].id
+      });
+
+    } catch (error) {
+      console.error('Error submitting affiliate application:', error);
+      res.status(500).json({ 
+        error: 'Failed to submit application',
+        details: error.message 
+      });
+    }
+  });
+
   // Submit affiliate application (public)
   app.post('/api/affiliate-applications', async (req, res) => {
     try {

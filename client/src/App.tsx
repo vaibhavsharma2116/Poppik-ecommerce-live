@@ -52,6 +52,7 @@ import InfluencerCollab from "@/pages/influencer-collab";
 import ChannelPartnerPage from "@/pages/channel-partner";
 import AffiliatePage from "@/pages/affiliate";
 import AffiliateApplicationPage from "@/pages/affiliate-application";
+import AffiliateForm from "@/pages/affiliate-form";
 import AdminInfluencerApplications from './pages/admin/influencer-applications';
 import AdminAffiliateApplications from './pages/admin/affiliate-applications';
 import AdminAffiliateWithdrawals from "@/pages/admin/affiliate-withdrawals";
@@ -275,6 +276,7 @@ function Router() {
               );
             }} />
             <Route path="/affiliate-application" component={AffiliateApplicationPage} />
+            <Route path="/affiliate-form" component={AffiliateForm} />
             <Route path="/affiliate-dashboard" component={() => {
               const AffiliateDashboard = lazy(() => import("./pages/affiliate-dashboard"));
               return (

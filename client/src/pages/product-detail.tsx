@@ -577,6 +577,9 @@ export default function ProductDetail() {
   }
 
   const filteredRelatedProducts = relatedProducts?.filter(p => p.id !== product.id).slice(0, 4) || [];
+  
+  // Define productSlug for meta tags - use product.slug if available, otherwise use productSlugOrId
+  const productSlug = product.slug || productSlugOrId;
 
   return (
     <>

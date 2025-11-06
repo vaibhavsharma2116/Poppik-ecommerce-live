@@ -127,7 +127,7 @@ export default function AffiliatePage() {
                 </p>
                 {!application ? (
                   <Button
-                    onClick={() => setLocation("/affiliate-application")}
+                    onClick={() => setLocation("/affiliate-form")}
                     className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-6 xs:px-8 py-4 xs:py-6 text-base xs:text-lg rounded-full mt-4 w-full sm:w-auto"
                   >
                     APPLY NOW
@@ -312,7 +312,7 @@ export default function AffiliatePage() {
             Ready to start your journey with Poppik? We'd love to hear from you!
           </p>
           <Button
-            onClick={() => setLocation("/affiliate-application")}
+            onClick={() => setLocation("/affiliate-form")}
             className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-8 py-6 text-lg rounded-full"
           >
             APPLY FOR AFFILIATE PROGRAM
