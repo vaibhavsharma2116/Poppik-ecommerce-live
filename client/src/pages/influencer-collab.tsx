@@ -68,7 +68,7 @@ export default function InfluencerCollabPage() {
         {/* Background Image */}
         <div className="absolute inset-0">
           <img 
-            src="/attached_assets/INFLUENCER BANNER-02_1762506080774.jpg" 
+            src="/attached_assets/INFLUENCER BANNER-03_1762506955532.jpg" 
             alt="Become a Poppik Influencer"
             className="w-full h-full object-cover"
           />

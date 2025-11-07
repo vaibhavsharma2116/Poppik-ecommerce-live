@@ -27,7 +27,8 @@ import {
   MapPin,
   Mail,
   Palette,
-  Wallet // Added Wallet icon
+  Wallet,
+  Tag // Added Tag icon for promo codes
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,6 +159,12 @@ const sidebarItems = [
     title: "Affiliate Withdrawals",
     href: "/affiliate-withdrawals",
     icon: Wallet,
+    badge: null,
+  },
+  {
+    title: "Promo Codes",
+    href: "/promo-codes",
+    icon: Tag,
     badge: null,
   },
   {

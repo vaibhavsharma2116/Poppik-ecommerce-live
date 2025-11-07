@@ -56,8 +56,9 @@ import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
-import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication } from "../shared/schema";
-import { users } from "../shared/schema"; // Import users table explicitly
+import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage } from "../shared/schema";
+import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet, affiliateApplications as affiliateApplicationsSchema } from "../shared/schema"; // Import users table explicitly
+import type { Request, Response } from 'express'; // Import Request and Response types for clarity
 
 // Initialize Shiprocket service
 const shiprocketService = new ShiprocketService();
@@ -2686,7 +2687,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(sampleOrders);
       }
 
-      // Get order items for each order and user info
+      // Get order items for each order
       const ordersWithDetails = await Promise.all(
         orders.map(async (order) => {
           const items = await db
@@ -2891,61 +2892,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create sample orders for testing (you can call this endpoint to populate test data)
-  app.post("/api/orders/sample", async (req, res) => {
-    try {
-      const { userId } = req.body;
-
-      if (!userId) {
-        return res.status(400).json({ error: "User ID is required" });
-      }
-
-      // Check if user already has orders
-      const existingOrders = await db
-        .select()
-        .from(schema.ordersTable)
-        .where(eq(schema.ordersTable.userId, Number(userId)));
-
-      if (existingOrders.length > 0) {
-        return res.json({ message: "User already has orders", orders: existingOrders.length });
-      }
-
-      // Create sample orders with current dates
-      const now = new Date();
-      const sampleOrders = [
-        {
-          userId: Number(userId),
-          totalAmount: 1299,
-          status: 'delivered' as const,
-          paymentMethod: 'Credit Card',
-          shippingAddress: '123 Beauty Street, Mumbai, Maharashtra 400001',
-          trackingNumber: 'TRK001234567',
-          estimatedDelivery: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000),
-          createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
-        },
-        {
-          userId: Number(userId),
-          totalAmount: 899,
-          status: 'shipped' as const,
-          paymentMethod: 'UPI',
-          shippingAddress: '456 Glow Avenue, Delhi, Delhi 110001',
-          trackingNumber: 'TRK001234568',
-          estimatedDelivery: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
-          createdAt: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000),
-        },
-        {
-          userId: Number(userId),
-          totalAmount: 1599,
-          status: 'processing' as const,
-          paymentMethod: 'Net Banking',
-          shippingAddress: '789 Skincare Lane, Bangalore, Karnataka 560001',
-          trackingNumber: null,
-          estimatedDelivery: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-          createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
-        }
-      ];
-
-
   // Recalculate Affiliate Wallet Balances (Admin utility)
   app.post("/api/admin/recalculate-affiliate-wallets", async (req, res) => {
     try {
@@ -2994,23 +2940,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error recalculating affiliate wallets:", error);
       res.status(500).json({ error: "Failed to recalculate wallets" });
-    }
-  });
-
-
-      const createdOrders = await db.insert(schema.ordersTable).values(sampleOrders).returning();
-
-      // Create sample order items
-      const sampleItems = [
-
-      ];
-
-      await db.insert(schema.orderItemsTable).values(sampleItems);
-
-      res.json({ message: "Sample orders created successfully", orders: createdOrders.length });
-    } catch (error) {
-      console.error("Error creating sample orders:", error);
-      res.status(500).json({ error: "Failed to create sample orders" });
     }
   });
 
@@ -3706,7 +3635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         total: `₹${totalAmount}`,
         totalAmount,
         status,
-        items: orderProducts.length,
+        items: orderItems.length,
         paymentMethod: ['Credit Card', 'UPI', 'Net Banking'][Math.floor(Math.random() * 3)],
         trackingNumber:
           status === 'shipped' || status === 'delivered'
@@ -3890,23 +3819,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/blog/posts/:slug", async (req, res) => {
-
+    try {
       const { slug } = req.params;
+      const post = await storage.getBlogPostBySlug(slug);
 
+      if (!post) {
+        return res.status(404).json({ error: "Blog post not found" });
+      }
 
-
-
-      try {
-        const post = await storage.getBlogPostBySlug(slug);
-
-        if (post) {
-          // Parse tags for frontend
-          const postWithParsedTags = {
-            ...post,
-          };
-          return res.json(postWithParsedTags);
-        }
-      }  catch (error) {
+      // Parse tags for frontend
+      const postWithParsedTags = {
+        ...post,
+        tags: typeof post.tags === 'string' ? JSON.parse(post.tags || '[]') : (post.tags || [])
+      };
+      
+      res.json(postWithParsedTags);
+    } catch (error) {
       console.error("Error fetching blog post:", error);
       res.status(500).json({ error: "Failed to fetch blog post" });
     }
@@ -3915,11 +3843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/blog/categories", async (req, res) => {
     try {
       const categories = await storage.getBlogCategories();
-      // Filter only active categories and sort by sortOrder
-      const activeCategories = categories
-        .filter(cat => cat.isActive)
-        .sort((a, b) => a.sortOrder - b.sortOrder);
-      res.json(activeCategories);
+      res.json(categories);
     } catch (error) {
       console.error("Error fetching blog categories:", error);
       // Return default categories when database is unavailable
@@ -5152,7 +5076,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting shade:", error);
-      res.status(500).json({ error: "Failed to delete shade" });
+      res.status(5050).json({ error: "Failed to delete shade" });
     }
   });
 
@@ -5352,7 +5276,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const testimonialData = {
-
         customerImage: '', // Empty string for backward compatibility
         videoUrl: videoUrl,
         thumbnailUrl: thumbnailUrl,
@@ -5462,7 +5385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching announcements:', error);
       res.status(500).json({ error: 'Failed to fetch announcements' });
-    }
+        }
   });
 
   app.get('/api/admin/announcements/:id', async (req, res) => {
@@ -5727,7 +5650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reviewCount: parseInt(req.body.reviewCount) || 0,
         isActive: req.body.isActive !== 'false',
         sortOrder: parseInt(req.body.sortOrder) || 0,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString()
       };
 
       // Handle image updates
@@ -6315,7 +6238,7 @@ Poppik Career Portal
 
       console.log('Affiliate application saved to DB:', savedApplication[0].id);
 
-      // TODO: Send email notification to admin and applicant
+      // TODO: Send email notification to applicant
       // For now, just send email notification to admin
       const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
 
@@ -6532,23 +6455,17 @@ Poppik Affiliate Portal
         .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)));
 
       const totalClicks = clicks.length;
-      const totalSales = sales.length;
-      const conversionRate = totalClicks > 0 ? (totalSales / totalClicks) * 100 : 0;
-
+      const totalConversions = sales.length;
       const totalEarnings = wallet && wallet[0] ? parseFloat(wallet[0].totalEarnings || '0') : 0;
-
-      // Calculate average commission from sales
-      const totalCommission = sales.reduce((sum, sale) => {
-        return sum + parseFloat(sale.commission?.toString() || '0');
-      }, 0);
-      const avgCommission = sales.length > 0 ? totalCommission / sales.length : 0;
+      const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
+      const avgCommission = totalConversions > 0 ? totalEarnings / totalConversions : 0;
 
       res.json({
         affiliateCode,
         totalClicks,
-        totalSales,
-        conversionRate,
+        totalConversions,
         totalEarnings,
+        conversionRate,
         avgCommission,
         pendingAmount: wallet && wallet.length > 0 ? parseFloat(wallet[0].pendingBalance?.toString() || '0') : 0,
       });
@@ -6716,6 +6633,263 @@ Poppik Affiliate Portal
     }
   });
 
+  // Promo Codes Management Routes
+
+  // Get all promo codes (admin)
+  app.get('/api/admin/promo-codes', adminMiddleware, async (req, res) => {
+    try {
+      const promoCodes = await db
+        .select()
+        .from(schema.promoCodes)
+        .orderBy(desc(schema.promoCodes.createdAt));
+
+      res.json(promoCodes);
+    } catch (error) {
+      console.error('Error fetching promo codes:', error);
+      res.status(500).json({ error: 'Failed to fetch promo codes' });
+    }
+  });
+
+  // Create promo code (admin)
+  app.post('/api/admin/promo-codes', adminMiddleware, async (req, res) => {
+    try {
+      const {
+        code,
+        description,
+        discountType,
+        discountValue,
+        minOrderAmount,
+        maxDiscount,
+        usageLimit,
+        userUsageLimit,
+        validFrom,
+        validUntil,
+        isActive
+      } = req.body;
+
+      // Validation
+      if (!code || !description || !discountType || !discountValue) {
+        return res.status(400).json({ 
+          error: 'Code, description, discount type, and discount value are required' 
+        });
+      }
+
+      if (!['percentage', 'flat'].includes(discountType)) {
+        return res.status(400).json({ 
+          error: 'Discount type must be either "percentage" or "flat"' 
+        });
+      }
+
+      // Check if code already exists
+      const existingCode = await db
+        .select()
+        .from(schema.promoCodes)
+        .where(eq(schema.promoCodes.code, code.toUpperCase()))
+        .limit(1);
+
+      if (existingCode.length > 0) {
+        return res.status(400).json({ 
+          error: 'A promo code with this code already exists' 
+        });
+      }
+
+      const [promoCode] = await db
+        .insert(schema.promoCodes)
+        .values({
+          code: code.toUpperCase(),
+          description,
+          discountType,
+          discountValue: discountValue.toString(),
+          minOrderAmount: minOrderAmount ? minOrderAmount.toString() : '0.00',
+          maxDiscount: maxDiscount ? maxDiscount.toString() : null,
+          usageLimit: usageLimit || null,
+          usageCount: 0,
+          userUsageLimit: userUsageLimit || 1,
+          isActive: isActive !== false,
+          validFrom: validFrom ? new Date(validFrom) : new Date(),
+          validUntil: validUntil ? new Date(validUntil) : null
+        })
+        .returning();
+
+      res.status(201).json(promoCode);
+    } catch (error) {
+      console.error('Error creating promo code:', error);
+      res.status(500).json({ error: 'Failed to create promo code' });
+    }
+  });
+
+  // Update promo code (admin)
+  app.put('/api/admin/promo-codes/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const {
+        code,
+        description,
+        discountType,
+        discountValue,
+        minOrderAmount,
+        maxDiscount,
+        usageLimit,
+        userUsageLimit,
+        validFrom,
+        validUntil,
+        isActive
+      } = req.body;
+
+      if (!['percentage', 'flat'].includes(discountType)) {
+        return res.status(400).json({ 
+          error: 'Discount type must be either "percentage" or "flat"' 
+        });
+      }
+
+      const [updatedPromoCode] = await db
+        .update(schema.promoCodes)
+        .set({
+          code: code.toUpperCase(),
+          description,
+          discountType,
+          discountValue: discountValue.toString(),
+          minOrderAmount: minOrderAmount ? minOrderAmount.toString() : '0.00',
+          maxDiscount: maxDiscount ? maxDiscount.toString() : null,
+          usageLimit: usageLimit || null,
+          userUsageLimit: userUsageLimit || 1,
+          isActive: isActive !== false,
+          validFrom: validFrom ? new Date(validFrom) : undefined,
+          validUntil: validUntil ? new Date(validUntil) : null,
+          updatedAt: new Date()
+        })
+        .where(eq(schema.promoCodes.id, id))
+        .returning();
+
+      if (!updatedPromoCode) {
+        return res.status(404).json({ error: 'Promo code not found' });
+      }
+
+      res.json(updatedPromoCode);
+    } catch (error) {
+      console.error('Error updating promo code:', error);
+      res.status(500).json({ error: 'Failed to update promo code' });
+    }
+  });
+
+  // Delete promo code (admin)
+  app.delete('/api/admin/promo-codes/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deletedPromoCode] = await db
+        .delete(schema.promoCodes)
+        .where(eq(schema.promoCodes.id, id))
+        .returning();
+
+      if (!deletedPromoCode) {
+        return res.status(404).json({ error: 'Promo code not found' });
+      }
+
+      res.json({ success: true, message: 'Promo code deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting promo code:', error);
+      res.status(500).json({ error: 'Failed to delete promo code' });
+    }
+  });
+
+  // Validate and apply promo code (public)
+  app.post('/api/promo-codes/validate', async (req, res) => {
+    try {
+      const { code, cartTotal, userId } = req.body;
+
+      if (!code) {
+        return res.status(400).json({ error: 'Promo code is required', valid: false });
+      }
+
+      // Get promo code from database
+      const promoCode = await db
+        .select()
+        .from(schema.promoCodes)
+        .where(eq(schema.promoCodes.code, code.toUpperCase()))
+        .limit(1);
+
+      if (!promoCode || promoCode.length === 0) {
+        return res.status(404).json({ error: 'Invalid promo code', valid: false });
+      }
+
+      const promo = promoCode[0];
+
+      // Check if promo code is active
+      if (!promo.isActive) {
+        return res.status(400).json({ error: 'This promo code is no longer active', valid: false });
+      }
+
+      // Check validity dates
+      const now = new Date();
+      if (promo.validFrom && new Date(promo.validFrom) > now) {
+        return res.status(400).json({ error: 'This promo code is not yet valid', valid: false });
+      }
+
+      if (promo.validUntil && new Date(promo.validUntil) < now) {
+        return res.status(400).json({ error: 'This promo code has expired', valid: false });
+      }
+
+      // Check total usage limit
+      if (promo.usageLimit && promo.usageCount >= promo.usageLimit) {
+        return res.status(400).json({ error: 'This promo code has reached its usage limit', valid: false });
+      }
+
+      // Check if user has already used this promo code
+      if (userId) {
+        const userUsage = await db
+          .select()
+          .from(schema.promoCodeUsage)
+          .where(and(
+            eq(schema.promoCodeUsage.promoCodeId, promo.id),
+            eq(schema.promoCodeUsage.userId, parseInt(userId))
+          ));
+
+        if (userUsage.length >= (promo.userUsageLimit || 1)) {
+          return res.status(400).json({
+            error: 'You have already used this promo code',
+            valid: false
+          });
+        }
+      }
+
+      // Check minimum order amount
+      if (promo.minOrderAmount && cartTotal < Number(promo.minOrderAmount)) {
+        return res.status(400).json({
+          error: `Minimum order amount of ₹${promo.minOrderAmount} required`,
+          valid: false
+        });
+      }
+
+      // Calculate discount
+      let discountAmount = 0;
+      if (promo.discountType === 'percentage') {
+        discountAmount = (cartTotal * Number(promo.discountValue)) / 100;
+        if (promo.maxDiscount && discountAmount > Number(promo.maxDiscount)) {
+          discountAmount = Number(promo.maxDiscount);
+        }
+      } else if (promo.discountType === 'flat') {
+        discountAmount = Number(promo.discountValue);
+      }
+
+      res.json({
+        valid: true,
+        promoCode: {
+          id: promo.id,
+          code: promo.code,
+          description: promo.description,
+          discountType: promo.discountType,
+          discountValue: promo.discountValue,
+          discountAmount: Math.round(discountAmount),
+          minOrderAmount: promo.minOrderAmount
+        }
+      });
+    } catch (error) {
+      console.error('Error validating promo code:', error);
+      res.status(500).json({ error: 'Failed to validate promo code', valid: false });
+    }
+  });
+
   // Admin: Get all affiliate withdrawal requests
   app.get('/api/admin/affiliate/withdrawals', adminMiddleware, async (req, res) => {
     try {
@@ -6845,7 +7019,6 @@ Poppik Affiliate Portal
         return res.status(404).json({ error: 'Wallet not found' });
       }
 
-      // Refund the amount back to the wallet
       const currentCashback = parseFloat(wallet[0].cashbackBalance || '0');
       const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
       const currentWithdrawn = parseFloat(wallet[0].totalWithdrawn || '0');
@@ -6895,7 +7068,7 @@ Poppik Affiliate Portal
     }
   });
 
-  app.get('/api/affiliate/wallet', async (req: Request, res: Response) => {
+  app.get('/api/affiliate/wallet', async (req, res) => {
     try {
       const userId = req.query.userId;
 
@@ -8223,7 +8396,7 @@ Poppik Affiliate Team`;
       if (!userId) {
         return res.json({
           canReview: false,
-          message: "Please login to review this combo"
+          message: "Please login to submit a review"
         });
       }
 

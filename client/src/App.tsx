@@ -103,6 +103,14 @@ function Router() {
             <Route path="/influencer-applications" component={AdminInfluencerApplications} />
             <Route path="/affiliate-applications" component={AdminAffiliateApplications} />
             <Route path="/affiliate-withdrawals" component={AdminAffiliateWithdrawals} />
+            <Route path="/promo-codes" component={() => {
+              const AdminPromoCodes = lazy(() => import("./pages/admin/promo-codes"));
+              return (
+                <Suspense fallback={<LoadingSpinner />}>
+                  <AdminPromoCodes />
+                </Suspense>
+              );
+            }} />
             <Route path="/job-positions" component={() => {
               const JobPositions = lazy(() => import("./pages/admin/job-positions"));
               return (

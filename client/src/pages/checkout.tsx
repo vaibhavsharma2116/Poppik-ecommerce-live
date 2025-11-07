@@ -41,6 +41,7 @@ export default function CheckoutPage() {
   const [orderId, setOrderId] = useState("");
   const [showAuthRequired, setShowAuthRequired] = useState(false);
   const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false); // Added state for processing
 
   const [formData, setFormData] = useState({
     email: "",
@@ -617,6 +618,7 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsProcessing(true); // Set processing state
 
     const user = getCurrentUser();
     if (!user) {
@@ -625,6 +627,7 @@ export default function CheckoutPage() {
         description: "Please log in to place an order",
         variant: "destructive",
       });
+      setIsProcessing(false); // Reset processing state
       return;
     }
 
@@ -635,6 +638,7 @@ export default function CheckoutPage() {
         description: "Please fill in all required fields",
         variant: "destructive",
       });
+      setIsProcessing(false); // Reset processing state
       return;
     }
 
@@ -648,6 +652,7 @@ export default function CheckoutPage() {
           description: "Please enter a valid 10-digit Indian mobile number starting with 6-9",
           variant: "destructive",
         });
+        setIsProcessing(false); // Reset processing state
         return false;
       }
     }
@@ -660,6 +665,7 @@ export default function CheckoutPage() {
         description: "Please enter a valid email address",
         variant: "destructive",
       });
+      setIsProcessing(false); // Reset processing state
       return false;
     }
 
@@ -670,6 +676,7 @@ export default function CheckoutPage() {
         description: "Please enter a complete address (minimum 10 characters)",
         variant: "destructive",
       });
+      setIsProcessing(false); // Reset processing state
       return false;
     }
 
@@ -679,6 +686,7 @@ export default function CheckoutPage() {
         description: "Please select a valid city",
         variant: "destructive",
       });
+      setIsProcessing(false); // Reset processing state
       return false;
     }
 
@@ -688,6 +696,7 @@ export default function CheckoutPage() {
         description: "Please select a valid state",
         variant: "destructive",
       });
+      setIsProcessing(false); // Reset processing state
       return false;
     }
 
@@ -697,6 +706,7 @@ export default function CheckoutPage() {
         description: "Please enter a valid 6-digit PIN code",
         variant: "destructive",
       });
+      setIsProcessing(false); // Reset processing state
       return false;
     }
 
@@ -707,6 +717,7 @@ export default function CheckoutPage() {
         description: "Please select city and state",
         variant: "destructive",
       });
+      setIsProcessing(false); // Reset processing state
       return false;
     }
 
@@ -714,8 +725,8 @@ export default function CheckoutPage() {
     try {
       let paymentSuccessful = false;
       let paymentMethod = 'Cash on Delivery';
-      const totalWithShipping = total; // This variable was not defined, using 'total' instead.
-      const fullAddress = `${formData.address.trim()}, ${formData.city.trim()}, ${formData.state.trim()} ${formData.zipCode.trim()}`; // This variable was not defined, constructing it.
+      const finalTotal = total; // Use the calculated total
+      const fullAddress = `${formData.address.trim()}, ${formData.city.trim()}, ${formData.state.trim()} ${formData.zipCode.trim()}`;
 
 
       // Process payment based on selected method
@@ -788,32 +799,32 @@ export default function CheckoutPage() {
               description: redeemError.message || "Failed to redeem cashback. Please try again.",
               variant: "destructive",
             });
+            setIsProcessing(false); // Reset processing state
             return; // Stop order placement if redemption fails
           }
         }
 
-        const response = await fetch('/api/orders', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(orderData),
-        });
+        // Get applied promo code from localStorage
+        const appliedPromoCode = localStorage.getItem('appliedPromoCode');
+        const promoCodeData = appliedPromoCode ? JSON.parse(appliedPromoCode) : null;
 
-        let result;
-        const contentType = response.headers.get('content-type');
 
-        if (contentType && contentType.includes('application/json')) {
-          result = await response.json();
-        } else {
-          // Handle non-JSON responses (like HTML error pages)
-          const textResponse = await response.text();
-          console.error('Non-JSON response received:', textResponse);
-          throw new Error('Server returned an unexpected response format');
-        }
+        let response;
+        try {
+          response = await fetch("/api/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(orderData),
+          });
 
-        if (response.ok && result.success) {
-          setOrderId(result.orderId || 'ORD-001');
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || errorData.error || "Failed to create order");
+          }
+
+          const data = await response.json();
+
+          setOrderId(data.orderId || 'ORD-001');
           setOrderPlaced(true);
 
           // Clear cart
@@ -831,8 +842,15 @@ export default function CheckoutPage() {
               ? `Order placed with ₹${redeemAmount.toFixed(2)} cashback redeemed!`
               : "You will receive a confirmation email shortly",
           });
-        } else {
-          throw new Error(result.error || 'Failed to place order');
+        } catch (error: any) {
+          console.error("Order creation error:", error);
+          toast({
+            title: "Order Failed",
+            description: error.message || "Failed to create order. Please try again.",
+            variant: "destructive",
+          });
+          setIsProcessing(false); // Reset processing state
+          return;
         }
       }
     } catch (error) {
@@ -842,6 +860,11 @@ export default function CheckoutPage() {
         description: error instanceof Error ? error.message : "There was an error placing your order. Please try again.",
         variant: "destructive",
       });
+      setIsProcessing(false); // Reset processing state
+    } finally {
+      if (formData.paymentMethod !== 'cashfree') { // Only reset if not redirecting to Cashfree
+        setIsProcessing(false);
+      }
     }
   };
 
@@ -1715,9 +1738,14 @@ export default function CheckoutPage() {
                     type="submit"
                     className="w-full mt-6 bg-red-600 hover:bg-red-700"
                     size="lg"
+                    disabled={isProcessing} // Disable button while processing
                   >
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Place Order - ₹{total.toLocaleString()}
+                    {isProcessing ? "Processing..." : (
+                      <>
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Place Order - ₹{total.toLocaleString()}
+                      </>
+                    )}
                   </Button>
 
                   <p className="text-xs text-gray-500 mt-4 text-center">
