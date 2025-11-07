@@ -587,3 +587,5 @@ ALTER TABLE public.order_items
 ADD COLUMN cashback_price REAL,
 ADD COLUMN cashback_percentage REAL;
 
+ALTER TABLE public.affiliate_sales
+ADD COLUMN IF NOT EXISTS ip_address VARCHAR(100);

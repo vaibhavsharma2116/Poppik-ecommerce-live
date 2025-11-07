@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Gift, TrendingUp, Users, Sparkles, Award, Target, Star, Zap, Heart, Globe, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRight } from "lucide-react";
+import { Link } from "wouter";
 
 export default function InfluencerCollabPage() {
   const { toast } = useToast();
@@ -24,7 +26,7 @@ export default function InfluencerCollabPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const response = await fetch("/api/influencer-applications", {
         method: "POST",
@@ -62,43 +64,52 @@ export default function InfluencerCollabPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative py-8 xs:py-10 sm:py-12 md:py-16 lg:py-20 xl:py-24 bg-gradient-to-br from-pink-500 to-pink-600 overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00eiIvPjwvZz48L2c+PC9zdmc+')] bg-repeat"></div>
+      <section className="relative text-white py-20 overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src="/attached_assets/INFLUENCER BANNER-02_1762506080774.jpg" 
+            alt="Become a Poppik Influencer"
+            className="w-full h-full object-cover"
+          />
+          {/* Overlay for better text readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/20"></div>
         </div>
-        
-        <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center">
-            <div className="inline-flex items-center gap-1 xs:gap-1.5 sm:gap-2 bg-white/20 backdrop-blur-sm px-2 xs:px-3 sm:px-4 py-1 xs:py-1.5 sm:py-2 rounded-full mb-3 xs:mb-4 sm:mb-5 md:mb-6">
-              <Sparkles className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-white" />
-              <span className="text-white text-[10px] xs:text-xs sm:text-sm font-medium">Join Our Influencer Network</span>
-            </div>
-            
-            <h1 className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-3 xs:mb-4 sm:mb-5 md:mb-6 px-2 leading-tight">
-              Become a Poppik Influencer
-            </h1>
-            
-            <p className="text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl text-white/90 mb-4 xs:mb-5 sm:mb-6 md:mb-8 max-w-2xl mx-auto px-3 xs:px-4 leading-relaxed">
-              Join India's fastest-growing beauty community and earn while promoting products you love
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-2 xs:gap-3 sm:gap-4 justify-center px-2 xs:px-3">
-              <Button 
-                onClick={() => window.open('https://forms.gle/XMttjRBYg5wzMHKw7', '_blank')}
-                size="lg"
-                className="bg-white text-pink-600 hover:bg-pink-50 font-semibold text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
-              >
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <div className="inline-block mb-6">
+            <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm px-6 py-2 text-sm font-medium">
+              <Sparkles className="w-4 h-4 mr-2 inline" />
+              Join Our Influencer Network
+            </Badge>
+          </div>
+
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 animate-fade-in drop-shadow-lg">
+            Become a Poppik Influencer
+          </h1>
+
+          <p className="text-lg md:text-xl mb-10 max-w-2xl mx-auto text-white drop-shadow-md">
+            Join India's fastest-growing beauty community and earn while promoting products you love
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/affiliate-application">
+              <Button size="lg" className="bg-white text-pink-600 hover:bg-gray-100 font-semibold px-8 py-6 text-lg shadow-xl">
                 Apply Now
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button 
-                onClick={() => document.getElementById('benefits')?.scrollIntoView({ behavior: 'smooth' })}
-                size="lg"
-                variant="outline" 
-                className="border-2 border-white text-pink-600 font-semibold hover:bg-white/10 text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
-              >
-                Learn More
-              </Button>
-            </div>
+            </Link>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-2 border-white text-white hover:bg-white/20 backdrop-blur-sm font-semibold px-8 py-6 text-lg shadow-lg"
+              onClick={() => {
+                const benefitsSection = document.getElementById('benefits');
+                benefitsSection?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              Learn More
+            </Button>
           </div>
         </div>
       </section>
@@ -133,7 +144,7 @@ export default function InfluencerCollabPage() {
               Get access to exclusive benefits and grow your influence
             </p>
           </div>
-          
+
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
@@ -346,7 +357,7 @@ export default function InfluencerCollabPage() {
               Get answers to common questions
             </p>
           </div>
-          
+
           <Accordion type="single" collapsible className="space-y-4">
             {[
               {
