@@ -278,16 +278,32 @@ export default function Layout({ children }: LayoutProps) {
   }, [refetchWallet]);
 
   // Fetch affiliate wallet data
-  const { data: affiliateWallet } = useQuery({
+  const { data: affiliateWallet, refetch: refetchAffiliateWallet } = useQuery({
     queryKey: ['/api/affiliate/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`);
       if (!res.ok) return null;
-      return res.json();
+      const data = await res.json();
+      console.log('Affiliate wallet data:', data);
+      return data;
     },
     enabled: !!user?.id,
+    refetchInterval: 5000, // Refetch every 5 seconds
+    staleTime: 0, // Always consider data stale
   });
+
+  // Listen for affiliate wallet update events
+  useEffect(() => {
+    const handleAffiliateWalletUpdate = () => {
+      refetchAffiliateWallet();
+    };
+
+    window.addEventListener('affiliateWalletUpdated', handleAffiliateWalletUpdate);
+    return () => {
+      window.removeEventListener('affiliateWalletUpdated', handleAffiliateWalletUpdate);
+    };
+  }, [refetchAffiliateWallet]);
 
   // Check if user is an approved affiliate
   const { data: affiliateApplication } = useQuery({
@@ -810,7 +826,9 @@ export default function Layout({ children }: LayoutProps) {
                                 </div>
                               </div>
                               <p className="font-bold text-purple-600">
-                                ₹{affiliateWallet?.commissionBalance || "0.00"}
+                                ₹{affiliateWallet?.commissionBalance 
+                                  ? parseFloat(affiliateWallet.commissionBalance).toFixed(2) 
+                                  : "0.00"}
                               </p>
                             </div>
                           </Link>
@@ -826,7 +844,7 @@ export default function Layout({ children }: LayoutProps) {
                           ₹{(
                             parseFloat(walletData?.cashbackBalance || "0") +
                             parseFloat(affiliateWallet?.commissionBalance || "0")
-                          ).toFixed(2)}
+                          ).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                       </div>
                     </div>

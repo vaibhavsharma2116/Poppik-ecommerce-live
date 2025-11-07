@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -76,10 +75,19 @@ export default function AffiliateWallet() {
       if (!user?.id) return null;
       const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`);
       if (!res.ok) throw new Error('Failed to fetch affiliate wallet');
-      return res.json();
+      const data = await res.json();
+      console.log('Fetched wallet data:', data);
+      
+      // Dispatch custom event to update layout
+      window.dispatchEvent(new CustomEvent('affiliateWalletUpdated'));
+      
+      return data;
     },
     enabled: !!user?.id,
-    refetchInterval: 5000,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    staleTime: 0, // Always consider data stale
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Fetch affiliate transactions
@@ -90,10 +98,14 @@ export default function AffiliateWallet() {
       const res = await fetch(`/api/affiliate/wallet/transactions?userId=${user.id}`);
       if (!res.ok) throw new Error('Failed to fetch transactions');
       const data = await res.json();
+      console.log('Fetched transactions:', data);
       return Array.isArray(data) ? data : [];
     },
     enabled: !!user?.id,
-    refetchInterval: 5000,
+    refetchInterval: 3000, // Refetch every 3 seconds
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   const transactions = Array.isArray(transactionsData) ? transactionsData : [];
@@ -484,72 +496,147 @@ export default function AffiliateWallet() {
             </div>
           </CardHeader>
 
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4 md:p-6">
             {transactionsLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-purple-600 mx-auto mb-4"></div>
-                <p className="text-gray-600 font-medium">Loading transactions...</p>
+              <div className="text-center py-8 sm:py-10 md:py-12">
+                <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-4 border-gray-200 border-t-purple-600 mx-auto mb-3 sm:mb-4"></div>
+                <p className="text-gray-600 font-medium text-sm sm:text-base">Loading transactions...</p>
               </div>
             ) : filteredTransactions.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Gift className="h-10 w-10 text-gray-300" />
+              <div className="text-center py-12 sm:py-14 md:py-16 px-4">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                  <Gift className="h-8 w-8 sm:h-10 sm:w-10 text-gray-300" />
                 </div>
-                <p className="text-gray-500 text-lg font-semibold mb-2">No transactions found</p>
-                <p className="text-gray-400">
+                <p className="text-gray-500 text-base sm:text-lg font-semibold mb-2">No transactions found</p>
+                <p className="text-gray-400 text-sm sm:text-base">
                   {searchQuery || filterType !== "all" || dateRange !== "all" 
                     ? "Try adjusting your filters" 
                     : "Start earning commissions to see transactions!"}
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {filteredTransactions.map((transaction) => (
                   <div
                     key={transaction.id}
-                    className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-gray-300 transition-all"
+                    className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 hover:shadow-md hover:border-gray-300 transition-all"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow ${
+                    {/* Mobile Layout (< 640px) */}
+                    <div className="block sm:hidden">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow flex-shrink-0 ${
+                            transaction.type === 'commission' || transaction.type === 'cashback'
+                              ? 'bg-gradient-to-br from-green-400 to-green-500' 
+                              : 'bg-gradient-to-br from-red-400 to-red-500'
+                          }`}>
+                            {transaction.type === 'commission' || transaction.type === 'cashback' ? (
+                              <ArrowDownRight className="h-5 w-5 text-white" />
+                            ) : (
+                              <ArrowUpRight className="h-5 w-5 text-white" />
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2">{transaction.description}</p>
+                            <Badge variant="outline" className="text-xs">
+                              {transaction.balanceType === 'commission' ? 'Commission' : 'Cashback'}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="text-right flex-shrink-0">
+                          <p className={`text-lg font-bold mb-1 ${
+                            transaction.type === 'commission' || transaction.type === 'cashback' ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {transaction.type === 'commission' || transaction.type === 'cashback' ? '+' : '-'}₹{parseFloat(transaction.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </p>
+                          <Badge
+                            className="text-xs"
+                            variant={
+                              transaction.status === "completed"
+                                ? "default"
+                                : transaction.status === "pending"
+                                ? "secondary"
+                                : "destructive"
+                            }
+                          >
+                            {transaction.status}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 text-xs text-gray-500 border-t border-gray-100 pt-2.5">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">
+                            {new Date(transaction.createdAt).toLocaleDateString('en-IN', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </span>
+                        {transaction.orderId && (
+                          <span className="text-gray-700 font-medium truncate">Order #{transaction.orderId}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Desktop Layout (>= 640px) */}
+                    <div className="hidden sm:flex items-center justify-between">
+                      <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                        <div className={`w-11 h-11 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow flex-shrink-0 ${
                           transaction.type === 'commission' || transaction.type === 'cashback'
                             ? 'bg-gradient-to-br from-green-400 to-green-500' 
                             : 'bg-gradient-to-br from-red-400 to-red-500'
                         }`}>
                           {transaction.type === 'commission' || transaction.type === 'cashback' ? (
-                            <ArrowDownRight className="h-6 w-6 text-white" />
+                            <ArrowDownRight className="h-5 w-5 md:h-6 md:w-6 text-white" />
                           ) : (
-                            <ArrowUpRight className="h-6 w-6 text-white" />
+                            <ArrowUpRight className="h-5 w-5 md:h-6 md:w-6 text-white" />
                           )}
                         </div>
 
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-semibold text-gray-900">{transaction.description}</p>
-                            <Badge variant="outline" className="text-xs">
+                            <p className="font-semibold text-gray-900 text-sm md:text-base truncate">{transaction.description}</p>
+                            <Badge variant="outline" className="text-xs flex-shrink-0">
                               {transaction.balanceType === 'commission' ? 'Commission' : 'Cashback'}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <div className="flex items-center gap-3 md:gap-4 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(transaction.createdAt).toLocaleDateString('en-IN', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
+                              <Calendar className="h-3 w-3 flex-shrink-0" />
+                              <span className="hidden md:inline">
+                                {new Date(transaction.createdAt).toLocaleDateString('en-IN', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                              <span className="inline md:hidden">
+                                {new Date(transaction.createdAt).toLocaleDateString('en-IN', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
                             </span>
                             {transaction.orderId && (
-                              <span className="text-gray-700 font-medium">Order #{transaction.orderId}</span>
+                              <span className="text-gray-700 font-medium truncate">Order #{transaction.orderId}</span>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      <div className="text-right">
-                        <p className={`text-xl font-bold mb-1 ${
+                      <div className="text-right flex-shrink-0 ml-3">
+                        <p className={`text-lg md:text-xl font-bold mb-1 ${
                           transaction.type === 'commission' || transaction.type === 'cashback' ? 'text-green-600' : 'text-red-600'
                         }`}>
                           {transaction.type === 'commission' || transaction.type === 'cashback' ? '+' : '-'}₹{parseFloat(transaction.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}

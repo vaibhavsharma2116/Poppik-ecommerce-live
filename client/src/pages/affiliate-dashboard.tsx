@@ -815,20 +815,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
               </div>
             </div>
 
-            {/* Withdrawal Button */}
-            <div className="mt-6 flex justify-center">
-              <Button
-                size="lg"
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg px-8"
-                disabled={(parseFloat(wallet?.cashbackBalance || "0") + parseFloat(wallet?.commissionBalance || "0")) < 500}
-              >
-                <Download className="h-5 w-5 mr-2" />
-                Request Withdrawal
-                {(parseFloat(wallet?.cashbackBalance || "0") + parseFloat(wallet?.commissionBalance || "0")) < 500 && (
-                  <span className="ml-2 text-xs">(Min ₹500)</span>
-                )}
-              </Button>
-            </div>
+           
           </CardContent>
         </Card>
 
