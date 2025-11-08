@@ -587,24 +587,3 @@ ALTER TABLE public.order_items
 ADD COLUMN cashback_price REAL,
 ADD COLUMN cashback_percentage REAL;
 
-CREATE TABLE IF NOT EXISTS "offers" (
-  "id" SERIAL PRIMARY KEY NOT NULL,
-  "title" TEXT NOT NULL,
-  "description" TEXT,
-  "image_url" TEXT NOT NULL,
-  "discount_percentage" INTEGER,
-  "discount_text" TEXT,
-  "valid_from" TIMESTAMP NOT NULL,
-  "valid_until" TIMESTAMP NOT NULL,
-  "is_active" BOOLEAN DEFAULT TRUE NOT NULL,
-  "sort_order" INTEGER DEFAULT 0 NOT NULL,
-  "link_url" TEXT,
-  "button_text" TEXT DEFAULT 'Shop Now',
-  "created_at" TIMESTAMP DEFAULT NOW() NOT NULL,
-  "updated_at" TIMESTAMP DEFAULT NOW() NOT NULL
-);
-
--- Create index for active offers
-CREATE INDEX IF NOT EXISTS "idx_offers_active" ON "offers" ("is_active");
-CREATE INDEX IF NOT EXISTS "idx_offers_valid_period" ON "offers" ("valid_from", "valid_until");
-CREATE INDEX IF NOT EXISTS "idx_offers_sort_order" ON "offers" ("sort_order");

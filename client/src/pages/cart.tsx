@@ -36,6 +36,7 @@ export default function Cart() {
   const [promoCode, setPromoCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingToWishlist, setSavingToWishlist] = useState<number | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const { toast } = useToast();
 
   // Fetch announcements for dynamic offers
@@ -146,7 +147,7 @@ export default function Cart() {
     // Dispatch event after state update
     setTimeout(() => window.dispatchEvent(new Event("cartUpdated")), 0);
 
-   
+
   };
 
   const saveForLater = async (id: number) => {
@@ -181,18 +182,18 @@ export default function Cart() {
     if (cartItems.length === 0) return;
 
     setCartItems([]);
-    
+
     // Dispatch event after state update
     setTimeout(() => window.dispatchEvent(new Event("cartUpdated")), 0);
-    
+
     toast({
       title: "Cart Cleared",
       description: "All items have been removed from your cart",
     });
   };
 
-  const applyPromoCode = () => {
-    const code = promoCode.trim().toLowerCase();
+  const applyPromoCode = async () => {
+    const code = promoCode.trim();
 
     if (!code) {
       toast({
@@ -203,15 +204,45 @@ export default function Cart() {
       return;
     }
 
-    if (code === "save10") {
-      toast({
-        title: "Promo Code Applied! 🎉",
-        description: "10% discount has been applied to your order",
+    try {
+      const user = localStorage.getItem("user");
+      const userId = user ? JSON.parse(user).id : null;
+
+      const response = await fetch('/api/promo-codes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: code.toUpperCase(),
+          cartTotal: cartSubtotal,
+          userId: userId
+        })
       });
-    } else {
+
+      const result = await response.json();
+
+      if (response.ok && result.valid) {
+        setAppliedPromo(result.promoCode);
+        // Store promo code in localStorage for checkout
+        localStorage.setItem('appliedPromoCode', JSON.stringify(result.promoCode));
+        toast({
+          title: "Promo Code Applied! 🎉",
+          description: `You saved ₹${result.promoCode.discountAmount}`,
+        });
+      } else {
+        setAppliedPromo(null);
+        localStorage.removeItem('appliedPromoCode');
+        toast({
+          title: "Invalid Promo Code",
+          description: result.error || "The promo code you entered is not valid or has expired.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error validating promo code:", error);
+      setAppliedPromo(null);
       toast({
-        title: "Invalid Promo Code",
-        description: "The promo code you entered is not valid. Try SAVE10",
+        title: "Error",
+        description: "Failed to validate promo code. Please try again.",
         variant: "destructive",
       });
     }
@@ -265,6 +296,7 @@ export default function Cart() {
   // Dynamic discount calculation based on announcements
   let dynamicDiscount = 0;
   let appliedOffers: string[] = [];
+  let freeShippingApplied = false;
 
   announcements.forEach((announcement: any) => {
     if (!announcement.isActive) return;
@@ -272,7 +304,8 @@ export default function Cart() {
     const text = announcement.text.toLowerCase();
 
     if (text.includes('5% off') && text.includes('online')) {
-      dynamicDiscount += Math.round(cartSubtotal * 0.05);
+      const offerDiscount = Math.round(cartSubtotal * 0.05);
+      dynamicDiscount += offerDiscount;
       appliedOffers.push('5% Online Payment Discount');
     }
 
@@ -286,12 +319,16 @@ export default function Cart() {
         appliedOffers.push(`Rs. ${discountAmount} off (above Rs. ${minAmount})`);
       }
     }
+
+    if (text.includes('free shipping') && cartSubtotal >= 499) {
+      freeShippingApplied = true;
+    }
   });
 
   // Apply promo code discount
-  const promoDiscount = promoCode.toLowerCase() === 'save10' ? Math.round(cartSubtotal * 0.1) : 0;
+  const promoDiscount = appliedPromo?.discountAmount ? appliedPromo.discountAmount : 0;
   if (promoDiscount > 0) {
-    appliedOffers.push('Promo Code SAVE10');
+    appliedOffers.push(`Promo Code ${appliedPromo.code}`);
   }
 
   const totalDiscount = productDiscount + dynamicDiscount + promoDiscount;
@@ -435,7 +472,7 @@ export default function Cart() {
                             </div>
                           ) : null;
                         })()}
-                        
+
                         {/* Cashback Badge for Cart Item - Enhanced Display */}
                         {item.cashbackPercentage && item.cashbackPrice && (
                           <div className="mt-2 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 rounded-lg p-3 shadow-sm">
@@ -463,8 +500,8 @@ export default function Cart() {
                       </div>
                       <div className="flex items-center space-x-1.5 mt-1">
                         <div className={`w-2 h-2 rounded-full ${
-                          item.inStock 
-                            ? 'bg-green-500' 
+                          item.inStock
+                            ? 'bg-green-500'
                             : 'bg-red-500'
                         }`}></div>
                         <p className={`text-xs sm:text-sm font-medium ${item.inStock ? 'text-green-600' : 'text-red-600'}`}>
@@ -527,7 +564,7 @@ export default function Cart() {
                   <label className="text-sm font-medium text-gray-700">Promo Code</label>
                   <div className="flex space-x-2">
                     <Input
-                      placeholder="Try SAVE10"
+                      placeholder="Try SAVE10, FLAT50"
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
                       className="flex-1"
@@ -536,6 +573,11 @@ export default function Cart() {
                       Apply
                     </Button>
                   </div>
+                  {appliedPromo && (
+                    <p className="text-green-600 text-xs">
+                      Applied: {appliedPromo.code} ({appliedPromo.discountType === 'percentage' ? appliedPromo.discountAmount + '%' : (appliedPromo.discountType === 'fixed' ? `Rs. ${appliedPromo.discountAmount} off` : 'Free Shipping')})
+                    </p>
+                  )}
                 </div>
 
                 <Separator />
@@ -560,20 +602,20 @@ export default function Cart() {
                     </div>
                   )}
 
-                  {promoDiscount > 0 && (
+                  {appliedPromo && promoDiscount > 0 && (
                     <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
-                      <span className="text-green-700 font-medium">Promo Code (SAVE10)</span>
+                      <span className="text-green-700 font-medium">Promo Code ({appliedPromo.code})</span>
                       <span className="font-bold text-green-600">-₹{promoDiscount.toLocaleString()}</span>
                     </div>
                   )}
 
                   <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
-                    💡 Shipping charges will be calculated at checkout
+                    Shipping charges will be calculated at checkout
                   </div>
 
-                  {announcements.some((a: any) => a.isActive && a.text.toLowerCase().includes('free shipping')) && (
+                  {freeShippingApplied && (
                     <div className="text-xs text-green-600 bg-green-50 p-2 rounded font-medium">
-                      ✓ Free shipping applied on orders above Rs. 499
+                      ✓ Free shipping applied
                     </div>
                   )}
                 </div>
@@ -588,7 +630,7 @@ export default function Cart() {
                       You saved ₹{totalDiscount.toLocaleString()}!
                     </div>
                   )}
-                  
+
                 </div>
 
                 <Link href="/checkout">

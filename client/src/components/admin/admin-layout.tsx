@@ -168,18 +168,6 @@ const sidebarItems = [
     badge: null,
   },
   {
-    title: "Promo Codes",
-    href: "/promo-codes",
-    icon: Tag,
-    badge: null,
-  },
-  {
-    title: "Offers",
-    href: "/offers",
-    icon: Sparkles,
-    badge: null,
-  },
-  {
     title: "Settings",
     href: "/settings",
     icon: Settings,
