@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award } from "lucide-react";
+import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 
@@ -63,10 +63,7 @@ export default function CheckoutPage() {
   const [shippingCost, setShippingCost] = useState<number>(99);
   const [loadingShipping, setLoadingShipping] = useState(false);
 
-  // Wallet state and redemption amount
-  const [redeemAmount, setRedeemAmount] = useState(0);
-
-  // Get user from localStorage
+  // Get user from localStorage - must be before any hooks that use it
   const getCurrentUser = () => {
     const userStr = localStorage.getItem("user");
     return userStr ? JSON.parse(userStr) : null;
@@ -86,10 +83,13 @@ export default function CheckoutPage() {
     enabled: !!user?.id,
   });
 
+  // Wallet cashback states
+  const [showWalletSection, setShowWalletSection] = useState(false);
+  const [redeemAmount, setRedeemAmount] = useState(0);
+  const [isRedeeming, setIsRedeeming] = useState(false);
 
   useEffect(() => {
     // Check if user is logged in when accessing checkout
-    const user = localStorage.getItem("user");
     if (!user) {
       toast({
         title: "Login Required",
@@ -103,7 +103,7 @@ export default function CheckoutPage() {
     // Check for affiliate code in localStorage
     const affiliateRef = localStorage.getItem("affiliateRef");
     if (affiliateRef && user) {
-      const userData = JSON.parse(user);
+      const userData = user;
 
       // Get order count for this affiliate code
       fetch(`/api/orders/count?userId=${userData.id}&affiliateCode=${affiliateRef}`)
@@ -128,7 +128,7 @@ export default function CheckoutPage() {
 
     // Parse user data and set profile
     try {
-      const userData = JSON.parse(user);
+      const userData = user;
       setUserProfile(userData);
 
       // Auto-fill form data if profile has information and not already loaded
@@ -429,7 +429,77 @@ export default function CheckoutPage() {
     setShowProfileDialog(false);
   };
 
+  const copyAffiliateCode = () => {
+    if (formData.affiliateCode) {
+      navigator.clipboard.writeText(formData.affiliateCode);
+      toast({
+        title: "Copied!",
+        description: "Affiliate code copied to clipboard",
+      });
+    }
+  };
 
+  const handleRedeemCashback = async () => {
+    if (!user?.id || redeemAmount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid amount to redeem",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (redeemAmount > (walletData?.cashbackBalance || 0)) {
+      toast({
+        title: "Insufficient Balance",
+        description: "You don't have enough cashback balance",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsRedeeming(true);
+    try {
+      const res = await fetch('/api/wallet/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          amount: redeemAmount,
+          description: 'Cashback redeemed at checkout'
+        })
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to redeem cashback');
+      }
+
+      const data = await res.json();
+
+      // Update form data to reflect the redeemed amount
+      setFormData(prev => ({
+        ...prev,
+        redeemAmount: redeemAmount
+      }));
+
+      toast({
+        title: "Success!",
+        description: `₹${redeemAmount} cashback redeemed successfully`,
+      });
+
+      // Refresh wallet data
+      window.location.reload();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to redeem cashback",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRedeeming(false);
+    }
+  };
 
   const processCashfreePayment = async () => {
     try {
@@ -1037,7 +1107,6 @@ export default function CheckoutPage() {
                       <User className="h-5 w-5 mr-2" />
                       Contact Information
                     </div>
-                    {/* Removed "Use Profile Data" button from here to avoid redundancy */}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1094,7 +1163,6 @@ export default function CheckoutPage() {
                       <MapPin className="h-5 w-5 mr-2" />
                       Shipping Address
                     </div>
-                    {/* Removed "Use Profile Data" button from here to avoid redundancy */}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1520,7 +1588,7 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
 
-              {/* Wallet Cashback Redemption */}
+              {/* Wallet Cashback Section */}
               {walletData && parseFloat(walletData.cashbackBalance) > 0 && (
                 <Card className="border-2 border-blue-200 shadow-lg">
                   <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">

@@ -109,8 +109,8 @@ export default function Layout({ children }: LayoutProps) {
     startTransition(() => {
       setSearchQuery("");
       setShowSearchResults(false);
+      window.location.href = `/product/${productSlug}`;
     });
-    window.location.href = `/product/${productSlug}`;
   };
 
   const handleSearchInputFocus = () => {
@@ -278,16 +278,32 @@ export default function Layout({ children }: LayoutProps) {
   }, [refetchWallet]);
 
   // Fetch affiliate wallet data
-  const { data: affiliateWallet } = useQuery({
+  const { data: affiliateWallet, refetch: refetchAffiliateWallet } = useQuery({
     queryKey: ['/api/affiliate/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`);
       if (!res.ok) return null;
-      return res.json();
+      const data = await res.json();
+      console.log('Affiliate wallet data:', data);
+      return data;
     },
     enabled: !!user?.id,
+    refetchInterval: 5000, // Refetch every 5 seconds
+    staleTime: 0, // Always consider data stale
   });
+
+  // Listen for affiliate wallet update events
+  useEffect(() => {
+    const handleAffiliateWalletUpdate = () => {
+      refetchAffiliateWallet();
+    };
+
+    window.addEventListener('affiliateWalletUpdated', handleAffiliateWalletUpdate);
+    return () => {
+      window.removeEventListener('affiliateWalletUpdated', handleAffiliateWalletUpdate);
+    };
+  }, [refetchAffiliateWallet]);
 
   // Check if user is an approved affiliate
   const { data: affiliateApplication } = useQuery({
@@ -453,13 +469,18 @@ export default function Layout({ children }: LayoutProps) {
                         </Link>
                       ))}
 
-                      {/* Offer - Clickable but no action */}
-                      <div
-                        onClick={(e) => e.preventDefault()}
-                        className="flex items-center px-4 py-3 rounded-xl font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 cursor-pointer transition-all duration-200"
+                      {/* Offers */}
+                      <Link
+                        href="/offers"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                          isActiveLink('/offers')
+                            ? 'bg-red-500 text-white shadow-lg'
+                            : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
+                        }`}
                       >
-                        <span>Offer</span>
-                      </div>
+                        <span>Offers</span>
+                      </Link>
                     </div>
 
                     {/* Categories Section */}
@@ -810,7 +831,9 @@ export default function Layout({ children }: LayoutProps) {
                                 </div>
                               </div>
                               <p className="font-bold text-purple-600">
-                                ₹{affiliateWallet?.commissionBalance || "0.00"}
+                                ₹{affiliateWallet?.commissionBalance 
+                                  ? parseFloat(affiliateWallet.commissionBalance).toFixed(2) 
+                                  : "0.00"}
                               </p>
                             </div>
                           </Link>
@@ -826,7 +849,7 @@ export default function Layout({ children }: LayoutProps) {
                           ₹{(
                             parseFloat(walletData?.cashbackBalance || "0") +
                             parseFloat(affiliateWallet?.commissionBalance || "0")
-                          ).toFixed(2)}
+                          ).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                       </div>
                     </div>
@@ -1013,12 +1036,16 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={(e) => e.preventDefault()}
-                    className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
+                  <Link
+                    href="/offers"
+                    className={`text-sm font-medium transition-colors px-4 py-2 block ${
+                      isActiveLink("/offers")
+                        ? "text-yellow-300 bg-white/20 rounded-full"
+                        : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                    }`}
                   >
                     Offer
-                  </button>
+                  </Link>
                 </li>
 
                 {/* Design Your Beauty Kit with Dropdown */}

@@ -449,6 +449,17 @@ export const comboImages = pgTable("combo_images", {
 export type ComboImage = typeof comboImages.$inferSelect;
 export type InsertComboImage = typeof comboImages.$inferInsert;
 
+export const comboSliders = pgTable('combo_sliders', {
+  id: serial('id').primaryKey(),
+  imageUrl: text('image_url').notNull(),
+  title: text('title'),
+  subtitle: text('subtitle'),
+  isActive: boolean('is_active').default(true).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export const videoTestimonials = pgTable("video_testimonials", {
   id: serial("id").primaryKey(),
   customerImage: text("customer_image").notNull(),
@@ -530,6 +541,27 @@ export const affiliateApplications = pgTable("affiliate_applications", {
 
 export type AffiliateApplication = typeof affiliateApplications.$inferSelect;
 export type InsertAffiliateApplication = typeof affiliateApplications.$inferInsert;
+
+// Offers Table
+export const offers = pgTable("offers", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url").notNull(),
+  discountPercentage: integer("discount_percentage"),
+  discountText: text("discount_text"),
+  validFrom: timestamp("valid_from").notNull(),
+  validUntil: timestamp("valid_until").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  linkUrl: text("link_url"),
+  buttonText: text("button_text").default("Shop Now"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Offer = typeof offers.$inferSelect;
+export type InsertOffer = typeof offers.$inferInsert;
 
 // Affiliate Wallet Table
 export const affiliateWallet = pgTable("affiliate_wallet", {
@@ -641,3 +673,38 @@ export const userWalletTransactions = pgTable("user_wallet_transactions", {
 
 export type UserWalletTransaction = typeof userWalletTransactions.$inferSelect;
 export type InsertUserWalletTransaction = typeof userWalletTransactions.$inferInsert;
+
+// Promo Codes Table
+export const promoCodes = pgTable("promo_codes", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  description: text("description").notNull(),
+  discountType: varchar("discount_type", { length: 20 }).notNull(), // 'percentage' or 'flat'
+  discountValue: decimal("discount_value", { precision: 10, scale: 2 }).notNull(),
+  minOrderAmount: decimal("min_order_amount", { precision: 10, scale: 2 }).default("0.00"),
+  maxDiscount: decimal("max_discount", { precision: 10, scale: 2 }), // Max discount for percentage type
+  usageLimit: integer("usage_limit"), // Total usage limit
+  usageCount: integer("usage_count").default(0).notNull(),
+  userUsageLimit: integer("user_usage_limit").default(1).notNull(), // Per user limit
+  isActive: boolean("is_active").default(true).notNull(),
+  validFrom: timestamp("valid_from").defaultNow().notNull(),
+  validUntil: timestamp("valid_until"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type PromoCode = typeof promoCodes.$inferSelect;
+export type InsertPromoCode = typeof promoCodes.$inferInsert;
+
+// Promo Code Usage Tracking
+export const promoCodeUsage = pgTable("promo_code_usage", {
+  id: serial("id").primaryKey(),
+  promoCodeId: integer("promo_code_id").notNull().references(() => promoCodes.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id),
+  orderId: integer("order_id").references(() => ordersTable.id),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PromoCodeUsage = typeof promoCodeUsage.$inferSelect;
+export type InsertPromoCodeUsage = typeof promoCodeUsage.$inferInsert;
