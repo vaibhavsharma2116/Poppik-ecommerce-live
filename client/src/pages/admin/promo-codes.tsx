@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, startTransition } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,8 +73,10 @@ export default function PromoCodesManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/promo-codes'] });
-      setIsCreateOpen(false);
-      resetForm();
+      startTransition(() => {
+        setIsCreateOpen(false);
+        resetForm();
+      });
       toast({ title: 'Success', description: 'Promo code created successfully' });
     },
     onError: (error: any) => {
@@ -98,8 +100,11 @@ export default function PromoCodesManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/promo-codes'] });
-      setEditingCode(null);
-      resetForm();
+      startTransition(() => {
+        setIsCreateOpen(false);
+        setEditingCode(null);
+        resetForm();
+      });
       toast({ title: 'Success', description: 'Promo code updated successfully' });
     },
   });
@@ -157,21 +162,23 @@ export default function PromoCodesManagement() {
   };
 
   const handleEdit = (code: any) => {
-    setEditingCode(code);
-    setFormData({
-      code: code.code,
-      description: code.description,
-      discountType: code.discountType,
-      discountValue: code.discountValue,
-      minOrderAmount: code.minOrderAmount || '',
-      maxDiscount: code.maxDiscount || '',
-      usageLimit: code.usageLimit || '',
-      userUsageLimit: code.userUsageLimit?.toString() || '1',
-      validFrom: code.validFrom ? new Date(code.validFrom).toISOString().split('T')[0] : '',
-      validUntil: code.validUntil ? new Date(code.validUntil).toISOString().split('T')[0] : '',
-      isActive: code.isActive,
+    startTransition(() => {
+      setEditingCode(code);
+      setFormData({
+        code: code.code,
+        description: code.description,
+        discountType: code.discountType,
+        discountValue: code.discountValue,
+        minOrderAmount: code.minOrderAmount || '',
+        maxDiscount: code.maxDiscount || '',
+        usageLimit: code.usageLimit || '',
+        userUsageLimit: code.userUsageLimit?.toString() || '1',
+        validFrom: code.validFrom ? new Date(code.validFrom).toISOString().split('T')[0] : '',
+        validUntil: code.validUntil ? new Date(code.validUntil).toISOString().split('T')[0] : '',
+        isActive: code.isActive,
+      });
+      setIsCreateOpen(true);
     });
-    setIsCreateOpen(true);
   };
 
   return (
@@ -181,9 +188,14 @@ export default function PromoCodesManagement() {
           <h1 className="text-3xl font-bold">Promo Codes</h1>
           <p className="text-gray-600 mt-1">Manage discount codes and promotions</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <Dialog open={isCreateOpen} onOpenChange={(open) => startTransition(() => setIsCreateOpen(open))}>
           <DialogTrigger asChild>
-            <Button onClick={() => { resetForm(); setEditingCode(null); }}>
+            <Button onClick={() => { 
+              startTransition(() => {
+                resetForm(); 
+                setEditingCode(null);
+              });
+            }}>
               <Plus className="h-4 w-4 mr-2" />
               Create Promo Code
             </Button>
@@ -325,7 +337,7 @@ export default function PromoCodesManagement() {
                 <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
                   {editingCode ? 'Update' : 'Create'} Promo Code
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => startTransition(() => setIsCreateOpen(false))}>
                   Cancel
                 </Button>
               </div>

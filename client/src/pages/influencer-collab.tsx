@@ -10,95 +10,30 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Gift, TrendingUp, Users, Sparkles, Award, Target, Star, Zap, Heart, Globe, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRight } from "lucide-react";
+import { Link } from "wouter";
+import INFLUENCER_Image from "@assets/INFLUENCER BANNER-02.jpg";
+import INFLUENCER_Image1 from "@assets/INFLUENCER BANNER-03.jpg";
 
 export default function InfluencerCollabPage() {
   const { toast } = useToast();
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    mobile: "",
-    city: "",
-    state: "",
-  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const response = await fetch("/api/influencer-applications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        toast({
-          title: "Application Submitted!",
-          description: "We'll review your application and get back to you soon.",
-        });
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          instagram: "",
-          followers: "",
-          message: "",
-        });
-      } else {
-        throw new Error("Failed to submit application");
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to submit application. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleApplyClick = () => {
+    window.open('https://forms.gle/XMttjRBYg5wzMHKw7', '_blank');
   };
 
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative py-8 xs:py-10 sm:py-12 md:py-16 lg:py-20 xl:py-24 bg-gradient-to-br from-pink-500 to-pink-600 overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00eiIvPjwvZz48L2c+PC9zdmc+')] bg-repeat"></div>
-        </div>
-        
-        <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center">
-            <div className="inline-flex items-center gap-1 xs:gap-1.5 sm:gap-2 bg-white/20 backdrop-blur-sm px-2 xs:px-3 sm:px-4 py-1 xs:py-1.5 sm:py-2 rounded-full mb-3 xs:mb-4 sm:mb-5 md:mb-6">
-              <Sparkles className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-white" />
-              <span className="text-white text-[10px] xs:text-xs sm:text-sm font-medium">Join Our Influencer Network</span>
-            </div>
-            
-            <h1 className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-3 xs:mb-4 sm:mb-5 md:mb-6 px-2 leading-tight">
-              Become a Poppik Influencer
-            </h1>
-            
-            <p className="text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl text-white/90 mb-4 xs:mb-5 sm:mb-6 md:mb-8 max-w-2xl mx-auto px-3 xs:px-4 leading-relaxed">
-              Join India's fastest-growing beauty community and earn while promoting products you love
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-2 xs:gap-3 sm:gap-4 justify-center px-2 xs:px-3">
-              <Button 
-                onClick={() => window.open('https://forms.gle/XMttjRBYg5wzMHKw7', '_blank')}
-                size="lg"
-                className="bg-white text-pink-600 hover:bg-pink-50 font-semibold text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
-              >
-                Apply Now
-              </Button>
-              <Button 
-                onClick={() => document.getElementById('benefits')?.scrollIntoView({ behavior: 'smooth' })}
-                size="lg"
-                variant="outline" 
-                className="border-2 border-white text-pink-600 font-semibold hover:bg-white/10 text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
-              >
-                Learn More
-              </Button>
-            </div>
-          </div>
+      <section className="relative overflow-hidden">
+        <div className="relative w-full">
+          <img
+            src={INFLUENCER_Image}
+            alt="Become a Poppik Influencer"
+            className="w-full h-auto object-contain"
+            style={{ maxHeight: 'none' }}
+          />
         </div>
       </section>
 
