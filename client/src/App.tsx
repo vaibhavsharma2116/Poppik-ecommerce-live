@@ -41,7 +41,7 @@ import AdminVideoTestimonials from "@/pages/admin/video-testimonials";
 import AdminAnnouncements from "@/pages/admin/announcements";
 import AdminCombos from "@/pages/admin/combos";
 import NotFound from "@/pages/not-found";
-import { lazy, Suspense, startTransition, useEffect } from 'react';
+import { lazy, Suspense, startTransition, useEffect, useTransition } from 'react';
 import AdminShades from "./pages/admin/shades";
 import AdminFeaturedSections from "@/pages/admin/featured-sections";
 import BlogPost from "./pages/blog-post";
@@ -56,8 +56,6 @@ import AffiliateForm from "@/pages/affiliate-form";
 import AdminInfluencerApplications from './pages/admin/influencer-applications';
 import AdminAffiliateApplications from './pages/admin/affiliate-applications';
 import AdminAffiliateWithdrawals from "@/pages/admin/affiliate-withdrawals";
-import OffersPage from "./pages/offers";
-import AdminOffers from "./pages/admin/offers";
 const AcademyPage = lazy(() => import("./pages/academy"));
 const DropShippingPage = lazy(() => import("./pages/drop-shipping"));
 const ContestPage = lazy(() => import("./pages/contest"));
@@ -74,6 +72,15 @@ const LoadingSpinner = () => (
     <span className="ml-2 text-gray-600">Loading...</span>
   </div>
 );
+
+// Wrapper component to handle transitions properly
+function LazyRoute({ component: Component }: { component: React.ComponentType }) {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <Component />
+    </Suspense>
+  );
+}
 
 // Component to handle scroll restoration
 function ScrollToTop() {
@@ -100,50 +107,28 @@ function Router() {
             <Route path="/categories" component={AdminCategories} />
             <Route path="/orders" component={AdminOrders} />
             <Route path="/customers" component={AdminCustomers} />
-            <Route path="/sliders" component={AdminSliders} />
+            <Route path="/sliders" component={() => <LazyRoute component={lazy(() => import("@/pages/admin/sliders"))} />} />
+            <Route path="/combo-sliders" component={() => <LazyRoute component={lazy(() => import("@/pages/admin/combo-sliders"))} />} />
             <Route path="/job-applications" component={JobApplications} />
             <Route path="/influencer-applications" component={AdminInfluencerApplications} />
             <Route path="/affiliate-applications" component={AdminAffiliateApplications} />
             <Route path="/affiliate-withdrawals" component={AdminAffiliateWithdrawals} />
-            <Route path="/offers" component={AdminOffers} />
-            <Route path="/job-positions" component={() => {
-              const JobPositions = lazy(() => import("./pages/admin/job-positions"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <JobPositions />
-                </Suspense>
-              );
-            }} />
-            <Route path="/stores" component={() => {
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminStores />
-                </Suspense>
-              );
-            }} />
+            <Route path="/promo-codes" component={lazy(() => import("@/pages/admin/promo-codes"))} />
+              <Route path="/offers" component={lazy(() => import("@/pages/admin/offers"))} />
+            <Route path="/job-positions" component={() => <LazyRoute component={lazy(() => import("./pages/admin/job-positions"))} />} />
+            <Route path="/stores" component={AdminStores} />
             <Route path="/settings" component={AdminSettings} />
             <Route path="/profile" component={AdminProfile} />
             <Route path="/change-password" component={AdminChangePassword} />
              <Route path="/contact-submissions" component={AdminContactSubmissions} />
             <Route path="/testimonials" component={AdminTestimonials} />
             <Route path="/video-testimonials" component={AdminVideoTestimonials} />
-            <Route path="/blog" component={() => {
-              const AdminBlog = lazy(() => import("./pages/admin/blog"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AdminBlog />
-                </Suspense>
-              );
-            }} />
+            <Route path="/blog" component={() => <LazyRoute component={lazy(() => import("./pages/admin/blog"))} />} />
             <Route path="/combos" component={AdminCombos} />
             <Route path="/announcements" component={AdminAnnouncements} />
             <Route path="/shades" component={AdminShades} />
             <Route path="/featured-sections" component={AdminFeaturedSections} />
-            <Route path="/reports">
-              <Suspense fallback={<LoadingSpinner />}>
-                <AdminReports />
-              </Suspense>
-            </Route>
+            <Route path="/reports" component={() => <LazyRoute component={AdminReports} />} />
             <Route component={NotFound} />
           </Switch>
         </AdminLayout>
@@ -155,79 +140,25 @@ function Router() {
           <Switch>
             <Route path="/" component={Home} />
             <Route path="/combos" component={ComboPage} />
-            <Route path="/combo/:id" component={() => {
-              const ComboDetail = lazy(() => import("./pages/combo-detail"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <ComboDetail />
-                </Suspense>
-              );
-            }} />
-            <Route path="/academy">
-              <Suspense fallback={<LoadingSpinner />}>
-                <AcademyPage />
-              </Suspense>
-            </Route>
-            <Route path="/drop-shipping">
-              <Suspense fallback={<LoadingSpinner />}>
-                <DropShippingPage />
-              </Suspense>
-            </Route>
-            <Route path="/contest">
-              <Suspense fallback={<LoadingSpinner />}>
-                <ContestPage />
-              </Suspense>
-            </Route>
+            <Route path="/combo/:id" component={() => <LazyRoute component={lazy(() => import("./pages/combo-detail"))} />} />
+            <Route path="/offers" component={() => <LazyRoute component={lazy(() => import("./pages/offers"))} />} />
+            <Route path="/academy" component={() => <LazyRoute component={AcademyPage} />} />
+            <Route path="/drop-shipping" component={() => <LazyRoute component={DropShippingPage} />} />
+            <Route path="/contest" component={() => <LazyRoute component={ContestPage} />} />
             <Route path="/channel-partner" component={ChannelPartnerPage} />
-            <Route path="/beauty-kit/micro" component={() => {
-              const BeautyKitMicro = lazy(() => import("./pages/beauty-kit-micro"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <BeautyKitMicro />
-                </Suspense>
-              );
-            }} />
-            <Route path="/beauty-kit/small" component={() => {
-              const BeautyKitSmall = lazy(() => import("./pages/beauty-kit-small"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <BeautyKitSmall />
-                </Suspense>
-              );
-            }} />
-            <Route path="/beauty-kit/medium" component={() => {
-              const BeautyKitMedium = lazy(() => import("./pages/beauty-kit-medium"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <BeautyKitMedium />
-                </Suspense>
-              );
-            }} />
-            <Route path="/beauty-kit/large" component={() => {
-              const BeautyKitLarge = lazy(() => import("./pages/beauty-kit-large"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <BeautyKitLarge />
-                </Suspense>
-              );
-            }} />
-            <Route path="/makeup-studio">
-              <Suspense fallback={<LoadingSpinner />}>
-                <MakeupStudio />
-              </Suspense>
-            </Route>
-            <Route path="/fashion-show">
-              <Suspense fallback={<LoadingSpinner />}>
-                <FashionShow />
-              </Suspense>
-            </Route>
+            <Route path="/beauty-kit/micro" component={() => <LazyRoute component={lazy(() => import("./pages/beauty-kit-micro"))} />} />
+            <Route path="/beauty-kit/small" component={() => <LazyRoute component={lazy(() => import("./pages/beauty-kit-small"))} />} />
+            <Route path="/beauty-kit/medium" component={() => <LazyRoute component={lazy(() => import("./pages/beauty-kit-medium"))} />} />
+            <Route path="/beauty-kit/large" component={() => <LazyRoute component={lazy(() => import("./pages/beauty-kit-large"))} />} />
+            <Route path="/makeup-studio" component={() => <LazyRoute component={MakeupStudio} />} />
+            <Route path="/fashion-show" component={() => <LazyRoute component={FashionShow} />} />
             <Route path="/products" component={ProductsPage} />
             <Route path="/category/:slug" component={Category} />
             <Route path="/product/:slug" component={ProductDetail} />
             <Route path="/about" component={About} />
             <Route path="/combo" component={ComboPage} />
- 
-            <Route path="/offers" component={OffersPage} />
+
+
             <Route path="/blog" component={Blog} />
           <Route path="/blog/:slug" component={BlogPost} />
             <Route path="/contact" component={Contact} />
@@ -244,58 +175,16 @@ function Router() {
             <Route path="/change-password" component={ChangePassword} />
              <Route path="/terms" component={Terms} />
             <Route path="/privacy" component={Privacy} />
-            <Route path="/store-locator" component={() => {
-              const StoreLocator = lazy(() => import("./pages/store-locator"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <StoreLocator />
-                </Suspense>
-              );
-            }} />
+            <Route path="/store-locator" component={() => <LazyRoute component={lazy(() => import("./pages/store-locator"))} />} />
             <Route path="/careers" component={Careers} />
-            <Route path="/careers/:position" component={() => {
-              const CareersDetail = lazy(() => import("./pages/careers-detail"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <CareersDetail />
-                </Suspense>
-              );
-            }} />
-            <Route path="/careers/apply/:position?" component={() => {
-              const CareersApply = lazy(() => import("./pages/careers-apply"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <CareersApply />
-                </Suspense>
-              );
-            }} />
+            <Route path="/careers/:position" component={() => <LazyRoute component={lazy(() => import("./pages/careers-detail"))} />} />
+            <Route path="/careers/apply/:position?" component={() => <LazyRoute component={lazy(() => import("./pages/careers-apply"))} />} />
             <Route path="/influencer-collab" component={InfluencerCollab} />
-            <Route path="/affiliate" component={() => {
-              const AffiliatePage = lazy(() => import("./pages/affiliate"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AffiliatePage />
-                </Suspense>
-              );
-            }} />
+            <Route path="/affiliate" component={() => <LazyRoute component={lazy(() => import("./pages/affiliate"))} />} />
             <Route path="/affiliate-application" component={AffiliateApplicationPage} />
             <Route path="/affiliate-form" component={AffiliateForm} />
-            <Route path="/affiliate-dashboard" component={() => {
-              const AffiliateDashboard = lazy(() => import("./pages/affiliate-dashboard"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AffiliateDashboard />
-                </Suspense>
-              );
-            }} />
-            <Route path="/affiliate-wallet" component={() => {
-              const AffiliateWallet = lazy(() => import("./pages/affiliate-wallet"));
-              return (
-                <Suspense fallback={<LoadingSpinner />}>
-                  <AffiliateWallet />
-                </Suspense>
-              );
-            }} />
+            <Route path="/affiliate-dashboard" component={() => <LazyRoute component={lazy(() => import("./pages/affiliate-dashboard"))} />} />
+            <Route path="/affiliate-wallet" component={() => <LazyRoute component={lazy(() => import("./pages/affiliate-wallet"))} />} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

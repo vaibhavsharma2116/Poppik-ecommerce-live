@@ -13,38 +13,46 @@ import nodemailer from 'nodemailer';
 
 // Simple rate limiting
 const rateLimitMap = new Map();
+const adminRateLimitMap = new Map();
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 const RATE_LIMIT_MAX = 100; // 100 requests per minute
+const ADMIN_RATE_LIMIT_MAX = 1000; // 1000 requests per minute for admin
 
 function rateLimit(req: any, res: any, next: any) {
+  // Use higher limit for admin routes
+  const isAdminRoute = req.path.startsWith('/admin/');
+  const limitMap = isAdminRoute ? adminRateLimitMap : rateLimitMap;
+  const maxRequests = isAdminRoute ? ADMIN_RATE_LIMIT_MAX : RATE_LIMIT_MAX;
   const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
   const now = Date.now();
   const windowStart = now - RATE_LIMIT_WINDOW;
 
-  if (!rateLimitMap.has(clientIP)) {
-    rateLimitMap.set(clientIP, []);
+  if (!limitMap.has(clientIP)) {
+    limitMap.set(clientIP, []);
   }
 
-  const requests = rateLimitMap.get(clientIP) || [];
+  const requests = limitMap.get(clientIP) || [];
   const recentRequests = requests.filter((time: number) => time > windowStart);
 
-  if (recentRequests.length >= RATE_LIMIT_MAX) {
+  if (recentRequests.length >= maxRequests) {
     return res.status(429).json({ error: "Too many requests" });
   }
 
   recentRequests.push(now);
-  rateLimitMap.set(clientIP, recentRequests);
+  limitMap.set(clientIP, recentRequests);
 
   // Clean up old entries periodically
   if (Math.random() < 0.01) { // 1% chance to cleanup
     const cutoff = now - (RATE_LIMIT_WINDOW * 2);
-    rateLimitMap.forEach((times, ip) => {
-      const validTimes = times.filter((time: number) => time > cutoff);
-      if (validTimes.length === 0) {
-        rateLimitMap.delete(ip);
-      } else {
-        rateLimitMap.set(ip, validTimes);
-      }
+    [rateLimitMap, adminRateLimitMap].forEach(map => {
+      map.forEach((times, ip) => {
+        const validTimes = times.filter((time: number) => time > cutoff);
+        if (validTimes.length === 0) {
+          map.delete(ip);
+        } else {
+          map.set(ip, validTimes);
+        }
+      });
     });
   }
 
@@ -157,8 +165,14 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Apply rate limiting to all API routes
-  app.use("/api", rateLimit);
+  // Apply rate limiting to all API routes except admin routes
+  app.use("/api", (req, res, next) => {
+    // Skip rate limiting for admin routes
+    if (req.path.startsWith('/admin/')) {
+      return next();
+    }
+    return rateLimit(req, res, next);
+  });
 
   // Health check endpoint with database status
   app.get("/api/health", async (req, res) => {
@@ -3022,8 +3036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const existingWallet = await db
             .select()
             .from(schema.userWallet)
-            .where(eq(schema.userWallet.userId, parseInt(userId)))
-            .limit(1);
+            .where(eq(schema.userWallet.userId, parseInt(userId)));
 
           if (existingWallet.length === 0) {
             // Create new wallet with cashback
@@ -3078,6 +3091,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           console.log(`Total cashback credited: ₹${totalCashback.toFixed(2)} from ${cashbackItems.length} items`);
+        }
+      }
+
+      // Track promo code usage if promo code was used
+      if (req.body.promoCode && req.body.promoDiscount) {
+        try {
+          const promoCodeData = await db
+            .select()
+            .from(schema.promoCodes)
+            .where(eq(schema.promoCodes.code, req.body.promoCode.toUpperCase()))
+            .limit(1);
+
+          if (promoCodeData.length > 0) {
+            const promo = promoCodeData[0];
+            
+            // Record promo code usage
+            await db.insert(schema.promoCodeUsage).values({
+              promoCodeId: promo.id,
+              userId: parseInt(userId),
+              orderId: newOrder.id,
+              discountAmount: req.body.promoDiscount.toString()
+            });
+
+            // Increment usage count
+            await db.update(schema.promoCodes)
+              .set({
+                usageCount: sql`${schema.promoCodes.usageCount} + 1`,
+                updatedAt: new Date()
+              })
+              .where(eq(schema.promoCodes.id, promo.id));
+
+            console.log(`Promo code ${req.body.promoCode} used. Total uses: ${promo.usageCount + 1}`);
+          }
+        } catch (promoError) {
+          console.error('Error tracking promo code usage:', promoError);
+          // Continue even if promo tracking fails
         }
       }
 
@@ -3832,7 +3881,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...post,
         tags: typeof post.tags === 'string' ? JSON.parse(post.tags || '[]') : (post.tags || [])
       };
-      
+
       res.json(postWithParsedTags);
     } catch (error) {
       console.error("Error fetching blog post:", error);
@@ -4790,7 +4839,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin search endpoint
   // Token validation endpoint
   app.get("/api/auth/validate", (req, res) => {
     try {
@@ -4815,6 +4863,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all customers (admin)
+  app.get("/api/admin/customers", async (req, res) => {
+    try {
+      // Get all users from database
+      const allUsers = await db.select({
+        id: schema.users.id,
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName,
+        email: schema.users.email,
+        phone: schema.users.phone,
+        createdAt: schema.users.createdAt,
+        role: schema.users.role,
+      }).from(schema.users).orderBy(desc(schema.users.createdAt));
+
+      // Get order statistics for each user
+      const customersWithStats = await Promise.all(
+        allUsers.map(async (user) => {
+          // Get user's orders
+          const userOrders = await db
+            .select()
+            .from(schema.ordersTable)
+            .where(eq(schema.ordersTable.userId, user.id));
+
+          const totalOrders = userOrders.length;
+          const totalSpent = userOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+
+          // Determine status based on activity
+          let status = 'New';
+          if (totalOrders === 0) {
+            status = 'New';
+          } else if (totalOrders >= 5) {
+            status = 'VIP';
+          } else if (totalOrders >= 1) {
+            status = 'Active';
+          } else {
+            status = 'Inactive';
+          }
+
+          return {
+            id: user.id,
+            name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+            email: user.email,
+            phone: user.phone || 'N/A',
+            orders: totalOrders,
+            spent: `₹${totalSpent.toFixed(2)}`,
+            status,
+            joinedDate: new Date(user.createdAt).toLocaleDateString('en-IN'),
+            firstName: user.firstName,
+            lastName: user.lastName,
+          };
+        })
+      );
+
+      res.json(customersWithStats);
+    } catch (error) {
+      console.error("Error fetching customers:", error);
+      res.status(500).json({ error: "Failed to fetch customers" });
+    }
+  });
+
+  // Get customer details by ID (admin)
+  app.get("/api/admin/customers/:id", async (req, res) => {
+    try {
+      const customerId = parseInt(req.params.id);
+
+      // Get user details
+      const user = await db.select({
+        id: schema.users.id,
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName,
+        email: schema.users.email,
+        phone: schema.users.phone,
+        createdAt: schema.users.createdAt,
+        role: schema.users.role,
+      }).from(schema.users).where(eq(schema.users.id, customerId)).limit(1);
+
+      if (!user || user.length === 0) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+
+      const userData = user[0];
+
+      // Get user's orders
+      const userOrders = await db
+        .select()
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.userId, customerId))
+        .orderBy(desc(schema.ordersTable.createdAt))
+        .limit(5);
+
+      const totalOrders = userOrders.length;
+      const totalSpent = userOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+
+      // Determine status
+      let status = 'New';
+      if (totalOrders === 0) {
+        status = 'New';
+      } else if (totalOrders >= 5) {
+        status = 'VIP';
+      } else if (totalOrders >= 1) {
+        status = 'Active';
+      } else {
+        status = 'Inactive';
+      }
+
+      // Format recent orders
+      const recentOrders = userOrders.map(order => ({
+        id: `ORD-${order.id.toString().padStart(3, '0')}`,
+        date: new Date(order.createdAt).toLocaleDateString('en-IN'),
+        status: order.status,
+        total: `₹${order.totalAmount.toFixed(2)}`
+      }));
+
+      const customerDetails = {
+        id: userData.id,
+        name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+        email: userData.email,
+        phone: userData.phone || 'N/A',
+        orders: totalOrders,
+        spent: `₹${totalSpent.toFixed(2)}`,
+        status,
+        joinedDate: new Date(userData.createdAt).toLocaleDateString('en-IN'),
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        recentOrders
+      };
+
+      res.json(customerDetails);
+    } catch (error) {
+      console.error("Error fetching customer details:", error);
+      res.status(500).json({ error: "Failed to fetch customer details" });
+    }
+  });
+
+  // Admin search endpoint
   app.get("/api/admin/search", async (req, res) => {
     try {
       const query = req.query.q;
@@ -5080,6 +5263,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public category sliders endpoint (for frontend display)
+  app.get('/api/categories/slug/:slug/sliders', async (req, res) => {
+    try {
+      const { slug } = req.params;
+      console.log('Fetching sliders for category slug:', slug);
+
+      // First, get the category by slug
+      const category = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.slug, slug))
+        .limit(1);
+
+      if (!category || category.length === 0) {
+        console.log('Category not found for slug:', slug);
+        // Return empty array instead of error to prevent UI issues
+        return res.json([]);
+      }
+
+      const categoryId = category[0].id;
+      console.log('Found category ID:', categoryId);
+
+      // Get sliders for this category
+      try {
+        const slidersResult = await db
+          .select()
+          .from(schema.categorySliders)
+          .where(and(
+            eq(schema.categorySliders.categoryId, categoryId),
+            eq(schema.categorySliders.isActive, true)
+          ))
+          .orderBy(asc(schema.categorySliders.sortOrder));
+
+        console.log('Found sliders count:', slidersResult.length);
+        // Always return an array, even if empty
+        res.json(slidersResult || []);
+      } catch (tableError) {
+        console.log('Error querying category sliders, returning empty array:', tableError.message);
+        // Return empty array on any database error
+        res.json([]);
+      }
+    } catch (error) {
+      console.error('Error fetching category sliders by slug:', error);
+      // Return empty array instead of error to prevent UI breakage
+      res.json([]);
+    }
+  });
+
   // Category slider management routes
   app.get('/api/admin/categories/:categoryId/sliders', async (req, res) => {
     try {
@@ -5219,6 +5450,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting category slider:', error);
       res.status(500).json({ error: 'Failed to delete category slider' });
+    }
+  });
+
+  // Combo Sliders Management Routes
+
+  // Public endpoint for active combo sliders
+  app.get('/api/combo-sliders', async (req, res) => {
+    try {
+      const sliders = await db
+        .select()
+        .from(schema.comboSliders)
+        .where(eq(schema.comboSliders.isActive, true))
+        .orderBy(asc(schema.comboSliders.sortOrder));
+
+      res.json(sliders);
+    } catch (error) {
+      console.error('Error fetching combo sliders:', error);
+      res.status(500).json({ error: 'Failed to fetch combo sliders' });
+    }
+  });
+
+  // Admin endpoints for combo sliders
+  app.get('/api/admin/combo-sliders', async (req, res) => {
+    try {
+      const sliders = await db
+        .select()
+        .from(schema.comboSliders)
+        .orderBy(asc(schema.comboSliders.sortOrder));
+
+      res.json(sliders);
+    } catch (error) {
+      console.error('Error fetching combo sliders:', error);
+      res.status(500).json({ error: 'Failed to fetch combo sliders' });
+    }
+  });
+
+  app.post('/api/admin/combo-sliders', upload.single('image'), async (req, res) => {
+    try {
+      const { title, subtitle, isActive, sortOrder } = req.body;
+
+      let imageUrl = '';
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      } else if (req.body.imageUrl) {
+        imageUrl = req.body.imageUrl;
+      } else {
+        return res.status(400).json({ error: 'Image is required' });
+      }
+
+      const [slider] = await db
+        .insert(schema.comboSliders)
+        .values({
+          imageUrl: imageUrl.trim(),
+          title: title?.trim() || null,
+          subtitle: subtitle?.trim() || null,
+          isActive: isActive === 'true' || isActive === true,
+          sortOrder: parseInt(sortOrder) || 0,
+        })
+        .returning();
+
+      res.json(slider);
+    } catch (error) {
+      console.error('Error creating combo slider:', error);
+      res.status(500).json({ error: 'Failed to create combo slider' });
+    }
+  });
+
+  app.put('/api/admin/combo-sliders/:id', upload.single('image'), async (req, res) => {
+    try {
+      const sliderId = parseInt(req.params.id);
+      const { title, subtitle, isActive, sortOrder } = req.body;
+
+      let imageUrl = req.body.imageUrl;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      const [updatedSlider] = await db
+        .update(schema.comboSliders)
+        .set({
+          ...(imageUrl && { imageUrl: imageUrl.trim() }),
+          title: title?.trim() || null,
+          subtitle: subtitle?.trim() || null,
+          isActive: isActive === 'true' || isActive === true,
+          sortOrder: parseInt(sortOrder) || 0,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.comboSliders.id, sliderId))
+        .returning();
+
+      if (!updatedSlider) {
+        return res.status(404).json({ error: 'Combo slider not found' });
+      }
+
+      res.json(updatedSlider);
+    }catch (error) {
+      console.error('Error updating combo slider:', error);
+      res.status(500).json({ error: 'Failed to update combo slider' });
+    }
+  });
+
+  app.delete('/api/admin/combo-sliders/:id', async (req, res) => {
+    try {
+      const sliderId = parseInt(req.params.id);
+
+      const [deletedSlider] = await db
+        .delete(schema.comboSliders)
+        .where(eq(schema.comboSliders.id, sliderId))
+        .returning();
+
+      if (!deletedSlider) {
+        return res.status(404).json({ error: 'Combo slider not found' });
+      }
+
+      res.json({ message: 'Combo slider deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting combo slider:', error);
+      res.status(500).json({ error: 'Failed to delete combo slider' });
     }
   });
 
@@ -5415,14 +5764,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/admin/announcements/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const announcement = await storage.updateAnnouncement(id, req.body);
+      const { text, isActive, sortOrder } = req.body;
+
+      // Validate required fields
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({ error: 'Announcement text is required' });
+      }
+
+      const updateData = {
+        text: text.trim(),
+        isActive: isActive !== false && isActive !== 'false',
+        sortOrder: parseInt(sortOrder) || 0,
+        updatedAt: new Date()
+      };
+
+      console.log('Updating announcement:', id, 'with data:', updateData);
+
+      const announcement = await storage.updateAnnouncement(id, updateData);
       if (!announcement) {
         return res.status(404).json({ error: 'Announcement not found' });
       }
+
+      console.log('Announcement updated successfully:', announcement);
       res.json(announcement);
     } catch (error) {
       console.error('Error updating announcement:', error);
-      res.status(500).json({ error: 'Failed to update announcement' });
+      console.error('Error details:', error.message, error.stack);
+      res.status(500).json({ 
+        error: 'Failed to update announcement',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
@@ -5745,7 +6116,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const resumeUrl = `/api/images/${req.file.filename}`;
-      const resumePath = path.join(uploadsDir, req.file.filename);
+
+      // Save application to database
+      const [savedApplication] = await db.insert(schema.jobApplications).values({
+        fullName,
+        email,
+        phone,
+        position,
+        location,
+        isFresher: isFresher === 'true',
+        experienceYears: experienceYears || null,
+        experienceMonths: experienceMonths || null,
+        coverLetter,
+        resumeUrl,
+        status: 'pending'
+      }).returning();
 
       // HR Manager's email
       const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
@@ -5847,7 +6232,7 @@ Poppik Career Portal
         res.json({
           success: true,
           message: 'Application submitted successfully! Our HR team will review your application and get back to you soon.',
-          applicationId: Date.now()
+          applicationId: savedApplication.id
         });
 
       } catch (emailError) {
@@ -5857,7 +6242,7 @@ Poppik Career Portal
         res.json({
           success: true,
           message: 'Application submitted successfully! Our HR team will review your application and get back to you soon.',
-          applicationId: Date.now(),
+          applicationId: savedApplication.id,
           emailSent: false
         });
       }
@@ -5871,7 +6256,93 @@ Poppik Career Portal
     }
   });
 
-  // Admin job applications endpoints removed - applications now sent directly to HR email
+  // Admin job applications endpoints
+  app.get('/api/admin/job-applications', adminMiddleware, async (req, res) => {
+    try {
+      const applications = await db
+        .select()
+        .from(schema.jobApplications)
+        .orderBy(desc(schema.jobApplications.appliedAt));
+
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching job applications:', error);
+      res.status(500).json({ error: 'Failed to fetch job applications' });
+    }
+  });
+
+  app.get('/api/admin/job-applications/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const application = await db
+        .select()
+        .from(schema.jobApplications)
+        .where(eq(schema.jobApplications.id, id))
+        .limit(1);
+
+      if (!application || application.length === 0) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json(application[0]);
+    } catch (error) {
+      console.error('Error fetching job application:', error);
+      res.status(500).json({ error: 'Failed to fetch job application' });
+    }
+  });
+
+  app.put('/api/admin/job-applications/:id/status', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (!['pending', 'reviewing', 'shortlisted', 'accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const [updatedApplication] = await db
+        .update(schema.jobApplications)
+        .set({
+          status,
+          reviewedAt: new Date()
+        })
+        .where(eq(schema.jobApplications.id, id))
+        .returning();
+
+      if (!updatedApplication) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Application status updated to ${status}`,
+        application: updatedApplication 
+      });
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      res.status(500).json({ error: 'Failed to update application status' });
+    }
+  });
+
+  app.delete('/api/admin/job-applications/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deleted] = await db
+        .delete(schema.jobApplications)
+        .where(eq(schema.jobApplications.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json({ success: true, message: 'Application deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting job application:', error);
+      res.status(500).json({ error: 'Failed to delete job application' });
+    }
+  });
 
   // User Wallet endpoint - get wallet balance
   app.get('/api/wallet', async (req, res) => {
@@ -6627,7 +7098,7 @@ Poppik Affiliate Portal
         conversionRate,
         avgCommission
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching affiliate stats:', error);
       res.status(500).json({ error: 'Failed to fetch affiliate stats' });
     }
@@ -6832,10 +7303,13 @@ Poppik Affiliate Portal
 
       // Check total usage limit
       if (promo.usageLimit && promo.usageCount >= promo.usageLimit) {
-        return res.status(400).json({ error: 'This promo code has reached its usage limit', valid: false });
+        return res.status(400).json({ 
+          error: `This promo code has reached its total usage limit (${promo.usageLimit} uses)`, 
+          valid: false 
+        });
       }
 
-      // Check if user has already used this promo code
+      // Check per-user usage limit
       if (userId) {
         const userUsage = await db
           .select()
@@ -6845,9 +7319,10 @@ Poppik Affiliate Portal
             eq(schema.promoCodeUsage.userId, parseInt(userId))
           ));
 
-        if (userUsage.length >= (promo.userUsageLimit || 1)) {
+        const userUsageLimit = promo.userUsageLimit || 1;
+        if (userUsage.length >= userUsageLimit) {
           return res.status(400).json({
-            error: 'You have already used this promo code',
+            error: `You have already used this promo code ${userUsage.length} time(s). Maximum allowed: ${userUsageLimit}`,
             valid: false
           });
         }

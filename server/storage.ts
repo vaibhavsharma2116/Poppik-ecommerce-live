@@ -1812,11 +1812,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateAnnouncement(id: number, announcementData: any): Promise<any> {
-    const result = await db.update(announcements)
-      .set(announcementData)
-      .where(eq(announcements.id, id))
-      .returning();
-    return result[0];
+    try {
+      const result = await db.update(announcements)
+        .set({
+          text: announcementData.text,
+          isActive: announcementData.isActive,
+          sortOrder: announcementData.sortOrder,
+          updatedAt: announcementData.updatedAt || new Date()
+        })
+        .where(eq(announcements.id, id))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error('Database error updating announcement:', error);
+      throw error;
+    }
   }
 
   async deleteAnnouncement(id: number): Promise<boolean> {

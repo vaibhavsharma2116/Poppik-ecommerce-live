@@ -1,10 +1,12 @@
 import { useState } from "react";
+import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Heart, Star, Loader2, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 interface ComboProduct {
   id: number;
@@ -27,6 +29,10 @@ export default function ComboPage() {
 
   const { data: comboProducts = [], isLoading } = useQuery<ComboProduct[]>({
     queryKey: ["/api/combos"],
+  });
+
+  const { data: comboSliders = [], isLoading: slidersLoading } = useQuery({
+    queryKey: ['/api/combo-sliders'],
   });
 
   const handleAddToCart = (combo: ComboProduct) => {
@@ -97,9 +103,70 @@ export default function ComboPage() {
     );
   }
 
+  const ComboSliderComponent = () => {
+    const [api, setApi] = React.useState<any>();
+    const [current, setCurrent] = React.useState(0);
+    const [count, setCount] = React.useState(0);
+
+    React.useEffect(() => {
+      if (!api) return;
+
+      setCount(api.scrollSnapList().length);
+      setCurrent(api.selectedScrollSnap() + 1);
+
+      api.on("select", () => {
+        setCurrent(api.selectedScrollSnap() + 1);
+      });
+    }, [api]);
+
+    if (slidersLoading || comboSliders.length === 0) return null;
+
+    return (
+      <div className="mb-8 sm:mb-12">
+        <Carousel
+          setApi={setApi}
+          className="w-full relative"
+          opts={{
+            align: "start",
+            loop: true,
+          }}
+        >
+          <CarouselContent>
+            {comboSliders.map((slide: any) => (
+              <CarouselItem key={slide.id}>
+                <div className="relative overflow-hidden rounded-lg sm:rounded-xl">
+                  <img
+                    src={slide.imageUrl}
+                    alt={slide.title || 'Combo Banner'}
+                    className="w-full h-auto object-contain bg-gray-50"
+                    style={{
+                      objectFit: 'contain',
+                      objectPosition: 'center'
+                    }}
+                  />
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="left-4 border-0 bg-transparent shadow-none hover:bg-transparent" />
+          <CarouselNext className="right-4 border-0 bg-transparent shadow-none hover:bg-transparent" />
+
+          {count > 1 && (
+            <div className="absolute bottom-4 right-4 z-20 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-white text-sm font-medium">
+              {current} / {count}
+            </div>
+          )}
+        </Carousel>
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-12 md:py-16">
-      <div className="max-w-12xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+    <div className="">
+      <div className="">
+        {/* Slider */}
+        <ComboSliderComponent />
+
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8 md:mb-10 lg:mb-12">
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-3 md:mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
@@ -130,7 +197,11 @@ export default function ComboPage() {
                 {/* Image Section */}
                 <div 
                   className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300"
-                  onClick={() => window.location.href = `/combo/${combo.id}`}
+                  onClick={() => {
+                    React.startTransition(() => {
+                      window.location.href = `/combo/${combo.id}`;
+                    });
+                  }}
                 >
                   <button
                     onClick={(e) => {
@@ -187,7 +258,11 @@ export default function ComboPage() {
                   <h3 
                     className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-2 text-xs sm:text-sm md:text-base" 
                     style={{ minHeight: '2rem', maxHeight: '2rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-                    onClick={() => window.location.href = `/combo/${combo.id}`}
+                    onClick={() => {
+                      React.startTransition(() => {
+                        window.location.href = `/combo/${combo.id}`;
+                      });
+                    }}
                   >
                     {combo.name}
                   </h3>
@@ -195,7 +270,11 @@ export default function ComboPage() {
                   {/* Description - Hidden on smallest screens */}
                   <p 
                     className="hidden sm:block text-gray-600 text-xs sm:text-sm line-clamp-2 cursor-pointer"
-                    onClick={() => window.location.href = `/combo/${combo.id}`}
+                    onClick={() => {
+                      React.startTransition(() => {
+                        window.location.href = `/combo/${combo.id}`;
+                      });
+                    }}
                   >
                     {combo.description}
                   </p>
