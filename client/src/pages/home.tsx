@@ -886,7 +886,7 @@ function ComboSection() {
         <div className="text-center mb-8 sm:mb-10 md:mb-12">
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium mb-2 sm:mb-4">
             <span className="text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
-              Exclusive Combo Offers
+             Glow & Harmony Combo
             </span>
           </h2>
           <p className="text-sm sm:text-base md:text-lg text-gray-600">

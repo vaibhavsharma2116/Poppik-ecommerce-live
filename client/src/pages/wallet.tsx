@@ -194,7 +194,7 @@ export default function Wallet() {
 
             <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/20">
               <div>
-                <p className="text-pink-100 text-xs mb-1">Card Holder</p>
+                <p className="text-pink-100 text-xs mb-1">Card Holder Name</p>
                 <p className="text-white font-semibold">{user?.name || 'Valued Customer'}</p>
               </div>
               <div className="text-right">

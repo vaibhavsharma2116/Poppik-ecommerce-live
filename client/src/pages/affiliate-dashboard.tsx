@@ -565,7 +565,7 @@ export default function AffiliateDashboard() {
                 <Award className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Affiliate Portal</h1>
+                <h1 className="text-xl font-bold text-gray-900">Affiliate Partner Portal</h1>
                 <p className="text-sm text-gray-500">Manage your partnerships</p>
               </div>
             </div>
@@ -786,7 +786,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                 <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mx-auto mb-3">
                   <DollarSign className="h-6 w-6 text-white" />
                 </div>
-                <p className="text-sm text-gray-600 font-medium mb-1">Commission Balance</p>
+                <p className="text-sm text-gray-600 font-medium mb-1">Affilate Commission Balance</p>
                 <p className="text-2xl font-bold text-purple-600">
                   ₹{parseFloat(wallet?.commissionBalance || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
