@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award, ChevronDown } from "lucide-react";
+import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award, ChevronDown, Tag } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 
@@ -64,6 +64,15 @@ export default function CheckoutPage() {
   const [shippingCost, setShippingCost] = useState<number>(99);
   const [loadingShipping, setLoadingShipping] = useState(false);
 
+  // Wallet cashback states
+  const [showWalletSection, setShowWalletSection] = useState(false);
+  const [redeemAmount, setRedeemAmount] = useState(0);
+  const [isRedeeming, setIsRedeeming] = useState(false);
+
+  // Promo code states
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+
   // Get user from localStorage - must be before any hooks that use it
   const getCurrentUser = () => {
     const userStr = localStorage.getItem("user");
@@ -84,11 +93,6 @@ export default function CheckoutPage() {
     enabled: !!user?.id,
   });
 
-  // Wallet cashback states
-  const [showWalletSection, setShowWalletSection] = useState(false);
-  const [redeemAmount, setRedeemAmount] = useState(0);
-  const [isRedeeming, setIsRedeeming] = useState(false);
-
   useEffect(() => {
     // Check if user is logged in when accessing checkout
     if (!user) {
@@ -99,6 +103,24 @@ export default function CheckoutPage() {
       });
       window.location.href = "/auth/login";
       return;
+    }
+
+    // Load promo code from localStorage
+    const savedPromo = localStorage.getItem('appliedPromoCode');
+    if (savedPromo) {
+      try {
+        const promoData = JSON.parse(savedPromo);
+        setAppliedPromo(promoData);
+        setPromoDiscount(parseFloat(promoData.discountAmount || 0));
+
+        toast({
+          title: "Promo Code Applied!",
+          description: `${promoData.code} - You saved ₹${promoData.discountAmount}`,
+        });
+      } catch (error) {
+        console.error('Error loading promo code:', error);
+        localStorage.removeItem('appliedPromoCode');
+      }
     }
 
     // Check for affiliate code in localStorage
@@ -300,6 +322,7 @@ export default function CheckoutPage() {
 
           // Clear cart and session
           localStorage.removeItem("cart");
+          localStorage.removeItem("appliedPromoCode");
           sessionStorage.removeItem('pendingOrder');
           localStorage.setItem("cartCount", "0");
           window.dispatchEvent(new Event("cartUpdated"));
@@ -348,7 +371,10 @@ export default function CheckoutPage() {
   const affiliateDiscountAmount = formData.affiliateDiscount > 0
     ? Math.round(subtotal * (formData.affiliateDiscount / 100))
     : 0;
-  const subtotalAfterDiscount = subtotal - affiliateDiscountAmount;
+  const subtotalAfterAffiliate = subtotal - affiliateDiscountAmount;
+
+  // Apply promo code discount
+  const subtotalAfterDiscount = subtotalAfterAffiliate - promoDiscount;
 
   // Use the dynamic shippingCost, default to 99 if subtotal is less than 599, otherwise free.
   const shipping = subtotalAfterDiscount > 599 ? 0 : shippingCost;
@@ -573,6 +599,8 @@ export default function CheckoutPage() {
             shippingAddress: `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`,
             affiliateCode: formData.affiliateCode || null,
             affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
+            promoCode: appliedPromo?.code || null,
+            promoDiscount: promoDiscount > 0 ? promoDiscount : null,
             items: cartItems.map(item => ({
               productId: item.id,
               productName: item.name,
@@ -823,6 +851,8 @@ export default function CheckoutPage() {
           shippingAddress: fullAddress,
           affiliateCode: formData.affiliateCode || null,
           affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
+          promoCode: appliedPromo?.code || null,
+          promoDiscount: promoDiscount > 0 ? promoDiscount : null,
           items: cartItems.map(item => ({
             productId: item.id,
             productName: item.name,
@@ -874,11 +904,6 @@ export default function CheckoutPage() {
           }
         }
 
-        // Get applied promo code from localStorage
-        const appliedPromoCode = localStorage.getItem('appliedPromoCode');
-        const promoCodeData = appliedPromoCode ? JSON.parse(appliedPromoCode) : null;
-
-
         let response;
         try {
           response = await fetch("/api/orders", {
@@ -897,8 +922,9 @@ export default function CheckoutPage() {
           setOrderId(data.orderId || 'ORD-001');
           setOrderPlaced(true);
 
-          // Clear cart
+          // Clear cart and promo code
           localStorage.removeItem("cart");
+          localStorage.removeItem("appliedPromoCode");
           sessionStorage.removeItem('pendingOrder');
           localStorage.setItem("cartCount", "0");
           window.dispatchEvent(new Event("cartUpdated"));
@@ -1765,6 +1791,15 @@ export default function CheckoutPage() {
                       <div className="flex justify-between text-purple-600 font-semibold">
                         <span>Affiliate Discount ({formData.affiliateDiscount}%)</span>
                         <span>-₹{affiliateDiscountAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {promoDiscount > 0 && appliedPromo && (
+                      <div className="flex justify-between text-green-600 font-semibold">
+                        <div className="flex items-center gap-2">
+                          <Tag className="h-4 w-4" />
+                          <span>Promo Code ({appliedPromo.code})</span>
+                        </div>
+                        <span>-₹{promoDiscount.toLocaleString()}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-gray-600">

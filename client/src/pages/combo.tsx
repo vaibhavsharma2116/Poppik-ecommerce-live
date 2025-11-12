@@ -24,8 +24,22 @@ interface ComboProduct {
 
 export default function ComboPage() {
   const { toast } = useToast();
-  const [wishlist, setWishlist] = useState<number[]>([]);
+  const [wishlist, setWishlist] = useState<Set<number>>(new Set());
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+
+  // Load wishlist from localStorage on mount
+  React.useEffect(() => {
+    const savedWishlist = localStorage.getItem("wishlist");
+    if (savedWishlist) {
+      try {
+        const parsedWishlist = JSON.parse(savedWishlist);
+        const wishlistIds = new Set(parsedWishlist.map((item: any) => item.id));
+        setWishlist(wishlistIds);
+      } catch (error) {
+        console.error("Error loading wishlist:", error);
+      }
+    }
+  }, []);
 
   const { data: comboProducts = [], isLoading } = useQuery<ComboProduct[]>({
     queryKey: ["/api/combos"],
@@ -63,23 +77,64 @@ export default function ComboPage() {
     });
   };
 
-  const handleToggleWishlist = (comboId: number) => {
-    setWishlist(prev => {
-      const isInWishlist = prev.includes(comboId);
-      if (isInWishlist) {
+  const handleToggleWishlist = (combo: ComboProduct) => {
+    // Check if user is logged in
+    const user = localStorage.getItem("user");
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to add items to your wishlist",
+        variant: "destructive",
+      });
+      window.location.href = "/auth/login";
+      return;
+    }
+
+    try {
+      const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
+      const existingIndex = wishlist.findIndex((item: any) => item.id === combo.id && item.isCombo);
+
+      if (existingIndex >= 0) {
+        wishlist.splice(existingIndex, 1);
+        setWishlist(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(combo.id);
+          return newSet;
+        });
         toast({
           title: "Removed from Wishlist",
-          description: "Combo removed from your wishlist.",
+          description: `${combo.name} has been removed from your wishlist`,
         });
-        return prev.filter(id => id !== comboId);
       } else {
+        const wishlistItem = {
+          id: combo.id,
+          name: combo.name.substring(0, 100),
+          price: `₹${combo.price}`,
+          originalPrice: combo.originalPrice ? `₹${combo.originalPrice}` : undefined,
+          image: combo.imageUrl?.substring(0, 200) || '',
+          inStock: true,
+          category: 'combo',
+          rating: combo.rating.toString(),
+          isCombo: true,
+        };
+        wishlist.push(wishlistItem);
+        setWishlist(prev => new Set([...prev, combo.id]));
         toast({
           title: "Added to Wishlist",
-          description: "Combo added to your wishlist.",
+          description: `${combo.name} has been added to your wishlist`,
         });
-        return [...prev, comboId];
       }
-    });
+
+      localStorage.setItem("wishlist", JSON.stringify(wishlist));
+      window.dispatchEvent(new Event("wishlistUpdated"));
+    } catch (error) {
+      console.error("Wishlist storage error:", error);
+      toast({
+        title: "Storage Error",
+        description: "Your wishlist is full. Please remove some items to add new ones.",
+        variant: "destructive",
+      });
+    }
   };
 
   const renderStars = (rating: number) => {
@@ -206,14 +261,14 @@ export default function ComboPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleToggleWishlist(combo.id);
+                      handleToggleWishlist(combo);
                     }}
-                    className="absolute top-1 right-1 sm:top-2 sm:right-2 p-1.5 sm:p-2 hover:scale-110 transition-all duration-300 z-10 bg-white/80 backdrop-blur-sm rounded-full"
+                    className="absolute top-1 right-1 sm:top-2 sm:right-2 p-1.5 sm:p-2 hover:scale-110 transition-all duration-300 z-10 bg-white/80 backdrop-blur-sm rounded-full shadow-md"
                   >
                     <Heart
                       className={`h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-all duration-300 ${
-                        wishlist.includes(combo.id)
-                          ? "text-red-500 fill-current animate-pulse"
+                        wishlist.has(combo.id)
+                          ? "text-red-500 fill-current"
                           : "text-gray-400 hover:text-pink-500"
                       }`}
                     />
@@ -256,8 +311,8 @@ export default function ComboPage() {
 
                   {/* Title */}
                   <h3 
-                    className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-2 text-xs sm:text-sm md:text-base" 
-                    style={{ minHeight: '2rem', maxHeight: '2rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                    className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-2 text-xs sm:text-sm md:text-base break-words" 
+                    style={{ minHeight: '2.5rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', hyphens: 'auto' }}
                     onClick={() => {
                       React.startTransition(() => {
                         window.location.href = `/combo/${combo.id}`;
@@ -312,7 +367,7 @@ export default function ComboPage() {
                             ₹{originalPrice.toLocaleString()}
                           </span>
                           <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 sm:px-2 rounded">
-                            {discountPercentage}%
+                            {discountPercentage}% OFF
                           </span>
                         </>
                       )}
@@ -320,16 +375,61 @@ export default function ComboPage() {
                     <p className="text-xs text-green-600 font-medium hidden sm:block">
                       Save ₹{(originalPrice - price).toLocaleString()}
                     </p>
+
+                    {/* Cashback Badge */}
+                    {combo.cashbackPercentage && combo.cashbackPrice && (
+                      <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5 sm:p-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-orange-700">Cashback</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs sm:text-sm font-bold text-orange-600">
+                              ₹{Number(combo.cashbackPrice).toFixed(2)}
+                            </span>
+                            <span className="text-xs bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full">
+                              {combo.cashbackPercentage}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Stock status */}
+                    <div className="flex items-center space-x-1.5 sm:space-x-2">
+                      <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
+                        combo.inStock !== false
+                          ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
+                          : 'bg-gradient-to-r from-red-400 to-rose-400'
+                      }`}></div>
+                      <span className={`font-bold text-xs sm:text-sm ${
+                        combo.inStock !== false ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Add to Cart Button */}
-                  <Button
-                    className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                    onClick={() => handleAddToCart(combo)}
-                  >
-                    <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="hidden xs:inline">Add to </span>Cart
-                  </Button>
+                  {combo.inStock !== false ? (
+                    <Button
+                      className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                      onClick={() => handleAddToCart(combo)}
+                    >
+                      <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden xs:inline">Add to </span>Cart
+                    </Button>
+                  ) : (
+                    <Button 
+                      className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleToggleWishlist(combo);
+                      }}
+                    >
+                      <Heart className={`h-3 w-3 sm:h-4 sm:w-4 ${wishlist.has(combo.id) ? 'fill-current' : ''}`} />
+                      {wishlist.has(combo.id) ? 'Remove' : <><span className="hidden xs:inline">Add to</span> Wishlist</>}
+                    </Button>
+                  )}
                 </div>
               </div>
             );

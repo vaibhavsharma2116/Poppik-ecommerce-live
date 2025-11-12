@@ -298,13 +298,20 @@ export default function AdminTestimonials() {
 
           <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-2">
             <div className="space-y-2">
-              <Label htmlFor="customerName">Customer Name *</Label>
+              <Label htmlFor="customerName">Customer Name * (Max 15 characters)</Label>
               <Input
                 id="customerName"
                 value={formData.customerName}
-                onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value.slice(0, 15);
+                  setFormData(prev => ({ ...prev, customerName: value }));
+                }}
+                maxLength={15}
                 required
               />
+              <p className="text-xs text-gray-500">
+                {formData.customerName.length}/15 characters
+              </p>
             </div>
 
             <div className="space-y-2">

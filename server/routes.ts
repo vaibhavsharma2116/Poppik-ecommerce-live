@@ -65,13 +65,13 @@ import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
 import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage } from "../shared/schema";
-import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet, affiliateApplications as affiliateApplicationsSchema } from "../shared/schema"; // Import users table explicitly
+import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema } from "../shared/schema"; // Import users table explicitly
 import type { Request, Response } from 'express'; // Import Request and Response types for clarity
 
 // Initialize Shiprocket service
 const shiprocketService = new ShiprocketService();
 
-// Database connection with enhanced configuration
+// Database connection with enhanced configuration and error recovery
 const pool = new Pool({
  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,  // force disable SSL
@@ -85,10 +85,35 @@ const pool = new Pool({
   allowExitOnIdle: false,
 });
 
+// Handle pool errors to prevent crashes
+pool.on('error', (err, client) => {
+  console.error('Unexpected error on idle client', err);
+  // Don't exit the process, just log the error
+});
+
+pool.on('connect', (client) => {
+  console.log('New database connection established');
+});
+
+pool.on('remove', (client) => {
+  console.log('Database connection removed from pool');
+});
+
 const db = drizzle(pool, { schema }); // Pass schema to drizzle
 const dbMonitor = new DatabaseMonitor(pool);
 
-// Pool error handlers are now in storage.ts
+// Graceful shutdown handler
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, closing database pool...');
+  await pool.end();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, closing database pool...');
+  await pool.end();
+  process.exit(0);
+});
 
 // Cashfree configuration
 const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID || 'cashfree_app_id';
@@ -164,7 +189,110 @@ const transporter = nodemailer.createTransport({
   family: 4
 });
 
+// Function to send order notification email
+async function sendOrderNotificationEmail(orderData: any) {
+  const { orderId, customerName, customerEmail, customerPhone, shippingAddress, paymentMethod, totalAmount, items } = orderData;
+
+  const emailSubject = `Poppik Lifestyle Order Confirmation - ${orderId}`;
+
+  let itemHtml = '';
+  items.forEach(item => {
+    itemHtml += `
+      <tr style="border-bottom: 1px solid #ddd;">
+        <td style="padding: 10px 0; text-align: left;">
+          <img src="${item.productImage}" alt="${item.productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">
+          ${item.productName}
+        </td>
+        <td style="padding: 10px 0; text-align: right;">${item.quantity}</td>
+        <td style="padding: 10px 0; text-align: right;">₹${item.price}</td>
+        <td style="padding: 10px 0; text-align: right;">₹${(parseFloat(item.price.replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
+      </tr>
+    `;
+  });
+
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 30px; border-radius: 8px;">
+      <div style="text-align: center; border-bottom: 2px solid #e74c3c; padding-bottom: 20px; margin-bottom: 30px;">
+        <img src="https://poppik.in/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fpoppik-logo.31d60553.png&w=256&q=75" alt="Poppik Logo" style="width: 150px; margin-bottom: 10px;">
+        <h2 style="color: #e74c3c; margin: 0;">Thank You for Your Order!</h2>
+        <p style="color: #666; font-size: 14px;">Your order #${orderId} has been successfully placed.</p>
+      </div>
+
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #e74c3c; margin-bottom: 15px;">Order Summary</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <thead>
+            <tr style="background-color: #f8f8f8;">
+              <th style="padding: 12px 0; text-align: left;">Product</th>
+              <th style="padding: 12px 0; text-align: right;">Qty</th>
+              <th style="padding: 12px 0; text-align: right;">Unit Price</th>
+              <th style="padding: 12px 0; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemHtml}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="background-color: #fff; padding: 25px; border-radius: 8px; margin-top: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+          <div>
+            <h4 style="color: #555; margin-bottom: 10px;">Shipping To:</h4>
+            <p style="margin: 0; font-size: 14px;"><strong>${customerName}</strong></p>
+            <p style="margin: 0; font-size: 14px;">${customerEmail}</p>
+            <p style="margin: 0; font-size: 14px;">${customerPhone || 'N/A'}</p>
+            <p style="margin: 0; font-size: 14px;">${shippingAddress}</p>
+          </div>
+          <div>
+            <h4 style="color: #555; margin-bottom: 10px;">Order Info:</h4>
+            <p style="margin: 0; font-size: 14px;"><strong>Payment Method:</strong> ${paymentMethod}</p>
+            <p style="margin: 0; font-size: 14px;"><strong>Total Amount:</strong> ₹${totalAmount.toFixed(2)}</p>
+            <p style="margin: 0; font-size: 14px;"><strong>Order Status:</strong> Confirmed</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 40px;">
+        <p style="color: #888; font-size: 13px;">
+          You'll receive another email when your order ships. For any questions, please contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
+        </p>
+        <p style="color: #888; font-size: 13px; margin-top: 10px;">
+          © 2024 Poppik Lifestyle Private Limited. All rights reserved.
+        </p>
+      </div>
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || 'info@poppik.in',
+      to: 'info@poppik.in', // Always send to info@poppik.in
+      subject: emailSubject,
+      html: emailHtml,
+    });
+    console.log(`✅ Order notification email sent successfully to info@poppik.in for order ${orderId}`);
+  } catch (emailError) {
+    console.error(`❌ Failed to send order notification email for order ${orderId}:`, emailError);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Database connection recovery middleware
+  app.use("/api", async (req, res, next) => {
+    // Check if pool is healthy, try to reconnect if not
+    try {
+      if (pool.totalCount === 0 && pool.idleCount === 0) {
+        console.log('Database pool appears empty, testing connection...');
+        const client = await pool.connect();
+        client.release();
+      }
+    } catch (error) {
+      console.error('Database connection test failed:', error.message);
+    }
+    next();
+  });
+
   // Apply rate limiting to all API routes except admin routes
   app.use("/api", (req, res, next) => {
     // Skip rate limiting for admin routes
@@ -178,24 +306,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/health", async (req, res) => {
     let dbStatus = "disconnected";
     let poolStats = {};
+    let dbError = null;
 
     try {
-      await db.select().from(schema.users).limit(1);
-      dbStatus = "connected";
-      poolStats = {
-        totalCount: pool.totalCount,
-        idleCount: pool.idleCount,
-        waitingCount: pool.waitingCount
-      };
+      // Try a simple query with timeout
+      const client = await pool.connect();
+      try {
+        await client.query('SELECT 1');
+        dbStatus = "connected";
+        poolStats = {
+          totalCount: pool.totalCount,
+          idleCount: pool.idleCount,
+          waitingCount: pool.waitingCount
+        };
+      } finally {
+        client.release();
+      }
     } catch (error) {
       dbStatus = "disconnected";
+      dbError = error.message;
+      console.error('Database health check failed:', error.message);
     }
 
     res.json({
-      status: "OK",
+      status: dbStatus === "connected" ? "OK" : "DEGRADED",
       message: "API server is running",
       database: dbStatus,
       poolStats,
+      dbError,
       timestamp: new Date().toISOString(),
       uptime: process.uptime()
     });
@@ -393,11 +531,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         confirmPassword: req.body.confirmPassword ? "[HIDDEN]" : undefined
       });
 
-      const { firstName, lastName, email, phone, password, confirmPassword, dateOfBirth, address, city, state, pinCode } = req.body;
+      const { firstName, lastName, email, phone, password, confirmPassword, dateOfBirth } = req.body;
 
       // Validation
-      if (!firstName || !lastName || !email || !password || !dateOfBirth || !address) {
-        console.log("Missing required fields:", { firstName: !!firstName, lastName: !!lastName, email: !!email, password: !!password, dateOfBirth: !!dateOfBirth, address: !!address });
+      if (!firstName || !lastName || !email || !password || !dateOfBirth) {
+        console.log("Missing required fields:", { firstName: !!firstName, lastName: !!lastName, email: !!email, password: !!password, dateOfBirth: !!dateOfBirth });
         return res.status(400).json({ error: "All required fields must be provided" });
       }
 
@@ -438,8 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: email.trim().toLowerCase(),
         phone: phone ? phone.trim() : null,
         password: hashedPassword,
-        dateOfBirth: dateOfBirth.trim(),
-        address: `${address.trim()}${city ? `, ${city.trim()}` : ''}${state ? `, ${state.trim()}` : ''}${pinCode ? ` - ${pinCode.trim()}` : ''}`
+        dateOfBirth: dateOfBirth.trim()
       };
 
       console.log("User data to create:", {
@@ -1180,8 +1317,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const withdrawAmount = parseFloat(amount);
 
-      if (withdrawAmount < 500) {
-        return res.status(400).json({ error: 'Minimum withdrawal amount is ₹500' });
+      if (withdrawAmount < 2500) {
+        return res.status(400).json({ error: 'Minimum withdrawal amount is ₹2500' });
       }
 
       // Get current wallet
@@ -2957,6 +3094,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Affiliate Settings Routes
+  app.get("/api/admin/affiliate-settings", adminMiddleware, async (req, res) => {
+    try {
+      const settings = await db.select().from(schema.affiliateSettings);
+
+      const settingsObj = {
+        commissionRate: settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10',
+        userDiscountPercentage: settings.find(s => s.settingKey === 'user_discount_percentage')?.settingValue || '5',
+        maxDiscountAmount: settings.find(s => s.settingKey === 'max_discount_amount')?.settingValue || '',
+        minOrderAmount: settings.find(s => s.settingKey === 'min_order_amount')?.settingValue || '0',
+      };
+
+      res.json(settingsObj);
+    } catch (error) {
+      console.error("Error fetching affiliate settings:", error);
+      res.status(500).json({ error: "Failed to fetch affiliate settings" });
+    }
+  });
+
+  app.put("/api/admin/affiliate-settings", adminMiddleware, async (req, res) => {
+    try {
+      const { commissionRate, userDiscountPercentage, maxDiscountAmount, minOrderAmount } = req.body;
+
+      // Upsert settings
+      const settings = [
+        { key: 'commission_rate', value: commissionRate, description: 'Commission percentage for affiliates' },
+        { key: 'user_discount_percentage', value: userDiscountPercentage, description: 'Discount percentage for users using affiliate links' },
+        { key: 'max_discount_amount', value: maxDiscountAmount || '', description: 'Maximum discount amount in rupees' },
+        { key: 'min_order_amount', value: minOrderAmount || '0', description: 'Minimum order amount to apply discount' },
+      ];
+
+      for (const setting of settings) {
+        await db.execute(sql`
+          INSERT INTO affiliate_settings (setting_key, setting_value, description, updated_at)
+          VALUES (${setting.key}, ${setting.value}, ${setting.description}, NOW())
+          ON CONFLICT (setting_key) 
+          DO UPDATE SET setting_value = ${setting.value}, updated_at = NOW()
+        `);
+      }
+
+      res.json({ success: true, message: "Settings updated successfully" });
+    } catch (error) {
+      console.error("Error updating affiliate settings:", error);
+      res.status(500).json({ error: "Failed to update affiliate settings" });
+    }
+  });
+
+  // Get affiliate settings for cart (public)
+  app.get("/api/affiliate-settings", async (req, res) => {
+    try {
+      const settings = await db.select().from(schema.affiliateSettings);
+
+      const settingsObj = {
+        commissionRate: parseFloat(settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'),
+        userDiscountPercentage: parseFloat(settings.find(s => s.settingKey === 'user_discount_percentage')?.settingValue || '5'),
+        maxDiscountAmount: settings.find(s => s.settingKey === 'max_discount_amount')?.settingValue 
+          ? parseFloat(settings.find(s => s.settingKey === 'max_discount_amount')!.settingValue) 
+          : null,
+        minOrderAmount: parseFloat(settings.find(s => s.settingKey === 'min_order_amount')?.settingValue || '0'),
+      };
+
+      res.json(settingsObj);
+    } catch (error) {
+      console.error("Error fetching affiliate settings:", error);
+      res.json({
+        commissionRate: 10,
+        userDiscountPercentage: 5,
+        maxDiscountAmount: null,
+        minOrderAmount: 0
+      });
+    }
+  });
+
 
 
   // Create new order (for checkout)
@@ -3105,7 +3315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (promoCodeData.length > 0) {
             const promo = promoCodeData[0];
-            
+
             // Record promo code usage
             await db.insert(schema.promoCodeUsage).values({
               promoCodeId: promo.id,
@@ -3131,10 +3341,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Credit affiliate commission to wallet if affiliate code was used
-      if (affiliateCode && affiliateCommission && affiliateCommission > 0) {
+      if (affiliateCode) {
         const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
 
         if (!isNaN(affiliateUserId)) {
+          // Get affiliate settings for commission rate
+          const settings = await db.select().from(schema.affiliateSettings);
+          const commissionRate = parseFloat(
+            settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'
+          );
+
+          // Calculate commission based on dynamic rate
+          const calculatedCommission = (totalAmount * commissionRate) / 100;
+
           // Get or create affiliate wallet
           let wallet = await db
             .select()
@@ -3147,8 +3366,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await db.insert(schema.affiliateWallet).values({
               userId: affiliateUserId,
               cashbackBalance: "0.00",
-              commissionBalance: affiliateCommission.toString(),
-              totalEarnings: affiliateCommission.toString(),
+              commissionBalance: calculatedCommission.toFixed(2),
+              totalEarnings: calculatedCommission.toFixed(2),
               totalWithdrawn: "0.00"
             });
           } else {
@@ -3158,11 +3377,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             await db.update(schema.affiliateWallet)
               .set({
-                commissionBalance: (currentCommission + affiliateCommission).toFixed(2),
-                totalEarnings: (currentEarnings + affiliateCommission).toFixed(2)
+                commissionBalance: (currentCommission + calculatedCommission).toFixed(2),
+                totalEarnings: (currentEarnings + calculatedCommission).toFixed(2)
               })
               .where(eq(schema.affiliateWallet.userId, affiliateUserId));
           }
+
+          // Get user details for sale record
+          const user = await db
+            .select({
+              firstName: schema.users.firstName,
+              lastName: schema.users.lastName,
+              email: schema.users.email,
+              phone: schema.users.phone,
+            })
+            .from(schema.users)
+            .where(eq(schema.users.id, Number(userId)))
+            .limit(1);
+
+          const userData = user[0] || { firstName: 'Customer', lastName: '', email: 'customer@email.com', phone: null };
 
           // Record affiliate sale
           await db.insert(schema.affiliateSales).values({
@@ -3171,11 +3404,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             orderId: newOrder.id,
             customerId: userId,
             customerName: customerName || `${userData.firstName} ${userData.lastName}`,
-            customerEmail: customerEmail || user[0]?.email || 'customer@example.com',
-            customerPhone: customerPhone || user[0]?.phone || null,
+            customerEmail: customerEmail || userData.email,
+            customerPhone: customerPhone || userData.phone,
             productName: items.map(item => item.productName).join(', '),
             saleAmount: totalAmount.toString(),
-            commissionAmount: affiliateCommission.toString(),
+            commissionAmount: calculatedCommission.toFixed(2),
+            commissionRate: commissionRate.toString(),
             status: 'confirmed'
           });
 
@@ -3183,13 +3417,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await db.insert(schema.affiliateTransactions).values({
             userId: affiliateUserId,
             type: 'commission',
-            amount: affiliateCommission.toString(),
+            amount: calculatedCommission.toFixed(2),
             balanceType: 'commission',
-            description: `Commission from order ${newOrder.id}`,
+            description: `Commission (${commissionRate}%) from order ${newOrder.id}`,
             status: 'completed'
           });
 
-          console.log(`Credited ₹${affiliateCommission} commission to affiliate ${affiliateUserId}`);
+          console.log(`Credited ₹${calculatedCommission.toFixed(2)} commission (${commissionRate}%) to affiliate ${affiliateUserId}`);
         }
       }
 
@@ -3292,6 +3526,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         shiprocketError = 'Shiprocket credentials not configured';
         console.warn('Shiprocket not configured - skipping integration');
       }
+
+      // Send order notification email to info@poppik.in
+      await sendOrderNotificationEmail({
+        orderId: orderId,
+        customerName: customerName || `${user[0]?.firstName || ''} ${user[0]?.lastName || ''}`.trim(),
+        customerEmail: customerEmail || user[0]?.email || 'customer@example.com',
+        customerPhone: customerPhone || user[0]?.phone,
+        shippingAddress: shippingAddress,
+        paymentMethod: paymentMethod,
+        totalAmount: totalAmount,
+        items: items.map((item: any) => ({
+          productName: item.productName,
+          productImage: item.productImage,
+          quantity: item.quantity,
+          price: item.price
+        }))
+      });
 
       res.json({
         success: true,
@@ -5124,8 +5375,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { id: 2, name: "Light to Medium", colorCode: "#F5D5AE", value: "light-medium", isActive: true, sortOrder: 2 },
         { id: 3, name: "Medium", colorCode: "#E8B895", value: "medium", isActive: true, sortOrder: 3 },
         { id: 4, name: "Medium to Deep", colorCode: "#D69E2E", value: "medium-deep", isActive: true, sortOrder: 4 },
-        { id: 5, name: "Deep", colorCode: "#B7791F", value: "deep", isActive: true, sortOrder: 5 },
-        { id: 6, name: "Very Deep", colorCode: "#975A16", value: "very-deep", isActive: true, sortOrder: 6 },
+        { id: 5, name: "Deep", colorCode        : "#D69E2E", value: "deep", isActive: true, sortOrder: 5 },
+        { id: 6, name: "Very Deep", colorCode: "#B7791F", value: "very-deep", isActive: true, sortOrder: 6 },
         { id: 7, name: "Porcelain", colorCode: "#FFF8F0", value: "porcelain", isActive: true, sortOrder: 7 },
         { id: 8, name: "Ivory", colorCode: "#FFFFF0", value: "ivory", isActive: true, sortOrder: 8 },
         { id: 9, name: "Beige", colorCode: "#F5F5DC", value: "beige", isActive: true, sortOrder: 9 },
@@ -5149,7 +5400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/shades", async (req, res) => {
+  app.post("/api/admin/admin/shades", async (req, res) => {
     try {
       console.log("Creating shade with data:", req.body);
 
@@ -5269,7 +5520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { slug } = req.params;
       console.log('Fetching sliders for category slug:', slug);
 
-      // First, get the category by slug
+      // First get the category by slug
       const category = await db
         .select()
         .from(schema.categories)
@@ -6028,7 +6279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (files?.images && files.images.length > 0) {
         updateData.imageUrl = `/api/images/${files.images[0].filename}`;
 
-        // Delete existing combo images from combo_images table
+        // Delete existing images from combo_images table
         await db.delete(schema.comboImages).where(eq(schema.comboImages.comboId, id));
 
         // Insert new combo images into combo_images table
@@ -7106,6 +7357,33 @@ Poppik Affiliate Portal
 
   // Promo Codes Management Routes
 
+  // Get promo code usage history (admin)
+  app.get('/api/admin/promo-codes/usage', adminMiddleware, async (req, res) => {
+    try {
+      const usageHistory = await db
+        .select({
+          id: schema.promoCodeUsage.id,
+          promoCodeId: schema.promoCodeUsage.promoCodeId,
+          code: schema.promoCodes.code,
+          userId: schema.promoCodeUsage.userId,
+          userName: sql`${schema.users.firstName} || ' ' || ${schema.users.lastName}`,
+          userEmail: schema.users.email,
+          orderId: schema.promoCodeUsage.orderId,
+          discountAmount: schema.promoCodeUsage.discountAmount,
+          createdAt: schema.promoCodeUsage.createdAt,
+        })
+        .from(schema.promoCodeUsage)
+        .leftJoin(schema.promoCodes, eq(schema.promoCodeUsage.promoCodeId, schema.promoCodes.id))
+        .leftJoin(schema.users, eq(schema.promoCodeUsage.userId, schema.users.id))
+        .orderBy(desc(schema.promoCodeUsage.createdAt));
+
+      res.json(usageHistory);
+    } catch (error) {
+      console.error('Error fetching promo code usage:', error);
+      res.status(500).json({ error: 'Failed to fetch promo code usage' });
+    }
+  });
+
   // Get all promo codes (admin)
   app.get('/api/admin/promo-codes', adminMiddleware, async (req, res) => {
     try {
@@ -7263,6 +7541,28 @@ Poppik Affiliate Portal
       res.status(500).json({ error: 'Failed to delete promo code' });
     }
   });
+
+  // Cron job to delete expired promo codes (runs every hour)
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      
+      // Delete expired promo codes
+      const deletedCodes = await db
+        .delete(schema.promoCodes)
+        .where(and(
+          sql`${schema.promoCodes.validUntil} IS NOT NULL`,
+          sql`${schema.promoCodes.validUntil} < ${now}`
+        ))
+        .returning();
+
+      if (deletedCodes.length > 0) {
+        console.log(`🗑️ Auto-deleted ${deletedCodes.length} expired promo codes:`, deletedCodes.map(c => c.code));
+      }
+    } catch (error) {
+      console.error('Error deleting expired promo codes:', error);
+    }
+  }, 60 * 60 * 1000); // Run every hour
 
   // Validate and apply promo code (public)
   app.post('/api/promo-codes/validate', async (req, res) => {
@@ -7686,16 +7986,6 @@ Poppik Affiliate Portal
         .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
         .limit(1);
 
-      if (!wallet || wallet.length === 0) {
-        return res.json({
-          totalEarnings: '0.00',
-          availableBalance: '0.00',
-          pendingCommission: '0.00',
-          totalWithdrawn: '0.00',
-          thisMonthEarnings: '0.00'
-        });
-      }
-
       // Get this month's sales
       const now = new Date();
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -7723,10 +8013,10 @@ Poppik Affiliate Portal
         .reduce((sum, sale) => sum + parseFloat(sale.commissionAmount || '0'), 0);
 
       res.json({
-        totalEarnings: wallet[0].totalEarnings,
-        availableBalance: wallet[0].commissionBalance,
+        totalEarnings: wallet && wallet.length > 0 ? wallet[0].totalEarnings : '0.00',
+        availableBalance: wallet && wallet.length > 0 ? wallet[0].commissionBalance : '0.00',
         pendingCommission: pendingCommission.toFixed(2),
-        totalWithdrawn: wallet[0].totalWithdrawn,
+        totalWithdrawn: wallet && wallet.length > 0 ? wallet[0].totalWithdrawn : '0.00',
         thisMonthEarnings: thisMonthEarnings.toFixed(2)
       });
     } catch (error) {
@@ -7773,7 +8063,7 @@ Poppik Affiliate Portal
   app.put('/api/admin/affiliate-applications/:id/status', async (req, res) => {
     try {
       const { id } = req.params;
-      const { status, notes } = req.body; // Changed 'reviewNotes' to 'notes' to match the old code
+      const { status, notes } = req.body;
 
       if (!['pending', 'approved', 'rejected'].includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
@@ -7783,7 +8073,7 @@ Poppik Affiliate Portal
         .update(schema.affiliateApplications)
         .set({
           status,
-          reviewNotes: notes, // Use 'reviewNotes' here
+          reviewNotes: notes,
           reviewedAt: new Date()
         })
         .where(eq(schema.affiliateApplications.id, parseInt(id)))
@@ -7796,7 +8086,6 @@ Poppik Affiliate Portal
       // If approved, create affiliate wallet
       if (status === 'approved' && updatedApplication.userId) {
         try {
-          // Check if wallet already exists
           const existingWallet = await db
             .select()
             .from(schema.affiliateWallet)
@@ -7804,7 +8093,6 @@ Poppik Affiliate Portal
             .limit(1);
 
           if (existingWallet.length === 0) {
-            // Create new wallet
             await db.insert(schema.affiliateWallet).values({
               userId: updatedApplication.userId,
               cashbackBalance: "0.00",
@@ -7812,115 +8100,124 @@ Poppik Affiliate Portal
               totalEarnings: "0.00",
               totalWithdrawn: "0.00"
             });
-
-            console.log(`Affiliate wallet created for user ${updatedApplication.userId}`);
+            console.log(`✅ Affiliate wallet created for user ${updatedApplication.userId}`);
           }
         } catch (walletError) {
           console.error('Error creating affiliate wallet:', walletError);
-          // Continue even if wallet creation fails
         }
       }
 
-      // Send email notification to applicant
+      // Send email notification
       try {
+        const formattedUserId = updatedApplication.userId.toString().padStart(2, '0');
+        const affiliateCode = `POPPIKAP${formattedUserId}`;
+        const dashboardUrl = process.env.REPL_SLUG 
+          ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate-dashboard`
+          : 'https://poppik.in/affiliate-dashboard';
+
         const emailSubject = status === 'approved' 
-          ? 'Congratulations! Your Poppik Affiliate Application is Approved'
+          ? 'Welcome to the Poppik Lifestyle Private Limited Affiliate Program'
           : 'Update on Your Poppik Affiliate Application';
 
-        const emailBody = status === 'approved'
-          ? `Dear ${updatedApplication.firstName} ${updatedApplication.lastName},
-
-Congratulations! We are excited to inform you that your application to join the Poppik Affiliate Program has been approved!
-
-You can now access your Affiliate Dashboard by logging into your account at:
-${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate` : 'https://poppik.in/affiliate'}
-
-In your dashboard, you will find:
-- Your unique affiliate code and links
-- Real-time tracking of your sales and commissions
-- Marketing materials and product information
-- Payment details and history
-
-${notes ? `\nAdmin Notes: ${notes}` : ''}
-
-Thank you for partnering with Poppik! We look forward to a successful collaboration.
-
-Best regards,
-Poppik Affiliate Team`
-          : `Dear ${updatedApplication.firstName} ${updatedApplication.lastName},
-
-Thank you for your interest in the Poppik Affiliate Program.
-
-After careful review, we are unable to approve your application at this time.
-
-${notes ? `\nReason: ${notes}` : ''}
-
-We encourage you to reapply in the future as your social media presence grows. Keep creating amazing content!
-
-Best regards,
-Poppik Affiliate Team`;
-
         const emailHtml = status === 'approved'
-          ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1 style="color: white; margin: 0;">Congratulations! 🎉</h1>
-            </div>
-            <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-              <p style="font-size: 16px; color: #333;">Dear ${updatedApplication.firstName} ${updatedApplication.lastName},</p>
-              <p style="font-size: 16px; color: #333; line-height: 1.6;">
-                We are excited to inform you that your application to join the <strong>Poppik Affiliate Program</strong> has been <strong style="color: #27ae60;">APPROVED</strong>!
-              </p>
-              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #e74c3c; margin-top: 0;">What's Next?</h3>
-                <ul style="color: #555; line-height: 1.8;">
-                  <li>Log in to your account to access your Affiliate Dashboard</li>
-                  <li>Get your unique affiliate code and links</li>
-                  <li>Start sharing and earning commissions!</li>
-                </ul>
-              </div>
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate` : 'https://poppik.in/affiliate'}" 
-                   style="background: #e74c3c; color: white; padding: 15px 40px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">
-                  Access Dashboard
-                </a>
-              </div>
-              ${notes ? `<p style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin: 20px 0;"><strong>Admin Notes:</strong> ${notes}</p>` : ''}
-              <p style="color: #666; margin-top: 30px;">Welcome to the Poppik family! We look forward to a successful partnership.</p>
-              <p style="color: #666; margin-top: 20px;">Best regards,<br><strong>Poppik Affiliate Team</strong></p>
-            </div>
-          </div>`
+          ? `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Poppik Affiliate Program</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 40px 20px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to the Poppik Lifestyle Private Limited Affiliate Program</h1>
+    </div>
+
+    <!-- Content -->
+    <div style="padding: 40px 30px;">
+      <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName}</strong>,</p>
+
+      <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 20px 0;">
+        We are delighted to welcome you as an official affiliate partner of Poppik Lifestyle Private Limited.
+      </p>
+
+      <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 30px 0;">
+        Your skills and dedication align perfectly with our vision, and we are excited to collaborate with you. As a valued member of our affiliate program, you now have access to your unique referral link, marketing materials, and performance dashboard to help you start promoting our brand effectively.
+      </p>
+
+      <!-- Affiliate Code Box -->
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
+        <p style="color: #ffffff; margin: 0 0 10px 0; font-size: 14px;">Your Unique Affiliate Code</p>
+        <p style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 2px;">${affiliateCode}</p>
+      </div>
+
+      <!-- Dashboard Link -->
+      <div style="text-align: center; margin: 30px 0;">
+        <p style="font-size: 16px; color: #555555; margin: 0 0 15px 0;">
+          Please log in to your affiliate account here:
+        </p>
+        <a href="${dashboardUrl}" style="display: inline-block; background-color: #e74c3c; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">
+          Access Dashboard
+        </a>
+      </div>
+
+      <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 30px 0 20px 0;">
+        If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
+      </p>
+
+      <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0;">
+        Thank you for joining us. We look forward to a successful and rewarding partnership.
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
+      <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">
+        © 2024 Poppik Lifestyle Private Limited. All rights reserved.
+      </p>
+      <p style="color: #999999; font-size: 12px; margin: 0;">
+        Office No.- 213, A- Wing, Skylark Building, Plot No.- 63, Sector No.- 11, C.B.D. Belapur, Navi Mumbai- 400614 INDIA
+      </p>
+    </div>
+  </div>
+</body>
+</html>`
           : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: #f5f5f5; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1 style="color: #555; margin: 0;">Application Update</h1>
+            <div style="background: #6c757d; padding: 40px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Poppik Affiliate Application Update</h1>
             </div>
-            <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-              <p style="font-size: 16px; color: #333;">Dear ${updatedApplication.firstName} ${updatedApplication.lastName},</p>
-              <p style="font-size: 16px; color: #333; line-height: 1.6;">
-                Thank you for your interest in the Poppik Affiliate Program.
+            <div style="background: white; padding: 40px 30px;">
+              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName} ${updatedApplication.lastName}</strong>,</p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6;">
+                Thank you for your interest in the Poppik Affiliate Program. After careful review, we are unable to approve your application at this time.
               </p>
-              <p style="font-size: 16px; color: #333; line-height: 1.6;">
-                After careful review, we are unable to approve your application at this time.
+              ${notes ? `<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0; color: #856404;"><strong>Reason:</strong> ${notes}</p>
+              </div>` : ''}
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0;">
+                We encourage you to reapply in the future. Keep creating amazing content!
               </p>
-              ${notes ? `<p style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;"><strong>Feedback:</strong> ${notes}</p>` : ''}
-              <p style="color: #666; margin-top: 20px;">We encourage you to reapply in the future as your social media presence grows. Keep creating amazing content!</p>
-              <p style="color: #666; margin-top: 20px;">Best regards,<br><strong>Poppik Affiliate Team</strong></p>
+              <p style="font-size: 14px; color: #999999; margin: 20px 0 0 0;">
+                Questions? Contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c;">info@poppik.in</a>
+              </p>
+            </div>
+            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
+              <p style="color: #999999; font-size: 12px; margin: 0;">© 2024 Poppik Lifestyle Private Limited</p>
             </div>
           </div>`;
 
         await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'affiliates@poppik.in',
-          to: updatedApplication.email, // Send email to applicant
+          from: process.env.SMTP_FROM || 'info@poppik.in',
+          to: updatedApplication.email,
           subject: emailSubject,
-          text: emailBody,
           html: emailHtml
         });
 
-        console.log(`Status update email sent to ${updatedApplication.email}`);
+        console.log(`✅ Affiliate ${status} email sent to: ${updatedApplication.email}`);
       } catch (emailError) {
-        console.error('Failed to send status update email:', emailError);
-        // Continue even if email fails
+        console.error('❌ Failed to send email:', emailError);
       }
-
 
       res.json({ 
         success: true, 
@@ -7986,7 +8283,7 @@ Poppik Affiliate Team`;
       }
 
       // Save to database
-      const application = await storage.createInfluencerApplication({
+      const [savedApplication] = await db.insert(schema.influencerApplications).values({
         firstName,
         lastName,
         email,
@@ -8001,14 +8298,14 @@ Poppik Affiliate Team`;
         youtubeChannel: youtubeChannel || null,
         facebookProfile: facebookProfile || null,
         status: 'pending'
-      });
+      }).returning();
 
-      console.log('Influencer application created:', application.id);
+      console.log('Influencer application created:', savedApplication.id);
 
       res.json({
         success: true,
         message: 'Application submitted successfully! We will review your application and get back to you soon.',
-        applicationId: application.id
+        applicationId: savedApplication.id
       });
     } catch (error) {
       console.error('Error submitting influencer application:', error);

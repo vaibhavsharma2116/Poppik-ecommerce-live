@@ -158,7 +158,7 @@ export default function TestimonialsSection() {
               {currentTestimonial.reviewText}
             </p>
             <p className="text-sm sm:text-base text-gray-500">
-              — {currentTestimonial.customerName}
+              — {currentTestimonial.customerName.slice(0, 15)}
             </p>
           </div>
 

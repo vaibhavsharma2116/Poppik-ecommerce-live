@@ -436,7 +436,7 @@ export default function Layout({ children }: LayoutProps) {
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon" className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10" onClick={() => setIsMobileMenuOpen(true)}>
-                    <Menu className="h-6 w-6" />
+                    <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80 p-0 overflow-hidden">
@@ -571,17 +571,81 @@ export default function Layout({ children }: LayoutProps) {
                     <div className="space-y-2">
                       {user ? (
                         <>
-                          <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
-                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
-                              <div className="p-2 bg-blue-100 rounded-full">
-                                <User className="h-4 w-4 text-blue-600" />
-                              </div>
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">My Profile</div>
-                                <div className="text-xs text-gray-500">{user.firstName}</div>
-                              </div>
-                            </div>
-                          </Link>
+                          {/* My Profile Dropdown */}
+                          <Accordion type="single" collapsible className="w-full">
+                            <AccordionItem value="profile" className="border-0 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                              <AccordionTrigger className="px-3 py-3 hover:no-underline hover:bg-gray-50 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-blue-100 rounded-full">
+                                    <User className="h-4 w-4 text-blue-600" />
+                                  </div>
+                                  <div className="flex-1 text-left">
+                                    <div className="text-sm font-medium text-gray-900">My Profile</div>
+                                    <div className="text-xs text-gray-500">{user.firstName}</div>
+                                  </div>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="px-3 pb-3">
+                                <div className="space-y-1 ml-5 pl-3 border-l-2 border-blue-100">
+                                  <Link
+                                    href="/profile"
+                                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                  >
+                                    Profile Settings
+                                  </Link>
+                                  {isApprovedAffiliate && (
+                                    <Link
+                                      href="/affiliate-dashboard"
+                                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                                      onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                      Affiliate Dashboard
+                                    </Link>
+                                  )}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+
+                          {/* Wallet Dropdown */}
+                          <Accordion type="single" collapsible className="w-full">
+                            <AccordionItem value="wallet" className="border-0 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                              <AccordionTrigger className="px-3 py-3 hover:no-underline hover:bg-gray-50 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-purple-100 rounded-full">
+                                    <Wallet className="h-4 w-4 text-purple-600" />
+                                  </div>
+                                  <div className="flex-1 text-left">
+                                    <div className="text-sm font-medium text-gray-900">Wallet</div>
+                                    <div className="text-xs text-gray-500">
+                                      ₹{(parseFloat(walletData?.cashbackBalance || "0") + parseFloat(affiliateWallet?.commissionBalance || "0")).toFixed(2)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="px-3 pb-3">
+                                <div className="space-y-1 ml-5 pl-3 border-l-2 border-purple-100">
+                                  <Link
+                                    href="/wallet"
+                                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                  >
+                                    Cashback Wallet
+                                  </Link>
+                                  {isApprovedAffiliate && (
+                                    <Link
+                                      href="/affiliate-wallet"
+                                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors"
+                                      onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                      Affiliate Wallet
+                                    </Link>
+                                  )}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
 
                           <Link href="/wishlist" onClick={() => setIsMobileMenuOpen(false)}>
                             <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
@@ -678,12 +742,12 @@ export default function Layout({ children }: LayoutProps) {
                   onClick={() => setShowSearchBar(true)}
                   className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10"
                 >
-                  <Search className="h-6 w-6" />
+                  <Search className="h-5 w-5" />
                 </Button>
 
                 <Link href="/cart">
                   <Button variant="ghost" size="icon" className="relative text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10">
-                    <ShoppingCart className="h-6 w-6" />
+                    <ShoppingCart className="h-5 w-5" />
                     {cartCount > 0 && (
                       <span className="absolute -top-1 -right-1 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse font-semibold">
                         {cartCount}
@@ -695,12 +759,12 @@ export default function Layout({ children }: LayoutProps) {
             </div>
 
             {/* Desktop Layout - Keep existing */}
-            <div className="hidden md:flex items-center space-x-2">
+            <div className="hidden md:flex items-center space-x-3">
               {/* Desktop Search */}
               <div className="flex items-center relative">
                 {showSearchBar ? (
                   <div className="relative w-96">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-400" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-purple-400" />
                     <Input
                       type="text"
                       placeholder="Search products..."
@@ -754,9 +818,9 @@ export default function Layout({ children }: LayoutProps) {
                 ) : (
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => setShowSearchBar(true)}
-                    className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                    className="h-10 w-10 text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
                   >
                     <Search className="h-5 w-5" />
                   </Button>
@@ -765,28 +829,40 @@ export default function Layout({ children }: LayoutProps) {
 
               {/* Wishlist Icon */}
               <Link href="/wishlist">
-                <div className="relative hover:text-pink-600 transition-colors cursor-pointer">
+                <Button variant="ghost" size="icon" className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors">
                   <Heart className="h-5 w-5" />
                   {wishlistCount > 0 && (
-                    <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-pink-600 hover:bg-pink-700 text-white text-xs">
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-pink-600 hover:bg-pink-700 text-white text-xs">
                       {wishlistCount}
                     </Badge>
                   )}
-                </div>
+                </Button>
+              </Link>
+
+              {/* Cart Icon */}
+              <Link href="/cart">
+                <Button variant="ghost" size="icon" className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-pink-600 hover:bg-pink-700 text-white text-xs">
+                      {cartCount}
+                    </Badge>
+                  )}
+                </Button>
               </Link>
 
               {/* Wallet Dropdown */}
               {user && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="relative hover:text-pink-600 transition-colors cursor-pointer focus:outline-none">
+                    <Button variant="ghost" size="icon" className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors focus:outline-none">
                       <Wallet className="h-5 w-5" />
                       {isApprovedAffiliate && affiliateWallet && (
-                        <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-green-600 hover:bg-green-700 text-white text-xs">
+                        <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-green-600 hover:bg-green-700 text-white text-xs">
                           ₹
                         </Badge>
                       )}
-                    </button>
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-72">
                     <DropdownMenuLabel className="text-base font-bold flex items-center gap-2">
@@ -831,8 +907,8 @@ export default function Layout({ children }: LayoutProps) {
                                 </div>
                               </div>
                               <p className="font-bold text-purple-600">
-                                ₹{affiliateWallet?.commissionBalance 
-                                  ? parseFloat(affiliateWallet.commissionBalance).toFixed(2) 
+                                ₹{affiliateWallet?.commissionBalance
+                                  ? parseFloat(affiliateWallet.commissionBalance).toFixed(2)
                                   : "0.00"}
                               </p>
                             </div>
@@ -856,26 +932,35 @@ export default function Layout({ children }: LayoutProps) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
-
-              <Link href="/cart">
-                <div className="relative hover:text-pink-600 transition-colors cursor-pointer">
-                  <ShoppingCart className="h-5 w-5" />
-                  {cartCount > 0 && (
-                    <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-pink-600 hover:bg-pink-700 text-white text-xs">
-                      {cartCount}
-                    </Badge>
-                  )}
-                </div>
-              </Link>
               {user ? (
-                <Link href="/profile">
-                  <Button variant="ghost" size="sm" className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
-                    <User className="h-5 w-5" />
-                  </Button>
-                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
+                      <User className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="cursor-pointer">
+                        <User className="h-4 w-4 mr-2" />
+                        Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    {isApprovedAffiliate && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/affiliate-dashboard" className="cursor-pointer">
+                          <Gift className="h-4 w-4 mr-2" />
+                          Affiliate Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <Link href="/auth/login">
-                  <Button variant="ghost" size="sm" className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
+                  <Button variant="ghost" size="icon" className="h-10 w-10 text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
                     <User className="h-5 w-5" />
                   </Button>
                 </Link>

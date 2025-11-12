@@ -107,18 +107,20 @@ function Router() {
             <Route path="/categories" component={AdminCategories} />
             <Route path="/orders" component={AdminOrders} />
             <Route path="/customers" component={AdminCustomers} />
-            
+
             <Route path="/sliders" component={() => <LazyRoute component={lazy(() => import("@/pages/admin/sliders"))} />} />
             <Route path="/combo-sliders" component={() => <LazyRoute component={lazy(() => import("@/pages/admin/combo-sliders"))} />} />
             <Route path="/job-applications" component={JobApplications} />
             <Route path="/influencer-applications" component={AdminInfluencerApplications} />
             <Route path="/affiliate-applications" component={AdminAffiliateApplications} />
             <Route path="/affiliate-withdrawals" component={AdminAffiliateWithdrawals} />
-            <Route path="/promo-codes" component={lazy(() => import("@/pages/admin/promo-codes"))} />
-              <Route path="/offers" component={lazy(() => import("@/pages/admin/offers"))} />
+            <Route path="/promo-codes" component={lazy(() => import("./pages/admin/promo-codes"))} />
+            <Route path="/promo-code-usage" component={lazy(() => import("./pages/admin/promo-code-usage"))} />
+            <Route path="/offers" component={lazy(() => import("@/pages/admin/offers"))} />
             <Route path="/job-positions" component={() => <LazyRoute component={lazy(() => import("./pages/admin/job-positions"))} />} />
             <Route path="/stores" component={AdminStores} />
             <Route path="/settings" component={AdminSettings} />
+            <Route path="/affiliate-settings" component={() => <LazyRoute component={lazy(() => import("./pages/admin/affiliate-settings"))} />} />
             <Route path="/profile" component={AdminProfile} />
             <Route path="/change-password" component={AdminChangePassword} />
              <Route path="/contact-submissions" component={AdminContactSubmissions} />

@@ -218,26 +218,7 @@ export default function Careers() {
             </div>
           </CardContent>
         </Card>
-        {/* Contact Section */}
-        <Card className="shadow-lg xs:shadow-xl border-0 bg-gradient-to-r from-gray-900 to-gray-800 text-white">
-          <CardContent className="text-center py-4 xs:py-5 sm:py-6 md:py-8 px-3 xs:px-4 sm:px-6">
-            <Mail className="h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 mx-auto mb-2 xs:mb-3 sm:mb-4 text-pink-400" />
-            <h3 className="text-base xs:text-lg sm:text-xl md:text-2xl font-semibold mb-2 xs:mb-3 sm:mb-4 px-2 leading-tight">Don't See Your Role?</h3>
-            <p className="text-gray-300 mb-3 xs:mb-4 sm:mb-5 md:mb-6 text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl mx-auto px-2 xs:px-3 leading-relaxed">
-              We're always looking for talented individuals. Send us your resume and we'll keep you in mind for future opportunities.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2 xs:gap-3 sm:gap-4 justify-center px-2">
-              <a href="mailto:info@poppik.in" className="bg-pink-600 hover:bg-pink-700 text-white px-4 xs:px-5 sm:px-6 md:px-8 py-2 xs:py-2.5 sm:py-3 rounded-lg font-medium transition-colors inline-block text-xs xs:text-sm sm:text-base min-h-[36px] xs:min-h-[40px] flex items-center justify-center">
-                Email: info@poppik.in
-              </a>
-              <Link href="/contact" className="w-full sm:w-auto">
-                <Button variant="outline" className="w-full sm:w-auto border-white text-black hover:bg-white/10 px-4 xs:px-5 sm:px-6 md:px-8 py-2 xs:py-2.5 sm:py-3 text-xs xs:text-sm sm:text-base min-h-[36px] xs:min-h-[40px]">
-                  Contact HR Team
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        
       </div>
       
     </div>

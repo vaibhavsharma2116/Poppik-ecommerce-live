@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { Helmet } from "react-helmet";
-import { ChevronRight, Star, ShoppingCart, Heart, ChevronDown, ChevronUp, CheckCircle, Badge, Video, Share2, Copy, Check } from "lucide-react";
+import { ChevronRight, Star, ShoppingCart, Heart, ChevronDown, ChevronUp, CheckCircle, Badge, Video, Share2, Copy, Check, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -57,7 +57,8 @@ export default function ProductDetail() {
   const productSlugOrId = params?.slug || "";
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [showAllShades, setShowAllShades] = useState(false);
-  const [selectedShade, setSelectedShade] = useState<Shade | null>(null);
+  const [selectedShades, setSelectedShades] = useState<Shade[]>([]);
+  const [quantity, setQuantity] = useState(1);
 
   // Get shade ID from URL query parameter
   const urlParams = new URLSearchParams(window.location.search);
@@ -256,23 +257,15 @@ export default function ProductDetail() {
       console.log('Setting shades for product:', product?.id, shadesFromAPI);
       setShades(shadesFromAPI);
 
-      // Auto-select shade from URL if provided, otherwise select first shade
-      if (shadeIdFromUrl && !selectedShade) {
+      // Auto-select shade from URL if provided
+      if (shadeIdFromUrl && selectedShades.length === 0) {
         const shadeToSelect = shadesFromAPI.find(s => s.id === parseInt(shadeIdFromUrl));
         if (shadeToSelect) {
-          setSelectedShade(shadeToSelect);
+          setSelectedShades([shadeToSelect]);
           // Set the shade's image as selected image
           if (shadeToSelect.imageUrl) {
             setSelectedImageUrl(shadeToSelect.imageUrl);
           }
-        }
-      } else if (shadesFromAPI.length > 0 && !selectedShade) {
-        // Auto-select first shade by default
-        const firstShade = shadesFromAPI[0];
-        setSelectedShade(firstShade);
-        // Set the shade's image as selected image
-        if (firstShade.imageUrl) {
-          setSelectedImageUrl(firstShade.imageUrl);
         }
       }
     } else {
@@ -344,55 +337,99 @@ export default function ProductDetail() {
   const addToCart = () => {
     if (!product) return;
 
-    // Allow adding to cart without selecting a shade (None option available)
+    // If product has shades but none selected, show warning
+    if (shades.length > 0 && selectedShades.length === 0) {
+      toast({
+        title: "Select Shades",
+        description: "Please select at least one shade before adding to cart",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
-    // Create unique item ID based on product and shade
-    const itemKey = selectedShade ? `${product.id}-${selectedShade.id}` : `${product.id}`;
-    const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
+    // Add each selected shade to cart
+    if (selectedShades.length > 0) {
+      selectedShades.forEach(shade => {
+        const itemKey = `${product.id}-${shade.id}`;
+        const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
 
-    if (existingItem) {
-      existingItem.quantity += 1;
+        if (existingItem) {
+          existingItem.quantity += quantity;
+        } else {
+          cart.push({
+            id: product.id,
+            itemKey,
+            name: product.name,
+            price: `₹${product.price}`,
+            originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
+            image: shade.imageUrl || product.imageUrl,
+            quantity: quantity,
+            inStock: true,
+            selectedShade: {
+              id: shade.id,
+              name: shade.name,
+              colorCode: shade.colorCode,
+              imageUrl: shade.imageUrl
+            }
+          });
+        }
+      });
     } else {
-      const cartItem = {
-        id: product.id,
-        itemKey,
-        name: product.name,
-        price: `₹${product.price}`,
-        originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
-        image: selectedShade?.imageUrl || selectedImageUrl || imageUrls[0] || product.imageUrl,
-        quantity: 1,
-        inStock: true,
-        selectedShade: selectedShade ? {
-          id: selectedShade.id,
-          name: selectedShade.name,
-          colorCode: selectedShade.colorCode,
-          imageUrl: selectedShade.imageUrl
-        } : null
-      };
-      cart.push(cartItem);
+      // No shades - add product directly
+      const itemKey = `${product.id}`;
+      const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
+
+      if (existingItem) {
+        existingItem.quantity += quantity;
+      } else {
+        cart.push({
+          id: product.id,
+          itemKey,
+          name: product.name,
+          price: `₹${product.price}`,
+          originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
+          image: product.imageUrl,
+          quantity: quantity,
+          inStock: true,
+          selectedShade: null
+        });
+      }
     }
 
     localStorage.setItem("cart", JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
 
-    const shadeText = selectedShade ? ` in ${selectedShade.name} shade` : '';
-
+    const shadeText = selectedShades.length > 0 
+      ? ` (${selectedShades.map(s => s.name).join(', ')})` 
+      : '';
+    
+    toast({
+      title: "Added to Cart",
+      description: `${product.name}${shadeText} (${quantity} each) has been added to your cart`,
+    });
   };
 
   const handleShadeSelect = (shade: Shade) => {
-    // Always update selected shade and its image, even if same shade is clicked again
-    setSelectedShade(shade);
-
-    // If shade has an image, set it as the selected image
-    if (shade.imageUrl) {
-      setSelectedImageUrl(shade.imageUrl);
-    } else {
-      // If the selected shade doesn't have an image, revert to the product's main image
-      if (imageUrls.length > 0) {
+    const isSelected = selectedShades.some(s => s.id === shade.id);
+    
+    if (isSelected) {
+      // Remove shade from selection
+      setSelectedShades(selectedShades.filter(s => s.id !== shade.id));
+      
+      // If removing last shade, revert to main product image
+      if (selectedShades.length === 1 && imageUrls.length > 0) {
         setSelectedImageUrl(imageUrls[0]);
+      }
+    } else {
+      // Add shade to selection
+      setSelectedShades([...selectedShades, shade]);
+      
+      // Set the newly selected shade's image
+      if (shade.imageUrl) {
+        setSelectedImageUrl(shade.imageUrl);
       }
     }
   };
@@ -1096,65 +1133,78 @@ export default function ProductDetail() {
               {/* Shades Selection - Only show if product has shades */}
               {shades.length > 0 && (
                 <div className="space-y-4 mb-6">
-                  <label className="text-gray-700 font-bold text-lg">
-                    Select Shade: {selectedShade ? (
-                      <span className="text-purple-600 font-normal">
-                        {selectedShade.name}
-                      </span>
-                    ) : (
-                      <span className="text-gray-500 font-normal">
-                        No shade selected
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <label className="text-gray-700 font-bold text-lg">
+                      Select Shades: {selectedShades.length > 0 ? (
+                        <span className="text-purple-600 font-normal">
+                          ({selectedShades.length} selected)
+                        </span>
+                      ) : (
+                        <span className="text-gray-500 font-normal">
+                          No shades selected
+                        </span>
+                      )}
+                    </label>
+                    {selectedShades.length > 0 && (
+                      <button
+                        onClick={() => setSelectedShades([])}
+                        className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                      >
+                        Clear All
+                      </button>
                     )}
-                  </label>
+                  </div>
                 <div className="grid grid-cols-5 gap-3">
                   {(() => {
                     const shadesToShow = showAllShades ? shades : shades.slice(0, 5);
 
-                    return shadesToShow.map((shade) => (
-                      <div
-                        key={shade.value}
-                        className="flex flex-col items-center group cursor-pointer"
-                        onClick={() => handleShadeSelect(shade)}
-                      >
-                        <div className="relative">
-                          {selectedShade?.id === shade.id && (
-                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center z-10">
-                              <div className="w-2 h-2 bg-white rounded-full"></div>
-                            </div>
-                          )}
-                          {shade.imageUrl ? (
-                            <img
-                              src={shade.imageUrl}
-                              alt={shade.name}
-                              className={`w-12 h-12 rounded-full border-3 object-cover transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
-                                selectedShade?.id === shade.id
-                                  ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
-                                  : 'border-gray-300 hover:border-purple-400'
-                              }`}
-                              title={shade.name}
-                            />
-                          ) : (
-                            <div
-                              className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
-                                selectedShade?.id === shade.id
-                                  ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
-                                  : 'border-gray-300 hover:border-purple-400'
-                              }`}
-                              style={{ backgroundColor: shade.colorCode }}
-                              title={shade.name}
-                            ></div>
-                          )}
+                    return shadesToShow.map((shade) => {
+                      const isSelected = selectedShades.some(s => s.id === shade.id);
+                      return (
+                        <div
+                          key={shade.value}
+                          className="flex flex-col items-center group cursor-pointer"
+                          onClick={() => handleShadeSelect(shade)}
+                        >
+                          <div className="relative">
+                            {isSelected && (
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center z-10 shadow-lg">
+                                <CheckCircle className="w-3 h-3 text-white" />
+                              </div>
+                            )}
+                            {shade.imageUrl ? (
+                              <img
+                                src={shade.imageUrl}
+                                alt={shade.name}
+                                className={`w-12 h-12 rounded-full border-3 object-cover transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
+                                  isSelected
+                                    ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
+                                    : 'border-gray-300 hover:border-purple-400'
+                                }`}
+                                title={shade.name}
+                              />
+                            ) : (
+                              <div
+                                className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
+                                  isSelected
+                                    ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
+                                    : 'border-gray-300 hover:border-purple-400'
+                                }`}
+                                style={{ backgroundColor: shade.colorCode }}
+                                title={shade.name}
+                              ></div>
+                            )}
+                          </div>
+                          <span className={`text-xs mt-2 text-center leading-tight transition-colors ${
+                            isSelected
+                              ? 'text-purple-700 font-semibold'
+                              : 'text-gray-600 group-hover:text-purple-600'
+                          }`}>
+                            {shade.name.split(' ').slice(0, 2).join(' ')}
+                          </span>
                         </div>
-                        <span className={`text-xs mt-2 text-center leading-tight transition-colors ${
-                          selectedShade?.id === shade.id
-                            ? 'text-purple-700 font-semibold'
-                            : 'text-gray-600 group-hover:text-purple-600'
-                        }`}>
-                          {shade.name.split(' ').slice(0, 2).join(' ')}
-                        </span>
-                      </div>
-                    ));
+                      );
+                    });
                   })()}
                 </div>
 
@@ -1188,11 +1238,30 @@ export default function ProductDetail() {
                   </div>
                 )}
 
-                {/* Only show warning if no shade is selected */}
-                {!selectedShade && (
+                {/* Show selected shades preview */}
+                {selectedShades.length > 0 && (
+                  <div className="mt-3 bg-purple-50 p-3 rounded-lg border border-purple-200">
+                    <p className="text-sm font-semibold text-purple-700 mb-2">Selected Shades:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedShades.map(shade => (
+                        <div key={shade.id} className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-full border border-purple-300 shadow-sm">
+                          {shade.imageUrl ? (
+                            <img src={shade.imageUrl} alt={shade.name} className="w-4 h-4 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: shade.colorCode }} />
+                          )}
+                          <span className="text-xs font-medium text-purple-700">{shade.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show warning if no shade is selected */}
+                {selectedShades.length === 0 && (
                   <>
                     <p className="text-sm text-red-500 font-semibold mt-3">
-                      ⚠️ Please select a shade before adding to cart
+                      ⚠️ Please select at least one shade before adding to cart
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       💡 Not sure about your shade? Our beauty experts can help you find the perfect match!
@@ -1230,6 +1299,33 @@ export default function ProductDetail() {
                 </div>
               )}
 
+              {/* Quantity Selector */}
+              <div className="mb-6">
+                <label className="text-gray-700 font-bold text-lg mb-3 block">Quantity:</label>
+                <div className="flex items-center gap-4 bg-gray-50 rounded-lg p-3 w-fit">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={quantity <= 1}
+                    className="h-10 w-10 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 disabled:opacity-30"
+                  >
+                    <Minus className="h-4 w-4 text-purple-600" />
+                  </Button>
+                  <div className="text-center min-w-[3rem]">
+                    <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{quantity}</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="h-10 w-10 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50"
+                  >
+                    <Plus className="h-4 w-4 text-purple-600" />
+                  </Button>
+                </div>
+              </div>
+
               {/* Actions */}
               <div className="flex product-detail-buttons sm:flex-row sm:space-x-4 sm:space-y-0 mb-4 sm:mb-6">
                 {product.inStock ? (
@@ -1238,10 +1334,10 @@ export default function ProductDetail() {
                       size="lg"
                       className="product-detail-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                       onClick={addToCart}
-                      disabled={shades.length > 0 && !selectedShade}
+                      disabled={shades.length > 0 && selectedShades.length === 0}
                     >
                       <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                      Add to Cart
+                      {selectedShades.length > 0 ? `Add ${selectedShades.length} Shade${selectedShades.length > 1 ? 's' : ''} to Cart` : 'Add to Cart'}
                     </Button>
                     <Button size="lg" variant="outline" className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200" onClick={toggleWishlist}>
                       <Heart className={`w-5 h-5 sm:w-6 sm:h-5 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />

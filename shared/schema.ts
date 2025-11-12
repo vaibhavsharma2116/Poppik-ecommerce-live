@@ -708,3 +708,6 @@ export const promoCodeUsage = pgTable("promo_code_usage", {
 
 export type PromoCodeUsage = typeof promoCodeUsage.$inferSelect;
 export type InsertPromoCodeUsage = typeof promoCodeUsage.$inferInsert;
+
+
+export const affiliateSettings = pgTable("affiliate_settings", { id: serial("id").primaryKey(), settingKey: varchar("setting_key", { length: 100 }).notNull().unique(), settingValue: text("setting_value").notNull(), description: text("description"), updatedAt: timestamp("updated_at").defaultNow().notNull(), }); export type AffiliateSetting = typeof affiliateSettings.$inferSelect; export type InsertAffiliateSetting = typeof affiliateSettings.$inferInsert;

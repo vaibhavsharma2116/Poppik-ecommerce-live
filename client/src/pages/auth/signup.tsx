@@ -29,10 +29,6 @@ export default function Signup() {
     password: "",
     confirmPassword: "",
     dateOfBirth: "",
-    address: "",
-    city: "",
-    state: "",
-    pinCode: "",
     agreeToTerms: false,
     subscribeNewsletter: false
   });
@@ -115,12 +111,23 @@ export default function Signup() {
   const createAccount = async () => {
     setIsLoading(true);
     try {
+      // Send only the required fields to match server validation
+      const signupData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+        dateOfBirth: formData.dateOfBirth
+      };
+
       const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(signupData),
       });
 
       const data = await response.json();
@@ -211,20 +218,10 @@ export default function Signup() {
     e.preventDefault();
 
     // Basic validation
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password || !formData.dateOfBirth || !formData.address || !formData.city || !formData.state || !formData.pinCode) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password || !formData.dateOfBirth) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate PIN code
-    if (formData.pinCode && (formData.pinCode.length !== 6 || !/^\d{6}$/.test(formData.pinCode))) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid 6-digit PIN code",
         variant: "destructive",
       });
       return;

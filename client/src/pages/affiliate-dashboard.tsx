@@ -21,6 +21,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   TrendingUp,
   Package,
   DollarSign,
@@ -43,8 +51,128 @@ import {
   Download,
   Calendar,
   TrendingDown,
+  Tag,
+  Info, // Added Info icon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; // Added Popover imports
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label"; // Added Label import
+
+// Offers List Component
+function OffersList({ affiliateCode, copyAffiliateLink }: { affiliateCode: string; copyAffiliateLink: (offerId?: number) => void }) {
+  const [showAllOffers, setShowAllOffers] = useState(false);
+
+  const { data: offers, isLoading } = useQuery({
+    queryKey: ["/api/offers"],
+    queryFn: async () => {
+      const res = await fetch("/api/offers");
+      if (!res.ok) throw new Error("Failed to fetch offers");
+      return res.json();
+    }
+  });
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading offers...</p>
+      </div>
+    );
+  }
+
+  const activeOffers = offers?.filter((offer: any) => offer.isActive) || [];
+
+  if (activeOffers.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Tag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Special Offers Available</h3>
+        <p className="text-gray-500">Check back soon for new deals!</p>
+      </div>
+    );
+  }
+
+  const displayedOffers = showAllOffers ? activeOffers : activeOffers.slice(0, 6);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {displayedOffers.map((offer: any) => {
+          const price = typeof offer.price === 'string' ? parseFloat(offer.price) : offer.price;
+          const originalPrice = typeof offer.originalPrice === 'string' ? parseFloat(offer.originalPrice) : offer.originalPrice;
+          const discountPercentage = originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+
+          return (
+            <Card key={offer.id} className="border-2 border-gray-200 hover:border-orange-300 hover:shadow-lg transition-all">
+              <CardContent className="p-0">
+                <div className="aspect-square relative overflow-hidden rounded-t-lg bg-gray-100">
+                  <img
+                    src={offer.imageUrl}
+                    alt={offer.name}
+                    className="w-full h-full object-cover"
+                  />
+                  {discountPercentage > 0 && (
+                    <Badge className="absolute top-3 right-3 bg-red-600 text-white border-0">
+                      {discountPercentage}% OFF
+                    </Badge>
+                  )}
+                  <Badge className="absolute top-3 left-3 bg-orange-600 text-white border-0">
+                    OFFER
+                  </Badge>
+                </div>
+                <div className="p-4">
+                  <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">{offer.name}</h3>
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{offer.description}</p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-2xl font-bold text-orange-600">₹{price}</span>
+                    {originalPrice > price && (
+                      <span className="text-sm text-gray-500 line-through">₹{originalPrice}</span>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => {
+                      const link = `${window.location.origin}/offer/${offer.id}?ref=${affiliateCode}`;
+                      navigator.clipboard.writeText(link);
+                      // Show toast notification
+                    }}
+                    className="w-full bg-orange-600 hover:bg-orange-700"
+                    size="sm"
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Get Affiliate Link
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {activeOffers.length > 6 && (
+        <div className="flex justify-center mt-8">
+          <Button
+            onClick={() => setShowAllOffers(!showAllOffers)}
+            size="lg"
+            className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white shadow-lg px-12"
+          >
+            {showAllOffers ? (
+              <>
+                <Package className="h-5 w-5 mr-2" />
+                Show Less
+              </>
+            ) : (
+              <>
+                <ExternalLink className="h-5 w-5 mr-2" />
+                View All Offers
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Combos List Component
 function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: string; copyAffiliateLink: (comboId?: number) => void }) {
@@ -489,7 +617,7 @@ export default function AffiliateDashboard() {
 
   const copyAffiliateLink = (product?: any) => {
     const baseUrl = 'https://poppiklifestyle.com';
-     
+
     const affiliateLink = product
       ? `${baseUrl}/product/${product.slug || product.id}?ref=${affiliateCode}`
       : `${baseUrl}/?ref=${affiliateCode}`;
@@ -503,7 +631,7 @@ export default function AffiliateDashboard() {
 
   const shareToWhatsApp = () => {
     const baseUrl = 'https://poppiklifestyle.com';
-     
+
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     const message = `🌟 Check out Poppik Lifestyle! Use my code ${affiliateCode} for amazing beauty products. ${affiliateLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
@@ -511,14 +639,14 @@ export default function AffiliateDashboard() {
 
   const shareToFacebook = () => {
     const baseUrl = 'https://poppiklifestyle.com';
-     
+
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(affiliateLink)}`, '_blank');
   };
 
   const shareToTwitter = () => {
     const baseUrl = 'https://poppiklifestyle.com';
-     
+
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     const message = `Check out @PoppikLifestyle! Use code ${affiliateCode} for amazing beauty products.`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(affiliateLink)}`, '_blank');
@@ -526,7 +654,7 @@ export default function AffiliateDashboard() {
 
   const shareToInstagram = () => {
     const baseUrl = 'https://poppiklifestyle.com';
-     
+
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     window.open('https://www.instagram.com/', '_blank');
     toast({
@@ -556,63 +684,168 @@ export default function AffiliateDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Modern Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-100 shadow-sm">
-        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Award className="h-6 w-6 text-white" />
+      {/* Modern Header - Fully Responsive */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-18 md:h-20">
+            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg md:rounded-xl flex items-center justify-center shadow-lg">
+                <Award className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Affiliate Partner Portal</h1>
-                <p className="text-sm text-gray-500">Manage your partnerships</p>
+              <div className="hidden sm:block">
+                <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-gray-900">Affiliate Partner Portal</h1>
+                <p className="text-xs sm:text-sm text-gray-500 hidden md:block">Manage your partnerships</p>
+              </div>
+              <div className="block sm:hidden">
+                <h1 className="text-sm font-bold text-gray-900">Affiliate</h1>
               </div>
             </div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 px-4 py-2 text-sm font-semibold">
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Active Partner
-            </Badge>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm font-semibold">
+                <CheckCircle className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Active Partner</span>
+                <span className="sm:hidden">Active</span>
+              </Badge>
+
+              {/* Affiliate Actions Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10">
+                    <Users className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel className="text-base font-bold">
+                    Quick Actions
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem onClick={() => setShowShareDialog(true)}>
+                    <Share2 className="h-4 w-4 mr-3 text-purple-600" />
+                    <div>
+                      <p className="font-semibold">Share Links</p>
+                      <p className="text-xs text-gray-500">Share on social media</p>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={copyAffiliateCode}>
+                    <Copy className="h-4 w-4 mr-3 text-blue-600" />
+                    <div>
+                      <p className="font-semibold">Copy Code</p>
+                      <p className="text-xs text-gray-500">Copy affiliate code</p>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={() => setLocation("/affiliate-wallet")}>
+                    <DollarSign className="h-4 w-4 mr-3 text-green-600" />
+                    <div>
+                      <p className="font-semibold">My Wallet</p>
+                      <p className="text-xs text-gray-500">View earnings</p>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem onClick={() => {
+                    const affiliateKit = `
+POPPIK AFFILIATE MARKETING KIT
+================================
+
+Welcome ${application?.firstName || 'Affiliate'}!
+
+Your Unique Affiliate Code: ${affiliateCode}
+
+QUICK LINKS:
+------------
+🔗 Your Affiliate Link: ${window.location.origin}/?ref=${affiliateCode}
+📊 Dashboard: ${window.location.origin}/affiliate-dashboard
+
+SAMPLE PROMOTIONAL MESSAGES:
+----------------------------
+
+Instagram Caption:
+"✨ Discover amazing beauty products at Poppik! Use my code ${affiliateCode} for exclusive deals! 💄💅
+Shop now: ${window.location.origin}/?ref=${affiliateCode}
+#PoppikBeauty #BeautyAffiliate #SkincareLover"
+
+Generated on: ${new Date().toLocaleDateString('en-IN')}
+                    `;
+
+                    const blob = new Blob([affiliateKit], { type: 'text/plain' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Poppik_Affiliate_Kit_${affiliateCode}.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    toast({
+                      title: "Resources Downloaded!",
+                      description: "Your affiliate marketing kit has been downloaded.",
+                    });
+                  }}>
+                    <Download className="h-4 w-4 mr-3 text-orange-600" />
+                    <div>
+                      <p className="font-semibold">Download Kit</p>
+                      <p className="text-xs text-gray-500">Marketing resources</p>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <div className="px-2 py-3 bg-purple-50 rounded-md mx-2 my-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-medium text-purple-700">Total Earnings</p>
+                    </div>
+                    <p className="text-lg font-bold text-purple-900">
+                      ₹{(parseFloat(wallet?.cashbackBalance || "0") + parseFloat(wallet?.commissionBalance || "0")).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Banner */}
-        <div className="mb-8 bg-gradient-to-r from-purple-600 via-purple-700 to-pink-600 rounded-2xl p-8 text-white shadow-xl">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-3">
-                <Sparkles className="h-6 w-6" />
-                <h2 className="text-2xl font-bold">Welcome back, {application.firstName}!</h2>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+        {/* Welcome Banner - Fully Responsive */}
+        <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-purple-600 via-purple-700 to-pink-600 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-white shadow-xl">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6">
+            <div className="flex-1 w-full">
+              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
+                <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold">Welcome back, {application.firstName}!</h2>
               </div>
-              <p className="text-purple-100 text-lg mb-4">
+              <p className="text-purple-100 text-xs sm:text-sm md:text-base lg:text-lg mb-3 sm:mb-4">
                 Track your performance and grow your earnings with Poppik
               </p>
-              <div className="flex flex-wrap gap-3">
-                <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
-                  <Calendar className="h-4 w-4" />
-                  <span className="text-sm font-medium">
+              <div className="flex flex-wrap gap-2 sm:gap-3">
+                <div className="flex items-center gap-1.5 sm:gap-2 bg-white/20 backdrop-blur-sm rounded-md sm:rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 md:px-4">
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="text-xs sm:text-sm font-medium">
                     Member since {application?.createdAt
                       ? new Date(application.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
                       : new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
                   </span>
                 </div>
                 {stats?.monthlyGrowth !== undefined && stats?.monthlyGrowth !== 0 && (
-                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
-                    {stats.monthlyGrowth > 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                    <span className="text-sm font-medium">{stats.monthlyGrowth > 0 ? '+' : ''}{stats.monthlyGrowth}% this month</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 bg-white/20 backdrop-blur-sm rounded-md sm:rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 md:px-4">
+                    {stats.monthlyGrowth > 0 ? <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" /> : <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4" />}
+                    <span className="text-xs sm:text-sm font-medium">{stats.monthlyGrowth > 0 ? '+' : ''}{stats.monthlyGrowth}% this month</span>
                   </div>
                 )}
               </div>
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row lg:flex-col gap-2 sm:gap-3 w-full lg:w-auto">
               <Button
                 onClick={() => setShowShareDialog(true)}
                 size="lg"
-                className="bg-white text-purple-700 hover:bg-gray-100 shadow-lg font-semibold"
+                className="bg-white text-purple-700 hover:bg-gray-100 shadow-lg font-semibold text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11 w-full sm:w-auto"
               >
-                <Share2 className="h-5 w-5 mr-2" />
+                <Share2 className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
                 Share Your Link
               </Button>
               <Button
@@ -697,49 +930,49 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
           </div>
         </div>
 
-        {/* Affiliate Code Card - Premium Design */}
-        <Card className="mb-8 overflow-hidden border-2 border-purple-200 shadow-lg">
-          <CardContent className="p-8">
-            <div className="flex flex-col lg:flex-row items-center gap-8">
+        {/* Affiliate Code Card - Fully Responsive */}
+        <Card className="mb-4 sm:mb-6 md:mb-8 overflow-hidden border-2 border-purple-200 shadow-lg">
+          <CardContent className="p-4 sm:p-6 md:p-8">
+            <div className="flex flex-col lg:flex-row items-center gap-4 sm:gap-6 md:gap-8">
               <div className="flex-1 w-full">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <LinkIcon className="h-5 w-5 text-purple-600" />
+                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900">Your Unique Code</h3>
+                  <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-900">Your Unique Code</h3>
                 </div>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-600 mb-4 sm:mb-5 md:mb-6 text-xs sm:text-sm md:text-base">
                   Use this code to track all your referrals and earn commissions
                 </p>
                 <div className="relative">
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6 text-center">
-                    <code className="text-3xl lg:text-4xl font-bold text-purple-700 tracking-widest select-all">
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg sm:rounded-xl p-4 sm:p-5 md:p-6 text-center">
+                    <code className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-purple-700 tracking-wide sm:tracking-wider md:tracking-widest select-all break-all">
                       {affiliateCode}
                     </code>
                   </div>
-                  <div className="absolute -top-3 -right-3">
-                    <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                      <Award className="h-6 w-6 text-white" />
+                  <div className="absolute -top-2 -right-2 sm:-top-3 sm:-right-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                      <Award className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white" />
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-3 w-full lg:w-auto">
+              <div className="flex flex-col sm:flex-row lg:flex-col gap-2 sm:gap-3 w-full lg:w-auto">
                 <Button
                   onClick={copyAffiliateCode}
                   size="lg"
-                  className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg w-full lg:w-auto"
+                  className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg w-full lg:w-auto text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11"
                 >
-                  <Copy className="h-5 w-5 mr-2" />
+                  <Copy className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
                   Copy Code
                 </Button>
                 <Button
                   onClick={() => setShowShareDialog(true)}
                   size="lg"
                   variant="outline"
-                  className="border-2 border-purple-200 text-purple-700 hover:bg-purple-50 w-full lg:w-auto"
+                  className="border-2 border-purple-200 text-purple-700 hover:bg-purple-50 w-full lg:w-auto text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11"
                 >
-                  <Share2 className="h-5 w-5 mr-2" />
+                  <Share2 className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
                   Get Shareable Link
                 </Button>
               </div>
@@ -747,33 +980,47 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
           </CardContent>
         </Card>
 
-        {/* Wallet Summary Card - Full Width */}
-        <Card className="mb-8 border-2 border-purple-200 shadow-xl overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-pink-600 p-6">
-            <div className="flex items-center justify-between text-white">
-              <div className="flex items-center gap-3">
-                <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                  <DollarSign className="h-8 w-8 text-white" />
+        {/* Wallet Summary Card - Fully Responsive */}
+        <Card className="mb-4 sm:mb-6 md:mb-8 border-2 border-purple-200 shadow-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-pink-600 p-4 sm:p-5 md:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-white gap-3 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-white/20 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold">Wallet Balance</h3>
-                  <p className="text-purple-100 text-sm">Your affiliate earnings</p>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold">Wallet Balance</h3>
+                  <p className="text-purple-100 text-xs sm:text-sm">Your affiliate earnings</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-purple-100 mb-1">Total Available</p>
-                <p className="text-4xl font-bold">
+              <div className="text-left sm:text-right w-full sm:w-auto">
+                <p className="text-xs sm:text-sm text-purple-100 mb-1">Total Available</p>
+                <p className="text-2xl sm:text-3xl md:text-4xl font-bold">
                   ₹{(parseFloat(wallet?.cashbackBalance || "0") + parseFloat(wallet?.commissionBalance || "0")).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
           </div>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <CardContent className="p-4 sm:p-5 md:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
               {/* Cashback Balance */}
               <div className="text-center p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
-                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <DollarSign className="h-6 w-6 text-white" />
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <DollarSign className="h-6 w-6 text-white" />
+                  </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-transparent">
+                        <Info className="h-4 w-4 text-blue-500 cursor-pointer hover:text-blue-700" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-3 bg-blue-50 border-blue-200">
+                      <p className="text-sm text-blue-800 font-medium">
+                        Cashback only usable on Poppik purchases, no cash withdrawal.
+                      </p>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <p className="text-sm text-gray-600 font-medium mb-1">Cashback Balance</p>
                 <p className="text-2xl font-bold text-blue-600">
@@ -815,7 +1062,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
               </div>
             </div>
 
-           
+
           </CardContent>
         </Card>
 
@@ -826,7 +1073,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <Users className="h-7 w-7 text-white" />
+                  <DollarSign className="h-7 w-7 text-white" />
                 </div>
                 {stats?.clicksGrowth !== undefined && stats?.clicksGrowth !== 0 && (
                   <div className={`flex items-center gap-1 font-semibold text-sm ${stats.clicksGrowth > 0 ? 'text-blue-600' : 'text-red-600'}`}>
@@ -867,38 +1114,40 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
           </Card>
         </div>
 
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-white shadow-md p-1.5 rounded-xl border border-gray-200 inline-flex gap-1">
-            <TabsTrigger
-              value="overview"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-6 py-2.5 rounded-lg font-semibold transition-all"
-            >
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger
-              value="products"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-6 py-2.5 rounded-lg font-semibold transition-all"
-            >
-              <Package className="h-4 w-4 mr-2" />
-              Products
-            </TabsTrigger>
-            <TabsTrigger
-              value="sales"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-6 py-2.5 rounded-lg font-semibold transition-all"
-            >
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Sales
-            </TabsTrigger>
-            <TabsTrigger
-              value="profile"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-6 py-2.5 rounded-lg font-semibold transition-all"
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Profile
-            </TabsTrigger>
-          </TabsList>
+        {/* Main Content Tabs - Fully Responsive */}
+        <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+          <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
+            <TabsList className="bg-white shadow-md p-1 sm:p-1.5 rounded-lg sm:rounded-xl border border-gray-200 inline-flex gap-1 min-w-full sm:min-w-0 w-max sm:w-auto">
+              <TabsTrigger
+                value="overview"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-3 py-2 sm:px-4 sm:py-2 md:px-6 md:py-2.5 rounded-md sm:rounded-lg font-semibold transition-all text-xs sm:text-sm whitespace-nowrap"
+              >
+                <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger
+                value="products"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-3 py-2 sm:px-4 sm:py-2 md:px-6 md:py-2.5 rounded-md sm:rounded-lg font-semibold transition-all text-xs sm:text-sm whitespace-nowrap"
+              >
+                <Package className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Products
+              </TabsTrigger>
+              <TabsTrigger
+                value="sales"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-3 py-2 sm:px-4 sm:py-2 md:px-6 md:py-2.5 rounded-md sm:rounded-lg font-semibold transition-all text-xs sm:text-sm whitespace-nowrap"
+              >
+                <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Sales
+              </TabsTrigger>
+              <TabsTrigger
+                value="profile"
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg px-3 py-2 sm:px-4 sm:py-2 md:px-6 md:py-2.5 rounded-md sm:rounded-lg font-semibold transition-all text-xs sm:text-sm whitespace-nowrap"
+              >
+                <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                Profile
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview" className="space-y-6">
             {/* Recent Sales Activity */}
@@ -1106,13 +1355,29 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
               </CardContent>
             </Card>
 
-            {/* Combo Offers Section */}
+            {/* Offers Section */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="border-b bg-gradient-to-r from-orange-50 to-red-50">
+                <div>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Tag className="h-5 w-5 text-orange-600" />
+                    Special Offers
+                  </CardTitle>
+                  <CardDescription className="mt-1">Share exclusive offers and discounts with your audience</CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <OffersList affiliateCode={affiliateCode} copyAffiliateLink={copyAffiliateLink} />
+              </CardContent>
+            </Card>
+
+            {/* Combo  Section */}
             <Card className="border-0 shadow-lg">
               <CardHeader className="border-b bg-gradient-to-r from-pink-50 to-purple-50">
                 <div>
                   <CardTitle className="text-xl flex items-center gap-2">
                     <ShoppingBag className="h-5 w-5 text-pink-600" />
-                    Combo Offers
+                    Combo   
                   </CardTitle>
                   <CardDescription className="mt-1">Promote our exclusive combo deals and earn higher commissions</CardDescription>
                 </div>
@@ -1216,7 +1481,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                         <div className="text-right">
                           <p className="text-3xl font-bold text-blue-600">{clicksData?.total?.toLocaleString('en-IN') || 0}</p>
                           {stats?.clicksGrowth !== undefined && stats?.clicksGrowth !== 0 && (
-                            <p className={`text-sm font-semibold mt-1 ${stats.clicksGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            <p className={`text-sm font-semibold text-emerald-600 mt-1 ${stats.clicksGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                               {stats.clicksGrowth > 0 ? '↑' : '↓'} {Math.abs(stats.clicksGrowth)}% this month
                             </p>
                           )}
@@ -1400,7 +1665,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
               onClick={shareToInstagram}
             >
               <svg className="h-6 w-6 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z"/>
+                <path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419-.419-.824-.679-1.38-.896-.42-.164-1.065-.36-2.235-.413-1.274-.045-1.649-.06-4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z"/>
               </svg>
               Instagram
             </Button>

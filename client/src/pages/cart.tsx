@@ -208,6 +208,39 @@ export default function Cart() {
       const user = localStorage.getItem("user");
       const userId = user ? JSON.parse(user).id : null;
 
+      // Check if it's an affiliate code (starts with POPPIKAP)
+      if (code.toUpperCase().startsWith('POPPIKAP')) {
+        // Fetch affiliate settings for discount
+        const settingsResponse = await fetch('/api/affiliate-settings');
+        const settings = await settingsResponse.json();
+
+        if (cartSubtotal < settings.minOrderAmount) {
+          toast({
+            title: "Minimum Order Not Met",
+            description: `Minimum order amount is ₹${settings.minOrderAmount} to use affiliate discount`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        let discountAmount = (cartSubtotal * settings.userDiscountPercentage) / 100;
+        
+        if (settings.maxDiscountAmount && discountAmount > settings.maxDiscountAmount) {
+          discountAmount = settings.maxDiscountAmount;
+        }
+
+        setAffiliateCode(code.toUpperCase());
+        setAffiliateDiscount(discountAmount);
+        setPromoCode('');
+        setPromoDiscount(0);
+        
+        toast({
+          title: "Affiliate Discount Applied!",
+          description: `You saved ₹${discountAmount.toFixed(2)} with affiliate code ${code.toUpperCase()}`,
+        });
+        return;
+      }
+
       const response = await fetch('/api/promo-codes/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

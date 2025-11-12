@@ -1,4 +1,3 @@
-
 import React, { useState, startTransition } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Pencil, Trash2, Tag, Calendar, Users, TrendingUp } from 'lucide-react';
+import { Plus, Pencil, Trash2, Tag, Calendar, Users, TrendingUp, Share2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +18,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
 
 export default function PromoCodesManagement() {
   const { toast } = useToast();
@@ -144,7 +150,7 @@ export default function PromoCodesManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const data = {
       ...formData,
       discountValue: parseFloat(formData.discountValue),
@@ -179,6 +185,38 @@ export default function PromoCodesManagement() {
       });
       setIsCreateOpen(true);
     });
+  };
+
+  const sharePromoCode = (code: any) => {
+    const message = `🎉 Special Offer Alert! 🎉\n\nUse promo code: ${code.code}\n${code.description}\n\nShop now at: ${window.location.origin}\n\nValid until: ${code.validUntil ? new Date(code.validUntil).toLocaleDateString('en-IN') : 'Limited time only'}`;
+
+    navigator.clipboard.writeText(message);
+    toast({
+      title: "Copied!",
+      description: "Promo code details copied to clipboard",
+    });
+  };
+
+  const shareToWhatsApp = (code: any) => {
+    const message = `🎉 *Special Offer Alert!* 🎉\n\nUse promo code: *${code.code}*\n${code.description}\n\nShop now: ${window.location.origin}\n\n${code.validUntil ? `Valid until: ${new Date(code.validUntil).toLocaleDateString('en-IN')}` : 'Limited time only!'}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const shareToEmail = (code: any) => {
+    const subject = `Exclusive Offer: ${code.code}`;
+    const body = `Hi there!\n\nWe have an exclusive offer for you!\n\nPromo Code: ${code.code}\n${code.description}\n\nShop now: ${window.location.origin}\n\n${code.validUntil ? `Valid until: ${new Date(code.validUntil).toLocaleDateString('en-IN')}` : 'Limited time only!'}\n\nHappy Shopping!\nPoppik Team`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const shareToSocial = (code: any, platform: string) => {
+    const baseUrl = window.location.origin;
+    const message = `🎉 Special Offer! Use code ${code.code} - ${code.description}. Shop now: ${baseUrl}`;
+
+    if (platform === 'facebook') {
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(baseUrl)}&quote=${encodeURIComponent(message)}`, '_blank');
+    } else if (platform === 'twitter') {
+      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}`, '_blank');
+    }
   };
 
   return (
@@ -383,6 +421,20 @@ export default function PromoCodesManagement() {
                     >
                       <Trash2 className="h-4 w-4 text-red-600" />
                     </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => sharePromoCode(code)}>Copy Link</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => shareToWhatsApp(code)}>WhatsApp</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => shareToEmail(code)}>Email</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => shareToSocial(code, 'facebook')}>Facebook</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => shareToSocial(code, 'twitter')}>Twitter</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </CardHeader>

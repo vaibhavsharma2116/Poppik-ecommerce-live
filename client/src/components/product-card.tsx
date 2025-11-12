@@ -33,7 +33,7 @@ interface ProductCardProps {
 export default function ProductCard({ product, className = "", viewMode = 'grid' }: ProductCardProps) {
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [selectedShade, setSelectedShade] = useState<Shade | null>(null);
+  const [selectedShades, setSelectedShades] = useState<Shade[]>([]);
   const [isShadeDrawerOpen, setIsShadeDrawerOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const { toast } = useToast();
@@ -130,53 +130,82 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       e.stopPropagation();
     }
 
-    if (productShades.length > 0 && !selectedShade && !fromDrawer) {
+    if (productShades.length > 0 && selectedShades.length === 0 && !fromDrawer) {
       setIsShadeDrawerOpen(true);
       return;
     }
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
-    // Create unique item key based on product and shade
-    const itemKey = selectedShade ? `${product.id}-${selectedShade.id}` : `${product.id}`;
-    const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
+    // Add each selected shade to cart
+    if (selectedShades.length > 0) {
+      selectedShades.forEach(shade => {
+        const itemKey = `${product.id}-${shade.id}`;
+        const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
 
-    if (existingItem) {
-      existingItem.quantity += quantity;
-    } else {
-      cart.push({
-        id: product.id,
-        itemKey,
-        name: product.name,
-        price: `₹${product.price}`,
-        originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
-        image: selectedShade?.imageUrl || product.imageUrl,
-        quantity: quantity,
-        inStock: true,
-        selectedShade: selectedShade ? {
-          id: selectedShade.id,
-          name: selectedShade.name,
-          colorCode: selectedShade.colorCode,
-          imageUrl: selectedShade.imageUrl
-        } : null,
-        cashbackPercentage: product.cashbackPercentage || undefined,
-        cashbackPrice: product.cashbackPrice || undefined,
+        if (existingItem) {
+          existingItem.quantity += quantity;
+        } else {
+          cart.push({
+            id: product.id,
+            itemKey,
+            name: product.name,
+            price: `₹${product.price}`,
+            originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
+            image: shade.imageUrl || product.imageUrl,
+            quantity: quantity,
+            inStock: true,
+            selectedShade: {
+              id: shade.id,
+              name: shade.name,
+              colorCode: shade.colorCode,
+              imageUrl: shade.imageUrl
+            },
+            cashbackPercentage: product.cashbackPercentage || undefined,
+            cashbackPrice: product.cashbackPrice || undefined,
+          });
+        }
       });
+    } else {
+      // No shades selected
+      const itemKey = `${product.id}`;
+      const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
+
+      if (existingItem) {
+        existingItem.quantity += quantity;
+      } else {
+        cart.push({
+          id: product.id,
+          itemKey,
+          name: product.name,
+          price: `₹${product.price}`,
+          originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
+          image: product.imageUrl,
+          quantity: quantity,
+          inStock: true,
+          selectedShade: null,
+          cashbackPercentage: product.cashbackPercentage || undefined,
+          cashbackPrice: product.cashbackPrice || undefined,
+        });
+      }
     }
 
     localStorage.setItem("cart", JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
 
-    const shadeText = selectedShade ? ` in ${selectedShade.name}` : '';
+    const shadeText = selectedShades.length > 0 
+      ? ` (${selectedShades.map(s => s.name).join(', ')})` 
+      : '';
     toast({
       title: "Added to Cart",
-      description: `${product.name}${shadeText} (${quantity}) has been added to your cart`,
+      description: `${product.name}${shadeText} (${quantity} each) has been added to your cart`,
     });
 
     if (fromDrawer) {
       setIsShadeDrawerOpen(false);
       setQuantity(1);
+      setSelectedShades([]);
     }
   };
 
@@ -212,11 +241,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
       >
         <div className="relative w-48 flex-shrink-0">
-          {/* {product.saleOffer && (
-            <Badge className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs px-3 py-1 animate-pulse shadow-lg">
-              {product.saleOffer}
-            </Badge>
-          )} */}
           <button
             onClick={toggleWishlist}
             className="absolute top-2 right-2 p-2 bg-white/95 backdrop-blur-sm rounded-full shadow-lg hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50 hover:scale-110 transition-all duration-300 z-10 border border-pink-100"
@@ -319,22 +343,21 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 )}
               </div>
 
-              {/* Cashback Badge */}
-              {product.cashbackPercentage && product.cashbackPrice && (
-                <div className="mb-3 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-lg p-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-orange-700">Cashback</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-orange-600">
-                        ₹{Number(product.cashbackPrice).toFixed(2)}
-                      </span>
-                      <span className="text-xs bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full">
+              {/* Cashback Badge - Fixed height container */}
+              <div className="mb-2" style={{ height: '36px', display: 'flex', alignItems: 'center' }}>
+                {product.cashbackPercentage ? (
+                  <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5 w-full">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-orange-700">Cashback</span>
+                      <span className="text-sm bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full font-bold">
                         {product.cashbackPercentage}%
                       </span>
                     </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div style={{ height: '36px' }}></div>
+                )}
+              </div>
 
               {/* Stock status */}
               <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
@@ -409,11 +432,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
-        {/* {product.saleOffer && (
-          <Badge className="absolute top-2 left-2 z-10 bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 text-xs animate-pulse shadow-lg font-bold">
-            {product.saleOffer}
-          </Badge>
-        )} */}
         <button
           onClick={toggleWishlist}
           className="absolute top-2 right-2 p-2 hover:from-red-50 hover:to-pink-50 hover:scale-110 transition-all duration-300 z-10 "
@@ -468,7 +486,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
         <div className="space-y-1 sm:space-y-2">
           <div className="flex flex-col space-y-1">
-            <div className="flex items-baseline space-x-2 min-h-[28px]">
+            <div className="flex items-baseline space-x-1 sm:space-x-2 min-h-[24px]">
               <span className="mobile-product-price text-sm sm:text-base md:text-lg font-bold text-gray-900">
                 ₹{Number(product.price).toLocaleString()}
               </span>
@@ -477,29 +495,28 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   <span className="text-xs sm:text-sm text-gray-500 line-through">
                     ₹{Number(product.originalPrice).toLocaleString()}
                   </span>
-                  <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded whitespace-nowrap">
+                  <span className="text-[10px] sm:text-xs font-bold text-green-600 bg-green-50 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap">
                     {discountPercentage}% OFF
                   </span>
                 </>
               )}
             </div>
 
-            {/* Cashback Badge */}
-            {product.cashbackPercentage && product.cashbackPrice && (
-              <div className="mb-2 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-orange-700">Cashback</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs font-bold text-orange-600">
-                      ₹{Number(product.cashbackPrice).toFixed(2)}
-                    </span>
-                    <span className="text-xs bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full">
+            {/* Cashback Badge - Fixed height container */}
+            <div className="mt-1" style={{ minHeight: '28px', display: 'flex', alignItems: 'center' }}>
+              {product.cashbackPercentage ? (
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5 w-full">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] sm:text-xs font-semibold text-orange-700">Cashback</span>
+                    <span className="text-[10px] sm:text-xs bg-orange-200 text-orange-800 px-1.5 sm:px-2 py-0.5 rounded-full font-bold">
                       {product.cashbackPercentage}%
                     </span>
                   </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div style={{ minHeight: '28px' }}></div>
+              )}
+            </div>
 
             {/* Stock status */}
             <div className="flex items-center space-x-1.5 sm:space-x-2 mb-3 sm:mb-4">
@@ -568,21 +585,23 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             <div className="relative bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg overflow-hidden aspect-square transition-all duration-300">
               <img
                 src={(() => {
-                  if (selectedShade?.imageUrl) {
-                    return selectedShade.imageUrl;
+                  if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
+                    return selectedShades[0].imageUrl;
                   }
                   if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                     return product.images[0].url || product.images[0].imageUrl;
                   }
                   return product.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
                 })()}
-                alt={selectedShade?.name || product.name}
+                alt={selectedShades.length > 0 ? selectedShades[0].name : product.name}
                 className="w-full h-full object-contain transition-opacity duration-300"
                 loading="lazy"
               />
-              {selectedShade && (
+              {selectedShades.length > 0 && (
                 <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-md">
-                  <span className="text-xs font-semibold text-purple-600">{selectedShade.name}</span>
+                  <span className="text-xs font-semibold text-purple-600">
+                    {selectedShades.length} shade{selectedShades.length > 1 ? 's' : ''} selected
+                  </span>
                 </div>
               )}
             </div>
@@ -604,42 +623,59 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   </>
                 )}
               </div>
-              {selectedShade && (
-                <div className="flex items-center gap-2 text-sm">
-                  <div 
-                    className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
-                    style={{ backgroundColor: selectedShade.colorCode }}
-                  />
-                  <span className="text-gray-600">Selected Shade:</span>
-                  <span className="font-semibold text-purple-700">{selectedShade.name}</span>
+              {selectedShades.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-sm text-gray-600">Selected Shades:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedShades.map(shade => (
+                      <div key={shade.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-purple-200">
+                        <div 
+                          className="w-3 h-3 rounded-full border border-white shadow-sm"
+                          style={{ backgroundColor: shade.colorCode }}
+                        />
+                        <span className="text-xs font-medium text-purple-700">{shade.name}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Shade Selection - Enhanced interactivity */}
+            {/* Shade Selection - Enhanced interactivity with multiple selection */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900">Select Shade:</h3>
-                {selectedShade && (
+                <h3 className="font-semibold text-gray-900">
+                  Select Shades: 
+                  {selectedShades.length > 0 && (
+                    <span className="ml-2 text-sm text-purple-600">({selectedShades.length} selected)</span>
+                  )}
+                </h3>
+                {selectedShades.length > 0 && (
                   <button
-                    onClick={() => setSelectedShade(null)}
+                    onClick={() => setSelectedShades([])}
                     className="text-xs text-purple-600 hover:text-purple-700 font-medium"
                   >
-                    Clear Selection
+                    Clear All
                   </button>
                 )}
               </div>
               <div className="grid grid-cols-4 gap-3">
                 {productShades.map((shade) => {
-                  const isSelected = selectedShade?.id === shade.id;
+                  const isSelected = selectedShades.some(s => s.id === shade.id);
                   return (
                     <div
                       key={shade.id}
-                      onClick={() => setSelectedShade(shade)}
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedShades(selectedShades.filter(s => s.id !== shade.id));
+                        } else {
+                          setSelectedShades([...selectedShades, shade]);
+                        }
+                      }}
                       className={`cursor-pointer group relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 hover:shadow-lg ${
                         isSelected
                           ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md scale-105'
-                          : 'border-gray-200 hover:border-purple-300 hover:bg-purple-25'
+                          : 'border-purple-300 hover:border-purple-400 hover:bg-purple-25'
                       }`}
                     >
                       {shade.imageUrl ? (
@@ -648,7 +684,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                             src={shade.imageUrl}
                             alt={shade.name}
                             className={`w-12 h-12 rounded-full object-cover border-2 shadow-md transition-all ${
-                              isSelected ? 'border-purple-500' : 'border-white'
+                              isSelected ? 'border-purple-500' : 'border-gray-300'
                             }`}
                           />
                           {isSelected && (
@@ -659,7 +695,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                         <div className="relative">
                           <div
                             className={`w-12 h-12 rounded-full border-2 shadow-md transition-all ${
-                              isSelected ? 'border-purple-500 scale-110' : 'border-white'
+                              isSelected ? 'border-purple-500 scale-110' : 'border-gray-300'
                             }`}
                             style={{ backgroundColor: shade.colorCode }}
                           />
@@ -674,7 +710,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                         {shade.name}
                       </span>
                       {isSelected && (
-                        <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-1 shadow-lg animate-bounce">
+                        <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-1 shadow-lg">
                           <Check className="w-3 h-3 text-white" />
                         </div>
                       )}
@@ -714,39 +750,37 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
             {/* Add to Cart Button - Enhanced with dynamic total */}
             <div className="space-y-3 pt-4 border-t-2 border-purple-100">
-              {selectedShade && (
+              {selectedShades.length > 0 && (
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">Subtotal:</span>
                     <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                      ₹{(Number(product.price) * quantity).toLocaleString()}
+                      ₹{(Number(product.price) * quantity * selectedShades.length).toLocaleString()}
                     </span>
                   </div>
-                  {quantity > 1 && (
-                    <p className="text-xs text-gray-600 mt-1">
-                      {quantity} × ₹{Number(product.price).toLocaleString()}
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-600 mt-1">
+                    {selectedShades.length} shade{selectedShades.length > 1 ? 's' : ''} × {quantity} item{quantity > 1 ? 's' : ''} × ₹{Number(product.price).toLocaleString()}
+                  </p>
                 </div>
               )}
 
               <Button
                 className={`w-full py-6 text-lg font-semibold transition-all duration-300 ${
-                  selectedShade
+                  selectedShades.length > 0
                     ? 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 hover:shadow-xl transform hover:scale-105'
                     : 'bg-gray-300 cursor-not-allowed'
                 }`}
-                disabled={!selectedShade}
+                disabled={selectedShades.length === 0}
                 onClick={() => addToCart(undefined, true)}
               >
                 <ShoppingCart className="h-5 w-5 mr-2" />
-                {selectedShade ? 'Add to Cart' : 'Select a Shade First'}
+                {selectedShades.length > 0 ? `Add ${selectedShades.length} Shade${selectedShades.length > 1 ? 's' : ''} to Cart` : 'Select Shades First'}
               </Button>
 
-              {!selectedShade && (
+              {selectedShades.length === 0 && (
                 <div className="flex items-center justify-center gap-2 text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
                   <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                  <span className="font-medium">Please select a shade to continue</span>
+                  <span className="font-medium">Please select at least one shade to continue</span>
                 </div>
               )}
             </div>

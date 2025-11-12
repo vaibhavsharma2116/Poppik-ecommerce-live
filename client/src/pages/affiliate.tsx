@@ -47,17 +47,16 @@ export default function AffiliatePage() {
     retryDelay: 1000,
   });
 
-  // Redirect to dashboard if approved
+  // No automatic redirect - approved affiliates stay on affiliate page
   useEffect(() => {
     console.log('Checking application status:', application);
     if (application) {
       console.log('Application status:', application.status);
       const status = application.status?.toLowerCase();
       if (status === "approved") {
-        console.log('Redirecting to affiliate dashboard');
-        // Clear localStorage before redirect
+        console.log('User is approved affiliate');
+        // Clear localStorage for pending applications
         localStorage.removeItem('pendingAffiliateApplication');
-        setLocation("/affiliate-dashboard");
       }
     }
   }, [application, setLocation]);
@@ -75,23 +74,7 @@ export default function AffiliatePage() {
     );
   }
 
-  // If approved, show dashboard link (this part will be skipped due to useEffect redirect)
-  if (application && application.status === "approved") {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-red-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold mb-4">Welcome Back, Affiliate!</h1>
-          <p className="text-gray-600 mb-8">You're already an approved affiliate</p>
-          <Button
-            onClick={() => setLocation("/affiliate-dashboard")}
-            className="bg-pink-600 hover:bg-pink-700"
-          >
-            Go to Dashboard
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  // Removed - affiliates can now see the main affiliate page content
 
   return (
     <div className="min-h-screen bg-white">

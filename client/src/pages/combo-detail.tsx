@@ -73,7 +73,7 @@ export default function ComboDetail() {
     // Track affiliate click if ref parameter exists
     const urlParams = new URLSearchParams(window.location.search);
     const affiliateRef = urlParams.get('ref');
-    
+
     if (affiliateRef && combo?.id) {
       // Track the click
       fetch('/api/affiliate/track-click', {
@@ -285,22 +285,20 @@ export default function ComboDetail() {
   };
 
   const calculateRatingDistribution = () => {
-    if (!reviews || reviews.length === 0) {
-      return { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    }
-
-    const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    reviews.forEach((review: any) => {
-      const rating = Math.floor(review.rating);
+    const distribution = [0, 0, 0, 0, 0];
+    const reviewsArray = Array.isArray(reviews) ? reviews : [];
+    reviewsArray.forEach((review) => {
+      const rating = Math.round(review.rating);
       if (rating >= 1 && rating <= 5) {
-        distribution[rating as keyof typeof distribution]++;
+        distribution[rating - 1]++;
       }
     });
-
     return distribution;
   };
 
-  const averageRating = reviews && reviews.length > 0
+  const ratingDistribution = calculateRatingDistribution();
+
+  const averageRating = reviews && Array.isArray(reviews) && reviews.length > 0
     ? (reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : rating;
 
@@ -589,7 +587,7 @@ export default function ComboDetail() {
                               className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 z-10 hover:bg-white cursor-pointer"
                             >
                               <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7-7" />
                               </svg>
                             </button>
 
@@ -1024,7 +1022,7 @@ export default function ComboDetail() {
               <span className="text-4xl font-bold">{averageRating}</span>
             </div>
             <p className="text-center text-gray-600">
-              Based on {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
+              Based on {Array.isArray(reviews) ? reviews.length : 0} {Array.isArray(reviews) && reviews.length === 1 ? 'review' : 'reviews'}
             </p>
 
             <div className="mt-6 space-y-2">
@@ -1057,7 +1055,7 @@ export default function ComboDetail() {
               <div className="text-center py-8">
                 <p className="text-gray-600">Loading reviews...</p>
               </div>
-            ) : reviews.length === 0 ? (
+            ) : !Array.isArray(reviews) || reviews.length === 0 ? (
               <div className="bg-gray-50 rounded-2xl p-8 text-center">
                 <p className="text-gray-600 mb-4">No reviews yet. Be the first to review this combo!</p>
                 {canReview.canReview && (

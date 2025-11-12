@@ -168,8 +168,21 @@ const sidebarItems = [
     badge: null,
   },
   {
+    title: "Affiliate Settings",
+    href: "/affiliate-settings",
+    icon: Settings,
+    badge: null,
+  },
+  {
     title: "Promo Codes",
     href: "/promo-codes",
+    icon: Tag,
+    badge: null,
+  },
+  // Added Promo Code Usage menu item
+  {
+    title: "Promo Usage",
+    href: "/promo-code-usage",
     icon: Tag,
     badge: null,
   },
@@ -561,7 +574,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         const userStr = localStorage.getItem('user');
                         if (userStr) {
                           try {
-                            const user = JSON.parse(userStr);
+                            const user = JSON.JSON.parse(userStr);
                             return user.role === 'admin' ? 'Super Admin' : 'Admin';
                           } catch (error) {
                             return 'Admin';
