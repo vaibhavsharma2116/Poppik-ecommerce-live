@@ -16,7 +16,8 @@ export default function AnnouncementBar() {
     queryKey: ['/api/announcements'],
   });
 
-  if (!isVisible || announcements.length === 0) return null;
+  // Ensure announcements is an array
+  if (!isVisible || !Array.isArray(announcements) || announcements.length === 0) return null;
 
   // Combine all announcements with separator and spacing (minimum 6 non-breaking spaces)
   const spacing = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0'; // 6 non-breaking spaces

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo, startTransition, useDeferredValue } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tag, Calendar, User, ShoppingCart, TrendingDown, Package } from 'lucide-react';
 
 export default function PromoCodeUsage() {
-  const { data: usageData = [], isLoading } = useQuery({
+  const { data: usageData = [], isLoading, error } = useQuery({
     queryKey: ['/api/admin/promo-codes/usage'],
     queryFn: async () => {
       const token = localStorage.getItem('token');
@@ -17,16 +17,33 @@ export default function PromoCodeUsage() {
         }
       });
       if (!response.ok) throw new Error('Failed to fetch promo code usage');
-      return response.json();
-    }
+      const data = await response.json();
+      console.log('Promo code usage data:', data);
+      return Array.isArray(data) ? data : [];
+    },
+    suspense: false,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
-  const totalDiscount = usageData.reduce((sum: number, item: any) => 
-    sum + parseFloat(item.discountAmount || 0), 0
-  );
+  const deferredUsageData = useDeferredValue(usageData);
 
-  const uniqueCodes = [...new Set(usageData.map((item: any) => item.code))].length;
-  const totalOrders = usageData.length;
+  const totalDiscount = useMemo(() => {
+    if (!Array.isArray(deferredUsageData) || deferredUsageData.length === 0) return 0;
+    return deferredUsageData.reduce((sum: number, item: any) => 
+      sum + parseFloat(item.discountAmount || 0), 0
+    );
+  }, [deferredUsageData]);
+
+  const uniqueCodes = useMemo(() => {
+    if (!Array.isArray(deferredUsageData) || deferredUsageData.length === 0) return 0;
+    return [...new Set(deferredUsageData.map((item: any) => item.code))].length;
+  }, [deferredUsageData]);
+  
+  const totalOrders = useMemo(() => {
+    if (!Array.isArray(deferredUsageData)) return 0;
+    return deferredUsageData.length;
+  }, [deferredUsageData]);
 
   return (
     <div className="p-8 space-y-8">
@@ -42,7 +59,7 @@ export default function PromoCodeUsage() {
             <Tag className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{usageData.length}</div>
+            <div className="text-2xl font-bold">{deferredUsageData.length}</div>
           </CardContent>
         </Card>
 
@@ -85,7 +102,11 @@ export default function PromoCodeUsage() {
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8">Loading usage data...</div>
-          ) : usageData.length === 0 ? (
+          ) : error ? (
+            <div className="text-center py-8 text-red-500">
+              <p>Error loading data: {error instanceof Error ? error.message : 'Unknown error'}</p>
+            </div>
+          ) : !deferredUsageData || deferredUsageData.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Tag className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <p>No promo codes have been used yet</p>
@@ -103,7 +124,7 @@ export default function PromoCodeUsage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {usageData.map((usage: any) => (
+                  {Array.isArray(deferredUsageData) && deferredUsageData.map((usage: any) => (
                     <TableRow key={usage.id}>
                       <TableCell>
                         <Badge variant="outline" className="font-mono font-semibold">

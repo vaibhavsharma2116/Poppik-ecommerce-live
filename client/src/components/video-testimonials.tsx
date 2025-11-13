@@ -39,9 +39,12 @@ export default function VideoTestimonials() {
   });
 
   // Filter active testimonials and sort by sortOrder
-  const activeTestimonials = videoTestimonials
-    .filter(t => t.isActive)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  // Ensure videoTestimonials is an array
+  const activeTestimonials = Array.isArray(videoTestimonials)
+    ? videoTestimonials
+        .filter(t => t.isActive)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+    : [];
 
   // Auto-slide effect - pause when modal is open
   useEffect(() => {

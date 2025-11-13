@@ -297,10 +297,7 @@ export default function Profile() {
                   {user.firstName} {user.lastName}
                 </CardTitle>
                 <CardDescription>{user.email}</CardDescription>
-                <Badge variant="outline" className="mt-2">
-                  <User className="h-3 w-3 mr-1" />
-                  Customer
-                </Badge>
+                
               </CardHeader>
               <CardContent className="space-y-4">
                 <Button

@@ -293,7 +293,7 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,_var(--tw-gradient-stops))] from-purple-500 via-transparent to-transparent"></div>
         </div>
 
-        <div className="space-y-8 sm:space-y-12">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
 
 
           {/* Dynamic Categories Grid - Mobile-first Design */}
@@ -612,7 +612,7 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
         </div>
 
-        <div className="space-y-8 sm:space-y-12">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="space-y-8 sm:space-y-12">
             <div>
               <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center">
@@ -689,7 +689,7 @@ export default function HomePage() {
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
   </div>
 
-  <div className="space-y-8 sm:space-y-12">
+  <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
     <div className="space-y-8 sm:space-y-12">
       <div>
         <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center">
@@ -952,7 +952,7 @@ function ComboSection() {
 
   if (isLoading) {
     return (
-      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-10 md:mb-12">
             <Skeleton className="h-12 w-64 mx-auto mb-4" />
@@ -980,7 +980,7 @@ function ComboSection() {
   }
 
   return (
-    <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+    <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
       <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8 sm:mb-10 md:mb-12">
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium mb-2 sm:mb-4">
@@ -1182,6 +1182,11 @@ function LatestBlogPostsPerCategory() {
   // Get latest post per category
   const latestPostsPerCategory = React.useMemo(() => {
     const categoryMap = new Map<string, any>();
+
+    // Ensure blogPosts is an array
+    if (!Array.isArray(blogPosts)) {
+      return [];
+    }
 
     // Filter published posts and sort by createdAt
     const publishedPosts = blogPosts

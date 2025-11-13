@@ -179,6 +179,15 @@ export default function AffiliateWallet() {
   const availableCashbackBalance = parseFloat(walletData?.cashbackBalance || '0');
   const availableBalance = availableCommissionBalance + availableCashbackBalance;
 
+  // Debug logging
+  console.log('Wallet Data:', {
+    totalEarnings,
+    totalWithdrawn,
+    availableCommissionBalance,
+    availableCashbackBalance,
+    rawData: walletData
+  });
+
   const thisMonthTransactions = transactions.filter(t => {
     const date = new Date(t.createdAt);
     const now = new Date();
@@ -283,6 +292,26 @@ export default function AffiliateWallet() {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+        {/* Refresh Button */}
+        <div className="flex justify-end mb-4">
+          <Button
+            onClick={() => {
+              refetchWallet();
+              refetchTransactions();
+              refetchWithdrawals();
+              toast({
+                title: "Refreshed",
+                description: "Wallet data has been refreshed",
+              });
+            }}
+            variant="outline"
+            className="gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh Wallet
+          </Button>
+        </div>
+
         {/* Wallet Balance Cards - Fully Responsive */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6 md:mb-8">
           {/* Cashback Balance - Mobile Optimized */}

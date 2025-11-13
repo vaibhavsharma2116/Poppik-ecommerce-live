@@ -37,13 +37,30 @@ export default function AdminJobApplications() {
 
   const { data: applications = [], isLoading } = useQuery({
     queryKey: ['/api/admin/job-applications'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/job-applications', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch job applications');
+      }
+      return response.json();
+    }
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: any) => {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/job-applications/${id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ status }),
       });
       if (!response.ok) throw new Error('Failed to update status');
@@ -57,8 +74,13 @@ export default function AdminJobApplications() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/job-applications/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       if (!response.ok) throw new Error('Failed to delete application');
       return response.json();

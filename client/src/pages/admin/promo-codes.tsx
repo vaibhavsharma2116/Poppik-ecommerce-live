@@ -1,4 +1,4 @@
-import React, { useState, startTransition } from 'react';
+import React, { useState, startTransition, useMemo, useDeferredValue } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,6 @@ export default function PromoCodesManagement() {
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingCode, setEditingCode] = useState<any>(null);
-  // Added state for searchTerm and statusFilter as they are mentioned in the changes
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -61,8 +60,12 @@ export default function PromoCodesManagement() {
       });
       if (!response.ok) throw new Error('Failed to fetch promo codes');
       return response.json();
-    }
+    },
+    suspense: false,
+    staleTime: 30000,
   });
+
+  const deferredPromoCodes = useDeferredValue(promoCodes);
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -151,6 +154,16 @@ export default function PromoCodesManagement() {
       isActive: true,
     });
   };
+
+  const filteredCodes = useMemo(() => {
+    if (!Array.isArray(deferredPromoCodes)) return [];
+    return deferredPromoCodes.filter((code: any) => {
+      const isActive = code.isActive;
+      const matchesSearch = code.code.includes(searchTerm.toUpperCase()) || code.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' && isActive) || (statusFilter === 'inactive' && !isActive);
+      return matchesSearch && matchesStatus;
+    });
+  }, [deferredPromoCodes, searchTerm, statusFilter]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -414,7 +427,7 @@ export default function PromoCodesManagement() {
           <Card>
             <CardContent className="p-8 text-center">Loading promo codes...</CardContent>
           </Card>
-        ) : promoCodes.length === 0 ? (
+        ) : !Array.isArray(deferredPromoCodes) || deferredPromoCodes.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
               <Tag className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -422,13 +435,7 @@ export default function PromoCodesManagement() {
             </CardContent>
           </Card>
         ) : (
-          promoCodes.map((code: any) => {
-            const isActive = code.isActive;
-            const matchesSearch = code.code.includes(searchTerm.toUpperCase()) || code.description.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' && isActive) || (statusFilter === 'inactive' && !isActive);
-
-            if (matchesSearch && matchesStatus) {
-              return (
+          filteredCodes.map((code: any) => (
                 <Card key={code.id}>
                   <CardHeader>
                     <div className="flex justify-between items-start">
@@ -517,10 +524,7 @@ export default function PromoCodesManagement() {
                     )}
                   </CardContent>
                 </Card>
-              );
-            }
-            return null; // Do not render if it doesn't match filters
-          })
+              ))
         )}
       </div>
     </div>

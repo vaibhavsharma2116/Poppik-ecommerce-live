@@ -1306,6 +1306,192 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Affiliate Withdrawals
+  app.get('/api/affiliate/wallet/withdrawals', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      const withdrawals = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(and(
+          eq(schema.affiliateTransactions.userId, parseInt(userId as string)),
+          eq(schema.affiliateTransactions.type, 'withdrawal')
+        ))
+        .orderBy(desc(schema.affiliateTransactions.createdAt));
+
+      // Transform the data to match the expected withdrawal format
+      const formattedWithdrawals = withdrawals.map(w => ({
+        id: w.id,
+        userId: w.userId,
+        amount: w.amount,
+        status: w.status,
+        paymentMethod: 'Bank Transfer',
+        requestedAt: w.createdAt,
+        processedAt: w.processedAt,
+        rejectedReason: w.notes
+      }));
+
+      res.json(formattedWithdrawals);
+    } catch (error) {
+      console.error('Error fetching affiliate withdrawals:', error);
+      res.status(500).json({ error: 'Failed to fetch withdrawals' });
+    }
+  });
+
+  // Get Affiliate Withdrawals (Admin)
+  app.get('/api/admin/affiliate/withdrawals', adminMiddleware, async (req, res) => {
+    try {
+      const withdrawals = await db
+        .select({
+          id: schema.affiliateTransactions.id,
+          userId: schema.affiliateTransactions.userId,
+          amount: schema.affiliateTransactions.amount,
+          balanceType: schema.affiliateTransactions.balanceType,
+          description: schema.affiliateTransactions.description,
+          status: schema.affiliateTransactions.status,
+          notes: schema.affiliateTransactions.notes,
+          transactionId: schema.affiliateTransactions.transactionId,
+          createdAt: schema.affiliateTransactions.createdAt,
+          processedAt: schema.affiliateTransactions.processedAt,
+          userName: schema.users.firstName,
+          userEmail: schema.users.email,
+          userPhone: schema.users.phone,
+          bankName: schema.affiliateApplications.bankName,
+          branchName: schema.affiliateApplications.branchName,
+          ifscCode: schema.affiliateApplications.ifscCode,
+          accountNumber: schema.affiliateApplications.accountNumber,
+        })
+        .from(schema.affiliateTransactions)
+        .leftJoin(schema.users, eq(schema.affiliateTransactions.userId, schema.users.id))
+        .leftJoin(schema.affiliateApplications, eq(schema.affiliateTransactions.userId, schema.affiliateApplications.userId))
+        .where(eq(schema.affiliateTransactions.type, 'withdrawal'))
+        .orderBy(desc(schema.affiliateTransactions.createdAt));
+
+      res.json(withdrawals);
+    } catch (error) {
+      console.error('Error fetching affiliate withdrawals:', error);
+      res.status(500).json({ error: 'Failed to fetch withdrawals' });
+    }
+  });
+
+  // Approve affiliate withdrawal (Admin)
+  app.post('/api/admin/affiliate/withdrawals/:id/approve', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { transactionId, notes } = req.body;
+
+      if (!transactionId) {
+        return res.status(400).json({ error: 'Transaction ID is required' });
+      }
+
+      // Update transaction status
+      const [updatedTransaction] = await db
+        .update(schema.affiliateTransactions)
+        .set({
+          status: 'completed',
+          transactionId,
+          notes: notes || null,
+          processedAt: new Date()
+        })
+        .where(eq(schema.affiliateTransactions.id, id))
+        .returning();
+
+      if (!updatedTransaction) {
+        return res.status(404).json({ error: 'Withdrawal request not found' });
+      }
+
+      res.json({
+        success: true,
+        message: 'Withdrawal approved successfully',
+        transaction: updatedTransaction
+      });
+    } catch (error) {
+      console.error('Error approving withdrawal:', error);
+      res.status(500).json({ error: 'Failed to approve withdrawal' });
+    }
+  });
+
+  // Reject affiliate withdrawal (Admin)
+  app.post('/api/admin/affiliate/withdrawals/:id/reject', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { notes } = req.body;
+
+      // Get the transaction to refund the amount
+      const transaction = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .limit(1);
+
+      if (!transaction || transaction.length === 0) {
+        return res.status(404).json({ error: 'Withdrawal request not found' });
+      }
+
+      const withdrawalAmount = parseFloat(transaction[0].amount);
+      const userId = transaction[0].userId;
+      const balanceType = transaction[0].balanceType;
+
+      // Update transaction status
+      const [updatedTransaction] = await db
+        .update(schema.affiliateTransactions)
+        .set({
+          status: 'rejected',
+          notes: notes || 'Rejected by admin',
+          processedAt: new Date()
+        })
+        .where(eq(schema.affiliateTransactions.id, id))
+        .returning();
+
+      // Refund the amount to the wallet
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, userId))
+        .limit(1);
+
+      if (wallet && wallet.length > 0) {
+        const currentCashback = parseFloat(wallet[0].cashbackBalance || '0');
+        const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
+        const currentWithdrawn = parseFloat(wallet[0].totalWithdrawn || '0');
+
+        if (balanceType === 'cashback') {
+          await db
+            .update(schema.affiliateWallet)
+            .set({
+              cashbackBalance: (currentCashback + withdrawalAmount).toFixed(2),
+              totalWithdrawn: Math.max(0, currentWithdrawn - withdrawalAmount).toFixed(2),
+              updatedAt: new Date()
+            })
+            .where(eq(schema.affiliateWallet.userId, userId));
+        } else {
+          await db
+            .update(schema.affiliateWallet)
+            .set({
+              commissionBalance: (currentCommission + withdrawalAmount).toFixed(2),
+              totalWithdrawn: Math.max(0, currentWithdrawn - withdrawalAmount).toFixed(2),
+              updatedAt: new Date()
+            })
+            .where(eq(schema.affiliateWallet.userId, userId));
+        }
+      }
+
+      res.json({
+        success: true,
+        message: 'Withdrawal rejected and amount refunded',
+        transaction: updatedTransaction
+      });
+    } catch (error) {
+      console.error('Error rejecting withdrawal:', error);
+      res.status(500).json({ error: 'Failed to reject withdrawal' });
+    }
+  });
+
   // Process affiliate wallet withdrawal
   app.post('/api/affiliate/wallet/withdraw', async (req, res) => {
     try {
@@ -3595,18 +3781,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Credit affiliate commission to wallet if affiliate code was used
-      if (affiliateCode) {
+      if (affiliateCode && affiliateCode.startsWith('POPPIKAP')) {
         const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
 
         if (!isNaN(affiliateUserId)) {
-          // Get affiliate settings for commission rate
+          // Get affiliate settings for commission rate (default 25% as per UI)
           const settings = await db.select().from(schema.affiliateSettings);
           const commissionRate = parseFloat(
-            settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'
+            settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '25'
           );
 
-          // Calculate commission based on dynamic rate
-          const calculatedCommission = (totalAmount * commissionRate) / 100;
+          // Calculate commission based on dynamic rate (25% of total payable amount)
+          const calculatedCommission = (total * commissionRate) / 100;
 
           // Get or create affiliate wallet
           let wallet = await db
@@ -3632,7 +3818,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await db.update(schema.affiliateWallet)
               .set({
                 commissionBalance: (currentCommission + calculatedCommission).toFixed(2),
-                totalEarnings: (currentEarnings + calculatedCommission).toFixed(2)
+                totalEarnings: (currentEarnings + calculatedCommission).toFixed(2),
+                updatedAt: new Date()
               })
               .where(eq(schema.affiliateWallet.userId, affiliateUserId));
           }
@@ -3651,33 +3838,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const userData = user[0] || { firstName: 'Customer', lastName: '', email: 'customer@email.com', phone: null };
 
-          // Record affiliate sale
+          // Record affiliate sale in database
           await db.insert(schema.affiliateSales).values({
             affiliateUserId,
             affiliateCode,
             orderId: newOrder.id,
-            customerId: userId,
+            customerId: Number(userId),
             customerName: customerName || `${userData.firstName} ${userData.lastName}`,
             customerEmail: customerEmail || userData.email,
-            customerPhone: customerPhone || userData.phone,
-            productName: items.map(item => item.productName).join(', '),
-            saleAmount: totalAmount.toString(),
+            customerPhone: customerPhone || userData.phone || null,
+            productName: items.map(item => item.productName || item.name).join(', '),
+            saleAmount: total.toFixed(2),
             commissionAmount: calculatedCommission.toFixed(2),
-            commissionRate: commissionRate.toString(),
+            commissionRate: commissionRate.toFixed(2),
             status: 'confirmed'
           });
 
           // Add transaction record
           await db.insert(schema.affiliateTransactions).values({
             userId: affiliateUserId,
+            orderId: newOrder.id,
             type: 'commission',
             amount: calculatedCommission.toFixed(2),
             balanceType: 'commission',
-            description: `Commission (${commissionRate}%) from order ${newOrder.id}`,
-            status: 'completed'
+            description: `Commission (${commissionRate}%) from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+            status: 'completed',
+            createdAt: new Date()
           });
 
-          console.log(`Credited ₹${calculatedCommission.toFixed(2)} commission (${commissionRate}%) to affiliate ${affiliateUserId}`);
+          console.log(`✅ Affiliate commission credited: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for order ${newOrder.id}`);
+        } else {
+          console.error(`❌ Invalid affiliate user ID from code: ${affiliateCode}`);
         }
       }
 
