@@ -450,45 +450,26 @@ export default function Layout({ children }: LayoutProps) {
                   {/* Mobile Menu Content */}
                   <ScrollArea className="flex-1 h-[calc(65vh)]">
                     <div className="px-4 py-4 space-y-1">
-                      {/* Static Navigation Items */}
+                      {/* A. Home */}
                       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
                         Navigation
                       </div>
-                      {staticNavItems.map((item) => (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                            isActiveLink(item.href)
-                              ? "bg-red-500 text-black shadow-md"
-                              : "text-gray-700 hover:bg-red-50 hover:text-red-600"
-                          }`}
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          {item.name}
-                        </Link>
-                      ))}
-
-                      {/* Offers */}
                       <Link
-                        href="/offers"
-                        onClick={() => setIsMobileMenuOpen(false)}
+                        href="/"
                         className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                          isActiveLink('/offers')
-                            ? 'bg-red-500 text-white shadow-lg'
-                            : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
+                          isActiveLink("/")
+                            ? "bg-red-500 text-black shadow-md"
+                            : "text-gray-700 hover:bg-red-50 hover:text-red-600"
                         }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
                       >
-                        <span>Offers</span>
+                        Home
                       </Link>
-                    </div>
 
-                    {/* Categories Section */}
-                    <div className="px-4 pb-4">
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
+                      {/* B. Categories Section */}
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4 mb-3 px-3">
                         Categories
                       </div>
-
                       <Accordion type="single" collapsible className="w-full space-y-2">
                         {categories.map((category) => {
                           const categorySubcategories = getSubcategoriesForCategory(category.id);
@@ -516,13 +497,6 @@ export default function Layout({ children }: LayoutProps) {
                                 </AccordionTrigger>
                                 <AccordionContent className="px-4 pb-3">
                                   <div className="space-y-1 ml-5 pl-3 border-l-2 border-red-100">
-                                    <Link
-                                      href={`/category/${category.slug}`}
-                                      className="block px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                      onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                      View All {category.name}
-                                    </Link>
                                     {categorySubcategories.map((subcategory) => (
                                       <Link
                                         key={subcategory.id}
@@ -543,7 +517,6 @@ export default function Layout({ children }: LayoutProps) {
                               </AccordionItem>
                             );
                           } else {
-                            // Category without subcategories - simple link
                             return (
                               <div key={category.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
                                 <Link
@@ -563,160 +536,246 @@ export default function Layout({ children }: LayoutProps) {
                           }
                         })}
                       </Accordion>
+
+                      {/* C. Combo */}
+                      <Link
+                        href="/combo"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                          isActiveLink('/combo')
+                            ? 'bg-red-500 text-black shadow-md'
+                            : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
+                        }`}
+                      >
+                        Combo
+                      </Link>
+
+                      {/* D. Offer */}
+                      <Link
+                        href="/offers"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                          isActiveLink('/offers')
+                            ? 'bg-red-500 text-black shadow-md'
+                            : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
+                        }`}
+                      >
+                        Offer
+                      </Link>
+
+                      {/* E. Design Your Beauty Kit */}
+                      <Accordion type="single" collapsible className="w-full space-y-2">
+                        <AccordionItem value="beauty-kit" className="border-0 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                          <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-50 rounded-xl">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                              <span className="font-medium text-gray-800">Design Your Beauty Kit</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-4 pb-3">
+                            <div className="space-y-1 ml-5 pl-3 border-l-2 border-red-100">
+                              <Link
+                                href="/beauty-kit/micro"
+                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                              >
+                                Micro
+                              </Link>
+                              <Link
+                                href="/beauty-kit/small"
+                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                              >
+                                Small
+                              </Link>
+                              <Link
+                                href="/beauty-kit/medium"
+                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                              >
+                                Medium
+                              </Link>
+                              <Link
+                                href="/beauty-kit/large"
+                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                              >
+                                Large
+                              </Link>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+
+                      {/* F. Contest */}
+                      <Link
+                        href="/contest"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                          isActiveLink('/contest')
+                            ? 'bg-red-500 text-black shadow-md'
+                            : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
+                        }`}
+                      >
+                        Contest
+                      </Link>
                     </div>
+
+                    {/* G. Account Section */}
                     <div className="border-t border-gray-100 bg-gray-50 px-4 py-4">
-                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
-                      Account
-                    </div>
-                    <div className="space-y-2">
-                      {user ? (
-                        <>
-                          {/* My Profile Dropdown */}
-                          <Accordion type="single" collapsible className="w-full">
-                            <AccordionItem value="profile" className="border-0 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                              <AccordionTrigger className="px-3 py-3 hover:no-underline hover:bg-gray-50 rounded-xl">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 bg-blue-100 rounded-full">
-                                    <User className="h-4 w-4 text-blue-600" />
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
+                        Account
+                      </div>
+                      <div className="space-y-2">
+                        {user ? (
+                          <>
+                            {/* My Profile with nested items */}
+                            <Accordion type="single" collapsible className="w-full">
+                              <AccordionItem value="profile" className="border-0 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
+                                <AccordionTrigger className="px-3 py-3 hover:no-underline hover:bg-gray-50 rounded-xl">
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-100 rounded-full">
+                                      <User className="h-4 w-4 text-blue-600" />
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                      <div className="text-sm font-medium text-gray-900">My Profile</div>
+                                      <div className="text-xs text-gray-500">{user.firstName}</div>
+                                    </div>
                                   </div>
-                                  <div className="flex-1 text-left">
-                                    <div className="text-sm font-medium text-gray-900">My Profile</div>
-                                    <div className="text-xs text-gray-500">{user.firstName}</div>
-                                  </div>
-                                </div>
-                              </AccordionTrigger>
-                              <AccordionContent className="px-3 pb-3">
-                                <div className="space-y-1 ml-5 pl-3 border-l-2 border-blue-100">
-                                  <Link
-                                    href="/profile"
-                                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                  >
-                                    Profile Settings
-                                  </Link>
-                                  {isApprovedAffiliate && (
+                                </AccordionTrigger>
+                                <AccordionContent className="px-3 pb-3">
+                                  <div className="space-y-1 ml-5 pl-3 border-l-2 border-blue-100">
                                     <Link
-                                      href="/affiliate-dashboard"
+                                      href="/profile"
                                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                                       onClick={() => setIsMobileMenuOpen(false)}
                                     >
-                                      Affiliate Dashboard
+                                      Profile Settings
                                     </Link>
-                                  )}
-                                </div>
-                              </AccordionContent>
-                            </AccordionItem>
-                          </Accordion>
-
-                          {/* Wallet Dropdown */}
-                          <Accordion type="single" collapsible className="w-full">
-                            <AccordionItem value="wallet" className="border-0 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                              <AccordionTrigger className="px-3 py-3 hover:no-underline hover:bg-gray-50 rounded-xl">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 bg-purple-100 rounded-full">
-                                    <Wallet className="h-4 w-4 text-purple-600" />
-                                  </div>
-                                  <div className="flex-1 text-left">
-                                    <div className="text-sm font-medium text-gray-900">Wallet</div>
-                                    <div className="text-xs text-gray-500">
-                                      ₹{(parseFloat(walletData?.cashbackBalance || "0") + parseFloat(affiliateWallet?.commissionBalance || "0")).toFixed(2)}
-                                    </div>
-                                  </div>
-                                </div>
-                              </AccordionTrigger>
-                              <AccordionContent className="px-3 pb-3">
-                                <div className="space-y-1 ml-5 pl-3 border-l-2 border-purple-100">
-                                  <Link
-                                    href="/wallet"
-                                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                  >
-                                    Cashback Wallet
-                                  </Link>
-                                  {isApprovedAffiliate && (
-                                    <Link
-                                      href="/affiliate-wallet"
-                                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 rounded-lg transition-colors"
-                                      onClick={() => setIsMobileMenuOpen(false)}
+                                    <button
+                                      className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                      onClick={() => {
+                                        if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                                          // Add delete account logic here
+                                          console.log('Delete account');
+                                        }
+                                      }}
                                     >
-                                      Affiliate Wallet
-                                    </Link>
-                                  )}
-                                </div>
-                              </AccordionContent>
-                            </AccordionItem>
-                          </Accordion>
+                                      Delete Account
+                                    </button>
+                                    {isApprovedAffiliate && (
+                                      <Accordion type="single" collapsible className="w-full">
+                                        <AccordionItem value="affiliate" className="border-0">
+                                          <AccordionTrigger className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg">
+                                            Affiliate Partner
+                                          </AccordionTrigger>
+                                          <AccordionContent className="px-3">
+                                            <div className="space-y-1 ml-3 pl-3 border-l-2 border-blue-100">
+                                              <Link
+                                                href="/affiliate-dashboard"
+                                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                              >
+                                                Dashboard
+                                              </Link>
+                                              <Link
+                                                href="/wallet"
+                                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                              >
+                                                Cashback Wallet
+                                              </Link>
+                                              <Link
+                                                href="/affiliate-wallet"
+                                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                              >
+                                                Affiliate Partner Wallet
+                                              </Link>
+                                            </div>
+                                          </AccordionContent>
+                                        </AccordionItem>
+                                      </Accordion>
+                                    )}
+                                  </div>
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
 
-                          <Link href="/wishlist" onClick={() => setIsMobileMenuOpen(false)}>
-                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
-                              <div className="p-2 bg-pink-100 rounded-full">
-                                <Heart className="h-4 w-4 text-pink-600" />
+                            {/* H. Wishlist */}
+                            <Link href="/wishlist" onClick={() => setIsMobileMenuOpen(false)}>
+                              <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
+                                <div className="p-2 bg-pink-100 rounded-full">
+                                  <Heart className="h-4 w-4 text-pink-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-900">Wishlist</div>
+                                  <div className="text-xs text-gray-500">
+                                    {wishlistCount} items saved
+                                  </div>
+                                </div>
+                                {wishlistCount > 0 && (
+                                  <span className="bg-pink-100 text-pink-600 px-2 py-1 rounded-full text-xs font-medium">
+                                    {wishlistCount}
+                                  </span>
+                                )}
                               </div>
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">Wishlist</div>
-                                <div className="text-xs text-gray-500">
-                                  {wishlistCount} items saved
+                            </Link>
+
+                            {/* I. Logout */}
+                            <div className="pt-3 mt-3 border-t border-gray-200">
+                              <button
+                                onClick={handleLogout}
+                                className="flex items-center gap-3 px-3 py-3 rounded-xl bg-red-50 hover:bg-red-100 transition-all duration-200 border border-red-100 w-full"
+                              >
+                                <div className="p-2 bg-red-100 rounded-full">
+                                  <LogOut className="h-4 w-4 text-red-600" />
+                                </div>
+                                <div className="flex-1 text-left">
+                                  <div className="text-sm font-medium text-red-700">Logout</div>
+                                  <div className="text-xs text-red-500">Sign out of your account</div>
+                                </div>
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            {/* Sign In when not logged in */}
+                            <Link href="/auth/login" onClick={() => setIsMobileMenuOpen(false)}>
+                              <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
+                                <div className="p-2 bg-blue-100 rounded-full">
+                                  <User className="h-4 w-4 text-blue-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-900">Sign In</div>
+                                  <div className="text-xs text-gray-500">Access your account</div>
                                 </div>
                               </div>
-                              {wishlistCount > 0 && (
-                                <span className="bg-pink-100 text-pink-600 px-2 py-1 rounded-full text-xs font-medium">
-                                  {wishlistCount}
-                                </span>
-                              )}
-                            </div>
-                          </Link>
+                            </Link>
 
-                          <div className="pt-3 mt-3 border-t border-gray-200">
-                            <button
-                              onClick={handleLogout}
-                              className="flex items-center gap-3 px-3 py-3 rounded-xl bg-red-50 hover:bg-red-100 transition-all duration-200 border border-red-100 w-full"
-                            >
-                              <div className="p-2 bg-red-100 rounded-full">
-                                <LogOut className="h-4 w-4 text-red-600" />
-                              </div>
-                              <div className="flex-1 text-left">
-                                <div className="text-sm font-medium text-red-700">Logout</div>
-                                <div className="text-xs text-red-500">Sign out of your account</div>
-                              </div>
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <Link href="/auth/login" onClick={() => setIsMobileMenuOpen(false)}>
-                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
-                              <div className="p-2 bg-blue-100 rounded-full">
-                                <User className="h-4 w-4 text-blue-600" />
-                              </div>
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">Login / Signup</div>
-                                <div className="text-xs text-gray-500">Access your account</div>
-                              </div>
-                            </div>
-                          </Link>
-
-                          <Link href="/wishlist" onClick={() => setIsMobileMenuOpen(false)}>
-                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
-                              <div className="p-2 bg-pink-100 rounded-full">
-                                <Heart className="h-4 w-4 text-pink-600" />
-                              </div>
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">Wishlist</div>
-                                <div className="text-xs text-gray-500">
-                                  {wishlistCount} items saved
+                            {/* Wishlist for non-logged in users */}
+                            <Link href="/wishlist" onClick={() => setIsMobileMenuOpen(false)}>
+                              <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
+                                <div className="p-2 bg-pink-100 rounded-full">
+                                  <Heart className="h-4 w-4 text-pink-600" />
                                 </div>
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-900">Wishlist</div>
+                                  <div className="text-xs text-gray-500">
+                                    {wishlistCount} items saved
+                                  </div>
+                                </div>
+                                {wishlistCount > 0 && (
+                                  <span className="bg-pink-100 text-pink-600 px-2 py-1 rounded-full text-xs font-medium">
+                                    {wishlistCount}
+                                  </span>
+                                )}
                               </div>
-                              {wishlistCount > 0 && (
-                                <span className="bg-pink-100 text-pink-600 px-2 py-1 rounded-full text-xs font-medium">
-                                  {wishlistCount}
-                                </span>
-                              )}
-                            </div>
-                          </Link>
-                        </>
-                      )}
+                            </Link>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
                   </ScrollArea>
                   {/* User Actions Section */}
 
@@ -857,11 +916,7 @@ export default function Layout({ children }: LayoutProps) {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors focus:outline-none">
                       <Wallet className="h-5 w-5" />
-                      {isApprovedAffiliate && affiliateWallet && (
-                        <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-green-600 hover:bg-green-700 text-white text-xs">
-                          ₹
-                        </Badge>
-                      )}
+                    
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-72">
@@ -1550,4 +1605,4 @@ At Poppik, we believe beauty begins with wellness and grows through balance.
       </footer>
     </div>
   );
-}
+}   

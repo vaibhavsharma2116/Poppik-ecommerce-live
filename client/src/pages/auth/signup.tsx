@@ -28,7 +28,6 @@ export default function Signup() {
     phone: "",
     password: "",
     confirmPassword: "",
-    dateOfBirth: "",
     agreeToTerms: false,
     subscribeNewsletter: false
   });
@@ -118,8 +117,7 @@ export default function Signup() {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        confirmPassword: formData.confirmPassword,
-        dateOfBirth: formData.dateOfBirth
+        confirmPassword: formData.confirmPassword
       };
 
       const response = await fetch("/api/auth/signup", {
@@ -218,7 +216,7 @@ export default function Signup() {
     e.preventDefault();
 
     // Basic validation
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password || !formData.dateOfBirth) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password ) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -373,17 +371,7 @@ export default function Signup() {
                     </p>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                    <Input
-                      id="dateOfBirth"
-                      name="dateOfBirth"
-                      type="date"
-                      value={formData.dateOfBirth}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
+                  
 
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
@@ -442,7 +430,8 @@ export default function Signup() {
                           onCheckedChange={(checked) => 
                             setFormData(prev => ({
                               ...prev,
-                              agreeToTerms: checked === true
+                              agreeToTerms: checked === true,
+                              subscribeNewsletter: checked === true
                             }))
                           }
                           className="w-5 h-5 text-red-600 bg-white border-red-300 focus:ring-red-500 focus:ring-2 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
@@ -451,26 +440,9 @@ export default function Signup() {
                       </div>
                       <div className="flex-1">
                         <Label htmlFor="agreeToTerms" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
-                          I agree to the <Link href="/terms" className="text-red-600 hover:text-red-700 font-medium underline">Terms of Service</Link> and <Link href="/privacy" className="text-red-600 hover:text-red-700 font-medium underline">Privacy Policy</Link>
+                          I agree to the <Link href="/terms" className="text-red-600 hover:text-red-700 font-medium underline">Terms of Service</Link> and <Link href="/privacy" className="text-red-600 hover:text-red-700 font-medium underline">Privacy Policy</Link>, and subscribe to our newsletter for exclusive offers
                         </Label>
                       </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="subscribeNewsletter"
-                        checked={formData.subscribeNewsletter}
-                        onCheckedChange={(checked) => 
-                          setFormData(prev => ({
-                            ...prev,
-                            subscribeNewsletter: checked === true
-                          }))
-                        }
-                        className="w-4 h-4"
-                      />
-                      <Label htmlFor="subscribeNewsletter" className="text-sm cursor-pointer">
-                        Subscribe to our newsletter for exclusive offers
-                      </Label>
                     </div>
                   </div>
 

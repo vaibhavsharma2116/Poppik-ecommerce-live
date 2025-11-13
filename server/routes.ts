@@ -1739,9 +1739,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Content-Type', 'application/json');
 
       const { id } = req.params;
-      const { firstName, lastName, phone, dateOfBirth, address } = req.body;
+      const { firstName, lastName, phone, dateOfBirth, address, city, state, pincode } = req.body;
 
-      console.log(`Updating user ${id} with:`, { firstName, lastName, phone });
+      console.log(`Updating user ${id} with:`, { firstName, lastName, phone, city, state, pincode });
 
       // Validation
       if (!firstName || !lastName) {
@@ -1760,7 +1760,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: lastName.trim(),
         phone: phone ? phone.trim() : null,
         dateOfBirth: dateOfBirth ? dateOfBirth.trim() : null,
-        address: address ? address.trim() : null
+        address: address ? address.trim() : null,
+        city: city ? city.trim() : null,
+        state: state ? state.trim() : null,
+        pincode: pincode ? pincode.trim() : null
       });
 
       if (!updatedUser) {

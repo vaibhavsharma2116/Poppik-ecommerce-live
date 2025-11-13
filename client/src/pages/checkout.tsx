@@ -15,6 +15,257 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
+// City to State and Pincode mapping - now supports multiple pincodes per city
+const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
+  mumbai: { state: "maharashtra", pincodes: ["400001", "400002", "400003", "400004", "400005", "400006", "400007", "400008", "400009", "400010"] },
+  delhi: { state: "delhi", pincodes: ["110001", "110002", "110003", "110004", "110005", "110006", "110007", "110008", "110009", "110010"] },
+  bangalore: { state: "karnataka", pincodes: ["560001", "560002", "560003", "560004", "560005", "560006", "560007", "560008", "560009", "560010"] },
+  hyderabad: { state: "telangana", pincodes: ["500001", "500002", "500003", "500004", "500005", "500006", "500007", "500008", "500009", "500010"] },
+  ahmedabad: { state: "gujarat", pincodes: ["380001", "380002", "380003", "380004", "380005", "380006", "380007", "380008", "380009", "380010"] },
+  chennai: { state: "tamil_nadu", pincodes: ["600001", "600002", "600003", "600004", "600005", "600006", "600007", "600008", "600009", "600010"] },
+  kolkata: { state: "west_bengal", pincodes: ["700001", "700002", "700003", "700004", "700005", "700006", "700007", "700008", "700009", "700010"] },
+  pune: { state: "maharashtra", pincodes: ["411001", "411002", "411003", "411004", "411005", "411006", "411007", "411008", "411009", "411010"] },
+  jaipur: { state: "rajasthan", pincodes: ["302001", "302002", "302003", "302004", "302005", "302006", "302007", "302008", "302009", "302010"] },
+  surat: { state: "gujarat", pincodes: ["395001", "395002", "395003", "395004", "395005", "395006", "395007", "395008", "395009", "395010"] },
+  lucknow: { state: "uttar_pradesh", pincodes: ["226001", "226002", "226003", "226004", "226005"] },
+  kanpur: { state: "uttar_pradesh", pincodes: ["208001", "208002", "208003", "208004", "208005"] },
+  nagpur: { state: "maharashtra", pincodes: ["440001", "440002", "440003", "440004", "440005"] },
+  indore: { state: "madhya_pradesh", pincodes: ["452001", "452002", "452003", "452004", "452005"] },
+  thane: { state: "maharashtra", pincodes: ["400601", "400602", "400603", "400604", "400605"] },
+  bhopal: { state: "madhya_pradesh", pincodes: ["462001", "462002", "462003", "462004", "462005"] },
+  visakhapatnam: { state: "andhra_pradesh", pincodes: ["530001", "530002", "530003", "530004", "530005"] },
+  pimpri: { state: "maharashtra", pincodes: ["411017", "411018", "411019", "411020", "411021"] },
+  patna: { state: "bihar", pincodes: ["800001", "800002", "800003", "800004", "800005"] },
+  vadodara: { state: "gujarat", pincodes: ["390001", "390002", "390003", "390004", "390005"] },
+  ghaziabad: { state: "uttar_pradesh", pincode: "201001" },
+  ludhiana: { state: "punjab", pincode: "141001" },
+  agra: { state: "uttar_pradesh", pincode: "282001" },
+  nashik: { state: "maharashtra", pincode: "422001" },
+  faridabad: { state: "haryana", pincode: "121001" },
+  meerut: { state: "uttar_pradesh", pincode: "250001" },
+  rajkot: { state: "gujarat", pincode: "360001" },
+  kalyan: { state: "maharashtra", pincode: "421301" },
+  vasai: { state: "maharashtra", pincode: "401201" },
+  varanasi: { state: "uttar_pradesh", pincode: "221001" },
+  srinagar: { state: "jammu_and_kashmir", pincode: "190001" },
+  aurangabad: { state: "maharashtra", pincode: "431001" },
+  dhanbad: { state: "jharkhand", pincode: "826001" },
+  amritsar: { state: "punjab", pincode: "143001" },
+  navi_mumbai: { state: "maharashtra", pincode: "400614" },
+  allahabad: { state: "uttar_pradesh", pincode: "211001" },
+  ranchi: { state: "jharkhand", pincode: "834001" },
+  howrah: { state: "west_bengal", pincode: "711101" },
+  coimbatore: { state: "tamil_nadu", pincode: "641001" },
+  jabalpur: { state: "madhya_pradesh", pincode: "482001" },
+  gwalior: { state: "madhya_pradesh", pincode: "474001" },
+  vijayawada: { state: "andhra_pradesh", pincode: "520001" },
+  jodhpur: { state: "rajasthan", pincode: "342001" },
+  madurai: { state: "tamil_nadu", pincode: "625001" },
+  raipur: { state: "chhattisgarh", pincode: "492001" },
+  kota: { state: "rajasthan", pincode: "324001" },
+  guwahati: { state: "assam", pincode: "781001" },
+  chandigarh: { state: "chandigarh", pincode: "160001" },
+  solapur: { state: "maharashtra", pincode: "413001" },
+  hubli: { state: "karnataka", pincode: "580020" },
+  mysore: { state: "karnataka", pincode: "570001" },
+  tiruchirappalli: { state: "tamil_nadu", pincode: "620001" },
+  bareilly: { state: "uttar_pradesh", pincode: "243001" },
+  aligarh: { state: "uttar_pradesh", pincode: "202001" },
+  tiruppur: { state: "tamil_nadu", pincode: "641601" },
+  moradabad: { state: "uttar_pradesh", pincode: "244001" },
+  mysuru: { state: "karnataka", pincode: "570001" },
+  bhiwandi: { state: "maharashtra", pincode: "421302" },
+  saharanpur: { state: "uttar_pradesh", pincode: "247001" },
+  gorakhpur: { state: "uttar_pradesh", pincode: "273001" },
+  guntur: { state: "andhra_pradesh", pincode: "522001" },
+  bikaner: { state: "rajasthan", pincode: "334001" },
+  amravati: { state: "maharashtra", pincode: "444601" },
+  noida: { state: "uttar_pradesh", pincode: "201301" },
+  jamshedpur: { state: "jharkhand", pincode: "831001" },
+  bhilai: { state: "chhattisgarh", pincode: "490001" },
+  cuttack: { state: "odisha", pincode: "753001" },
+  firozabad: { state: "uttar_pradesh", pincode: "283203" },
+  kochi: { state: "kerala", pincode: "682001" },
+  nellore: { state: "andhra_pradesh", pincode: "524001" },
+  bhavnagar: { state: "gujarat", pincode: "364001" },
+  dehradun: { state: "uttarakhand", pincode: "248001" },
+  durgapur: { state: "west_bengal", pincode: "713201" },
+  asansol: { state: "west_bengal", pincode: "713301" },
+  rourkela: { state: "odisha", pincode: "769001" },
+  nanded: { state: "maharashtra", pincode: "431601" },
+  kolhapur: { state: "maharashtra", pincode: "416001" },
+  ajmer: { state: "rajasthan", pincode: "305001" },
+  akola: { state: "maharashtra", pincode: "444001" },
+  gulbarga: { state: "karnataka", pincode: "585101" },
+  jamnagar: { state: "gujarat", pincode: "361001" },
+  ujjain: { state: "madhya_pradesh", pincode: "456001" },
+  loni: { state: "uttar_pradesh", pincode: "201102" },
+  siliguri: { state: "west_bengal", pincode: "734001" },
+  jhansi: { state: "uttar_pradesh", pincode: "284001" },
+  ulhasnagar: { state: "maharashtra", pincode: "421001" },
+  jammu: { state: "jammu_and_kashmir", pincode: "180001" },
+  sangli: { state: "maharashtra", pincode: "416416" },
+  mangalore: { state: "karnataka", pincode: "575001" },
+  erode: { state: "tamil_nadu", pincode: "638001" },
+  belgaum: { state: "karnataka", pincode: "590001" },
+  ambattur: { state: "tamil_nadu", pincode: "600053" },
+  tirunelveli: { state: "tamil_nadu", pincode: "627001" },
+  malegaon: { state: "maharashtra", pincode: "423203" },
+  gaya: { state: "bihar", pincode: "823001" },
+  jalgaon: { state: "maharashtra", pincode: "425001" },
+  udaipur: { state: "rajasthan", pincode: "313001" },
+  maheshtala: { state: "west_bengal", pincode: "700141" },
+  davanagere: { state: "karnataka", pincode: "577001" },
+  kozhikode: { state: "kerala", pincode: "673001" },
+  kurnool: { state: "andhra_pradesh", pincode: "518001" },
+  rajpur_sonarpur: { state: "west_bengal", pincode: "700149" },
+  rajahmundry: { state: "andhra_pradesh", pincode: "533101" },
+  bokaro_steel_city: { state: "jharkhand", pincode: "827001" },
+  south_dumdum: { state: "west_bengal", pincode: "700074" },
+  bellary: { state: "karnataka", pincode: "583101" },
+  patiala: { state: "punjab", pincode: "147001" },
+  gopalpur: { state: "west_bengal", pincode: "743273" },
+  agartala: { state: "tripura", pincode: "799001" },
+  bhagalpur: { state: "bihar", pincode: "812001" },
+  muzaffarnagar: { state: "uttar_pradesh", pincode: "251001" },
+  bhatpara: { state: "west_bengal", pincode: "743123" },
+  panihati: { state: "west_bengal", pincode: "700110" },
+  latur: { state: "maharashtra", pincode: "413512" },
+  dhule: { state: "maharashtra", pincode: "424001" },
+  tirupati: { state: "andhra_pradesh", pincode: "517501" },
+  rohtak: { state: "haryana", pincode: "124001" },
+  korba: { state: "chhattisgarh", pincode: "495677" },
+  bhilwara: { state: "rajasthan", pincode: "311001" },
+  berhampur: { state: "odisha", pincode: "760001" },
+  muzaffarpur: { state: "bihar", pincode: "842001" },
+  ahmednagar: { state: "maharashtra", pincode: "414001" },
+  mathura: { state: "uttar_pradesh", pincode: "281001" },
+  kollam: { state: "kerala", pincode: "691001" },
+  avadi: { state: "tamil_nadu", pincode: "600054" },
+  kadapa: { state: "andhra_pradesh", pincode: "516001" },
+  kamarhati: { state: "west_bengal", pincode: "700058" },
+  sambalpur: { state: "odisha", pincode: "768001" },
+  bilaspur: { state: "chhattisgarh", pincode: "495001" },
+  shahjahanpur: { state: "uttar_pradesh", pincode: "242001" },
+  satara: { state: "maharashtra", pincode: "415001" },
+  bijapur: { state: "karnataka", pincode: "586101" },
+  rampur: { state: "uttar_pradesh", pincode: "244901" },
+  shivamogga: { state: "karnataka", pincode: "577201" },
+  chandrapur: { state: "maharashtra", pincode: "442401" },
+  junagadh: { state: "gujarat", pincode: "362001" },
+  thrissur: { state: "kerala", pincode: "680001" },
+  alwar: { state: "rajasthan", pincode: "301001" },
+  bardhaman: { state: "west_bengal", pincode: "713101" },
+  kulti: { state: "west_bengal", pincode: "713343" },
+  kakinada: { state: "andhra_pradesh", pincode: "533001" },
+  nizamabad: { state: "telangana", pincode: "503001" },
+  parbhani: { state: "maharashtra", pincode: "431401" },
+  tumkur: { state: "karnataka", pincode: "572101" },
+  khammam: { state: "telangana", pincode: "507001" },
+  ozhukarai: { state: "puducherry", pincode: "605013" },
+  bihar_sharif: { state: "bihar", pincode: "803101" },
+  panipat: { state: "haryana", pincode: "132103" },
+  darbhanga: { state: "bihar", pincode: "846004" },
+  bally: { state: "west_bengal", pincode: "711201" },
+  aizawl: { state: "mizoram", pincode: "796001" },
+  dewas: { state: "madhya_pradesh", pincode: "455001" },
+  ichalkaranji: { state: "maharashtra", pincode: "416115" },
+  karnal: { state: "haryana", pincode: "132001" },
+  bathinda: { state: "punjab", pincode: "151001" },
+  jalna: { state: "maharashtra", pincode: "431203" },
+  eluru: { state: "andhra_pradesh", pincode: "534001" },
+  kirari_suleman_nagar: { state: "delhi", pincode: "110086" },
+  barasat: { state: "west_bengal", pincode: "700124" },
+  purnia: { state: "bihar", pincode: "854301" },
+  satna: { state: "madhya_pradesh", pincode: "485001" },
+  mau: { state: "uttar_pradesh", pincode: "275101" },
+  sonipat: { state: "haryana", pincode: "131001" },
+  farrukhabad: { state: "uttar_pradesh", pincode: "209625" },
+  sagar: { state: "madhya_pradesh", pincode: "470001" },
+  rourkela: { state: "odisha", pincode: "769001" },
+  durg: { state: "chhattisgarh", pincode: "491001" },
+  imphal: { state: "manipur", pincode: "795001" },
+  ratlam: { state: "madhya_pradesh", pincode: "457001" },
+  hapur: { state: "uttar_pradesh", pincode: "245101" },
+  arrah: { state: "bihar", pincode: "802301" },
+  karimnagar: { state: "telangana", pincode: "505001" },
+  anantapur: { state: "andhra_pradesh", pincode: "515001" },
+  etawah: { state: "uttar_pradesh", pincode: "206001" },
+  ambernath: { state: "maharashtra", pincode: "421501" },
+  north_dumdum: { state: "west_bengal", pincode: "700074" },
+  bharatpur: { state: "rajasthan", pincode: "321001" },
+  begusarai: { state: "bihar", pincode: "851101" },
+  new_delhi: { state: "delhi", pincode: "110001" },
+  gandhidham: { state: "gujarat", pincode: "370201" },
+  baranagar: { state: "west_bengal", pincode: "700036" },
+  tiruvottiyur: { state: "tamil_nadu", pincode: "600019" },
+  puducherry: { state: "puducherry", pincode: "605001" },
+  sikar: { state: "rajasthan", pincode: "332001" },
+  thoothukudi: { state: "tamil_nadu", pincode: "628001" },
+  rewa: { state: "madhya_pradesh", pincode: "486001" },
+  mirzapur: { state: "uttar_pradesh", pincode: "231001" },
+  raichur: { state: "karnataka", pincode: "584101" },
+  pali: { state: "rajasthan", pincode: "306401" },
+  ramagundam: { state: "telangana", pincode: "505208" },
+  haridwar: { state: "uttarakhand", pincode: "249401" },
+  vijayanagaram: { state: "andhra_pradesh", pincode: "535001" },
+  katihar: { state: "bihar", pincode: "854105" },
+  naihati: { state: "west_bengal", pincode: "743165" },
+  sambhal: { state: "uttar_pradesh", pincode: "244302" },
+  nadiad: { state: "gujarat", pincode: "387001" },
+  yamunanagar: { state: "haryana", pincode: "135001" },
+  english_bazar: { state: "west_bengal", pincode: "732101" },
+  unnao: { state: "uttar_pradesh", pincode: "209801" },
+  morena: { state: "madhya_pradesh", pincode: "476001" },
+  bhiwani: { state: "haryana", pincode: "127021" },
+  purnea: { state: "bihar", pincode: "854301" },
+  kharagpur: { state: "west_bengal", pincode: "721301" },
+  dindigul: { state: "tamil_nadu", pincode: "624001" },
+  gandhinagar: { state: "gujarat", pincode: "382010" },
+  hospet: { state: "karnataka", pincode: "583201" },
+  nangloi_jat: { state: "delhi", pincode: "110041" },
+  malda: { state: "west_bengal", pincode: "732101" },
+  ongole: { state: "andhra_pradesh", pincode: "523001" },
+  deoghar: { state: "jharkhand", pincode: "814112" },
+  chapra: { state: "bihar", pincode: "841301" },
+  haldia: { state: "west_bengal", pincode: "721602" },
+  khandwa: { state: "madhya_pradesh", pincode: "450001" },
+  nandyal: { state: "andhra_pradesh", pincode: "518501" },
+  chittoor: { state: "andhra_pradesh", pincode: "517001" },
+  morbi: { state: "gujarat", pincode: "363641" },
+  amroha: { state: "uttar_pradesh", pincode: "244221" },
+  anand: { state: "gujarat", pincode: "388001" },
+  bhusawal: { state: "maharashtra", pincode: "425201" },
+  orai: { state: "uttar_pradesh", pincode: "285001" },
+  bahraich: { state: "uttar_pradesh", pincode: "271801" },
+  vellore: { state: "tamil_nadu", pincode: "632001" },
+  mahesana: { state: "gujarat", pincode: "384001" },
+  sambalpur: { state: "odisha", pincode: "768001" },
+  raiganj: { state: "west_bengal", pincode: "733134" },
+  sirsa: { state: "haryana", pincode: "125055" },
+  danapur: { state: "bihar", pincode: "801503" },
+  serampore: { state: "west_bengal", pincode: "712201" },
+  sultan_pur_majra: { state: "delhi", pincode: "110086" },
+  guna: { state: "madhya_pradesh", pincode: "473001" },
+  jaunpur: { state: "uttar_pradesh", pincode: "222001" },
+  panvel: { state: "maharashtra", pincode: "410206" },
+  shillong: { state: "meghalaya", pincode: "793001" },
+  tenali: { state: "andhra_pradesh", pincode: "522201" },
+  khora: { state: "uttar_pradesh", pincode: "201301" },
+  guntakal: { state: "andhra_pradesh", pincode: "515801" },
+  puri: { state: "odisha", pincode: "752001" },
+  compiegne: { state: "uttar_pradesh", pincode: "209801" },
+  kishanganj: { state: "bihar", pincode: "855107" },
+  supaul: { state: "bihar", pincode: "852131" },
+  godda: { state: "jharkhand", pincode: "814133" },
+  hazaribagh: { state: "jharkhand", pincode: "825301" },
+  pakur: { state: "jharkhand", pincode: "816107" },
+  paschim_bardhaman: { state: "west_bengal", pincode: "713101" },
+  dharwad: { state: "karnataka", pincode: "580001" },
+  medininagar: { state: "jharkhand", pincode: "822101" }
+};
+
+
 interface CartItem {
   id: number;
   name: string;
@@ -34,7 +285,9 @@ interface CartItem {
 }
 
 export default function CheckoutPage() {
-  const [, setLocation] = useLocation();
+  const location = useLocation();
+  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount = 0 } = location.state || {};
+
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [orderPlaced, setOrderPlaced] = useState(false);
@@ -42,6 +295,7 @@ export default function CheckoutPage() {
   const [showAuthRequired, setShowAuthRequired] = useState(false);
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false); // Added state for processing
+  const [isRedeeming, setIsRedeeming] = useState(false); // State for cashback redemption
 
   const [formData, setFormData] = useState({
     email: "",
@@ -69,10 +323,11 @@ export default function CheckoutPage() {
     const saved = localStorage.getItem('redeemAmount');
     return saved ? parseFloat(saved) : 0;
   });
+  const [walletAmount, setWalletAmount] = useState(passedWalletAmount);
+  const [affiliateWalletAmount, setAffiliateWalletAmount] = useState(passedAffiliateWalletAmount);
 
   // Promo code states
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
-  const [promoDiscount, setPromoDiscount] = useState(0);
   const [hasPromoCode, setHasPromoCode] = useState(false);
 
   // Get user from localStorage - must be before any hooks that use it
@@ -84,7 +339,7 @@ export default function CheckoutPage() {
   const user = getCurrentUser();
 
   // Fetch wallet data
-  const { data: walletData } = useQuery({
+  const { data: walletData, refetch: refetchWalletData } = useQuery({
     queryKey: ['/api/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
@@ -239,16 +494,13 @@ export default function CheckoutPage() {
     setLoading(false);
   }, [profileDataLoaded]);
 
-  // Calculate shipping cost when pincode or payment method changes
+  // Fetch shipping cost when zipCode or paymentMethod changes
   useEffect(() => {
     const fetchShippingCost = async () => {
-      // Only fetch if zipCode is valid and not in COD mode (as COD might have different rates or conditions)
       if (formData.zipCode && formData.zipCode.length === 6) {
         setLoadingShipping(true);
         try {
-          // Approximate weight calculation for shipping API
           const weight = cartItems.reduce((total, item) => total + (0.5 * item.quantity), 0);
-          // Check if COD is selected for shipping calculation
           const isCOD = formData.paymentMethod === 'cod';
 
           const response = await fetch(
@@ -258,7 +510,6 @@ export default function CheckoutPage() {
           if (response.ok) {
             const data = await response.json();
 
-            // Check if courier data is available and filter for the cheapest option
             if (data.data && data.data.available_courier_companies && data.data.available_courier_companies.length > 0) {
               const cheapestCourier = data.data.available_courier_companies.reduce((prev: any, curr: any) => {
                 return (curr.rate < prev.rate) ? curr : prev;
@@ -270,8 +521,7 @@ export default function CheckoutPage() {
                 description: `₹${Math.round(cheapestCourier.rate)} via ${cheapestCourier.courier_name}`,
               });
             } else {
-              // If no couriers are available, reset to default or show an error
-              setShippingCost(99); // Reset to default or a fallback value
+              setShippingCost(99);
               toast({
                 title: "Shipping Unavailable",
                 description: "Shipping not available for this location or combination.",
@@ -279,7 +529,6 @@ export default function CheckoutPage() {
               });
             }
           } else {
-            // Handle API errors by resetting to default shipping cost
             setShippingCost(99);
             toast({
               title: "Shipping Error",
@@ -289,7 +538,7 @@ export default function CheckoutPage() {
           }
         } catch (error) {
           console.error("Error fetching shipping cost:", error);
-          setShippingCost(99); // Fallback on error
+          setShippingCost(99);
           toast({
             title: "Shipping Error",
             description: "An unexpected error occurred while calculating shipping.",
@@ -299,7 +548,6 @@ export default function CheckoutPage() {
           setLoadingShipping(false);
         }
       } else {
-        // If zipCode is empty or invalid, reset to default shipping cost
         setShippingCost(99);
       }
     };
@@ -319,14 +567,12 @@ export default function CheckoutPage() {
       const result = await response.json();
 
       if (response.ok && result.verified) {
-        // Payment successful, create the order
         const pendingOrder = sessionStorage.getItem('pendingOrder');
         if (pendingOrder) {
           const orderData = JSON.parse(pendingOrder);
           setOrderId(orderData.orderId);
           setOrderPlaced(true);
 
-          // Clear cart and session
           localStorage.removeItem("cart");
           localStorage.removeItem("appliedPromoCode");
           sessionStorage.removeItem('pendingOrder');
@@ -339,14 +585,12 @@ export default function CheckoutPage() {
           });
         }
       } else {
-        // Payment failed
         toast({
           title: "Payment Failed",
           description: "Your payment could not be processed. Please try again.",
           variant: "destructive",
         });
 
-        // Restore cart from session
         const pendingOrder = sessionStorage.getItem('pendingOrder');
         if (pendingOrder) {
           const orderData = JSON.parse(pendingOrder);
@@ -374,26 +618,22 @@ export default function CheckoutPage() {
 
   const subtotal = calculateSubtotal();
 
-  // If promo code is applied, skip affiliate discount
   const affiliateDiscountAmount = (promoDiscount > 0 || !formData.affiliateDiscount)
     ? 0
     : Math.round(subtotal * (formData.affiliateDiscount / 100));
   const subtotalAfterAffiliate = subtotal - affiliateDiscountAmount;
 
-  // Apply promo code discount
   const subtotalAfterDiscount = subtotalAfterAffiliate - promoDiscount;
 
-  // If promo code OR affiliate code is applied, no free shipping (use standard shipping cost)
-  // Otherwise, check if order qualifies for free shipping (above 599)
-  const isPromoActive = hasPromoCode || formData.affiliateCode || affiliateDiscountAmount > 0;
-  const shipping = isPromoActive
+  // Free shipping only if no promo code, no affiliate discount, and subtotal > 599
+  const shipping = (promoDiscount > 0 || affiliateDiscountAmount > 0)
     ? shippingCost
     : (subtotalAfterAffiliate > 599 ? 0 : shippingCost);
 
-  const totalBeforeDiscount = subtotalAfterDiscount + shipping;
-  const total = Math.max(0, totalBeforeDiscount - redeemAmount);
+  const totalBeforeWallet = subtotalAfterDiscount + shipping;
+  const total = Math.max(0, totalBeforeWallet - redeemAmount - affiliateWalletAmount);
 
-  // Calculate affiliate commission (25% of payable price)
+
   const affiliateCommission = formData.affiliateCode
     ? Math.round(total * 0.25)
     : 0;
@@ -404,20 +644,40 @@ export default function CheckoutPage() {
       ...prev,
       [name]: value
     }));
+
+    // Auto-fill state and clear zipcode when city is selected (user will select from dropdown)
+    if (name === 'city' && value) {
+      const cityKey = value.toLowerCase().trim();
+      const locationData = cityLocationMap[cityKey];
+
+      if (locationData) {
+        setFormData(prev => ({
+          ...prev,
+          city: value,
+          state: locationData.state,
+          zipCode: "" // Clear zipCode so user can select from dropdown
+        }));
+      }
+    }
+  };
+
+  // Get available pincodes for selected city
+  const getAvailablePincodes = () => {
+    if (!formData.city) return [];
+    const cityKey = formData.city.toLowerCase().trim();
+    const locationData = cityLocationMap[cityKey];
+    return locationData?.pincodes || [];
   };
 
   const handleUseProfileData = () => {
     if (userProfile) {
-      // Parse address to extract city, state, zipCode from profile
       let city = "";
       let state = "";
       let zipCode = "";
       let streetAddress = userProfile.address || "";
 
-      // Try to extract city, state, zipCode from full address if they exist
       const addressParts = streetAddress.split(',').map(part => part.trim());
       if (addressParts.length >= 3) {
-        // Last part might contain state and pin code
         const lastPart = addressParts[addressParts.length - 1];
         const pinCodeMatch = lastPart.match(/\d{6}$/);
         if (pinCodeMatch) {
@@ -427,23 +687,18 @@ export default function CheckoutPage() {
           state = lastPart;
         }
 
-        // Second last part might be city
         if (addressParts.length >= 2) {
           city = addressParts[addressParts.length - 2];
         }
 
-        // Remove city and state from full address to get street address
         streetAddress = addressParts.slice(0, -2).join(', ');
       } else if (addressParts.length === 2) {
-        // If only 2 parts, assume first is address and second is city
         city = addressParts[1];
         streetAddress = addressParts[0];
       } else if (addressParts.length === 1) {
-        // If only 1 part, use it as street address
         streetAddress = addressParts[0];
       }
 
-      // Fill both contact information and shipping address
       setFormData({
         email: userProfile.email || "",
         firstName: userProfile.firstName || "",
@@ -514,12 +769,12 @@ export default function CheckoutPage() {
         throw new Error(error.error || 'Failed to redeem cashback');
       }
 
-      const data = await res.json();
-
-      // Update form data to reflect the redeemed amount
+      // Update wallet amount in state
+      setWalletAmount(prev => prev - redeemAmount);
+      // Also update the form data's redeemAmount if it's used elsewhere
       setFormData(prev => ({
         ...prev,
-        redeemAmount: redeemAmount
+        // Assuming redeemAmount in formData is meant to track the amount to be applied, not the balance
       }));
 
       toast({
@@ -527,8 +782,8 @@ export default function CheckoutPage() {
         description: `₹${redeemAmount} cashback redeemed successfully`,
       });
 
-      // Refresh wallet data
-      window.location.reload();
+      // Optionally refetch wallet data to ensure UI reflects the absolute latest balance
+      refetchWalletData();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -552,7 +807,6 @@ export default function CheckoutPage() {
         return false;
       }
 
-      // Validate form data
       if (!formData.email || !formData.firstName || !formData.lastName) {
         toast({
           title: "Missing Information",
@@ -562,7 +816,6 @@ export default function CheckoutPage() {
         return false;
       }
 
-      // Validate phone number if provided
       if (formData.phone && formData.phone.trim()) {
         const phoneRegex = /^(\+91|91)?[6-9]\d{9}$/;
         const cleanPhone = formData.phone.replace(/[\s-()]/g, '');
@@ -576,7 +829,6 @@ export default function CheckoutPage() {
         }
       }
 
-      // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email.trim())) {
         toast({
@@ -587,10 +839,8 @@ export default function CheckoutPage() {
         return false;
       }
 
-      // Generate unique order ID
       const orderId = `ORD-${Date.now()}-${user.id}`;
 
-      // Create Cashfree order
       const response = await fetch('/api/payments/cashfree/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -659,18 +909,17 @@ export default function CheckoutPage() {
         return false;
       }
 
-      // Store order data in session storage for after payment
       sessionStorage.setItem('pendingOrder', JSON.stringify({
         orderId: orderData.orderId,
         paymentSessionId: orderData.paymentSessionId,
         customerData: formData,
         cartItems: cartItems,
         totalAmount: total,
-        redeemAmount: redeemAmount, // Include redeemAmount
-        affiliateCommission: affiliateCommission, // Include affiliateCommission
+        redeemAmount: redeemAmount,
+        affiliateWalletAmount: affiliateWalletAmount, // Include affiliateWalletAmount
+        affiliateCommission: affiliateCommission,
       }));
 
-      // Load Cashfree SDK and redirect to payment
       return new Promise((resolve) => {
         const existingScript = document.querySelector('script[src="https://sdk.cashfree.com/js/v3/cashfree.js"]');
         if (existingScript) {
@@ -728,7 +977,7 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsProcessing(true); // Set processing state
+    setIsProcessing(true);
 
     const user = getCurrentUser();
     if (!user) {
@@ -737,22 +986,20 @@ export default function CheckoutPage() {
         description: "Please log in to place an order",
         variant: "destructive",
       });
-      setIsProcessing(false); // Reset processing state
+      setIsProcessing(false);
       return;
     }
 
-    // Basic validation
     if (!formData.email || !formData.firstName || !formData.lastName || !formData.address) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields",
         variant: "destructive",
       });
-      setIsProcessing(false); // Reset processing state
+      setIsProcessing(false);
       return;
     }
 
-    // Validate phone number if provided
     if (formData.phone && formData.phone.trim()) {
       const phoneRegex = /^(\+91|91)?[6-9]\d{9}$/;
       const cleanPhone = formData.phone.replace(/[\s-()]/g, '');
@@ -762,12 +1009,11 @@ export default function CheckoutPage() {
           description: "Please enter a valid 10-digit Indian mobile number starting with 6-9",
           variant: "destructive",
         });
-        setIsProcessing(false); // Reset processing state
+        setIsProcessing(false);
         return false;
       }
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email.trim())) {
       toast({
@@ -775,18 +1021,17 @@ export default function CheckoutPage() {
         description: "Please enter a valid email address",
         variant: "destructive",
       });
-      setIsProcessing(false); // Reset processing state
+      setIsProcessing(false);
       return false;
     }
 
-    // Validate address fields for Shiprocket
     if (!formData.address || formData.address.trim().length < 10) {
       toast({
         title: "Invalid Address",
         description: "Please enter a complete address (minimum 10 characters)",
         variant: "destructive",
       });
-      setIsProcessing(false); // Reset processing state
+      setIsProcessing(false);
       return false;
     }
 
@@ -796,7 +1041,7 @@ export default function CheckoutPage() {
         description: "Please select a valid city",
         variant: "destructive",
       });
-      setIsProcessing(false); // Reset processing state
+      setIsProcessing(false);
       return false;
     }
 
@@ -806,7 +1051,7 @@ export default function CheckoutPage() {
         description: "Please select a valid state",
         variant: "destructive",
       });
-      setIsProcessing(false); // Reset processing state
+      setIsProcessing(false);
       return false;
     }
 
@@ -816,18 +1061,17 @@ export default function CheckoutPage() {
         description: "Please enter a valid 6-digit PIN code",
         variant: "destructive",
       });
-      setIsProcessing(false); // Reset processing state
+      setIsProcessing(false);
       return false;
     }
 
-    // Validate city and state are not default values
     if (formData.city === "" || formData.state === "") {
       toast({
         title: "Address Incomplete",
         description: "Please select city and state",
         variant: "destructive",
       });
-      setIsProcessing(false); // Reset processing state
+      setIsProcessing(false);
       return false;
     }
 
@@ -835,26 +1079,20 @@ export default function CheckoutPage() {
     try {
       let paymentSuccessful = false;
       let paymentMethod = 'Cash on Delivery';
-      const finalTotal = total; // Use the calculated total
+      const finalTotal = total;
       const fullAddress = `${formData.address.trim()}, ${formData.city.trim()}, ${formData.state.trim()} ${formData.zipCode.trim()}`;
 
 
-      // Process payment based on selected method
       if (formData.paymentMethod === 'cashfree') {
         toast({
           title: "Processing Payment",
           description: "Redirecting to Cashfree...",
         });
         paymentSuccessful = await processCashfreePayment();
-        // For Cashfree, the order will be created after payment verification
         return;
       } else {
-        // For COD, create order directly
         paymentSuccessful = true;
         paymentMethod = 'Cash on Delivery';
-
-        // Get affiliate reference from localStorage
-        const affiliateRef = localStorage.getItem('affiliateRef');
 
         const orderData = {
           userId: user.id,
@@ -878,9 +1116,9 @@ export default function CheckoutPage() {
           customerEmail: formData.email.trim(),
           customerPhone: formData.phone.trim(),
           redeemAmount: redeemAmount,
+          affiliateWalletAmount: affiliateWalletAmount, // Include affiliate wallet amount here
         };
 
-        // If cashback is being redeemed, process it first
         if (redeemAmount > 0) {
           try {
             const redeemResponse = await fetch('/api/wallet/redeem', {
@@ -901,8 +1139,6 @@ export default function CheckoutPage() {
             }
 
             console.log('Cashback redeemed successfully:', redeemAmount);
-
-            // Invalidate wallet queries to refresh the balance
             window.dispatchEvent(new CustomEvent('walletUpdated'));
           } catch (redeemError) {
             console.error('Error redeeming cashback:', redeemError);
@@ -911,8 +1147,8 @@ export default function CheckoutPage() {
               description: redeemError.message || "Failed to redeem cashback. Please try again.",
               variant: "destructive",
             });
-            setIsProcessing(false); // Reset processing state
-            return; // Stop order placement if redemption fails
+            setIsProcessing(false);
+            return;
           }
         }
 
@@ -934,14 +1170,11 @@ export default function CheckoutPage() {
           setOrderId(data.orderId || 'ORD-001');
           setOrderPlaced(true);
 
-          // Clear cart and promo code
           localStorage.removeItem("cart");
           localStorage.removeItem("appliedPromoCode");
           sessionStorage.removeItem('pendingOrder');
           localStorage.setItem("cartCount", "0");
           window.dispatchEvent(new Event("cartUpdated"));
-
-          // Trigger wallet update event
           window.dispatchEvent(new CustomEvent('walletUpdated'));
 
           toast({
@@ -957,7 +1190,7 @@ export default function CheckoutPage() {
             description: error.message || "Failed to create order. Please try again.",
             variant: "destructive",
           });
-          setIsProcessing(false); // Reset processing state
+          setIsProcessing(false);
           return;
         }
       }
@@ -968,9 +1201,9 @@ export default function CheckoutPage() {
         description: error instanceof Error ? error.message : "There was an error placing your order. Please try again.",
         variant: "destructive",
       });
-      setIsProcessing(false); // Reset processing state
+      setIsProcessing(false);
     } finally {
-      if (formData.paymentMethod !== 'cashfree') { // Only reset if not redirecting to Cashfree
+      if (formData.paymentMethod !== 'cashfree') {
         setIsProcessing(false);
       }
     }
@@ -1078,7 +1311,6 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      {/* Profile Data Confirmation Dialog */}
       <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -1148,7 +1380,6 @@ export default function CheckoutPage() {
       </Dialog>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <Link href="/cart" className="inline-flex items-center text-red-600 hover:text-red-700 mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -1159,7 +1390,6 @@ export default function CheckoutPage() {
 
         <form onSubmit={handlePlaceOrder}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Checkout Form */}
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -1408,7 +1638,7 @@ export default function CheckoutPage() {
                         <option value="jalna">Jalna</option>
                         <option value="eluru">Eluru</option>
                         <option value="kirari_suleman_nagar">Kirari Suleman Nagar</option>
-                        <option value="barabanki">Barabanki</option>
+                        <option value="barasat">Barasat</option>
                         <option value="purnia">Purnia</option>
                         <option value="satna">Satna</option>
                         <option value="mau">Mau</option>
@@ -1428,10 +1658,10 @@ export default function CheckoutPage() {
                         <option value="bharatpur">Bharatpur</option>
                         <option value="begusarai">Begusarai</option>
                         <option value="new_delhi">New Delhi</option>
-                        <option value="gandhinagar">Gandhinagar</option>
+                        <option value="gandhidham">Gandhidham</option>
                         <option value="baranagar">Baranagar</option>
                         <option value="tiruvottiyur">Tiruvottiyur</option>
-                        <option value="pondicherry">Pondicherry</option>
+                        <option value="puducherry">Pondicherry</option>
                         <option value="sikar">Sikar</option>
                         <option value="thoothukudi">Thoothukudi</option>
                         <option value="rewa">Rewa</option>
@@ -1442,30 +1672,9 @@ export default function CheckoutPage() {
                         <option value="haridwar">Haridwar</option>
                         <option value="vijayanagaram">Vijayanagaram</option>
                         <option value="katihar">Katihar</option>
-                        <option value="nagarcoil">Nagarcoil</option>
-                        <option value="sri_ganganagar">Sri Ganganagar</option>
-                        <option value="karawal_nagar">Karawal Nagar</option>
-                        <option value="mango">Mango</option>
-                        <option value="thanjavur">Thanjavur</option>
-                        <option value="bulandshahr">Bulandshahr</option>
-                        <option value="uluberia">Uluberia</option>
-                        <option value="murwara">Murwara</option>
-                        <option value="sambhal">Sambhal</option>
-                        <option value="singrauli">Singrauli</option>
-                        <option value="nadiad">Nadiad</option>
-                        <option value="secunderabad">Secunderabad</option>
-                        <option value="naihati">Naihati</option>
-                        <option value="yamunanagar">Yamunanagar</option>
-                        <option value="bidhan_nagar">Bidhan Nagar</option>
-                        <option value="pallavaram">Pallavaram</option>
-                        <option value="bidar">Bidar</option>
-                        <option value="munger">Munger</option>
-                        <option value="panchkula">Panchkula</option>
-                        <option value="burhanpur">Burhanpur</option>
-                        <option value="raurkela_industrial_township">Raurkela Industrial Township</option>
                         <option value="kharagpur">Kharagpur</option>
                         <option value="dindigul">Dindigul</option>
-                        <option value="gandhi_nagar">Gandhi Nagar</option>
+                        <option value="gandhinagar">Gandhinagar</option>
                         <option value="hospet">Hospet</option>
                         <option value="nangloi_jat">Nangloi Jat</option>
                         <option value="malda">Malda</option>
@@ -1473,53 +1682,30 @@ export default function CheckoutPage() {
                         <option value="deoghar">Deoghar</option>
                         <option value="chapra">Chapra</option>
                         <option value="haldia">Haldia</option>
-                        <option value="kanchrapara">Kanchrapara</option>
-                        <option value="habra">Habra</option>
-                        <option value="krishnanagar">Krishnanagar</option>
-                        <option value="ranaghat">Ranaghat</option>
-                        <option value="balaghat">Balaghat</option>
-                        <option value="puruliya">Puruliya</option>
-                        <option value="monteswar">Monteswar</option>
-                        <option value="raiganj">Raiganj</option>
-                        <option value="adilabad">Adilabad</option>
+                        <option value="khandwa">Khandwa</option>
+                        <option value="nandyal">Nandyal</option>
                         <option value="chittoor">Chittoor</option>
-                        <option value="rajnandgaon">Rajnandgaon</option>
-                        <option value="reliance">Reliance</option>
-                        <option value="khora">Khora</option>
-                        <option value="bhusawal">Bhusawal</option>
-                        <option value="tadipatri">Tadipatri</option>
-                        <option value="kishanganj">Kishanganj</option>
-                        <option value="karaikudi">Karaikudi</option>
-                        <option value="surendranagar">Surendranagar</option>
-                        <option value="kadi">Kadi</option>
-                        <option value="mandurah">Mandurah</option>
-                        <option value="dibrugarh">Dibrugarh</option>
-                        <option value="shillong">Shillong</option>
-                        <option value="sambalpur">Sambalpur</option>
-                        <option value="junagadh">Junagadh</option>
-                        <option value="sangrur">Sangrur</option>
-                        <option value="faridkot">Faridkot</option>
-                        <option value="solan">Solan</option>
-                        <option value="baramulla">Baramulla</option>
-                        <option value="udupi">Udupi</option>
-                        <option value="proddatur">Proddatur</option>
-                        <option value="nagapattinam">Nagapattinam</option>
-                        <option value="pranaganj">Pranaganj</option>
-                        <option value="kafur">Kafur</option>
-                        <option value="suliyat">Suliyat</option>
-                        <option value="malappuram">Malappuram</option>
-                        <option value="dimapur">Dimapur</option>
-                        <option value="rudrapur">Rudrapur</option>
-                        <option value="sirsa">Sirsa</option>
-                        <option value="washim">Washim</option>
-                        <option value="mahbubnagar">Mahbubnagar</option>
-                        <option value="narasaraopet">Narasaraopet</option>
-                        <option value="siratur">Siratur</option>
-                        <option value="kumbakonam">Kumbakonam</option>
-                        <option value="hazaribag">Hazaribag</option>
-                        <option value="dharwad">Dharwad</option>
-                        <option value="medininagar">Medininagar</option>
                         <option value="morbi">Morbi</option>
+                        <option value="amroha">Amroha</option>
+                        <option value="anand">Anand</option>
+                        <option value="bhusawal">Bhusawal</option>
+                        <option value="orai">Orai</option>
+                        <option value="bahraich">Bahraich</option>
+                        <option value="vellore">Vellore</option>
+                        <option value="mahesana">Mahesana</option>
+                        <option value="sambalpur">Sambalpur</option>
+                        <option value="raiganj">Raiganj</option>
+                        <option value="sirsa">Sirsa</option>
+                        <option value="danapur">Danapur</option>
+                        <option value="serampore">Serampore</option>
+                        <option value="sultan_pur_majra">Sultan Pur Majra</option>
+                        <option value="guna">Guna</option>
+                        <option value="jaunpur">Jaunpur</option>
+                        <option value="panvel">Panvel</option>
+                        <option value="shillong">Shillong</option>
+                        <option value="tenali">Tenali</option>
+                        <option value="khora">Khora</option>
+                        <option value="guntakal">Guntakal</option>
                         <option value="puri">Puri</option>
                         <option value="compiegne">Compiegne</option>
                         <option value="kishanganj">Kishanganj</option>
@@ -1528,6 +1714,8 @@ export default function CheckoutPage() {
                         <option value="hazaribagh">Hazaribagh</option>
                         <option value="pakur">Pakur</option>
                         <option value="paschim_bardhaman">Paschim Bardhaman</option>
+                        <option value="dharwad">Dharwad</option>
+                        <option value="medininagar">Medininagar</option>
                       </select>
                     </div>
                     <div>
@@ -1582,17 +1770,27 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <Label htmlFor="zipCode">PIN Code *</Label>
-                    <Input
+                    <select
                       id="zipCode"
                       name="zipCode"
-                      type="text"
                       value={formData.zipCode}
                       onChange={handleInputChange}
-                      placeholder="Enter 6-digit PIN code"
-                      maxLength={6}
-                      pattern="[0-9]{6}"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       required
-                    />
+                      disabled={!formData.city}
+                    >
+                      <option value="">
+                        {formData.city ? "Select PIN Code" : "Select city first"}
+                      </option>
+                      {getAvailablePincodes().map((pincode) => (
+                        <option key={pincode} value={pincode}>
+                          {pincode}
+                        </option>
+                      ))}
+                    </select>
+                    {!formData.city && (
+                      <p className="text-xs text-gray-500 mt-1">Please select a city to see available PIN codes</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1649,10 +1847,8 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
 
-              
             </div>
 
-            {/* Order Summary */}
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -1688,7 +1884,6 @@ export default function CheckoutPage() {
                           )}
                           <p className="text-sm text-gray-600 mt-1">Qty: {item.quantity}</p>
 
-                          {/* Cashback Badge for Item */}
                           {item.cashbackPrice && item.cashbackPercentage && (
                             <div className="mt-2 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-md p-1.5">
                               <div className="flex items-center justify-between text-xs">
@@ -1733,10 +1928,16 @@ export default function CheckoutPage() {
                       <span>Shipping</span>
                       <span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
                     </div>
-                    {redeemAmount > 0 && (
-                      <div className="flex justify-between text-green-600 font-semibold">
-                        <span>Wallet Cashback</span>
-                        <span>-₹{redeemAmount.toFixed(2)}</span>
+                    {walletAmount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Cashback Wallet</span>
+                        <span className="text-green-600 font-semibold">-₹{walletAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {affiliateWalletAmount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-purple-600">Affiliate Wallet</span>
+                        <span className="text-purple-600 font-semibold">-₹{affiliateWalletAmount.toFixed(2)}</span>
                       </div>
                     )}
                     <Separator />
@@ -1768,7 +1969,7 @@ export default function CheckoutPage() {
                     type="submit"
                     className="w-full mt-6 bg-red-600 hover:bg-red-700"
                     size="lg"
-                    disabled={isProcessing} // Disable button while processing
+                    disabled={isProcessing}
                   >
                     {isProcessing ? "Processing..." : (
                       <>

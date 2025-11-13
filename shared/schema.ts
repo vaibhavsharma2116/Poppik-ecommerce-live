@@ -11,6 +11,9 @@ export const users = pgTable("users", {
   password: varchar("password", { length: 255 }).notNull(),
   dateOfBirth: varchar("date_of_birth", { length: 10 }),
   address: text("address"),
+  city: varchar("city", { length: 100 }),
+  state: varchar("state", { length: 100 }),
+  pincode: varchar("pincode", { length: 10 }),
   role: varchar("role", { length: 20 }).notNull().default("user"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()

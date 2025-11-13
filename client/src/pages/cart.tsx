@@ -11,6 +11,8 @@ import { useQuery } from '@tanstack/react-query';
 import ProductCard from "@/components/product-card";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label"; // Assuming Label is in ui/label
+import { WalletIcon } from "lucide-react"; // Assuming WalletIcon is needed
 
 interface CartItem {
   id: number;
@@ -44,11 +46,13 @@ export default function Cart() {
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [hasPromoCode, setHasPromoCode] = useState(false);
 
+  // Affiliate discount states
+  const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
+  const [affiliateDiscount, setAffiliateDiscount] = useState<number>(0);
+
   // Wallet cashback states
-  const [redeemAmount, setRedeemAmount] = useState(() => {
-    const saved = localStorage.getItem('redeemAmount');
-    return saved ? parseFloat(saved) : 0;
-  });
+  const [walletAmount, setWalletAmount] = useState<number>(0);
+  const [affiliateWalletAmount, setAffiliateWalletAmount] = useState<number>(0);
 
   const [promoError, setPromoError] = useState("");
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
@@ -68,6 +72,31 @@ export default function Cart() {
   const { data: recommendedProducts = [] } = useQuery({
     queryKey: ['/api/products', { limit: 12 }],
   });
+
+  // Fetch wallet data
+  const { data: walletData } = useQuery({
+    queryKey: ['/api/wallet', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/wallet?userId=${user.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch affiliate wallet data
+  const { data: affiliateWalletData } = useQuery({
+    queryKey: ['/api/affiliate/wallet', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
 
   // Load cart from localStorage on component mount
   useEffect(() => {
@@ -134,8 +163,13 @@ export default function Cart() {
 
   // Save redeemAmount to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('redeemAmount', redeemAmount.toString());
-  }, [redeemAmount]);
+    localStorage.setItem('redeemAmount', walletAmount.toString());
+  }, [walletAmount]);
+
+  // Save affiliateWalletAmount to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('affiliateWalletAmount', affiliateWalletAmount.toString());
+  }, [affiliateWalletAmount]);
 
 
   const updateQuantity = (id: number, newQuantity: number, itemIndex?: number) => {
@@ -226,10 +260,6 @@ export default function Cart() {
     });
   };
 
-  // State for affiliate discount specific logic
-  const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
-  const [affiliateDiscount, setAffiliateDiscount] = useState<number>(0);
-
   // Function to apply promo code
   const applyPromoCode = async () => {
     const code = promoCode.trim();
@@ -268,10 +298,10 @@ export default function Cart() {
           discountAmount = settings.maxDiscountAmount;
         }
 
-        setAffiliateCode(code.toUpperCase());
+        setAppliedPromo(null); // Clear general promo if any
+        setAffiliateCode(code.toUpperCase()); // This variable seems unused, consider removing or using it
         setAffiliateDiscount(discountAmount);
         setPromoCode(''); // Clear input after applying
-        setAppliedPromo(null); // Reset general promo if any
         setPromoDiscount(0); // Reset general promo discount
 
         toast({
@@ -411,10 +441,12 @@ export default function Cart() {
 
   // Calculate total before redemption
   const totalBeforeRedemption = subtotalAfterDiscount; // Shipping is calculated at checkout, so not included here for now
-  const total = Math.max(0, totalBeforeRedemption - redeemAmount);
+
+  // Calculate total including wallet and affiliate wallet redemption
+  const total = Math.max(0, totalBeforeRedemption - walletAmount - affiliateWalletAmount);
 
 
-  // Calculate total cashback (This seems to be for earning cashback, not redeeming it)
+  // Calculate total cashback earned (This seems to be for earning cashback, not redeeming it)
   const totalEarnedCashback = cartItems.reduce((sum, item) => {
     if (item.cashbackPrice) {
       return sum + (Number(item.cashbackPrice) * item.quantity);
@@ -422,16 +454,29 @@ export default function Cart() {
     return sum;
   }, 0);
 
+
   // Function to handle wallet cashback redemption
   const handleRedeemCashback = (value: string) => {
     const amountToRedeem = parseFloat(value);
     if (isNaN(amountToRedeem) || amountToRedeem < 0) {
-      setRedeemAmount(0);
+      setWalletAmount(0);
       return;
     }
     // Ensure redeemable amount does not exceed total payable amount
-    const maxRedeemable = Math.max(0, total);
-    setRedeemAmount(Math.min(amountToRedeem, maxRedeemable));
+    const maxRedeemable = Math.max(0, totalBeforeRedemption); // Use totalBeforeRedemption for max limit
+    setWalletAmount(Math.min(amountToRedeem, maxRedeemable));
+  };
+
+  // Function to handle affiliate wallet redemption
+  const handleRedeemAffiliateWallet = (value: string) => {
+    const amountToRedeem = parseFloat(value);
+    if (isNaN(amountToRedeem) || amountToRedeem < 0) {
+      setAffiliateWalletAmount(0);
+      return;
+    }
+    // Ensure redeemable amount does not exceed total payable amount
+    const maxRedeemable = Math.max(0, totalBeforeRedemption - walletAmount); // Consider walletAmount already deducted
+    setAffiliateWalletAmount(Math.min(amountToRedeem, maxRedeemable));
   };
 
   if (loading) {
@@ -678,36 +723,69 @@ export default function Cart() {
                 </div>
 
                 {/* Wallet Cashback Redemption Section */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Wallet Cashback</label>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      type="number"
-                      placeholder="Enter amount to redeem"
-                      value={redeemAmount}
-                      onChange={(e) => handleRedeemCashback(e.target.value)}
-                      min="0"
-                      className="flex-1"
-                      disabled={total <= 0} // Disable if total is zero or less
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setRedeemAmount(0)}
-                      disabled={redeemAmount === 0 || total <= 0}
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                  {redeemAmount > 0 && (
-                    <p className="text-green-600 text-xs">
-                      Redeemed: ₹{redeemAmount.toLocaleString()}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-500">
-                    Available cashback: ₹{totalEarnedCashback.toLocaleString()} (Will be credited after delivery)
-                  </p>
+                <Label htmlFor="walletAmount" className="text-base font-semibold text-gray-700">Wallet Cashback</Label>
+                <div className="relative">
+                  <Input
+                    id="walletAmount"
+                    type="number"
+                    min="0"
+                    max={parseFloat(walletData?.cashbackBalance || '0')}
+                    step="0.01"
+                    value={walletAmount}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0;
+                      const maxCashback = parseFloat(walletData?.cashbackBalance || '0');
+                      setWalletAmount(Math.min(value, maxCashback));
+                    }}
+                    placeholder="0"
+                    className="text-lg pl-3 pr-16 h-12 border-2 border-gray-300 focus:border-purple-500"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setWalletAmount(0)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    Clear
+                  </Button>
                 </div>
+                <p className="text-sm text-gray-600 mt-1">
+                  Available cashback: ₹{walletData?.cashbackBalance || '0'} (Will be credited after delivery)
+                </p>
+
+                {/* Affiliate Wallet Section */}
+                <Label htmlFor="affiliateWalletAmount" className="text-base font-semibold text-purple-700 mt-4">Affiliate Wallet</Label>
+                <div className="relative">
+                  <Input
+                    id="affiliateWalletAmount"
+                    type="number"
+                    min="0"
+                    max={parseFloat(affiliateWalletData?.commissionBalance || '0')}
+                    step="0.01"
+                    value={affiliateWalletAmount}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0;
+                      const maxCommission = parseFloat(affiliateWalletData?.commissionBalance || '0');
+                      setAffiliateWalletAmount(Math.min(value, maxCommission));
+                    }}
+                    placeholder="0"
+                    className="text-lg pl-3 pr-16 h-12 border-2 border-purple-300 focus:border-purple-500"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAffiliateWalletAmount(0)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-purple-500 hover:text-purple-700"
+                  >
+                    Clear
+                  </Button>
+                </div>
+                <p className="text-sm text-purple-600 mt-1">
+                  Commission earnings: ₹{affiliateWalletData?.commissionBalance || '0'}
+                </p>
+
 
                 <Separator />
 
@@ -745,10 +823,16 @@ export default function Cart() {
                     </div>
                   )}
 
-                  {redeemAmount > 0 && (
-                    <div className="flex justify-between text-sm bg-blue-50 p-2 rounded">
-                      <span className="text-blue-700 font-medium">Wallet Cashback Redemption</span>
-                      <span className="font-bold text-blue-600">-₹{redeemAmount.toLocaleString()}</span>
+                  {walletAmount > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Cashback Wallet</span>
+                      <span className="text-green-600 font-semibold">-₹{walletAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {affiliateWalletAmount > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-purple-600">Affiliate Wallet</span>
+                      <span className="text-purple-600 font-semibold">-₹{affiliateWalletAmount.toFixed(2)}</span>
                     </div>
                   )}
 
@@ -768,14 +852,30 @@ export default function Cart() {
                     <span className="text-lg font-bold text-gray-900">Total</span>
                     <span className="text-2xl font-bold text-pink-600">₹{total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   </div>
-                  {(totalDiscount > 0 || redeemAmount > 0) && (
+                  {(totalDiscount > 0 || walletAmount > 0 || affiliateWalletAmount > 0) && (
                     <div className="text-xs text-green-600 text-right mt-1">
-                      You saved ₹{(totalDiscount + redeemAmount).toLocaleString(undefined, { maximumFractionDigits: 2 })}!
+                      You saved ₹{(totalDiscount + walletAmount + affiliateWalletAmount).toLocaleString(undefined, { maximumFractionDigits: 2 })}!
                     </div>
                   )}
                 </div>
 
-                <Link href="/checkout">
+                <Link
+                  href="/checkout"
+                  // Pass wallet amounts to checkout state
+                  // This assumes your checkout page can receive and process these state values
+                  // You might need to adjust how these are passed (e.g., via context, URL params, or a state management library)
+                  // For simplicity, demonstrating with a hypothetical state object in Link
+                  // NOTE: Link's 'state' prop is not a standard feature for routing in wouter.
+                  // You'd typically use a state management solution or URL parameters.
+                  // This example assumes a mechanism to pass state.
+                  // For a real implementation, consider using `useLocation` and `setLocation` from `wouter`.
+                  // Or passing them as query parameters: `/checkout?walletAmount=${walletAmount}&affiliateWalletAmount=${affiliateWalletAmount}`
+                  // const checkoutUrl = `/checkout?walletAmount=${walletAmount}&affiliateWalletAmount=${affiliateWalletAmount}`;
+                  // onClick={(e) => {
+                  //   e.preventDefault(); // Prevent default link behavior
+                  //   setLocation(checkoutUrl); // Navigate with parameters
+                  // }}
+                >
                   <Button className="w-full bg-red-600 hover:bg-red-700 text-white text-base py-3">
                     Proceed to Checkout
                   </Button>
@@ -787,6 +887,26 @@ export default function Cart() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Display total balance in summary */}
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 mb-4 border-2 border-purple-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                    <WalletIcon className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="text-base font-bold text-purple-800">Total Balance</span>
+                </div>
+                <span className="text-2xl font-bold text-purple-600">
+                  ₹{(parseFloat(walletData?.cashbackBalance || '0') + parseFloat(affiliateWalletData?.commissionBalance || '0')).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm text-purple-700 mt-2">
+                <span>Cashback: ₹{parseFloat(walletData?.cashbackBalance || '0').toFixed(2)}</span>
+                <span>Commission: ₹{parseFloat(affiliateWalletData?.commissionBalance || '0').toFixed(2)}</span>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

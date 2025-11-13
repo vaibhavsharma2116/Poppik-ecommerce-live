@@ -1,3 +1,4 @@
+
 interface ShiprocketConfig {
   email: string;
   password: string;
@@ -85,6 +86,8 @@ class ShiprocketService {
   private config: ShiprocketConfig;
   private token: string | null = null;
   private tokenExpiry: number = 0;
+  private refreshInterval: NodeJS.Timeout | null = null;
+  private isRefreshing: boolean = false;
 
   constructor() {
     this.config = {
@@ -97,25 +100,74 @@ class ShiprocketService {
     const preExistingToken = process.env.SHIPROCKET_TOKEN;
     if (preExistingToken) {
       this.token = preExistingToken;
-      // Set a far future expiry since we don't know when the provided token expires
-      this.tokenExpiry = Date.now() + (365 * 24 * 60 * 60 * 1000);
+      // Set expiry to 30 days for env tokens
+      this.tokenExpiry = Date.now() + (30 * 24 * 60 * 60 * 1000);
       console.log('Using pre-existing Shiprocket token from environment');
+      
+      // Start background refresh for env token too
+      this.startBackgroundRefresh();
+    } else if (this.config.email && this.config.password) {
+      // Initialize token on startup
+      this.authenticate().catch(err => {
+        console.error('Failed to initialize Shiprocket token:', err);
+      });
     }
   }
 
-  private async authenticate(forceRefresh: boolean = false): Promise<void> {
-    console.log('Authenticating with Shiprocket...');
+  private startBackgroundRefresh(): void {
+    // Clear any existing interval
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+    }
 
-    // Skip if we already have a valid token and not forcing refresh
-    if (this.token && Date.now() < this.tokenExpiry && !forceRefresh) {
+    // Refresh token every 8 days (tokens valid for 10 days, refresh at 8 days for safety)
+    const refreshIntervalMs = 8 * 24 * 60 * 60 * 1000; // 8 days
+    
+    this.refreshInterval = setInterval(async () => {
+      try {
+        console.log('Background token refresh triggered');
+        await this.authenticate(true);
+      } catch (error) {
+        console.error('Background token refresh failed:', error);
+      }
+    }, refreshIntervalMs);
+
+    console.log('Background token refresh scheduled every 8 days');
+  }
+
+  private async authenticate(forceRefresh: boolean = false): Promise<void> {
+    // Prevent multiple simultaneous refresh attempts
+    if (this.isRefreshing && !forceRefresh) {
+      console.log('Token refresh already in progress, waiting...');
+      // Wait for ongoing refresh to complete
+      await new Promise(resolve => setTimeout(resolve, 2000));
       return;
     }
 
-    // If using pre-existing token from env, don't try to re-authenticate
-    if (process.env.SHIPROCKET_TOKEN && !forceRefresh) {
+    console.log('Authenticating with Shiprocket...');
+
+    // Check if token is about to expire (within 12 hours) and refresh it proactively
+    const tokenExpiresIn = this.tokenExpiry - Date.now();
+    const twelveHours = 12 * 60 * 60 * 1000;
+
+    // Skip if we have a valid token that won't expire soon and not forcing refresh
+    if (this.token && tokenExpiresIn > twelveHours && !forceRefresh) {
+      const hoursRemaining = Math.floor(tokenExpiresIn / (60 * 60 * 1000));
+      console.log(`Shiprocket token valid for ${hoursRemaining} more hours`);
+      return;
+    }
+
+    // If token is about to expire or expired, refresh it
+    if (this.token && tokenExpiresIn <= twelveHours && tokenExpiresIn > 0) {
+      console.log('Shiprocket token expiring soon, proactively refreshing...');
+      forceRefresh = true;
+    }
+
+    // If using pre-existing token from env, don't try to re-authenticate unless forcing refresh or expired
+    if (process.env.SHIPROCKET_TOKEN && !forceRefresh && tokenExpiresIn > 0) {
       this.token = process.env.SHIPROCKET_TOKEN;
-      this.tokenExpiry = Date.now() + (365 * 24 * 60 * 60 * 1000);
-      console.log('Using pre-existing Shiprocket token, skipping authentication');
+      this.tokenExpiry = Date.now() + (30 * 24 * 60 * 60 * 1000);
+      console.log('Using pre-existing Shiprocket token from environment');
       return;
     }
 
@@ -123,6 +175,8 @@ class ShiprocketService {
     if (!this.config.email || !this.config.password) {
       throw new Error('Shiprocket email and password are required');
     }
+
+    this.isRefreshing = true;
 
     try {
       const response = await fetch(`${this.config.baseUrl}/external/auth/login`, {
@@ -166,22 +220,34 @@ class ShiprocketService {
 
       this.token = data.token;
       // Set token expiry to 9 days (Shiprocket tokens are valid for 10 days)
+      // This gives us a 1-day buffer to refresh before actual expiry
       this.tokenExpiry = Date.now() + (9 * 24 * 60 * 60 * 1000);
 
-      console.log('Shiprocket authentication successful');
+      const expiryDate = new Date(this.tokenExpiry);
+      console.log(`✅ Shiprocket authentication successful. Token valid until: ${expiryDate.toLocaleString()}`);
+      
+      // Start background refresh scheduler if not already running
+      if (!this.refreshInterval) {
+        this.startBackgroundRefresh();
+      }
     } catch (error) {
       console.error('Shiprocket authentication error:', error);
-      this.token = null; // Clear invalid token
+      this.token = null;
       this.tokenExpiry = 0;
       throw error;
+    } finally {
+      this.isRefreshing = false;
     }
   }
 
-
-  private async makeRequest(endpoint: string, method: string = 'GET', data?: any) {
+  private async makeRequest(endpoint: string, method: string = 'GET', data?: any, retryCount: number = 0) {
     const url = `${this.config.baseUrl}${endpoint}`;
+    const maxRetries = 2;
 
     try {
+      // Ensure we have a valid token before making request
+      await this.authenticate();
+
       // Validate token before making request
       if (!this.token) {
         throw new Error('Shiprocket token not available');
@@ -212,12 +278,23 @@ class ShiprocketService {
           statusText: response.statusText,
           response: jsonData,
           endpoint,
-          method
+          method,
+          retryCount
         });
 
         // Handle specific error cases
         if (response.status === 401) {
-          throw new Error('Shiprocket authentication failed - token may be expired');
+          // Token expired or invalid - retry with fresh token
+          if (retryCount < maxRetries) {
+            console.log(`🔄 Token expired (attempt ${retryCount + 1}/${maxRetries}), refreshing and retrying...`);
+            this.token = null;
+            this.tokenExpiry = 0;
+            await this.authenticate(true);
+            // Add small delay before retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return this.makeRequest(endpoint, method, data, retryCount + 1);
+          }
+          throw new Error('Shiprocket authentication failed after retries - token may be permanently invalid');
         } else if (response.status === 403) {
           throw new Error('Shiprocket access forbidden - check API permissions');
         } else if (response.status === 429) {
@@ -236,19 +313,21 @@ class ShiprocketService {
 
   async createOrder(orderData: ShiprocketOrder) {
     let attempts = 0;
-    const maxAttempts = 2;
+    const maxAttempts = 3;
 
     while (attempts < maxAttempts) {
       try {
-        await this.authenticate(attempts > 0); // Force refresh on retry
+        await this.authenticate(attempts > 0);
         return await this.makeRequest('/external/orders/create/adhoc', 'POST', orderData);
-      } catch (error) {
+      } catch (error: any) {
         attempts++;
 
-        // If it's an auth error and we haven't retried yet, try again with fresh token
+        // If it's an auth error and we haven't maxed out retries, try again with fresh token
         if (attempts < maxAttempts && (error.message.includes('401') || error.message.includes('authentication'))) {
-          console.log('Retrying with fresh authentication...');
-          this.token = null; // Clear token to force refresh
+          console.log(`🔄 Retrying order creation with fresh authentication (${attempts}/${maxAttempts})...`);
+          this.token = null;
+          this.tokenExpiry = 0;
+          await new Promise(resolve => setTimeout(resolve, 2000));
           continue;
         }
 
@@ -283,7 +362,6 @@ class ShiprocketService {
     try {
       await this.authenticate();
 
-      // Use GET method with query parameters for serviceability check
       const codValue = cod ? 1 : 0;
       const endpoint = `/external/courier/serviceability/?pickup_postcode=${pickupPincode}&delivery_postcode=${deliveryPincode}&weight=${weight}&cod=${codValue}`;
 
@@ -335,31 +413,25 @@ class ShiprocketService {
     }
   }
 
-  // Convert your order format to Shiprocket format
   convertToShiprocketFormat(order: any, pickupLocation: string = "Primary"): ShiprocketOrder {
     const items = order.items || [];
     const { firstName, lastName, email, phone } = order.customer || {};
     const { shippingAddress, totalAmount, paymentMethod, createdAt } = order;
 
-    // Parse the full shipping address to extract components
-    // Expected format: "street, city, state pincode"
     let street = '';
     let city = '';
     let state = '';
     let pincode = '';
 
     if (shippingAddress && typeof shippingAddress === 'string') {
-      // Split by comma and clean parts
       const parts = shippingAddress.split(',').map(p => p.trim()).filter(p => p.length > 0);
       
       console.log('📍 Parsing address parts:', parts);
       
       if (parts.length >= 3) {
-        // Format: "street, city, state pincode"
         street = parts[0];
         city = parts[1];
         
-        // Parse last part for state and pincode
         const lastPart = parts[parts.length - 1];
         const pincodeMatch = lastPart.match(/\b\d{6}\b/);
         
@@ -371,7 +443,6 @@ class ShiprocketService {
         }
         
       } else if (parts.length === 2) {
-        // Format: "street, city"
         street = parts[0];
         city = parts[1];
       } else if (parts.length === 1) {
@@ -379,11 +450,9 @@ class ShiprocketService {
       }
     }
 
-    // Normalize and validate customer name
     const billingFirstName = (firstName || 'Customer').trim();
     const billingLastName = (lastName || 'Name').trim();
     
-    // Normalize and validate street address - MUST BE AT LEAST 3 CHARACTERS
     street = street.trim();
     if (!street || street.length < 3) {
       console.error('❌ Invalid street address:', street);
@@ -391,31 +460,26 @@ class ShiprocketService {
     }
     street = street.substring(0, 100);
     
-    // Normalize and validate city - MUST BE AT LEAST 3 CHARACTERS
     city = city.trim();
     if (!city || city.length < 3) {
       console.error('❌ Invalid city:', city);
-      city = 'Mumbai'; // Use a common fallback
+      city = 'Mumbai';
     }
     
-    // Normalize and validate state - MUST BE AT LEAST 3 CHARACTERS
     state = state.trim();
     if (!state || state.length < 3) {
       console.error('❌ Invalid state:', state);
-      state = 'Maharashtra'; // Use a common fallback
+      state = 'Maharashtra';
     }
-    // Capitalize state name properly
     state = state.split(' ').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ').replace(/_/g, ' ');
     
-    // Validate pincode - MUST BE EXACTLY 6 DIGITS
     if (!pincode || !/^\d{6}$/.test(pincode)) {
       console.error('❌ Invalid pincode:', pincode);
-      pincode = '400001'; // Mumbai pincode as fallback
+      pincode = '400001';
     }
 
-    // Clean up phone number to 10 digits
     let formattedPhone = (phone || '').replace(/\D/g, '');
     if (formattedPhone.length === 12 && formattedPhone.startsWith('91')) {
       formattedPhone = formattedPhone.substring(2);
@@ -427,7 +491,6 @@ class ShiprocketService {
       formattedPhone = '9999999999';
     }
     
-    // Validate email
     const billingEmail = (email || 'customer@example.com').trim();
 
     console.log('✅ Final validated address for Shiprocket:', {
@@ -441,7 +504,6 @@ class ShiprocketService {
       country: 'India'
     });
 
-    // Format order date with time (YYYY-MM-DD HH:MM)
     const orderDate = new Date(createdAt);
     const formattedDate = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}-${String(orderDate.getDate()).padStart(2, '0')} ${String(orderDate.getHours()).padStart(2, '0')}:${String(orderDate.getMinutes()).padStart(2, '0')}`;
 
@@ -494,7 +556,6 @@ class ShiprocketService {
     return shiprocketData;
   }
 
-  // Convert Shiprocket tracking to your timeline format
   convertTrackingToTimeline(trackingData: any) {
     if (!trackingData.tracking_data?.shipment_track?.[0]?.shipment_track_activities) {
       return [];
@@ -522,6 +583,15 @@ class ShiprocketService {
       return 'active';
     }
     return 'pending';
+  }
+
+  // Cleanup method for graceful shutdown
+  destroy(): void {
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+      this.refreshInterval = null;
+      console.log('Shiprocket background refresh stopped');
+    }
   }
 }
 
