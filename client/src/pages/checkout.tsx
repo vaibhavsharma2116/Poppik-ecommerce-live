@@ -64,14 +64,16 @@ export default function CheckoutPage() {
   const [shippingCost, setShippingCost] = useState<number>(99);
   const [loadingShipping, setLoadingShipping] = useState(false);
 
-  // Wallet cashback states
-  const [showWalletSection, setShowWalletSection] = useState(false);
-  const [redeemAmount, setRedeemAmount] = useState(0);
-  const [isRedeeming, setIsRedeeming] = useState(false);
+  // Wallet cashback states - load from localStorage
+  const [redeemAmount, setRedeemAmount] = useState(() => {
+    const saved = localStorage.getItem('redeemAmount');
+    return saved ? parseFloat(saved) : 0;
+  });
 
   // Promo code states
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [promoDiscount, setPromoDiscount] = useState(0);
+  const [hasPromoCode, setHasPromoCode] = useState(false);
 
   // Get user from localStorage - must be before any hooks that use it
   const getCurrentUser = () => {
@@ -112,6 +114,7 @@ export default function CheckoutPage() {
         const promoData = JSON.parse(savedPromo);
         setAppliedPromo(promoData);
         setPromoDiscount(parseFloat(promoData.discountAmount || 0));
+        setHasPromoCode(true); // Set flag that promo code is active
 
         toast({
           title: "Promo Code Applied!",
@@ -120,7 +123,10 @@ export default function CheckoutPage() {
       } catch (error) {
         console.error('Error loading promo code:', error);
         localStorage.removeItem('appliedPromoCode');
+        setHasPromoCode(false);
       }
+    } else {
+      setHasPromoCode(false);
     }
 
     // Check for affiliate code in localStorage
@@ -367,17 +373,23 @@ export default function CheckoutPage() {
   };
 
   const subtotal = calculateSubtotal();
-  // Apply affiliate discount
-  const affiliateDiscountAmount = formData.affiliateDiscount > 0
-    ? Math.round(subtotal * (formData.affiliateDiscount / 100))
-    : 0;
+
+  // If promo code is applied, skip affiliate discount
+  const affiliateDiscountAmount = (promoDiscount > 0 || !formData.affiliateDiscount)
+    ? 0
+    : Math.round(subtotal * (formData.affiliateDiscount / 100));
   const subtotalAfterAffiliate = subtotal - affiliateDiscountAmount;
 
   // Apply promo code discount
   const subtotalAfterDiscount = subtotalAfterAffiliate - promoDiscount;
 
-  // Use the dynamic shippingCost, default to 99 if subtotal is less than 599, otherwise free.
-  const shipping = subtotalAfterDiscount > 599 ? 0 : shippingCost;
+  // If promo code OR affiliate code is applied, no free shipping (use standard shipping cost)
+  // Otherwise, check if order qualifies for free shipping (above 599)
+  const isPromoActive = hasPromoCode || formData.affiliateCode || affiliateDiscountAmount > 0;
+  const shipping = isPromoActive
+    ? shippingCost
+    : (subtotalAfterAffiliate > 599 ? 0 : shippingCost);
+
   const totalBeforeDiscount = subtotalAfterDiscount + shipping;
   const total = Math.max(0, totalBeforeDiscount - redeemAmount);
 
@@ -1637,92 +1649,7 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
 
-              {/* Wallet Cashback Section */}
-              {walletData && parseFloat(walletData.cashbackBalance) > 0 && (
-                <Card className="border-2 border-blue-200 shadow-lg">
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                          <Gift className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">Use Wallet Cashback</CardTitle>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Available Balance: ₹{parseFloat(walletData.cashbackBalance).toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-4">
-                      {/* Redeem Amount Input */}
-                      <div>
-                        <Label htmlFor="redeemAmount">Enter Amount to Redeem</Label>
-                        <div className="flex gap-2 mt-2">
-                          <div className="relative flex-1">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₹</span>
-                            <Input
-                              id="redeemAmount"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max={Math.min(parseFloat(walletData.cashbackBalance), total)}
-                              value={redeemAmount}
-                              onChange={(e) => {
-                                const value = parseFloat(e.target.value) || 0;
-                                const maxRedeem = Math.min(parseFloat(walletData.cashbackBalance), total);
-                                setRedeemAmount(Math.min(value, maxRedeem));
-                              }}
-                              placeholder="0.00"
-                              className="pl-8"
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              const maxRedeem = Math.min(parseFloat(walletData.cashbackBalance), total);
-                              setRedeemAmount(maxRedeem);
-                            }}
-                            className="px-6"
-                          >
-                            Max
-                          </Button>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Maximum redeemable: ₹{Math.min(parseFloat(walletData.cashbackBalance), total).toFixed(2)}
-                        </p>
-                      </div>
-
-                      {/* Apply/Remove Cashback Button */}
-                      {redeemAmount > 0 && (
-                        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                              <span className="font-semibold text-green-800">Cashback Applied</span>
-                            </div>
-                            <span className="text-xl font-bold text-green-600">
-                              -₹{redeemAmount.toFixed(2)}
-                            </span>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setRedeemAmount(0)}
-                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            Remove Cashback
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              
             </div>
 
             {/* Order Summary */}
@@ -1787,7 +1714,7 @@ export default function CheckoutPage() {
                       <span>Subtotal</span>
                       <span>₹{subtotal.toLocaleString()}</span>
                     </div>
-                    {affiliateDiscountAmount > 0 && (
+                    {affiliateDiscountAmount > 0 && promoDiscount === 0 && (
                       <div className="flex justify-between text-purple-600 font-semibold">
                         <span>Affiliate Discount ({formData.affiliateDiscount}%)</span>
                         <span>-₹{affiliateDiscountAmount.toLocaleString()}</span>

@@ -3094,6 +3094,221 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Promo Codes Management Routes (Admin)
+  app.get("/api/admin/promo-codes", adminMiddleware, async (req, res) => {
+    try {
+      const promoCodes = await db.select().from(schema.promoCodes).orderBy(desc(schema.promoCodes.createdAt));
+      res.json(promoCodes);
+    } catch (error) {
+      console.error("Error fetching promo codes:", error);
+      res.status(500).json({ error: "Failed to fetch promo codes" });
+    }
+  });
+
+  app.post("/api/admin/promo-codes", adminMiddleware, async (req, res) => {
+    try {
+      const { code, description, discountType, discountValue, minOrderAmount, maxDiscount, usageLimit, userUsageLimit, validFrom, validUntil, isActive } = req.body;
+
+      if (!code || !description || !discountType || !discountValue) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const [promoCode] = await db.insert(schema.promoCodes).values({
+        code: code.toUpperCase(),
+        description,
+        discountType,
+        discountValue: discountValue.toString(),
+        minOrderAmount: minOrderAmount ? minOrderAmount.toString() : "0.00",
+        maxDiscount: maxDiscount ? maxDiscount.toString() : null,
+        usageLimit: usageLimit ? parseInt(usageLimit) : null,
+        userUsageLimit: userUsageLimit ? parseInt(userUsageLimit) : 1,
+        validFrom: validFrom ? new Date(validFrom) : new Date(),
+        validUntil: validUntil ? new Date(validUntil) : null,
+        isActive: isActive !== false,
+        usageCount: 0
+      }).returning();
+
+      res.status(201).json(promoCode);
+    } catch (error) {
+      console.error("Error creating promo code:", error);
+      if (error.code === '23505') {
+        return res.status(400).json({ error: "Promo code already exists" });
+      }
+      res.status(500).json({ error: "Failed to create promo code" });
+    }
+  });
+
+  app.put("/api/admin/promo-codes/:id", adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { code, description, discountType, discountValue, minOrderAmount, maxDiscount, usageLimit, userUsageLimit, validFrom, validUntil, isActive } = req.body;
+
+      const updateData: any = {
+        updatedAt: new Date()
+      };
+
+      if (code) updateData.code = code.toUpperCase();
+      if (description) updateData.description = description;
+      if (discountType) updateData.discountType = discountType;
+      if (discountValue) updateData.discountValue = discountValue.toString();
+      if (minOrderAmount !== undefined) updateData.minOrderAmount = minOrderAmount.toString();
+      if (maxDiscount !== undefined) updateData.maxDiscount = maxDiscount ? maxDiscount.toString() : null;
+      if (usageLimit !== undefined) updateData.usageLimit = usageLimit ? parseInt(usageLimit) : null;
+      if (userUsageLimit !== undefined) updateData.userUsageLimit = parseInt(userUsageLimit);
+      if (validFrom) updateData.validFrom = new Date(validFrom);
+      if (validUntil !== undefined) updateData.validUntil = validUntil ? new Date(validUntil) : null;
+      if (isActive !== undefined) updateData.isActive = isActive;
+
+      const [updatedPromoCode] = await db
+        .update(schema.promoCodes)
+        .set(updateData)
+        .where(eq(schema.promoCodes.id, id))
+        .returning();
+
+      if (!updatedPromoCode) {
+        return res.status(404).json({ error: "Promo code not found" });
+      }
+
+      res.json(updatedPromoCode);
+    } catch (error) {
+      console.error("Error updating promo code:", error);
+      res.status(500).json({ error: "Failed to update promo code" });
+    }
+  });
+
+  app.delete("/api/admin/promo-codes/:id", adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deleted] = await db
+        .delete(schema.promoCodes)
+        .where(eq(schema.promoCodes.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: "Promo code not found" });
+      }
+
+      res.json({ success: true, message: "Promo code deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting promo code:", error);
+      res.status(500).json({ error: "Failed to delete promo code" });
+    }
+  });
+
+  // Promo code validation endpoint (public)
+  app.post("/api/promo-codes/validate", async (req, res) => {
+    try {
+      const { code, cartTotal, userId } = req.body;
+
+      if (!code) {
+        return res.status(400).json({ error: "Promo code is required" });
+      }
+
+      const promoCode = await db
+        .select()
+        .from(schema.promoCodes)
+        .where(eq(schema.promoCodes.code, code.toUpperCase()))
+        .limit(1);
+
+      if (!promoCode || promoCode.length === 0) {
+        return res.status(404).json({ error: "Invalid promo code" });
+      }
+
+      const promo = promoCode[0];
+
+      // Check if promo is active
+      if (!promo.isActive) {
+        return res.status(400).json({ error: "This promo code is no longer active" });
+      }
+
+      // Check validity dates
+      const now = new Date();
+      if (promo.validFrom && new Date(promo.validFrom) > now) {
+        return res.status(400).json({ error: "This promo code is not yet valid" });
+      }
+      if (promo.validUntil && new Date(promo.validUntil) < now) {
+        return res.status(400).json({ error: "This promo code has expired" });
+      }
+
+      // Check usage limit
+      if (promo.usageLimit && promo.usageCount >= promo.usageLimit) {
+        return res.status(400).json({ error: "This promo code has reached its usage limit" });
+      }
+
+      // Check user usage limit if userId provided
+      if (userId && promo.userUsageLimit) {
+        const userUsage = await db
+          .select()
+          .from(schema.promoCodeUsage)
+          .where(and(
+            eq(schema.promoCodeUsage.promoCodeId, promo.id),
+            eq(schema.promoCodeUsage.userId, parseInt(userId))
+          ));
+
+        if (userUsage.length >= promo.userUsageLimit) {
+          return res.status(400).json({ error: "You have already used this promo code the maximum number of times" });
+        }
+      }
+
+      // Check minimum order amount
+      const minOrder = parseFloat(promo.minOrderAmount || '0');
+      if (cartTotal < minOrder) {
+        return res.status(400).json({ 
+          error: `Minimum order amount of ₹${minOrder} required to use this promo code` 
+        });
+      }
+
+      // Calculate discount
+      let discountAmount = 0;
+      if (promo.discountType === 'percentage') {
+        discountAmount = (cartTotal * parseFloat(promo.discountValue)) / 100;
+        if (promo.maxDiscount) {
+          discountAmount = Math.min(discountAmount, parseFloat(promo.maxDiscount));
+        }
+      } else if (promo.discountType === 'flat') {
+        discountAmount = parseFloat(promo.discountValue);
+      }
+
+      res.json({
+        valid: true,
+        promoCode: {
+          id: promo.id,
+          code: promo.code,
+          description: promo.description,
+          discountType: promo.discountType,
+          discountAmount: Math.round(discountAmount)
+        }
+      });
+    } catch (error) {
+      console.error("Error validating promo code:", error);
+      res.status(500).json({ error: "Failed to validate promo code" });
+    }
+  });
+
+  // Get promo code usage history (admin)
+  app.get("/api/admin/promo-codes/usage", adminMiddleware, async (req, res) => {
+    try {
+      const usage = await db
+        .select({
+          id: schema.promoCodeUsage.id,
+          code: schema.promoCodes.code,
+          userId: schema.promoCodeUsage.userId,
+          orderId: schema.promoCodeUsage.orderId,
+          discountAmount: schema.promoCodeUsage.discountAmount,
+          createdAt: schema.promoCodeUsage.createdAt
+        })
+        .from(schema.promoCodeUsage)
+        .leftJoin(schema.promoCodes, eq(schema.promoCodeUsage.promoCodeId, schema.promoCodes.id))
+        .orderBy(desc(schema.promoCodeUsage.createdAt));
+
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching promo code usage:", error);
+      res.status(500).json({ error: "Failed to fetch promo code usage" });
+    }
+  });
+
   // Affiliate Settings Routes
   app.get("/api/admin/affiliate-settings", adminMiddleware, async (req, res) => {
     try {
@@ -3214,7 +3429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create order items in separate table
       if (items && Array.isArray(items)) {
         const orderItems = [];
-        
+
         for (const item of items) {
           const orderItem: any = {
             orderId: newOrder.id,
@@ -3238,7 +3453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .from(schema.products)
                 .where(eq(schema.products.id, Number(item.productId)))
                 .limit(1);
-              
+
               if (productExists && productExists.length > 0) {
                 orderItem.productId = Number(item.productId);
               } else {
@@ -6010,7 +6225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching announcements:', error);
       res.status(500).json({ error: 'Failed to fetch announcements' });
-    }
+        }
   });
 
   // Admin endpoints for announcements
@@ -6104,7 +6319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/combos', async (req, res) => {
     try {
       console.log('Fetching combos from database...');
-      
+
       const activeCombos = await db
         .select()
         .from(schema.combos)
@@ -6156,7 +6371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allCombos = await db.select().from(schema.combos);
       const activeCombos = await db.select().from(schema.combos).where(eq(schema.combos.isActive, true));
-      
+
       res.json({
         totalCombos: allCombos.length,
         activeCombos: activeCombos.length,
@@ -7267,700 +7482,6 @@ Poppik Affiliate Portal
   });
 
   // Get affiliate sales history
-  app.get('/api/affiliate/sales', async (req: Request, res: Response) => {
-    try {
-      const userId = req.query.userId;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      const sales = await db
-        .select()
-        .from(schema.affiliateSales)
-        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)))
-        .orderBy(schema.affiliateSales.createdAt);
-
-      res.json(sales);
-    } catch (error) {
-      console.error('Error fetching affiliate sales:', error);
-      res.status(500).json({ error: 'Failed to fetch sales data' });
-    }
-  });
-
-  // Get affiliate earnings/wallet info
-  app.get('/api/affiliate/earnings', async (req: Request, res: Response) => {
-    try {
-      const userId = req.query.userId;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      const wallet = await db
-        .select()
-        .from(schema.affiliateWallet)
-        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
-        .limit(1);
-
-      if (!wallet || wallet.length === 0) {
-        return res.json({
-          balance: 0,
-          pendingBalance: 0,
-          lifetimeEarnings: 0
-        });
-      }
-
-      res.json({
-        balance: parseFloat(wallet[0].balance.toString()),
-        pendingBalance: parseFloat(wallet[0].pendingBalance?.toString() || '0'),
-        lifetimeEarnings: parseFloat(wallet[0].lifetimeEarnings?.toString() || '0')
-      });
-    } catch (error) {
-      console.error('Error fetching affiliate earnings:', error);
-      res.status(500).json({ error: 'Failed to fetch earnings data' });
-    }
-  });
-
-  // Get monthly growth data
-  app.get('/api/affiliate/growth', async (req: Request, res: Response) => {
-    try {
-      const userId = req.query.userId;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      const sales = await db
-        .select()
-        .from(schema.affiliateSales)
-        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)));
-
-      // Calculate growth (current month vs last month)
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-      const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-
-      const currentMonthSales = sales.filter(sale => {
-        const saleDate = new Date(sale.createdAt);
-        return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
-      });
-
-      const lastMonthSales = sales.filter(sale => {
-        const saleDate = new Date(sale.createdAt);
-        return saleDate.getMonth() === lastMonth && saleDate.getFullYear() === lastMonthYear;
-      });
-
-      const currentMonthTotal = currentMonthSales.reduce((sum, sale) => 
-        sum + parseFloat(sale.commission?.toString() || '0'), 0
-      );
-
-      const lastMonthTotal = lastMonthSales.reduce((sum, sale) => 
-        sum + parseFloat(sale.commission?.toString() || '0'), 0
-      );
-
-      const growthPercentage = lastMonthTotal > 0 
-        ? ((currentMonthTotal - lastMonthTotal) / lastMonthTotal) * 100 
-        : currentMonthTotal > 0 ? 100 : 0;
-
-      res.json({
-        monthlyGrowth: parseFloat(growthPercentage.toFixed(2))
-      });
-    } catch (error) {
-      console.error('Error calculating growth:', error);
-      res.status(500).json({ error: 'Failed to calculate growth' });
-    }
-  });
-
-  // Affiliate stats endpoint
-  app.get('/api/affiliate/stats', async (req: Request, res: Response) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      // Get clicks data
-      const clicks = await db
-        .select()
-        .from(schema.affiliateClicks)
-        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)));
-
-      // Get sales data
-      const sales = await db
-        .select()
-        .from(schema.affiliateSales)
-        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)));
-
-      // Get wallet data
-      const wallet = await db
-        .select()
-        .from(schema.affiliateWallet)
-        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
-        .limit(1);
-
-      const totalClicks = clicks.length;
-      const totalConversions = sales.length;
-      const totalEarnings = wallet && wallet.length > 0 
-        ? parseFloat(wallet[0].totalEarnings || '0') 
-        : 0;
-      const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
-      const avgCommission = totalConversions > 0 ? totalEarnings / totalConversions : 0;
-
-      res.json({
-        totalClicks,
-        totalConversions,
-        totalEarnings,
-        conversionRate,
-        avgCommission
-      });
-    } catch (error) {
-      console.error('Error fetching affiliate stats:', error);
-      res.status(500).json({ error: 'Failed to fetch affiliate stats' });
-    }
-  });
-
-  // Promo Codes Management Routes
-
-  // Get promo code usage history (admin)
-  app.get('/api/admin/promo-codes/usage', adminMiddleware, async (req, res) => {
-    try {
-      const usageHistory = await db
-        .select({
-          id: schema.promoCodeUsage.id,
-          promoCodeId: schema.promoCodeUsage.promoCodeId,
-          code: schema.promoCodes.code,
-          userId: schema.promoCodeUsage.userId,
-          userName: sql`${schema.users.firstName} || ' ' || ${schema.users.lastName}`,
-          userEmail: schema.users.email,
-          orderId: schema.promoCodeUsage.orderId,
-          discountAmount: schema.promoCodeUsage.discountAmount,
-          createdAt: schema.promoCodeUsage.createdAt,
-        })
-        .from(schema.promoCodeUsage)
-        .leftJoin(schema.promoCodes, eq(schema.promoCodeUsage.promoCodeId, schema.promoCodes.id))
-        .leftJoin(schema.users, eq(schema.promoCodeUsage.userId, schema.users.id))
-        .orderBy(desc(schema.promoCodeUsage.createdAt));
-
-      res.json(usageHistory);
-    } catch (error) {
-      console.error('Error fetching promo code usage:', error);
-      res.status(500).json({ error: 'Failed to fetch promo code usage' });
-    }
-  });
-
-  // Get all promo codes (admin)
-  app.get('/api/admin/promo-codes', adminMiddleware, async (req, res) => {
-    try {
-      const promoCodes = await db
-        .select()
-        .from(schema.promoCodes)
-        .orderBy(desc(schema.promoCodes.createdAt));
-
-      res.json(promoCodes);
-    } catch (error) {
-      console.error('Error fetching promo codes:', error);
-      res.status(500).json({ error: 'Failed to fetch promo codes' });
-    }
-  });
-
-  // Create promo code (admin)
-  app.post('/api/admin/promo-codes', adminMiddleware, async (req, res) => {
-    try {
-      const {
-        code,
-        description,
-        discountType,
-        discountValue,
-        minOrderAmount,
-        maxDiscount,
-        usageLimit,
-        userUsageLimit,
-        validFrom,
-        validUntil,
-        isActive
-      } = req.body;
-
-      // Validation
-      if (!code || !description || !discountType || !discountValue) {
-        return res.status(400).json({ 
-          error: 'Code, description, discount type, and discount value are required' 
-        });
-      }
-
-      if (!['percentage', 'flat'].includes(discountType)) {
-        return res.status(400).json({ 
-          error: 'Discount type must be either "percentage" or "flat"' 
-        });
-      }
-
-      // Check if code already exists
-      const existingCode = await db
-        .select()
-        .from(schema.promoCodes)
-        .where(eq(schema.promoCodes.code, code.toUpperCase()))
-        .limit(1);
-
-      if (existingCode.length > 0) {
-        return res.status(400).json({ 
-          error: 'A promo code with this code already exists' 
-        });
-      }
-
-      const [promoCode] = await db
-        .insert(schema.promoCodes)
-        .values({
-          code: code.toUpperCase(),
-          description,
-          discountType,
-          discountValue: discountValue.toString(),
-          minOrderAmount: minOrderAmount ? minOrderAmount.toString() : '0.00',
-          maxDiscount: maxDiscount ? maxDiscount.toString() : null,
-          usageLimit: usageLimit || null,
-          usageCount: 0,
-          userUsageLimit: userUsageLimit || 1,
-          isActive: isActive !== false,
-          validFrom: validFrom ? new Date(validFrom) : new Date(),
-          validUntil: validUntil ? new Date(validUntil) : null
-        })
-        .returning();
-
-      res.status(201).json(promoCode);
-    } catch (error) {
-      console.error('Error creating promo code:', error);
-      res.status(500).json({ error: 'Failed to create promo code' });
-    }
-  });
-
-  // Update promo code (admin)
-  app.put('/api/admin/promo-codes/:id', adminMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const {
-        code,
-        description,
-        discountType,
-        discountValue,
-        minOrderAmount,
-        maxDiscount,
-        usageLimit,
-        userUsageLimit,
-        validFrom,
-        validUntil,
-        isActive
-      } = req.body;
-
-      if (!['percentage', 'flat'].includes(discountType)) {
-        return res.status(400).json({ 
-          error: 'Discount type must be either "percentage" or "flat"' 
-        });
-      }
-
-      const [updatedPromoCode] = await db
-        .update(schema.promoCodes)
-        .set({
-          code: code.toUpperCase(),
-          description,
-          discountType,
-          discountValue: discountValue.toString(),
-          minOrderAmount: minOrderAmount ? minOrderAmount.toString() : '0.00',
-          maxDiscount: maxDiscount ? maxDiscount.toString() : null,
-          usageLimit: usageLimit || null,
-          userUsageLimit: userUsageLimit || 1,
-          isActive: isActive !== false,
-          validFrom: validFrom ? new Date(validFrom) : undefined,
-          validUntil: validUntil ? new Date(validUntil) : null,
-          updatedAt: new Date()
-        })
-        .where(eq(schema.promoCodes.id, id))
-        .returning();
-
-      if (!updatedPromoCode) {
-        return res.status(404).json({ error: 'Promo code not found' });
-      }
-
-      res.json(updatedPromoCode);
-    } catch (error) {
-      console.error('Error updating promo code:', error);
-      res.status(500).json({ error: 'Failed to update promo code' });
-    }
-  });
-
-  // Delete promo code (admin)
-  app.delete('/api/admin/promo-codes/:id', adminMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-
-      const [deletedPromoCode] = await db
-        .delete(schema.promoCodes)
-        .where(eq(schema.promoCodes.id, id))
-        .returning();
-
-      if (!deletedPromoCode) {
-        return res.status(404).json({ error: 'Promo code not found' });
-      }
-
-      res.json({ success: true, message: 'Promo code deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting promo code:', error);
-      res.status(500).json({ error: 'Failed to delete promo code' });
-    }
-  });
-
-  // Cron job to delete expired promo codes (runs every hour)
-  setInterval(async () => {
-    try {
-      const now = new Date();
-      
-      // Delete expired promo codes
-      const deletedCodes = await db
-        .delete(schema.promoCodes)
-        .where(and(
-          sql`${schema.promoCodes.validUntil} IS NOT NULL`,
-          sql`${schema.promoCodes.validUntil} < ${now}`
-        ))
-        .returning();
-
-      if (deletedCodes.length > 0) {
-        console.log(`🗑️ Auto-deleted ${deletedCodes.length} expired promo codes:`, deletedCodes.map(c => c.code));
-      }
-    } catch (error) {
-      console.error('Error deleting expired promo codes:', error);
-    }
-  }, 60 * 60 * 1000); // Run every hour
-
-  // Validate and apply promo code (public)
-  app.post('/api/promo-codes/validate', async (req, res) => {
-    try {
-      const { code, cartTotal, userId } = req.body;
-
-      if (!code) {
-        return res.status(400).json({ error: 'Promo code is required', valid: false });
-      }
-
-      // Get promo code from database
-      const promoCode = await db
-        .select()
-        .from(schema.promoCodes)
-        .where(eq(schema.promoCodes.code, code.toUpperCase()))
-        .limit(1);
-
-      if (!promoCode || promoCode.length === 0) {
-        return res.status(404).json({ error: 'Invalid promo code', valid: false });
-      }
-
-      const promo = promoCode[0];
-
-      // Check if promo code is active
-      if (!promo.isActive) {
-        return res.status(400).json({ error: 'This promo code is no longer active', valid: false });
-      }
-
-      // Check validity dates
-      const now = new Date();
-      if (promo.validFrom && new Date(promo.validFrom) > now) {
-        return res.status(400).json({ error: 'This promo code is not yet valid', valid: false });
-      }
-
-      if (promo.validUntil && new Date(promo.validUntil) < now) {
-        return res.status(400).json({ error: 'This promo code has expired', valid: false });
-      }
-
-      // Check total usage limit
-      if (promo.usageLimit && promo.usageCount >= promo.usageLimit) {
-        return res.status(400).json({ 
-          error: `This promo code has reached its total usage limit (${promo.usageLimit} uses)`, 
-          valid: false 
-        });
-      }
-
-      // Check per-user usage limit
-      if (userId) {
-        const userUsage = await db
-          .select()
-          .from(schema.promoCodeUsage)
-          .where(and(
-            eq(schema.promoCodeUsage.promoCodeId, promo.id),
-            eq(schema.promoCodeUsage.userId, parseInt(userId))
-          ));
-
-        const userUsageLimit = promo.userUsageLimit || 1;
-        if (userUsage.length >= userUsageLimit) {
-          return res.status(400).json({
-            error: `You have already used this promo code ${userUsage.length} time(s). Maximum allowed: ${userUsageLimit}`,
-            valid: false
-          });
-        }
-      }
-
-      // Check minimum order amount
-      if (promo.minOrderAmount && cartTotal < Number(promo.minOrderAmount)) {
-        return res.status(400).json({
-          error: `Minimum order amount of ₹${promo.minOrderAmount} required`,
-          valid: false
-        });
-      }
-
-      // Calculate discount
-      let discountAmount = 0;
-      if (promo.discountType === 'percentage') {
-        discountAmount = (cartTotal * Number(promo.discountValue)) / 100;
-        if (promo.maxDiscount && discountAmount > Number(promo.maxDiscount)) {
-          discountAmount = Number(promo.maxDiscount);
-        }
-      } else if (promo.discountType === 'flat') {
-        discountAmount = Number(promo.discountValue);
-      }
-
-      res.json({
-        valid: true,
-        promoCode: {
-          id: promo.id,
-          code: promo.code,
-          description: promo.description,
-          discountType: promo.discountType,
-          discountValue: promo.discountValue,
-          discountAmount: Math.round(discountAmount),
-          minOrderAmount: promo.minOrderAmount
-        }
-      });
-    } catch (error) {
-      console.error('Error validating promo code:', error);
-      res.status(500).json({ error: 'Failed to validate promo code', valid: false });
-    }
-  });
-
-  // Admin: Get all affiliate withdrawal requests
-  app.get('/api/admin/affiliate/withdrawals', adminMiddleware, async (req, res) => {
-    try {
-      // Get all withdrawal transactions with user details
-      const withdrawals = await db
-        .select({
-          id: schema.affiliateTransactions.id,
-          userId: schema.affiliateTransactions.userId,
-          type: schema.affiliateTransactions.type,
-          amount: schema.affiliateTransactions.amount,
-          balanceType: schema.affiliateTransactions.balanceType,
-          description: schema.affiliateTransactions.description,
-          orderId: schema.affiliateTransactions.orderId,
-          status: schema.affiliateTransactions.status,
-          transactionId: schema.affiliateTransactions.transactionId,
-          notes: schema.affiliateTransactions.notes,
-          processedAt: schema.affiliateTransactions.processedAt,
-          createdAt: schema.affiliateTransactions.createdAt,
-          userName: sql`${schema.users.firstName} || ' ' || ${schema.users.lastName}`,
-          userEmail: schema.users.email,
-          userPhone: schema.users.phone,
-          bankName: schema.affiliateApplications.bankName,
-          branchName: schema.affiliateApplications.branchName,
-          ifscCode: schema.affiliateApplications.ifscCode,
-          accountNumber: schema.affiliateApplications.accountNumber,
-        })
-        .from(schema.affiliateTransactions)
-        .leftJoin(schema.users, eq(schema.affiliateTransactions.userId, schema.users.id))
-        .leftJoin(schema.affiliateApplications, eq(schema.affiliateTransactions.userId, schema.affiliateApplications.userId))
-        .where(eq(schema.affiliateTransactions.type, 'withdrawal'))
-        .orderBy(desc(schema.affiliateTransactions.createdAt));
-
-      res.json(withdrawals);
-    } catch (error) {
-      console.error('Error fetching affiliate withdrawals:', error);
-      res.status(500).json({ error: 'Failed to fetch withdrawal requests' });
-    }
-  });
-
-  // Admin: Approve affiliate withdrawal
-  app.post('/api/admin/affiliate/withdrawals/:id/approve', adminMiddleware, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { transactionId, notes } = req.body;
-
-      if (!transactionId || !transactionId.trim()) {
-        return res.status(400).json({ error: 'Transaction ID is required for approval' });
-      }
-
-      // Get the withdrawal transaction
-      const withdrawal = await db
-        .select()
-        .from(schema.affiliateTransactions)
-        .where(and(
-          eq(schema.affiliateTransactions.id, parseInt(id)),
-          eq(schema.affiliateTransactions.type, 'withdrawal')
-        ))
-        .limit(1);
-
-      if (!withdrawal || withdrawal.length === 0) {
-        return res.status(404).json({ error: 'Withdrawal request not found' });
-      }
-
-      if (withdrawal[0].status !== 'pending') {
-        return res.status(400).json({ error: 'Withdrawal request has already been processed' });
-      }
-
-      // Update withdrawal transaction status
-      await db
-        .update(schema.affiliateTransactions)
-        .set({
-          status: 'completed',
-          transactionId: transactionId.trim(),
-          notes: notes ? notes.trim() : null,
-          processedAt: new Date()
-        })
-        .where(eq(schema.affiliateTransactions.id, parseInt(id)));
-
-      console.log(`Withdrawal ${id} approved by admin. Transaction ID: ${transactionId}`);
-
-      res.json({
-        success: true,
-        message: 'Withdrawal approved and processed successfully'
-      });
-    } catch (error) {
-      console.error('Error approving withdrawal:', error);
-      res.status(500).json({ error: 'Failed to approve withdrawal' });
-    }
-  });
-
-  // Admin: Reject affiliate withdrawal
-  app.post('/api/admin/affiliate/withdrawals/:id/reject', adminMiddleware, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { notes } = req.body;
-
-      // Get the withdrawal transaction
-      const withdrawal = await db
-        .select()
-        .from(schema.affiliateTransactions)
-        .where(and(
-          eq(schema.affiliateTransactions.id, parseInt(id)),
-          eq(schema.affiliateTransactions.type, 'withdrawal')
-        ))
-        .limit(1);
-
-      if (!withdrawal || withdrawal.length === 0) {
-        return res.status(404).json({ error: 'Withdrawal request not found' });
-      }
-
-      if (withdrawal[0].status !== 'pending') {
-        return res.status(400).json({ error: 'Withdrawal request has already been processed' });
-      }
-
-      const userId = withdrawal[0].userId;
-      const amount = parseFloat(withdrawal[0].amount);
-      const balanceType = withdrawal[0].balanceType;
-
-      // Get current wallet
-      const wallet = await db
-        .select()
-        .from(schema.affiliateWallet)
-        .where(eq(schema.affiliateWallet.userId, userId))
-        .limit(1);
-
-      if (!wallet || wallet.length === 0) {
-        return res.status(404).json({ error: 'Wallet not found' });
-      }
-
-      const currentCashback = parseFloat(wallet[0].cashbackBalance || '0');
-      const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
-      const currentWithdrawn = parseFloat(wallet[0].totalWithdrawn || '0');
-
-      let newCashbackBalance = currentCashback;
-      let newCommissionBalance = currentCommission;
-
-      if (balanceType === 'cashback') {
-        newCashbackBalance = currentCashback + amount;
-      } else if (balanceType === 'commission') {
-        newCommissionBalance = currentCommission + amount;
-      } else {
-        // Mixed - refund to commission first
-        newCommissionBalance = currentCommission + amount;
-      }
-
-      // Update wallet - refund the amount
-      await db
-        .update(schema.affiliateWallet)
-        .set({
-          cashbackBalance: newCashbackBalance.toFixed(2),
-          commissionBalance: newCommissionBalance.toFixed(2),
-          totalWithdrawn: (currentWithdrawn - amount).toFixed(2),
-          updatedAt: new Date()
-        })
-        .where(eq(schema.affiliateWallet.userId, userId));
-
-      // Update withdrawal transaction status
-      await db
-        .update(schema.affiliateTransactions)
-        .set({
-          status: 'failed',
-          notes: notes ? notes.trim() : 'Rejected by admin',
-          processedAt: new Date()
-        })
-        .where(eq(schema.affiliateTransactions.id, parseInt(id)));
-
-      console.log(`Withdrawal ${id} rejected by admin. Amount ₹${amount} refunded to wallet.`);
-
-      res.json({
-        success: true,
-        message: 'Withdrawal rejected and amount refunded to wallet'
-      });
-    } catch (error) {
-      console.error('Error rejecting withdrawal:', error);
-      res.status(500).json({ error: 'Failed to reject withdrawal' });
-    }
-  });
-
-  app.get('/api/affiliate/wallet', async (req, res) => {
-    try {
-      const userId = req.query.userId;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      // Get wallet data
-      const wallet = await db
-        .select()
-        .from(schema.affiliateWallet)
-        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
-        .limit(1);
-
-      // Get sales data
-      const sales = await db
-        .select()
-        .from(schema.affiliateSales)
-        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)));
-
-      // Get clicks data
-      const clicks = await db
-        .select()
-        .from(schema.affiliateClicks)
-        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)));
-
-      const totalClicks = clicks.length;
-      const totalConversions = sales.length;
-      const totalEarnings = wallet && wallet.length > 0 
-        ? parseFloat(wallet[0].totalEarnings || '0') 
-        : 0;
-      const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
-      const avgCommission = totalConversions > 0 ? totalEarnings / totalConversions : 0;
-
-      res.json({
-        totalClicks,
-        totalConversions,
-        totalEarnings,
-        conversionRate,
-        avgCommission
-      });
-    } catch (error) {
-      console.error('Error fetching affiliate stats:', error);
-      res.status(500).json({ error: 'Failed to fetch affiliate stats' });
-    }
-  });
-
-  // Get affiliate sales
   app.get('/api/affiliate/sales', async (req, res) => {
     try {
       const { userId } = req.query;

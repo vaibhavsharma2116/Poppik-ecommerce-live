@@ -31,6 +31,10 @@ export default function PromoCodesManagement() {
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingCode, setEditingCode] = useState<any>(null);
+  // Added state for searchTerm and statusFilter as they are mentioned in the changes
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
 
   const [formData, setFormData] = useState({
     code: '',
@@ -65,7 +69,7 @@ export default function PromoCodesManagement() {
       const token = localStorage.getItem('token');
       const response = await fetch('/api/admin/promo-codes', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -95,7 +99,7 @@ export default function PromoCodesManagement() {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/promo-codes/${id}`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -118,7 +122,7 @@ export default function PromoCodesManagement() {
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/promo-codes/${id}`, { 
+      const response = await fetch(`/api/admin/promo-codes/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -228,9 +232,9 @@ export default function PromoCodesManagement() {
         </div>
         <Dialog open={isCreateOpen} onOpenChange={(open) => startTransition(() => setIsCreateOpen(open))}>
           <DialogTrigger asChild>
-            <Button onClick={() => { 
+            <Button onClick={() => {
               startTransition(() => {
-                resetForm(); 
+                resetForm();
                 setEditingCode(null);
               });
             }}>
@@ -384,6 +388,27 @@ export default function PromoCodesManagement() {
         </Dialog>
       </div>
 
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex gap-4">
+          <Input
+            placeholder="Search by code or description..."
+            value={searchTerm}
+            onChange={(e) => startTransition(() => setSearchTerm(e.target.value))}
+            className="max-w-sm"
+          />
+          <Select value={statusFilter} onValueChange={(value) => startTransition(() => setStatusFilter(value))}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="grid gap-4">
         {isLoading ? (
           <Card>
@@ -397,96 +422,105 @@ export default function PromoCodesManagement() {
             </CardContent>
           </Card>
         ) : (
-          promoCodes.map((code: any) => (
-            <Card key={code.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-2xl font-mono">{code.code}</CardTitle>
-                      <Badge variant={code.isActive ? 'default' : 'secondary'}>
-                        {code.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                    <CardDescription className="mt-1">{code.description}</CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(code)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteMutation.mutate(code.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-600" />
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <Share2 className="h-4 w-4" />
+          promoCodes.map((code: any) => {
+            const isActive = code.isActive;
+            const matchesSearch = code.code.includes(searchTerm.toUpperCase()) || code.description.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' && isActive) || (statusFilter === 'inactive' && !isActive);
+
+            if (matchesSearch && matchesStatus) {
+              return (
+                <Card key={code.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-2xl font-mono">{code.code}</CardTitle>
+                          <Badge variant={code.isActive ? 'default' : 'secondary'}>
+                            {code.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </div>
+                        <CardDescription className="mt-1">{code.description}</CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(code)}>
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => sharePromoCode(code)}>Copy Link</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => shareToWhatsApp(code)}>WhatsApp</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => shareToEmail(code)}>Email</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => shareToSocial(code, 'facebook')}>Facebook</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => shareToSocial(code, 'twitter')}>Twitter</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
-                    <div className="text-sm text-gray-500 flex items-center gap-1">
-                      <TrendingUp className="h-4 w-4" />
-                      Discount
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteMutation.mutate(code.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <Share2 className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => sharePromoCode(code)}>Copy Link</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => shareToWhatsApp(code)}>WhatsApp</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => shareToEmail(code)}>Email</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => shareToSocial(code, 'facebook')}>Facebook</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => shareToSocial(code, 'twitter')}>Twitter</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
-                    <div className="font-semibold">
-                      {code.discountType === 'percentage'
-                        ? `${code.discountValue}%`
-                        : `₹${parseFloat(code.discountValue).toLocaleString('en-IN')}`}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-4 gap-4">
+                      <div>
+                        <div className="text-sm text-gray-500 flex items-center gap-1">
+                          <TrendingUp className="h-4 w-4" />
+                          Discount
+                        </div>
+                        <div className="font-semibold">
+                          {code.discountType === 'percentage'
+                            ? `${code.discountValue}%`
+                            : `₹${parseFloat(code.discountValue).toLocaleString('en-IN')}`}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500 flex items-center gap-1">
+                          <Users className="h-4 w-4" />
+                          Usage
+                        </div>
+                        <div className="font-semibold">
+                          {code.usageCount} / {code.usageLimit || '∞'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500 flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          Valid From
+                        </div>
+                        <div className="font-semibold text-sm">
+                          {new Date(code.validFrom).toLocaleDateString('en-IN')}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-gray-500 flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          Valid Until
+                        </div>
+                        <div className="font-semibold text-sm">
+                          {code.validUntil ? new Date(code.validUntil).toLocaleDateString('en-IN') : 'No expiry'}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500 flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      Usage
-                    </div>
-                    <div className="font-semibold">
-                      {code.usageCount} / {code.usageLimit || '∞'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500 flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      Valid From
-                    </div>
-                    <div className="font-semibold text-sm">
-                      {new Date(code.validFrom).toLocaleDateString('en-IN')}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500 flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      Valid Until
-                    </div>
-                    <div className="font-semibold text-sm">
-                      {code.validUntil ? new Date(code.validUntil).toLocaleDateString('en-IN') : 'No expiry'}
-                    </div>
-                  </div>
-                </div>
-                {code.minOrderAmount && parseFloat(code.minOrderAmount) > 0 && (
-                  <div className="mt-4 text-sm text-gray-600">
-                    Min order: ₹{parseFloat(code.minOrderAmount).toLocaleString('en-IN')}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))
+                    {code.minOrderAmount && parseFloat(code.minOrderAmount) > 0 && (
+                      <div className="mt-4 text-sm text-gray-600">
+                        Min order: ₹{parseFloat(code.minOrderAmount).toLocaleString('en-IN')}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            }
+            return null; // Do not render if it doesn't match filters
+          })
         )}
       </div>
     </div>

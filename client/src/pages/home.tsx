@@ -1000,25 +1000,30 @@ function ComboSection() {
             const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
             const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice) : combo.originalPrice;
             const rating = typeof combo.rating === 'string' ? parseFloat(combo.rating) : combo.rating;
-            const discountPercentage = Math.round(((originalPrice - price) / originalPrice) * 100);
+            const discountPercentage = originalPrice > 0 ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
             const isHovered = hoveredCard === combo.id;
 
             return (
-              <React.Fragment key={combo.id}>
               <div
                 key={combo.id}
                 className="group transition-all duration-300 overflow-hidden bg-white rounded-lg sm:rounded-xl shadow-sm hover:shadow-md cursor-pointer flex flex-col"
                 onMouseEnter={() => setHoveredCard(combo.id)}
                 onMouseLeave={() => setHoveredCard(null)}
               >
+                {/* Image Section */}
                 <div
                   className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300"
                   onClick={() => {
-                    window.location.href = `/combo/${combo.id}`;
+                    React.startTransition(() => {
+                      window.location.href = `/combo/${combo.id}`;
+                    });
                   }}
                 >
                   <button
-                    onClick={(e) => handleToggleWishlist(combo, e)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleWishlist(combo, e);
+                    }}
                     className="absolute top-1 right-1 sm:top-2 sm:right-2 p-1.5 sm:p-2 hover:scale-110 transition-all duration-300 z-10 bg-white/80 backdrop-blur-sm rounded-full shadow-md"
                   >
                     <Heart
@@ -1031,24 +1036,31 @@ function ComboSection() {
                   </button>
                   <div className="relative overflow-hidden bg-white">
                     <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
-                      <img
-                        src={combo.imageUrl}
-                        alt={combo.name}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
+                      {combo.imageUrl || (combo.images && combo.images.length > 0) ? (
+                        <img
+                          src={combo.imageUrl || combo.images[0]}
+                          alt={combo.name}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
+                          }}
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <Package className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-gray-400" />
+                        </div>
+                      )}
                     </div>
-                    {combo.inStock === false && (
-                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                        <Badge variant="destructive" className="text-sm font-bold">Out of Stock</Badge>
-                      </div>
-                    )}
                     <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
                     <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
                   </div>
                 </div>
 
+                {/* Content Section */}
                 <div className="p-2 sm:p-3 md:p-4 lg:p-5 space-y-2 sm:space-y-2.5 md:space-y-3 bg-white flex-1 flex flex-col">
+                  {/* Rating */}
                   <div className="flex items-center justify-between bg-white rounded-lg p-1 sm:p-1.5 md:p-2">
                     <div className="flex items-center gap-0.5">
                       {renderStars(rating)}
@@ -1058,34 +1070,37 @@ function ComboSection() {
                     </span>
                   </div>
 
+                  {/* Title */}
                   <h3
                     className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-3 text-xs sm:text-sm md:text-base break-words"
                     style={{ minHeight: '3.6rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', hyphens: 'auto' }}
-                    onClick={() => window.location.href = `/combo/${combo.id}`}
+                    onClick={() => {
+                      React.startTransition(() => {
+                        window.location.href = `/combo/${combo.id}`;
+                      });
+                    }}
                   >
                     {combo.name}
                   </h3>
 
+                  {/* Price Section */}
                   <div className="space-y-1 sm:space-y-1.5 md:space-y-2 mt-auto">
-                    <div className="flex flex-col space-y-1.5">
-                      <div className="flex items-center gap-2 flex-wrap min-h-[24px]">
+                    <div className="flex flex-col space-y-1">
+                      <div className="flex items-baseline space-x-1 sm:space-x-2 min-h-[24px]">
                         <span className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
                           ₹{price.toLocaleString()}
                         </span>
                         {originalPrice > price && (
-                          <span className="text-xs sm:text-sm text-gray-500 line-through">
-                            ₹{originalPrice.toLocaleString()}
-                          </span>
+                          <>
+                            <span className="text-xs sm:text-sm text-gray-500 line-through">
+                              ₹{originalPrice.toLocaleString()}
+                            </span>
+                            <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 sm:px-2 rounded whitespace-nowrap">
+                              {discountPercentage}% OFF
+                            </span>
+                          </>
                         )}
                       </div>
-                      {originalPrice > price && discountPercentage > 0 && (
-                        <div className="flex items-center">
-                          <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded whitespace-nowrap">
-                            {discountPercentage}% OFF
-                          </span>
-                        </div>
-                      )}
-                    </div>
 
                       {/* Cashback Badge - Fixed height container */}
                       <div className="mt-1" style={{ minHeight: '28px', display: 'flex', alignItems: 'center' }}>
@@ -1103,12 +1118,12 @@ function ComboSection() {
                         )}
                       </div>
 
-                      {/* Stock status and Savings - Fixed height container */}
-                      <div className="mb-3 sm:mb-4" style={{ minHeight: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      {/* Stock status and Savings */}
+                      <div className="flex items-center justify-between mb-3 sm:mb-4">
                         <div className="flex items-center space-x-1.5 sm:space-x-2">
                           <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
                             combo.inStock !== false
-                              ? 'bg-gradient-to-r from-green-400 to-emerald-400'
+                              ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
                               : 'bg-gradient-to-r from-red-400 to-rose-400'
                           }`}></div>
                           <span className={`font-bold text-xs sm:text-sm ${
@@ -1118,7 +1133,7 @@ function ComboSection() {
                           </span>
                         </div>
                         {originalPrice > price && (
-                          <span className="text-xs sm:text-sm font-bold text-green-600 whitespace-nowrap">
+                          <span className="text-xs sm:text-sm font-bold text-green-600">
                             Save ₹{(originalPrice - price).toLocaleString()}
                           </span>
                         )}
@@ -1126,25 +1141,16 @@ function ComboSection() {
                     </div>
                   </div>
 
-                  {combo.inStock !== false ? (
-                    <Button
-                      className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                      onClick={() => window.location.href = `/combo/${combo.id}`}
-                    >
-                      <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="hidden xs:inline">View </span>Combo
-                    </Button>
-                  ) : (
-                    <Button
-                      className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                      onClick={(e) => handleToggleWishlist(combo, e)}
-                    >
-                      <Heart className={`h-3 w-3 sm:h-4 sm:w-4 ${wishlist.has(combo.id) ? 'fill-current' : ''}`} />
-                      {wishlist.has(combo.id) ? 'Remove' : <><span className="hidden xs:inline">Add to </span>Wishlist</>}
-                    </Button>
-                  )}
+                  {/* Add to Cart Button */}
+                  <Button
+                    className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                    onClick={() => window.location.href = `/combo/${combo.id}`}
+                  >
+                    <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden xs:inline">Add to </span>Cart
+                  </Button>
                 </div>
-              </React.Fragment>
+              </div>
             );
           })}
         </div>

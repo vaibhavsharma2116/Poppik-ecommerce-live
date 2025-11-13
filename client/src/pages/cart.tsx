@@ -31,13 +31,33 @@ interface CartItem {
   };
 }
 
+// Placeholder for user object, assuming it's fetched elsewhere or available in context
+interface User {
+  id: string | number;
+  // other user properties
+}
+
 export default function Cart() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [hasPromoCode, setHasPromoCode] = useState(false);
+
+  // Wallet cashback states
+  const [redeemAmount, setRedeemAmount] = useState(() => {
+    const saved = localStorage.getItem('redeemAmount');
+    return saved ? parseFloat(saved) : 0;
+  });
+
+  const [promoError, setPromoError] = useState("");
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingToWishlist, setSavingToWishlist] = useState<number | null>(null);
-  const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const { toast } = useToast();
+
+  // Placeholder for user data, replace with actual user context or hook
+  const [user, setUser] = useState<User | null>(null);
 
   // Fetch announcements for dynamic offers
   const { data: announcements = [] } = useQuery({
@@ -51,6 +71,16 @@ export default function Cart() {
 
   // Load cart from localStorage on component mount
   useEffect(() => {
+    // Attempt to load user data from localStorage
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+
     const savedCart = localStorage.getItem("cart");
     if (savedCart) {
       try {
@@ -102,6 +132,12 @@ export default function Cart() {
     }
   }, [cartItems, loading]);
 
+  // Save redeemAmount to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('redeemAmount', redeemAmount.toString());
+  }, [redeemAmount]);
+
+
   const updateQuantity = (id: number, newQuantity: number, itemIndex?: number) => {
     if (newQuantity === 0) {
       removeItem(id, itemIndex);
@@ -146,8 +182,6 @@ export default function Cart() {
 
     // Dispatch event after state update
     setTimeout(() => window.dispatchEvent(new Event("cartUpdated")), 0);
-
-
   };
 
   const saveForLater = async (id: number) => {
@@ -192,6 +226,11 @@ export default function Cart() {
     });
   };
 
+  // State for affiliate discount specific logic
+  const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
+  const [affiliateDiscount, setAffiliateDiscount] = useState<number>(0);
+
+  // Function to apply promo code
   const applyPromoCode = async () => {
     const code = promoCode.trim();
 
@@ -205,13 +244,13 @@ export default function Cart() {
     }
 
     try {
-      const user = localStorage.getItem("user");
-      const userId = user ? JSON.parse(user).id : null;
-
       // Check if it's an affiliate code (starts with POPPIKAP)
       if (code.toUpperCase().startsWith('POPPIKAP')) {
         // Fetch affiliate settings for discount
         const settingsResponse = await fetch('/api/affiliate-settings');
+        if (!settingsResponse.ok) {
+          throw new Error('Failed to fetch affiliate settings');
+        }
         const settings = await settingsResponse.json();
 
         if (cartSubtotal < settings.minOrderAmount) {
@@ -224,16 +263,17 @@ export default function Cart() {
         }
 
         let discountAmount = (cartSubtotal * settings.userDiscountPercentage) / 100;
-        
+
         if (settings.maxDiscountAmount && discountAmount > settings.maxDiscountAmount) {
           discountAmount = settings.maxDiscountAmount;
         }
 
         setAffiliateCode(code.toUpperCase());
         setAffiliateDiscount(discountAmount);
-        setPromoCode('');
-        setPromoDiscount(0);
-        
+        setPromoCode(''); // Clear input after applying
+        setAppliedPromo(null); // Reset general promo if any
+        setPromoDiscount(0); // Reset general promo discount
+
         toast({
           title: "Affiliate Discount Applied!",
           description: `You saved ₹${discountAmount.toFixed(2)} with affiliate code ${code.toUpperCase()}`,
@@ -241,41 +281,52 @@ export default function Cart() {
         return;
       }
 
+      // General promo code validation
       const response = await fetch('/api/promo-codes/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: code.toUpperCase(),
           cartTotal: cartSubtotal,
-          userId: userId
+          userId: user?.id // Use user?.id for safety
         })
       });
 
       const result = await response.json();
 
-      if (response.ok && result.valid) {
+      if (!response.ok) {
+        // Handle non-2xx responses from the API
+        throw new Error(result.error || `API error: ${response.status}`);
+      }
+
+      if (result.valid && result.promoCode) {
         setAppliedPromo(result.promoCode);
+        setAffiliateCode(null); // Clear affiliate code if a general promo is applied
+        setAffiliateDiscount(0);
+        setPromoDiscount(result.promoCode.discountAmount); // Set the promo discount state
         // Store promo code in localStorage for checkout
         localStorage.setItem('appliedPromoCode', JSON.stringify(result.promoCode));
         toast({
           title: "Promo Code Applied! 🎉",
-          description: `You saved ₹${result.promoCode.discountAmount}`,
+          description: `You saved ₹${result.promoCode.discountAmount.toLocaleString()}`,
         });
       } else {
+        // Handle cases where response.ok is true but result.valid is false
         setAppliedPromo(null);
+        setPromoDiscount(0);
         localStorage.removeItem('appliedPromoCode');
-        toast({
-          title: "Invalid Promo Code",
-          description: result.error || "The promo code you entered is not valid or has expired.",
-          variant: "destructive",
-        });
+        throw new Error(result.message || "The promo code you entered is not valid or has expired.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error validating promo code:", error);
       setAppliedPromo(null);
+      setAffiliateCode(null);
+      setAffiliateDiscount(0);
+      setPromoDiscount(0);
+      localStorage.removeItem('appliedPromoCode');
       toast({
         title: "Error",
-        description: "Failed to validate promo code. Please try again.",
+        description: error.message || "Failed to validate promo code. Please try again.",
         variant: "destructive",
       });
     }
@@ -326,54 +377,62 @@ export default function Cart() {
   // Calculate cart subtotal after product discounts
   const cartSubtotal = subtotal - productDiscount;
 
+  // Calculate affiliate discount if applicable
+  const subtotalAfterAffiliate = cartSubtotal - affiliateDiscount;
+
   // Dynamic discount calculation based on announcements
   let dynamicDiscount = 0;
   let appliedOffers: string[] = [];
+  const freeShippingThreshold = 599;
   let freeShippingApplied = false;
 
-  announcements.forEach((announcement: any) => {
-    if (!announcement.isActive) return;
-
-    const text = announcement.text.toLowerCase();
-
-    if (text.includes('5% off') && text.includes('online')) {
-      const offerDiscount = Math.round(cartSubtotal * 0.05);
-      dynamicDiscount += offerDiscount;
-      appliedOffers.push('5% Online Payment Discount');
-    }
-
-    const flatDiscountMatch = text.match(/rs\.?\s*(\d+)\s*off.*rs\.?\s*(\d+)/i);
-    if (flatDiscountMatch) {
-      const discountAmount = parseInt(flatDiscountMatch[1]);
-      const minAmount = parseInt(flatDiscountMatch[2]);
-
-      if (cartSubtotal >= minAmount) {
-        dynamicDiscount += discountAmount;
-        appliedOffers.push(`Rs. ${discountAmount} off (above Rs. ${minAmount})`);
-      }
-    }
-
-    if (text.includes('free shipping') && cartSubtotal >= 499) {
-      freeShippingApplied = true;
-    }
-  });
-
-  // Apply promo code discount
-  const promoDiscount = appliedPromo?.discountAmount ? appliedPromo.discountAmount : 0;
-  if (promoDiscount > 0) {
-    appliedOffers.push(`Promo Code ${appliedPromo.code}`);
+  // Check for free shipping (only if subtotal after affiliate discount is above threshold and NO promo code is applied)
+  if (subtotalAfterAffiliate > freeShippingThreshold && !appliedPromo && affiliateDiscount === 0) {
+    freeShippingApplied = true;
+    appliedOffers.push('Free Shipping on orders above ₹599');
   }
 
-  const totalDiscount = productDiscount + dynamicDiscount + promoDiscount;
-  const total = cartSubtotal - dynamicDiscount - promoDiscount;
+  // Apply dynamic benefits from announcements only if no promo code is applied
+  if (!appliedPromo && affiliateDiscount === 0 && announcements.length > 0) {
+    announcements.forEach((announcement: any) => {
+      if (announcement.type === 'offer' && announcement.offerType === 'discount') {
+        const offerDiscount = Math.round(cartSubtotal * 0.05);
+        dynamicDiscount += offerDiscount;
+        appliedOffers.push('5% Online Payment Discount');
+      }
+    });
+  }
 
-  // Calculate total cashback
-  const totalCashback = cartItems.reduce((sum, item) => {
+  const generalPromoDiscount = appliedPromo?.discountAmount ? appliedPromo.discountAmount : 0;
+  const totalDiscount = productDiscount + dynamicDiscount + affiliateDiscount + generalPromoDiscount;
+
+  // Use cartSubtotal for total calculation before considering redemption
+  const subtotalAfterDiscount = cartSubtotal - dynamicDiscount - generalPromoDiscount - affiliateDiscount;
+
+  // Calculate total before redemption
+  const totalBeforeRedemption = subtotalAfterDiscount; // Shipping is calculated at checkout, so not included here for now
+  const total = Math.max(0, totalBeforeRedemption - redeemAmount);
+
+
+  // Calculate total cashback (This seems to be for earning cashback, not redeeming it)
+  const totalEarnedCashback = cartItems.reduce((sum, item) => {
     if (item.cashbackPrice) {
       return sum + (Number(item.cashbackPrice) * item.quantity);
     }
     return sum;
   }, 0);
+
+  // Function to handle wallet cashback redemption
+  const handleRedeemCashback = (value: string) => {
+    const amountToRedeem = parseFloat(value);
+    if (isNaN(amountToRedeem) || amountToRedeem < 0) {
+      setRedeemAmount(0);
+      return;
+    }
+    // Ensure redeemable amount does not exceed total payable amount
+    const maxRedeemable = Math.max(0, total);
+    setRedeemAmount(Math.min(amountToRedeem, maxRedeemable));
+  };
 
   if (loading) {
     return (
@@ -611,6 +670,43 @@ export default function Cart() {
                       Applied: {appliedPromo.code} ({appliedPromo.discountType === 'percentage' ? appliedPromo.discountAmount + '%' : (appliedPromo.discountType === 'fixed' ? `Rs. ${appliedPromo.discountAmount} off` : 'Free Shipping')})
                     </p>
                   )}
+                  {affiliateDiscount > 0 && (
+                    <p className="text-green-600 text-xs">
+                      Applied Affiliate Code: {affiliateCode} (Save ₹{affiliateDiscount.toLocaleString()})
+                    </p>
+                  )}
+                </div>
+
+                {/* Wallet Cashback Redemption Section */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Wallet Cashback</label>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      placeholder="Enter amount to redeem"
+                      value={redeemAmount}
+                      onChange={(e) => handleRedeemCashback(e.target.value)}
+                      min="0"
+                      className="flex-1"
+                      disabled={total <= 0} // Disable if total is zero or less
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRedeemAmount(0)}
+                      disabled={redeemAmount === 0 || total <= 0}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                  {redeemAmount > 0 && (
+                    <p className="text-green-600 text-xs">
+                      Redeemed: ₹{redeemAmount.toLocaleString()}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Available cashback: ₹{totalEarnedCashback.toLocaleString()} (Will be credited after delivery)
+                  </p>
                 </div>
 
                 <Separator />
@@ -635,10 +731,24 @@ export default function Cart() {
                     </div>
                   )}
 
-                  {appliedPromo && promoDiscount > 0 && (
+                  {affiliateDiscount > 0 && (
+                    <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                      <span className="text-green-700 font-medium">Affiliate Discount ({affiliateCode})</span>
+                      <span className="font-bold text-green-600">-₹{affiliateDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {appliedPromo && generalPromoDiscount > 0 && (
                     <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
                       <span className="text-green-700 font-medium">Promo Code ({appliedPromo.code})</span>
-                      <span className="font-bold text-green-600">-₹{promoDiscount.toLocaleString()}</span>
+                      <span className="font-bold text-green-600">-₹{generalPromoDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {redeemAmount > 0 && (
+                    <div className="flex justify-between text-sm bg-blue-50 p-2 rounded">
+                      <span className="text-blue-700 font-medium">Wallet Cashback Redemption</span>
+                      <span className="font-bold text-blue-600">-₹{redeemAmount.toLocaleString()}</span>
                     </div>
                   )}
 
@@ -656,14 +766,13 @@ export default function Cart() {
                 <div className="pt-3 border-t border-gray-200">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-gray-900">Total</span>
-                    <span className="text-2xl font-bold text-pink-600">₹{total.toLocaleString()}</span>
+                    <span className="text-2xl font-bold text-pink-600">₹{total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   </div>
-                  {totalDiscount > 0 && (
+                  {(totalDiscount > 0 || redeemAmount > 0) && (
                     <div className="text-xs text-green-600 text-right mt-1">
-                      You saved ₹{totalDiscount.toLocaleString()}!
+                      You saved ₹{(totalDiscount + redeemAmount).toLocaleString(undefined, { maximumFractionDigits: 2 })}!
                     </div>
                   )}
-
                 </div>
 
                 <Link href="/checkout">
