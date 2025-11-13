@@ -850,13 +850,13 @@ function ComboSection() {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
   const { toast } = useToast();
-  
+
   const { data: comboProducts = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/combos"],
     select: (data) => Array.isArray(data) ? data : [],
   });
 
-  const activeComboProducts = Array.isArray(comboProducts) 
+  const activeComboProducts = Array.isArray(comboProducts)
     ? comboProducts.filter(combo => combo.isActive).slice(0, 4)
     : [];
 
@@ -942,8 +942,8 @@ function ComboSection() {
       <Star
         key={i}
         className={`w-4 h-4 ${
-          i < Math.floor(rating) 
-            ? "fill-yellow-400 text-yellow-400" 
+          i < Math.floor(rating)
+            ? "fill-yellow-400 text-yellow-400"
             : "text-gray-300"
         }`}
       />
@@ -993,7 +993,8 @@ function ComboSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4 lg:gap-6">
+        <div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4 lg:gap-6">
           {activeComboProducts.map((combo) => {
             const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products;
             const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
@@ -1003,13 +1004,14 @@ function ComboSection() {
             const isHovered = hoveredCard === combo.id;
 
             return (
+              <React.Fragment key={combo.id}>
               <div
                 key={combo.id}
                 className="group transition-all duration-300 overflow-hidden bg-white rounded-lg sm:rounded-xl shadow-sm hover:shadow-md cursor-pointer flex flex-col"
                 onMouseEnter={() => setHoveredCard(combo.id)}
                 onMouseLeave={() => setHoveredCard(null)}
               >
-                <div 
+                <div
                   className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300"
                   onClick={() => {
                     window.location.href = `/combo/${combo.id}`;
@@ -1029,8 +1031,8 @@ function ComboSection() {
                   </button>
                   <div className="relative overflow-hidden bg-white">
                     <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
-                      <img 
-                        src={combo.imageUrl} 
+                      <img
+                        src={combo.imageUrl}
                         alt={combo.name}
                         className="h-full w-full object-cover"
                         loading="lazy"
@@ -1056,74 +1058,72 @@ function ComboSection() {
                     </span>
                   </div>
 
-                  <h3 
-                    className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-2 text-xs sm:text-sm md:text-base break-words" 
-                    style={{ minHeight: '2.5rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', hyphens: 'auto' }}
+                  <h3
+                    className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-3 text-xs sm:text-sm md:text-base break-words"
+                    style={{ minHeight: '3.6rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', hyphens: 'auto' }}
                     onClick={() => window.location.href = `/combo/${combo.id}`}
                   >
                     {combo.name}
                   </h3>
 
-                  <p 
-                    className="hidden sm:block text-gray-600 text-xs sm:text-sm line-clamp-2 cursor-pointer"
-                    onClick={() => window.location.href = `/combo/${combo.id}`}
-                  >
-                    {combo.description}
-                  </p>
-
-                  <div className="space-y-1 sm:space-y-1.5 md:space-y-2 flex-1">
-                    <p className="text-xs font-semibold text-gray-700 hidden sm:block">Includes:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {Array.isArray(products) && products.slice(0, 2).map((product: any, index: number) => (
-                        <Badge
-                          key={index}
-                          variant="outline"
-                          className="text-xs px-1.5 py-0.5 sm:px-2"
-                        >
-                          {typeof product === 'string' ? product.slice(0, 15) + '...' : (product.name || '').slice(0, 15) + '...'}
-                        </Badge>
-                      ))}
-                      {products.length > 2 && (
-                        <Badge variant="outline" className="text-xs px-1.5 py-0.5 sm:px-2">
-                          +{products.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
                   <div className="space-y-1 sm:space-y-1.5 md:space-y-2 mt-auto">
-                    {/* Stock status */}
-                    <div className="flex items-center space-x-1.5 sm:space-x-2 mb-2">
-                      <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
-                        combo.inStock !== false
-                          ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
-                          : 'bg-gradient-to-r from-red-400 to-rose-400'
-                      }`}></div>
-                      <span className={`font-bold text-xs sm:text-sm ${
-                        combo.inStock !== false ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-baseline space-x-1 sm:space-x-2">
-                      <span className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
-                        ₹{price.toLocaleString()}
-                      </span>
-                      {originalPrice > price && (
-                        <>
+                    <div className="flex flex-col space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap min-h-[24px]">
+                        <span className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
+                          ₹{price.toLocaleString()}
+                        </span>
+                        {originalPrice > price && (
                           <span className="text-xs sm:text-sm text-gray-500 line-through">
                             ₹{originalPrice.toLocaleString()}
                           </span>
-                          <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 sm:px-2 rounded">
-                            {discountPercentage}%
+                        )}
+                      </div>
+                      {originalPrice > price && discountPercentage > 0 && (
+                        <div className="flex items-center">
+                          <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded whitespace-nowrap">
+                            {discountPercentage}% OFF
                           </span>
-                        </>
+                        </div>
                       )}
                     </div>
-                    <p className="text-xs text-green-600 font-medium hidden sm:block">
-                      Save ₹{(originalPrice - price).toLocaleString()}
-                    </p>
+
+                      {/* Cashback Badge - Fixed height container */}
+                      <div className="mt-1" style={{ minHeight: '28px', display: 'flex', alignItems: 'center' }}>
+                        {combo.cashbackPercentage && combo.cashbackPrice ? (
+                          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5 w-full">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] sm:text-xs font-semibold text-orange-700">Cashback</span>
+                              <span className="text-[10px] sm:text-xs bg-orange-200 text-orange-800 px-1.5 sm:px-2 py-0.5 rounded-full font-bold">
+                                {combo.cashbackPercentage}%
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ minHeight: '28px' }}></div>
+                        )}
+                      </div>
+
+                      {/* Stock status and Savings - Fixed height container */}
+                      <div className="mb-3 sm:mb-4" style={{ minHeight: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div className="flex items-center space-x-1.5 sm:space-x-2">
+                          <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
+                            combo.inStock !== false
+                              ? 'bg-gradient-to-r from-green-400 to-emerald-400'
+                              : 'bg-gradient-to-r from-red-400 to-rose-400'
+                          }`}></div>
+                          <span className={`font-bold text-xs sm:text-sm ${
+                            combo.inStock !== false ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
+                          </span>
+                        </div>
+                        {originalPrice > price && (
+                          <span className="text-xs sm:text-sm font-bold text-green-600 whitespace-nowrap">
+                            Save ₹{(originalPrice - price).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {combo.inStock !== false ? (
@@ -1144,7 +1144,7 @@ function ComboSection() {
                     </Button>
                   )}
                 </div>
-              </div>
+              </React.Fragment>
             );
           })}
         </div>
@@ -1156,6 +1156,7 @@ function ComboSection() {
               <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>
+        </div>
         </div>
       </div>
     </section>

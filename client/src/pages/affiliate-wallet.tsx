@@ -327,7 +327,7 @@ export default function AffiliateWallet() {
                 Request Withdrawal
               </Button>
               {availableCommissionBalance < 2500 && (
-                <p className="text-xs text-red-500 mt-1 sm:mt-2">Minimum withdrawal: ₹2500</p>
+                <p className="text-xs text-red-500 mt-1 sm:mt-2 text-center">Minimum withdrawal: ₹2500</p>
               )}
             </CardContent>
           </Card>
