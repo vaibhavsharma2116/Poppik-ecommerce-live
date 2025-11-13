@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,16 +29,20 @@ export default function AffiliateSettings() {
       });
       if (!response.ok) throw new Error('Failed to fetch settings');
       return response.json();
-    },
-    onSuccess: (data) => {
-      setFormData({
-        commissionRate: data.commissionRate || '',
-        userDiscountPercentage: data.userDiscountPercentage || '',
-        maxDiscountAmount: data.maxDiscountAmount || '',
-        minOrderAmount: data.minOrderAmount || '',
-      });
     }
   });
+
+  // Update form data when settings are loaded
+  useEffect(() => {
+    if (settings) {
+      setFormData({
+        commissionRate: settings.commissionRate || '',
+        userDiscountPercentage: settings.userDiscountPercentage || '',
+        maxDiscountAmount: settings.maxDiscountAmount || '',
+        minOrderAmount: settings.minOrderAmount || '',
+      });
+    }
+  }, [settings]);
 
   // Update settings mutation
   const updateMutation = useMutation({

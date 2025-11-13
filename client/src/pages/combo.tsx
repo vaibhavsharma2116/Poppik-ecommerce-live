@@ -20,6 +20,8 @@ interface ComboProduct {
   products: string[] | string;
   rating: string | number;
   reviewCount: number;
+  cashbackPercentage?: number; // Added for cashback
+  cashbackPrice?: number;      // Added for cashback
 }
 
 export default function ComboPage() {
@@ -53,18 +55,31 @@ export default function ComboPage() {
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
     const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id);
 
+    // Parse prices to ensure they are numbers for calculations
+    const price = typeof combo.price === 'string' ? parseFloat(combo.price.replace(/[^0-9.-]+/g,"")) : combo.price;
+    const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice.replace(/[^0-9.-]+/g,"")) : combo.originalPrice;
+
+
     if (existingItem) {
       existingItem.quantity += 1;
     } else {
-      cart.push({
+      // Create cart item without productId field for combos
+      const cartItem = {
         id: combo.id,
         name: combo.name,
-        price: `₹${combo.price}`,
-        originalPrice: combo.originalPrice ? `₹${combo.originalPrice}` : undefined,
-        image: combo.imageUrl || (combo.images && combo.images.length > 0 ? combo.images[0] : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75'),
+        price: `₹${price}`,
+        originalPrice: combo.originalPrice ? `₹${originalPrice}` : undefined,
+        image: combo.imageUrl,
         quantity: 1,
-        inStock: true
-      });
+        inStock: true,
+        isCombo: true,
+        cashbackPercentage: combo.cashbackPercentage,
+        cashbackPrice: combo.cashbackPrice,
+        // Explicitly set product-related fields
+        productName: combo.name,
+        productImage: combo.imageUrl,
+      };
+      cart.push(cartItem);
     }
 
     localStorage.setItem("cart", JSON.stringify(cart));
@@ -142,8 +157,8 @@ export default function ComboPage() {
       <Star
         key={i}
         className={`w-4 h-4 ${
-          i < Math.floor(rating) 
-            ? "fill-yellow-400 text-yellow-400" 
+          i < Math.floor(rating)
+            ? "fill-yellow-400 text-yellow-400"
             : "text-gray-300"
         }`}
       />
@@ -236,10 +251,10 @@ export default function ComboPage() {
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4 lg:gap-6">
           {comboProducts.map((combo) => {
             const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products;
-            const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
-            const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice) : combo.originalPrice;
+            const price = typeof combo.price === 'string' ? parseFloat(combo.price.replace(/[^0-9.-]+/g,"")) : combo.price;
+            const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice.replace(/[^0-9.-]+/g,"")) : combo.originalPrice;
             const rating = typeof combo.rating === 'string' ? parseFloat(combo.rating) : combo.rating;
-            const discountPercentage = Math.round(((originalPrice - price) / originalPrice) * 100);
+            const discountPercentage = originalPrice > 0 ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
             const isHovered = hoveredCard === combo.id;
 
             return (
@@ -250,7 +265,7 @@ export default function ComboPage() {
                 onMouseLeave={() => setHoveredCard(null)}
               >
                 {/* Image Section */}
-                <div 
+                <div
                   className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300"
                   onClick={() => {
                     React.startTransition(() => {
@@ -276,8 +291,8 @@ export default function ComboPage() {
                   <div className="relative overflow-hidden bg-white">
                     <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
                       {combo.imageUrl || (combo.images && combo.images.length > 0) ? (
-                        <img 
-                          src={combo.imageUrl || combo.images[0]} 
+                        <img
+                          src={combo.imageUrl || combo.images[0]}
                           alt={combo.name}
                           className="h-full w-full object-cover"
                           loading="lazy"
@@ -310,8 +325,8 @@ export default function ComboPage() {
                   </div>
 
                   {/* Title */}
-                  <h3 
-                    className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-2 text-xs sm:text-sm md:text-base break-words" 
+                  <h3
+                    className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-2 text-xs sm:text-sm md:text-base break-words"
                     style={{ minHeight: '2.5rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', hyphens: 'auto' }}
                     onClick={() => {
                       React.startTransition(() => {
@@ -323,7 +338,7 @@ export default function ComboPage() {
                   </h3>
 
                   {/* Description - Hidden on smallest screens */}
-                  <p 
+                  <p
                     className="hidden sm:block text-gray-600 text-xs sm:text-sm line-clamp-2 cursor-pointer"
                     onClick={() => {
                       React.startTransition(() => {
@@ -367,7 +382,7 @@ export default function ComboPage() {
                             ₹{originalPrice.toLocaleString()}
                           </span>
                           <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 sm:px-2 rounded">
-                            {discountPercentage}% OFF
+                            {discountPercentage}%
                           </span>
                         </>
                       )}
@@ -378,58 +393,32 @@ export default function ComboPage() {
 
                     {/* Cashback Badge */}
                     {combo.cashbackPercentage && combo.cashbackPrice && (
-                      <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5 sm:p-2">
+                      <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-2 mt-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-orange-700">Cashback</span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs sm:text-sm font-bold text-orange-600">
+                          <div>
+                            <span className="text-[10px] sm:text-xs font-semibold text-orange-700">Cashback</span>
+                          </div>
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <span className="text-sm sm:text-base font-bold text-orange-600">
                               ₹{Number(combo.cashbackPrice).toFixed(2)}
                             </span>
-                            <span className="text-xs bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[10px] sm:text-xs bg-orange-200 text-orange-800 px-1.5 sm:px-2 py-0.5 rounded-full font-bold">
                               {combo.cashbackPercentage}%
                             </span>
                           </div>
                         </div>
                       </div>
                     )}
-
-                    {/* Stock status */}
-                    <div className="flex items-center space-x-1.5 sm:space-x-2">
-                      <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
-                        combo.inStock !== false
-                          ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
-                          : 'bg-gradient-to-r from-red-400 to-rose-400'
-                      }`}></div>
-                      <span className={`font-bold text-xs sm:text-sm ${
-                        combo.inStock !== false ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
-                      </span>
-                    </div>
                   </div>
 
                   {/* Add to Cart Button */}
-                  {combo.inStock !== false ? (
-                    <Button
-                      className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                      onClick={() => handleAddToCart(combo)}
-                    >
-                      <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="hidden xs:inline">Add to </span>Cart
-                    </Button>
-                  ) : (
-                    <Button 
-                      className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleToggleWishlist(combo);
-                      }}
-                    >
-                      <Heart className={`h-3 w-3 sm:h-4 sm:w-4 ${wishlist.has(combo.id) ? 'fill-current' : ''}`} />
-                      {wishlist.has(combo.id) ? 'Remove' : <><span className="hidden xs:inline">Add to</span> Wishlist</>}
-                    </Button>
-                  )}
+                  <Button
+                    className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                    onClick={() => handleAddToCart(combo)}
+                  >
+                    <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden xs:inline">Add to </span>Cart
+                  </Button>
                 </div>
               </div>
             );

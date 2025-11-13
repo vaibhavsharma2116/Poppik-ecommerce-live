@@ -853,9 +853,12 @@ function ComboSection() {
   
   const { data: comboProducts = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/combos"],
+    select: (data) => Array.isArray(data) ? data : [],
   });
 
-  const activeComboProducts = comboProducts.filter(combo => combo.isActive).slice(0, 4);
+  const activeComboProducts = Array.isArray(comboProducts) 
+    ? comboProducts.filter(combo => combo.isActive).slice(0, 4)
+    : [];
 
   // Load wishlist from localStorage on mount
   useEffect(() => {

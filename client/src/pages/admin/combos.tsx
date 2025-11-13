@@ -42,6 +42,8 @@ export default function AdminCombos() {
     price: "",
     originalPrice: "",
     discount: "",
+    cashbackPercentage: "",
+    cashbackPrice: "",
     imageUrl: "",
     products: [] as number[], // Store product IDs
     rating: "5.0",
@@ -216,6 +218,8 @@ export default function AdminCombos() {
     formDataToSend.append("price", formData.price);
     formDataToSend.append("originalPrice", formData.originalPrice);
     formDataToSend.append("discount", formData.discount.substring(0, 50));
+    formDataToSend.append("cashbackPercentage", formData.cashbackPercentage || "0");
+    formDataToSend.append("cashbackPrice", formData.cashbackPrice || "0");
     formDataToSend.append("products", JSON.stringify(selectedProducts));
     formDataToSend.append("productShades", JSON.stringify(selectedProductShades));
     formDataToSend.append("rating", formData.rating);
@@ -264,6 +268,8 @@ export default function AdminCombos() {
       price: '',
       originalPrice: '',
       discount: '',
+      cashbackPercentage: '',
+      cashbackPrice: '',
       imageUrl: '',
       products: [],
       rating: '5.0',
@@ -299,6 +305,8 @@ export default function AdminCombos() {
       price: combo.price.toString(),
       originalPrice: combo.originalPrice.toString(),
       discount: combo.discount,
+      cashbackPercentage: combo.cashbackPercentage?.toString() || '',
+      cashbackPrice: combo.cashbackPrice?.toString() || '',
       imageUrl: combo.imageUrl,
       products: productIds,
       rating: combo.rating?.toString() || '5.0',
@@ -547,6 +555,38 @@ export default function AdminCombos() {
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">Auto-calculated based on original price and discount</p>
+              </div>
+
+              <div>
+                <Label>Cashback (%)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.cashbackPercentage}
+                  onChange={(e) => {
+                    setFormData({ ...formData, cashbackPercentage: e.target.value });
+                    // Auto-calculate cashback price
+                    if (formData.price && e.target.value) {
+                      const cashbackAmount = (parseFloat(formData.price) * parseFloat(e.target.value) / 100).toFixed(2);
+                      setFormData(prev => ({ ...prev, cashbackPrice: cashbackAmount }));
+                    }
+                  }}
+                  placeholder="e.g., 5"
+                />
+                <p className="text-xs text-gray-500 mt-1">Enter cashback percentage</p>
+              </div>
+
+              <div>
+                <Label>Cashback Amount (₹)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.cashbackPrice}
+                  placeholder="Auto-calculated from cashback %"
+                  className="bg-gray-50"
+                  readOnly
+                />
+                <p className="text-xs text-gray-500 mt-1">Auto-calculated from sale price and cashback percentage</p>
               </div>
 
               <div>

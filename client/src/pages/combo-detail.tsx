@@ -169,8 +169,9 @@ export default function ComboDetail() {
     if (existingItem) {
       existingItem.quantity += 1;
     } else {
-      cart.push({
+      const cartItem = {
         id: combo.id,
+        comboId: combo.id, // Use comboId instead of productId
         name: combo.name,
         price: `₹${combo.price}`,
         originalPrice: combo.originalPrice ? `₹${combo.originalPrice}` : undefined,
@@ -178,7 +179,10 @@ export default function ComboDetail() {
         quantity: 1,
         inStock: true,
         isCombo: true,
-      });
+        cashbackPercentage: combo.cashbackPercentage,
+        cashbackPrice: combo.cashbackPrice,
+      };
+      cart.push(cartItem);
     }
 
     localStorage.setItem("cart", JSON.stringify(cart));
@@ -783,6 +787,46 @@ export default function ComboDetail() {
               <p className="text-lg text-green-600 font-medium mb-6">
                 You save ₹{(originalPrice - price).toLocaleString()}
               </p>
+
+              {/* Cashback Badge */}
+              {combo.cashbackPercentage && combo.cashbackPrice && (
+                <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-semibold text-orange-700">Get Cashback</span>
+                      <p className="text-xs text-orange-600 mt-1">Earn on this purchase</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl font-bold text-orange-600">
+                        ₹{Number(combo.cashbackPrice).toFixed(2)}
+                      </span>
+                      <span className="text-sm bg-orange-200 text-orange-800 px-3 py-1 rounded-full font-semibold">
+                        {combo.cashbackPercentage}% Cashback
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Cashback Badge */}
+              {combo.cashbackPercentage && combo.cashbackPrice && (
+                <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-semibold text-orange-700">Get Cashback</span>
+                      <p className="text-xs text-orange-600 mt-1">Earn on this purchase</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl font-bold text-orange-600">
+                        ₹{Number(combo.cashbackPrice).toFixed(2)}
+                      </span>
+                      <span className="text-sm bg-orange-200 text-orange-800 px-3 py-1 rounded-full font-semibold">
+                        {combo.cashbackPercentage}% Cashback
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex space-x-4 mb-6">

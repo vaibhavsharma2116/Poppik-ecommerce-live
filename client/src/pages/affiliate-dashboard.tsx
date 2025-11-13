@@ -1568,8 +1568,26 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                   <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Full Address</label>
                     <p className="text-gray-900 text-lg">{application.address}</p>
-                    {application.city && <p className="text-gray-700">{application.city}, {application.state} - {application.pincode}</p>}
-                    <p className="text-gray-700">{application.country}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">City</label>
+                      <p className="text-gray-900 text-lg">{application.city || 'N/A'}</p>
+                    </div>
+                    <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">State</label>
+                      <p className="text-gray-900 text-lg">{application.state || 'N/A'}</p>
+                    </div>
+                    <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">PIN Code</label>
+                      <p className="text-gray-900 text-lg">{application.pincode || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Country</label>
+                    <p className="text-gray-900 text-lg">{application.country}</p>
                   </div>
 
                   {/* Bank Details Section */}

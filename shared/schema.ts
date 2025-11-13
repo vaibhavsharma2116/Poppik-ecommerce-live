@@ -203,7 +203,7 @@ export const selectOrderSchema = createSelectSchema(ordersTable);
 export const orderItemsTable = pgTable("order_items", {
   id: serial("id").primaryKey(),
   orderId: integer("order_id").references(() => ordersTable.id).notNull(),
-  productId: integer("product_id").references(() => products.id),
+  productId: integer("product_id").references(() => products.id), // Nullable for combos
   productName: text("product_name").notNull(),
   productImage: text("product_image").notNull(),
   quantity: integer("quantity").notNull(),
@@ -411,23 +411,26 @@ export type InsertTestimonial = typeof testimonials.$inferInsert;
 export const combos = pgTable("combos", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
+  slug: text("slug").notNull(),
   description: text("description").notNull(),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull(),
+  originalPrice: numeric("original_price", { precision: 10, scale: 2 }),
+  discount: text("discount"),
+  imageUrl: text("image_url"),
+  imageUrls: text("image_url").array(),
+  videoUrl: text("video_url"),
+  products: text("products").notNull(), // JSON string of product IDs
+  productShades: text("product_shades"), // JSON string mapping product IDs to shade IDs
+  rating: numeric("rating", { precision: 3, scale: 1 }).default("5.0"),
+  reviewCount: integer("review_count").default(0),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
   detailedDescription: text("detailed_description"),
   productsIncluded: text("products_included"),
   benefits: text("benefits"),
   howToUse: text("how_to_use"),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
-  discount: text("discount"),
-  imageUrl: text("image_url").notNull(),
-  videoUrl: text("video_url"),
-  products: text("products").notNull(),
-  productShades: jsonb("product_shades"),
-  rating: decimal("rating", { precision: 3, scale: 2 }).default("5.0"),
-  reviewCount: integer("review_count").default(0),
-  isActive: boolean("is_active").default(true),
-  sortOrder: integer("sort_order").default(0),
+  cashbackPercentage: numeric("cashback_percentage", { precision: 5, scale: 2 }),
+  cashbackPrice: numeric("cashback_price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -581,17 +584,26 @@ export type InsertAffiliateWallet = typeof affiliateWallet.$inferInsert;
 // Affiliate Transactions Table
 export const affiliateTransactions = pgTable("affiliate_transactions", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  type: varchar("type", { length: 20 }).notNull(), // 'cashback', 'commission', 'withdrawal'
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  balanceType: varchar("balance_type", { length: 20 }).notNull(), // 'cashback' or 'commission'
-  description: text("description").notNull(),
-  orderId: integer("order_id").references(() => ordersTable.id),
-  status: varchar("status", { length: 20 }).default("completed").notNull(), // 'pending', 'completed', 'failed'
-  transactionId: varchar("transaction_id", { length: 255 }), // Bank transaction ID
-  notes: text("notes"), // Admin notes
-  processedAt: timestamp("processed_at"), // When approved/rejected
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  type: varchar("type", { length: 50 }).notNull(), // 'commission', 'withdrawal', 'refund'
+  amount: varchar("amount", { length: 20 }).notNull(),
+  balanceType: varchar("balance_type", { length: 50 }), // 'cashback', 'commission', 'mixed'
+  description: text("description"),
+  orderId: integer("order_id"),
+  status: varchar("status", { length: 50 }).default('completed'), // 'pending', 'completed', 'failed'
+  transactionId: varchar("transaction_id", { length: 200 }), // Bank transaction ID
+  notes: text("notes"), // Admin notes for withdrawals
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const affiliateSettings = pgTable("affiliate_settings", {
+  id: serial("id").primaryKey(),
+  settingKey: varchar("setting_key", { length: 100 }).notNull().unique(),
+  settingValue: text("setting_value").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export type AffiliateTransaction = typeof affiliateTransactions.$inferSelect;
@@ -708,6 +720,3 @@ export const promoCodeUsage = pgTable("promo_code_usage", {
 
 export type PromoCodeUsage = typeof promoCodeUsage.$inferSelect;
 export type InsertPromoCodeUsage = typeof promoCodeUsage.$inferInsert;
-
-
-export const affiliateSettings = pgTable("affiliate_settings", { id: serial("id").primaryKey(), settingKey: varchar("setting_key", { length: 100 }).notNull().unique(), settingValue: text("setting_value").notNull(), description: text("description"), updatedAt: timestamp("updated_at").defaultNow().notNull(), }); export type AffiliateSetting = typeof affiliateSettings.$inferSelect; export type InsertAffiliateSetting = typeof affiliateSettings.$inferInsert;

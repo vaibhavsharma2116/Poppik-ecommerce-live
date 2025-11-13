@@ -3213,14 +3213,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create order items in separate table
       if (items && Array.isArray(items)) {
-        const orderItems = items.map((item: any) => ({
-          orderId: newOrder.id,
-          productId: item.productId ? Number(item.productId) : null,
-          productName: item.productName || item.name,
-          productImage: item.productImage || item.image,
-          quantity: Number(item.quantity),
-          price: item.price,
-        }));
+        const orderItems = [];
+        
+        for (const item of items) {
+          const orderItem: any = {
+            orderId: newOrder.id,
+            productName: item.productName || item.name,
+            productImage: item.productImage || item.image,
+            quantity: Number(item.quantity),
+            price: item.price,
+            cashbackPrice: item.cashbackPrice || null,
+            cashbackPercentage: item.cashbackPercentage || null,
+          };
+
+          // Determine if this is a combo or regular product
+          if (item.isCombo === true || item.type === 'combo' || item.comboId) {
+            // This is a combo, set productId to null
+            orderItem.productId = null;
+          } else if (item.productId && !isNaN(Number(item.productId))) {
+            // Verify product exists before adding
+            try {
+              const productExists = await db
+                .select({ id: schema.products.id })
+                .from(schema.products)
+                .where(eq(schema.products.id, Number(item.productId)))
+                .limit(1);
+              
+              if (productExists && productExists.length > 0) {
+                orderItem.productId = Number(item.productId);
+              } else {
+                // Product doesn't exist, set to null
+                console.warn(`Product ${item.productId} not found, setting productId to null`);
+                orderItem.productId = null;
+              }
+            } catch (error) {
+              console.error(`Error checking product ${item.productId}:`, error);
+              orderItem.productId = null;
+            }
+          } else {
+            // No valid productId, set to null
+            orderItem.productId = null;
+          }
+
+          orderItems.push(orderItem);
+        }
 
         await db.insert(schema.orderItemsTable).values(orderItems);
       }
@@ -6067,11 +6103,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public endpoint for active combos
   app.get('/api/combos', async (req, res) => {
     try {
+      console.log('Fetching combos from database...');
+      
       const activeCombos = await db
         .select()
         .from(schema.combos)
         .where(eq(schema.combos.isActive, true))
         .orderBy(asc(schema.combos.sortOrder));
+
+      console.log('Active combos found:', activeCombos.length);
+
+      if (!activeCombos || activeCombos.length === 0) {
+        console.log('No active combos found, returning empty array');
+        return res.json([]);
+      }
 
       // Get images for each combo
       const combosWithImages = await Promise.all(
@@ -6097,10 +6142,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
+      console.log('Returning combos with images:', combosWithImages.length);
       res.json(combosWithImages);
     } catch (error) {
       console.error('Error fetching combos:', error);
-      res.status(500).json({ error: 'Failed to fetch combos' });
+      console.error('Error details:', error.message);
+      res.status(500).json({ error: 'Failed to fetch combos', details: error.message });
+    }
+  });
+
+  // Debug endpoint to check combos table
+  app.get('/api/combos/debug', async (req, res) => {
+    try {
+      const allCombos = await db.select().from(schema.combos);
+      const activeCombos = await db.select().from(schema.combos).where(eq(schema.combos.isActive, true));
+      
+      res.json({
+        totalCombos: allCombos.length,
+        activeCombos: activeCombos.length,
+        allCombosData: allCombos,
+        activeCombosData: activeCombos
+      });
+    } catch (error) {
+      console.error('Debug combos error:', error);
+      res.status(500).json({ error: error.message });
     }
   });
 
@@ -6195,6 +6260,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         price: parseFloat(req.body.price) || 0,
         originalPrice: parseFloat(req.body.originalPrice) || 0,
         discount: (req.body.discount || '').substring(0, 50),
+        cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
+        cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
         imageUrl: primaryImageUrl,
         videoUrl: videoUrl,
         products: JSON.stringify(products),
@@ -6267,12 +6334,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         price: parseFloat(req.body.price) || 0,
         originalPrice: parseFloat(req.body.originalPrice) || 0,
         discount: (req.body.discount || '').substring(0, 50),
+        cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
+        cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
         products: JSON.stringify(products),
         rating: parseFloat(req.body.rating) || 5.0,
         reviewCount: parseInt(req.body.reviewCount) || 0,
         isActive: req.body.isActive !== 'false',
         sortOrder: parseInt(req.body.sortOrder) || 0,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       };
 
       // Handle image updates
