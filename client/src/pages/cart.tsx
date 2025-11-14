@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Heart, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -59,6 +59,7 @@ export default function Cart() {
   const [loading, setLoading] = useState(true);
   const [savingToWishlist, setSavingToWishlist] = useState<number | null>(null);
   const { toast } = useToast();
+  const [, setLocation] = useLocation(); // Get navigation function from useLocation
 
   // Placeholder for user data, replace with actual user context or hook
   const [user, setUser] = useState<User | null>(null);
@@ -479,6 +480,47 @@ export default function Cart() {
     setAffiliateWalletAmount(Math.min(amountToRedeem, maxRedeemable));
   };
 
+  // Handler for checkout
+  const handleCheckout = () => {
+    if (cartItems.length === 0) {
+      toast({
+        title: "Cart is empty",
+        description: "Add some items to your cart first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Save both redeem amounts to localStorage before navigating
+    const finalWalletAmount = walletAmount || 0;
+    const finalAffiliateWalletAmount = affiliateWalletAmount || 0;
+    
+    localStorage.setItem('redeemAmount', finalWalletAmount.toString());
+    localStorage.setItem('affiliateWalletAmount', finalAffiliateWalletAmount.toString());
+
+    console.log('Checkout - Wallet Amount:', finalWalletAmount);
+    console.log('Checkout - Affiliate Wallet Amount:', finalAffiliateWalletAmount);
+
+    // Dispatch event to notify checkout page
+    window.dispatchEvent(new CustomEvent('walletUpdated', {
+      detail: {
+        walletAmount: finalWalletAmount,
+        affiliateWalletAmount: finalAffiliateWalletAmount
+      }
+    }));
+
+    // Navigate to checkout with cart items, wallet amount, and promo code
+    setLocation("/checkout", {
+      state: {
+        items: cartItems,
+        walletAmount: finalWalletAmount,
+        affiliateWalletAmount: finalAffiliateWalletAmount,
+        promoCode: appliedPromo?.code || null,
+        promoDiscount: promoDiscount || 0,
+      }
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -859,27 +901,9 @@ export default function Cart() {
                   )}
                 </div>
 
-                <Link
-                  href="/checkout"
-                  // Pass wallet amounts to checkout state
-                  // This assumes your checkout page can receive and process these state values
-                  // You might need to adjust how these are passed (e.g., via context, URL params, or a state management library)
-                  // For simplicity, demonstrating with a hypothetical state object in Link
-                  // NOTE: Link's 'state' prop is not a standard feature for routing in wouter.
-                  // You'd typically use a state management solution or URL parameters.
-                  // This example assumes a mechanism to pass state.
-                  // For a real implementation, consider using `useLocation` and `setLocation` from `wouter`.
-                  // Or passing them as query parameters: `/checkout?walletAmount=${walletAmount}&affiliateWalletAmount=${affiliateWalletAmount}`
-                  // const checkoutUrl = `/checkout?walletAmount=${walletAmount}&affiliateWalletAmount=${affiliateWalletAmount}`;
-                  // onClick={(e) => {
-                  //   e.preventDefault(); // Prevent default link behavior
-                  //   setLocation(checkoutUrl); // Navigate with parameters
-                  // }}
-                >
-                  <Button className="w-full bg-red-600 hover:bg-red-700 text-white text-base py-3">
-                    Proceed to Checkout
-                  </Button>
-                </Link>
+                <Button className="w-full bg-red-600 hover:bg-red-700 text-white text-base py-3" onClick={handleCheckout}>
+                  Proceed to Checkout
+                </Button>
 
                 <div className="space-y-2 text-xs text-gray-500 text-center">
                   <p>🔒 Secure checkout with SSL encryption</p>

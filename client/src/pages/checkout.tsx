@@ -323,8 +323,22 @@ export default function CheckoutPage() {
     const saved = localStorage.getItem('redeemAmount');
     return saved ? parseFloat(saved) : 0;
   });
-  const [walletAmount, setWalletAmount] = useState(passedWalletAmount);
-  const [affiliateWalletAmount, setAffiliateWalletAmount] = useState(passedAffiliateWalletAmount);
+  const [walletAmount, setWalletAmount] = useState(() => {
+    // Try to get from props first, then localStorage
+    if (passedWalletAmount > 0) {
+      return passedWalletAmount;
+    }
+    const saved = localStorage.getItem('redeemAmount');
+    return saved ? parseFloat(saved) : 0;
+  });
+  const [affiliateWalletAmount, setAffiliateWalletAmount] = useState(() => {
+    // Try to get from props first, then localStorage
+    if (passedAffiliateWalletAmount > 0) {
+      return passedAffiliateWalletAmount;
+    }
+    const saved = localStorage.getItem('affiliateWalletAmount');
+    return saved ? parseFloat(saved) : 0;
+  });
 
   // Promo code states
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
@@ -349,6 +363,23 @@ export default function CheckoutPage() {
     },
     enabled: !!user?.id,
   });
+
+  // Fetch affiliate wallet data
+  const { data: affiliateWalletData } = useQuery({
+    queryKey: ['/api/affiliate/wallet', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  // Sync redeemAmount with walletAmount
+  useEffect(() => {
+    setRedeemAmount(walletAmount);
+  }, [walletAmount]);
 
   useEffect(() => {
     // Check if user is logged in when accessing checkout
@@ -616,7 +647,10 @@ export default function CheckoutPage() {
     }, 0);
   };
 
-  const subtotal = calculateSubtotal();
+  const cartSubtotal = calculateSubtotal();
+  
+  // Apply wallet deductions to get the actual subtotal for checkout
+  const subtotal = Math.max(0, cartSubtotal - walletAmount - affiliateWalletAmount);
 
   const affiliateDiscountAmount = (promoDiscount > 0 || !formData.affiliateDiscount)
     ? 0
@@ -630,12 +664,22 @@ export default function CheckoutPage() {
     ? shippingCost
     : (subtotalAfterAffiliate > 599 ? 0 : shippingCost);
 
-  const totalBeforeWallet = subtotalAfterDiscount + shipping;
-  const total = Math.max(0, totalBeforeWallet - redeemAmount - affiliateWalletAmount);
+  const total = subtotalAfterDiscount + shipping;
 
 
+  // Fetch affiliate settings to get commission rate
+  const { data: affiliateSettings } = useQuery({
+    queryKey: ['/api/affiliate-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/affiliate-settings');
+      if (!res.ok) throw new Error('Failed to fetch affiliate settings');
+      return res.json();
+    },
+  });
+
+  const commissionRate = affiliateSettings?.commissionRate || 10;
   const affiliateCommission = formData.affiliateCode
-    ? Math.round(total * 0.25)
+    ? Math.round(total * (commissionRate / 100))
     : 0;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -863,6 +907,8 @@ export default function CheckoutPage() {
             affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
             promoCode: appliedPromo?.code || null,
             promoDiscount: promoDiscount > 0 ? promoDiscount : null,
+            redeemAmount: redeemAmount || 0,
+            affiliateWalletAmount: affiliateWalletAmount || 0,
             items: cartItems.map(item => ({
               productId: item.id,
               productName: item.name,
@@ -1103,6 +1149,8 @@ export default function CheckoutPage() {
           affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
           promoCode: appliedPromo?.code || null,
           promoDiscount: promoDiscount > 0 ? promoDiscount : null,
+          redeemAmount: redeemAmount || 0,
+          affiliateWalletAmount: affiliateWalletAmount || 0,
           items: cartItems.map(item => ({
             productId: item.id,
             productName: item.name,
@@ -1115,8 +1163,6 @@ export default function CheckoutPage() {
           customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
           customerEmail: formData.email.trim(),
           customerPhone: formData.phone.trim(),
-          redeemAmount: redeemAmount,
-          affiliateWalletAmount: affiliateWalletAmount, // Include affiliate wallet amount here
         };
 
         if (redeemAmount > 0) {
@@ -1172,6 +1218,8 @@ export default function CheckoutPage() {
 
           localStorage.removeItem("cart");
           localStorage.removeItem("appliedPromoCode");
+          localStorage.removeItem("redeemAmount");
+          localStorage.removeItem("affiliateWalletAmount");
           sessionStorage.removeItem('pendingOrder');
           localStorage.setItem("cartCount", "0");
           window.dispatchEvent(new Event("cartUpdated"));
@@ -1905,6 +1953,23 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="border-t border-gray-200 mt-6 pt-6 space-y-2">
+                    {(walletAmount > 0 || affiliateWalletAmount > 0) && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                        <p className="text-sm font-semibold text-green-800 mb-2">Wallet Applied:</p>
+                        {walletAmount > 0 && (
+                          <div className="flex justify-between text-sm text-green-700">
+                            <span>Cashback Wallet</span>
+                            <span className="font-semibold">-₹{walletAmount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {affiliateWalletAmount > 0 && (
+                          <div className="flex justify-between text-sm text-green-700">
+                            <span>Affiliate Wallet</span>
+                            <span className="font-semibold">-₹{affiliateWalletAmount.toFixed(2)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="flex justify-between text-gray-600">
                       <span>Subtotal</span>
                       <span>₹{subtotal.toLocaleString()}</span>
@@ -1928,18 +1993,6 @@ export default function CheckoutPage() {
                       <span>Shipping</span>
                       <span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
                     </div>
-                    {walletAmount > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Cashback Wallet</span>
-                        <span className="text-green-600 font-semibold">-₹{walletAmount.toFixed(2)}</span>
-                      </div>
-                    )}
-                    {affiliateWalletAmount > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-purple-600">Affiliate Wallet</span>
-                        <span className="text-purple-600 font-semibold">-₹{affiliateWalletAmount.toFixed(2)}</span>
-                      </div>
-                    )}
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total</span>
@@ -1959,7 +2012,7 @@ export default function CheckoutPage() {
                           </span>
                         </div>
                         <p className="text-sm text-purple-700 font-medium">
-                          25% commission on payable amount will be credited to affiliate wallet
+                          {commissionRate}% commission on payable amount will be credited to affiliate wallet
                         </p>
                       </div>
                     )}
