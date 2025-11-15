@@ -244,6 +244,9 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Use the singleton db instance directly
+  private db = db;
+
   constructor() {
     // Database connection is handled by the singleton instance above
   }
@@ -252,14 +255,12 @@ export class DatabaseStorage implements IStorage {
 
   // Users
   async getUser(id: number): Promise<User | undefined> {
-    const db = await getDb();
-    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const db = await getDb();
-    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    const result = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
     return result[0];
   }
 
@@ -275,8 +276,7 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Missing required fields: firstName, lastName, email, and password are required");
       }
 
-      const database = await getDb();
-      const [user] = await database.insert(users).values({
+      const [user] = await this.db.insert(users).values({
         firstName: userData.firstName,
         lastName: userData.lastName,
         email: userData.email,
@@ -315,44 +315,51 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
-    const db = await getDb();
-    const result = await db.update(users).set(userData).where(eq(users.id, id)).returning();
+    const result = await this.db.update(users).set(userData).where(eq(users.id, id)).returning();
     return result[0];
   }
 
   async deleteUser(id: number): Promise<boolean> {
-    const db = await getDb();
-    const result = await db.delete(users).where(eq(users.id, id)).returning();
+    const result = await this.db.delete(users).where(eq(users.id, id)).returning();
     return result.length > 0;
   }
 
   // Products
   async getProduct(id: number): Promise<Product | undefined> {
-    const db = await getDb();
-    const result = await db.select().from(products).where(eq(products.id, id)).limit(1);
+    const result = await this.db.select().from(products).where(eq(products.id, id)).limit(1);
     return result[0];
   }
 
   async getProductBySlug(slug: string): Promise<Product | undefined> {
-    const db = await getDb();
-    const result = await db.select().from(products).where(eq(products.slug, slug)).limit(1);
+    const result = await this.db.select().from(products).where(eq(products.slug, slug)).limit(1);
     return result[0];
   }
 
   async getProducts(): Promise<Product[]> {
-    const db = await getDb();
-    return await db.select().from(products);
+    try {
+      console.log("Executing SELECT query on products table...");
+      const result = await this.db.select().from(products);
+      console.log("Query executed successfully, rows returned:", result?.length || 0);
+
+      if (result && result.length > 0) {
+        console.log("Sample product:", JSON.stringify(result[0], null, 2));
+      }
+
+      return result as Product[];
+    } catch (error) {
+      console.error("Error fetching products from database:", error);
+      console.error("Error details:", error.message);
+      return [];
+    }
   }
 
   async getProductsByCategory(category: string): Promise<Product[]> {
-    const db = await getDb();
-
     // First try exact match
-    let result = await db.select().from(products).where(eq(products.category, category));
+    let result = await this.db.select().from(products).where(eq(products.category, category));
 
     // If no exact match found, try case-insensitive partial matching
     if (result.length === 0) {
-      const allProducts = await db.select().from(products);
+      const allProducts = await this.db.select().from(products);
       const searchCategory = category.toLowerCase();
 
       result = allProducts.filter(product => {
@@ -383,23 +390,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFeaturedProducts(): Promise<Product[]> {
-    const db = await getDb();
-    return await db.select().from(products).where(eq(products.featured, true));
+    return await this.db.select().from(products).where(eq(products.featured, true));
   }
 
   async getBestsellerProducts(): Promise<Product[]> {
-    const db = await getDb();
-    return await db.select().from(products).where(eq(products.bestseller, true));
+    return await this.db.select().from(products).where(eq(products.bestseller, true));
   }
 
   async getNewLaunchProducts(): Promise<Product[]> {
-    const db = await getDb();
-    return await db.select().from(products).where(eq(products.newLaunch, true));
+    return await this.db.select().from(products).where(eq(products.newLaunch, true));
   }
 
   async createProduct(productData: any): Promise<Product> {
-    const db = await getDb();
-
     try {
       console.log("Creating product with data:", productData);
 
@@ -461,7 +463,7 @@ export class DatabaseStorage implements IStorage {
       if (productData.tags) productToInsert.tags = String(productData.tags).trim();
 
       console.log("Inserting product data:", productToInsert);
-      const result = await db.insert(products).values(productToInsert).returning();
+      const result = await this.db.insert(products).values(productToInsert).returning();
 
       if (!result || result.length === 0) {
         throw new Error("Product was not created - no result returned");
@@ -487,7 +489,6 @@ export class DatabaseStorage implements IStorage {
 
   async updateProduct(id: number, productData: Partial<InsertProduct>): Promise<Product | undefined> {
     try {
-      const db = await getDb();
       // Clean up the data before updating
       const cleanData: any = { ...productData };
 
@@ -515,7 +516,7 @@ export class DatabaseStorage implements IStorage {
         cleanData.slug = cleanData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       }
 
-      const [updatedProduct] = await db
+      const [updatedProduct] = await this.db
         .update(products)
         .set(cleanData)
         .where(eq(products.id, id))
@@ -531,10 +532,9 @@ export class DatabaseStorage implements IStorage {
   async deleteProduct(id: number): Promise<boolean> {
     try {
       console.log(`DatabaseStorage: Attempting to delete product with ID: ${id}`);
-      const db = await getDb();
 
       // First check if product exists
-      const existingProduct = await db.select().from(products).where(eq(products.id, id)).limit(1);
+      const existingProduct = await this.db.select().from(products).where(eq(products.id, id)).limit(1);
       if (existingProduct.length === 0) {
         console.log(`Product with ID ${id} not found in database`);
         return false;
@@ -545,7 +545,7 @@ export class DatabaseStorage implements IStorage {
       // Delete related data first (reviews, order items, etc.)
       try {
         // Delete reviews for this product
-        await db.delete(reviews).where(eq(reviews.productId, id));
+        await this.db.delete(reviews).where(eq(reviews.productId, id));
         console.log(`Deleted reviews for product ${id}`);
 
         // Note: We don't delete order items as they are historical records
@@ -556,7 +556,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Delete the product
-      const result = await db.delete(products).where(eq(products.id, id)).returning();
+      const result = await this.db.delete(products).where(eq(products.id, id)).returning();
       const success = result.length > 0;
 
       if (success) {
@@ -576,25 +576,21 @@ export class DatabaseStorage implements IStorage {
 
   // Categories
   async getCategory(id: number): Promise<Category | undefined> {
-    const db = await getDb();
-    const result = await db.select().from(categories).where(eq(categories.id, id)).limit(1);
+    const result = await this.db.select().from(categories).where(eq(categories.id, id)).limit(1);
     return result[0];
   }
 
   async getCategoryBySlug(slug: string): Promise<Category | undefined> {
-    const db = await getDb();
-    const result = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
+    const result = await this.db.select().from(categories).where(eq(categories.slug, slug)).limit(1);
     return result[0];
   }
 
   async getCategories(): Promise<Category[]> {
-    const db = await getDb();
-    return await db.select().from(categories);
+    return await this.db.select().from(categories);
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
     try {
-      const db = await getDb();
       console.log("Creating category with data:", category);
 
       // Validate required fields
@@ -603,12 +599,12 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Check if slug already exists
-      const existingCategory = await db.select().from(categories).where(eq(categories.slug, category.slug)).limit(1);
+      const existingCategory = await this.db.select().from(categories).where(eq(categories.slug, category.slug)).limit(1);
       if (existingCategory.length > 0) {
         throw new Error(`Category with slug '${category.slug}' already exists`);
       }
 
-      const result = await db.insert(categories).values(category).returning();
+      const result = await this.db.insert(categories).values(category).returning();
 
       if (!result || result.length === 0) {
         throw new Error("Failed to insert category into database");
@@ -631,49 +627,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCategory(id: number, category: Partial<InsertCategory>): Promise<Category | undefined> {
-    const db = await getDb();
-    const result = await db.update(categories).set(category).where(eq(categories.id, id)).returning();
+    const result = await this.db.update(categories).set(category).where(eq(categories.id, id)).returning();
     return result[0];
   }
 
   async deleteCategory(id: number): Promise<boolean> {
-    const db = await getDb();
-    const result = await db.delete(categories).where(eq(categories.id, id)).returning();
+    const result = await this.db.delete(categories).where(eq(categories.id, id)).returning();
     return result.length > 0;
   }
 
   // Subcategories
   async getSubcategory(id: number): Promise<Subcategory | undefined> {
-    const db = await getDb();
-    const result = await db.select().from(subcategories).where(eq(subcategories.id, id)).limit(1);
+    const result = await this.db.select().from(subcategories).where(eq(subcategories.id, id)).limit(1);
     return result[0];
   }
 
   async getSubcategoryBySlug(slug: string): Promise<Subcategory | undefined> {
-    const db = await getDb();
-    const result = await db.select().from(subcategories).where(eq(subcategories.slug, slug)).limit(1);
+    const result = await this.db.select().from(subcategories).where(eq(subcategories.slug, slug)).limit(1);
     return result[0];
   }
 
   async getSubcategoryById(id: number): Promise<Subcategory | undefined> {
-    const db = await getDb();
-    const result = await db.select().from(subcategories).where(eq(subcategories.id, id)).limit(1);
+    const result = await this.db.select().from(subcategories).where(eq(subcategories.id, id)).limit(1);
     return result[0];
   }
 
   async getSubcategories(): Promise<Subcategory[]> {
-    const db = await getDb();
-    return await db.select().from(subcategories);
+    return await this.db.select().from(subcategories);
   }
 
   async getSubcategoriesByCategory(categoryId: number): Promise<Subcategory[]> {
-    const db = await getDb();
-    return await db.select().from(subcategories).where(eq(subcategories.categoryId, categoryId));
+    return await this.db.select().from(subcategories).where(eq(subcategories.categoryId, categoryId));
   }
 
   async createSubcategory(subcategoryData: InsertSubcategory): Promise<Subcategory> {
     try {
-      const db = await getDb();
       console.log("Creating subcategory with data:", subcategoryData);
 
       // Validate required fields
@@ -682,12 +670,12 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Check if slug already exists
-      const existingSubcategory = await db.select().from(subcategories).where(eq(subcategories.slug, subcategoryData.slug)).limit(1);
+      const existingSubcategory = await this.db.select().from(subcategories).where(eq(subcategories.slug, subcategoryData.slug)).limit(1);
       if (existingSubcategory.length > 0) {
         throw new Error(`Subcategory with slug '${subcategoryData.slug}' already exists`);
       }
 
-      const result = await db.insert(subcategories).values(subcategoryData).returning();
+      const result = await this.db.insert(subcategories).values(subcategoryData).returning();
 
       if (!result || result.length === 0) {
         throw new Error("Failed to insert subcategory into database");
@@ -712,23 +700,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateSubcategory(id: number, subcategory: Partial<InsertSubcategory>): Promise<Subcategory | undefined> {
-    const db = await getDb();
-    const result = await db.update(subcategories).set(subcategory).where(eq(subcategories.id, id)).returning();
+    const result = await this.db.update(subcategories).set(subcategory).where(eq(subcategories.id, id)).returning();
     return result[0];
   }
 
   async deleteSubcategory(id: number): Promise<boolean> {
-    const db = await getDb();
-    const result = await db.delete(subcategories).where(eq(subcategories.id, id)).returning();
+    const result = await this.db.delete(subcategories).where(eq(subcategories.id, id)).returning();
     return result.length > 0;
   }
 
   async searchProducts(query: string): Promise<Product[]> {
-    const db = await getDb();
     const searchTerm = `%${query.toLowerCase()}%`;
 
     // Using SQL LIKE for case-insensitive search
-    const result = await db.select().from(products).where(
+    const result = await this.db.select().from(products).where(
       sql`LOWER(${products.name}) LIKE ${searchTerm}
           OR LOWER(${products.category}) LIKE ${searchTerm}
           OR LOWER(${products.subcategory}) LIKE ${searchTerm}
@@ -739,20 +724,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserById(id: number): Promise<User | undefined> {
-    const db = await getDb();
-    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
   }
 
   async updateUserPassword(id: number, hashedPassword: string): Promise<boolean> {
-    const db = await getDb();
-    const result = await db.update(users).set({ password: hashedPassword }).where(eq(users.id, id)).returning();
+    const result = await this.db.update(users).set({ password: hashedPassword }).where(eq(users.id, id)).returning();
     return result.length > 0;
   }
 
   async createContactSubmission(submissionData: any): Promise<any> {
-    const db = await getDb();
-
     const contactData = {
       firstName: submissionData.firstName,
       lastName: submissionData.lastName,
@@ -763,31 +744,27 @@ export class DatabaseStorage implements IStorage {
       status: submissionData.status || 'unread'
     };
 
-    const result = await db.insert(contactSubmissions).values(contactData).returning();
+    const result = await this.db.insert(contactSubmissions).values(contactData).returning();
     return result[0];
   }
 
   async getContactSubmissions(): Promise<any[]> {
-    const db = await getDb();
-    const result = await db.select().from(contactSubmissions).orderBy(sql`${contactSubmissions.createdAt} DESC`);
+    const result = await this.db.select().from(contactSubmissions).orderBy(sql`${contactSubmissions.createdAt} DESC`);
     return result;
   }
 
   async getContactSubmission(id: number): Promise<any> {
-    const db = await getDb();
-    const result = await db.select().from(contactSubmissions).where(eq(contactSubmissions.id, id)).limit(1);
+    const result = await this.db.select().from(contactSubmissions).where(eq(contactSubmissions.id, id)).limit(1);
     return result[0] || null;
   }
 
   async updateContactSubmissionStatus(id: number, status: string, respondedAt?: Date): Promise<any> {
-    const db = await getDb();
-
     const updateData: any = { status };
     if (respondedAt) {
       updateData.respondedAt = respondedAt;
     }
 
-    const result = await db.update(contactSubmissions)
+    const result = await this.db.update(contactSubmissions)
       .set(updateData)
       .where(eq(contactSubmissions.id, id))
       .returning();
@@ -796,22 +773,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteContactSubmission(id: number): Promise<boolean> {
-    const db = await getDb();
-    const result = await db.delete(contactSubmissions).where(eq(contactSubmissions.id, id)).returning();
+    const result = await this.db.delete(contactSubmissions).where(eq(contactSubmissions.id, id)).returning();
     return result.length > 0;
   }
 
   // Shades - Consolidated methods (removed duplicates)
   async getShade(id: number): Promise<Shade | undefined> {
-    const db = await getDb();
-    const result = await db.select().from(shades).where(eq(shades.id, id)).limit(1);
+    const result = await this.db.select().from(shades).where(eq(shades.id, id)).limit(1);
     return result[0];
   }
 
   async getShades(): Promise<Shade[]> {
     try {
-      const db = await getDb();
-      const result = await db.select().from(shades).orderBy(asc(shades.sortOrder));
+      const result = await this.db.select().from(shades).orderBy(asc(shades.sortOrder));
       return result;
     } catch (error) {
       console.error("Database connection failed:", error);
@@ -821,8 +795,7 @@ export class DatabaseStorage implements IStorage {
 
   async getActiveShades(): Promise<Shade[]> {
     try {
-      const db = await getDb();
-      const result = await db.select().from(shades)
+      const result = await this.db.select().from(shades)
         .where(eq(shades.isActive, true))
         .orderBy(asc(shades.sortOrder));
       return result;
@@ -833,8 +806,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getShadesByCategory(categoryId: number): Promise<Shade[]> {
-    const db = await getDb();
-    return await db.select().from(shades)
+    return await this.db.select().from(shades)
       .where(and(
         eq(shades.isActive, true),
         sql`json_extract(${shades.categoryIds}, '$') LIKE '%${categoryId}%'`
@@ -843,8 +815,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getShadesBySubcategory(subcategoryId: number): Promise<Shade[]> {
-    const db = await getDb();
-    return await db.select().from(shades)
+    return await this.db.select().from(shades)
       .where(and(
         eq(shades.isActive, true),
         sql`json_extract(${shades.subcategoryIds}, '$') LIKE '%${subcategoryId}%'`
@@ -854,8 +825,6 @@ export class DatabaseStorage implements IStorage {
 
   async createShade(shadeData: InsertShade): Promise<Shade> {
     try {
-      const db = await getDb();
-
       // Ensure value is unique by checking existing values and appending number if needed
       let value = shadeData.value;
       if (!value) {
@@ -867,7 +836,7 @@ export class DatabaseStorage implements IStorage {
       let finalValue = value;
       let counter = 1;
       while (true) {
-        const existingShade = await db
+        const existingShade = await this.db
           .select()
           .from(shades)
           .where(eq(shades.value, finalValue))
@@ -887,7 +856,7 @@ export class DatabaseStorage implements IStorage {
         value: finalValue
       };
 
-      const [shade] = await db.insert(shades).values(shadeToInsert).returning();
+      const [shade] = await this.db.insert(shades).values(shadeToInsert).returning();
       return shade;
     } catch (error) {
       console.error("Database error creating shade:", error);
@@ -897,8 +866,6 @@ export class DatabaseStorage implements IStorage {
 
   async updateShade(id: number, shadeData: Partial<InsertShade>): Promise<Shade | undefined> {
     try {
-      const db = await getDb();
-
       // Add updatedAt timestamp as Date object
       const updateData: any = {
         ...shadeData,
@@ -915,7 +882,7 @@ export class DatabaseStorage implements IStorage {
 
       console.log("Updating shade in database:", { id, updateData });
 
-      const result = await db.update(shades)
+      const result = await this.db.update(shades)
         .set(updateData)
         .where(eq(shades.id, id))
         .returning();
@@ -935,8 +902,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteShade(id: number): Promise<boolean> {
     try {
-      const db = await getDb();
-      const result = await db.delete(shades).where(eq(shades.id, id));
+      const result = await this.db.delete(shades).where(eq(shades.id, id));
       return result.rowCount > 0;
     } catch (error) {
       console.error("Database connection failed:", error);
@@ -947,8 +913,7 @@ export class DatabaseStorage implements IStorage {
   // Get shades for a specific product based on its category/subcategory or individual assignment
   async getProductShades(productId: number): Promise<any[]> {
     try {
-      const db = await getDb();
-      const productShadesResult = await db
+      const productShadesResult = await this.db
         .select({
           id: shades.id,
           name: shades.name,
@@ -973,8 +938,7 @@ export class DatabaseStorage implements IStorage {
   // Get active shades with their associations (categories, subcategories, products)
   async getActiveShadesWithAssociations(): Promise<Shade[]> {
     try {
-      const db = await getDb();
-      const result = await db
+      const result = await this.db
         .select()
         .from(shades)
         .where(eq(shades.isActive, true))
@@ -996,8 +960,7 @@ export class DatabaseStorage implements IStorage {
   // Product Images Management
   async getProductImages(productId: number): Promise<any[]> {
     try {
-      const db = await getDb();
-      const images = await db
+      const images = await this.db
         .select()
         .from(productImages)
         .where(eq(productImages.productId, productId))
@@ -1011,8 +974,7 @@ export class DatabaseStorage implements IStorage {
 
   async createProductImage(imageData: any): Promise<any> {
     try {
-      const db = await getDb();
-      const [image] = await db.insert(productImages).values(imageData).returning();
+      const [image] = await this.db.insert(productImages).values(imageData).returning();
       return image;
     } catch (error) {
       console.error("Error creating product image:", error);
@@ -1022,8 +984,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProductImage(imageId: number): Promise<boolean> {
     try {
-      const db = await getDb();
-      const result = await db.delete(productImages).where(eq(productImages.id, imageId)).returning();
+      const result = await this.db.delete(productImages).where(eq(productImages.id, imageId)).returning();
       return result.length > 0;
     } catch (error) {
       console.error("Error deleting product image:", error);
@@ -1033,15 +994,13 @@ export class DatabaseStorage implements IStorage {
 
   // Review Management Functions
   async createReview(reviewData: InsertReview): Promise<Review> {
-    const db = await getDb();
-    const [review] = await db.insert(reviews).values(reviewData).returning();
+    const [review] = await this.db.insert(reviews).values(reviewData).returning();
     console.log("Review created:", review);
     return review;
   }
 
   async getProductReviews(productId: number): Promise<Review[]> {
-    const db = await getDb();
-    const productReviews = await db
+    const productReviews = await this.db
       .select({
         id: reviews.id,
         userId: reviews.userId,
@@ -1064,8 +1023,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserReviews(userId: number): Promise<Review[]> {
-    const db = await getDb();
-    const userReviews = await db
+    const userReviews = await this.db
       .select({
         id: reviews.id,
         userId: reviews.userId,
@@ -1088,9 +1046,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async checkUserCanReview(userId: number, productId: number): Promise<{ canReview: boolean; orderId?: number; message: string }> {
-    const db = await getDb();
     // Check if user has purchased this product
-    const userOrders = await db
+    const userOrders = await this.db
       .select({
         orderId: ordersTable.id,
         orderStatus: ordersTable.status,
@@ -1113,7 +1070,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Check if user has already reviewed this product
-    const existingReview = await db
+    const existingReview = await this.db
       .select()
       .from(reviews)
       .where(
@@ -1140,8 +1097,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteReview(reviewId: number, userId: number): Promise<boolean> {
     try {
-      const db = await getDb();
-      const result = await db
+      const result = await this.db
         .delete(reviews)
         .where(and(eq(reviews.id, reviewId), eq(reviews.userId, userId)))
         .returning();
@@ -1155,8 +1111,7 @@ export class DatabaseStorage implements IStorage {
 
   // Combo Review Management Functions
   async getComboReviews(comboId: number): Promise<ComboReview[]> {
-    const db = await getDb();
-    const comboReviewsResult = await db
+    const comboReviewsResult = await this.db
       .select({
         id: comboReviews.id,
         userId: comboReviews.userId,
@@ -1175,10 +1130,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async checkUserCanReviewCombo(userId: number, comboId: number): Promise<{ canReview: boolean; orderId?: number; message: string }> {
-    const db = await getDb();
-
     // Check if user has already reviewed this combo
-    const existingReview = await db
+    const existingReview = await this.db
       .select()
       .from(comboReviews)
       .where(
@@ -1197,7 +1150,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Check if user has purchased this combo
-    const userOrders = await db
+    const userOrders = await this.db
       .select({
         orderId: ordersTable.id,
         orderStatus: ordersTable.status,
@@ -1232,8 +1185,7 @@ export class DatabaseStorage implements IStorage {
   // Get all blog posts
   async getBlogPosts(): Promise<BlogPost[]> {
     try {
-      const db = await getDb();
-      const posts = await db
+      const posts = await this.db
         .select()
         .from(blogPosts)
         .orderBy(desc(blogPosts.createdAt));
@@ -1247,8 +1199,7 @@ export class DatabaseStorage implements IStorage {
   // Get published blog posts
   async getPublishedBlogPosts(): Promise<BlogPost[]> {
     try {
-      const db = await getDb();
-      const posts = await db
+      const posts = await this.db
         .select()
         .from(blogPosts)
         .where(eq(blogPosts.published, true))
@@ -1263,8 +1214,7 @@ export class DatabaseStorage implements IStorage {
   // Get featured blog posts
   async getFeaturedBlogPosts(): Promise<BlogPost[]> {
     try {
-      const db = await getDb();
-      const posts = await db
+      const posts = await this.db
         .select()
         .from(blogPosts)
         .where(and(eq(blogPosts.published, true), eq(blogPosts.featured, true)))
@@ -1279,8 +1229,7 @@ export class DatabaseStorage implements IStorage {
   // Get blog post by slug
   async getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
     try {
-      const db = await getDb();
-      const post = await db
+      const post = await this.db
         .select()
         .from(blogPosts)
         .where(eq(blogPosts.slug, slug))
@@ -1295,8 +1244,6 @@ export class DatabaseStorage implements IStorage {
   // Create blog post
   async createBlogPost(postData: InsertBlogPost): Promise<BlogPost> {
     try {
-      const db = await getDb();
-
       // Generate slug from title
       const slug = postData.title
         .toLowerCase()
@@ -1316,7 +1263,7 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       };
 
-      const result = await db.insert(blogPosts).values(postToInsert).returning();
+      const result = await this.db.insert(blogPosts).values(postToInsert).returning();
       return result[0];
     } catch (error) {
       console.error("Database error in createBlogPost:", error);
@@ -1327,7 +1274,6 @@ export class DatabaseStorage implements IStorage {
   // Update blog post
   async updateBlogPost(id: number, postData: Partial<InsertBlogPost>): Promise<BlogPost | undefined> {
     try {
-      const db = await getDb();
       const updateData = { ...postData };
 
       if (postData.title) {
@@ -1341,7 +1287,7 @@ export class DatabaseStorage implements IStorage {
 
       updateData.updatedAt = new Date();
 
-      const [post] = await db
+      const [post] = await this.db
         .update(blogPosts)
         .set(updateData)
         .where(eq(blogPosts.id, id))
@@ -1356,8 +1302,7 @@ export class DatabaseStorage implements IStorage {
   // Delete blog post
   async deleteBlogPost(id: number): Promise<boolean> {
     try {
-      const db = await getDb();
-      const result = await db
+      const result = await this.db
         .delete(blogPosts)
         .where(eq(blogPosts.id, id))
         .returning();
@@ -1371,9 +1316,8 @@ export class DatabaseStorage implements IStorage {
   // Search blog posts
   async searchBlogPosts(query: string): Promise<BlogPost[]> {
     try {
-      const db = await getDb();
       const searchTerm = `%${query.toLowerCase()}%`;
-      const posts = await db
+      const posts = await this.db
         .select()
         .from(blogPosts)
         .where(
@@ -1405,8 +1349,7 @@ export class DatabaseStorage implements IStorage {
   // Get all blog categories
   async getBlogCategories(): Promise<BlogCategory[]> {
     try {
-      const db = await getDb();
-      return await db.select().from(blogCategories).where(eq(blogCategories.isActive, true)).orderBy(asc(blogCategories.sortOrder));
+      return await this.db.select().from(blogCategories).where(eq(blogCategories.isActive, true)).orderBy(asc(blogCategories.sortOrder));
     } catch (error) {
       console.error("Database error in getBlogCategories:", error);
       // Ensure an empty array is returned or re-throw the error
@@ -1417,7 +1360,6 @@ export class DatabaseStorage implements IStorage {
   // Create blog category
   async createBlogCategory(categoryData: InsertBlogCategory): Promise<BlogCategory> {
     try {
-      const db = await getDb();
       const slug = categoryData.name
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '')
@@ -1425,7 +1367,7 @@ export class DatabaseStorage implements IStorage {
         .replace(/-+/g, '-')
         .trim();
 
-      const [category] = await db
+      const [category] = await this.db
         .insert(blogCategories)
         .values({
           name: categoryData.name,
@@ -1448,7 +1390,6 @@ export class DatabaseStorage implements IStorage {
   // Update blog category
   async updateBlogCategory(id: number, categoryData: Partial<InsertBlogCategory>): Promise<BlogCategory | undefined> {
     try {
-      const db = await getDb();
       const updateData = { ...categoryData };
 
       if (categoryData.name) {
@@ -1460,7 +1401,7 @@ export class DatabaseStorage implements IStorage {
           .trim();
       }
 
-      const [category] = await db
+      const [category] = await this.db
         .update(blogCategories)
         .set(updateData)
         .where(eq(blogCategories.id, id))
@@ -1475,10 +1416,8 @@ export class DatabaseStorage implements IStorage {
   // Delete blog category
   async deleteBlogCategory(id: number): Promise<boolean> {
     try {
-      const db = await getDb();
-
       // Check if category exists
-      const existing = await db
+      const existing = await this.db
         .select()
         .from(blogCategories)
         .where(eq(blogCategories.id, id))
@@ -1489,7 +1428,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Delete the category (without returning clause to avoid column issues)
-      const result = await db
+      const result = await this.db
         .delete(blogCategories)
         .where(eq(blogCategories.id, id));
 
@@ -1503,8 +1442,7 @@ export class DatabaseStorage implements IStorage {
   // Blog Subcategories
   async getBlogSubcategories(): Promise<BlogSubcategory[]> {
     try {
-      const db = await getDb();
-      const subcategories = await db
+      const subcategories = await this.db
         .select()
         .from(blogSubcategories)
         .orderBy(asc(blogSubcategories.sortOrder));
@@ -1517,8 +1455,7 @@ export class DatabaseStorage implements IStorage {
 
   async getBlogSubcategoriesByCategory(categoryId: number): Promise<BlogSubcategory[]> {
     try {
-      const db = await getDb();
-      const subcategories = await db
+      const subcategories = await this.db
         .select()
         .from(blogSubcategories)
         .where(eq(blogSubcategories.categoryId, categoryId))
@@ -1532,8 +1469,7 @@ export class DatabaseStorage implements IStorage {
 
   async getBlogSubcategoryBySlug(slug: string): Promise<BlogSubcategory | undefined> {
     try {
-      const db = await getDb();
-      const [subcategory] = await db
+      const [subcategory] = await this.db
         .select()
         .from(blogSubcategories)
         .where(eq(blogSubcategories.slug, slug))
@@ -1547,8 +1483,7 @@ export class DatabaseStorage implements IStorage {
 
   async createBlogSubcategory(subcategoryData: InsertBlogSubcategory): Promise<BlogSubcategory> {
     try {
-      const db = await getDb();
-      const [subcategory] = await db
+      const [subcategory] = await this.db
         .insert(blogSubcategories)
         .values(subcategoryData)
         .returning();
@@ -1561,8 +1496,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateBlogSubcategory(id: number, subcategoryData: Partial<InsertBlogSubcategory>): Promise<BlogSubcategory | undefined> {
     try {
-      const db = await getDb();
-      const [subcategory] = await db
+      const [subcategory] = await this.db
         .update(blogSubcategories)
         .set(subcategoryData)
         .where(eq(blogSubcategories.id, id))
@@ -1576,8 +1510,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBlogSubcategory(id: number): Promise<boolean> {
     try {
-      const db = await getDb();
-      const result = await db
+      const result = await this.db
         .delete(blogSubcategories)
         .where(eq(blogSubcategories.id, id))
         .returning();
@@ -1591,10 +1524,8 @@ export class DatabaseStorage implements IStorage {
   // Toggle blog post like
   async toggleBlogPostLike(postId: number, userId: number): Promise<{ liked: boolean; likesCount: number }> {
     try {
-      const db = await getDb();
-
       // Check if user already liked this post
-      const existingLike = await db
+      const existingLike = await this.db
         .select()
         .from(sql`blog_post_likes`)
         .where(sql`post_id = ${postId} AND user_id = ${userId}`)
@@ -1604,26 +1535,26 @@ export class DatabaseStorage implements IStorage {
 
       if (existingLike.length > 0) {
         // Unlike - remove the like
-        await db.delete(sql`blog_post_likes`).where(sql`post_id = ${postId} AND user_id = ${userId}`);
-        await db.update(blogPosts).set({
+        await this.db.delete(sql`blog_post_likes`).where(sql`post_id = ${postId} AND user_id = ${userId}`);
+        await this.db.update(blogPosts).set({
           likes: sql`${blogPosts.likes} - 1`
         }).where(eq(blogPosts.id, postId));
         liked = false;
       } else {
         // Like - add the like
-        await db.insert(sql`blog_post_likes`).values({
+        await this.db.insert(sql`blog_post_likes`).values({
           post_id: postId,
           user_id: userId,
           created_at: new Date()
         });
-        await db.update(blogPosts).set({
+        await this.db.update(blogPosts).set({
           likes: sql`${blogPosts.likes} + 1`
         }).where(eq(blogPosts.id, postId));
         liked = true;
       }
 
       // Get updated likes count
-      const post = await db.select({ likes: blogPosts.likes }).from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
+      const post = await this.db.select({ likes: blogPosts.likes }).from(blogPosts).where(eq(blogPosts.id, postId)).limit(1);
       const likesCount = post[0]?.likes || 0;
 
       return { liked, likesCount };
@@ -1636,8 +1567,7 @@ export class DatabaseStorage implements IStorage {
   // Slider Management Functions
   async getSliders(): Promise<any[]> {
     try {
-      const db = await getDb();
-      return await db.select().from(sliders).orderBy(asc(sliders.sortOrder));
+      return await this.db.select().from(sliders).orderBy(asc(sliders.sortOrder));
     } catch (error) {
       console.error("Error fetching sliders:", error);
       return [];
@@ -1646,8 +1576,7 @@ export class DatabaseStorage implements IStorage {
 
   async getActiveSliders(): Promise<any[]> {
     try {
-      const db = await getDb();
-      return await db.select().from(sliders).where(eq(sliders.isActive, true)).orderBy(asc(sliders.sortOrder));
+      return await this.db.select().from(sliders).where(eq(sliders.isActive, true)).orderBy(asc(sliders.sortOrder));
     } catch (error) {
       console.error("Error fetching active sliders:", error);
       return [];
@@ -1656,8 +1585,7 @@ export class DatabaseStorage implements IStorage {
 
   async createSlider(sliderData: any): Promise<any> {
     try {
-      const db = await getDb();
-      const [slider] = await db.insert(sliders).values(sliderData).returning();
+      const [slider] = await this.db.insert(sliders).values(sliderData).returning();
       return slider;
     } catch (error) {
       console.error("Error creating slider:", error);
@@ -1667,8 +1595,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateSlider(id: number, sliderData: any): Promise<any> {
     try {
-      const db = await getDb();
-      const [slider] = await db.update(sliders).set(sliderData).where(eq(sliders.id, id)).returning();
+      const [slider] = await this.db.update(sliders).set(sliderData).where(eq(sliders.id, id)).returning();
       return slider;
     } catch (error) {
       console.error("Error updating slider:", error);
@@ -1678,8 +1605,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSlider(id: number): Promise<boolean> {
     try {
-      const db = await getDb();
-      const result = await db.delete(sliders).where(eq(sliders.id, id)).returning();
+      const result = await this.db.delete(sliders).where(eq(sliders.id, id)).returning();
       return result.length > 0;
     } catch (error) {
       console.error("Error deleting slider:", error);
@@ -1689,17 +1615,14 @@ export class DatabaseStorage implements IStorage {
 
   // Category slider management
   async getCategorySliders(categoryId: number): Promise<any[]> {
-    const db = await getDb();
-    return await db.select().from(categorySliders).where(eq(categorySliders.categoryId, categoryId));
+    return await this.db.select().from(categorySliders).where(eq(categorySliders.categoryId, categoryId));
   }
   async createCategorySlider(sliderData: any): Promise<any> {
-    const db = await getDb();
-    const [result] = await db.insert(categorySliders).values(sliderData).returning();
+    const [result] = await this.db.insert(categorySliders).values(sliderData).returning();
     return result;
   }
   async updateCategorySlider(id: number, sliderData: any): Promise<any> {
-    const db = await getDb();
-    const [result] = await db
+    const [result] = await this.db
       .update(categorySliders)
       .set(sliderData)
       .where(eq(categorySliders.id, id))
@@ -1708,8 +1631,7 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteCategorySlider(id: number): Promise<boolean> {
     try {
-      const db = await getDb();
-      const result = await db.delete(categorySliders).where(eq(categorySliders.id, id)).returning();
+      const result = await this.db.delete(categorySliders).where(eq(categorySliders.id, id)).returning();
       return result.length > 0;
     } catch (error) {
       console.error("Error deleting category slider:", error);
@@ -1720,8 +1642,7 @@ export class DatabaseStorage implements IStorage {
   // Testimonials Management
   async getTestimonials(): Promise<any[]> {
     try {
-      const db = await getDb();
-      const result = await db.select().from(testimonials).orderBy(desc(testimonials.sortOrder));
+      const result = await this.db.select().from(testimonials).orderBy(desc(testimonials.sortOrder));
       return result;
     } catch (error) {
       console.error("Error fetching testimonials:", error);
@@ -1731,8 +1652,7 @@ export class DatabaseStorage implements IStorage {
 
   async getActiveTestimonials(): Promise<any[]> {
     try {
-      const db = await getDb();
-      const result = await db
+      const result = await this.db
         .select()
         .from(testimonials)
         .where(eq(testimonials.isActive, true))
@@ -1746,8 +1666,7 @@ export class DatabaseStorage implements IStorage {
 
   async getTestimonial(id: number): Promise<any | undefined> {
     try {
-      const db = await getDb();
-      const result = await db.select().from(testimonials).where(eq(testimonials.id, id)).limit(1);
+      const result = await this.db.select().from(testimonials).where(eq(testimonials.id, id)).limit(1);
       return result[0];
     } catch (error) {
       console.error("Error fetching testimonial:", error);
@@ -1757,8 +1676,7 @@ export class DatabaseStorage implements IStorage {
 
   async createTestimonial(testimonialData: any): Promise<any> {
     try {
-      const db = await getDb();
-      const [result] = await db.insert(testimonials).values({
+      const [result] = await this.db.insert(testimonials).values({
         customerName: testimonialData.customerName,
         customerImage: testimonialData.customerImage || null,
         rating: testimonialData.rating || 5,
@@ -1775,8 +1693,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateTestimonial(id: number, testimonialData: any): Promise<any> {
     try {
-      const db = await getDb();
-      const [result] = await db
+      const [result] = await this.db
         .update(testimonials)
         .set({
           ...testimonialData,
@@ -1792,36 +1709,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTestimonial(id: number): Promise<boolean> {
-    const db = await getDb();
-    const result = await db.delete(testimonials).where(eq(testimonials.id, id));
+    const result = await this.db.delete(testimonials).where(eq(testimonials.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
   // Announcements methods
   async getAnnouncements(): Promise<any[]> {
-    return await db.select().from(announcements).orderBy(announcements.sortOrder);
+    return await this.db.select().from(announcements).orderBy(announcements.sortOrder);
   }
 
   async getActiveAnnouncements(): Promise<any[]> {
-    return await db.select()
+    return await this.db.select()
       .from(announcements)
       .where(eq(announcements.isActive, true))
       .orderBy(announcements.sortOrder);
   }
 
   async getAnnouncement(id: number): Promise<any | undefined> {
-    const result = await db.select().from(announcements).where(eq(announcements.id, id));
+    const result = await this.db.select().from(announcements).where(eq(announcements.id, id));
     return result[0];
   }
 
   async createAnnouncement(announcementData: any): Promise<any> {
-    const result = await db.insert(announcements).values(announcementData).returning();
+    const result = await this.db.insert(announcements).values(announcementData).returning();
     return result[0];
   }
 
   async updateAnnouncement(id: number, announcementData: any): Promise<any> {
     try {
-      const result = await db.update(announcements)
+      const result = await this.db.update(announcements)
         .set({
           text: announcementData.text,
           isActive: announcementData.isActive,
@@ -1838,15 +1754,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteAnnouncement(id: number): Promise<boolean> {
-    const result = await db.delete(announcements).where(eq(announcements.id, id));
+    const result = await this.db.delete(announcements).where(eq(announcements.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
   // Job Positions methods
   async getJobPositions(): Promise<JobPosition[]> {
     try {
-      const db = await getDb();
-      return await db.select({
+      return await this.db.select({
         id: jobPositions.id,
         title: jobPositions.title,
         slug: jobPositions.slug,
@@ -1876,10 +1791,9 @@ export class DatabaseStorage implements IStorage {
 
   async getActiveJobPositions(): Promise<JobPosition[]> {
     try {
-      const db = await getDb();
       const now = new Date();
 
-      const results = await db.select({
+      const results = await this.db.select({
         id: jobPositions.id,
         title: jobPositions.title,
         slug: jobPositions.slug,
@@ -1926,10 +1840,9 @@ export class DatabaseStorage implements IStorage {
 
   async getAllJobPositions(): Promise<JobPosition[]> {
     try {
-      const db = await getDb();
       const now = new Date();
 
-      return await db.select({
+      return await this.db.select({
         id: jobPositions.id,
         title: jobPositions.title,
         slug: jobPositions.slug,
@@ -1967,11 +1880,10 @@ export class DatabaseStorage implements IStorage {
 
   async autoExpireJobPositions(): Promise<void> {
     try {
-      const db = await getDb();
       const now = new Date();
 
       // Auto-expire positions where expiresAt is in the past
-      await db.update(jobPositions)
+      await this.db.update(jobPositions)
         .set({ isActive: false, updatedAt: now })
         .where(and(
           eq(jobPositions.isActive, true),
@@ -1983,8 +1895,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getJobPositionBySlug(slug: string): Promise<JobPosition | null> {
-    const db = await getDb();
-    const result = await db
+    const result = await this.db
       .select()
       .from(jobPositions)
       .where(eq(jobPositions.slug, slug))
@@ -1993,8 +1904,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getJobPosition(id: number): Promise<JobPosition | undefined> {
-    const db = await getDb();
-    const result = await db
+    const result = await this.db
       .select()
       .from(jobPositions)
       .where(eq(jobPositions.id, id))
@@ -2003,10 +1913,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createJobPosition(data: InsertJobPosition): Promise<JobPosition> {
-    const db = await getDb();
-
-    console.log('Storage: Creating job position with data:', data);
-
     // Generate slug from title if not provided
     const slug = data.slug || data.title
       .toLowerCase()
@@ -2040,7 +1946,7 @@ export class DatabaseStorage implements IStorage {
     console.log('Storage: Inserting job position:', jobPositionToInsert);
 
     try {
-      const [jobPosition] = await db.insert(jobPositions).values(jobPositionToInsert).returning();
+      const [jobPosition] = await this.db.insert(jobPositions).values(jobPositionToInsert).returning();
       console.log('Storage: Job position created successfully:', jobPosition.id);
       return jobPosition;
     } catch (error) {
@@ -2050,8 +1956,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateJobPosition(id: number, data: Partial<InsertJobPosition>): Promise<JobPosition | undefined> {
-    const db = await getDb();
-
     const updateData = { ...data };
     if (data.title) {
       updateData.slug = data.title
@@ -2063,7 +1967,7 @@ export class DatabaseStorage implements IStorage {
     }
     updateData.updatedAt = new Date();
 
-    const [jobPosition] = await db
+    const [jobPosition] = await this.db
       .update(jobPositions)
       .set(updateData)
       .where(eq(jobPositions.id, id))
@@ -2072,8 +1976,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteJobPosition(id: number): Promise<boolean> {
-    const db = await getDb();
-    const result = await db
+    const result = await this.db
       .delete(jobPositions)
       .where(eq(jobPositions.id, id))
       .returning();
@@ -2098,21 +2001,21 @@ export class DatabaseStorage implements IStorage {
       facebookProfile: data.facebookProfile || null,
       status: data.status || 'pending'
     };
-    const [application] = await db.insert(influencerApplications).values(applicationData).returning();
+    const [application] = await this.db.insert(influencerApplications).values(applicationData).returning();
     return application;
   }
 
   async getInfluencerApplications() {
-    return await db.select().from(influencerApplications).orderBy(desc(influencerApplications.createdAt));
+    return await this.db.select().from(influencerApplications).orderBy(desc(influencerApplications.createdAt));
   }
 
   async getInfluencerApplication(id: number) {
-    const [application] = await db.select().from(influencerApplications).where(eq(influencerApplications.id, id));
+    const [application] = await this.db.select().from(influencerApplications).where(eq(influencerApplications.id, id));
     return application;
   }
 
   async updateInfluencerApplicationStatus(id: number, status: string, reviewNotes?: string) {
-    const [updated] = await db
+    const [updated] = await this.db
       .update(influencerApplications)
       .set({ 
         status, 
@@ -2125,7 +2028,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteInfluencerApplication(id: number) {
-    await db.delete(influencerApplications).where(eq(influencerApplications.id, id));
+    await this.db.delete(influencerApplications).where(eq(influencerApplications.id, id));
   }
 }
 

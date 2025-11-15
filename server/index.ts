@@ -49,7 +49,7 @@ app.disable('x-powered-by');
 
 // Simple in-memory cache for GET requests
 const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 30000; // 30 seconds
+const CACHE_DURATION = 300000; // 5 minutes - aggressive caching
 
 app.use((req, res, next) => {
   if (req.method === 'GET' && req.path.startsWith('/api/')) {
@@ -272,7 +272,7 @@ const db = drizzle(pool, { schema: { products } });
   });
 
 
-  // Serve the app on port 8085 (recommended for web apps)
+  // Serve the app on port 5000 (required for Replit webview)
   const port = 8085;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);

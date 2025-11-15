@@ -256,24 +256,23 @@ export default function HomePage() {
     Product[]
   >({
     queryKey: ["/api/products"],
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
-    gcTime: 30 * 60 * 1000,
+    staleTime: 60 * 60 * 1000, // Cache for 60 minutes
+    gcTime: 120 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    select: (data) => data?.slice(0, 4) || [], // Only take first 4 products for home page
   });
 
 
 
   const categoryImages = {
     skincare:
-      "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+      "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60",
     haircare:
-      "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+      "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60",
     makeup:
-      "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+      "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60",
     bodycare:
-      "https://images.unsplash.com/photo-1571019613454-1cb2f982d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+      "https://images.unsplash.com/photo-1571019613454-1cb2f982d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60",
   };
 
   const categoryGradients = {
@@ -635,7 +634,7 @@ export default function HomePage() {
             {allProductsLoading ? (
               <div className="px-2 sm:px-4">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {Array.from({ length: 8 }).map((_, i) => (
+                  {Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
                       <Skeleton className="aspect-square w-full" />
                       <div className="p-3 space-y-2">
@@ -651,7 +650,7 @@ export default function HomePage() {
               <>
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {allProducts?.map((product) => (
+                    {allProducts?.slice(0, 4).map((product) => (
                       <ProductCard
                         key={product.id}
                         product={product}
@@ -661,28 +660,26 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {allProducts && allProducts.length > 4 && (
-                    <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                      <Link href="/products">
-                        <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-10 py-4 font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
-                          View All Products ({allProducts.length})
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M17 8l4 4m0 0l-4 4m4-4H3"
-                            />
-                          </svg>
-                        </Button>
-                      </Link>
-                    </div>
-                  )}
+                <div className="text-center mt-6 sm:mt-8 md:mt-10">
+                  <Link href="/products">
+                    <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-10 py-4 font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
+                      View All Products
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+                        />
+                      </svg>
+                    </Button>
+                  </Link>
+                </div>
               </>
             ) : !allProductsLoading ? (
               <div className="text-center py-12">

@@ -254,14 +254,14 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             <div className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50 h-48 rounded-lg">
               <img
                 src={(() => {
-                  // Handle new images array format
+                  // Handle new images array format with aggressive optimization
                   if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                     const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                    return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=400&h=400&q=80&fit=crop' : ''}`;
+                    return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=200&h=200&q=60&fit=crop&auto=format' : ''}`;
                   } else if (product.imageUrl) {
-                    return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=400&h=400&q=80&fit=crop' : ''}`;
+                    return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=200&h=200&q=60&fit=crop&auto=format' : ''}`;
                   }
-                  return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
+                  return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60';
                 })()}
                 alt={product.name}
                 className="w-full h-full object-contain cursor-pointer group-hover:scale-110 transition-transform duration-700 rounded-lg"
@@ -445,14 +445,14 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <div className="relative overflow-hidden bg-white">
             <img
               src={(() => {
-                // Handle new images array format
+                // Handle new images array format with maximum optimization
                 if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                   const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=150&h=150&q=50&fit=crop&auto=format' : ''}`;
+                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=120&h=120&q=50&fit=crop&auto=format' : ''}`;
                 } else if (product.imageUrl) {
-                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=150&h=150&q=50&fit=crop&auto=format' : ''}`;
+                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=120&h=120&q=50&fit=crop&auto=format' : ''}`;
                 }
-                return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150&q=50';
+                return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=120&h=120&q=50';
               })()}
               alt={product.name}
               className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"

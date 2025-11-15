@@ -28,23 +28,14 @@ export default function VideoTestimonials() {
   const { toast } = useToast();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // Fetch UGC Video from API - Lazy load as it's below the fold
+  // Fetch UGC Video from API
   const { data: videoTestimonials = [], isLoading: testimonialsLoading } = useQuery<VideoTestimonial[]>({
     queryKey: ["/api/video-testimonials"],
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    enabled: true, // Load only when component is visible
-    select: (data) => data?.slice(0, 4) || [], // Reduce to 4 for faster loading
   });
 
   // Fetch all products to match with testimonials
   const { data: allProducts = [], isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    enabled: videoTestimonials.length > 0, // Only fetch when testimonials are loaded
   });
 
   // Filter active testimonials and sort by sortOrder
@@ -249,9 +240,7 @@ export default function VideoTestimonials() {
                           playsInline
                           muted
                           loop
-                          preload="none"
                           poster={testimonial.thumbnailUrl}
-                          loading="lazy"
                         />
 
                         {/* Play Icon Overlay */}

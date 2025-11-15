@@ -54,8 +54,8 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: defaultQueryFn,
-      staleTime: 1000 * 60 * 30, // 30 minutes - longer cache for products
-      gcTime: 1000 * 60 * 60, // 60 minutes - keep in memory longer
+      staleTime: 1000 * 60 * 60, // 60 minutes - aggressive caching
+      gcTime: 1000 * 60 * 120, // 120 minutes - keep in memory longer
       retry: 1,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
