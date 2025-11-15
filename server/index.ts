@@ -289,7 +289,7 @@ const db = drizzle(pool, { schema: { products } });
 
 
   // Serve the app on port 5000 (required for Replit webview)
-  const port = 5000;
+  const port = 8085;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
 
