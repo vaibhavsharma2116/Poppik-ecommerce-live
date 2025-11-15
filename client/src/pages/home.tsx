@@ -414,13 +414,18 @@ export default function HomePage() {
                                 "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400"
                               }
                               alt={category.name}
+                              width="280"
+                              height="280"
+                              loading="lazy"
+                              decoding="async"
                               className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 bg-white"
                               style={{
                                 width: '100%',
                                 height: '100%',
                                 objectFit: 'contain',
                                 borderRadius: 'clamp(8px, 2vw, 16px)',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                aspectRatio: '1/1'
                               }}
                             />
                             <div
