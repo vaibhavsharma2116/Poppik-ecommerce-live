@@ -337,13 +337,32 @@ export class DatabaseStorage implements IStorage {
 
   async getProducts(): Promise<Product[]> {
     try {
-      console.log("Executing SELECT query on products table...");
-      const result = await this.db.select().from(products);
-      console.log("Query executed successfully, rows returned:", result?.length || 0);
-
-      if (result && result.length > 0) {
-        console.log("Sample product:", JSON.stringify(result[0], null, 2));
-      }
+      // Select only essential columns for better performance
+      const result = await this.db
+        .select({
+          id: products.id,
+          name: products.name,
+          slug: products.slug,
+          price: products.price,
+          originalPrice: products.originalPrice,
+          discount: products.discount,
+          cashbackPercentage: products.cashbackPercentage,
+          cashbackPrice: products.cashbackPrice,
+          category: products.category,
+          subcategory: products.subcategory,
+          imageUrl: products.imageUrl,
+          videoUrl: products.videoUrl,
+          rating: products.rating,
+          reviewCount: products.reviewCount,
+          inStock: products.inStock,
+          featured: products.featured,
+          bestseller: products.bestseller,
+          newLaunch: products.newLaunch,
+          shortDescription: products.shortDescription,
+          description: products.description,
+          tags: products.tags,
+        })
+        .from(products);
 
       return result as Product[];
     } catch (error) {

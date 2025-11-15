@@ -28,9 +28,10 @@ interface ProductCardProps {
   product: Product;
   className?: string;
   viewMode?: 'grid' | 'list';
+  priority?: boolean;
 }
 
-export default function ProductCard({ product, className = "", viewMode = 'grid' }: ProductCardProps) {
+export default function ProductCard({ product, className = "", viewMode = 'grid', priority = false }: ProductCardProps) {
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [selectedShades, setSelectedShades] = useState<Shade[]>([]);
@@ -265,9 +266,9 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 })()}
                 alt={product.name}
                 className="w-full h-full object-contain cursor-pointer group-hover:scale-110 transition-transform duration-700 rounded-lg"
-                loading="lazy"
-                decoding="async"
-                fetchpriority="low"
+                loading={priority ? "eager" : "lazy"}
+                decoding={priority ? "sync" : "async"}
+                fetchpriority={priority ? "high" : "low"}
                 width="200"
                 height="200"
                 onLoad={(e) => {
@@ -449,23 +450,23 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 // Handle new images array format with maximum optimization for mobile
                 if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                   const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=60&h=60&q=25&fit=crop&auto=format&fm=webp&dpr=1' : ''}`;
+                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=80&h=80&q=30&fit=crop&fm=webp&dpr=1' : ''}`;
                 } else if (product.imageUrl) {
-                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=60&h=60&q=25&fit=crop&auto=format&fm=webp&dpr=1' : ''}`;
+                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=80&h=80&q=30&fit=crop&fm=webp&dpr=1' : ''}`;
                 }
-                return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=60&h=60&q=25&fm=webp&dpr=1';
+                return `https://images.unsplash.com/photo-1556228720-195a672e8a03?w=80&h=80&q=30&fit=crop&fm=webp&dpr=1`;
               })()}
               alt={product.name}
               className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
               loading="lazy"
               decoding="async"
               fetchpriority="low"
-              width="60"
-              height="60"
+              width="80"
+              height="80"
               style={{ width: '100%', height: '70%', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=60&h=60&q=25&fm=webp&dpr=1';
+                target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=80&h=80&q=30&fit=crop&fm=webp&dpr=1';
               }}
             />
             <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>

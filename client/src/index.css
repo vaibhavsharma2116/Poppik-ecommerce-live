@@ -592,37 +592,16 @@ body {
 
 @layer components {
   .product-card {
-    @apply bg-white rounded-2xl transition-all duration-300 overflow-hidden relative;
-    background: linear-gradient(135deg, #ffffff 0%, #fdf2f8 50%, #f3e8ff 100%);
+    @apply bg-white rounded-2xl overflow-hidden relative;
     border: none !important;
     box-shadow: none !important;
     outline: none !important;
-    -webkit-box-shadow: none !important;
-    -moz-box-shadow: none !important;
   }
 
   .product-card * {
     border: none !important;
     box-shadow: none !important;
     outline: none !important;
-  }
-
-  .product-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(139, 69, 193, 0.1) 100%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .product-card:hover::before {
-    opacity: 1;
   }
 
   .product-card > * {
@@ -1189,13 +1168,6 @@ body {
 
   .gradient-shimmer {
     background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.5) 50%, transparent 70%);
-    background-size: 200% 200%;
-    animation: shimmer 2s infinite;
-  }
-
-  @keyframes shimmer {
-    0% { background-position: -200% -200%; }
-    100% { background-position: 200% 200%; }
   }
 
   .scrollbar-hide {
@@ -2617,6 +2589,27 @@ body {
 img {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: optimize-contrast;
+  content-visibility: auto;
+}
+
+/* Performance optimizations */
+.mobile-product-card-container {
+  contain: layout style paint;
+  will-change: transform;
+}
+
+.mobile-product-image {
+  contain: layout style paint;
+  content-visibility: auto;
+}
+
+/* Reduce animations on low-end devices */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* High DPI display optimizations */

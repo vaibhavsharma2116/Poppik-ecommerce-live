@@ -1,15 +1,20 @@
 import express, { type Request, Response, NextFunction } from "express";
-
-import { config } from "dotenv";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { pool } from "./storage";
+import { Pool } from "pg";
+import { CPUMonitor } from "./cpu-monitor";
+import { createPerformanceRoutes } from "./perfomance-routes";
+import { DatabaseOptimizer } from "./db-optimizer";
 import path from "path";
 import { fileURLToPath } from "url";
+
+import { config } from "dotenv";
 import { products } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import fs from "fs";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { pool } from "./storage";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,9 +40,13 @@ process.on('SIGINT', () => {
 
 const app = express();
 
+// Enable compression
+app.use(compression({
+  level: 6,
+  threshold: 1024,
+}));
 
-
-// Trust proxy for load balancer
+// Trust proxy
 app.set('trust proxy', 1);
 
 // Optimize JSON parsing
@@ -55,18 +64,18 @@ app.use((req, res, next) => {
   // Add compression and cache headers
   res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200');
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  
+
   if (req.method === 'GET' && req.path.startsWith('/api/')) {
     const cacheKey = req.path + JSON.stringify(req.query);
     const cached = cache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       res.setHeader('X-Cache', 'HIT');
       return res.json(cached.data);
     }
-    
+
     res.setHeader('X-Cache', 'MISS');
-    
+
     // Override res.json to cache response
     const originalJson = res.json.bind(res);
     res.json = function(data: any) {
@@ -280,7 +289,7 @@ const db = drizzle(pool, { schema: { products } });
 
 
   // Serve the app on port 5000 (required for Replit webview)
-  const port = 8085;
+  const port = 5000;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
 

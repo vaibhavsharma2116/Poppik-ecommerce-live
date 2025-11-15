@@ -16,7 +16,6 @@ import {
   Calendar,
   User,
   Package,
-  Badge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +30,7 @@ import OptimizedImage from "@/components/optimized-image";
 import AnnouncementBar from "@/components/announcement-bar";
 import { useToast } from "@/hooks/use-toast";
 import { Helmet } from "react-helmet";
+import { Badge } from "@/components/ui/badge";
 
 // Lazy load heavy components
 const VideoTestimonials = lazy(() => import("@/components/video-testimonials"));
@@ -224,41 +224,6 @@ export default function HomePage() {
     queryKey: ["/api/categories"],
   });
 
-  const { data: bestsellerProducts, isLoading: bestsellersLoading } = useQuery<
-    Product[]
-  >({
-    queryKey: ["/api/products/bestsellers"],
-    staleTime: Infinity, // Never refetch automatically
-    gcTime: Infinity, // Keep forever
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-  });
-
-  const { data: featuredProducts, isLoading: featuredLoading } = useQuery<
-    Product[]
-  >({
-    queryKey: ["/api/products/featured"],
-    staleTime: Infinity,
-    gcTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    enabled: false,
-  });
-
-  const { data: newLaunchProducts, isLoading: newLaunchLoading } = useQuery<
-    Product[]
-  >({
-    queryKey: ["/api/products/new-launches"],
-    staleTime: Infinity,
-    gcTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    enabled: false,
-  });
-
   const { data: allProducts, isLoading: allProductsLoading } = useQuery<
     Product[]
   >({
@@ -268,8 +233,21 @@ export default function HomePage() {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
+    retry: 0,
+    refetchInterval: false,
   });
 
+  // Derive bestsellers and new launches from allProducts
+  const bestsellerProducts = allProducts?.filter(p => p.bestseller)?.slice(0, 4) || [];
+  const bestsellersLoading = allProductsLoading;
+
+  // Add DNS prefetch hint for faster API calls
+  React.useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'dns-prefetch';
+    link.href = window.location.origin;
+    document.head.appendChild(link);
+  }, []);
 
 
   const categoryImages = {
@@ -568,7 +546,7 @@ export default function HomePage() {
             {bestsellersLoading ? (
               <div className="px-2 sm:px-4">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {Array.from({ length: 8 }).map((_, i) => (
+                  {Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
                       <Skeleton className="aspect-square w-full" />
                       <div className="p-3 space-y-2">
@@ -584,10 +562,11 @@ export default function HomePage() {
               <>
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {bestsellerProducts.slice(0, 4).map((product) => (
+                    {bestsellerProducts.slice(0, 4).map((product, index) => (
                       <ProductCard
                         key={product.id}
                         product={product}
+                        priority={index < 2}
                         className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
                       />
                     ))}
@@ -667,6 +646,7 @@ export default function HomePage() {
                       <ProductCard
                         key={product.id}
                         product={product}
+                        priority={false}
                         className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
                       />
                     ))}
@@ -742,6 +722,7 @@ export default function HomePage() {
                 <ProductCard
                   key={product.id}
                   product={product}
+                  priority={false}
                   className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
                 />
               ));

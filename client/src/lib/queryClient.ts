@@ -53,27 +53,16 @@ const defaultQueryFn: QueryFunction = async ({ queryKey }) => {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: async ({ queryKey }) => {
-        const res = await fetch(queryKey[0] as string, {
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          if (res.status >= 500) {
-            throw new Error(`${res.status}: ${res.statusText}`);
-          }
-
-          throw new Error(`${res.status}: ${await res.text()}`);
-        }
-
-        return res.json();
-      },
-      staleTime: 5 * 60 * 1000, // 5 minutes - longer cache
-      gcTime: 10 * 60 * 1000, // 10 minutes
+      queryFn: defaultQueryFn,
+      staleTime: Infinity,
+      gcTime: Infinity,
       refetchOnWindowFocus: false,
-      refetchOnMount: false,
       refetchOnReconnect: false,
-      retry: 1,
+      refetchOnMount: false,
+      retry: 0,
+    },
+    mutations: {
+      retry: 0,
     },
   },
 });

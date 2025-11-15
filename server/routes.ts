@@ -2192,53 +2192,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Products API
+  // Products API with optimized caching and column selection
   app.get("/api/products", async (req, res) => {
     try {
-      // Set cache headers for 10 minutes
-      res.setHeader('Cache-Control', 'public, max-age=600, s-maxage=600');
+      // Set aggressive cache headers
+      res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=7200');
       res.setHeader('Vary', 'Accept-Encoding');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
 
-      console.log("GET /api/products - Fetching products...");
-      console.log("Executing SELECT query on products table...");
+      console.log("GET /api/products - Fetching optimized products...");
 
-      const products = await storage.getProducts();
-      console.log("Products fetched:", products?.length || 0);
+      // Select only required columns to reduce data transfer
+      const products = await db
+        .select({
+          id: schema.products.id,
+          name: schema.products.name,
+          slug: schema.products.slug,
+          shortDescription: schema.products.shortDescription,
+          price: schema.products.price,
+          originalPrice: schema.products.originalPrice,
+          discount: schema.products.discount,
+          cashbackPercentage: schema.products.cashbackPercentage,
+          cashbackPrice: schema.products.cashbackPrice,
+          category: schema.products.category,
+          subcategory: schema.products.subcategory,
+          imageUrl: schema.products.imageUrl,
+          rating: schema.products.rating,
+          reviewCount: schema.products.reviewCount,
+          inStock: schema.products.inStock,
+          featured: schema.products.featured,
+          bestseller: schema.products.bestseller,
+          newLaunch: schema.products.newLaunch,
+        })
+        .from(schema.products);
 
-      if (!Array.isArray(products)) {
-        console.warn("Products is not an array, returning empty array");
+      if (!Array.isArray(products) || products.length === 0) {
         return res.json([]);
       }
 
-      // Get images for each product
-      const productsWithImages = await Promise.all(
-        products.map(async (product) => {
-          try {
-            const images = await storage.getProductImages(product.id);
-            return {
-              ...product,
-              images: images.map(img => ({
-                id: img.id,
-                url: img.imageUrl,
-                isPrimary: img.isPrimary,
-                sortOrder: img.sortOrder
-              }))
-            };
-          } catch (imgError) {
-            console.warn(`Failed to get images for product ${product.id}:`, imgError.message);
-            return {
-              ...product,
-              images: []
-            };
-          }
-        })
-      );
+      // Batch fetch images - single optimized query
+      const productIds = products.map(p => p.id);
+      const imagesMap = new Map();
+      
+      if (productIds.length > 0) {
+        try {
+          const allImages = await db
+            .select({
+              productId: schema.productImages.productId,
+              imageUrl: schema.productImages.imageUrl,
+              isPrimary: schema.productImages.isPrimary,
+              sortOrder: schema.productImages.sortOrder
+            })
+            .from(schema.productImages)
+            .where(sql`${schema.productImages.productId} = ANY(${productIds})`)
+            .orderBy(asc(schema.productImages.sortOrder));
 
-      console.log("Returning products with images:", productsWithImages.length);
-      res.json(productsWithImages);
+          // Group images efficiently
+          for (const img of allImages) {
+            if (!imagesMap.has(img.productId)) {
+              imagesMap.set(img.productId, []);
+            }
+            imagesMap.get(img.productId).push({
+              url: img.imageUrl,
+              isPrimary: img.isPrimary
+            });
+          }
+        } catch (imgError) {
+          console.warn('Image fetch failed:', imgError.message);
+        }
+      }
+
+      // Combine data efficiently
+      const result = products.map(product => ({
+        ...product,
+        images: imagesMap.get(product.id) || []
+      }));
+
+      console.log(`Returning ${result.length} optimized products`);
+      res.json(result);
     } catch (error) {
       console.error("Products API error:", error);
-      res.json([]);
+      res.status(500).json([]);
     }
   });
 
