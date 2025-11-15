@@ -98,7 +98,7 @@ export default function OptimizedImage({
       className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className}`}
       style={{
         backgroundColor: 'transparent',
-        objectFit: style.objectFit || 'contain',
+        objectFit: style.objectFit || 'cover',
         width: style.width || '100%',
         height: style.height || '100%',
         maxWidth: style.maxWidth || '100%',
@@ -111,6 +111,7 @@ export default function OptimizedImage({
       onError={handleError}
       loading={lazy ? 'lazy' : 'eager'}
       decoding="async"
+      fetchpriority={!lazy ? 'high' : 'low'}
       {...imageProps}
       {...props}
     />

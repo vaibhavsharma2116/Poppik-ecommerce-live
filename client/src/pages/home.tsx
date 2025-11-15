@@ -293,9 +293,9 @@ export default function HomePage() {
 
           {/* Dynamic Categories Grid - Mobile-first Design */}
           {categoriesLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mb-12 sm:mb-16 md:mb-20">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="space-y-2 sm:space-3 md:space-y-4">
+            <div className="flex gap-3 sm:gap-4 overflow-x-auto scrollbar-hide pb-4 mb-12 sm:mb-16 md:mb-20">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex-shrink-0 w-[calc(33.333%-8px)] space-y-2 sm:space-3 md:space-y-4">
                   <Skeleton className="aspect-square rounded-2xl sm:rounded-3xl" />
                   <Skeleton className="h-4 sm:h-5 md:h-6 w-3/4 mx-auto" />
                   <Skeleton className="h-3 sm:h-4 w-1/2 mx-auto" />
@@ -303,234 +303,49 @@ export default function HomePage() {
               ))}
             </div>
           ) : (
-            <div className="relative">
-              <div
-                id="categories-scroll-container"
-                className="overflow-auto scrollbar-hide pb-4"
-                style={{
-                  WebkitOverflowScrolling: 'touch',
-                  scrollBehavior: 'smooth'
-                }}
-              >
-                <style>{`
-            .scrollbar-hide::-webkit-scrollbar {
-              display: none;
-            }
-            .scrollbar-hide {
-              -ms-overflow-style: none;
-              scrollbar-width: none;
-            }
-          `}</style>
-                <div
-                  className="flex gap-4 justify-center"
-                  style={{
-                    display: 'flex',
-                    gap: 'clamp(8px, 2vw, 16px)',
-                    paddingLeft: 'clamp(8px, 2vw, 16px)',
-                    paddingRight: 'clamp(8px, 2vw, 16px)',
-                    justifyContent: 'center'
-                  }}
-                >
-                  {Array.isArray(categories) && categories.map((category, index) => (
-                    <Link
-                      key={category.id}
-                      href={`/category/${category.slug}`}
-                      className="group inline-block flex-shrink-0"
-                      style={{
-                        width: 'clamp(140px, 40vw, 280px)',
-                        minWidth: '140px',
-                        maxWidth: '280px'
-                      }}
-                    >
-                      <div
-                        className="relative bg-white/70 backdrop-blur-md overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105 group-hover:-translate-y-1 border border-white/20"
-                        style={{
-                          borderRadius: 'clamp(12px, 3vw, 24px)',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                          transition: 'all 0.3s ease'
-                        }}
-                      >
-                        <div
-                          className="overflow-hidden relative"
-                          style={{
-                            aspectRatio: '1',
-                            borderRadius: 'clamp(12px, 3vw, 24px)'
-                          }}
-                        >
-                          <div
-                            className={`relative h-full bg-gradient-to-br ${categoryGradients[category.slug as keyof typeof categoryGradients] || "from-gray-100 to-gray-200"}`}
-                            style={{
-                              padding: 'clamp(8px, 2vw, 32px)'
-                            }}
-                          >
-                            {/* Decorative Elements - Hidden on mobile for cleaner look */}
-                            <div
-                              className="hidden sm:block absolute bg-white/20 rounded-full blur-sm"
-                              style={{
-                                top: 'clamp(8px, 2vw, 16px)',
-                                right: 'clamp(8px, 2vw, 16px)',
-                                width: 'clamp(12px, 3vw, 32px)',
-                                height: 'clamp(12px, 3vw, 32px)'
-                              }}
-                            ></div>
-                            <div
-                              className="hidden sm:block absolute bg-white/30 rounded-full blur-sm"
-                              style={{
-                                bottom: 'clamp(8px, 2vw, 16px)',
-                                left: 'clamp(8px, 2vw, 16px)',
-                                width: 'clamp(8px, 2vw, 24px)',
-                                height: 'clamp(8px, 2vw, 24px)'
-                              }}
-                            ></div>
-                            <img
-                              src={
-                                category.imageUrl
-                                  ? `${category.imageUrl}${category.imageUrl.includes('unsplash') ? '&w=100&h=100&q=40&fit=crop&auto=format&fm=webp&dpr=1' : ''}`
-                                  : categoryImages[category.slug as keyof typeof categoryImages]
-                                    ? `${categoryImages[category.slug as keyof typeof categoryImages]}&w=100&h=100&q=40&fit=crop&auto=format&fm=webp&dpr=1`
-                                    : "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=40&fm=webp&dpr=1"
-                              }
-                              alt={category.name}
-                              width="100"
-                              height="100"
-                              loading={index < 4 ? "eager" : "lazy"}
-                              decoding={index < 4 ? "sync" : "async"}
-                              fetchpriority={index < 4 ? "high" : "low"}
-                              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 bg-white"
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'contain',
-                                borderRadius: 'clamp(8px, 2vw, 16px)',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                                aspectRatio: '1/1'
-                              }}
-                            />
-                            <div
-                              className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent group-hover:from-black/5 transition-all duration-300"
-                              style={{
-                                borderRadius: 'clamp(8px, 2vw, 16px)'
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                        <div
-                          className="text-center relative"
-                          style={{
-                            padding: 'clamp(8px, 2vw, 32px)'
-                          }}
-                        >
-                          <h3
-                            className="font-bold text-gray-900 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-pink-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-1"
-                            style={{
-                              fontSize: 'clamp(0.75rem, 2vw, 1.5rem)',
-                              lineHeight: '1.2',
-                              marginBottom: 'clamp(4px, 1vw, 12px)'
-                            }}
-                          >
-                            {category.name}
-                          </h3>
-                          <div
-                            className="hidden sm:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0"
-                            style={{
-                              fontSize: 'clamp(0.65rem, 1.5vw, 0.875rem)'
-                            }}
-                          >
-                            <span className="font-medium text-gray-700">
-                              Shop Now
-                            </span>
-                            <svg
-                              className="text-gray-700"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              style={{
-                                width: 'clamp(12px, 2vw, 16px)',
-                                height: 'clamp(12px, 2vw, 16px)'
-                              }}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M17 8l4 4m0 0l-4 4m4-4H3"
-                              />
-                            </svg>
-                          </div>
-                        </div>
+            <div className="relative px-2 sm:px-4">
+              <div className="flex gap-3 sm:gap-4 overflow-x-auto scrollbar-hide pb-4 mb-8" style={{ scrollSnapType: 'x mandatory' }}>
+                {Array.isArray(categories) && categories.map((category, index) => (
+                  <Link
+                    key={category.id}
+                    href={`/category/${category.slug}`}
+                    className="group flex-shrink-0 w-[calc(33.333%-8px)]"
+                    style={{ scrollSnapAlign: 'start' }}
+                  >
+                    <div className="relative bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+                      {/* Image Container */}
+                      <div className="aspect-square overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50 p-4" style={{ width: '100%', paddingBottom: '100%', position: 'relative' }}>
+                        <img
+                          src={
+                            category.imageUrl
+                              ? `${category.imageUrl}${category.imageUrl.includes('unsplash') ? '&w=400&h=400&q=75&fit=crop&auto=format,compress&fm=webp&cs=tinysrgb' : ''}`
+                              : categoryImages[category.slug as keyof typeof categoryImages]
+                                ? `${categoryImages[category.slug as keyof typeof categoryImages]}&w=400&h=400&q=75&fit=crop&auto=format,compress&fm=webp&cs=tinysrgb`
+                                : "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&q=75&fit=crop&auto=format,compress&fm=webp&cs=tinysrgb"
+                          }
+                          alt={category.name}
+                          width="400"
+                          height="400"
+                          loading={index < 3 ? "eager" : "lazy"}
+                          fetchpriority={index < 2 ? "high" : "low"}
+                          decoding="async"
+                          className="absolute inset-0 w-full h-full object-contain group-hover:scale-110 transition-transform duration-300"
+                          style={{ position: 'absolute', top: 0, left: 0 }}
+                        />
                       </div>
-                    </Link>
-                  ))}
-                </div>
+
+                      {/* Category Name */}
+                      <div className="p-3 text-center bg-white">
+                        <h3 className="font-semibold text-sm sm:text-base text-gray-900 line-clamp-1">
+                          {category.name}
+                        </h3>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
               </div>
 
-              {/* Navigation Buttons */}
-              {Array.isArray(categories) && categories.length > 4 && (
-                <>
-                  <button
-                    onClick={() => {
-                      const container = document.getElementById('categories-scroll-container');
-                      if (container) {
-                        const scrollAmount = window.innerWidth < 640 ? 160 : 300;
-                        container.scrollBy({
-                          left: -scrollAmount,
-                          behavior: 'smooth'
-                        });
-                      }
-                    }}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full transition-all duration-200 hidden sm:flex items-center justify-center"
-                    style={{
-                      padding: 'clamp(8px, 2vw, 12px)'
-                    }}
-                    aria-label="Scroll left"
-                  >
-                    <svg
-                      className="text-gray-800"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      style={{
-                        width: 'clamp(20px, 4vw, 24px)',
-                        height: 'clamp(20px, 4vw, 24px)'
-                      }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const container = document.getElementById('categories-scroll-container');
-                      if (container) {
-                        const scrollAmount = window.innerWidth < 640 ? 160 : 300;
-                        container.scrollBy({
-                          left: scrollAmount,
-                          behavior: 'smooth'
-                        });
-                      }
-                    }}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full transition-all duration-200 hidden sm:flex items-center justify-center"
-                    style={{
-                      padding: 'clamp(8px, 2vw, 12px)'
-                    }}
-                    aria-label="Scroll right"
-                  >
-                    <svg
-                      className="text-gray-800"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      style={{
-                        width: 'clamp(20px, 4vw, 24px)',
-                        height: 'clamp(20px, 4vw, 24px)'
-                      }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </>
-              )}
-            </div>
+              </div>
           )}
 
           {/* Bestsellers Section - First */}

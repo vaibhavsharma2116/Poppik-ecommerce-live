@@ -1008,8 +1008,8 @@ export default function ProductDetail() {
                     )}
 
                     {/* Main Image/Video with Zoom */}
-                    <div className="flex-1 bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px' }}>
-                      <div className="w-full h-full flex items-center justify-center p-2">
+                    <div className="flex-1 bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px', width: '100%', position: 'relative' }}>
+                      <div className="w-full h-full flex items-center justify-center p-2" style={{ position: 'relative' }}>
                         {/* Better video detection */}
                         {(() => {
                           const currentUrl = selectedImageUrl || imageUrls[0];
@@ -1034,6 +1034,8 @@ export default function ProductDetail() {
                                 className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110"
                                 width={400}
                                 height={400}
+                                fetchpriority="high"
+                                decoding="async"
                                 onClick={() => {
                                   // Create zoom modal
                                   const modal = document.createElement('div');

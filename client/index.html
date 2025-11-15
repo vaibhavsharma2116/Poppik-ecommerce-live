@@ -29,12 +29,17 @@
 
     </script>
 
-    <!-- Critical resource hints -->
+    <!-- Critical resource hints with high priority -->
     <link rel="preconnect" href="https://images.unsplash.com" crossorigin />
     <link rel="dns-prefetch" href="https://images.unsplash.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     
     <!-- Preload critical images -->
-    <link rel="preload" as="image" href="/favicon.png" />
+    <link rel="preload" as="image" href="/favicon.png" fetchpriority="high" />
+    
+    <!-- Preload critical fonts -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" />
     
     <!-- Google Fonts (if using) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

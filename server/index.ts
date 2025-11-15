@@ -40,10 +40,17 @@ process.on('SIGINT', () => {
 
 const app = express();
 
-// Enable compression
+// Enable aggressive compression
 app.use(compression({
-  level: 6,
-  threshold: 1024,
+  level: 9, // Maximum compression
+  threshold: 512, // Compress smaller files too
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    // Compress JSON, text, JavaScript, CSS, HTML, XML, and images
+    return compression.filter(req, res);
+  }
 }));
 
 // Trust proxy

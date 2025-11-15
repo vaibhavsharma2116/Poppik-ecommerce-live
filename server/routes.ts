@@ -2044,13 +2044,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const cacheKey = `${req.path}-${params}`;
     const fileStats = fs.statSync(imagePath);
 
-    // Set optimized caching headers
+    // Set aggressive caching headers with compression hints
     res.set({
       'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=31536000, immutable', // 1 year with immutable
+      'Cache-Control': 'public, max-age=31536000, immutable, stale-while-revalidate=86400',
       'ETag': `"${cacheKey}-${fileStats.mtime.getTime()}"`,
       'Last-Modified': fileStats.mtime.toUTCString(),
-      'Vary': 'Accept-Encoding'
+      'Vary': 'Accept-Encoding, Accept',
+      'X-Content-Type-Options': 'nosniff',
+      'Accept-Ranges': 'bytes'
     });
 
     // Handle conditional requests

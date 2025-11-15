@@ -444,29 +444,36 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <Heart className={`h-6 w-6 transition-all duration-300 ${isInWishlist ? "text-red-500 fill-current animate-pulse" : "text-gray-400 hover:text-pink-500"}`} />
         </button>
         <Link href={`/product/${product.slug}`}>
-          <div className="relative overflow-hidden bg-white">
+          <div className="relative overflow-hidden bg-white" style={{ aspectRatio: '1/1', minHeight: '200px' }}>
             <img
               src={(() => {
                 // Handle new images array format with maximum optimization for mobile
                 if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                   const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=80&h=80&q=30&fit=crop&fm=webp&dpr=1' : ''}`;
+                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=400&h=400&q=75&fit=crop&fm=webp&dpr=1' : ''}`;
                 } else if (product.imageUrl) {
-                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=80&h=80&q=30&fit=crop&fm=webp&dpr=1' : ''}`;
+                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=400&h=400&q=75&fit=crop&fm=webp&dpr=1' : ''}`;
                 }
-                return `https://images.unsplash.com/photo-1556228720-195a672e8a03?w=80&h=80&q=30&fit=crop&fm=webp&dpr=1`;
+                return `https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&q=75&fit=crop&fm=webp&dpr=1`;
               })()}
               alt={product.name}
-              className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
+              className="w-full h-full object-contain"
               loading="lazy"
               decoding="async"
               fetchpriority="low"
-              width="80"
-              height="80"
-              style={{ width: '100%', height: '70%', objectFit: 'contain', display: 'block' }}
+              width="400"
+              height="400"
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                minHeight: '200px',
+                objectFit: 'contain', 
+                display: 'block',
+                backgroundColor: 'transparent'
+              }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=80&h=80&q=30&fit=crop&fm=webp&dpr=1';
+                target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&q=75&fit=crop&fm=webp&dpr=1';
               }}
             />
             <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>

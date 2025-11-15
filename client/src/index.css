@@ -642,6 +642,13 @@ body {
     padding: 0 8px;
     width: 100%;
     box-sizing: border-box;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .mobile-product-grid > * {
+    min-width: 0;
+    min-height: 0;
   }
 
   @media (min-width: 480px) {
@@ -2569,6 +2576,8 @@ body {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
   animation: loading 2s infinite;
+  min-height: 200px;
+  aspect-ratio: 1/1;
 }
 
 @keyframes loading {
@@ -2583,6 +2592,13 @@ body {
 
 .image-blur-load.loaded {
   filter: blur(0);
+}
+
+/* Prevent layout shift on image load */
+.mobile-product-card img {
+  aspect-ratio: 1/1;
+  min-height: 200px;
+  object-fit: contain !important;
 }
 
 /* Progressive JPEG support */
