@@ -12,9 +12,9 @@ export function optimizeImageUrl(
   options: ImageOptimizationOptions = {}
 ): string {
   const {
-    width = 400,
-    height = 400,
-    quality = 80,
+    width = 200,  // Reduced default size
+    height = 200,
+    quality = 60,  // Reduced quality for faster load
     format = 'webp',
     fit = 'contain'
   } = options;
@@ -22,7 +22,7 @@ export function optimizeImageUrl(
   // Handle Unsplash URLs
   if (originalUrl.includes('unsplash.com')) {
     const baseUrl = originalUrl.split('?')[0];
-    return `${baseUrl}?w=${width}&h=${height}&q=${quality}&fit=${fit}&fm=${format}&auto=format`;
+    return `${baseUrl}?w=${width}&h=${height}&q=${quality}&fit=${fit}&fm=${format}&auto=format&dpr=1`;
   }
 
   // Handle local images through our API

@@ -244,7 +244,7 @@ export default function HomePage() {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
-    enabled: false, // Don't load automatically
+    enabled: false,
   });
 
   const { data: newLaunchProducts, isLoading: newLaunchLoading } = useQuery<
@@ -256,7 +256,7 @@ export default function HomePage() {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
-    enabled: false, // Don't load automatically
+    enabled: false,
   });
 
   const { data: allProducts, isLoading: allProductsLoading } = useQuery<
@@ -404,20 +404,20 @@ export default function HomePage() {
                                 height: 'clamp(8px, 2vw, 24px)'
                               }}
                             ></div>
-
                             <img
                               src={
-                                category.imageUrl ||
-                                categoryImages[
-                                  category.slug as keyof typeof categoryImages
-                                ] ||
-                                "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400"
+                                category.imageUrl
+                                  ? `${category.imageUrl}${category.imageUrl.includes('unsplash') ? '&w=100&h=100&q=40&fit=crop&auto=format&fm=webp&dpr=1' : ''}`
+                                  : categoryImages[category.slug as keyof typeof categoryImages]
+                                    ? `${categoryImages[category.slug as keyof typeof categoryImages]}&w=100&h=100&q=40&fit=crop&auto=format&fm=webp&dpr=1`
+                                    : "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=40&fm=webp&dpr=1"
                               }
                               alt={category.name}
-                              width="280"
-                              height="280"
-                              loading="lazy"
-                              decoding="async"
+                              width="100"
+                              height="100"
+                              loading={index < 4 ? "eager" : "lazy"}
+                              decoding={index < 4 ? "sync" : "async"}
+                              fetchpriority={index < 4 ? "high" : "low"}
                               className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 bg-white"
                               style={{
                                 width: '100%',
@@ -663,7 +663,7 @@ export default function HomePage() {
               <>
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {allProducts?.slice(0, 4).map((product) => (
+                    {allProducts.slice(0, 4).map((product, index) => (
                       <ProductCard
                         key={product.id}
                         product={product}
@@ -694,10 +694,6 @@ export default function HomePage() {
                   </Link>
                 </div>
               </>
-            ) : !allProductsLoading ? (
-              <div className="text-center py-12">
-                <p className="text-gray-600">No products available at the moment.</p>
-              </div>
             ) : null}
           </div>
         </div>
@@ -721,17 +717,19 @@ export default function HomePage() {
     </div>
 
     {allProductsLoading ? (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="overflow-hidden">
-            <Skeleton className="h-72 w-full" />
-            <CardContent className="p-6 space-y-3">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-6 w-1/2" />
-            </CardContent>
-          </Card>
-        ))}
+      <div className="px-2 sm:px-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+              <Skeleton className="aspect-square w-full" />
+              <div className="p-3 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-6 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     ) : allProducts && allProducts.length > 0 ? (
       <>
@@ -740,7 +738,7 @@ export default function HomePage() {
             {(() => {
               const newLaunches = allProducts.filter((product) => product.newLaunch);
               const productsToShow = newLaunches.length > 0 ? newLaunches : allProducts;
-              return productsToShow.slice(0, 4).map((product) => (
+              return productsToShow.slice(0, 4).map((product, index) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -771,47 +769,8 @@ export default function HomePage() {
             </Button>
           </Link>
         </div>
-
-        {allProducts?.filter((product) => product.newLaunch).length === 0 && (
-          <div className="text-center py-12">
-            <div className="mx-auto w-16 h-16 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mb-6">
-              <svg
-                className="w-8 h-8 text-emerald-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              New Products Coming Soon!
-            </h3>
-            <p className="text-gray-600 mb-6">
-              We're working on exciting new launches. Stay tuned!
-            </p>
-            <Link href="/products">
-              <Button
-                variant="outline"
-                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-              >
-                Browse All Products
-              </Button>
-            </Link>
-          </div>
-        )}
       </>
-    ) : (
-      // Fallback for when there are no products at all
-      <div className="text-center py-12">
-        <p className="text-gray-600">No products available.</p>
-      </div>
-    )}
+    ) : null}
   </div>
 </section>
 
@@ -1145,7 +1104,7 @@ function ComboSection() {
                         <div className="flex items-center space-x-1.5 sm:space-x-2">
                           <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
                             combo.inStock !== false
-                              ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
+                              ? 'bg-gradient-to-r from-green-400 to-emerald-400'
                               : 'bg-gradient-to-r from-red-400 to-rose-400'
                           }`}></div>
                           <span className={`font-bold text-xs sm:text-sm ${

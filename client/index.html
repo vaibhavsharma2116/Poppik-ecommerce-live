@@ -29,9 +29,12 @@
 
     </script>
 
-    <!-- Preconnect to external resources for faster loading -->
-    <link rel="preconnect" href="https://images.unsplash.com" />
+    <!-- Critical resource hints -->
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin />
     <link rel="dns-prefetch" href="https://images.unsplash.com" />
+    
+    <!-- Preload critical images -->
+    <link rel="preload" as="image" href="/favicon.png" />
     
     <!-- Google Fonts (if using) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -43,9 +46,15 @@
     <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
     <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
     
-    <!-- CDN and static assets (if any) -->
+    <!-- CDN and static assets -->
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
     <link rel="dns-prefetch" href="https://unpkg.com" />
+    
+    <!-- Optimize render blocking -->
+    <style>
+      body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+      #root { min-height: 100vh; }
+    </style>
 
   </head>
   <body>
