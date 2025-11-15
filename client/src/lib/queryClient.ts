@@ -54,12 +54,13 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: defaultQueryFn,
-      staleTime: 1000 * 60 * 60, // 60 minutes - aggressive caching
-      gcTime: 1000 * 60 * 120, // 120 minutes - keep in memory longer
+      staleTime: Infinity, // Never automatically refetch
+      gcTime: Infinity, // Keep in cache forever
       retry: 1,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       refetchOnMount: false,
+      networkMode: 'online',
     },
   },
 });

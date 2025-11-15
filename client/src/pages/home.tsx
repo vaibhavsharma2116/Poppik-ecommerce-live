@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import {
@@ -25,13 +25,15 @@ import HeroBanner from "@/components/hero-banner";
 import ProductCard from "@/components/product-card";
 import { Filter } from "lucide-react";
 import DynamicFilter from "@/components/dynamic-filter";
-import VideoTestimonials from "@/components/video-testimonials";
 import type { Product, Category } from "@/lib/types";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
-import OptimizedImage from "@/components/optimized-image"; // Assuming OptimizedImage is used
+import { ScrollArea } from "@/components/ui/scroll-area";
+import OptimizedImage from "@/components/optimized-image";
 import AnnouncementBar from "@/components/announcement-bar";
 import { useToast } from "@/hooks/use-toast";
 import { Helmet } from "react-helmet";
+
+// Lazy load heavy components
+const VideoTestimonials = lazy(() => import("@/components/video-testimonials"));
 
 // Preload hint for faster image loading
 if (typeof document !== 'undefined') {
@@ -226,40 +228,46 @@ export default function HomePage() {
     Product[]
   >({
     queryKey: ["/api/products/bestsellers"],
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    staleTime: Infinity, // Never refetch automatically
+    gcTime: Infinity, // Keep forever
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
   const { data: featuredProducts, isLoading: featuredLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products/featured"],
-    staleTime: 10 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    staleTime: Infinity,
+    gcTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    refetchOnReconnect: false,
+    enabled: false, // Don't load automatically
   });
 
   const { data: newLaunchProducts, isLoading: newLaunchLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products/new-launches"],
-    staleTime: 10 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    staleTime: Infinity,
+    gcTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    refetchOnReconnect: false,
+    enabled: false, // Don't load automatically
   });
 
   const { data: allProducts, isLoading: allProductsLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products"],
-    staleTime: 60 * 60 * 1000, // Cache for 60 minutes
-    gcTime: 120 * 60 * 1000,
+    staleTime: Infinity,
+    gcTime: Infinity,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 
 
@@ -822,7 +830,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      <VideoTestimonials />
+      <Suspense fallback={<div className="py-12 text-center"><Skeleton className="h-64 w-full max-w-7xl mx-auto" /></div>}>
+        <VideoTestimonials />
+      </Suspense>
 
       {/* Blog Section - Latest Posts Per Category */}
       <section className="py-8 sm:py-10 md:py-12 lg:py-16 bg-gradient-to-br from-slate-50 via-white to-gray-50">

@@ -65,7 +65,7 @@ import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
 import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage } from "../shared/schema";
-import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema } from "../shared/schema"; // Import users table explicitly
+import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema, products, categories, stores, admin } from "../shared/schema"; // Import users table explicitly
 import type { Request, Response } from 'express'; // Import Request and Response types for clarity
 
 // Initialize Shiprocket service
@@ -2195,10 +2195,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Products API
   app.get("/api/products", async (req, res) => {
     try {
-      console.log("GET /api/products - Fetching products...");
+      // Set cache headers for 10 minutes
+      res.setHeader('Cache-Control', 'public, max-age=600, s-maxage=600');
+      res.setHeader('Vary', 'Accept-Encoding');
 
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); // 5 min cache, 10 min stale
+      console.log("GET /api/products - Fetching products...");
+      console.log("Executing SELECT query on products table...");
 
       const products = await storage.getProducts();
       console.log("Products fetched:", products?.length || 0);
@@ -2527,12 +2529,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Categories API
  app.get("/api/categories", async (req, res) => {
-  try {
-    const categories = await storage.getCategories();
-    console.log("categories", categories);
+    try {
+      // Cache categories for 30 minutes
+      res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=1800');
+      res.setHeader('Vary', 'Accept-Encoding');
 
-    // const categoriesWithCount = await Promise.all(
-      categories.map(async (category) => {
+      console.log("GET /api/categories - Fetching categories...");
+      const allCategories = await db.select().from(categories);
+      console.log("categories", allCategories);
+
+      // const categoriesWithCount = await Promise.all(
+      allCategories.map(async (category) => {
         // const products = await storage.getProductsByCategory(category.name);
         // console.log(`Category: ${category.name}, Products:`, products);
         return {
@@ -2543,7 +2550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // );
 
     // console.log("categoriesWithCount", categoriesWithCount);
-    res.json(categories);
+    res.json(allCategories);
   } catch (error) {
     console.log("Database unavailable, returning empty categories");
     res.json([]);
@@ -4129,6 +4136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orderId = req.params.id.replace('ORD-', '');
 
+      // Get order from database
       const order = await db
         .select()
         .from(schema.ordersTable)
@@ -8050,7 +8058,7 @@ Poppik Affiliate Portal
               ${notes ? `<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
                 <p style="margin: 0; color: #856404;"><strong>Reason:</strong> ${notes}</p>
               </div>` : ''}
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0;">
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0 0 0;">
                 We encourage you to reapply in the future. Keep creating amazing content!
               </p>
               <p style="font-size: 14px; color: #999999; margin: 20px 0 0 0;">

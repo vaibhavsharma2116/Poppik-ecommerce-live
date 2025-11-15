@@ -257,18 +257,19 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   // Handle new images array format with aggressive optimization
                   if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                     const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                    return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=200&h=200&q=60&fit=crop&auto=format' : ''}`;
+                    return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=200&h=200&q=50&fit=crop&auto=format' : ''}`;
                   } else if (product.imageUrl) {
-                    return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=200&h=200&q=60&fit=crop&auto=format' : ''}`;
+                    return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=200&h=200&q=50&fit=crop&auto=format' : ''}`;
                   }
-                  return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60';
+                  return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=50';
                 })()}
                 alt={product.name}
                 className="w-full h-full object-contain cursor-pointer group-hover:scale-110 transition-transform duration-700 rounded-lg"
                 loading="lazy"
                 decoding="async"
-                width="400"
-                height="400"
+                fetchpriority="low"
+                width="200"
+                height="200"
                 onLoad={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.style.opacity = '1';
@@ -276,7 +277,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 style={{ opacity: 0, transition: 'opacity 0.3s ease', width: '100%', height: '100%', objectFit: 'contain' }}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
+                  target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=50';
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
@@ -448,17 +449,19 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 // Handle new images array format with maximum optimization
                 if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                   const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=120&h=120&q=50&fit=crop&auto=format' : ''}`;
+                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=150&h=150&q=50&fit=crop&auto=format' : ''}`;
                 } else if (product.imageUrl) {
-                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=120&h=120&q=50&fit=crop&auto=format' : ''}`;
+                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=150&h=150&q=50&fit=crop&auto=format' : ''}`;
                 }
-                return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=120&h=120&q=50';
+                return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150&q=50';
               })()}
               alt={product.name}
               className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
               loading="lazy"
               decoding="async"
               fetchpriority="low"
+              width="150"
+              height="150"
               style={{ width: '100%', height: '70%', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
