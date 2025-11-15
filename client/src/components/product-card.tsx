@@ -48,9 +48,9 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       const response = await fetch(`/api/products/${product.id}/shades`);
       if (!response.ok) return [];
       const shades = await response.json();
-      return shades.filter((shade: Shade) => 
-        shade.productIds && 
-        Array.isArray(shade.productIds) && 
+      return shades.filter((shade: Shade) =>
+        shade.productIds &&
+        Array.isArray(shade.productIds) &&
         shade.productIds.includes(product.id) &&
         shade.isActive
       );
@@ -197,8 +197,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
 
-    const shadeText = selectedShades.length > 0 
-      ? ` (${selectedShades.map(s => s.name).join(', ')})` 
+    const shadeText = selectedShades.length > 0
+      ? ` (${selectedShades.map(s => s.name).join(', ')})`
       : '';
     toast({
       title: "Added to Cart",
@@ -213,9 +213,9 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   };
 
   // Use admin-calculated discount or calculate if not available
-  const discountPercentage = product.discount 
+  const discountPercentage = product.discount
     ? Math.round(Number(product.discount))
-    : product.originalPrice 
+    : product.originalPrice
       ? Math.round(((Number(product.originalPrice) - Number(product.price)) / Number(product.originalPrice)) * 100)
       : 0;
 
@@ -224,8 +224,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       <Star
         key={i}
         className={`w-4 h-4 ${
-          i < Math.floor(rating) 
-            ? "fill-yellow-400 text-yellow-400" 
+          i < Math.floor(rating)
+            ? "fill-yellow-400 text-yellow-400"
             : "text-gray-300"
         }`}
       />
@@ -239,7 +239,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
   if (viewMode === 'list') {
     return (
-      <div 
+      <div
         className={`product-card group flex overflow-hidden bg-gradient-to-r from-white via-pink-50 to-purple-50 transition-all duration-500 ${className}`}
         style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
       >
@@ -365,8 +365,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               {/* Stock status */}
               <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
                 <div className={`w-2 h-2 sm:w-3 sm:h-3 md:w-4 md:h-4 rounded-full animate-pulse ${
-                  product.inStock 
-                    ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
+                  product.inStock
+                    ? 'bg-gradient-to-r from-green-400 to-emerald-400'
                     : 'bg-gradient-to-r from-red-400 to-rose-400'
                 }`}></div>
                 <span className={`font-bold text-xs sm:text-sm md:text-base lg:text-lg ${
@@ -380,8 +380,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
             {product.inStock ? (
               productShades.length > 0 ? (
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   className="w-full text-sm py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                   onClick={(e) => {
                     e.preventDefault();
@@ -392,8 +392,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   Select Shades
                 </Button>
               ) : (
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   className="w-full text-sm py-3 flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                   onClick={addToCart}
                 >
@@ -402,8 +402,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 </Button>
               )
             ) : (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 className="w-full text-sm py-3 flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                 onClick={toggleWishlist}
               >
@@ -418,12 +418,12 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   }
 
   return (
-    <div 
+    <div
       className={`mobile-product-card-container group transition-all duration-300 overflow-hidden bg-white ${className}`}
-      style={{ 
-        border: 'none !important', 
-        outline: 'none !important', 
-        boxShadow: 'none !important', 
+      style={{
+        border: 'none !important',
+        outline: 'none !important',
+        boxShadow: 'none !important',
         WebkitBoxShadow: 'none !important',
         MozBoxShadow: 'none !important',
         borderRadius: '12px',
@@ -448,11 +448,11 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 // Handle new images array format
                 if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                   const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=200&h=200&q=60&fit=crop&auto=format' : ''}`;
+                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=150&h=150&q=50&fit=crop&auto=format' : ''}`;
                 } else if (product.imageUrl) {
-                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=200&h=200&q=60&fit=crop&auto=format' : ''}`;
+                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=150&h=150&q=50&fit=crop&auto=format' : ''}`;
                 }
-                return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60';
+                return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150&q=50';
               })()}
               alt={product.name}
               className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
@@ -462,7 +462,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               style={{ width: '100%', height: '70%', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60';
+                target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150&q=50';
               }}
             />
             <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
@@ -524,8 +524,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             {/* Stock status */}
             <div className="flex items-center space-x-1.5 sm:space-x-2 mb-3 sm:mb-4">
               <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
-                product.inStock 
-                  ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
+                product.inStock
+                  ? 'bg-gradient-to-r from-green-400 to-emerald-400'
                   : 'bg-gradient-to-r from-red-400 to-rose-400'
               }`}></div>
               <span className={`font-bold text-xs sm:text-sm ${
@@ -539,8 +539,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
           {product.inStock ? (
             productShades.length > 0 ? (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
                 onClick={(e) => {
                   e.preventDefault();
@@ -551,8 +551,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 Select Shades
               </Button>
             ) : (
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
                 onClick={addToCart}
               >
@@ -561,8 +561,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               </Button>
             )
           ) : (
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] flex items-center justify-center gap-1.5 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
               onClick={toggleWishlist}
             >
@@ -632,7 +632,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   <div className="flex flex-wrap gap-2">
                     {selectedShades.map(shade => (
                       <div key={shade.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-purple-200">
-                        <div 
+                        <div
                           className="w-3 h-3 rounded-full border border-white shadow-sm"
                           style={{ backgroundColor: shade.colorCode }}
                         />
@@ -648,7 +648,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-gray-900">
-                  Select Shades: 
+                  Select Shades:
                   {selectedShades.length > 0 && (
                     <span className="ml-2 text-sm text-purple-600">({selectedShades.length} selected)</span>
                   )}
@@ -680,7 +680,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                         }
                       }}
                       className={`group relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 ${
-                        isOutOfStock 
+                        isOutOfStock
                           ? 'opacity-50 cursor-not-allowed border-gray-300 bg-gray-100'
                           : isSelected
                             ? 'cursor-pointer border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md scale-105 hover:shadow-lg'

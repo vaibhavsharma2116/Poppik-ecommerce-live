@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Link, useLocation } from "wouter";
 import {
   Star,
   Heart,
@@ -18,8 +15,12 @@ import {
   ChevronRight,
   Calendar,
   User,
+  Package,
+  Badge,
 } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import HeroBanner from "@/components/hero-banner";
 import ProductCard from "@/components/product-card";
 import { Filter } from "lucide-react";
@@ -30,6 +31,15 @@ import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 import OptimizedImage from "@/components/optimized-image"; // Assuming OptimizedImage is used
 import AnnouncementBar from "@/components/announcement-bar";
 import { useToast } from "@/hooks/use-toast";
+import { Helmet } from "react-helmet";
+
+// Preload hint for faster image loading
+if (typeof document !== 'undefined') {
+  const preconnectLink = document.createElement('link');
+  preconnectLink.rel = 'preconnect';
+  preconnectLink.href = 'https://images.unsplash.com';
+  document.head.appendChild(preconnectLink);
+}
 
 interface Testimonial {
   id: number;
@@ -250,7 +260,7 @@ export default function HomePage() {
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    select: (data) => data?.slice(0, 8) || [], // Only take first 8 products for home page
+    select: (data) => data?.slice(0, 4) || [], // Only take first 4 products for home page
   });
 
 

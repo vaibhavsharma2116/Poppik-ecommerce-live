@@ -41,17 +41,25 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// Default query function for tanstack query
+const defaultQueryFn: QueryFunction = async ({ queryKey }) => {
+  const res = await fetch(queryKey[0] as string, {
+    credentials: "include",
+  });
+  await throwIfResNotOk(res);
+  return await res.json();
+};
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
+      queryFn: defaultQueryFn,
+      staleTime: 1000 * 60 * 30, // 30 minutes - longer cache for products
+      gcTime: 1000 * 60 * 60, // 60 minutes - keep in memory longer
+      retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
-    },
-    mutations: {
-      retry: false,
+      refetchOnReconnect: false,
+      refetchOnMount: false,
     },
   },
 });
