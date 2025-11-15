@@ -900,10 +900,18 @@ export class DatabaseStorage implements IStorage {
       const db = await getDb();
 
       // Add updatedAt timestamp as Date object
-      const updateData = {
+      const updateData: any = {
         ...shadeData,
         updatedAt: new Date()
       };
+
+      // Ensure boolean fields are properly typed
+      if (updateData.isActive !== undefined) {
+        updateData.isActive = Boolean(updateData.isActive);
+      }
+      if (updateData.inStock !== undefined) {
+        updateData.inStock = Boolean(updateData.inStock);
+      }
 
       console.log("Updating shade in database:", { id, updateData });
 

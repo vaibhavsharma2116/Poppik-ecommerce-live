@@ -3313,7 +3313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userUsageLimit: userUsageLimit ? parseInt(userUsageLimit) : 1,
         validFrom: validFrom ? new Date(validFrom) : new Date(),
         validUntil: validUntil ? new Date(validUntil) : null,
-        isActive: isActive !== false,
+        isActive: isActive !== false && isActive !== 'false',
         usageCount: 0
       }).returning();
 
@@ -3786,7 +3786,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (affiliateWalletAmount > 0 && user?.id) {
         try {
           console.log(`🔍 Deducting ₹${affiliateWalletAmount} from affiliate wallet for user ${user.id}`);
-          
+
           // Get affiliate wallet
           const wallet = await db
             .select()
@@ -3830,7 +3830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Credit affiliate commission to wallet if affiliate code was used
       if (affiliateCode && affiliateCode.startsWith('POPPIKAP')) {
         const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
-        
+
         console.log(`🔍 Processing affiliate commission for code: ${affiliateCode}, userId: ${affiliateUserId}`);
 
         if (!isNaN(affiliateUserId)) {
@@ -3858,7 +3858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Calculate commission based on dynamic rate from settings
               const finalPayableAmount = Number(totalAmount) - (affiliateWalletAmount || 0);
               const calculatedCommission = (finalPayableAmount * commissionRate) / 100;
-              
+
               console.log(`💰 Calculated commission: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${totalAmount})`);
 
               // Get or create affiliate wallet
@@ -3878,7 +3878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   totalEarnings: calculatedCommission.toFixed(2),
                   totalWithdrawn: "0.00"
                 }).returning();
-                
+
                 console.log(`✅ Wallet created:`, newWallet);
               } else {
                 console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
@@ -3894,7 +3894,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   })
                   .where(eq(schema.affiliateWallet.userId, affiliateUserId))
                   .returning();
-                
+
                 console.log(`✅ Wallet updated:`, updatedWallet);
               }
 
@@ -3927,7 +3927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 commissionRate: commissionRate.toFixed(2),
                 status: 'confirmed'
               }).returning();
-              
+
               console.log(`✅ Sale record created:`, saleRecord);
 
               // Add transaction record
@@ -3941,7 +3941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 status: 'completed',
                 createdAt: new Date()
               }).returning();
-              
+
               console.log(`✅ Transaction record created:`, transactionRecord);
 
               console.log(`✅ Affiliate commission credited: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for order ${newOrder.id}`);
@@ -5059,8 +5059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: name.trim(),
         slug,
         description: description?.trim() || '',
-        categoryId: parseInt(categoryId),
-        isActive: isActive !== false && isActive !== 'false',
+        categoryId: parseInt(categoryId),        isActive: isActive !== false && isActive !== 'false',
         sortOrder: parseInt(sortOrder) || 0
       };
 
@@ -5083,10 +5082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updateData: Partial<InsertBlogSubcategory> = {};
 
-      if (name !== undefined) {
-        updateData.name = name.trim();
-        updateData.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      }
+      if (name !== undefined) updateData.name = name.trim();
       if (description !== undefined) updateData.description = description.trim();
       if (categoryId !== undefined) updateData.categoryId = parseInt(categoryId);
       if (isActive !== undefined) updateData.isActive = isActive !== false && isActive !== 'false';
@@ -5992,7 +5988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/shades/:id", async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = parseInt(req.params.id);
       console.log("Updating shade with ID:", id);
       console.log("Update data received:", req.body);
 
@@ -6000,16 +5996,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { productIds, categoryIds, subcategoryIds, ...shadeData } = req.body;
 
       // Update shade with only product-specific assignments
-      const shade = await storage.updateShade(parseInt(id), {
+      const updatedShade = await storage.updateShade(id, {
         ...shadeData,
         productIds: productIds || [], // Only store individually selected products
         categoryIds: categoryIds || [],
         subcategoryIds: subcategoryIds || []
       });
 
-      console.log("Shade updated successfully:", shade);
-      res.json(shade);
-    } catch (error) {
+      console.log("Shade updated successfully:", updatedShade);
+      res.json(updatedShade);
+    } catch (error: any) {
       console.error("Error updating shade:", error);
 
       let errorMessage = "Failed to update shade";
@@ -7987,15 +7983,7 @@ Poppik Affiliate Portal
           : 'Update on Your Poppik Affiliate Application';
 
         const emailHtml = status === 'approved'
-          ? `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to Poppik Affiliate Program</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
     <!-- Header -->
     <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 40px 20px; text-align: center;">
       <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to the Poppik Lifestyle Private Limited Affiliate Program</h1>

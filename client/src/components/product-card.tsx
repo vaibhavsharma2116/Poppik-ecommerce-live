@@ -40,7 +40,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   const isMobile = useIsMobile();
 
 
-  // Fetch product shades
+  // Fetch product shades (only active shades, including out of stock)
   const { data: productShades = [] } = useQuery<Shade[]>({
     queryKey: [`/api/products/${product?.id}/shades`],
     queryFn: async () => {
@@ -49,7 +49,10 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       if (!response.ok) return [];
       const shades = await response.json();
       return shades.filter((shade: Shade) => 
-        shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(product.id)
+        shade.productIds && 
+        Array.isArray(shade.productIds) && 
+        shade.productIds.includes(product.id) &&
+        shade.isActive
       );
     },
     enabled: !!product?.id,
@@ -662,20 +665,26 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               <div className="grid grid-cols-4 gap-3">
                 {productShades.map((shade) => {
                   const isSelected = selectedShades.some(s => s.id === shade.id);
+                  const isOutOfStock = !shade.inStock;
                   return (
                     <div
                       key={shade.id}
                       onClick={() => {
+                        if (isOutOfStock) {
+                          return; // Don't allow selection of out-of-stock shades
+                        }
                         if (isSelected) {
                           setSelectedShades(selectedShades.filter(s => s.id !== shade.id));
                         } else {
                           setSelectedShades([...selectedShades, shade]);
                         }
                       }}
-                      className={`cursor-pointer group relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 hover:shadow-lg ${
-                        isSelected
-                          ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md scale-105'
-                          : 'border-purple-300 hover:border-purple-400 hover:bg-purple-25'
+                      className={`group relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 ${
+                        isOutOfStock 
+                          ? 'opacity-50 cursor-not-allowed border-gray-300 bg-gray-100'
+                          : isSelected
+                            ? 'cursor-pointer border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md scale-105 hover:shadow-lg'
+                            : 'cursor-pointer border-purple-300 hover:border-purple-400 hover:bg-purple-25 hover:shadow-lg'
                       }`}
                     >
                       {shade.imageUrl ? (
@@ -709,9 +718,14 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                       }`}>
                         {shade.name}
                       </span>
-                      {isSelected && (
+                      {isSelected && !isOutOfStock && (
                         <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-1 shadow-lg">
                           <Check className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                      {isOutOfStock && (
+                        <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full shadow-md font-bold">
+                          OUT
                         </div>
                       )}
                     </div>

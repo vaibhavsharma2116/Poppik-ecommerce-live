@@ -28,6 +28,7 @@ interface Shade {
   colorCode: string;
   value: string;
   isActive: boolean;
+  inStock: boolean;
   sortOrder: number;
   categoryIds?: number[];
   subcategoryIds?: number[];
@@ -69,6 +70,7 @@ export default function AdminShades() {
     colorCode: '#F7E7CE',
     value: '',
     isActive: true,
+    inStock: true,
     sortOrder: 0,
     categoryIds: [] as number[],
     subcategoryIds: [] as number[],
@@ -203,6 +205,7 @@ export default function AdminShades() {
       colorCode: '#F7E7CE',
       value: '',
       isActive: true,
+      inStock: true,
       sortOrder: 0,
       categoryIds: [],
       subcategoryIds: [],
@@ -224,6 +227,7 @@ export default function AdminShades() {
       colorCode: shade.colorCode,
       value: shade.value,
       isActive: shade.isActive,
+      inStock: shade.inStock,
       sortOrder: shade.sortOrder,
       categoryIds: shade.categoryIds || [],
       subcategoryIds: shade.subcategoryIds || [],
@@ -286,12 +290,54 @@ export default function AdminShades() {
     }
   };
 
-  const handleToggleActive = (shade: Shade) => {
-    updateShadeMutation.mutate({
-      id: shade.id,
-      data: { ...shade, isActive: !shade.isActive }
-    });
-  };
+  const handleToggleActive = async (id: number, currentStatus: boolean) => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          toast({
+            title: "Error",
+            description: "Authentication required. Please log in again.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const response = await fetch(`/api/admin/shades/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            isActive: !currentStatus
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to update shade status');
+        }
+
+        const updatedShade = await response.json();
+        console.log('Shade updated successfully:', updatedShade);
+
+        // Refresh the shades list
+        queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
+        queryClient.invalidateQueries({ queryKey: ['shades'] });
+        
+        toast({
+          title: "Success",
+          description: `Shade ${updatedShade.isActive ? 'activated' : 'deactivated'} successfully`,
+        });
+      } catch (error) {
+        console.error('Error updating shade:', error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to update shade status",
+          variant: "destructive",
+        });
+      }
+    };
 
   // Get subcategories for selected categories
   const getAvailableSubcategories = (selectedCategoryIds: number[]) => {
@@ -474,7 +520,8 @@ export default function AdminShades() {
                 <TableHead className="text-slate-800 font-semibold py-4">Color Code</TableHead>
                 <TableHead className="text-slate-800 font-semibold py-4">Categories</TableHead>
                 <TableHead className="text-slate-800 font-semibold py-4">Products</TableHead>
-                <TableHead className="text-slate-800 font-semibold py-4">Status</TableHead>
+                <TableHead className="text-slate-800 font-semibold py-4">Active</TableHead>
+                <TableHead className="text-slate-800 font-semibold py-4">Stock</TableHead>
                 <TableHead className="text-slate-800 font-semibold py-4 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -531,7 +578,7 @@ export default function AdminShades() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleToggleActive(shade)}
+                        onClick={() => handleToggleActive(shade.id, shade.isActive)}
                         className="p-1"
                       >
                         <Badge 
@@ -542,6 +589,70 @@ export default function AdminShades() {
                           }
                         >
                           {shade.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </Button>
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const token = localStorage.getItem('token');
+                            if (!token) {
+                              toast({
+                                title: "Error",
+                                description: "Authentication required. Please log in again.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+
+                            const response = await fetch(`/api/admin/shades/${shade.id}`, {
+                              method: 'PUT',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`,
+                              },
+                              body: JSON.stringify({
+                                inStock: !shade.inStock
+                              }),
+                            });
+
+                            if (!response.ok) {
+                              const errorData = await response.json();
+                              throw new Error(errorData.error || 'Failed to update shade stock status');
+                            }
+
+                            const updatedShade = await response.json();
+
+                            // Refresh the shades list
+                            queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
+                            queryClient.invalidateQueries({ queryKey: ['shades'] });
+                            
+                            toast({
+                              title: "Success",
+                              description: `Shade ${updatedShade.inStock ? 'marked as in stock' : 'marked as out of stock'} successfully`,
+                            });
+                          } catch (error) {
+                            console.error('Error updating shade stock:', error);
+                            toast({
+                              title: "Error",
+                              description: error instanceof Error ? error.message : "Failed to update shade stock status",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        className="p-1"
+                      >
+                        <Badge 
+                          variant={shade.inStock ? "default" : "destructive"}
+                          className={shade.inStock 
+                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200" 
+                            : "bg-red-100 text-red-800 border border-red-200"
+                          }
+                        >
+                          {shade.inStock ? 'In Stock' : 'Out of Stock'}
                         </Badge>
                       </Button>
                     </TableCell>
@@ -983,6 +1094,15 @@ export default function AdminShades() {
               />
               <Label htmlFor="add-active" className="text-sm">Active</Label>
             </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="add-inStock"
+                checked={formData.inStock}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, inStock: checked as boolean }))}
+              />
+              <Label htmlFor="add-inStock" className="text-sm">In Stock</Label>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1414,6 +1534,15 @@ export default function AdminShades() {
                 onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked as boolean }))}
               />
               <Label htmlFor="edit-active" className="text-sm">Active</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="edit-inStock"
+                checked={formData.inStock}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, inStock: checked as boolean }))}
+              />
+              <Label htmlFor="edit-inStock" className="text-sm">In Stock</Label>
             </div>
 
             {/* Show currently saved products for this shade */}

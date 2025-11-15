@@ -262,13 +262,14 @@ export const shades = pgTable("shades", {
   colorCode: text("color_code").notNull(),
   value: text("value").notNull().unique(),
   isActive: boolean("is_active").default(true).notNull(),
+  inStock: boolean("in_stock").default(true).notNull(),
   sortOrder: integer("sort_order").default(0).notNull(),
   categoryIds: jsonb("category_ids"),
   subcategoryIds: jsonb("subcategory_ids"),
   productIds: jsonb("product_ids"),
   imageUrl: text("image_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export type Shade = typeof shades.$inferSelect;

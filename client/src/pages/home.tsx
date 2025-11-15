@@ -336,7 +336,7 @@ export default function HomePage() {
                     justifyContent: 'center'
                   }}
                 >
-                  {categories?.map((category, index) => (
+                  {Array.isArray(categories) && categories.map((category, index) => (
                     <Link
                       key={category.id}
                       href={`/category/${category.slug}`}
@@ -465,7 +465,7 @@ export default function HomePage() {
               </div>
 
               {/* Navigation Buttons */}
-              {categories && categories.length > 4 && (
+              {Array.isArray(categories) && categories.length > 4 && (
                 <>
                   <button
                     onClick={() => {
