@@ -1,6 +1,9 @@
-import React, { useState, useEffect, lazy, Suspense } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Star,
   Heart,
@@ -17,36 +20,17 @@ import {
   User,
   Package,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Link, useLocation } from "wouter";
 import HeroBanner from "@/components/hero-banner";
 import ProductCard from "@/components/product-card";
 import { Filter } from "lucide-react";
 import DynamicFilter from "@/components/dynamic-filter";
+import VideoTestimonials from "@/components/video-testimonials";
 import type { Product, Category } from "@/lib/types";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import OptimizedImage from "@/components/OptimizedImage";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
+import OptimizedImage from "@/components/optimized-image"; // Assuming OptimizedImage is used
 import AnnouncementBar from "@/components/announcement-bar";
 import { useToast } from "@/hooks/use-toast";
-import { Helmet } from "react-helmet";
-import { Badge } from "@/components/ui/badge";
-
-// Lazy load heavy components with prefetch
-const VideoTestimonials = lazy(() => import("@/components/video-testimonials"));
-
-// Memoize expensive calculations
-const MemoizedComboSection = React.memo(ComboSection);
-const MemoizedTestimonialsCarousel = React.memo(TestimonialsCarousel);
-const MemoizedLatestBlogPosts = React.memo(LatestBlogPostsPerCategory);
-
-// Preload hint for faster image loading
-if (typeof document !== 'undefined') {
-  const preconnectLink = document.createElement('link');
-  preconnectLink.rel = 'preconnect';
-  preconnectLink.href = 'https://images.unsplash.com';
-  document.head.appendChild(preconnectLink);
-}
 
 interface Testimonial {
   id: number;
@@ -138,26 +122,27 @@ function TestimonialsCarousel() {
             let opacity = 1;
             let size = '';
 
-            if (isCenter) {
-              size = 'w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32';
-              opacity = 1;
-            } else if (position === -1 || position === 1) {
-              size = 'w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24';
-              opacity = 0.7;
-            } else {
+          if (isCenter) {
+            size = 'w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32';
+            opacity = 1;
+          } else if (position === -1 || position === 1) {
+             size = 'w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24';
+            opacity = 0.7;
+          } else {
               size = 'w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20';
               opacity = 0.5;
-            }
+          }
 
 
             return (
               <div
                 key={testimonial.id}
-                className={`${size} rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-300 flex-shrink-0 ${isCenter ? 'shadow-md sm:shadow-lg border-2 sm:border-4 border-white' : ''
-                  } ${position === -1 || position === 1 ? 'blur-[2px]' : ''}`}
+                className={`${size} rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-300 flex-shrink-0 ${
+                  isCenter ? 'shadow-md sm:shadow-lg border-2 sm:border-4 border-white' : ''
+                } ${position === -1 || position === 1 ? 'blur-[2px]' : ''}`}
                 style={{ opacity }}
               >
-                <OptimizedImage
+                <img
                   src={testimonial.customerImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop'}
                   alt={testimonial.customerName}
                   className="w-full h-full"
@@ -183,10 +168,11 @@ function TestimonialsCarousel() {
           {[1, 2, 3, 4, 5].map((star) => (
             <Star
               key={star}
-              className={`w-4 h-4 sm:w-5 sm:h-5 ${star <= currentTestimonial.rating
+              className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                star <= currentTestimonial.rating
                   ? 'text-yellow-400 fill-current'
                   : 'text-gray-300'
-                }`}
+              }`}
             />
           ))}
         </div>
@@ -227,41 +213,58 @@ export default function HomePage() {
     queryKey: ["/api/categories"],
   });
 
+  const { data: bestsellerProducts, isLoading: bestsellersLoading } = useQuery<
+    Product[]
+  >({
+    queryKey: ["/api/products/bestsellers"],
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const { data: featuredProducts, isLoading: featuredLoading } = useQuery<
+    Product[]
+  >({
+    queryKey: ["/api/products/featured"],
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const { data: newLaunchProducts, isLoading: newLaunchLoading } = useQuery<
+    Product[]
+  >({
+    queryKey: ["/api/products/new-launches"],
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
   const { data: allProducts, isLoading: allProductsLoading } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products"],
-    staleTime: Infinity,
-    gcTime: Infinity,
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    refetchOnReconnect: false,
-    retry: 0,
-    refetchInterval: false,
+    select: (data) => data?.slice(0, 8) || [], // Only take first 8 products for home page
   });
 
-  // Derive bestsellers and new launches from allProducts
-  const bestsellerProducts = allProducts?.filter(p => p.bestseller)?.slice(0, 4) || [];
-  const bestsellersLoading = allProductsLoading;
-
-  // Add DNS prefetch hint for faster API calls
-  React.useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'dns-prefetch';
-    link.href = window.location.origin;
-    document.head.appendChild(link);
-  }, []);
 
 
   const categoryImages = {
     skincare:
-      "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60",
+      "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
     haircare:
-      "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60",
+      "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
     makeup:
-      "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60",
+      "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
     bodycare:
-      "https://images.unsplash.com/photo-1571019613454-1cb2f982d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60",
+      "https://images.unsplash.com/photo-1571019613454-1cb2f982d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
   };
 
   const categoryGradients = {
@@ -294,7 +297,8 @@ export default function HomePage() {
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
 
 
-        {categoriesLoading ? (
+          {/* Dynamic Categories Grid - Mobile-first Design */}
+          {categoriesLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mb-12 sm:mb-16 md:mb-20">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="space-y-2 sm:space-3 md:space-y-4">
@@ -530,7 +534,6 @@ export default function HomePage() {
             </div>
           )}
 
-
           {/* Bestsellers Section - First */}
           <div className="space-y-8 sm:space-y-12">
             <div>
@@ -544,7 +547,7 @@ export default function HomePage() {
             {bestsellersLoading ? (
               <div className="px-2 sm:px-4">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {Array.from({ length: 4 }).map((_, i) => (
+                  {Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
                       <Skeleton className="aspect-square w-full" />
                       <div className="p-3 space-y-2">
@@ -560,11 +563,10 @@ export default function HomePage() {
               <>
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {bestsellerProducts.slice(0, 4).map((product, index) => (
+                    {bestsellerProducts.slice(0, 4).map((product) => (
                       <ProductCard
                         key={product.id}
                         product={product}
-                        priority={index < 2}
                         className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
                       />
                     ))}
@@ -624,7 +626,7 @@ export default function HomePage() {
             {allProductsLoading ? (
               <div className="px-2 sm:px-4">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {Array.from({ length: 4 }).map((_, i) => (
+                  {Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
                       <Skeleton className="aspect-square w-full" />
                       <div className="p-3 space-y-2">
@@ -640,118 +642,159 @@ export default function HomePage() {
               <>
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {allProducts.slice(0, 4).map((product, index) => (
+                    {allProducts?.map((product) => (
                       <ProductCard
                         key={product.id}
                         product={product}
-                        priority={false}
                         className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
                       />
                     ))}
                   </div>
                 </div>
 
-                <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                  <Link href="/products">
-                    <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-10 py-4 font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
-                      View All Products
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 8l4 4m0 0l-4 4m4-4H3"
-                        />
-                      </svg>
-                    </Button>
-                  </Link>
-                </div>
+                {allProducts && allProducts.length > 4 && (
+                    <div className="text-center mt-6 sm:mt-8 md:mt-10">
+                      <Link href="/products">
+                        <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-10 py-4 font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300">
+                          View All Products ({allProducts.length})
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17 8l4 4m0 0l-4 4m4-4H3"
+                            />
+                          </svg>
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
               </>
+            ) : !allProductsLoading ? (
+              <div className="text-center py-12">
+                <p className="text-gray-600">No products available at the moment.</p>
+              </div>
             ) : null}
           </div>
         </div>
       </section>
 
       {/* New Launches Section - Third */}
-      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.02]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
-        </div>
+     <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+  <div className="absolute inset-0 opacity-[0.02]">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
+  </div>
 
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="space-y-8 sm:space-y-12">
-            <div>
-              <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center">
-                <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
-                  New Launches
-                </span>
-              </h3>
-            </div>
+  <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
+    <div className="space-y-8 sm:space-y-12">
+      <div>
+        <h3 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-medium mb-3 sm:mb-4 text-center">
+          <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
+            New Launches
+          </span>
+        </h3>
+      </div>
+    </div>
+
+    {allProductsLoading ? (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i} className="overflow-hidden">
+            <Skeleton className="h-72 w-full" />
+            <CardContent className="p-6 space-y-3">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-6 w-1/2" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    ) : allProducts && allProducts.length > 0 ? (
+      <>
+        <div className="px-2 sm:px-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+            {(() => {
+              const newLaunches = allProducts.filter((product) => product.newLaunch);
+              const productsToShow = newLaunches.length > 0 ? newLaunches : allProducts;
+              return productsToShow.slice(0, 4).map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                />
+              ));
+            })()}
           </div>
-
-          {allProductsLoading ? (
-            <div className="px-2 sm:px-4">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
-                    <Skeleton className="aspect-square w-full" />
-                    <div className="p-3 space-y-2">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-6 w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : allProducts && allProducts.length > 0 ? (
-            <>
-              <div className="px-2 sm:px-4">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {(() => {
-                    const newLaunches = allProducts.filter((product) => product.newLaunch);
-                    const productsToShow = newLaunches.length > 0 ? newLaunches : allProducts;
-                    return productsToShow.slice(0, 4).map((product, index) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        priority={false}
-                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                      />
-                    ));
-                  })()}
-                </div>
-              </div>
-
-              <div className="text-center mt-6 mb-4">
-                <Link href="/products?filter=newLaunch">
-                  <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                    <span>Explore New Launches</span>
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 8l4 4m0 0l-4 4m4-4H3"
-                      />
-                    </svg>
-                  </Button>
-                </Link>
-              </div>
-            </>
-          ) : null}
         </div>
-      </section>
+
+        <div className="text-center mt-6 mb-4">
+          <Link href="/products?filter=newLaunch">
+            <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+              <span>Explore New Launches</span>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 8l4 4m0 0l-4 4m4-4H3"
+                />
+              </svg>
+            </Button>
+          </Link>
+        </div>
+
+        {allProducts?.filter((product) => product.newLaunch).length === 0 && (
+          <div className="text-center py-12">
+            <div className="mx-auto w-16 h-16 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mb-6">
+              <svg
+                className="w-8 h-8 text-emerald-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              New Products Coming Soon!
+            </h3>
+            <p className="text-gray-600 mb-6">
+              We're working on exciting new launches. Stay tuned!
+            </p>
+            <Link href="/products">
+              <Button
+                variant="outline"
+                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+              >
+                Browse All Products
+              </Button>
+            </Link>
+          </div>
+        )}
+      </>
+    ) : (
+      // Fallback for when there are no products at all
+      <div className="text-center py-12">
+        <p className="text-gray-600">No products available.</p>
+      </div>
+    )}
+  </div>
+</section>
 
       {/* UGC Video Section */}
 
@@ -773,9 +816,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <Suspense fallback={<div className="py-12 text-center"><Skeleton className="h-64 w-full max-w-7xl mx-auto" /></div>}>
-        <VideoTestimonials />
-      </Suspense>
+      <VideoTestimonials />
 
       {/* Blog Section - Latest Posts Per Category */}
       <section className="py-8 sm:py-10 md:py-12 lg:py-16 bg-gradient-to-br from-slate-50 via-white to-gray-50">
@@ -901,10 +942,11 @@ function ComboSection() {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className={`w-4 h-4 ${i < Math.floor(rating)
+        className={`w-4 h-4 ${
+          i < Math.floor(rating)
             ? "fill-yellow-400 text-yellow-400"
             : "text-gray-300"
-          }`}
+        }`}
       />
     ));
   };
@@ -954,171 +996,174 @@ function ComboSection() {
 
         <div>
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4 lg:gap-6">
-            {activeComboProducts.map((combo) => {
-              const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products;
-              const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
-              const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice) : combo.originalPrice;
-              const rating = typeof combo.rating === 'string' ? parseFloat(combo.rating) : combo.rating;
-              const discountPercentage = originalPrice > 0 ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-              const isHovered = hoveredCard === combo.id;
+          {activeComboProducts.map((combo) => {
+            const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products;
+            const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
+            const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice) : combo.originalPrice;
+            const rating = typeof combo.rating === 'string' ? parseFloat(combo.rating) : combo.rating;
+            const discountPercentage = originalPrice > 0 ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+            const isHovered = hoveredCard === combo.id;
 
-              return (
+            return (
+              <div
+                key={combo.id}
+                className="group transition-all duration-300 overflow-hidden bg-white rounded-lg sm:rounded-xl shadow-sm hover:shadow-md cursor-pointer flex flex-col"
+                onMouseEnter={() => setHoveredCard(combo.id)}
+                onMouseLeave={() => setHoveredCard(null)}
+              >
+                {/* Image Section */}
                 <div
-                  key={combo.id}
-                  className="group transition-all duration-300 overflow-hidden bg-white rounded-lg sm:rounded-xl shadow-sm hover:shadow-md cursor-pointer flex flex-col"
-                  onMouseEnter={() => setHoveredCard(combo.id)}
-                  onMouseLeave={() => setHoveredCard(null)}
+                  className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300"
+                  onClick={() => {
+                    React.startTransition(() => {
+                      window.location.href = `/combo/${combo.id}`;
+                    });
+                  }}
                 >
-                  {/* Image Section */}
-                  <div
-                    className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300"
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleWishlist(combo, e);
+                    }}
+                    className="absolute top-1 right-1 sm:top-2 sm:right-2 p-1.5 sm:p-2 hover:scale-110 transition-all duration-300 z-10 bg-white/80 backdrop-blur-sm rounded-full shadow-md"
+                  >
+                    <Heart
+                      className={`h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-all duration-300 ${
+                        wishlist.has(combo.id)
+                          ? "text-red-500 fill-current"
+                          : "text-gray-400 hover:text-pink-500"
+                      }`}
+                    />
+                  </button>
+                  <div className="relative overflow-hidden bg-white">
+                    <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
+                      {combo.imageUrl || (combo.images && combo.images.length > 0) ? (
+                        <img
+                          src={combo.imageUrl || combo.images[0]}
+                          alt={combo.name}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
+                          }}
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <Package className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
+                    <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
+                  </div>
+                </div>
+
+                {/* Content Section */}
+                <div className="p-2 sm:p-3 md:p-4 lg:p-5 space-y-2 sm:space-y-2.5 md:space-y-3 bg-white flex-1 flex flex-col">
+                  {/* Rating */}
+                  <div className="flex items-center justify-between bg-white rounded-lg p-1 sm:p-1.5 md:p-2">
+                    <div className="flex items-center gap-0.5">
+                      {renderStars(rating)}
+                    </div>
+                    <span className="text-gray-700 text-xs sm:text-sm font-bold bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
+                      {rating}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <h3
+                    className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-3 text-xs sm:text-sm md:text-base break-words"
+                    style={{ minHeight: '3.6rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', hyphens: 'auto' }}
                     onClick={() => {
                       React.startTransition(() => {
                         window.location.href = `/combo/${combo.id}`;
                       });
                     }}
                   >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleToggleWishlist(combo, e);
-                      }}
-                      className="absolute top-1 right-1 sm:top-2 sm:right-2 p-1.5 sm:p-2 hover:scale-110 transition-all duration-300 z-10 bg-white/80 backdrop-blur-sm rounded-full shadow-md"
-                    >
-                      <Heart
-                        className={`h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-all duration-300 ${wishlist.has(combo.id)
-                            ? "text-red-500 fill-current"
-                            : "text-gray-400 hover:text-pink-500"
-                          }`}
-                      />
-                    </button>
-                    <div className="relative overflow-hidden bg-white">
-                      <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
-                        {combo.imageUrl || (combo.images && combo.images.length > 0) ? (
-                          <OptimizedImage
-                            src={combo.imageUrl || combo.images[0]}
-                            alt={combo.name}
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
-                            }}
-                          />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center">
-                            <Package className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-gray-400" />
-                          </div>
+                    {combo.name}
+                  </h3>
+
+                  {/* Price Section */}
+                  <div className="space-y-1 sm:space-y-1.5 md:space-y-2 mt-auto">
+                    <div className="flex flex-col space-y-1">
+                      <div className="flex items-baseline space-x-1 sm:space-x-2 min-h-[24px]">
+                        <span className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
+                          ₹{price.toLocaleString()}
+                        </span>
+                        {originalPrice > price && (
+                          <>
+                            <span className="text-xs sm:text-sm text-gray-500 line-through">
+                              ₹{originalPrice.toLocaleString()}
+                            </span>
+                            <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 sm:px-2 rounded whitespace-nowrap">
+                              {discountPercentage}% OFF
+                            </span>
+                          </>
                         )}
                       </div>
-                      <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
-                      <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
-                    </div>
-                  </div>
 
-                  {/* Content Section */}
-                  <div className="p-2 sm:p-3 md:p-4 lg:p-5 space-y-2 sm:space-y-2.5 md:space-y-3 bg-white flex-1 flex flex-col">
-                    {/* Rating */}
-                    <div className="flex items-center justify-between bg-white rounded-lg p-1 sm:p-1.5 md:p-2">
-                      <div className="flex items-center gap-0.5">
-                        {renderStars(rating)}
-                      </div>
-                      <span className="text-gray-700 text-xs sm:text-sm font-bold bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
-                        {rating}
-                      </span>
-                    </div>
-
-                    {/* Title */}
-                    <h3
-                      className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-3 text-xs sm:text-sm md:text-base break-words"
-                      style={{ minHeight: '3.6rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', hyphens: 'auto' }}
-                      onClick={() => {
-                        React.startTransition(() => {
-                          window.location.href = `/combo/${combo.id}`;
-                        });
-                      }}
-                    >
-                      {combo.name}
-                    </h3>
-
-                    {/* Price Section */}
-                    <div className="space-y-1 sm:space-y-1.5 md:space-y-2 mt-auto">
-                      <div className="flex flex-col space-y-1">
-                        <div className="flex items-baseline space-x-1 sm:space-x-2 min-h-[24px]">
-                          <span className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
-                            ₹{price.toLocaleString()}
-                          </span>
-                          {originalPrice > price && (
-                            <>
-                              <span className="text-xs sm:text-sm text-gray-500 line-through">
-                                ₹{originalPrice.toLocaleString()}
+                      {/* Cashback Badge - Fixed height container */}
+                      <div className="mt-1" style={{ minHeight: '28px', display: 'flex', alignItems: 'center' }}>
+                        {combo.cashbackPercentage && combo.cashbackPrice ? (
+                          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5 w-full">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] sm:text-xs font-semibold text-orange-700">Cashback</span>
+                              <span className="text-[10px] sm:text-xs bg-orange-200 text-orange-800 px-1.5 sm:px-2 py-0.5 rounded-full font-bold">
+                                {combo.cashbackPercentage}%
                               </span>
-                              <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 sm:px-2 rounded whitespace-nowrap">
-                                {discountPercentage}% OFF
-                              </span>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Cashback Badge - Fixed height container */}
-                        <div className="mt-1" style={{ minHeight: '28px', display: 'flex', alignItems: 'center' }}>
-                          {combo.cashbackPercentage && combo.cashbackPrice ? (
-                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5 w-full">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] sm:text-xs font-semibold text-orange-700">Cashback</span>
-                                <span className="text-[10px] sm:text-xs bg-orange-200 text-orange-800 px-1.5 sm:px-2 py-0.5 rounded-full font-bold">
-                                  {combo.cashbackPercentage}%
-                                </span>
-                              </div>
                             </div>
-                          ) : (
-                            <div style={{ minHeight: '28px' }}></div>
-                          )}
-                        </div>
-
-                        {/* Stock status and Savings */}
-                        <div className="flex items-center justify-between mb-3 sm:mb-4">
-                          <div className="flex items-center space-x-1.5 sm:space-x-2">
-                            <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${combo.inStock !== false
-                                ? 'bg-gradient-to-r from-green-400 to-emerald-400'
-                                : 'bg-gradient-to-r from-red-400 to-rose-400'
-                              }`}></div>
-                            <span className={`font-bold text-xs sm:text-sm ${combo.inStock !== false ? 'text-green-600' : 'text-red-600'
-                              }`}>
-                              {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
-                            </span>
                           </div>
-                          {originalPrice > price && (
-                            <span className="text-xs sm:text-sm font-bold text-green-600">
-                              Save ₹{(originalPrice - price).toLocaleString()}
-                            </span>
-                          )}
+                        ) : (
+                          <div style={{ minHeight: '28px' }}></div>
+                        )}
+                      </div>
+
+                      {/* Stock status and Savings */}
+                      <div className="flex items-center justify-between mb-3 sm:mb-4">
+                        <div className="flex items-center space-x-1.5 sm:space-x-2">
+                          <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
+                            combo.inStock !== false
+                              ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
+                              : 'bg-gradient-to-r from-red-400 to-rose-400'
+                          }`}></div>
+                          <span className={`font-bold text-xs sm:text-sm ${
+                            combo.inStock !== false ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
+                          </span>
                         </div>
+                        {originalPrice > price && (
+                          <span className="text-xs sm:text-sm font-bold text-green-600">
+                            Save ₹{(originalPrice - price).toLocaleString()}
+                          </span>
+                        )}
                       </div>
                     </div>
-
-                    {/* Add to Cart Button */}
-                    <Button
-                      className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                      onClick={() => window.location.href = `/combo/${combo.id}`}
-                    >
-                      <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span className="hidden xs:inline">Add to </span>Cart
-                    </Button>
                   </div>
-                </div>
-              );
-            })}
-          </div>
 
-          <div className="text-center mt-8 sm:mt-10">
-            <Link href="/combos">
-              <Button className="font-poppins bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                <span>View All Combos</span>
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
-          </div>
+                  {/* Add to Cart Button */}
+                  <Button
+                    className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                    onClick={() => window.location.href = `/combo/${combo.id}`}
+                  >
+                    <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden xs:inline">Add to </span>Cart
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="text-center mt-8 sm:mt-10">
+          <Link href="/combos">
+            <Button className="font-poppins bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+              <span>View All Combos</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
+        </div>
         </div>
       </div>
     </section>
@@ -1192,7 +1237,7 @@ function LatestBlogPostsPerCategory() {
             <div className="group cursor-pointer">
               {/* Image */}
               <div className="relative overflow-hidden bg-gray-100 mb-3 sm:mb-4 rounded-lg sm:rounded-none" style={{ paddingBottom: '66.67%' }}>
-                <OptimizedImage
+                <img
                   src={post.imageUrl}
                   alt={post.title}
                   className="absolute inset-0 w-full h-full  group-hover:scale-105 transition-transform duration-500"

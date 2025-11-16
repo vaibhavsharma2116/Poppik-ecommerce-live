@@ -420,7 +420,7 @@ export const combos = pgTable("combos", {
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   originalPrice: numeric("original_price", { precision: 10, scale: 2 }),
   discount: text("discount"),
-  imageUrls: text("image_url").array(),
+  imageUrl: text("image_url").array(),
   videoUrl: text("video_url"),
   products: text("products").notNull(), // JSON string of product IDs
   productShades: text("product_shades"), // JSON string mapping product IDs to shade IDs

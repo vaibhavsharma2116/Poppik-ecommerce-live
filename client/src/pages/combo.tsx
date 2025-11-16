@@ -52,9 +52,10 @@ export default function ComboPage() {
   });
 
   const handleAddToCart = (combo: ComboProduct) => {
+
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
     const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id);
-
+console.log("VCVVVVVV",combo)
     // Parse prices to ensure they are numbers for calculations
     const price = typeof combo.price === 'string' ? parseFloat(combo.price.replace(/[^0-9.-]+/g,"")) : combo.price;
     const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice.replace(/[^0-9.-]+/g,"")) : combo.originalPrice;
