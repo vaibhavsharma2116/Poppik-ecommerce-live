@@ -508,6 +508,10 @@ export default function Cart() {
     // Save promo code to localStorage if applied
     if (appliedPromo) {
       localStorage.setItem('appliedPromoCode', JSON.stringify(appliedPromo));
+      localStorage.setItem('promoDiscount', generalPromoDiscount.toString());
+    } else {
+      localStorage.removeItem('appliedPromoCode');
+      localStorage.removeItem('promoDiscount');
     }
 
     // Save affiliate discount to localStorage if applied
@@ -516,6 +520,8 @@ export default function Cart() {
         code: affiliateCode,
         discount: affiliateDiscount
       }));
+    } else {
+      localStorage.removeItem('affiliateDiscount');
     }
 
     setLocation("/checkout", {

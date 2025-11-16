@@ -137,7 +137,7 @@ const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
   korba: { state: "chhattisgarh", pincode: "495677" },
   bhilwara: { state: "rajasthan", pincode: "311001" },
   berhampur: { state: "odisha", pincode: "760001" },
-  muzaffarpur: { state: "bihar", pincode: "842001" },
+  muzaffarpur: { state: "bihar", pincode: "846001" },
   ahmednagar: { state: "maharashtra", pincode: "414001" },
   mathura: { state: "uttar_pradesh", pincode: "281001" },
   kollam: { state: "kerala", pincode: "691001" },
@@ -286,7 +286,7 @@ interface CartItem {
 
 export default function CheckoutPage() {
   const location = useLocation();
-  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0 } = location.state || {};
+  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0 } = location.state || {};
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -343,6 +343,7 @@ export default function CheckoutPage() {
   // Promo code states
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [hasPromoCode, setHasPromoCode] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState(passedPromoDiscount); // Initialize with passed value
 
   // Get user from localStorage - must be before any hooks that use it
   const getCurrentUser = () => {
@@ -393,21 +394,24 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Load affiliate discount from localStorage
+    // Load affiliate discount from localStorage first
     const savedAffiliateDiscount = localStorage.getItem('affiliateDiscount');
+    let affiliateDiscountAmount = 0;
+    let affiliateCodeValue = '';
+
     if (savedAffiliateDiscount) {
       try {
         const affiliateData = JSON.parse(savedAffiliateDiscount);
+        affiliateDiscountAmount = affiliateData.discount;
+        affiliateCodeValue = affiliateData.code;
+
         setFormData(prev => ({
           ...prev,
           affiliateCode: affiliateData.code,
           affiliateDiscount: affiliateData.discount,
         }));
 
-        toast({
-          title: "Affiliate Discount Applied!",
-          description: `${affiliateData.code} - You saved ₹${affiliateData.discount.toFixed(2)}`,
-        });
+        console.log('✅ Loaded affiliate discount from localStorage:', affiliateData);
       } catch (error) {
         console.error('Error loading affiliate discount:', error);
         localStorage.removeItem('affiliateDiscount');
@@ -416,20 +420,22 @@ export default function CheckoutPage() {
 
     // Load promo code from localStorage
     const savedPromo = localStorage.getItem('appliedPromoCode');
-    if (savedPromo) {
+    const savedPromoDiscount = localStorage.getItem('promoDiscount');
+
+    if (savedPromo && savedPromoDiscount) {
       try {
         const promoData = JSON.parse(savedPromo);
-        setAppliedPromo(promoData);
-        setPromoDiscount(parseFloat(promoData.discountAmount || 0));
-        setHasPromoCode(true); // Set flag that promo code is active
+        const discountAmount = parseFloat(savedPromoDiscount);
 
-        toast({
-          title: "Promo Code Applied!",
-          description: `${promoData.code} - You saved ₹${promoData.discountAmount}`,
-        });
+        setAppliedPromo(promoData);
+        setPromoDiscount(discountAmount);
+        setHasPromoCode(true);
+
+        console.log('✅ Loaded promo code from localStorage:', promoData, 'Discount:', discountAmount);
       } catch (error) {
         console.error('Error loading promo code:', error);
         localStorage.removeItem('appliedPromoCode');
+        localStorage.removeItem('promoDiscount');
         setHasPromoCode(false);
       }
     } else {
@@ -630,6 +636,7 @@ export default function CheckoutPage() {
           localStorage.removeItem("cart");
           localStorage.removeItem("appliedPromoCode");
           localStorage.removeItem("affiliateDiscount");
+          localStorage.removeItem("promoDiscount"); // Remove promo discount from local storage
           sessionStorage.removeItem('pendingOrder');
           localStorage.setItem("cartCount", "0");
           window.dispatchEvent(new Event("cartUpdated"));
@@ -686,8 +693,8 @@ export default function CheckoutPage() {
   const cartSubtotal = calculateSubtotal();
   const cartSubtotalAfterProductDiscount = cartSubtotal - productDiscount;
 
-  // Use the affiliate discount amount passed from cart directly (not from formData)
-  const affiliateDiscountAmount = passedAffiliateDiscount || 0;
+  // Use affiliate discount from formData (loaded from localStorage) or passed value
+  const affiliateDiscountAmount = formData.affiliateDiscount || passedAffiliateDiscount || 0;
   const subtotalAfterAffiliate = cartSubtotalAfterProductDiscount - affiliateDiscountAmount;
 
   const subtotalAfterDiscount = subtotalAfterAffiliate - promoDiscount;
@@ -926,7 +933,7 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: total,
+          amount: Math.round(total),
           orderId: orderId,
           currency: 'INR',
           customerDetails: {
@@ -938,14 +945,14 @@ export default function CheckoutPage() {
           orderNote: 'Beauty Store Purchase',
           orderData: {
             userId: user.id,
-            totalAmount: total,
+            totalAmount: Math.round(total),
             shippingAddress: `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`,
             affiliateCode: passedAffiliateCode || null,
-            affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
+            affiliateCommission: affiliateCommission > 0 ? Math.round(affiliateCommission) : null,
             promoCode: appliedPromo?.code || null,
-            promoDiscount: promoDiscount > 0 ? promoDiscount : null,
-            redeemAmount: redeemAmount || 0,
-            affiliateWalletAmount: affiliateWalletAmount || 0,
+            promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
+            redeemAmount: Math.round(redeemAmount) || 0,
+            affiliateWalletAmount: Math.round(affiliateWalletAmount) || 0,
             items: cartItems.map(item => ({
               productId: item.id,
               productName: item.name,
@@ -1148,7 +1155,7 @@ export default function CheckoutPage() {
       return false;
     }
 
-    if (formData.city === "" || formData.state === "") {
+    if (!formData.city || !formData.state) {
       toast({
         title: "Address Incomplete",
         description: "Please select city and state",
@@ -1179,15 +1186,15 @@ export default function CheckoutPage() {
 
         const orderData = {
           userId: user.id,
-          totalAmount: total,
+          totalAmount: Math.round(total), // Round to integer
           paymentMethod: paymentMethod,
           shippingAddress: fullAddress,
-          affiliateCode: passedAffiliateCode || null,
+          affiliateCode: formData.affiliateCode || passedAffiliateCode || null,
           affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
           promoCode: appliedPromo?.code || null,
-          promoDiscount: promoDiscount > 0 ? promoDiscount : null,
-          redeemAmount: redeemAmount || 0,
-          affiliateWalletAmount: affiliateWalletAmount || 0,
+          promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
+          redeemAmount: Math.round(redeemAmount) || 0,
+          affiliateWalletAmount: Math.round(affiliateWalletAmount) || 0,
           items: cartItems.map(item => ({
             productId: item.id,
             productName: item.name,
@@ -1201,6 +1208,12 @@ export default function CheckoutPage() {
           customerEmail: formData.email.trim(),
           customerPhone: formData.phone.trim(),
         };
+
+        console.log('📦 Order Data being sent:', {
+          affiliateCode: orderData.affiliateCode,
+          affiliateCommission: orderData.affiliateCommission,
+          totalAmount: orderData.totalAmount
+        });
 
         if (redeemAmount > 0) {
           try {
@@ -1256,6 +1269,7 @@ export default function CheckoutPage() {
           localStorage.removeItem("cart");
           localStorage.removeItem("appliedPromoCode");
           localStorage.removeItem("affiliateDiscount");
+          localStorage.removeItem("promoDiscount"); // Remove promo discount from local storage
           localStorage.removeItem("redeemAmount");
           localStorage.removeItem("affiliateWalletAmount");
           sessionStorage.removeItem('pendingOrder');
@@ -1993,49 +2007,68 @@ export default function CheckoutPage() {
                   <div className="border-t border-gray-200 mt-6 pt-6 space-y-2">
                     <div className="flex justify-between text-gray-600">
                       <span>Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-                      <span>₹{cartSubtotalAfterProductDiscount.toLocaleString()}</span>
+                      <span>₹{cartSubtotal.toLocaleString()}</span>
                     </div>
+
+                    {productDiscount > 0 && (
+                      <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                        <span className="text-green-700 font-medium">Product Discount</span>
+                        <span className="font-bold text-green-600">-₹{productDiscount.toLocaleString()}</span>
+                      </div>
+                    )}
+
                     {affiliateDiscountAmount > 0 && (
-                      <div className="flex justify-between text-green-600 font-semibold">
-                        <span>Affiliate Discount ({passedAffiliateCode})</span>
-                        <span>-₹{affiliateDiscountAmount.toLocaleString()}</span>
+                      <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                        <span className="text-green-700 font-medium">Affiliate Discount ({formData.affiliateCode || passedAffiliateCode})</span>
+                        <span className="font-bold text-green-600">-₹{affiliateDiscountAmount.toLocaleString()}</span>
                       </div>
                     )}
+
                     {promoDiscount > 0 && appliedPromo && (
-                      <div className="flex justify-between text-green-600 font-semibold">
-                        <div className="flex items-center gap-2">
-                          <Tag className="h-4 w-4" />
-                          <span>Promo Code ({appliedPromo.code})</span>
-                        </div>
-                        <span>-₹{promoDiscount.toLocaleString()}</span>
+                      <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                        <span className="text-green-700 font-medium">Promo Code ({appliedPromo.code})</span>
+                        <span className="font-bold text-green-600">-₹{promoDiscount.toLocaleString()}</span>
                       </div>
                     )}
+
+                    {walletAmount > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Cashback Wallet</span>
+                        <span className="text-green-600 font-semibold">-₹{walletAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {affiliateWalletAmount > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-purple-600">Affiliate Wallet</span>
+                        <span className="text-purple-600 font-semibold">-₹{affiliateWalletAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+
                     <div className="flex justify-between text-gray-600">
                       <span>Shipping</span>
                       <span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
                     </div>
-                    {(walletAmount > 0 || affiliateWalletAmount > 0) && (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 my-3">
-                        <p className="text-sm font-semibold text-green-800 mb-2">Wallet Applied:</p>
-                        {walletAmount > 0 && (
-                          <div className="flex justify-between text-sm text-green-700">
-                            <span>Cashback Wallet</span>
-                            <span className="font-semibold">-₹{walletAmount.toFixed(2)}</span>
-                          </div>
-                        )}
-                        {affiliateWalletAmount > 0 && (
-                          <div className="flex justify-between text-sm text-green-700">
-                            <span>Affiliate Wallet</span>
-                            <span className="font-semibold">-₹{affiliateWalletAmount.toFixed(2)}</span>
-                          </div>
-                        )}
+
+                    {shipping === 0 && (
+                      <div className="text-xs text-green-600 bg-green-50 p-2 rounded font-medium">
+                        ✓ Free shipping applied
                       </div>
                     )}
+
                     <Separator />
+
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total</span>
                       <span>₹{total.toLocaleString()}</span>
                     </div>
+
+                    {(productDiscount > 0 || affiliateDiscountAmount > 0 || promoDiscount > 0 || walletAmount > 0 || affiliateWalletAmount > 0) && (
+                      <div className="text-xs text-green-600 text-right mt-1">
+                        You saved ₹{(productDiscount + affiliateDiscountAmount + promoDiscount + walletAmount + affiliateWalletAmount).toLocaleString()}!
+                      </div>
+                    )}
+
                     {affiliateCommission > 0 && (
                       <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg p-4 shadow-sm">
                         <div className="flex items-center justify-between mb-2">

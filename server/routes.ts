@@ -73,7 +73,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration and error recovery
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
+ connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -729,7 +729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Cashfree Payment Routes
   app.post('/api/payments/cashfree/create-order', async (req, res) => {
     try {
-      const { amount, orderId, currency, customerDetails, orderNote, orderData } = req.body;
+      const { amount, orderId, currency, customerDetails, orderData, orderNote } = req.body;
 
       // Validate required fields
       if (!amount || !orderId || !currency || !customerDetails) {
@@ -941,6 +941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 cashfreeOrderId: orderId,
                 paymentSessionId: statusResult.payment_session_id || null,
                 paymentId: statusResult.cf_order_id || null,
+                affiliateCode: orderData.affiliateCode || null,
                 estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
               }).returning();
 
@@ -953,9 +954,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   productImage: item.productImage,
                   quantity: Number(item.quantity),
                   price: item.price,
+                  cashbackPrice: item.cashbackPrice || null,
+                  cashbackPercentage: item.cashbackPercentage || null,
                 }));
 
                 await db.insert(schema.orderItemsTable).values(orderItems);
+              }
+
+              // Process affiliate commission for Cashfree payment
+              if (orderData.affiliateCode && orderData.affiliateCode.startsWith('POPPIKAP')) {
+                const affiliateUserId = parseInt(orderData.affiliateCode.replace('POPPIKAP', ''));
+
+                console.log(`🔍 Processing affiliate commission for Cashfree payment: ${orderData.affiliateCode}, userId: ${affiliateUserId}`);
+
+                if (!isNaN(affiliateUserId)) {
+                  try {
+                    // Verify affiliate exists and is approved
+                    const affiliateApp = await db
+                      .select()
+                      .from(schema.affiliateApplications)
+                      .where(and(
+                        eq(schema.affiliateApplications.userId, affiliateUserId),
+                        eq(schema.affiliateApplications.status, 'approved')
+                      ))
+                      .limit(1);
+
+                    if (affiliateApp && affiliateApp.length > 0) {
+                      // Get affiliate settings for commission rate
+                      const settings = await db.select().from(schema.affiliateSettings);
+                      const commissionRate = parseFloat(
+                        settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'
+                      );
+
+                      // Calculate commission
+                      const calculatedCommission = Math.round((Number(payment.amount) * commissionRate) / 100);
+
+                      console.log(`💰 Calculated commission: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${payment.amount})`);
+
+                      // Get or create affiliate wallet
+                      let wallet = await db
+                        .select()
+                        .from(schema.affiliateWallet)
+                        .where(eq(schema.affiliateWallet.userId, affiliateUserId))
+                        .limit(1);
+
+                      if (wallet.length === 0) {
+                        console.log(`📝 Creating new wallet for affiliate ${affiliateUserId}`);
+                        await db.insert(schema.affiliateWallet).values({
+                          userId: affiliateUserId,
+                          cashbackBalance: "0.00",
+                          commissionBalance: calculatedCommission.toFixed(2),
+                          totalEarnings: calculatedCommission.toFixed(2),
+                          totalWithdrawn: "0.00"
+                        });
+                      } else {
+                        console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
+                        const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
+                        const currentEarnings = parseFloat(wallet[0].totalEarnings || '0');
+
+                        await db.update(schema.affiliateWallet)
+                          .set({
+                            commissionBalance: (currentCommission + calculatedCommission).toFixed(2),
+                            totalEarnings: (currentEarnings + calculatedCommission).toFixed(2),
+                            updatedAt: new Date()
+                          })
+                          .where(eq(schema.affiliateWallet.userId, affiliateUserId));
+                      }
+
+                      // Get customer details
+                      const orderUser = await db
+                        .select({
+                          firstName: schema.users.firstName,
+                          lastName: schema.users.lastName,
+                          email: schema.users.email,
+                          phone: schema.users.phone,
+                        })
+                        .from(schema.users)
+                        .where(eq(schema.users.id, Number(payment.userId)))
+                        .limit(1);
+
+                      const userData = orderUser[0] || { firstName: 'Customer', lastName: '', email: 'customer@email.com', phone: null };
+
+                      // Record affiliate sale
+                      await db.insert(schema.affiliateSales).values({
+                        affiliateUserId,
+                        affiliateCode: orderData.affiliateCode,
+                        orderId: newOrder.id,
+                        customerId: Number(payment.userId),
+                        customerName: orderData.customerName || `${userData.firstName} ${userData.lastName}`,
+                        customerEmail: orderData.customerEmail || userData.email,
+                        customerPhone: orderData.customerPhone || userData.phone || null,
+                        productName: orderData.items.map((item: any) => item.productName).join(', '),
+                        saleAmount: Number(payment.amount).toFixed(2),
+                        commissionAmount: calculatedCommission.toFixed(2),
+                        commissionRate: commissionRate.toFixed(2),
+                        status: 'confirmed'
+                      });
+
+                      // Add transaction record
+                      await db.insert(schema.affiliateTransactions).values({
+                        userId: affiliateUserId,
+                        orderId: newOrder.id,
+                        type: 'commission',
+                        amount: calculatedCommission.toFixed(2),
+                        balanceType: 'commission',
+                        description: `Commission (${commissionRate}%) from Cashfree order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+                        status: 'completed',
+                        createdAt: new Date()
+                      });
+
+                      console.log(`✅ Affiliate commission credited: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for Cashfree order ${newOrder.id}`);
+                    } else {
+                      console.error(`❌ Affiliate not found or not approved for user ${affiliateUserId}`);
+                    }
+                  } catch (affiliateError) {
+                    console.error(`❌ Error processing affiliate commission for Cashfree:`, affiliateError);
+                  }
+                }
               }
 
               console.log("Order created in ordersTable:", newOrder.id);
@@ -3590,7 +3705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customerPhone,
         redeemAmount,
         affiliateCode,
-        affiliateCommission,
+        affiliateCommission, // This seems to be unused here, but kept for context
         affiliateWalletAmount
       } = req.body;
 
@@ -3607,7 +3722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newOrderData = {
         userId: Number(userId),
         totalAmount: Number(totalAmount),
-        status: 'confirmed', // Default to 'confirmed' if not provided
+        status: 'pending', // Default to 'pending' for COD, will be updated by webhook/payment confirmation
         paymentMethod: paymentMethod || 'Cash on Delivery',
         shippingAddress: shippingAddress,
         affiliateCode: affiliateCode || null,
@@ -3616,7 +3731,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("Inserting order data:", newOrderData);
 
-      const [newOrder] = await db.insert(schema.ordersTable).values(newOrderData).returning();
+      const [newOrder] = await db.insert(ordersTable).values(newOrderData).returning();
+
+      console.log('✅ Order created successfully:', newOrder.id);
+
+      // Process affiliate commission for COD orders
+      if (affiliateCode && affiliateCode.startsWith('POPPIKAP') && paymentMethod === 'Cash on Delivery') {
+        const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
+
+        console.log(`🔍 Processing affiliate commission for COD order: ${affiliateCode}, userId: ${affiliateUserId}`);
+
+        if (!isNaN(affiliateUserId)) {
+          try {
+            // Verify affiliate exists and is approved
+            const affiliateApp = await db
+              .select()
+              .from(schema.affiliateApplications)
+              .where(and(
+                eq(schema.affiliateApplications.userId, affiliateUserId),
+                eq(schema.affiliateApplications.status, 'approved')
+              ))
+              .limit(1);
+
+            if (affiliateApp && affiliateApp.length > 0) {
+              // Use the affiliateCommission value passed from checkout instead of recalculating
+              const calculatedCommission = affiliateCommission || 0;
+
+              console.log(`💰 Using commission from checkout: ₹${calculatedCommission.toFixed(2)}`);
+
+              if (calculatedCommission > 0) {
+                // Get or create affiliate wallet
+                let wallet = await db
+                  .select()
+                  .from(schema.affiliateWallet)
+                  .where(eq(schema.affiliateWallet.userId, affiliateUserId))
+                  .limit(1);
+
+                if (wallet.length === 0) {
+                  console.log(`📝 Creating new wallet for affiliate ${affiliateUserId}`);
+                  await db.insert(schema.affiliateWallet).values({
+                    userId: affiliateUserId,
+                    cashbackBalance: "0.00",
+                    commissionBalance: calculatedCommission.toFixed(2),
+                    totalEarnings: calculatedCommission.toFixed(2),
+                    totalWithdrawn: "0.00"
+                  });
+                  console.log(`✅ Wallet created for affiliate ${affiliateUserId} with commission: ₹${calculatedCommission.toFixed(2)}`);
+                } else {
+                  console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
+                  const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
+                  const currentEarnings = parseFloat(wallet[0].totalEarnings || '0');
+                  const newCommission = currentCommission + calculatedCommission;
+                  const newEarnings = currentEarnings + calculatedCommission;
+
+                  console.log(`Current commission: ₹${currentCommission}, Adding: ₹${calculatedCommission}, New total: ₹${newCommission}`);
+
+                  await db.update(schema.affiliateWallet)
+                    .set({
+                      commissionBalance: newCommission.toFixed(2),
+                      totalEarnings: newEarnings.toFixed(2),
+                      updatedAt: new Date()
+                    })
+                    .where(eq(schema.affiliateWallet.userId, affiliateUserId));
+
+                  console.log(`✅ Wallet updated for affiliate ${affiliateUserId}: Commission ₹${newCommission.toFixed(2)}, Total Earnings ₹${newEarnings.toFixed(2)}`);
+                }
+              }
+
+              // Record affiliate sale
+              await db.insert(schema.affiliateSales).values({
+                affiliateUserId,
+                affiliateCode: affiliateCode,
+                orderId: newOrder.id,
+                customerId: Number(userId),
+                customerName: customerName,
+                customerEmail: customerEmail,
+                customerPhone: customerPhone || null,
+                productName: items.map((item: any) => item.productName).join(', '),
+                saleAmount: Number(totalAmount).toFixed(2),
+                commissionAmount: calculatedCommission.toFixed(2),
+                commissionRate: commissionRate.toFixed(2),
+                status: 'confirmed'
+              });
+
+              // Add transaction record
+              await db.insert(schema.affiliateTransactions).values({
+                userId: affiliateUserId,
+                orderId: newOrder.id,
+                type: 'commission',
+                amount: calculatedCommission.toFixed(2),
+                balanceType: 'commission',
+                description: `Commission (${commissionRate}%) from COD order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+                status: 'completed',
+                createdAt: new Date()
+              });
+
+              console.log(`✅ Affiliate commission credited: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for COD order ${newOrder.id}`);
+            } else {
+              console.error(`❌ Affiliate not found or not approved for user ${affiliateUserId}`);
+            }
+          } catch (affiliateError) {
+            console.error(`❌ Error processing affiliate commission for COD:`, affiliateError);
+            console.error('Full error:', affiliateError);
+          }
+        }
+      }
 
       // Create order items in separate table
       if (items && Array.isArray(items)) {
@@ -3732,8 +3951,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await db.insert(schema.userWalletTransactions).values({
               userId: parseInt(userId),
               orderId: newOrder.id,
-              amount: cashbackItem.amount.toFixed(2),
               type: 'credit',
+              amount: cashbackItem.amount.toFixed(2),
               description: `Cashback from ${cashbackItem.name}`,
               balanceBefore: balanceBefore.toFixed(2),
               balanceAfter: balanceAfter.toFixed(2),
@@ -3783,16 +4002,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Deduct affiliate wallet amount if used
-      if (affiliateWalletAmount > 0 && user?.id) {
+      // Deduct affiliate wallet amount if used (for both COD and Cashfree)
+      if (affiliateWalletAmount > 0 && userId) {
         try {
-          console.log(`🔍 Deducting ₹${affiliateWalletAmount} from affiliate wallet for user ${user.id}`);
+          console.log(`🔍 Deducting ₹${affiliateWalletAmount} from affiliate wallet for user ${userId}`);
 
           // Get affiliate wallet
           const wallet = await db
             .select()
             .from(schema.affiliateWallet)
-            .where(eq(schema.affiliateWallet.userId, user.id))
+            .where(eq(schema.affiliateWallet.userId, parseInt(userId)))
             .limit(1);
 
           if (wallet && wallet.length > 0) {
@@ -3806,30 +4025,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 totalWithdrawn: (currentWithdrawn + affiliateWalletAmount).toFixed(2),
                 updatedAt: new Date()
               })
-              .where(eq(schema.affiliateWallet.userId, user.id));
+              .where(eq(schema.affiliateWallet.userId, parseInt(userId)));
 
-            // Create transaction record
+            // Create transaction record for wallet deduction
             await db.insert(schema.affiliateTransactions).values({
-              userId: user.id,
+              userId: parseInt(userId),
               orderId: newOrder.id,
               type: 'withdrawal',
               amount: affiliateWalletAmount.toFixed(2),
               balanceType: 'commission',
-              description: `Commission balance used for order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+              description: `Commission balance used for COD order ORD-${newOrder.id.toString().padStart(3, '0')}`,
               status: 'completed',
+              processedAt: new Date(),
               createdAt: new Date()
             });
 
-            console.log(`✅ Affiliate wallet deducted: ₹${affiliateWalletAmount} for user ${user.id}`);
+            console.log(`✅ Affiliate wallet deducted: ₹${affiliateWalletAmount} for COD order ${newOrder.id}, transaction recorded`);
+          } else {
+            console.error(`❌ Affiliate wallet not found for user ${userId}`);
           }
         } catch (walletError) {
           console.error(`❌ Error deducting affiliate wallet:`, walletError);
-          // Continue with order creation
+          // Continue with order creation even if wallet deduction fails
         }
       }
 
       // Credit affiliate commission to wallet if affiliate code was used
-      if (affiliateCode && affiliateCode.startsWith('POPPIKAP')) {
+      if (affiliateCode && affiliateCode.startsWith('POPPIKAP') && paymentMethod !== 'Cash on Delivery') {
         const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
 
         console.log(`🔍 Processing affiliate commission for code: ${affiliateCode}, userId: ${affiliateUserId}`);
@@ -3856,9 +4078,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'
               );
 
-              // Calculate commission based on dynamic rate from settings
-              const finalPayableAmount = Number(totalAmount) - (affiliateWalletAmount || 0);
-              const calculatedCommission = (finalPayableAmount * commissionRate) / 100;
+              // Calculate commission - use total amount after all deductions
+              const calculatedCommission = (Number(totalAmount) * commissionRate) / 100;
 
               console.log(`💰 Calculated commission: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${totalAmount})`);
 
@@ -3900,7 +4121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
 
               // Get user details for sale record
-              const user = await db
+              const orderUser = await db
                 .select({
                   firstName: schema.users.firstName,
                   lastName: schema.users.lastName,
@@ -3911,7 +4132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .where(eq(schema.users.id, Number(userId)))
                 .limit(1);
 
-              const userData = user[0] || { firstName: 'Customer', lastName: '', email: 'customer@email.com', phone: null };
+              const userData = orderUser[0] || { firstName: 'Customer', lastName: '', email: 'customer@email.com', phone: null };
 
               // Record affiliate sale in database
               const [saleRecord] = await db.insert(schema.affiliateSales).values({
@@ -4027,7 +4248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .set({
                 shiprocketOrderId: shiprocketOrderId,
                 shiprocketShipmentId: shiprocketAwb,
-                status: 'processing'
+                status: 'processing' // Set status to processing since it's now with Shiprocket
               })
               .where(eq(schema.ordersTable.id, newOrder.id));
 
@@ -7500,7 +7721,7 @@ Poppik Career Portal
         });
       }
 
-      // Save to database first
+      // Save to database
       const savedApplication = await db.insert(schema.affiliateApplications).values({
         userId: parseInt(userId),
         firstName,
@@ -7671,7 +7892,7 @@ Poppik Affiliate Portal
       console.log('Application found:', application.length > 0 ? 'Yes' : 'No');
 
       if (!application || application.length === 0) {
-        // Check localStorage fallback
+        // ChecklocalStorage fallback
         return res.status(404).json({ error: 'No application found' });
       }
 
@@ -8063,7 +8284,7 @@ Poppik Affiliate Portal
               ${notes ? `<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
                 <p style="margin: 0; color: #856404;"><strong>Reason:</strong> ${notes}</p>
               </div>` : ''}
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0;">
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0 0 0;">
                 We encourage you to reapply in the future. Keep creating amazing content!
               </p>
               <p style="font-size: 14px; color: #999999; margin: 20px 0 0 0;">

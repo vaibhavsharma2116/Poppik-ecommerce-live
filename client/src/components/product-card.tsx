@@ -15,7 +15,6 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import OptimizedImage from "@/components/OptimizedImage";
 
 interface Shade {
   id: number;
@@ -23,17 +22,15 @@ interface Shade {
   colorCode: string;
   imageUrl?: string;
   isActive: boolean;
-  inStock: boolean; // Added inStock to Shade interface
 }
 
 interface ProductCardProps {
   product: Product;
   className?: string;
   viewMode?: 'grid' | 'list';
-  priority?: boolean;
 }
 
-export default function ProductCard({ product, className = "", viewMode = 'grid', priority = false }: ProductCardProps) {
+export default function ProductCard({ product, className = "", viewMode = 'grid' }: ProductCardProps) {
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [selectedShades, setSelectedShades] = useState<Shade[]>([]);
@@ -43,7 +40,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   const isMobile = useIsMobile();
 
 
-  // Fetch product shades (only active shades, including out of stock)
+  // Fetch product shades
   const { data: productShades = [] } = useQuery<Shade[]>({
     queryKey: [`/api/products/${product?.id}/shades`],
     queryFn: async () => {
@@ -51,14 +48,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       const response = await fetch(`/api/products/${product.id}/shades`);
       if (!response.ok) return [];
       const shades = await response.json();
-      // Filter shades to include only those associated with the current product ID and are active.
-      // Also, ensure that the shade has an inStock property (even if false) to correctly handle stock status.
-      return shades.filter((shade: Shade) =>
-        shade.productIds &&
-        Array.isArray(shade.productIds) &&
-        shade.productIds.includes(product.id) &&
-        shade.isActive &&
-        shade.hasOwnProperty('inStock') // Ensure inStock property exists
+      return shades.filter((shade: Shade) => 
+        shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(product.id)
       );
     },
     enabled: !!product?.id,
@@ -139,7 +130,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       e.stopPropagation();
     }
 
-    // Check if shades are required and none are selected, then open drawer
     if (productShades.length > 0 && selectedShades.length === 0 && !fromDrawer) {
       setIsShadeDrawerOpen(true);
       return;
@@ -150,16 +140,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     // Add each selected shade to cart
     if (selectedShades.length > 0) {
       selectedShades.forEach(shade => {
-        // Ensure the selected shade is actually in stock before adding to cart
-        if (!shade.inStock) {
-          toast({
-            title: "Out of Stock",
-            description: `${shade.name} is currently out of stock.`,
-            variant: "destructive",
-          });
-          return; // Skip adding this shade if out of stock
-        }
-
         const itemKey = `${product.id}-${shade.id}`;
         const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
 
@@ -172,9 +152,9 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             name: product.name,
             price: `₹${product.price}`,
             originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
-            image: shade.imageUrl || product.imageUrl, // Use shade's image if available, else product's
+            image: shade.imageUrl || product.imageUrl,
             quantity: quantity,
-            inStock: true, // This is set based on the shade's stock status checked above
+            inStock: true,
             selectedShade: {
               id: shade.id,
               name: shade.name,
@@ -187,15 +167,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         }
       });
     } else {
-      // No shades selected, add the base product if it's in stock
-      if (!product.inStock) {
-        toast({
-          title: "Out of Stock",
-          description: `${product.name} is currently out of stock.`,
-          variant: "destructive",
-        });
-        return; // Don't add to cart if the main product is out of stock
-      }
+      // No shades selected
       const itemKey = `${product.id}`;
       const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
 
@@ -210,7 +182,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
           image: product.imageUrl,
           quantity: quantity,
-          inStock: product.inStock,
+          inStock: true,
           selectedShade: null,
           cashbackPercentage: product.cashbackPercentage || undefined,
           cashbackPrice: product.cashbackPrice || undefined,
@@ -222,15 +194,14 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
 
-    const shadeText = selectedShades.length > 0
-      ? ` (${selectedShades.map(s => s.name).join(', ')})`
+    const shadeText = selectedShades.length > 0 
+      ? ` (${selectedShades.map(s => s.name).join(', ')})` 
       : '';
     toast({
       title: "Added to Cart",
       description: `${product.name}${shadeText} (${quantity} each) has been added to your cart`,
     });
 
-    // Close drawer and reset state if called from drawer
     if (fromDrawer) {
       setIsShadeDrawerOpen(false);
       setQuantity(1);
@@ -239,9 +210,9 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   };
 
   // Use admin-calculated discount or calculate if not available
-  const discountPercentage = product.discount
+  const discountPercentage = product.discount 
     ? Math.round(Number(product.discount))
-    : product.originalPrice && Number(product.originalPrice) > Number(product.price)
+    : product.originalPrice 
       ? Math.round(((Number(product.originalPrice) - Number(product.price)) / Number(product.originalPrice)) * 100)
       : 0;
 
@@ -250,8 +221,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       <Star
         key={i}
         className={`w-4 h-4 ${
-          i < Math.floor(rating)
-            ? "fill-yellow-400 text-yellow-400"
+          i < Math.floor(rating) 
+            ? "fill-yellow-400 text-yellow-400" 
             : "text-gray-300"
         }`}
       />
@@ -265,7 +236,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
   if (viewMode === 'list') {
     return (
-      <div
+      <div 
         className={`product-card group flex overflow-hidden bg-gradient-to-r from-white via-pink-50 to-purple-50 transition-all duration-500 ${className}`}
         style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
       >
@@ -278,32 +249,38 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           </button>
           <Link href={`/product/${product.slug}`}>
             <div className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50 h-48 rounded-lg">
-              <OptimizedImage
+              <img
                 src={(() => {
-                  // Handle new images array format with maximum optimization
+                  // Handle new images array format
                   if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                     const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                    return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=150&h=150&q=40&fit=crop&auto=format&fm=webp' : ''}`;
+                    return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=400&h=400&q=80&fit=crop' : ''}`;
                   } else if (product.imageUrl) {
-                    return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=150&h=150&q=40&fit=crop&auto=format&fm=webp' : ''}`;
+                    return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=400&h=400&q=80&fit=crop' : ''}`;
                   }
-                  return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150&q=40&fm=webp';
+                  return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
                 })()}
                 alt={product.name}
-                optimization={{ width: 150, height: 150, quality: 40, fit: 'cover' }}
                 className="w-full h-full object-contain cursor-pointer group-hover:scale-110 transition-transform duration-700 rounded-lg"
-                loading={priority ? "eager" : "lazy"}
-                fetchpriority={priority ? "high" : "low"}
-                width="150"
-                height="150"
+                loading="lazy"
+                decoding="async"
+                width="400"
+                height="400"
+                onLoad={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.opacity = '1';
+                }}
+                style={{ opacity: 0, transition: 'opacity 0.3s ease', width: '100%', height: '100%', objectFit: 'contain' }}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=50';
+                  target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
             </div>
           </Link>
+
+
         </div>
 
         <div className="flex-1 p-6 flex flex-col justify-between bg-gradient-to-br from-white via-pink-25 to-purple-25">
@@ -384,9 +361,9 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
               {/* Stock status */}
               <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
-                <div className={`w-2 h-2 sm:w-3 sm:h-4 md:w-4 md:h-4 rounded-full animate-pulse ${
-                  product.inStock
-                    ? 'bg-gradient-to-r from-green-400 to-emerald-400'
+                <div className={`w-2 h-2 sm:w-3 sm:h-3 md:w-4 md:h-4 rounded-full animate-pulse ${
+                  product.inStock 
+                    ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
                     : 'bg-gradient-to-r from-red-400 to-rose-400'
                 }`}></div>
                 <span className={`font-bold text-xs sm:text-sm md:text-base lg:text-lg ${
@@ -400,8 +377,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
             {product.inStock ? (
               productShades.length > 0 ? (
-                <Button
-                  size="sm"
+                <Button 
+                  size="sm" 
                   className="w-full text-sm py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                   onClick={(e) => {
                     e.preventDefault();
@@ -412,8 +389,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   Select Shades
                 </Button>
               ) : (
-                <Button
-                  size="sm"
+                <Button 
+                  size="sm" 
                   className="w-full text-sm py-3 flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                   onClick={addToCart}
                 >
@@ -422,8 +399,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 </Button>
               )
             ) : (
-              <Button
-                size="sm"
+              <Button 
+                size="sm" 
                 className="w-full text-sm py-3 flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                 onClick={toggleWishlist}
               >
@@ -438,12 +415,12 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   }
 
   return (
-    <div
+    <div 
       className={`mobile-product-card-container group transition-all duration-300 overflow-hidden bg-white ${className}`}
-      style={{
-        border: 'none !important',
-        outline: 'none !important',
-        boxShadow: 'none !important',
+      style={{ 
+        border: 'none !important', 
+        outline: 'none !important', 
+        boxShadow: 'none !important', 
         WebkitBoxShadow: 'none !important',
         MozBoxShadow: 'none !important',
         borderRadius: '12px',
@@ -462,35 +439,35 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <Heart className={`h-6 w-6 transition-all duration-300 ${isInWishlist ? "text-red-500 fill-current animate-pulse" : "text-gray-400 hover:text-pink-500"}`} />
         </button>
         <Link href={`/product/${product.slug}`}>
-          <div className="relative overflow-hidden bg-white" style={{ aspectRatio: '1/1', minHeight: '200px' }}>
-            <OptimizedImage
+          <div className="relative overflow-hidden bg-white">
+            <img
               src={(() => {
-                // Handle new images array format with maximum optimization for mobile
+                // Handle new images array format
                 if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                   const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=400&h=400&q=75&fit=crop&fm=webp&dpr=1' : ''}`;
+                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=200&h=200&q=60&fit=crop&auto=format' : ''}`;
                 } else if (product.imageUrl) {
-                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=400&h=400&q=75&fit=crop&fm=webp&dpr=1' : ''}`;
+                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=200&h=200&q=60&fit=crop&auto=format' : ''}`;
                 }
-                return `https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&q=75&fit=crop&fm=webp&dpr=1`;
+                return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60';
               })()}
               alt={product.name}
-              optimization={{ width: 400, height: 400, quality: 75, fit: 'cover' }}
-              className="w-full h-full object-contain"
+              className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
               loading="lazy"
               decoding="async"
               fetchpriority="low"
-              width="400"
-              height="400"
+              style={{ width: '100%', height: '70%', objectFit: 'contain', display: 'block' }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&q=75&fit=crop&fm=webp&dpr=1';
+                target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60';
               }}
             />
             <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
             <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
           </div>
         </Link>
+
+
       </div>
 
       <div className="mobile-product-content p-2 sm:p-3 md:p-4 lg:p-5 space-y-1 sm:space-y-2 md:space-y-3 bg-white">
@@ -544,8 +521,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             {/* Stock status */}
             <div className="flex items-center space-x-1.5 sm:space-x-2 mb-3 sm:mb-4">
               <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
-                product.inStock
-                  ? 'bg-gradient-to-r from-green-400 to-emerald-400'
+                product.inStock 
+                  ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
                   : 'bg-gradient-to-r from-red-400 to-rose-400'
               }`}></div>
               <span className={`font-bold text-xs sm:text-sm ${
@@ -559,8 +536,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
 
           {product.inStock ? (
             productShades.length > 0 ? (
-              <Button
-                size="sm"
+              <Button 
+                size="sm" 
                 className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
                 onClick={(e) => {
                   e.preventDefault();
@@ -571,8 +548,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 Select Shades
               </Button>
             ) : (
-              <Button
-                size="sm"
+              <Button 
+                size="sm" 
                 className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
                 onClick={addToCart}
               >
@@ -581,8 +558,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               </Button>
             )
           ) : (
-            <Button
-              size="sm"
+            <Button 
+              size="sm" 
               className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] flex items-center justify-center gap-1.5 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
               onClick={toggleWishlist}
             >
@@ -606,7 +583,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <div className="space-y-6">
             {/* Product Image - Dynamic based on selected shade */}
             <div className="relative bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg overflow-hidden aspect-square transition-all duration-300">
-              <OptimizedImage
+              <img
                 src={(() => {
                   if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
                     return selectedShades[0].imageUrl;
@@ -617,7 +594,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   return product.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
                 })()}
                 alt={selectedShades.length > 0 ? selectedShades[0].name : product.name}
-                optimization={{ width: 400, height: 400, quality: 80, fit: 'contain' }}
                 className="w-full h-full object-contain transition-opacity duration-300"
                 loading="lazy"
               />
@@ -653,7 +629,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   <div className="flex flex-wrap gap-2">
                     {selectedShades.map(shade => (
                       <div key={shade.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-purple-200">
-                        <div
+                        <div 
                           className="w-3 h-3 rounded-full border border-white shadow-sm"
                           style={{ backgroundColor: shade.colorCode }}
                         />
@@ -669,7 +645,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-gray-900">
-                  Select Shades:
+                  Select Shades: 
                   {selectedShades.length > 0 && (
                     <span className="ml-2 text-sm text-purple-600">({selectedShades.length} selected)</span>
                   )}
@@ -686,43 +662,30 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               <div className="grid grid-cols-4 gap-3">
                 {productShades.map((shade) => {
                   const isSelected = selectedShades.some(s => s.id === shade.id);
-                  const isOutOfStock = !shade.inStock;
                   return (
                     <div
                       key={shade.id}
                       onClick={() => {
-                        if (isOutOfStock) {
-                          toast({
-                            title: "Out of Stock",
-                            description: `${shade.name} is currently out of stock and cannot be selected.`,
-                            variant: "destructive",
-                          });
-                          return;
-                        }
                         if (isSelected) {
                           setSelectedShades(selectedShades.filter(s => s.id !== shade.id));
                         } else {
                           setSelectedShades([...selectedShades, shade]);
                         }
                       }}
-                      className={`group relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 ${
-                        isOutOfStock
-                          ? 'opacity-50 cursor-not-allowed border-gray-300 bg-gray-100'
-                          : isSelected
-                            ? 'cursor-pointer border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md scale-105 hover:shadow-lg'
-                            : 'cursor-pointer border-purple-300 hover:border-purple-400 hover:bg-purple-25 hover:shadow-lg'
+                      className={`cursor-pointer group relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 hover:shadow-lg ${
+                        isSelected
+                          ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md scale-105'
+                          : 'border-purple-300 hover:border-purple-400 hover:bg-purple-25'
                       }`}
                     >
                       {shade.imageUrl ? (
                         <div className="relative">
-                          <OptimizedImage
+                          <img
                             src={shade.imageUrl}
                             alt={shade.name}
-                            optimization={{ width: 50, height: 50, quality: 70, fit: 'cover' }}
                             className={`w-12 h-12 rounded-full object-cover border-2 shadow-md transition-all ${
                               isSelected ? 'border-purple-500' : 'border-gray-300'
                             }`}
-                            loading="lazy"
                           />
                           {isSelected && (
                             <div className="absolute inset-0 rounded-full bg-purple-500/20 animate-pulse" />
@@ -746,14 +709,9 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                       }`}>
                         {shade.name}
                       </span>
-                      {isSelected && !isOutOfStock && (
+                      {isSelected && (
                         <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-1 shadow-lg">
                           <Check className="w-3 h-3 text-white" />
-                        </div>
-                      )}
-                      {isOutOfStock && (
-                        <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full shadow-md font-bold">
-                          OUT
                         </div>
                       )}
                     </div>
