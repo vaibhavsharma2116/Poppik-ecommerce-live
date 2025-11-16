@@ -2309,30 +2309,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Products API
   app.get("/api/products", async (req, res) => {
     try {
-      console.log("GET /api/products - Fetching products...");
-      const limit = parseInt(req.query.limit as string) || 50;
+      console.log("📦 GET /api/products - Fetching products...");
+      const limit = parseInt(req.query.limit as string) || 100;
       const offset = parseInt(req.query.offset as string) || 0;
-      // Fetch products with pagination
-      const { products, totalCount } = await storage.getProducts(limit, offset);
+      
+      console.log("📦 Query params - limit:", limit, "offset:", offset);
+      
+      // Fetch all products directly from database
+      const allProducts = await db
+        .select()
+        .from(schema.products)
+        .orderBy(desc(schema.products.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      console.log("📦 Products fetched from DB:", allProducts?.length || 0);
+      
+      if (allProducts && allProducts.length > 0) {
+        console.log("📦 Sample product from DB:", {
+          id: allProducts[0].id,
+          name: allProducts[0].name,
+          price: allProducts[0].price,
+          category: allProducts[0].category
+        });
+      } else {
+        console.log("⚠️ No products found in database!");
+      }
+
+      if (!allProducts || !Array.isArray(allProducts)) {
+        console.warn("Products data is not an array, returning empty array");
+        return res.json([]);
+      }
 
       res.setHeader('Content-Type', 'application/json');
-      // Cache for 5 minutes, stale-while-revalidate for 10 minutes
       res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); 
-      // CDN Cache for 5 minutes
       res.setHeader('CDN-Cache-Control', 'public, max-age=300'); 
-
-      console.log("Products fetched:", products?.length || 0);
-
-      if (!Array.isArray(products)) {
-        console.warn("Products data is not an array, returning empty array");
-        return res.json({ products: [], totalCount: 0 });
-      }
 
       // Get images for each product
       const productsWithImages = await Promise.all(
-        products.map(async (product) => {
+        allProducts.map(async (product) => {
           try {
-            const images = await storage.getProductImages(product.id);
+            const images = await db
+              .select()
+              .from(schema.productImages)
+              .where(eq(schema.productImages.productId, product.id))
+              .orderBy(asc(schema.productImages.sortOrder));
+
             return {
               ...product,
               images: images.map(img => ({
@@ -2353,7 +2375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       console.log("Returning products with images:", productsWithImages.length);
-      res.json({ products: productsWithImages, totalCount });
+      res.json(productsWithImages);
     } catch (error) {
       console.error("Products API error:", error);
       res.status(500).json({ error: "Failed to fetch products", details: error.message });

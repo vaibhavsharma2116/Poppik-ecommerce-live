@@ -96,10 +96,10 @@ export default function AdminDashboard() {
     const totalProducts = products.length;
 
     return {
-      totalRevenue,
-      totalOrders,
-      totalProducts,
-      activeUsers,
+      totalRevenue: totalRevenue || 0,
+      totalOrders: totalOrders || 0,
+      totalProducts: totalProducts || 0,
+      activeUsers: activeUsers || 0,
       revenueChange: totalRevenue > 0 ? "+20.1%" : "+0%",
       ordersChange: totalOrders > 0 ? "+180.1%" : "+0%", 
       productsChange: totalProducts > 0 ? "+19%" : "+0%",

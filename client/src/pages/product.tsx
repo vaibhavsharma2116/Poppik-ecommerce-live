@@ -23,17 +23,29 @@ export default function ProductsPage() {
   const { data: allProducts, isLoading: productsLoading, refetch: refetchProducts } = useQuery<Product[]>({
     queryKey: ["/api/products"],
     staleTime: 0,
-    select: (data) => {
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    select: (data: any) => {
       // Ensure we always return an array
-      if (!data || !Array.isArray(data)) {
-        console.warn('Products data is not an array:', data);
+      if (!data) {
+        console.warn('Products data is null/undefined:', data);
         return [];
       }
+      
       // If data has a products property (nested structure), extract it
       if (data.products && Array.isArray(data.products)) {
+        console.log('Extracted products from nested structure:', data.products.length);
         return data.products;
       }
-      return data;
+      
+      // If data is already an array
+      if (Array.isArray(data)) {
+        console.log('Products data is already an array:', data.length);
+        return data;
+      }
+      
+      console.warn('Products data is not in expected format:', typeof data);
+      return [];
     }
   });
 
@@ -47,61 +59,84 @@ export default function ProductsPage() {
     const filterParam = searchParams.get('filter');
     const categoryParam = searchParams.get('category');
 
-    console.log('Products page - URL params:', { filterParam, categoryParam, productsCount: allProducts?.length || 0 });
+    console.log('Products page - URL params:', { 
+      filterParam, 
+      categoryParam, 
+      productsCount: allProducts?.length || 0, 
+      isLoading: productsLoading,
+      allProductsSample: allProducts?.slice(0, 2).map(p => ({ 
+        id: p.id, 
+        name: p.name, 
+        bestseller: p.bestseller,
+        featured: p.featured,
+        newLaunch: p.newLaunch 
+      }))
+    });
+
+    // Wait for products to load
+    if (productsLoading) {
+      console.log('Products still loading...');
+      return;
+    }
 
     if (!allProducts || allProducts.length === 0) {
-      console.log('No products available yet');
+      console.log('⚠️ NO PRODUCTS IN DATABASE - Please add products via admin panel first!');
       setFilteredProducts([]);
       return;
     }
 
-    // If no filters at all, show all products
-    if (!filterParam && !categoryParam) {
-      console.log('No filters, showing all products');
-      setFilteredProducts(allProducts);
-      setActiveFilters({});
-      return;
-    }
-
-    // Set initial active filters based on URL parameters
-    const initialFilters = {
-      featured: filterParam === 'featured',
-      bestseller: filterParam === 'bestseller',
-      newLaunch: filterParam === 'newLaunch',
-    };
-
-    setActiveFilters(prev => ({
-      ...prev,
-      ...initialFilters
-    }));
+    console.log(`✅ ${allProducts.length} products loaded from database`);
 
     // Apply initial filtering
     let filtered = [...allProducts];
 
     // Apply URL filter parameters
     if (filterParam) {
-      console.log(`Filtering by ${filterParam}`);
+      console.log(`🔍 Applying filter: ${filterParam}`);
+      const beforeFilterCount = filtered.length;
+      
       switch (filterParam) {
         case 'bestseller':
-          filtered = filtered.filter(product => product.bestseller === true);
+          filtered = filtered.filter(product => {
+            const isBestseller = product.bestseller === true || product.bestseller === 1 || product.bestseller === "true";
+            console.log(`Product ${product.id} (${product.name}): bestseller=${product.bestseller}, isBestseller=${isBestseller}`);
+            return isBestseller;
+          });
+          setActiveFilters({ bestseller: true });
+          console.log(`📊 Bestseller filter: ${beforeFilterCount} → ${filtered.length} products`);
+          if (filtered.length === 0) {
+            console.log('⚠️ No bestseller products found. Make sure to mark products as bestsellers in admin panel!');
+          }
           break;
         case 'featured':
-          filtered = filtered.filter(product => product.featured === true);
+          filtered = filtered.filter(product => product.featured === true || product.featured === 1 || product.featured === "true");
+          setActiveFilters({ featured: true });
+          console.log(`📊 Featured filter: ${beforeFilterCount} → ${filtered.length} products`);
           break;
         case 'newLaunch':
-          filtered = filtered.filter(product => product.newLaunch === true);
+          filtered = filtered.filter(product => product.newLaunch === true || product.newLaunch === 1 || product.newLaunch === "true");
+          setActiveFilters({ newLaunch: true });
+          console.log(`📊 New launch filter: ${beforeFilterCount} → ${filtered.length} products`);
           break;
+        default:
+          setActiveFilters({});
+          console.log('ℹ️ Unknown filter parameter, showing all products');
       }
-      console.log(`After ${filterParam} filter: ${filtered.length} products`);
+    } else {
+      // No filter parameter - show all products
+      setActiveFilters({});
+      console.log('ℹ️ No filter applied, showing all products');
     }
 
     if (categoryParam && categoryParam !== "all") {
+      const beforeCategoryFilter = filtered.length;
       filtered = filtered.filter(product => product.category === categoryParam);
-      console.log(`After category filter: ${filtered.length} products`);
+      console.log(`📂 Category filter (${categoryParam}): ${beforeCategoryFilter} → ${filtered.length} products`);
     }
 
+    console.log(`✅ Final filtered products: ${filtered.length}`);
     setFilteredProducts(filtered);
-  }, [allProducts, search]);
+  }, [allProducts, search, productsLoading]);
 
   // Handle dynamic filter changes
   const handleFilterChange = (products: Product[], filters: any) => {

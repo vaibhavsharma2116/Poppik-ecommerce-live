@@ -246,7 +246,7 @@ export default function AdminVideoTestimonials() {
               </TableHeader>
               <TableBody>
                 {testimonials.map((testimonial) => {
-                  const product = products.find(p => p.id === testimonial.productId);
+                  const product = products && Array.isArray(products) ? products.find(p => p.id === testimonial.productId) : undefined;
                   return (
                     <TableRow key={testimonial.id}>
                      
@@ -353,7 +353,7 @@ export default function AdminVideoTestimonials() {
                   <SelectValue placeholder="Select a product" />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.map((product) => (
+                  {products && Array.isArray(products) && products.map((product) => (
                     <SelectItem key={product.id} value={product.id.toString()}>
                       <div className="flex items-center gap-2">
                         <img src={product.imageUrl} alt={product.name} className="w-6 h-6 rounded object-cover" />

@@ -347,6 +347,7 @@ export default function AdminShades() {
   // Get products for shade's categories/subcategories
   const getShadeProducts = (shade: Shade) => {
     if (!shade.categoryIds?.length && !shade.subcategoryIds?.length) return [];
+    if (!products || !Array.isArray(products)) return [];
 
     return products.filter(product => {
       const categoryMatch = shade.categoryIds?.some(catId => {
@@ -366,6 +367,7 @@ export default function AdminShades() {
   // Get filtered products based on current form selection
   const getFilteredProducts = (selectedCategoryIds: number[], selectedSubcategoryIds: number[]) => {
     if (!selectedCategoryIds.length && !selectedSubcategoryIds.length) return [];
+    if (!products || !Array.isArray(products)) return [];
 
     return products.filter(product => {
       const categoryMatch = selectedCategoryIds.some(catId => {

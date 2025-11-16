@@ -280,6 +280,29 @@ export default function HomePage() {
     bodycare: "from-green-100 via-emerald-50 to-green-200",
   };
 
+  // Fetch data for filters
+  const { data: allProductsForFilter = [], isLoading: allProductsForFilterLoading } = useQuery<Product[]>({
+    queryKey: ["/api/products/all"], // Assuming a new endpoint for all products without slicing
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+
+  const { data: featured = [], isLoading: isLoadingFeaturedProducts } = useQuery<Product[]>({
+    queryKey: ["/api/products/featured"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: newLaunches = [], isLoading: isLoadingNewLaunches } = useQuery<Product[]>({
+    queryKey: ["/api/products/new-launches"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: bestsellers = [], isLoading: isLoadingBestsellers } = useQuery<Product[]>({
+    queryKey: ["/api/products/bestsellers"],
+    staleTime: 5 * 60 * 1000,
+  });
+console.log("featured",featured)
+
   return (
     <div>
       {/* Hero Section */}
@@ -580,7 +603,7 @@ export default function HomePage() {
                 </div>
 
                 <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                  <Link href="/products?filter=bestseller">
+                  <Link href="/products?filter=bestsellers">
                     <Button className="font-poppins bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                       <span>
                         View All Bestsellers ({bestsellerProducts?.length || 0})
@@ -644,11 +667,11 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
-            ) : featuredProducts && featuredProducts.length > 0 ? (
+            ) : featured && featured.length > 0 ? (
               <>
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {featuredProducts.slice(0, 4).map((product) => (
+                    {featured.slice(0, 4).map((product) => (
                       <ProductCard
                         key={product.id}
                         product={product}
@@ -661,7 +684,7 @@ export default function HomePage() {
                 <div className="text-center mt-6 sm:mt-8 md:mt-10">
                   <Link href="/products?filter=featured">
                     <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                      <span>View All Products ({featuredProducts?.length || 0})</span>
+                      <span>View All Products  ({featured?.length || 0})</span>
                       <svg
                         className="w-4 h-4"
                         fill="none"
@@ -736,10 +759,10 @@ export default function HomePage() {
                 </div>
 
                 <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                  <Link href="/products?filter=newLaunch">
+                  <Link href="/products?filter=newLaunches">
                     <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                       <span>
-                        View All New Launches ({newArrivals?.length || 0})
+                        View All New Launches ({newLaunches?.length || 0})
                       </span>
                       <svg
                         className="w-4 h-4"

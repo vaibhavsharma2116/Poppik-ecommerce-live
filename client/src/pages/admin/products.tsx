@@ -147,7 +147,7 @@ export default function AdminProducts() {
       setLoading(true);
       setError(null);
 
-      console.log("Fetching data from APIs...");
+      console.log("🔄 Fetching data from APIs...");
 
       // Fetch products first with better error handling
       const productsRes = await fetch('/api/products', {
@@ -157,21 +157,32 @@ export default function AdminProducts() {
         }
       });
 
-      console.log("Products API response:", productsRes.status, productsRes.statusText);
+      console.log("📦 Products API response:", productsRes.status, productsRes.statusText);
 
       if (!productsRes.ok) {
         const errorText = await productsRes.text();
-        console.error("Products API error:", errorText);
+        console.error("❌ Products API error:", errorText);
         throw new Error(`Products API error: ${productsRes.status} - ${errorText}`);
       }
 
       const productsData = await productsRes.json();
-      console.log("Raw products data:", productsData);
-      console.log("Products data received:", Array.isArray(productsData) ? productsData.length : 'Not an array', "products");
+      console.log("📊 Raw products data:", productsData);
+      console.log("📊 Products data type:", typeof productsData, "Is Array:", Array.isArray(productsData));
+      console.log("📊 Products count:", Array.isArray(productsData) ? productsData.length : 'Not an array');
+      
+      if (Array.isArray(productsData) && productsData.length > 0) {
+        console.log("📊 Sample product:", productsData[0]);
+      } else {
+        console.log("💡 TIP: Database is empty. Click 'Add New Product' button to create your first product!");
+      }
 
       // Validate and set products data
       const validProductsData = Array.isArray(productsData) ? productsData : [];
-      console.log("Setting products:", validProductsData.length);
+      console.log("✅ Setting products:", validProductsData.length);
+      
+      if (validProductsData.length === 0) {
+        console.log("ℹ️ No products to display. Please add products using the 'Add New Product' button above.");
+      }
 
       setProducts(validProductsData);
       setFilteredProducts(validProductsData);
