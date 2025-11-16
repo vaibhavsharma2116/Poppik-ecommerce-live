@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from "@/components/ui/skeleton";
+import { LazyImage } from "@/components/LazyImage";
 
 interface Slider {
   id: number;
@@ -152,11 +153,13 @@ export default function HeroBanner({
                   </div>
                 )} */}
 
-                <img 
+                <LazyImage
                   src={slide.imageUrl} 
                   alt={`Slide ${slide.id}`}
+                  width={1920}
+                  height={600}
+                  priority={slide.sortOrder === 0}
                   className="w-full object-contain bg-gray-100"
-                  style={{ aspectRatio: 'auto' }}
                 />
               </div>
             </CarouselItem>

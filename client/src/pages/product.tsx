@@ -23,6 +23,18 @@ export default function ProductsPage() {
   const { data: allProducts, isLoading: productsLoading, refetch: refetchProducts } = useQuery<Product[]>({
     queryKey: ["/api/products"],
     staleTime: 0,
+    select: (data) => {
+      // Ensure we always return an array
+      if (!data || !Array.isArray(data)) {
+        console.warn('Products data is not an array:', data);
+        return [];
+      }
+      // If data has a products property (nested structure), extract it
+      if (data.products && Array.isArray(data.products)) {
+        return data.products;
+      }
+      return data;
+    }
   });
 
   const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>({
@@ -31,51 +43,70 @@ export default function ProductsPage() {
 
   // Handle initial URL parameter filtering
   useEffect(() => {
-    if (allProducts && allProducts.length > 0) {
-      const searchParams = new URLSearchParams(search);
-      const filterParam = searchParams.get('filter');
-      const categoryParam = searchParams.get('category');
+    const searchParams = new URLSearchParams(search);
+    const filterParam = searchParams.get('filter');
+    const categoryParam = searchParams.get('category');
 
-      // Set initial active filters based on URL parameters
-      const initialFilters = {
-        featured: filterParam === 'featured',
-        bestseller: filterParam === 'bestseller',
-        newLaunch: filterParam === 'newLaunch',
-      };
+    console.log('Products page - URL params:', { filterParam, categoryParam, productsCount: allProducts?.length || 0 });
 
-      setActiveFilters(prev => ({
-        ...prev,
-        ...initialFilters
-      }));
-
-      // Apply initial filtering
-      let filtered = [...allProducts];
-
-      // Apply URL filter parameters
-      if (filterParam) {
-        switch (filterParam) {
-          case 'bestseller':
-            filtered = filtered.filter(product => product.bestseller === true);
-            break;
-          case 'featured':
-            filtered = filtered.filter(product => product.featured === true);
-            break;
-          case 'newLaunch':
-            filtered = filtered.filter(product => product.newLaunch === true);
-            break;
-        }
-      }
-
-      if (categoryParam && categoryParam !== "all") {
-        filtered = filtered.filter(product => product.category === categoryParam);
-      }
-
-      setFilteredProducts(filtered);
+    if (!allProducts || allProducts.length === 0) {
+      console.log('No products available yet');
+      setFilteredProducts([]);
+      return;
     }
+
+    // If no filters at all, show all products
+    if (!filterParam && !categoryParam) {
+      console.log('No filters, showing all products');
+      setFilteredProducts(allProducts);
+      setActiveFilters({});
+      return;
+    }
+
+    // Set initial active filters based on URL parameters
+    const initialFilters = {
+      featured: filterParam === 'featured',
+      bestseller: filterParam === 'bestseller',
+      newLaunch: filterParam === 'newLaunch',
+    };
+
+    setActiveFilters(prev => ({
+      ...prev,
+      ...initialFilters
+    }));
+
+    // Apply initial filtering
+    let filtered = [...allProducts];
+
+    // Apply URL filter parameters
+    if (filterParam) {
+      console.log(`Filtering by ${filterParam}`);
+      switch (filterParam) {
+        case 'bestseller':
+          filtered = filtered.filter(product => product.bestseller === true);
+          break;
+        case 'featured':
+          filtered = filtered.filter(product => product.featured === true);
+          break;
+        case 'newLaunch':
+          filtered = filtered.filter(product => product.newLaunch === true);
+          break;
+      }
+      console.log(`After ${filterParam} filter: ${filtered.length} products`);
+    }
+
+    if (categoryParam && categoryParam !== "all") {
+      filtered = filtered.filter(product => product.category === categoryParam);
+      console.log(`After category filter: ${filtered.length} products`);
+    }
+
+    setFilteredProducts(filtered);
   }, [allProducts, search]);
 
   // Handle dynamic filter changes
   const handleFilterChange = (products: Product[], filters: any) => {
+    console.log('Dynamic filter change:', { productsCount: products.length, filters });
+    
     setFilteredProducts([...products]); // Force array update
     setActiveFilters({...filters}); // Force object update
 

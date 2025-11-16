@@ -1,4 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
+import cors from "cors";
+import compression from "compression";
 
 import { config } from "dotenv";
 import { registerRoutes } from "./routes";
@@ -35,7 +38,43 @@ process.on('SIGINT', () => {
 
 const app = express();
 
+// Security headers with performance optimizations
+app.use(helmet({
+  contentSecurityPolicy: false, // Configure as needed
+  crossOriginEmbedderPolicy: false
+}));
 
+app.use(cors());
+
+// Aggressive compression
+app.use(compression({
+  level: 6,
+  threshold: 1024, // Compress responses > 1KB
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  }
+}));
+
+// Cache static assets aggressively
+app.use('/uploads', express.static('uploads', {
+  maxAge: '365d',
+  immutable: true,
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, path) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+  }
+}));
+
+// Cache API responses
+app.use((req, res, next) => {
+  if (req.method === 'GET' && req.path.startsWith('/api/products')) {
+    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+  }
+  next();
+});
 
 // Trust proxy for load balancer
 app.set('trust proxy', 1);
@@ -55,11 +94,11 @@ app.use((req, res, next) => {
   if (req.method === 'GET' && req.path.startsWith('/api/')) {
     const cacheKey = req.path + JSON.stringify(req.query);
     const cached = cache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       return res.json(cached.data);
     }
-    
+
     // Override res.json to cache response
     const originalJson = res.json.bind(res);
     res.json = function(data: any) {
@@ -272,8 +311,8 @@ const db = drizzle(pool, { schema: { products } });
   });
 
 
-  // Serve the app on port 8085 (recommended for web apps)
-  const port = 8085;
+  // Serve the app on port 5000 (required for Replit web preview)
+  const port = 5000;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
 

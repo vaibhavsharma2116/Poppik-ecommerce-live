@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import React, { lazy, Suspense, useEffect, Component, ErrorInfo, ReactNode } from "react";
+import { Helmet } from "react-helmet";
 
 // Error Boundary Component
 class ErrorBoundary extends Component<

@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import type { Product } from "@/lib/types";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { LazyImage } from "@/components/LazyImage";
 import {
   Sheet,
   SheetContent,
@@ -249,32 +250,21 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           </button>
           <Link href={`/product/${product.slug}`}>
             <div className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50 h-48 rounded-lg">
-              <img
+              <LazyImage
                 src={(() => {
                   // Handle new images array format
                   if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                     const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                    return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=400&h=400&q=80&fit=crop' : ''}`;
+                    return imageUrl;
                   } else if (product.imageUrl) {
-                    return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=400&h=400&q=80&fit=crop' : ''}`;
+                    return product.imageUrl;
                   }
                   return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
                 })()}
                 alt={product.name}
+                width={400}
+                height={400}
                 className="w-full h-full object-contain cursor-pointer group-hover:scale-110 transition-transform duration-700 rounded-lg"
-                loading="lazy"
-                decoding="async"
-                width="400"
-                height="400"
-                onLoad={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.opacity = '1';
-                }}
-                style={{ opacity: 0, transition: 'opacity 0.3s ease', width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
-                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
             </div>
@@ -439,28 +429,22 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <Heart className={`h-6 w-6 transition-all duration-300 ${isInWishlist ? "text-red-500 fill-current animate-pulse" : "text-gray-400 hover:text-pink-500"}`} />
         </button>
         <Link href={`/product/${product.slug}`}>
-          <div className="relative overflow-hidden bg-white">
-            <img
+          <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
+            <LazyImage
               src={(() => {
                 // Handle new images array format
                 if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                   const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                  return `${imageUrl}${imageUrl.includes('unsplash') ? '&w=200&h=200&q=60&fit=crop&auto=format' : ''}`;
+                  return imageUrl;
                 } else if (product.imageUrl) {
-                  return `${product.imageUrl}${product.imageUrl.includes('unsplash') ? '&w=200&h=200&q=60&fit=crop&auto=format' : ''}`;
+                  return product.imageUrl;
                 }
                 return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60';
               })()}
               alt={product.name}
-              className="mobile-product-image w-full h-36 sm:h-44 md:h-52 lg:h-60 object-contain"
-              loading="lazy"
-              decoding="async"
-              fetchpriority="low"
-              style={{ width: '100%', height: '70%', objectFit: 'contain', display: 'block' }}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60';
-              }}
+              width={200}
+              height={200}
+              className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
             />
             <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
             <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>

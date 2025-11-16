@@ -13,8 +13,8 @@ import { Gift, TrendingUp, Users, Sparkles, Award, Target, Star, Zap, Heart, Glo
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import INFLUENCER_Image from "@assets/INFLUENCER BANNER-02.jpg";
-import INFLUENCER_Image1 from "@assets/INFLUENCER BANNER-03.jpg";
+import INFLUENCER_Image from "@/assets/INFLUENCER BANNER-02.jpg";
+import INFLUENCER_Image1 from "@/assets/INFLUENCER BANNER-03.jpg";
 
 export default function InfluencerCollabPage() {
   const { toast } = useToast();

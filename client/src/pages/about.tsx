@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Leaf, FlaskConical, Heart, Users, Award, Sparkles, Rabbit } from "lucide-react";
-import aboutImage from "@assets/ABOUT_SECTION_IMAGE-01.jpg";
+import aboutImage from "@/assets/ABOUT_SECTION_IMAGE-01.jpg";
 export default function About() {
   const stats = [
     // { label: "Happy Customers", value: "5M+", icon: Users },

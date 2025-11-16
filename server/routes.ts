@@ -2310,16 +2310,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products", async (req, res) => {
     try {
       console.log("GET /api/products - Fetching products...");
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      // Fetch products with pagination
+      const { products, totalCount } = await storage.getProducts(limit, offset);
 
       res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); // 5 min cache, 10 min stale
+      // Cache for 5 minutes, stale-while-revalidate for 10 minutes
+      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); 
+      // CDN Cache for 5 minutes
+      res.setHeader('CDN-Cache-Control', 'public, max-age=300'); 
 
-      const products = await storage.getProducts();
       console.log("Products fetched:", products?.length || 0);
 
       if (!Array.isArray(products)) {
-        console.warn("Products is not an array, returning empty array");
-        return res.json([]);
+        console.warn("Products data is not an array, returning empty array");
+        return res.json({ products: [], totalCount: 0 });
       }
 
       // Get images for each product
@@ -2347,10 +2353,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       console.log("Returning products with images:", productsWithImages.length);
-      res.json(productsWithImages);
+      res.json({ products: productsWithImages, totalCount });
     } catch (error) {
       console.error("Products API error:", error);
-      res.json([]);
+      res.status(500).json({ error: "Failed to fetch products", details: error.message });
     }
   });
 
@@ -3807,7 +3813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 customerName: customerName,
                 customerEmail: customerEmail,
                 customerPhone: customerPhone || null,
-                productName: items.map((item: any) => item.productName).join(', '),
+                productName: items.map((item: any) => item.productName || item.name).join(', '),
                 saleAmount: Number(totalAmount).toFixed(2),
                 commissionAmount: calculatedCommission.toFixed(2),
                 commissionRate: commissionRate.toFixed(2),
@@ -4033,7 +4039,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               orderId: newOrder.id,
               type: 'withdrawal',
               amount: affiliateWalletAmount.toFixed(2),
-              balanceType: 'commission',
+              balanceType: commissionBalance >= affiliateWalletAmount ? 'commission' : 'mixed',
               description: `Commission balance used for COD order ORD-${newOrder.id.toString().padStart(3, '0')}`,
               status: 'completed',
               processedAt: new Date(),
@@ -5713,7 +5719,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 background: white;
                 padding: 0;
             }
-            .invoice-container {
+            .invoice-container{
                 box-shadow: none;
                 border-radius: 0;
             }

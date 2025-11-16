@@ -16,12 +16,12 @@ import {
 } from "@/components/ui/navigation-menu";
 import type { Category, Subcategory, Product } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
-import logo from "@assets/logo.png";
-import headerLogo from "@assets/POPPIK LOGO.jpg";
+import logo from "@/assets/logo.png";
+import headerLogo from "@/assets/POPPIK LOGO.jpg";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 import AnnouncementBar from "@/components/announcement-bar";
-import loUntitled_design from "@assets/Untitled_design.png";
+import loUntitled_design from "@/assets/Untitled_design.png";
 import {
   DropdownMenu,
   DropdownMenuContent,

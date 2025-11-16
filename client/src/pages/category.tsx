@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { LazyImage } from "@/components/LazyImage";
 import type { Product, Category, Subcategory } from "@/lib/types";
 
 export default function CategoryPage() {
@@ -220,14 +221,13 @@ export default function CategoryPage() {
             {slidesToShow.map((slide) => (
               <CarouselItem key={slide.id}>
                 <div className="relative overflow-hidden rounded-lg sm:rounded-xl">
-                  <img
+                  <LazyImage
                     src={slide.imageUrl}
                     alt={slide.title || 'Category Banner'}
+                    width={1920}
+                    height={600}
+                    priority={slide.sortOrder === 0}
                     className="w-full h-auto object-contain bg-gray-50"
-                    style={{
-                      objectFit: 'contain',
-                      objectPosition: 'center'
-                    }}
                   />
                 </div>
               </CarouselItem>

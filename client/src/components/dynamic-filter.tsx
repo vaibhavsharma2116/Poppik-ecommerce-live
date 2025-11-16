@@ -57,12 +57,12 @@ export default function DynamicFilter({
       const max = Math.max(...products.map(p => p.price));
       const roundedMax = Math.ceil(max / 100) * 100;
       setMaxPrice(roundedMax);
-      
+
       // Check for URL parameters to set initial filters
       const urlParams = new URLSearchParams(window.location.search);
       const filterParam = urlParams.get('filter');
       const categoryParam = urlParams.get('category');
-      
+
       setFilters(prevFilters => ({
         ...prevFilters,
         priceRange: [0, roundedMax],
@@ -83,7 +83,7 @@ export default function DynamicFilter({
     const urlParams = new URLSearchParams(window.location.search);
     const filterParam = urlParams.get('filter');
     const categoryParam = urlParams.get('category');
-    
+
     if (filterParam) {
       setFilters(prev => ({
         ...prev,
@@ -92,7 +92,7 @@ export default function DynamicFilter({
         newLaunch: filterParam === 'newLaunch'
       }));
     }
-    
+
     if (categoryParam && categoryParam !== 'all') {
       setFilters(prev => ({
         ...prev,
@@ -104,7 +104,7 @@ export default function DynamicFilter({
   // Apply filters whenever filters change
   useEffect(() => {
     // Ensure products is an array
-    if (!Array.isArray(products)) {
+    if (!Array.isArray(products) || products.length === 0) {
       onFilterChange([], { ...filters });
       return;
     }
@@ -112,7 +112,8 @@ export default function DynamicFilter({
     // Force a fresh computation every time
     const filteredProducts = products.filter(product => {
       // Price range filter
-      if (product.price < filters.priceRange[0] || product.price > filters.priceRange[1]) {
+      const productPrice = typeof product.price === 'string' ? parseFloat(product.price.replace(/[₹,]/g, '')) : product.price;
+      if (productPrice < filters.priceRange[0] || productPrice > filters.priceRange[1]) {
         return false;
       }
 
@@ -159,9 +160,15 @@ export default function DynamicFilter({
       return true;
     });
 
+    console.log('DynamicFilter: Filtering', {
+      totalProducts: products.length,
+      filteredCount: filteredProducts.length,
+      filters: filters
+    });
+
     // Force the callback to trigger even if the products array looks the same
     onFilterChange([...filteredProducts], { ...filters });
-  }, [filters, products, onFilterChange]);
+  }, [filters, products]);
 
   const handlePriceRangeChange = (value: number[]) => {
     setFilters(prev => ({
@@ -424,7 +431,9 @@ export default function DynamicFilter({
           </CardHeader>
           <CardContent className="space-y-3">
             {subcategories.map((subcategory) => {
-              const productCount = products.filter(p => p.subcategory === subcategory.name).length;
+              const productCount = Array.isArray(products)
+                ? products.filter(p => p?.subcategory === subcategory.name).length
+                : 0;
               return (
                 <div key={subcategory.id} className="flex items-center justify-between space-x-2">
                   <div className="flex items-center space-x-2 flex-1">
@@ -458,7 +467,9 @@ export default function DynamicFilter({
             </CardHeader>
             <CardContent className="space-y-3">
               {categories.map((category) => {
-                const productCount = products.filter(p => p.category === category.name).length;
+                const productCount = Array.isArray(products) 
+                  ? products.filter(p => p?.category === category.name).length 
+                  : 0;
                 return (
                   <div key={category.id} className="flex items-center justify-between space-x-2">
                     <div className="flex items-center space-x-2 flex-1">
@@ -551,4 +562,4 @@ export default function DynamicFilter({
       </Card>
     </div>
   );
-} 
+}
