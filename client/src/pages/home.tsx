@@ -194,7 +194,6 @@ function TestimonialsCarousel() {
 export default function HomePage() {
   const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null); // Added for subcategory filtering
   const [filteredAllProducts, setFilteredAllProducts] = useState<Product[]>([]);
   const [showAllProductsFilter, setShowAllProductsFilter] = useState(false);
 
@@ -226,7 +225,7 @@ export default function HomePage() {
   });
 
   // Fetch featured products
-  const { data: featuredProducts, isLoading: isLoadingFeatured } = useQuery<Product[]>({
+  const { data: featuredProducts = [], isLoading: isLoadingFeatured } = useQuery<Product[]>({
     queryKey: ["/api/products/featured"],
     queryFn: async () => {
       const res = await fetch("/api/products/featured");
@@ -237,10 +236,10 @@ export default function HomePage() {
   });
 
   // Fetch new arrivals
-  const { data: newArrivals, isLoading: isLoadingNew } = useQuery<Product[]>({
-    queryKey: ["/api/products/new"],
+  const { data: newArrivals = [], isLoading: isLoadingNew } = useQuery<Product[]>({
+    queryKey: ["/api/products/new-launches"],
     queryFn: async () => {
-      const res = await fetch("/api/products/new");
+      const res = await fetch("/api/products/new-launches");
       if (!res.ok) throw new Error("Failed to fetch new arrivals");
       return res.json();
     },
@@ -256,19 +255,11 @@ export default function HomePage() {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     select: (data) => {
-      if (!Array.isArray(data)) return [];
+      if (!data || !Array.isArray(data)) return [];
       return data.slice(0, 8); // Only take first 8 products for home page
     },
   });
 
-  const handleCategoryChange = (category: string | null) => {
-    setSelectedCategory(category);
-    setSelectedSubcategory(null); // Reset subcategory when category changes
-  };
-
-  const handleSubcategoryChange = (subcategory: string | null) => {
-    setSelectedSubcategory(subcategory);
-  };
 
 
   const categoryImages = {
@@ -560,64 +551,64 @@ export default function HomePage() {
             </div>
 
             {bestsellersLoading ? (
+              <div className="px-2 sm:px-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                      <Skeleton className="aspect-square w-full" />
+                      <div className="p-3 space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-6 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : bestsellerProducts && bestsellerProducts.length > 0 ? (
+              <>
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {Array.from({ length: 8 }).map((_, i) => (
-                      <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
-                        <Skeleton className="aspect-square w-full" />
-                        <div className="p-3 space-y-2">
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-3/4" />
-                          <Skeleton className="h-6 w-1/2" />
-                        </div>
-                      </div>
+                    {bestsellerProducts.slice(0, 4).map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                      />
                     ))}
                   </div>
                 </div>
-              ) : bestsellerProducts && bestsellerProducts.length > 0 ? (
-                <>
-                  <div className="px-2 sm:px-4">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {bestsellerProducts.slice(0, 4).map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                        />
-                      ))}
-                    </div>
-                  </div>
 
-                  <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                    <Link href="/products?filter=bestseller">
-                      <Button className="font-poppins bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                        <span>
-                          View All Bestsellers ({bestsellerProducts.filter(p => p.bestseller).length})
-                        </span>
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17 8l4 4m0 0l-4 4m4-4H3"
-                          />
-                        </svg>
-                      </Button>
-                    </Link>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 text-lg">
-                    No bestseller products available at the moment.
-                  </p>
+                <div className="text-center mt-6 sm:mt-8 md:mt-10">
+                  <Link href="/products?filter=bestseller">
+                    <Button className="font-poppins bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+                      <span>
+                        View All Bestsellers ({bestsellerProducts?.length || 0})
+                      </span>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+                        />
+                      </svg>
+                    </Button>
+                  </Link>
                 </div>
-              )}
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">
+                  No bestseller products available at the moment.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -639,62 +630,62 @@ export default function HomePage() {
             </div>
 
             {isLoadingFeatured ? (
+              <div className="px-2 sm:px-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                      <Skeleton className="aspect-square w-full" />
+                      <div className="p-3 space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-6 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : featuredProducts && featuredProducts.length > 0 ? (
+              <>
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
-                        <Skeleton className="aspect-square w-full" />
-                        <div className="p-3 space-y-2">
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-3/4" />
-                          <Skeleton className="h-6 w-1/2" />
-                        </div>
-                      </div>
+                    {featuredProducts.slice(0, 4).map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                      />
                     ))}
                   </div>
                 </div>
-              ) : featuredProducts && featuredProducts.length > 0 ? (
-                <>
-                  <div className="px-2 sm:px-4">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {featuredProducts.slice(0, 4).map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                        />
-                      ))}
-                    </div>
-                  </div>
 
-                  <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                    <Link href="/products?filter=featured">
-                      <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                        <span>View All Products ({featuredProducts.filter(p => p.featured).length})</span>
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17 8l4 4m0 0l-4 4m4-4H3"
-                          />
-                        </svg>
-                      </Button>
-                    </Link>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 text-lg">
-                    No products available at the moment.
-                  </p>
+                <div className="text-center mt-6 sm:mt-8 md:mt-10">
+                  <Link href="/products?filter=featured">
+                    <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                      <span>View All Products ({featuredProducts?.length || 0})</span>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+                        />
+                      </svg>
+                    </Button>
+                  </Link>
                 </div>
-              )}
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">
+                  No products available at the moment.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -716,64 +707,64 @@ export default function HomePage() {
             </div>
 
             {isLoadingNew ? (
+              <div className="px-2 sm:px-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                      <Skeleton className="aspect-square w-full" />
+                      <div className="p-3 space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-6 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : newArrivals && newArrivals.length > 0 ? (
+              <>
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
-                        <Skeleton className="aspect-square w-full" />
-                        <div className="p-3 space-y-2">
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-3/4" />
-                          <Skeleton className="h-6 w-1/2" />
-                        </div>
-                      </div>
+                    {newArrivals.slice(0, 4).map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                      />
                     ))}
                   </div>
                 </div>
-              ) : newArrivals && newArrivals.length > 0 ? (
-                <>
-                  <div className="px-2 sm:px-4">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {newArrivals.slice(0, 4).map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                        />
-                      ))}
-                    </div>
-                  </div>
 
-                  <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                    <Link href="/products?filter=newLaunch">
-                      <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                        <span>
-                          View All New Launches ({newArrivals.filter(p => p.newLaunch).length})
-                        </span>
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17 8l4 4m0 0l-4 4m4-4H3"
-                          />
-                        </svg>
-                      </Button>
-                    </Link>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 text-lg">
-                    No new launches available at the moment.
-                  </p>
+                <div className="text-center mt-6 sm:mt-8 md:mt-10">
+                  <Link href="/products?filter=newLaunch">
+                    <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+                      <span>
+                        View All New Launches ({newArrivals?.length || 0})
+                      </span>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+                        />
+                      </svg>
+                    </Button>
+                  </Link>
                 </div>
-              )}
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">
+                  No new launches available at the moment.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -1068,7 +1059,7 @@ function ComboSection() {
 
                   {/* Price Section */}
                   <div className="space-y-1 sm:space-y-1.5 md:space-y-2 mt-auto">
-                    <div className="space-y-1 sm:space-y-1.5 md:space-y-2">
+                    <div className="flex flex-col space-y-1">
                       <div className="flex items-baseline space-x-1 sm:space-x-2 min-h-[24px]">
                         <span className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
                           ₹{price.toLocaleString()}
