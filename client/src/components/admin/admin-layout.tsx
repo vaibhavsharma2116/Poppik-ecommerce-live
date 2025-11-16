@@ -210,36 +210,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Check authentication on component mount
   useEffect(() => {
+    // Skip auth check if we're on the admin login page
+    if (location === '/admin/auth/admin-login') {
+      setIsAuthenticating(false);
+      return;
+    }
+
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
       const userStr = localStorage.getItem('user');
 
-      // If no token or user data, redirect to admin login
       if (!token || !userStr) {
-        console.log('No authentication found, redirecting to admin login');
-        setLocation('/auth/admin-login');
-        return;
-      }
-
-      let user;
-      try {
-        user = JSON.parse(userStr);
-      } catch (error) {
-        console.log('Invalid user data, redirecting to admin login');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setLocation('/auth/admin-login');
-        return;
-      }
-
-      // Check if user is admin
-      if (user.role !== 'admin') {
-        console.log('User is not admin, redirecting to home page');
-        setLocation('/');
+        console.log('No token or user found, redirecting to admin login');
+        setLocation('/admin/auth/admin-login');
         return;
       }
 
       try {
+        const user = JSON.parse(userStr);
+
+        // Check if user is admin
+        if (user.role !== 'admin') {
+          console.log('User is not admin, redirecting to home page');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setLocation('/');
+          return;
+        }
+
         // Validate token with server
         const response = await fetch('/api/auth/validate', {
           headers: {
@@ -251,7 +249,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           console.log('Token validation failed, redirecting to admin login');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          setLocation('/auth/admin-login');
+          setLocation('/admin/auth/admin-login');
           return;
         }
 
@@ -271,12 +269,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         // On error, remove token and redirect to admin login
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        setLocation('/auth/admin-login');
+        setLocation('/admin/auth/admin-login');
       }
     };
 
     checkAuth();
-  }, [setLocation]);
+  }, [setLocation, location]);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -574,7 +572,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         const userStr = localStorage.getItem('user');
                         if (userStr) {
                           try {
-                            const user = JSON.JSON.parse(userStr);
+                            const user = JSON.parse(userStr);
                             return user.role === 'admin' ? 'Super Admin' : 'Admin';
                           } catch (error) {
                             return 'Admin';

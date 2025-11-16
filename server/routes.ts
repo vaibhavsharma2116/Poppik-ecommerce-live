@@ -65,7 +65,7 @@ import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
 import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage } from "../shared/schema";
-import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema, products, categories, stores, admin } from "../shared/schema"; // Import users table explicitly
+import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema } from "../shared/schema"; // Import users table explicitly
 import type { Request, Response } from 'express'; // Import Request and Response types for clarity
 
 // Initialize Shiprocket service
@@ -73,7 +73,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration and error recovery
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -2044,15 +2044,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const cacheKey = `${req.path}-${params}`;
     const fileStats = fs.statSync(imagePath);
 
-    // Set aggressive caching headers with compression hints
+    // Set optimized caching headers
     res.set({
       'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=31536000, immutable, stale-while-revalidate=86400',
+      'Cache-Control': 'public, max-age=31536000, immutable', // 1 year with immutable
       'ETag': `"${cacheKey}-${fileStats.mtime.getTime()}"`,
       'Last-Modified': fileStats.mtime.toUTCString(),
-      'Vary': 'Accept-Encoding, Accept',
-      'X-Content-Type-Options': 'nosniff',
-      'Accept-Ranges': 'bytes'
+      'Vary': 'Accept-Encoding'
     });
 
     // Handle conditional requests
@@ -2194,87 +2192,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Products API with optimized caching and column selection
+  // Products API
   app.get("/api/products", async (req, res) => {
     try {
-      // Set aggressive cache headers
-      res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=7200');
-      res.setHeader('Vary', 'Accept-Encoding');
-      res.setHeader('X-Content-Type-Options', 'nosniff');
+      console.log("GET /api/products - Fetching products...");
 
-      console.log("GET /api/products - Fetching optimized products...");
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); // 5 min cache, 10 min stale
 
-      // Select only required columns to reduce data transfer
-      const products = await db
-        .select({
-          id: schema.products.id,
-          name: schema.products.name,
-          slug: schema.products.slug,
-          shortDescription: schema.products.shortDescription,
-          price: schema.products.price,
-          originalPrice: schema.products.originalPrice,
-          discount: schema.products.discount,
-          cashbackPercentage: schema.products.cashbackPercentage,
-          cashbackPrice: schema.products.cashbackPrice,
-          category: schema.products.category,
-          subcategory: schema.products.subcategory,
-          imageUrl: schema.products.imageUrl,
-          rating: schema.products.rating,
-          reviewCount: schema.products.reviewCount,
-          inStock: schema.products.inStock,
-          featured: schema.products.featured,
-          bestseller: schema.products.bestseller,
-          newLaunch: schema.products.newLaunch,
-        })
-        .from(schema.products);
+      const products = await storage.getProducts();
+      console.log("Products fetched:", products?.length || 0);
 
-      if (!Array.isArray(products) || products.length === 0) {
+      if (!Array.isArray(products)) {
+        console.warn("Products is not an array, returning empty array");
         return res.json([]);
       }
 
-      // Batch fetch images - single optimized query
-      const productIds = products.map(p => p.id);
-      const imagesMap = new Map();
-      
-      if (productIds.length > 0) {
-        try {
-          const allImages = await db
-            .select({
-              productId: schema.productImages.productId,
-              imageUrl: schema.productImages.imageUrl,
-              isPrimary: schema.productImages.isPrimary,
-              sortOrder: schema.productImages.sortOrder
-            })
-            .from(schema.productImages)
-            .where(sql`${schema.productImages.productId} = ANY(${productIds})`)
-            .orderBy(asc(schema.productImages.sortOrder));
-
-          // Group images efficiently
-          for (const img of allImages) {
-            if (!imagesMap.has(img.productId)) {
-              imagesMap.set(img.productId, []);
-            }
-            imagesMap.get(img.productId).push({
-              url: img.imageUrl,
-              isPrimary: img.isPrimary
-            });
+      // Get images for each product
+      const productsWithImages = await Promise.all(
+        products.map(async (product) => {
+          try {
+            const images = await storage.getProductImages(product.id);
+            return {
+              ...product,
+              images: images.map(img => ({
+                id: img.id,
+                url: img.imageUrl,
+                isPrimary: img.isPrimary,
+                sortOrder: img.sortOrder
+              }))
+            };
+          } catch (imgError) {
+            console.warn(`Failed to get images for product ${product.id}:`, imgError.message);
+            return {
+              ...product,
+              images: []
+            };
           }
-        } catch (imgError) {
-          console.warn('Image fetch failed:', imgError.message);
-        }
-      }
+        })
+      );
 
-      // Combine data efficiently
-      const result = products.map(product => ({
-        ...product,
-        images: imagesMap.get(product.id) || []
-      }));
-
-      console.log(`Returning ${result.length} optimized products`);
-      res.json(result);
+      console.log("Returning products with images:", productsWithImages.length);
+      res.json(productsWithImages);
     } catch (error) {
       console.error("Products API error:", error);
-      res.status(500).json([]);
+      res.json([]);
     }
   });
 
@@ -2565,17 +2527,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Categories API
  app.get("/api/categories", async (req, res) => {
-    try {
-      // Cache categories for 30 minutes
-      res.setHeader('Cache-Control', 'public, max-age=1800, s-maxage=1800');
-      res.setHeader('Vary', 'Accept-Encoding');
+  try {
+    const categories = await storage.getCategories();
+    console.log("categories", categories);
 
-      console.log("GET /api/categories - Fetching categories...");
-      const allCategories = await db.select().from(categories);
-      console.log("categories", allCategories);
-
-      // const categoriesWithCount = await Promise.all(
-      allCategories.map(async (category) => {
+    // const categoriesWithCount = await Promise.all(
+      categories.map(async (category) => {
         // const products = await storage.getProductsByCategory(category.name);
         // console.log(`Category: ${category.name}, Products:`, products);
         return {
@@ -2586,7 +2543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // );
 
     // console.log("categoriesWithCount", categoriesWithCount);
-    res.json(allCategories);
+    res.json(categories);
   } catch (error) {
     console.log("Database unavailable, returning empty categories");
     res.json([]);
@@ -3356,7 +3313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userUsageLimit: userUsageLimit ? parseInt(userUsageLimit) : 1,
         validFrom: validFrom ? new Date(validFrom) : new Date(),
         validUntil: validUntil ? new Date(validUntil) : null,
-        isActive: isActive !== false && isActive !== 'false',
+        isActive: isActive !== false,
         usageCount: 0
       }).returning();
 
@@ -3829,7 +3786,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (affiliateWalletAmount > 0 && user?.id) {
         try {
           console.log(`🔍 Deducting ₹${affiliateWalletAmount} from affiliate wallet for user ${user.id}`);
-
+          
           // Get affiliate wallet
           const wallet = await db
             .select()
@@ -3873,7 +3830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Credit affiliate commission to wallet if affiliate code was used
       if (affiliateCode && affiliateCode.startsWith('POPPIKAP')) {
         const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
-
+        
         console.log(`🔍 Processing affiliate commission for code: ${affiliateCode}, userId: ${affiliateUserId}`);
 
         if (!isNaN(affiliateUserId)) {
@@ -3901,7 +3858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Calculate commission based on dynamic rate from settings
               const finalPayableAmount = Number(totalAmount) - (affiliateWalletAmount || 0);
               const calculatedCommission = (finalPayableAmount * commissionRate) / 100;
-
+              
               console.log(`💰 Calculated commission: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${totalAmount})`);
 
               // Get or create affiliate wallet
@@ -3921,7 +3878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   totalEarnings: calculatedCommission.toFixed(2),
                   totalWithdrawn: "0.00"
                 }).returning();
-
+                
                 console.log(`✅ Wallet created:`, newWallet);
               } else {
                 console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
@@ -3937,7 +3894,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   })
                   .where(eq(schema.affiliateWallet.userId, affiliateUserId))
                   .returning();
-
+                
                 console.log(`✅ Wallet updated:`, updatedWallet);
               }
 
@@ -3970,7 +3927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 commissionRate: commissionRate.toFixed(2),
                 status: 'confirmed'
               }).returning();
-
+              
               console.log(`✅ Sale record created:`, saleRecord);
 
               // Add transaction record
@@ -3984,7 +3941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 status: 'completed',
                 createdAt: new Date()
               }).returning();
-
+              
               console.log(`✅ Transaction record created:`, transactionRecord);
 
               console.log(`✅ Affiliate commission credited: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for order ${newOrder.id}`);
@@ -4172,7 +4129,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orderId = req.params.id.replace('ORD-', '');
 
-      // Get order from database
       const order = await db
         .select()
         .from(schema.ordersTable)
@@ -5103,7 +5059,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: name.trim(),
         slug,
         description: description?.trim() || '',
-        categoryId: parseInt(categoryId),        isActive: isActive !== false && isActive !== 'false',
+        categoryId: parseInt(categoryId),
+        isActive: isActive !== false && isActive !== 'false',
         sortOrder: parseInt(sortOrder) || 0
       };
 
@@ -5126,7 +5083,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updateData: Partial<InsertBlogSubcategory> = {};
 
-      if (name !== undefined) updateData.name = name.trim();
+      if (name !== undefined) {
+        updateData.name = name.trim();
+        updateData.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      }
       if (description !== undefined) updateData.description = description.trim();
       if (categoryId !== undefined) updateData.categoryId = parseInt(categoryId);
       if (isActive !== undefined) updateData.isActive = isActive !== false && isActive !== 'false';
@@ -6032,7 +5992,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/shades/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const { id } = req.params;
       console.log("Updating shade with ID:", id);
       console.log("Update data received:", req.body);
 
@@ -6040,16 +6000,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { productIds, categoryIds, subcategoryIds, ...shadeData } = req.body;
 
       // Update shade with only product-specific assignments
-      const updatedShade = await storage.updateShade(id, {
+      const shade = await storage.updateShade(parseInt(id), {
         ...shadeData,
         productIds: productIds || [], // Only store individually selected products
         categoryIds: categoryIds || [],
         subcategoryIds: subcategoryIds || []
       });
 
-      console.log("Shade updated successfully:", updatedShade);
-      res.json(updatedShade);
-    } catch (error: any) {
+      console.log("Shade updated successfully:", shade);
+      res.json(shade);
+    } catch (error) {
       console.error("Error updating shade:", error);
 
       let errorMessage = "Failed to update shade";
@@ -8027,7 +7987,15 @@ Poppik Affiliate Portal
           : 'Update on Your Poppik Affiliate Application';
 
         const emailHtml = status === 'approved'
-          ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          ? `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Poppik Affiliate Program</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
     <!-- Header -->
     <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 40px 20px; text-align: center;">
       <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to the Poppik Lifestyle Private Limited Affiliate Program</h1>
@@ -8094,7 +8062,7 @@ Poppik Affiliate Portal
               ${notes ? `<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
                 <p style="margin: 0; color: #856404;"><strong>Reason:</strong> ${notes}</p>
               </div>` : ''}
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0 0 0;">
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0;">
                 We encourage you to reapply in the future. Keep creating amazing content!
               </p>
               <p style="font-size: 14px; color: #999999; margin: 20px 0 0 0;">

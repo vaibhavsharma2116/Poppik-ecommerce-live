@@ -145,6 +145,9 @@ function Router() {
     <>
       <ScrollToTop />
       <Switch>
+      {/* Admin Login Route (outside AdminLayout) */}
+      <Route path="/admin/auth/admin-login" component={() => <LazyRoute component={lazy(() => import("./pages/auth/admin-login"))} />} />
+
       {/* Admin Routes */}
       <Route path="/admin" nest>
         <AdminLayout>

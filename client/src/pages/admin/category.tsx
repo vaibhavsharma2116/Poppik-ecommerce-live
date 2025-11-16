@@ -88,7 +88,12 @@ export default function AdminCategories() {
   const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
-      const response = await fetch('/api/categories');
+      const response = await fetch('/api/categories', {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Failed to fetch categories:', errorText);
@@ -100,15 +105,22 @@ export default function AdminCategories() {
     },
     retry: 3,
     retryDelay: 1000,
-    refetchOnWindowFocus: false,
-    staleTime: 0
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 0,
+    cacheTime: 0
   });
 
   // Fetch subcategories
   const { data: subcategories = [], isLoading: subcategoriesLoading, error: subcategoriesError } = useQuery({
     queryKey: ['subcategories'],
     queryFn: async () => {
-      const response = await fetch('/api/subcategories');
+      const response = await fetch('/api/subcategories', {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Failed to fetch subcategories:', errorText);
@@ -120,8 +132,10 @@ export default function AdminCategories() {
     },
     retry: 3,
     retryDelay: 1000,
-    refetchOnWindowFocus: false,
-    staleTime: 0
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 0,
+    cacheTime: 0
   });
 
   // Category mutations
