@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Product, Category } from "@/lib/types";
-import OptimizedImage from "@/components/OptimizedImage";
 
 interface CategoryMenuProps {
   products: Product[];
@@ -64,10 +63,10 @@ export default function CategoryMenu({
                   >
                     <div className="flex items-center w-full">
                       <div className="relative w-16 h-16 mr-3 flex-shrink-0">
-                        <OptimizedImage
+                        <img
                           src={category.imageUrl}
                           alt={category.name}
-                          optimization={{
+                          style={{
                             width: 200,
                             height: 200,
                             quality: 75,

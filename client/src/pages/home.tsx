@@ -28,7 +28,6 @@ import DynamicFilter from "@/components/dynamic-filter";
 import VideoTestimonials from "@/components/video-testimonials";
 import type { Product, Category } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
-import OptimizedImage from "@/components/optimized-image"; // Assuming OptimizedImage is used
 import AnnouncementBar from "@/components/announcement-bar";
 import { useToast } from "@/hooks/use-toast";
 

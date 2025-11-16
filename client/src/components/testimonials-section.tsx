@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import OptimizedImage from '@/components/OptimizedImage';
 
 interface Testimonial {
   id: number;
@@ -121,10 +120,10 @@ export default function TestimonialsSection() {
                 >
                   <div className={`rounded-2xl overflow-hidden ${isCenter ? 'ring-4 ring-red-400 shadow-lg' : ''}`} style={{ width: '100%', height: '100%' }}>
                     {testimonial.customerImage ? (
-                      <OptimizedImage
+                      <img
                         src={testimonial.customerImage}
                         alt={testimonial.customerName}
-                        optimization={{
+                        style={{
                           width: isCenter ? 150 : 120,
                           height: isCenter ? 150 : 120,
                           quality: 75,

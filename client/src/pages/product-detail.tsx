@@ -19,7 +19,6 @@ import {
 import ProductCard from "@/components/product-card";
 import type { Product } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import OptimizedImage from "@/components/OptimizedImage"; // Assuming OptimizedImage is available
 
 interface Review {
   id: number;
@@ -867,7 +866,7 @@ export default function ProductDetail() {
                                         </div>
                                       </>
                                     ) : (
-                                      <OptimizedImage
+                                      <img
                                         src={imageUrl}
                                         alt={`${product.name} view ${index + 1}`}
                                         className="w-full h-full hover:scale-110 transition-transform duration-200"
