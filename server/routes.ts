@@ -531,11 +531,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         confirmPassword: req.body.confirmPassword ? "[HIDDEN]" : undefined
       });
 
-      const { firstName, lastName, email, phone, password, confirmPassword, dateOfBirth } = req.body;
+      const { firstName, lastName, email, phone, password, confirmPassword } = req.body;
 
       // Validation
-      if (!firstName || !lastName || !email || !password || !dateOfBirth) {
-        console.log("Missing required fields:", { firstName: !!firstName, lastName: !!lastName, email: !!email, password: !!password, dateOfBirth: !!dateOfBirth });
+      if (!firstName || !lastName || !email || !password ) {
+        console.log("Missing required fields:", { firstName: !!firstName, lastName: !!lastName, email: !!email, password: !!password });
         return res.status(400).json({ error: "All required fields must be provided" });
       }
 
@@ -575,8 +575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
         phone: phone ? phone.trim() : null,
-        password: hashedPassword,
-        dateOfBirth: dateOfBirth.trim()
+        password: hashedPassword
       };
 
       console.log("User data to create:", {
@@ -2270,6 +2269,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const productData = {
         ...req.body,
         price: Number(price),
+        originalPrice: req.body.originalPrice ? Number(req.body.originalPrice) : null,
+        discount: req.body.discount ? Number(req.body.discount) : null,
         cashbackPercentage: req.body.cashbackPercentage ? Number(req.body.cashbackPercentage) : null,
         cashbackPrice: req.body.cashbackPrice ? Number(req.body.cashbackPrice) : null,
         rating: Number(req.body.rating) || 4.0,
@@ -3313,7 +3314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userUsageLimit: userUsageLimit ? parseInt(userUsageLimit) : 1,
         validFrom: validFrom ? new Date(validFrom) : new Date(),
         validUntil: validUntil ? new Date(validUntil) : null,
-        isActive: isActive !== false,
+        isActive: isActive !== false && isActive !== 'false',
         usageCount: 0
       }).returning();
 
@@ -3786,7 +3787,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (affiliateWalletAmount > 0 && user?.id) {
         try {
           console.log(`🔍 Deducting ₹${affiliateWalletAmount} from affiliate wallet for user ${user.id}`);
-          
+
           // Get affiliate wallet
           const wallet = await db
             .select()
@@ -3830,7 +3831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Credit affiliate commission to wallet if affiliate code was used
       if (affiliateCode && affiliateCode.startsWith('POPPIKAP')) {
         const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
-        
+
         console.log(`🔍 Processing affiliate commission for code: ${affiliateCode}, userId: ${affiliateUserId}`);
 
         if (!isNaN(affiliateUserId)) {
@@ -3858,7 +3859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Calculate commission based on dynamic rate from settings
               const finalPayableAmount = Number(totalAmount) - (affiliateWalletAmount || 0);
               const calculatedCommission = (finalPayableAmount * commissionRate) / 100;
-              
+
               console.log(`💰 Calculated commission: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${totalAmount})`);
 
               // Get or create affiliate wallet
@@ -3878,7 +3879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   totalEarnings: calculatedCommission.toFixed(2),
                   totalWithdrawn: "0.00"
                 }).returning();
-                
+
                 console.log(`✅ Wallet created:`, newWallet);
               } else {
                 console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
@@ -3894,7 +3895,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   })
                   .where(eq(schema.affiliateWallet.userId, affiliateUserId))
                   .returning();
-                
+
                 console.log(`✅ Wallet updated:`, updatedWallet);
               }
 
@@ -3927,7 +3928,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 commissionRate: commissionRate.toFixed(2),
                 status: 'confirmed'
               }).returning();
-              
+
               console.log(`✅ Sale record created:`, saleRecord);
 
               // Add transaction record
@@ -3941,7 +3942,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 status: 'completed',
                 createdAt: new Date()
               }).returning();
-              
+
               console.log(`✅ Transaction record created:`, transactionRecord);
 
               console.log(`✅ Affiliate commission credited: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for order ${newOrder.id}`);
@@ -4677,7 +4678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Return default categories when database is unavailable
       res.json([
         { id: 1, name: "Skincare", slug: "skincare", description: "All about skincare", isActive: true, sortOrder: 1 },
-        { id: 2, name: "Makeup", slug: "makeup", description: "All about makeup", isActive: true, sortOrder: 2 },
+        { id: 2, name: "Makeup", slug: "makeup", description: "All about makeup", isActive        : true, sortOrder: 2 },
         { id: 3, name: "Haircare", slug: "haircare", description: "All about haircare", isActive: true, sortOrder: 3 }
       ]);
     }
@@ -5928,7 +5929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/admin/shades", async (req, res) => {
+  app.post("/api/admin/shades", async (req, res) => {
     try {
       console.log("Creating shade with data:", req.body);
 

@@ -1,20 +1,15 @@
 import express, { type Request, Response, NextFunction } from "express";
-import compression from "compression";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
-import { Pool } from "pg";
-import { CPUMonitor } from "./cpu-monitor";
-import { createPerformanceRoutes } from "./perfomance-routes";
-import { DatabaseOptimizer } from "./db-optimizer";
-import path from "path";
-import { fileURLToPath } from "url";
 
 import { config } from "dotenv";
+import { registerRoutes } from "./routes";
+import { setupVite, serveStatic, log } from "./vite";
+import { pool } from "./storage";
+import path from "path";
+import { fileURLToPath } from "url";
 import { products } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import fs from "fs";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { pool } from "./storage";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,20 +35,9 @@ process.on('SIGINT', () => {
 
 const app = express();
 
-// Enable aggressive compression
-app.use(compression({
-  level: 9, // Maximum compression
-  threshold: 512, // Compress smaller files too
-  filter: (req, res) => {
-    if (req.headers['x-no-compression']) {
-      return false;
-    }
-    // Compress JSON, text, JavaScript, CSS, HTML, XML, and images
-    return compression.filter(req, res);
-  }
-}));
 
-// Trust proxy
+
+// Trust proxy for load balancer
 app.set('trust proxy', 1);
 
 // Optimize JSON parsing
@@ -65,30 +49,17 @@ app.disable('x-powered-by');
 
 // Simple in-memory cache for GET requests
 const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 1800000; // 30 minutes - more aggressive caching
+const CACHE_DURATION = 30000; // 30 seconds
 
 app.use((req, res, next) => {
-  // Add compression and cache headers with immutable for static assets
-  if (req.path.match(/\.(jpg|jpeg|png|webp|gif|svg|ico|woff|woff2|ttf|eot|css|js)$/)) {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-  } else if (req.method === 'GET' && req.path.startsWith('/api/')) {
-    res.setHeader('Cache-Control', 'public, max-age=1800, stale-while-revalidate=3600');
-  } else {
-    res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200');
-  }
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-
   if (req.method === 'GET' && req.path.startsWith('/api/')) {
     const cacheKey = req.path + JSON.stringify(req.query);
     const cached = cache.get(cacheKey);
-
+    
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      res.setHeader('X-Cache', 'HIT');
       return res.json(cached.data);
     }
-
-    res.setHeader('X-Cache', 'MISS');
-
+    
     // Override res.json to cache response
     const originalJson = res.json.bind(res);
     res.json = function(data: any) {
@@ -301,7 +272,7 @@ const db = drizzle(pool, { schema: { products } });
   });
 
 
-  // Serve the app on port 5000 (required for Replit webview)
+  // Serve the app on port 8085 (recommended for web apps)
   const port = 8085;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);

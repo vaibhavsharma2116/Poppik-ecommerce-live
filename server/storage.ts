@@ -420,7 +420,7 @@ export class DatabaseStorage implements IStorage {
     return await this.db.select().from(products).where(eq(products.newLaunch, true));
   }
 
-  async createProduct(productData: any): Promise<Product> {
+  async createProduct(productData: InsertProduct): Promise<Product> {
     try {
       console.log("Creating product with data:", productData);
 
@@ -481,8 +481,16 @@ export class DatabaseStorage implements IStorage {
       if (productData.size) productToInsert.size = String(productData.size).trim();
       if (productData.tags) productToInsert.tags = String(productData.tags).trim();
 
-      console.log("Inserting product data:", productToInsert);
-      const result = await this.db.insert(products).values(productToInsert).returning();
+      // Ensure numeric fields are properly formatted
+      const productData = {
+        ...productToInsert,
+        discount: productData.discount ? parseFloat(productData.discount.toString()) : null,
+        cashbackPercentage: productData.cashbackPercentage ? parseFloat(productData.cashbackPercentage.toString()) : null,
+        cashbackPrice: productData.cashbackPrice ? parseFloat(productData.cashbackPrice.toString()) : null,
+      };
+
+      console.log("Inserting product data:", productData);
+      const result = await this.db.insert(products).values(productData).returning();
 
       if (!result || result.length === 0) {
         throw new Error("Product was not created - no result returned");
@@ -535,9 +543,17 @@ export class DatabaseStorage implements IStorage {
         cleanData.slug = cleanData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       }
 
+      // Ensure numeric fields are properly formatted
+      const updateData = {
+        ...cleanData,
+        discount: productData.discount !== undefined ? (productData.discount ? parseFloat(productData.discount.toString()) : null) : undefined,
+        cashbackPercentage: productData.cashbackPercentage !== undefined ? (productData.cashbackPercentage ? parseFloat(productData.cashbackPercentage.toString()) : null) : undefined,
+        cashbackPrice: productData.cashbackPrice !== undefined ? (productData.cashbackPrice ? parseFloat(productData.cashbackPrice.toString()) : null) : undefined,
+      };
+
       const [updatedProduct] = await this.db
         .update(products)
-        .set(cleanData)
+        .set(updateData)
         .where(eq(products.id, id))
         .returning();
 

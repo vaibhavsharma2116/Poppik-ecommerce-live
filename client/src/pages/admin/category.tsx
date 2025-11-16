@@ -85,13 +85,15 @@ export default function AdminCategories() {
   const { toast } = useToast();
 
   // Fetch categories
-  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useQuery({
-    queryKey: ['categories'],
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError, refetch: refetchCategories } = useQuery({
+    queryKey: ['admin-categories'],
     queryFn: async () => {
-      const response = await fetch('/api/categories', {
+      const timestamp = Date.now();
+      const response = await fetch(`/api/categories?_t=${timestamp}`, {
         headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
       if (!response.ok) {
@@ -103,22 +105,25 @@ export default function AdminCategories() {
       console.log('Categories fetched:', data);
       return Array.isArray(data) ? data : [];
     },
-    retry: 3,
-    retryDelay: 1000,
+    retry: 2,
+    retryDelay: 500,
     refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    refetchOnMount: 'always',
     staleTime: 0,
-    cacheTime: 0
+    gcTime: 0,
+    networkMode: 'always'
   });
 
   // Fetch subcategories
-  const { data: subcategories = [], isLoading: subcategoriesLoading, error: subcategoriesError } = useQuery({
-    queryKey: ['subcategories'],
+  const { data: subcategories = [], isLoading: subcategoriesLoading, error: subcategoriesError, refetch: refetchSubcategories } = useQuery({
+    queryKey: ['admin-subcategories'],
     queryFn: async () => {
-      const response = await fetch('/api/subcategories', {
+      const timestamp = Date.now();
+      const response = await fetch(`/api/subcategories?_t=${timestamp}`, {
         headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
       if (!response.ok) {
@@ -130,12 +135,13 @@ export default function AdminCategories() {
       console.log('Subcategories fetched:', data);
       return Array.isArray(data) ? data : [];
     },
-    retry: 3,
-    retryDelay: 1000,
+    retry: 2,
+    retryDelay: 500,
     refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    refetchOnMount: 'always',
     staleTime: 0,
-    cacheTime: 0
+    gcTime: 0,
+    networkMode: 'always'
   });
 
   // Category mutations
@@ -149,12 +155,17 @@ export default function AdminCategories() {
       if (!response.ok) throw new Error('Failed to create category');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    onSuccess: async () => {
+      await queryClient.resetQueries({ queryKey: ['admin-categories'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-categories'], type: 'active' });
       setIsAddCategoryModalOpen(false);
       setCategoryFormData({ name: '', slug: '', description: '', status: 'Active' });
       setSelectedImage(null);
       setImagePreview('');
+      toast({
+        title: "Success",
+        description: "Category created successfully",
+      });
     }
   });
 
@@ -168,13 +179,18 @@ export default function AdminCategories() {
       if (!response.ok) throw new Error('Failed to update category');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    onSuccess: async () => {
+      await queryClient.resetQueries({ queryKey: ['admin-categories'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-categories'], type: 'active' });
       setIsEditModalOpen(false);
       setEditingCategory(null);
       setCategoryFormData({ name: '', slug: '', description: '', status: 'Active' });
       setSelectedImage(null);
       setImagePreview('');
+      toast({
+        title: "Success",
+        description: "Category updated successfully",
+      });
     }
   });
 
@@ -184,10 +200,16 @@ export default function AdminCategories() {
       if (!response.ok) throw new Error('Failed to delete category');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    onSuccess: async () => {
+      // Clear cache completely and refetch
+      await queryClient.resetQueries({ queryKey: ['admin-categories'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-categories'], type: 'active' });
       setIsDeleteModalOpen(false);
       setSelectedCategory(null);
+      toast({
+        title: "Success",
+        description: "Category deleted successfully",
+      });
     }
   });
 
@@ -210,15 +232,23 @@ export default function AdminCategories() {
 
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subcategories'] });
+    onSuccess: async () => {
+      await queryClient.resetQueries({ queryKey: ['admin-subcategories'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-subcategories'], type: 'active' });
       setIsAddSubcategoryModalOpen(false);
       setSubcategoryFormData({ name: '', slug: '', description: '', categoryId: '', status: 'Active' });
+      toast({
+        title: "Success",
+        description: "Subcategory created successfully",
+      });
     },
     onError: (error: Error) => {
       console.error('Subcategory creation error:', error);
-      // You can add a toast notification here if you have a toast system
-      alert(`Error creating subcategory: ${error.message}`);
+      toast({
+        title: "Error",
+        description: `Error creating subcategory: ${error.message}`,
+        variant: "destructive",
+      });
     }
   });
 
@@ -232,11 +262,16 @@ export default function AdminCategories() {
       if (!response.ok) throw new Error('Failed to update subcategory');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subcategories'] });
+    onSuccess: async () => {
+      await queryClient.resetQueries({ queryKey: ['admin-subcategories'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-subcategories'], type: 'active' });
       setIsEditModalOpen(false);
       setEditingSubcategory(null);
       setSubcategoryFormData({ name: '', slug: '', description: '', categoryId: '', status: 'Active' });
+      toast({
+        title: "Success",
+        description: "Subcategory updated successfully",
+      });
     }
   });
 
@@ -246,10 +281,16 @@ export default function AdminCategories() {
       if (!response.ok) throw new Error('Failed to delete subcategory');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subcategories'] });
+    onSuccess: async () => {
+      // Clear cache completely and refetch
+      await queryClient.resetQueries({ queryKey: ['admin-subcategories'] });
+      await queryClient.refetchQueries({ queryKey: ['admin-subcategories'], type: 'active' });
       setIsDeleteModalOpen(false);
       setSelectedSubcategory(null);
+      toast({
+        title: "Success",
+        description: "Subcategory deleted successfully",
+      });
     }
   });
 
@@ -479,9 +520,11 @@ export default function AdminCategories() {
       <div className="flex-1 space-y-6 p-8 pt-6">
         <div className="flex flex-col items-center justify-center h-64 space-y-4">
           <div className="text-lg text-red-600">Error loading categories</div>
-          <Button onClick={() => {
-            queryClient.invalidateQueries({ queryKey: ['categories'] });
-            queryClient.invalidateQueries({ queryKey: ['subcategories'] });
+          <Button onClick={async () => {
+            await queryClient.resetQueries({ queryKey: ['admin-categories'] });
+            await queryClient.resetQueries({ queryKey: ['admin-subcategories'] });
+            await queryClient.refetchQueries({ queryKey: ['admin-categories'] });
+            await queryClient.refetchQueries({ queryKey: ['admin-subcategories'] });
           }}>
             Retry
           </Button>

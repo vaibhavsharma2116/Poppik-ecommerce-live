@@ -307,7 +307,7 @@ export default function Cart() {
 
         toast({
           title: "Affiliate Discount Applied!",
-          description: `You saved ₹${discountAmount.toFixed(2)} with affiliate code ${code.toUpperCase()}`,
+          description: `You saved ₹${discountAmount.toFixed(2)} with affiliate code ${code.toUpperCase()} (${settings.userDiscountPercentage}%)`,
         });
         return;
       }
@@ -482,41 +482,51 @@ export default function Cart() {
 
   // Handler for checkout
   const handleCheckout = () => {
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to proceed with checkout",
+        variant: "destructive",
+      });
+      window.location.href = "/auth/login";
+      return;
+    }
+
     if (cartItems.length === 0) {
       toast({
-        title: "Cart is empty",
-        description: "Add some items to your cart first",
+        title: "Cart is Empty",
+        description: "Please add items to your cart before checkout",
         variant: "destructive",
       });
       return;
     }
 
-    // Save both redeem amounts to localStorage before navigating
-    const finalWalletAmount = walletAmount || 0;
-    const finalAffiliateWalletAmount = affiliateWalletAmount || 0;
-    
-    localStorage.setItem('redeemAmount', finalWalletAmount.toString());
-    localStorage.setItem('affiliateWalletAmount', finalAffiliateWalletAmount.toString());
+    // Save wallet amounts to localStorage before navigation
+    localStorage.setItem('redeemAmount', walletAmount.toString());
+    localStorage.setItem('affiliateWalletAmount', affiliateWalletAmount.toString());
 
-    console.log('Checkout - Wallet Amount:', finalWalletAmount);
-    console.log('Checkout - Affiliate Wallet Amount:', finalAffiliateWalletAmount);
+    // Save promo code to localStorage if applied
+    if (appliedPromo) {
+      localStorage.setItem('appliedPromoCode', JSON.stringify(appliedPromo));
+    }
 
-    // Dispatch event to notify checkout page
-    window.dispatchEvent(new CustomEvent('walletUpdated', {
-      detail: {
-        walletAmount: finalWalletAmount,
-        affiliateWalletAmount: finalAffiliateWalletAmount
-      }
-    }));
+    // Save affiliate discount to localStorage if applied
+    if (affiliateDiscount > 0 && affiliateCode) {
+      localStorage.setItem('affiliateDiscount', JSON.stringify({
+        code: affiliateCode,
+        discount: affiliateDiscount
+      }));
+    }
 
-    // Navigate to checkout with cart items, wallet amount, and promo code
     setLocation("/checkout", {
       state: {
         items: cartItems,
-        walletAmount: finalWalletAmount,
-        affiliateWalletAmount: finalAffiliateWalletAmount,
-        promoCode: appliedPromo?.code || null,
-        promoDiscount: promoDiscount || 0,
+        walletAmount,
+        affiliateWalletAmount,
+        promoCode: appliedPromo,
+        promoDiscount: generalPromoDiscount,
+        affiliateCode: affiliateCode,
+        affiliateDiscount: affiliateDiscount,
       }
     });
   };
@@ -851,7 +861,7 @@ export default function Cart() {
                     </div>
                   )}
 
-                  {affiliateDiscount > 0 && (
+                  {affiliateDiscount > 0 && affiliateCode && (
                     <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
                       <span className="text-green-700 font-medium">Affiliate Discount ({affiliateCode})</span>
                       <span className="font-bold text-green-600">-₹{affiliateDiscount.toLocaleString()}</span>

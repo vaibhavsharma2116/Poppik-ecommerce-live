@@ -208,6 +208,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         price: parseFloat(formData.price),
         originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : null,
         discount: formData.discount ? parseFloat(formData.discount) : null,
+        cashbackPercentage: null, // Default to null
+        cashbackPrice: null, // Default to null
         description: formData.description,
         shortDescription: formData.shortDescription || formData.description.substring(0, 100),
         rating: parseFloat(formData.rating),
