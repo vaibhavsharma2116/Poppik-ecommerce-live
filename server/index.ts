@@ -65,11 +65,17 @@ app.disable('x-powered-by');
 
 // Simple in-memory cache for GET requests
 const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 600000; // 10 minutes - more aggressive caching
+const CACHE_DURATION = 1800000; // 30 minutes - more aggressive caching
 
 app.use((req, res, next) => {
-  // Add compression and cache headers
-  res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200');
+  // Add compression and cache headers with immutable for static assets
+  if (req.path.match(/\.(jpg|jpeg|png|webp|gif|svg|ico|woff|woff2|ttf|eot|css|js)$/)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  } else if (req.method === 'GET' && req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'public, max-age=1800, stale-while-revalidate=3600');
+  } else {
+    res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=1200');
+  }
   res.setHeader('X-Content-Type-Options', 'nosniff');
 
   if (req.method === 'GET' && req.path.startsWith('/api/')) {

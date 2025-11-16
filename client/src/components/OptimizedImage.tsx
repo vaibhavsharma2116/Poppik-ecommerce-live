@@ -95,16 +95,19 @@ export default function OptimizedImage({
     <img
       ref={imgRef}
       alt={alt}
+      width={optimization.width || 400}
+      height={optimization.height || 400}
       className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className}`}
       style={{
         backgroundColor: 'transparent',
         objectFit: style.objectFit || 'cover',
         width: style.width || '100%',
-        height: style.height || '100%',
+        height: style.height || 'auto',
         maxWidth: style.maxWidth || '100%',
         maxHeight: style.maxHeight || '100%',
         display: 'block',
         margin: style.margin || '0',
+        aspectRatio: `${optimization.width || 400} / ${optimization.height || 400}`,
         ...style
       }}
       onLoad={handleLoad}

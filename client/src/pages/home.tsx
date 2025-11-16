@@ -26,14 +26,19 @@ import { Filter } from "lucide-react";
 import DynamicFilter from "@/components/dynamic-filter";
 import type { Product, Category } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import OptimizedImage from "@/components/optimized-image";
+import OptimizedImage from "@/components/OptimizedImage";
 import AnnouncementBar from "@/components/announcement-bar";
 import { useToast } from "@/hooks/use-toast";
 import { Helmet } from "react-helmet";
 import { Badge } from "@/components/ui/badge";
 
-// Lazy load heavy components
+// Lazy load heavy components with prefetch
 const VideoTestimonials = lazy(() => import("@/components/video-testimonials"));
+
+// Memoize expensive calculations
+const MemoizedComboSection = React.memo(ComboSection);
+const MemoizedTestimonialsCarousel = React.memo(TestimonialsCarousel);
+const MemoizedLatestBlogPosts = React.memo(LatestBlogPostsPerCategory);
 
 // Preload hint for faster image loading
 if (typeof document !== 'undefined') {
@@ -153,7 +158,7 @@ function TestimonialsCarousel() {
                 } ${position === -1 || position === 1 ? 'blur-[2px]' : ''}`}
                 style={{ opacity }}
               >
-                <img
+                <OptimizedImage
                   src={testimonial.customerImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop'}
                   alt={testimonial.customerName}
                   className="w-full h-full"
@@ -315,20 +320,16 @@ export default function HomePage() {
                     <div className="relative bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
                       {/* Image Container */}
                       <div className="aspect-square overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50 p-4" style={{ width: '100%', paddingBottom: '100%', position: 'relative' }}>
-                        <img
+                        <OptimizedImage
                           src={
-                            category.imageUrl
-                              ? `${category.imageUrl}${category.imageUrl.includes('unsplash') ? '&w=400&h=400&q=75&fit=crop&auto=format,compress&fm=webp&cs=tinysrgb' : ''}`
-                              : categoryImages[category.slug as keyof typeof categoryImages]
-                                ? `${categoryImages[category.slug as keyof typeof categoryImages]}&w=400&h=400&q=75&fit=crop&auto=format,compress&fm=webp&cs=tinysrgb`
-                                : "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&q=75&fit=crop&auto=format,compress&fm=webp&cs=tinysrgb"
+                            category.imageUrl ||
+                            categoryImages[category.slug as keyof typeof categoryImages] ||
+                            "https://images.unsplash.com/photo-1556228720-195a672e8a03"
                           }
                           alt={category.name}
-                          width="400"
-                          height="400"
-                          loading={index < 3 ? "eager" : "lazy"}
-                          fetchpriority={index < 2 ? "high" : "low"}
-                          decoding="async"
+                          optimization={{ width: 400, height: 400, quality: 75 }}
+                          lazy={index >= 3}
+                          responsive={false}
                           className="absolute inset-0 w-full h-full object-contain group-hover:scale-110 transition-transform duration-300"
                           style={{ position: 'absolute', top: 0, left: 0 }}
                         />
@@ -814,7 +815,7 @@ function ComboSection() {
                   <div className="relative overflow-hidden bg-white">
                     <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
                       {combo.imageUrl || (combo.images && combo.images.length > 0) ? (
-                        <img
+                        <OptimizedImage
                           src={combo.imageUrl || combo.images[0]}
                           alt={combo.name}
                           className="h-full w-full object-cover"
@@ -1013,7 +1014,7 @@ function LatestBlogPostsPerCategory() {
             <div className="group cursor-pointer">
               {/* Image */}
               <div className="relative overflow-hidden bg-gray-100 mb-3 sm:mb-4 rounded-lg sm:rounded-none" style={{ paddingBottom: '66.67%' }}>
-                <img
+                <OptimizedImage
                   src={post.imageUrl}
                   alt={post.title}
                   className="absolute inset-0 w-full h-full  group-hover:scale-105 transition-transform duration-500"

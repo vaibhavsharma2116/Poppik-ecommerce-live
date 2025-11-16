@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from "@/components/ui/skeleton";
+import OptimizedImage from "@/components/OptimizedImage";
 
 interface Slider {
   id: number;
@@ -152,9 +153,17 @@ export default function HeroBanner({
                   </div>
                 )} */}
 
-                <img 
-                  src={slide.imageUrl} 
+                <OptimizedImage
+                  src={slide.imageUrl}
                   alt={`Slide ${slide.id}`}
+                  optimization={{ 
+                    width: 1920, 
+                    height: 600, 
+                    quality: 85,
+                    fit: 'cover'
+                  }}
+                  lazy={false}
+                  responsive={true}
                   className="w-full object-contain bg-gray-100"
                   style={{ aspectRatio: 'auto' }}
                 />
