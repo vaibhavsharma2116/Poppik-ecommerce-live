@@ -15,6 +15,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import OptimizedImage from "@/components/OptimizedImage";
 
 interface Shade {
   id: number;
@@ -22,6 +23,7 @@ interface Shade {
   colorCode: string;
   imageUrl?: string;
   isActive: boolean;
+  inStock: boolean; // Added inStock to Shade interface
 }
 
 interface ProductCardProps {
@@ -49,11 +51,14 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       const response = await fetch(`/api/products/${product.id}/shades`);
       if (!response.ok) return [];
       const shades = await response.json();
+      // Filter shades to include only those associated with the current product ID and are active.
+      // Also, ensure that the shade has an inStock property (even if false) to correctly handle stock status.
       return shades.filter((shade: Shade) =>
         shade.productIds &&
         Array.isArray(shade.productIds) &&
         shade.productIds.includes(product.id) &&
-        shade.isActive
+        shade.isActive &&
+        shade.hasOwnProperty('inStock') // Ensure inStock property exists
       );
     },
     enabled: !!product?.id,
@@ -134,6 +139,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       e.stopPropagation();
     }
 
+    // Check if shades are required and none are selected, then open drawer
     if (productShades.length > 0 && selectedShades.length === 0 && !fromDrawer) {
       setIsShadeDrawerOpen(true);
       return;
@@ -144,6 +150,16 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     // Add each selected shade to cart
     if (selectedShades.length > 0) {
       selectedShades.forEach(shade => {
+        // Ensure the selected shade is actually in stock before adding to cart
+        if (!shade.inStock) {
+          toast({
+            title: "Out of Stock",
+            description: `${shade.name} is currently out of stock.`,
+            variant: "destructive",
+          });
+          return; // Skip adding this shade if out of stock
+        }
+
         const itemKey = `${product.id}-${shade.id}`;
         const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
 
@@ -156,9 +172,9 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             name: product.name,
             price: `₹${product.price}`,
             originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
-            image: shade.imageUrl || product.imageUrl,
+            image: shade.imageUrl || product.imageUrl, // Use shade's image if available, else product's
             quantity: quantity,
-            inStock: true,
+            inStock: true, // This is set based on the shade's stock status checked above
             selectedShade: {
               id: shade.id,
               name: shade.name,
@@ -171,7 +187,15 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         }
       });
     } else {
-      // No shades selected
+      // No shades selected, add the base product if it's in stock
+      if (!product.inStock) {
+        toast({
+          title: "Out of Stock",
+          description: `${product.name} is currently out of stock.`,
+          variant: "destructive",
+        });
+        return; // Don't add to cart if the main product is out of stock
+      }
       const itemKey = `${product.id}`;
       const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
 
@@ -186,7 +210,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
           image: product.imageUrl,
           quantity: quantity,
-          inStock: true,
+          inStock: product.inStock,
           selectedShade: null,
           cashbackPercentage: product.cashbackPercentage || undefined,
           cashbackPrice: product.cashbackPrice || undefined,
@@ -206,6 +230,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       description: `${product.name}${shadeText} (${quantity} each) has been added to your cart`,
     });
 
+    // Close drawer and reset state if called from drawer
     if (fromDrawer) {
       setIsShadeDrawerOpen(false);
       setQuantity(1);
@@ -216,7 +241,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   // Use admin-calculated discount or calculate if not available
   const discountPercentage = product.discount
     ? Math.round(Number(product.discount))
-    : product.originalPrice
+    : product.originalPrice && Number(product.originalPrice) > Number(product.price)
       ? Math.round(((Number(product.originalPrice) - Number(product.price)) / Number(product.originalPrice)) * 100)
       : 0;
 
@@ -253,7 +278,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           </button>
           <Link href={`/product/${product.slug}`}>
             <div className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50 h-48 rounded-lg">
-              <img
+              <OptimizedImage
                 src={(() => {
                   // Handle new images array format with maximum optimization
                   if (product.images && Array.isArray(product.images) && product.images.length > 0) {
@@ -265,17 +290,12 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150&q=40&fm=webp';
                 })()}
                 alt={product.name}
+                optimization={{ width: 150, height: 150, quality: 40, fit: 'cover' }}
                 className="w-full h-full object-contain cursor-pointer group-hover:scale-110 transition-transform duration-700 rounded-lg"
                 loading={priority ? "eager" : "lazy"}
-                decoding={priority ? "sync" : "async"}
                 fetchpriority={priority ? "high" : "low"}
-                width="200"
-                height="200"
-                onLoad={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.opacity = '1';
-                }}
-                style={{ opacity: 0, transition: 'opacity 0.3s ease', width: '100%', height: '100%', objectFit: 'contain' }}
+                width="150"
+                height="150"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=50';
@@ -284,8 +304,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
             </div>
           </Link>
-
-
         </div>
 
         <div className="flex-1 p-6 flex flex-col justify-between bg-gradient-to-br from-white via-pink-25 to-purple-25">
@@ -445,7 +463,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         </button>
         <Link href={`/product/${product.slug}`}>
           <div className="relative overflow-hidden bg-white" style={{ aspectRatio: '1/1', minHeight: '200px' }}>
-            <img
+            <OptimizedImage
               src={(() => {
                 // Handle new images array format with maximum optimization for mobile
                 if (product.images && Array.isArray(product.images) && product.images.length > 0) {
@@ -457,20 +475,13 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                 return `https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&q=75&fit=crop&fm=webp&dpr=1`;
               })()}
               alt={product.name}
+              optimization={{ width: 400, height: 400, quality: 75, fit: 'cover' }}
               className="w-full h-full object-contain"
               loading="lazy"
               decoding="async"
               fetchpriority="low"
               width="400"
               height="400"
-              style={{ 
-                width: '100%', 
-                height: '100%', 
-                minHeight: '200px',
-                objectFit: 'contain', 
-                display: 'block',
-                backgroundColor: 'transparent'
-              }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&q=75&fit=crop&fm=webp&dpr=1';
@@ -480,8 +491,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
           </div>
         </Link>
-
-
       </div>
 
       <div className="mobile-product-content p-2 sm:p-3 md:p-4 lg:p-5 space-y-1 sm:space-y-2 md:space-y-3 bg-white">
@@ -597,7 +606,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <div className="space-y-6">
             {/* Product Image - Dynamic based on selected shade */}
             <div className="relative bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg overflow-hidden aspect-square transition-all duration-300">
-              <img
+              <OptimizedImage
                 src={(() => {
                   if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
                     return selectedShades[0].imageUrl;
@@ -608,6 +617,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   return product.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
                 })()}
                 alt={selectedShades.length > 0 ? selectedShades[0].name : product.name}
+                optimization={{ width: 400, height: 400, quality: 80, fit: 'contain' }}
                 className="w-full h-full object-contain transition-opacity duration-300"
                 loading="lazy"
               />
@@ -682,7 +692,12 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                       key={shade.id}
                       onClick={() => {
                         if (isOutOfStock) {
-                          return; // Don't allow selection of out-of-stock shades
+                          toast({
+                            title: "Out of Stock",
+                            description: `${shade.name} is currently out of stock and cannot be selected.`,
+                            variant: "destructive",
+                          });
+                          return;
                         }
                         if (isSelected) {
                           setSelectedShades(selectedShades.filter(s => s.id !== shade.id));
@@ -700,12 +715,14 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                     >
                       {shade.imageUrl ? (
                         <div className="relative">
-                          <img
+                          <OptimizedImage
                             src={shade.imageUrl}
                             alt={shade.name}
+                            optimization={{ width: 50, height: 50, quality: 70, fit: 'cover' }}
                             className={`w-12 h-12 rounded-full object-cover border-2 shadow-md transition-all ${
                               isSelected ? 'border-purple-500' : 'border-gray-300'
                             }`}
+                            loading="lazy"
                           />
                           {isSelected && (
                             <div className="absolute inset-0 rounded-full bg-purple-500/20 animate-pulse" />

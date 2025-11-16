@@ -14,7 +14,7 @@ export function optimizeImageUrl(
   const {
     width = 400,
     height = 400,
-    quality = 60,  // More aggressive compression
+    quality = 70,  // Balanced compression
     format = 'webp',
     fit = 'cover'
   } = options;
@@ -22,7 +22,7 @@ export function optimizeImageUrl(
   // Handle Unsplash URLs with aggressive optimization
   if (originalUrl.includes('unsplash.com')) {
     const baseUrl = originalUrl.split('?')[0];
-    return `${baseUrl}?w=${width}&h=${height}&q=${quality}&fit=crop&fm=webp&auto=format,compress&dpr=1&cs=tinysrgb&blur=0`;
+    return `${baseUrl}?w=${width}&h=${height}&q=${quality}&fit=crop&fm=webp&auto=format,compress&dpr=1`;
   }
 
   // Handle local images through our API

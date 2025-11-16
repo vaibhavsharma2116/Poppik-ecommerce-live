@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { ChevronRight, Star, ShoppingCart, Heart, ArrowLeft, Share2, Package, ChevronLeft } from "lucide-react";
@@ -91,10 +91,10 @@ export default function ComboDetail() {
   }, [combo?.id]);
 
   // Get all image URLs (from imageUrls array or fallback to imageUrl)
-  const allImageUrls = combo?.imageUrls && combo.imageUrls.length > 0 
-    ? combo.imageUrls 
-    : combo?.imageUrl 
-      ? [combo.imageUrl] 
+  const allImageUrls = combo?.imageUrls && combo.imageUrls.length > 0
+    ? combo.imageUrls
+    : combo?.imageUrl
+      ? [combo.imageUrl]
       : [];
 
   // Combine images and video for carousel
@@ -311,8 +311,8 @@ export default function ComboDetail() {
       <Star
         key={i}
         className={`w-5 h-5 ${
-          i < Math.floor(rating) 
-            ? "fill-yellow-400 text-yellow-400" 
+          i < Math.floor(rating)
+            ? "fill-yellow-400 text-yellow-400"
             : "text-gray-300"
         }`}
       />
@@ -397,11 +397,11 @@ export default function ComboDetail() {
                     {/* Thumbnail Column - Swipeable Vertical Carousel */}
                     {mediaItems.length > 1 && (
                       <div className="w-14 sm:w-16 md:w-20 flex-shrink-0 relative">
-                        <div 
+                        <div
                           className="h-64 sm:h-72 md:h-80 overflow-hidden scroll-smooth"
                           style={{ scrollBehavior: 'smooth' }}
                         >
-                          <div 
+                          <div
                             id="thumbnail-container"
                             className="flex flex-col gap-2 sm:gap-2.5 md:gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
                             style={{
@@ -527,17 +527,18 @@ export default function ComboDetail() {
                                       </div>
                                     </div>
                                   ) : (
-                                    <img
+                                    <OptimizedImage
                                       src={item.url}
                                       alt={`${combo.name} view ${index + 1}`}
+                                      optimization={{ width: 100, height: 100, quality: 70 }}
+                                      lazy={true}
                                       className="w-full h-full hover:scale-110 transition-transform duration-200"
-                                      style={{ 
+                                      style={{
                                         objectFit: 'contain',
                                         width: '100%',
                                         height: '100%',
                                         borderRadius: '6px'
-                                      }}
-                                      onError={(e) => {
+                                      }} onError={(e) => {
                                         const target = e.target as HTMLImageElement;
                                         target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80';
                                       }}
@@ -653,7 +654,7 @@ export default function ComboDetail() {
 
                         {/* Scroll Indicator */}
                         <div className="absolute right-1 top-1/2 transform -translate-y-1/2 w-1 h-16 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="w-full bg-purple-500 rounded-full transition-all duration-300"
                             style={{
                               height: `${Math.min(100, (3 / mediaItems.length) * 100)}%`,
@@ -830,26 +831,26 @@ export default function ComboDetail() {
 
               {/* Actions */}
               <div className="flex space-x-4 mb-6">
-                <Button 
-                  size="lg" 
-                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200" 
+                <Button
+                  size="lg"
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200"
                   onClick={addToCart}
                 >
                   <ShoppingCart className="w-5 h-5 mr-2" />
                   Add to Cart
                 </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="border-2 border-purple-200 hover:border-purple-400 rounded-xl p-4 transform hover:scale-105 transition-all duration-200" 
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-2 border-purple-200 hover:border-purple-400 rounded-xl p-4 transform hover:scale-105 transition-all duration-200"
                   onClick={toggleWishlist}
                 >
                   <Heart className={`w-6 h-6 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />
                 </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="border-2 border-purple-200 hover:border-purple-400 rounded-xl p-4 transform hover:scale-105 transition-all duration-200" 
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-2 border-purple-200 hover:border-purple-400 rounded-xl p-4 transform hover:scale-105 transition-all duration-200"
                   onClick={() => setShowShareDialog(true)}
                 >
                   <Share2 className="w-6 h-6 text-purple-500" />
@@ -863,26 +864,26 @@ export default function ComboDetail() {
         <div className="mb-8 sm:mb-12 md:mb-16">
           <Tabs defaultValue="description" className="w-full">
             <TabsList className="grid w-full grid-cols-4 bg-white/70 backdrop-blur-md rounded-lg sm:rounded-xl md:rounded-2xl p-1 sm:p-1.5 md:p-2 shadow-lg border border-white/20 mb-6 sm:mb-8 gap-0.5 sm:gap-1">
-              <TabsTrigger 
-                value="description" 
+              <TabsTrigger
+                value="description"
                 className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
               >
                 Description
               </TabsTrigger>
-              <TabsTrigger 
-                value="products" 
+              <TabsTrigger
+                value="products"
                 className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
               >
                 Products
               </TabsTrigger>
-              <TabsTrigger 
-                value="benefits" 
+              <TabsTrigger
+                value="benefits"
                 className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
               >
                 Benefits
               </TabsTrigger>
-              <TabsTrigger 
-                value="howto" 
+              <TabsTrigger
+                value="howto"
                 className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
               >
                 How to Use
@@ -1011,7 +1012,7 @@ export default function ComboDetail() {
                     <div className="bg-white/70 backdrop-blur-sm p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-purple-100/50">
                       <div className="text-gray-700 leading-relaxed text-base sm:text-lg space-y-3 sm:space-y-4">
                         <p className="font-normal">
-                          Follow the individual product instructions included in this combo for best results. 
+                          Follow the individual product instructions included in this combo for best results.
                           Use as part of your daily beauty routine.
                         </p>
                         {Array.isArray(products) && products.length > 0 && (
@@ -1079,8 +1080,8 @@ export default function ComboDetail() {
                   <div key={star} className="flex items-center space-x-3">
                     <span className="w-8 text-sm font-medium">{star}★</span>
                     <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-yellow-400 rounded-full transition-all duration-300" 
+                      <div
+                        className="h-full bg-yellow-400 rounded-full transition-all duration-300"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>

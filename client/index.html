@@ -41,27 +41,31 @@
     <link rel="dns-prefetch" href="https://images.unsplash.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    
+
     <!-- Preload critical images -->
     <link rel="preload" as="image" href="/favicon.png" fetchpriority="high" />
-    
+
+    <!-- Image optimization hints -->
+    <meta name="format-detection" content="telephone=no">
+    <meta http-equiv="Accept-CH" content="DPR, Viewport-Width, Width">
+
     <!-- Preload critical fonts -->
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" />
-    
+
     <!-- Google Fonts (if using) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
-    
+
     <!-- Firebase/External APIs -->
     <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
     <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
-    
+
     <!-- CDN and static assets -->
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
     <link rel="dns-prefetch" href="https://unpkg.com" />
-    
+
     <!-- Optimize render blocking -->
     <style>
       body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }

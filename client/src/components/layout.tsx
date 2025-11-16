@@ -1,4 +1,4 @@
-import { useState, useEffect, startTransition } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Search, ShoppingCart, Menu, X, User, Heart, LogOut, ChevronDown, ChevronRight, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -99,34 +99,26 @@ export default function Layout({ children }: LayoutProps) {
 
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    startTransition(() => {
-      setSearchQuery(value);
-      setShowSearchResults(value.trim().length > 0);
-    });
+    setSearchQuery(value);
+    setShowSearchResults(value.trim().length > 0);
   };
 
   const handleSearchResultClick = (productSlug: string) => {
-    startTransition(() => {
-      setSearchQuery("");
-      setShowSearchResults(false);
-      window.location.href = `/product/${productSlug}`;
-    });
+    setSearchQuery("");
+    setShowSearchResults(false);
+    window.location.href = `/product/${productSlug}`;
   };
 
   const handleSearchInputFocus = () => {
     if (searchQuery.trim().length > 0) {
-      startTransition(() => {
-        setShowSearchResults(true);
-      });
+      setShowSearchResults(true);
     }
   };
 
   const handleSearchInputBlur = () => {
     // Delay hiding results to allow clicking on them
     setTimeout(() => {
-      startTransition(() => {
-        setShowSearchResults(false);
-      });
+      setShowSearchResults(false);
     }, 200);
   };
 
@@ -916,7 +908,7 @@ export default function Layout({ children }: LayoutProps) {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors focus:outline-none">
                       <Wallet className="h-5 w-5" />
-                    
+
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-72">
@@ -1227,33 +1219,21 @@ export default function Layout({ children }: LayoutProps) {
 
                 {/* Contest */}
                 <li>
-                  <a
+                  <Link
                     href="/contest"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      startTransition(() => {
-                        window.location.href = '/contest';
-                      });
-                    }}
                     className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
                   >
                     Contest
-                  </a>
+                  </Link>
                 </li>
 
                 <li>
-                  <a
+                  <Link
                     href="/academy"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      startTransition(() => {
-                        window.location.href = '/academy';
-                      });
-                    }}
                     className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
                   >
                     Academy
-                  </a>
+                  </Link>
                 </li>
                 {/* <li>
                   <a
@@ -1605,4 +1585,4 @@ At Poppik, we believe beauty begins with wellness and grows through balance.
       </footer>
     </div>
   );
-}   
+}
