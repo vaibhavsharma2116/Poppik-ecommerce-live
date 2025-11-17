@@ -251,17 +251,17 @@ export default function AdminProducts() {
 
   const handleAddProduct = async (newProduct: any) => {
     try {
-      // The product is already created in the modal, so we just need to add it to our state
-      setProducts(prev => [...prev, newProduct]);
-
+      console.log('New product added:', newProduct);
+      
       // Clear any previous errors
       setError(null);
 
-      // Optionally refetch data to ensure consistency
-      setTimeout(() => {
-        fetchData();
-      }, 500);
+      // Refetch all data immediately to ensure consistency
+      await fetchData();
+      
+      console.log('Products refreshed after adding new product');
     } catch (err) {
+      console.error('Error handling new product:', err);
       setError(err instanceof Error ? err.message : 'Failed to add product to list');
     }
   };
@@ -1294,23 +1294,37 @@ export default function AdminProducts() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="edit-price">Sale Price (₹) *</Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  step="0.01"
+                  value={editFormData.price}
+                  onChange={(e) => {
+                    setEditFormData(prev => ({ ...prev, price: e.target.value }));
+                    // Auto-calculate discount
+                    if (editFormData.originalPrice && e.target.value) {
+                      const discount = ((parseFloat(editFormData.originalPrice) - parseFloat(e.target.value)) / parseFloat(editFormData.originalPrice) * 100).toFixed(2);
+                      setEditFormData(prev => ({ ...prev, discount }));
+                    }
+                  }}
+                  placeholder="479"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="edit-discount">Discount (%)</Label>
                 <Input
                   id="edit-discount"
                   type="number"
                   step="0.01"
                   value={editFormData.discount}
-                  onChange={(e) => {
-                    setEditFormData(prev => ({ ...prev, discount: e.target.value }));
-                    // Auto-calculate sale price
-                    if (editFormData.originalPrice && e.target.value) {
-                      const salePrice = (parseFloat(editFormData.originalPrice) * (1 - parseFloat(e.target.value) / 100)).toFixed(2);
-                      setEditFormData(prev => ({ ...prev, price: salePrice }));
-                    }
-                  }}
-                  placeholder="e.g., 20"
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, discount: e.target.value }))}
+                  placeholder="Auto-calculated"
+                  disabled
                 />
-                <p className="text-xs text-gray-500">Enter discount percentage to calculate sale price</p>
+                <p className="text-xs text-gray-500">Auto-calculated from original price and sale price</p>
               </div>
 
               <div className="space-y-2">
@@ -1331,21 +1345,6 @@ export default function AdminProducts() {
                   placeholder="e.g., 5"
                 />
                 <p className="text-xs text-gray-500">Enter cashback percentage</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-price">Sale Price (₹) *</Label>
-                <Input
-                  id="edit-price"
-                  type="number"
-                  step="0.01"
-                  value={editFormData.price}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, price: e.target.value }))}
-                  placeholder="Auto-calculated from discount"
-                  disabled
-                  required
-                />
-                <p className="text-xs text-gray-500">Auto-calculated from original price and discount</p>
               </div>
 
               <div className="space-y-2">

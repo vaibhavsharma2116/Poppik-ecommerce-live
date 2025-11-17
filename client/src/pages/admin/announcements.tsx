@@ -136,11 +136,22 @@ export default function AdminAnnouncements() {
 
   const handleSaveEdit = (id: number) => {
     const announcement = announcements.find(a => a.id === id);
-    if (!announcement) return;
+    if (!announcement || !editText.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter announcement text",
+        variant: "destructive",
+      });
+      return;
+    }
     
     updateMutation.mutate({
       id,
-      data: { ...announcement, text: editText },
+      data: { 
+        text: editText,
+        isActive: announcement.isActive,
+        sortOrder: announcement.sortOrder
+      },
     });
   };
 
@@ -225,14 +236,27 @@ export default function AdminAnnouncements() {
                     </div>
 
                     {editingId === announcement.id ? (
-                      <Button
-                        size="sm"
-                        onClick={() => handleSaveEdit(announcement.id)}
-                        disabled={updateMutation.isPending}
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        Save
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => handleSaveEdit(announcement.id)}
+                          disabled={updateMutation.isPending}
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          Save
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingId(null);
+                            setEditText("");
+                          }}
+                          disabled={updateMutation.isPending}
+                        >
+                          Cancel
+                        </Button>
+                      </>
                     ) : (
                       <Button
                         size="sm"

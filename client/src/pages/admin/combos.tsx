@@ -509,11 +509,10 @@ export default function AdminCombos() {
                   value={formData.originalPrice}
                   onChange={(e) => {
                     setFormData({ ...formData, originalPrice: e.target.value });
-                    // Auto-calculate sale price if discount is set
-                    if (formData.discount && e.target.value) {
-                      const discountPercent = parseFloat(formData.discount.replace('%', '').trim());
-                      const salePrice = (parseFloat(e.target.value) * (1 - discountPercent / 100)).toFixed(2);
-                      setFormData(prev => ({ ...prev, price: salePrice }));
+                    // Auto-calculate discount if sale price is set
+                    if (formData.price && e.target.value) {
+                      const discount = ((parseFloat(e.target.value) - parseFloat(formData.price)) / parseFloat(e.target.value) * 100).toFixed(2);
+                      setFormData(prev => ({ ...prev, discount: `${discount}% OFF` }));
                     }
                   }}
                   placeholder="e.g., 1999"
@@ -522,39 +521,36 @@ export default function AdminCombos() {
               </div>
 
               <div>
-                <Label>Discount (%) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.discount.replace('%', '').replace('OFF', '').trim()}
-                  onChange={(e) => {
-                    const discountValue = e.target.value;
-                    setFormData({ ...formData, discount: `${discountValue}% OFF` });
-                    // Auto-calculate sale price if original price is set
-                    if (formData.originalPrice && discountValue) {
-                      const salePrice = (parseFloat(formData.originalPrice) * (1 - parseFloat(discountValue) / 100)).toFixed(2);
-                      setFormData(prev => ({ ...prev, price: salePrice }));
-                    }
-                  }}
-                  placeholder="e.g., 40"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">Enter discount percentage (e.g., 40 for 40% off)</p>
-              </div>
-
-              <div className="col-span-2">
                 <Label>Sale Price (₹) *</Label>
                 <Input
                   type="number"
                   step="0.01"
                   value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="Auto-calculated from original price and discount"
-                  className="bg-gray-50"
-                  readOnly
+                  onChange={(e) => {
+                    setFormData({ ...formData, price: e.target.value });
+                    // Auto-calculate discount if original price is set
+                    if (formData.originalPrice && e.target.value) {
+                      const discount = ((parseFloat(formData.originalPrice) - parseFloat(e.target.value)) / parseFloat(formData.originalPrice) * 100).toFixed(2);
+                      setFormData(prev => ({ ...prev, discount: `${discount}% OFF` }));
+                    }
+                  }}
+                  placeholder="e.g., 1199"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">Auto-calculated based on original price and discount</p>
+              </div>
+
+              <div className="col-span-2">
+                <Label>Discount (%)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.discount.replace('%', '').replace('OFF', '').trim()}
+                  onChange={(e) => setFormData({ ...formData, discount: `${e.target.value}% OFF` })}
+                  placeholder="Auto-calculated from original and sale price"
+                  className="bg-gray-50"
+                  readOnly
+                />
+                <p className="text-xs text-gray-500 mt-1">Auto-calculated based on original price and sale price</p>
               </div>
 
               <div>

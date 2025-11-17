@@ -190,6 +190,21 @@ console.log("VCVVVVVV",combo)
       });
     }, [api]);
 
+    // Auto-play functionality
+    React.useEffect(() => {
+      if (!api) return;
+
+      const autoplayInterval = setInterval(() => {
+        if (api.canScrollNext()) {
+          api.scrollNext();
+        } else {
+          api.scrollTo(0);
+        }
+      }, 5000); // Change slide every 5 seconds
+
+      return () => clearInterval(autoplayInterval);
+    }, [api]);
+
     if (slidersLoading || comboSliders.length === 0) return null;
 
     return (
@@ -219,11 +234,11 @@ console.log("VCVVVVVV",combo)
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="left-4 border-0 bg-transparent shadow-none hover:bg-transparent" />
-          <CarouselNext className="right-4 border-0 bg-transparent shadow-none hover:bg-transparent" />
+          <CarouselPrevious className="left-2 sm:left-4 bg-white/80 hover:bg-white shadow-lg border-2 border-gray-200" />
+          <CarouselNext className="right-2 sm:right-4 bg-white/80 hover:bg-white shadow-lg border-2 border-gray-200" />
 
           {count > 1 && (
-            <div className="absolute bottom-4 right-4 z-20 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-white text-sm font-medium">
+            <div className="absolute bottom-4 right-4 z-20 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 text-white text-sm font-medium">
               {current} / {count}
             </div>
           )}

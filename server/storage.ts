@@ -480,17 +480,21 @@ export class DatabaseStorage implements IStorage {
       if (productData.howToUse) productToInsert.howToUse = String(productData.howToUse).trim();
       if (productData.size) productToInsert.size = String(productData.size).trim();
       if (productData.tags) productToInsert.tags = String(productData.tags).trim();
+      if (productData.skinType) productToInsert.skinType = String(productData.skinType).trim();
+      if (productData.discount !== undefined) productToInsert.discount = Number(productData.discount);
+      if (productData.cashbackPercentage !== undefined) productToInsert.cashbackPercentage = Number(productData.cashbackPercentage);
+      if (productData.cashbackPrice !== undefined) productToInsert.cashbackPrice = Number(productData.cashbackPrice);
 
       // Ensure numeric fields are properly formatted
-      const productData = {
+      const finalProductData = {
         ...productToInsert,
-        discount: productData.discount ? parseFloat(productData.discount.toString()) : null,
-        cashbackPercentage: productData.cashbackPercentage ? parseFloat(productData.cashbackPercentage.toString()) : null,
-        cashbackPrice: productData.cashbackPrice ? parseFloat(productData.cashbackPrice.toString()) : null,
+        discount: productToInsert.discount ? parseFloat(productToInsert.discount.toString()) : null,
+        cashbackPercentage: productToInsert.cashbackPercentage ? parseFloat(productToInsert.cashbackPercentage.toString()) : null,
+        cashbackPrice: productToInsert.cashbackPrice ? parseFloat(productToInsert.cashbackPrice.toString()) : null,
       };
 
-      console.log("Inserting product data:", productData);
-      const result = await this.db.insert(products).values(productData).returning();
+      console.log("Inserting product data:", finalProductData);
+      const result = await this.db.insert(products).values(finalProductData).returning();
 
       if (!result || result.length === 0) {
         throw new Error("Product was not created - no result returned");
@@ -1772,18 +1776,22 @@ export class DatabaseStorage implements IStorage {
 
   async updateAnnouncement(id: number, announcementData: any): Promise<any> {
     try {
+      console.log('Storage: Updating announcement', id, 'with data:', announcementData);
       const result = await this.db.update(announcements)
         .set({
           text: announcementData.text,
           isActive: announcementData.isActive,
-          sortOrder: announcementData.sortOrder,
-          updatedAt: announcementData.updatedAt || new Date()
+          sortOrder: announcementData.sortOrder !== undefined ? announcementData.sortOrder : 0,
+          updatedAt: new Date()
         })
         .where(eq(announcements.id, id))
         .returning();
+
+      console.log('Storage: Update result:', result[0]);
       return result[0];
     } catch (error) {
       console.error('Database error updating announcement:', error);
+      console.error('Error details:', error.message);
       throw error;
     }
   }

@@ -2312,9 +2312,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("📦 GET /api/products - Fetching products...");
       const limit = parseInt(req.query.limit as string) || 100;
       const offset = parseInt(req.query.offset as string) || 0;
-      
+
       console.log("📦 Query params - limit:", limit, "offset:", offset);
-      
+
       // Fetch all products directly from database
       const allProducts = await db
         .select()
@@ -2324,7 +2324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .offset(offset);
 
       console.log("📦 Products fetched from DB:", allProducts?.length || 0);
-      
+
       if (allProducts && allProducts.length > 0) {
         console.log("📦 Sample product from DB:", {
           id: allProducts[0].id,
@@ -3860,7 +3860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           } catch (affiliateError) {
             console.error(`❌ Error processing affiliate commission for COD:`, affiliateError);
-            console.error('Full error:', affiliateError);
+            // Continue with order creation even if affiliate is invalid
           }
         }
       }
@@ -5258,7 +5258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating blog category:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to update blog category";
-      res.status(500).json({
+      res.status.json({
         error: "Failed to update blog category",
         details: errorMessage
       });
@@ -6795,6 +6795,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const { text, isActive, sortOrder } = req.body;
 
+      console.log('Updating announcement ID:', id);
+      console.log('Request body:', req.body);
+
       // Validate required fields
       if (!text || text.trim().length === 0) {
         return res.status(400).json({ error: 'Announcement text is required' });
@@ -6802,20 +6805,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updateData = {
         text: text.trim(),
-        isActive: isActive !== false && isActive !== 'false',
-        sortOrder: parseInt(sortOrder) || 0,
+        isActive: isActive === true || isActive === 'true' || isActive === true,
+        sortOrder: sortOrder !== undefined ? parseInt(sortOrder) : 0,
         updatedAt: new Date()
       };
 
-      console.log('Updating announcement:', id, 'with data:', updateData);
+      console.log('Update data prepared:', updateData);
 
-      const announcement = await storage.updateAnnouncement(id, updateData);
-      if (!announcement) {
+      const [updatedAnnouncement] = await db
+        .update(schema.announcements)
+        .set(updateData)
+        .where(eq(schema.announcements.id, id))
+        .returning();
+
+      if (!updatedAnnouncement) {
         return res.status(404).json({ error: 'Announcement not found' });
       }
 
-      console.log('Announcement updated successfully:', announcement);
-      res.json(announcement);
+      console.log('Announcement updated successfully:', updatedAnnouncement);
+      res.json(updatedAnnouncement);
     } catch (error) {
       console.error('Error updating announcement:', error);
       console.error('Error details:', error.message, error.stack);
@@ -6974,13 +6982,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       products = products.slice(0, 20);
 
-      // Determine primary image URL
-      let primaryImageUrl = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop';
+      // Get productShades from request body
+      let productShades = req.body.productShades || {};
+      if (typeof productShades === 'string') {
+        try {
+          productShades = JSON.parse(productShades);
+        } catch (e) {
+          console.error('Error parsing productShades:', e);
+          productShades = {};
+        }
+      }
+
+      // Collect all image URLs into an array
+      let imageUrls: string[] = [];
 
       if (files?.images && files.images.length > 0) {
-        primaryImageUrl = `/api/images/${files.images[0].filename}`;
-      } else if (req.body.imageUrl) { // Fallback to imageUrl from body if no file uploaded
-        primaryImageUrl = req.body.imageUrl;
+        imageUrls = files.images.map(file => `/api/images/${file.filename}`);
+      } else if (req.body.imageUrl) {
+        // If imageUrl is provided in body, ensure it's an array
+        imageUrls = Array.isArray(req.body.imageUrl) ? req.body.imageUrl : [req.body.imageUrl];
+      } else {
+        // Default fallback image
+        imageUrls = ['https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop'];
       }
 
       // Handle video upload
@@ -7004,41 +7027,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         discount: (req.body.discount || '').substring(0, 50),
         cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
         cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
-        imageUrl: primaryImageUrl,
+        imageUrl: imageUrls,
         videoUrl: videoUrl,
         products: JSON.stringify(products),
+        productShades: JSON.stringify(productShades || {}),
         rating: parseFloat(req.body.rating) || 5.0,
         reviewCount: parseInt(req.body.reviewCount) || 0,
         isActive: req.body.isActive !== 'false',
         sortOrder: parseInt(req.body.sortOrder) || 0,
       };
 
+      console.log("Final combo data to insert:", comboData);
+
+      // Insert combo into database
       const [combo] = await db
         .insert(schema.combos)
         .values(comboData)
         .returning();
 
-      // Store all combo images in combo_images table
-      if (files?.images && files.images.length > 0) {
-        await Promise.all(
-          files.images.map(async (file, index) => {
-            await db.insert(schema.comboImages).values({
-              comboId: combo.id,
-              imageUrl: `/api/images/${file.filename}`,
-              altText: `${combo.name} - Image ${index + 1}`,
-              isPrimary: index === 0,
-              sortOrder: index
-            });
-          })
-        );
-      }
-
-      res.status(201).json(combo);
+      console.log("Combo created successfully:", combo);
+      res.json(combo);
     } catch (error) {
-      console.error('Error creating combo:', error);
+      console.error("Error creating combo:", error);
       console.error('Error details:', error.message);
       res.status(500).json({
-        error: 'Failed to create combo',
+        error: "Failed to create combo",
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
@@ -8237,69 +8250,46 @@ Poppik Affiliate Portal
           : 'Update on Your Poppik Affiliate Application';
 
         const emailHtml = status === 'approved'
-          ? `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to Poppik Affiliate Program</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-    <!-- Header -->
-    <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 40px 20px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to the Poppik Lifestyle Private Limited Affiliate Program</h1>
-    </div>
-
-    <!-- Content -->
-    <div style="padding: 40px 30px;">
-      <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName}</strong>,</p>
-
-      <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 20px 0;">
-        We are delighted to welcome you as an official affiliate partner of Poppik Lifestyle Private Limited.
-      </p>
-
-      <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 30px 0;">
-        Your skills and dedication align perfectly with our vision, and we are excited to collaborate with you. As a valued member of our affiliate program, you now have access to your unique referral link, marketing materials, and performance dashboard to help you start promoting our brand effectively.
-      </p>
-
-      <!-- Affiliate Code Box -->
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
-        <p style="color: #ffffff; margin: 0 0 10px 0; font-size: 14px;">Your Unique Affiliate Code</p>
-        <p style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 2px;">${affiliateCode}</p>
-      </div>
-
-      <!-- Dashboard Link -->
-      <div style="text-align: center; margin: 30px 0;">
-        <p style="font-size: 16px; color: #555555; margin: 0 0 15px 0;">
-          Please log in to your affiliate account here:
-        </p>
-        <a href="${dashboardUrl}" style="display: inline-block; background-color: #e74c3c; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">
-          Access Dashboard
-        </a>
-      </div>
-
-      <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 30px 0 20px 0;">
-        If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
-      </p>
-
-      <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0;">
-        Thank you for joining us. We look forward to a successful and rewarding partnership.
-      </p>
-    </div>
-
-    <!-- Footer -->
-    <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
-      <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">
-        © 2024 Poppik Lifestyle Private Limited. All rights reserved.
-      </p>
-      <p style="color: #999999; font-size: 12px; margin: 0;">
-        Office No.- 213, A- Wing, Skylark Building, Plot No.- 63, Sector No.- 11, C.B.D. Belapur, Navi Mumbai- 400614 INDIA
-      </p>
-    </div>
-  </div>
-</body>
-</html>`
+          ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 40px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to the Poppik Lifestyle Private Limited Affiliate Program</h1>
+            </div>
+            <div style="padding: 40px 30px;">
+              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName}</strong>,</p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 20px 0;">
+                We are delighted to welcome you as an official affiliate partner of Poppik Lifestyle Private Limited.
+              </p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 30px 0;">
+                Your skills and dedication align perfectly with our vision, and we are excited to collaborate with you. As a valued member of our affiliate program, you now have access to your unique referral link, marketing materials, and performance dashboard to help you start promoting our brand effectively.
+              </p>
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
+                <p style="color: #ffffff; margin: 0 0 10px 0; font-size: 14px;">Your Unique Affiliate Code</p>
+                <p style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 2px;">${affiliateCode}</p>
+              </div>
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="font-size: 16px; color: #555555; margin: 0 0 15px 0;">
+                  Please log in to your affiliate account here:
+                </p>
+                <a href="${dashboardUrl}" style="display: inline-block; background-color: #e74c3c; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">
+                  Access Dashboard
+                </a>
+              </div>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 30px 0 20px 0;">
+                If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
+              </p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0;">
+                Thank you for joining us. We look forward to a successful and rewarding partnership.
+              </p>
+            </div>
+            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
+              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">
+                © 2024 Poppik Lifestyle Private Limited. All rights reserved.
+              </p>
+              <p style="color: #999999; font-size: 12px; margin: 0;">
+                Office No.- 213, A- Wing, Skylark Building, Plot No.- 63, Sector No.- 11, C.B.D. Belapur, Navi Mumbai- 400614 INDIA
+              </p>
+            </div>
+          </div>`
           : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: #6c757d; padding: 40px 20px; text-align: center;">
               <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Poppik Affiliate Application Update</h1>

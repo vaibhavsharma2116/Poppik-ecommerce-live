@@ -153,22 +153,38 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
 
     // Client-side validation
     if (!formData.name.trim()) {
-      alert('Product name is required');
+      toast({
+        title: 'Validation Error',
+        description: 'Product name is required',
+        variant: 'destructive',
+      });
       return;
     }
 
     if (!formData.price || parseFloat(formData.price) <= 0) {
-      alert('Valid price is required');
+      toast({
+        title: 'Validation Error',
+        description: 'Valid price is required',
+        variant: 'destructive',
+      });
       return;
     }
 
     if (!formData.category) {
-      alert('Category is required');
+      toast({
+        title: 'Validation Error',
+        description: 'Category is required',
+        variant: 'destructive',
+      });
       return;
     }
 
     if (!formData.description.trim()) {
-      alert('Description is required');
+      toast({
+        title: 'Validation Error',
+        description: 'Description is required',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -187,7 +203,6 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         videoUrl = await uploadVideo();
         if (!videoUrl) {
           console.warn('Video upload failed, continuing without video');
-          // Don't stop the process, just continue without video
         } else {
           console.log('Video uploaded, URL:', videoUrl);
         }
@@ -201,37 +216,35 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       const categoryName = selectedCategory ? selectedCategory.name : formData.category;
 
       const newProduct = {
-        name: formData.name,
+        name: formData.name.trim(),
         slug: slug,
-        category: categoryName, // Use the category name, not the ID
+        category: categoryName,
         subcategory: formData.subcategory || null,
         price: parseFloat(formData.price),
         originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : null,
         discount: formData.discount ? parseFloat(formData.discount) : null,
-        cashbackPercentage: null, // Default to null
-        cashbackPrice: null, // Default to null
-        description: formData.description,
-        shortDescription: formData.shortDescription || formData.description.substring(0, 100),
+        cashbackPercentage: null,
+        cashbackPrice: null,
+        description: formData.description.trim(),
+        shortDescription: formData.shortDescription?.trim() || formData.description.substring(0, 100),
         rating: parseFloat(formData.rating),
         reviewCount: parseInt(formData.reviewCount),
         inStock: formData.inStock,
         featured: formData.featured,
         bestseller: formData.bestseller,
         newLaunch: formData.newLaunch,
-        size: formData.size || null,
-        ingredients: formData.ingredients || null,
-        benefits: formData.benefits || null,
-        howToUse: formData.howToUse || null,
-        tags: formData.tags || null,
-        imageUrl: imageUrls[0], // Primary thumbnail image
-        images: imageUrls, // All uploaded images
-        videoUrl: videoUrl || null, // Uploaded video URL (null if not uploaded)
-        shadeIds: formData.shadeIds // Include selected shade IDs
+        size: formData.size?.trim() || null,
+        ingredients: formData.ingredients?.trim() || null,
+        benefits: formData.benefits?.trim() || null,
+        howToUse: formData.howToUse?.trim() || null,
+        tags: formData.tags?.trim() || null,
+        imageUrl: imageUrls[0],
+        images: imageUrls,
+        videoUrl: videoUrl || null,
+        shadeIds: formData.shadeIds || []
       };
 
-      console.log('Product data with video:', { ...newProduct, videoUrl });
-
-      console.log('Product data to be sent:', newProduct);
+      console.log('Creating product:', newProduct);
 
       const response = await fetch('/api/products', {
         method: 'POST',
@@ -242,29 +255,30 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       });
 
       if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}`;
+        const errorText = await response.text();
+        console.error('Product creation failed:', errorText);
+        
+        let errorMessage = 'Failed to create product';
         try {
-          const responseText = await response.text();
-          console.log('Raw response:', responseText);
-
-          // Try to parse as JSON
-          const errorData = JSON.parse(responseText);
+          const errorData = JSON.parse(errorText);
           errorMessage = errorData?.error || errorData?.details || errorMessage;
-        } catch (parseError) {
-          console.error('Failed to parse error response:', parseError);
-          errorMessage = `Server returned non-JSON response (${response.status})`;
+        } catch {
+          errorMessage = errorText || errorMessage;
         }
 
-        console.error('Product creation failed:', errorMessage);
-        alert(`Failed to create product: ${errorMessage}`);
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
         return;
       }
 
       const createdProduct = await response.json();
-
+      console.log('Product created successfully:', createdProduct);
 
       // Assign selected shades to the product
-      if (formData.shadeIds.length > 0) {
+      if (formData.shadeIds && formData.shadeIds.length > 0) {
         try {
           await fetch(`/api/admin/products/${createdProduct.id}/shades`, {
             method: 'POST',
@@ -275,24 +289,34 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
           });
         } catch (shadeError) {
           console.error('Error assigning shades:', shadeError);
-          // Product is created, but shade assignment failed
-          alert('Product created successfully, but failed to assign shades. You can assign them later.');
+          toast({
+            title: 'Warning',
+            description: 'Product created but failed to assign shades',
+            variant: 'destructive',
+          });
         }
       }
 
       // Call onAddProduct to update the parent component's state
       await onAddProduct(createdProduct);
 
+      // Show success message
+      toast({
+        title: 'Success',
+        description: 'Product created successfully',
+      });
+
       // Close modal and reset form
       setOpen(false);
       resetForm();
-      toast({
-        title: 'Product Created',
-        description: 'The new product has been added successfully.',
-      });
+
     } catch (error) {
       console.error('Error creating product:', error);
-      alert(`Failed to create product: ${error.message}`);
+      toast({
+        title: 'Error',
+        description: `Failed to create product: ${error.message}`,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -325,6 +349,12 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
     setImagePreviews([]);
     setSelectedVideo(null);
     setVideoPreview('');
+    
+    // Reset file inputs
+    const imageInput = document.getElementById('images-upload') as HTMLInputElement;
+    const videoInput = document.getElementById('video-upload') as HTMLInputElement;
+    if (imageInput) imageInput.value = '';
+    if (videoInput) videoInput.value = '';
   };
 
   const handleInputChange = (field: string, value: string | boolean | number[]) => {
@@ -410,14 +440,22 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
   };
 
   return (
-    <Dialog open={open} onOpenChange={(open) => {
-      setOpen(open);
-      if (!open) {
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      setOpen(isOpen);
+      if (!isOpen) {
+        // Reset form when dialog is closed
         resetForm();
       }
     }}>
       <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600">
+        <Button 
+          className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600"
+          onClick={() => {
+            // Ensure form is reset when opening
+            resetForm();
+            setOpen(true);
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add New Product
         </Button>
@@ -616,7 +654,7 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
                 value={formData.originalPrice}
                 onChange={(e) => {
                   handleInputChange('originalPrice', e.target.value);
-                  // Auto-calculate discount if price is set
+                  // Auto-calculate discount if sale price is set
                   if (formData.price && e.target.value) {
                     const discount = ((parseFloat(e.target.value) - parseFloat(formData.price)) / parseFloat(e.target.value) * 100).toFixed(2);
                     handleInputChange('discount', discount);
@@ -627,38 +665,37 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="discount">Discount (%)</Label>
-              <Input
-                id="discount"
-                type="number"
-                step="0.01"
-                value={formData.discount}
-                onChange={(e) => {
-                  handleInputChange('discount', e.target.value);
-                  // Auto-calculate sale price if original price is set
-                  if (formData.originalPrice && e.target.value) {
-                    const salePrice = (parseFloat(formData.originalPrice) * (1 - parseFloat(e.target.value) / 100)).toFixed(2);
-                    handleInputChange('price', salePrice);
-                  }
-                }}
-                placeholder="e.g., 20"
-              />
-              <p className="text-xs text-gray-500">Enter discount percentage to calculate sale price</p>
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="price">Sale Price (₹) *</Label>
               <Input
                 id="price"
                 type="number"
                 step="0.01"
                 value={formData.price}
-                onChange={(e) => handleInputChange('price', e.target.value)}
-                placeholder="Auto-calculated from discount"
-                disabled
+                onChange={(e) => {
+                  handleInputChange('price', e.target.value);
+                  // Auto-calculate discount if original price is set
+                  if (formData.originalPrice && e.target.value) {
+                    const discount = ((parseFloat(formData.originalPrice) - parseFloat(e.target.value)) / parseFloat(formData.originalPrice) * 100).toFixed(2);
+                    handleInputChange('discount', discount);
+                  }
+                }}
+                placeholder="479"
                 required
               />
-              <p className="text-xs text-gray-500">Auto-calculated from original price and discount</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="discount">Discount (%)</Label>
+              <Input
+                id="discount"
+                type="number"
+                step="0.01"
+                value={formData.discount}
+                onChange={(e) => handleInputChange('discount', e.target.value)}
+                placeholder="Auto-calculated"
+                disabled
+              />
+              <p className="text-xs text-gray-500">Auto-calculated from original price and sale price</p>
             </div>
 
             <div className="space-y-2">
