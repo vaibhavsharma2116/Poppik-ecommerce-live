@@ -139,6 +139,7 @@ export default function AdminProducts() {
 
   // Fetch data from API
   useEffect(() => {
+  
     fetchData();
   }, []);
 
