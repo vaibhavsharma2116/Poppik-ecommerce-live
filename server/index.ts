@@ -150,8 +150,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Import shades table
+import { shades } from "@shared/schema";
+
 // Create db instance
-const db = drizzle(pool, { schema: { products, productImages } });
+const db = drizzle(pool, { schema: { products, productImages, shades } });
 
 (async () => {
   // Simple database connection test
@@ -170,6 +173,7 @@ const db = drizzle(pool, { schema: { products, productImages } });
   app.get("/product/:slug", async (req, res, next) => {
     try {
       const { slug } = req.params;
+      const shadeId = req.query.shade; // Get shade ID from query parameter
       
       // Check if slug is actually an ID (numeric)
       const isNumeric = /^\d+$/.test(slug);
@@ -198,6 +202,27 @@ const db = drizzle(pool, { schema: { products, productImages } });
         return next(); // Let React handle 404
       }
 
+      // If shade ID is provided, try to get shade image
+      let shadeImage = null;
+      let shadeName = '';
+      if (shadeId) {
+        try {
+          const shadeResult = await db
+            .select()
+            .from(shades)
+            .where(eq(shades.id, parseInt(shadeId as string)))
+            .limit(1);
+          
+          if (shadeResult.length > 0 && shadeResult[0].imageUrl) {
+            shadeImage = shadeResult[0].imageUrl;
+            shadeName = shadeResult[0].name;
+            console.log('🎨 Shade image found:', shadeName, shadeImage);
+          }
+        } catch (err) {
+          console.log('⚠️ Could not fetch shade image:', err);
+        }
+      }
+
       // Get product images
       const images = await db
         .select()
@@ -213,8 +238,8 @@ const db = drizzle(pool, { schema: { products, productImages } });
         console.log('📸 First DB image:', images[0].imageUrl);
       }
 
-      // Get the best image URL with priority: DB images > product.imageUrl > fallback
-      let productImage = images[0]?.imageUrl || product.imageUrl;
+      // Get the best image URL with priority: Shade image > DB images > product.imageUrl > fallback
+      let productImage = shadeImage || images[0]?.imageUrl || product.imageUrl;
       
       // Fallback to a default high-quality image if no image found
       const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
@@ -259,8 +284,8 @@ const db = drizzle(pool, { schema: { products, productImages } });
       
       console.log('✅ Final OG Image URL:', fullImageUrl);
 
-      const productUrl = `https://poppiklifestyle.com/product/${product.slug || product.id}`;
-      const title = `${product.name} - ₹${product.price} | Poppik Lifestyle`;
+      const productUrl = `https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}`;
+      const title = `${product.name}${shadeName ? ` - ${shadeName}` : ''} - ₹${product.price} | Poppik Lifestyle`;
       const description = product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle';
 
       // Check if it's a social media crawler (WhatsApp, Facebook, Twitter, etc.)

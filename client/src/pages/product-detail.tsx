@@ -532,13 +532,23 @@ export default function ProductDetail() {
   };
 
   const shareToWhatsApp = () => {
-    const url = window.location.href;
+    // Get the URL with shade parameter if shade is selected
+    let url = window.location.href.split('?')[0]; // Remove existing query params
+    
+    // If shades are selected, add shade parameter to URL
+    if (selectedShades.length > 0) {
+      url += `?shade=${selectedShades[0].id}`;
+    }
+    
     const price = `₹${product?.price}`;
+    
+    // Get the selected shade name if available
+    const shadeInfo = selectedShades.length > 0 
+      ? `\n🎨 Shade: ${selectedShades.map(s => s.name).join(', ')}`
+      : '';
 
-    // WhatsApp will automatically fetch Open Graph tags (including image) from the URL
-    const text = `🛍️ *${product?.name}*\n\n${product?.shortDescription || ''}\n\n💰 Price: ${price}\n\n👉 Check it out: ${url}`;
+    const text = `🛍️ *${product?.name}*\n\n${product?.shortDescription || ''}${shadeInfo}\n\n💰 Price: ${price}\n\n👉 Check it out: ${url}`;
 
-    // WhatsApp will fetch OG image from the URL automatically
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
