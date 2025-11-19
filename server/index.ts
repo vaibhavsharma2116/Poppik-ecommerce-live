@@ -171,7 +171,10 @@ const db = drizzle(pool, { schema: { products, productImages } });
   app.get("/product/:slug", async (req, res, next) => {
     try {
       const { slug } = req.params;
-      console.log(`Product page requested for slug: ${slug}`);
+      const userAgent = req.headers['user-agent'] || '';
+      const isBot = /bot|crawler|spider|crawling|whatsapp|facebook|twitter|telegram|skype|linkedin/i.test(userAgent);
+      
+      console.log(`Product page requested for slug: ${slug} (Bot: ${isBot})`);
 
       // Read the index.html file first
       const indexPath = path.join(process.cwd(), "dist/public/index.html");
@@ -205,9 +208,9 @@ const db = drizzle(pool, { schema: { products, productImages } });
       const productUrl = `https://poppiklifestyle.com/product/${slug}`;
 
       // Get the first image from product images or fallback to product.imageUrl
-      let imageUrl = product.imageUrl;
+      let imageUrl = '';
 
-      // Try to fetch product images to get the first actual product image
+      // PRIORITY 1: Try to fetch product images from database
       try {
         const imagesResponse = await db.query.productImages.findMany({
           where: (productImages, { eq }) => eq(productImages.productId, product.id),
@@ -216,10 +219,24 @@ const db = drizzle(pool, { schema: { products, productImages } });
         });
 
         if (imagesResponse && imagesResponse.length > 0) {
-          imageUrl = imagesResponse[0].imageUrl || imagesResponse[0].url || product.imageUrl;
+          imageUrl = imagesResponse[0].imageUrl || imagesResponse[0].url || '';
+          console.log(`Found product image from database: ${imageUrl}`);
         }
       } catch (err) {
         console.log('Could not fetch product images for OG tags:', err);
+      }
+
+      // PRIORITY 2: If no image from database, use product.imageUrl
+      if (!imageUrl && product.imageUrl) {
+        imageUrl = product.imageUrl;
+        console.log(`Using product.imageUrl: ${imageUrl}`);
+      }
+
+      // PRIORITY 3: If still no image, try to get from product.images array (if exists)
+      if (!imageUrl && product.images && Array.isArray(product.images) && product.images.length > 0) {
+        const firstImage = product.images[0];
+        imageUrl = firstImage.url || firstImage.imageUrl || '';
+        console.log(`Using product.images array: ${imageUrl}`);
       }
 
       // Make sure image URL is always absolute with HTTPS
@@ -236,48 +253,64 @@ const db = drizzle(pool, { schema: { products, productImages } });
         }
       }
 
-      // Final fallback if no image found
+      // Final fallback - use a default product placeholder image instead of logo
       if (!imageUrl) {
-        imageUrl = 'https://poppiklifestyle.com/favicon.png';
+        imageUrl = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+        console.log('No product image found, using placeholder');
       }
 
-      console.log(`Product image URL for OG tags: ${imageUrl}`);
+      console.log(`Final product image URL for OG tags: ${imageUrl}`);
+
+      // Clean description for meta tags (remove HTML and escape quotes)
+      const cleanDescription = (product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle')
+        .replace(/<[^>]*>/g, '') // Remove HTML tags
+        .replace(/"/g, '&quot;') // Escape quotes
+        .substring(0, 200);
+
+      const cleanName = product.name.replace(/"/g, '&quot;');
 
       const metaTags = `
-  <title>${product.name} - Poppik Lifestyle</title>
-  <meta name="description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
+  <title>${cleanName} - Poppik Lifestyle</title>
+  <meta name="description" content="${cleanDescription}" />
 
   <!-- Open Graph / Facebook / WhatsApp -->
   <meta property="og:type" content="product" />
   <meta property="og:url" content="${productUrl}" />
-  <meta property="og:title" content="${product.name} - ₹${product.price} | Poppik Lifestyle" />
-  <meta property="og:description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
+  <meta property="og:title" content="${cleanName} - ₹${product.price} | Poppik Lifestyle" />
+  <meta property="og:description" content="${cleanDescription}" />
+  
+  <!-- Primary Image Tags - Multiple declarations for better compatibility -->
   <meta property="og:image" content="${imageUrl}" />
   <meta property="og:image:url" content="${imageUrl}" />
   <meta property="og:image:secure_url" content="${imageUrl}" />
   <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="${product.name}" />
+  <meta property="og:image:alt" content="${cleanName} - Product Image" />
+  
+  <!-- WhatsApp specific - they prefer these tags -->
+  <meta name="og:image" content="${imageUrl}" />
+  <meta itemprop="image" content="${imageUrl}" />
+  
   <meta property="og:site_name" content="Poppik Lifestyle" />
+  <meta property="og:locale" content="en_IN" />
   <meta property="product:brand" content="Poppik Lifestyle" />
   <meta property="product:price:amount" content="${product.price}" />
   <meta property="product:price:currency" content="INR" />
   <meta property="product:availability" content="${product.inStock ? 'in stock' : 'out of stock'}" />
   <meta property="product:condition" content="new" />
-  
-  <!-- Additional OG tags for better social sharing -->
-  <meta property="og:locale" content="en_IN" />
   <meta property="og:determiner" content="auto" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@PoppikLifestyle" />
+  <meta name="twitter:creator" content="@PoppikLifestyle" />
   <meta name="twitter:url" content="${productUrl}" />
-  <meta name="twitter:title" content="${product.name} - ₹${product.price} | Poppik Lifestyle" />
-  <meta name="twitter:description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
+  <meta name="twitter:title" content="${cleanName} - ₹${product.price} | Poppik Lifestyle" />
+  <meta name="twitter:description" content="${cleanDescription}" />
   <meta name="twitter:image" content="${imageUrl}" />
-  <meta name="twitter:image:alt" content="${product.name}" />
+  <meta name="twitter:image:src" content="${imageUrl}" />
+  <meta name="twitter:image:alt" content="${cleanName} - Product Image" />
   <meta name="twitter:label1" content="Price" />
   <meta name="twitter:data1" content="₹${product.price}" />
   <meta name="twitter:label2" content="Availability" />
@@ -291,7 +324,10 @@ const db = drizzle(pool, { schema: { products, productImages } });
 
       // Set headers for better caching and social media crawlers
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutes cache
+      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+      
+      // Add headers for better crawler support
+      res.setHeader('X-Robots-Tag', 'index, follow');
 
       // Send the modified HTML
       res.send(html);
