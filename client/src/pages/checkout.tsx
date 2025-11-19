@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -285,8 +285,8 @@ interface CartItem {
 }
 
 export default function CheckoutPage() {
-  const location = useLocation();
-  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0 } = location.state || {};
+  const [location, setLocation] = useLocation();
+  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0 } = (location as any).state || {};
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -313,6 +313,18 @@ export default function CheckoutPage() {
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [profileDataLoaded, setProfileDataLoaded] = useState(false);
+  const [showAddAddressDialog, setShowAddAddressDialog] = useState(false);
+  const [newAddressData, setNewAddressData] = useState({
+    fullName: "",
+    mobile: "",
+    pincode: "",
+    flat: "",
+    area: "",
+    landmark: "",
+    town: "",
+    state: "",
+    makeDefault: false,
+  });
 
   // Initialize shipping cost state and loading indicator
   const [shippingCost, setShippingCost] = useState<number>(99);
@@ -392,6 +404,22 @@ export default function CheckoutPage() {
       });
       window.location.href = "/auth/login";
       return;
+    }
+
+    // Check if this is a multi-address order
+    const isMultiAddress = localStorage.getItem('isMultiAddressOrder');
+    const multiAddressItems = localStorage.getItem('multiAddressItems');
+    
+    if (isMultiAddress === 'true' && multiAddressItems) {
+      try {
+        const items = JSON.parse(multiAddressItems);
+        console.log('✅ Multi-address order detected:', items);
+        // Items will be loaded from cart, addresses are already assigned
+      } catch (error) {
+        console.error('Error loading multi-address data:', error);
+        localStorage.removeItem('isMultiAddressOrder');
+        localStorage.removeItem('multiAddressItems');
+      }
     }
 
     // Load affiliate discount from localStorage first
@@ -821,6 +849,202 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleAutofillLocation = async () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation Not Supported",
+        description: "Your browser doesn't support geolocation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Detecting Location",
+      description: "Please wait while we detect your current location...",
+    });
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        try {
+          // Use Nominatim OpenStreetMap API for reverse geocoding
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
+          );
+          
+          if (!response.ok) throw new Error('Failed to fetch location data');
+          
+          const data = await response.json();
+          const address = data.address;
+          
+          // Extract and format address details
+          const city = address.city || address.town || address.village || address.suburb || '';
+          const state = address.state || '';
+          const pincode = address.postcode || '';
+          const area = address.road || address.neighbourhood || '';
+          const landmark = address.amenity || '';
+          
+          // Update form fields
+          setNewAddressData(prev => ({
+            ...prev,
+            town: city,
+            state: state.toLowerCase().replace(/ /g, '_'),
+            pincode: pincode,
+            area: area,
+            landmark: landmark,
+          }));
+          
+          toast({
+            title: "Location Detected!",
+            description: `${city}, ${state}`,
+          });
+        } catch (error) {
+          console.error('Geocoding error:', error);
+          toast({
+            title: "Location Detection Failed",
+            description: "Could not detect address details. Please enter manually.",
+            variant: "destructive",
+          });
+        }
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        let errorMessage = "Could not access your location";
+        
+        if (error.code === error.PERMISSION_DENIED) {
+          errorMessage = "Location permission denied. Please enable location access in your browser.";
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          errorMessage = "Location information unavailable.";
+        } else if (error.code === error.TIMEOUT) {
+          errorMessage = "Location request timed out.";
+        }
+        
+        toast({
+          title: "Location Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  const handleNewAddressSubmit = async () => {
+    // Validate required fields
+    if (!newAddressData.fullName || !newAddressData.mobile || !newAddressData.pincode || 
+        !newAddressData.flat || !newAddressData.area || !newAddressData.town || !newAddressData.state) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate mobile number
+    const phoneRegex = /^(\+91|91)?[6-9]\d{9}$/;
+    const cleanPhone = newAddressData.mobile.replace(/[\s-()]/g, '');
+    if (!phoneRegex.test(cleanPhone)) {
+      toast({
+        title: "Invalid Mobile Number",
+        description: "Please enter a valid 10-digit Indian mobile number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate pincode
+    if (!/^\d{6}$/.test(newAddressData.pincode)) {
+      toast({
+        title: "Invalid Pincode",
+        description: "Please enter a valid 6-digit PIN code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Build full address
+    const fullAddress = `${newAddressData.flat}, ${newAddressData.area}${newAddressData.landmark ? ', ' + newAddressData.landmark : ''}`;
+    
+    // Split name into first and last
+    const [firstName, ...lastNameParts] = newAddressData.fullName.trim().split(' ');
+    const lastName = lastNameParts.join(' ') || firstName;
+
+    try {
+      // Save to database
+      const response = await fetch('/api/delivery-addresses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          recipientName: newAddressData.fullName,
+          addressLine1: fullAddress,
+          addressLine2: null,
+          city: newAddressData.town,
+          state: newAddressData.state,
+          pincode: newAddressData.pincode,
+          country: 'India',
+          phoneNumber: newAddressData.mobile,
+          deliveryInstructions: null,
+          isDefault: newAddressData.makeDefault,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save address');
+      }
+
+      const savedAddress = await response.json();
+
+      // Update form data with new address
+      setFormData({
+        ...formData,
+        firstName: firstName || "",
+        lastName: lastName || "",
+        phone: newAddressData.mobile,
+        address: fullAddress,
+        city: newAddressData.town,
+        state: newAddressData.state,
+        zipCode: newAddressData.pincode,
+      });
+
+      // Reset new address form
+      setNewAddressData({
+        fullName: "",
+        mobile: "",
+        pincode: "",
+        flat: "",
+        area: "",
+        landmark: "",
+        town: "",
+        state: "",
+        makeDefault: false,
+      });
+
+      setShowAddAddressDialog(false);
+
+      toast({
+        title: "Address Saved",
+        description: "New delivery address has been saved to your account",
+      });
+    } catch (error) {
+      console.error('Error saving address:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save delivery address. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleRedeemCashback = async () => {
     if (!user?.id || redeemAmount <= 0) {
       toast({
@@ -1184,26 +1408,58 @@ export default function CheckoutPage() {
         paymentSuccessful = true;
         paymentMethod = 'Cash on Delivery';
 
+        // Check if this is a multi-address order
+        const isMultiAddress = localStorage.getItem('isMultiAddressOrder');
+        const multiAddressItems = localStorage.getItem('multiAddressItems');
+        
+        let shippingAddressData = fullAddress;
+        let itemsData = cartItems.map(item => ({
+          productId: item.id,
+          productName: item.name,
+          productImage: item.image,
+          quantity: item.quantity,
+          price: item.price,
+          cashbackPrice: item.cashbackPrice || null,
+          cashbackPercentage: item.cashbackPercentage || null,
+        }));
+
+        // If multi-address order, include delivery addresses for each item
+        if (isMultiAddress === 'true' && multiAddressItems) {
+          try {
+            const items = JSON.parse(multiAddressItems);
+            itemsData = items.map((item: any) => ({
+              productId: item.id,
+              productName: item.name,
+              productImage: item.image,
+              quantity: item.quantity,
+              price: item.price,
+              cashbackPrice: item.cashbackPrice || null,
+              cashbackPercentage: item.cashbackPercentage || null,
+              deliveryAddress: item.deliveryAddress ? item.deliveryAddress.fullAddress : null,
+              recipientName: item.deliveryAddress ? item.deliveryAddress.recipientName : null,
+              recipientPhone: item.deliveryAddress ? item.deliveryAddress.phone : null,
+            }));
+            
+            // For multi-address orders, use first address or a combined note
+            shippingAddressData = "Multiple Delivery Addresses - See individual items";
+          } catch (error) {
+            console.error('Error parsing multi-address items:', error);
+          }
+        }
+
         const orderData = {
           userId: user.id,
           totalAmount: Math.round(total), // Round to integer
           paymentMethod: paymentMethod,
-          shippingAddress: fullAddress,
+          shippingAddress: shippingAddressData,
+          isMultiAddress: isMultiAddress === 'true',
           affiliateCode: formData.affiliateCode || passedAffiliateCode || null,
           affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
           promoCode: appliedPromo?.code || null,
           promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
           redeemAmount: Math.round(redeemAmount) || 0,
           affiliateWalletAmount: Math.round(affiliateWalletAmount) || 0,
-          items: cartItems.map(item => ({
-            productId: item.id,
-            productName: item.name,
-            productImage: item.image,
-            quantity: item.quantity,
-            price: item.price,
-            cashbackPrice: item.cashbackPrice || null,
-            cashbackPercentage: item.cashbackPercentage || null,
-          })),
+          items: itemsData,
           customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
           customerEmail: formData.email.trim(),
           customerPhone: formData.phone.trim(),
@@ -1272,6 +1528,9 @@ export default function CheckoutPage() {
           localStorage.removeItem("promoDiscount"); // Remove promo discount from local storage
           localStorage.removeItem("redeemAmount");
           localStorage.removeItem("affiliateWalletAmount");
+          localStorage.removeItem("isMultiAddressOrder");
+          localStorage.removeItem("multiAddressItems");
+          localStorage.removeItem("multiAddressMapping");
           sessionStorage.removeItem('pendingOrder');
           localStorage.setItem("cartCount", "0");
           window.dispatchEvent(new Event("cartUpdated"));
@@ -1551,17 +1810,205 @@ export default function CheckoutPage() {
                       <div className="space-y-2">
                         <button
                           type="button"
-                          className="text-blue-600 hover:text-blue-700 text-sm hover:underline"
-                        >
-                          + Add a new delivery address
-                        </button>
-                        <br />
-                        <button
-                          type="button"
-                          className="text-blue-600 hover:text-blue-700 text-sm hover:underline"
+                          onClick={() => {
+                            localStorage.setItem('multipleAddressMode', 'true');
+                            localStorage.setItem('checkoutCartItems', JSON.stringify(cartItems));
+                            setLocation('/select-delivery-address');
+                          }}
+                          className="text-blue-600 hover:text-blue-700 text-sm hover:underline block"
                         >
                           Deliver to multiple addresses
                         </button>
+                        
+                        <Dialog open={showAddAddressDialog} onOpenChange={setShowAddAddressDialog}>
+                          <DialogTrigger asChild>
+                            <button
+                              type="button"
+                              className="text-blue-600 hover:text-blue-700 text-sm hover:underline block"
+                            >
+                              + Add a new delivery address
+                            </button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>Enter a new delivery address</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-start gap-2">
+                                <MapPin className="h-4 w-4 text-blue-600 mt-0.5" />
+                                <div>
+                                  <p className="text-sm font-medium text-blue-900">Save time. Autofill your current location.</p>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="mt-2" 
+                                    type="button"
+                                    onClick={handleAutofillLocation}
+                                  >
+                                    <MapPin className="h-3 w-3 mr-1" />
+                                    Autofill
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <Label htmlFor="newCountry">Country/Region *</Label>
+                                <select
+                                  id="newCountry"
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                  defaultValue="India"
+                                  disabled
+                                >
+                                  <option value="India">India</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <Label htmlFor="newFullName">Full name (First and Last name) *</Label>
+                                <Input 
+                                  id="newFullName" 
+                                  value={newAddressData.fullName}
+                                  onChange={(e) => setNewAddressData({...newAddressData, fullName: e.target.value})}
+                                  required 
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="newMobile">Mobile number *</Label>
+                                <Input 
+                                  id="newMobile" 
+                                  placeholder="May be used to assist delivery"
+                                  value={newAddressData.mobile}
+                                  onChange={(e) => setNewAddressData({...newAddressData, mobile: e.target.value})}
+                                  maxLength={10}
+                                  required 
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="newPincode">Pincode *</Label>
+                                <Input 
+                                  id="newPincode" 
+                                  placeholder="6 digits [0-9] PIN code"
+                                  value={newAddressData.pincode}
+                                  onChange={(e) => setNewAddressData({...newAddressData, pincode: e.target.value})}
+                                  maxLength={6}
+                                  required 
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="newFlat">Flat, House no., Building, Company, Apartment *</Label>
+                                <Input 
+                                  id="newFlat"
+                                  value={newAddressData.flat}
+                                  onChange={(e) => setNewAddressData({...newAddressData, flat: e.target.value})}
+                                  required 
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="newArea">Area, Street, Sector, Village *</Label>
+                                <Input 
+                                  id="newArea" 
+                                  placeholder="e.g., hawa, nandpuri colony"
+                                  value={newAddressData.area}
+                                  onChange={(e) => setNewAddressData({...newAddressData, area: e.target.value})}
+                                  required 
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="newLandmark">Landmark</Label>
+                                <Input 
+                                  id="newLandmark" 
+                                  placeholder="E.g. near apollo hospital"
+                                  value={newAddressData.landmark}
+                                  onChange={(e) => setNewAddressData({...newAddressData, landmark: e.target.value})}
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor="newTown">Town/City *</Label>
+                                  <Input 
+                                    id="newTown"
+                                    value={newAddressData.town}
+                                    onChange={(e) => setNewAddressData({...newAddressData, town: e.target.value})}
+                                    required 
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="newState">State *</Label>
+                                  <select
+                                    id="newState"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    value={newAddressData.state}
+                                    onChange={(e) => setNewAddressData({...newAddressData, state: e.target.value})}
+                                  >
+                                    <option value="">Select State</option>
+                                    <option value="andhra_pradesh">Andhra Pradesh</option>
+                                    <option value="arunachal_pradesh">Arunachal Pradesh</option>
+                                    <option value="assam">Assam</option>
+                                    <option value="bihar">Bihar</option>
+                                    <option value="chhattisgarh">Chhattisgarh</option>
+                                    <option value="goa">Goa</option>
+                                    <option value="gujarat">Gujarat</option>
+                                    <option value="haryana">Haryana</option>
+                                    <option value="himachal_pradesh">Himachal Pradesh</option>
+                                    <option value="jharkhand">Jharkhand</option>
+                                    <option value="karnataka">Karnataka</option>
+                                    <option value="kerala">Kerala</option>
+                                    <option value="madhya_pradesh">Madhya Pradesh</option>
+                                    <option value="maharashtra">Maharashtra</option>
+                                    <option value="manipur">Manipur</option>
+                                    <option value="meghalaya">Meghalaya</option>
+                                    <option value="mizoram">Mizoram</option>
+                                    <option value="nagaland">Nagaland</option>
+                                    <option value="odisha">Odisha</option>
+                                    <option value="punjab">Punjab</option>
+                                    <option value="rajasthan">Rajasthan</option>
+                                    <option value="sikkim">Sikkim</option>
+                                    <option value="tamil_nadu">Tamil Nadu</option>
+                                    <option value="telangana">Telangana</option>
+                                    <option value="tripura">Tripura</option>
+                                    <option value="uttar_pradesh">Uttar Pradesh</option>
+                                    <option value="uttarakhand">Uttarakhand</option>
+                                    <option value="west_bengal">West Bengal</option>
+                                    <option value="delhi">Delhi</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center space-x-2">
+                                <input 
+                                  type="checkbox" 
+                                  id="makeDefault" 
+                                  className="rounded"
+                                  checked={newAddressData.makeDefault}
+                                  onChange={(e) => setNewAddressData({...newAddressData, makeDefault: e.target.checked})}
+                                />
+                                <Label htmlFor="makeDefault" className="text-sm font-normal">
+                                  Make this my default address
+                                </Label>
+                              </div>
+
+                              <div className="bg-gray-50 p-3 rounded-lg">
+                                <p className="text-sm font-semibold mb-2">Add delivery instructions (optional)</p>
+                                <p className="text-xs text-gray-600">Preferences are used to plan your delivery. However, shipments can sometimes arrive early or later than planned.</p>
+                              </div>
+
+                              <Button 
+                                className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
+                                type="button"
+                                onClick={handleNewAddressSubmit}
+                              >
+                                Use this address
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                       
                       </div>
 
                      
@@ -1966,58 +2413,79 @@ export default function CheckoutPage() {
             </div>
 
             <div className="space-y-6">
+            
+
               <Card>
                 <CardHeader>
                   <CardTitle>Order Summary</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {cartItems.map((item) => (
-                      <div key={item.id} className="flex items-center space-x-4">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="h-16 w-16 object-cover rounded-lg"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-gray-900 truncate">{item.name}</h4>
-                          {item.selectedShade && (
-                            <Badge variant="secondary" className="mt-1 flex items-center gap-1.5 w-fit">
-                              {item.selectedShade.imageUrl ? (
-                                <img
-                                  src={item.selectedShade.imageUrl}
-                                  alt={item.selectedShade.name}
-                                  className="w-3 h-3 rounded-full object-cover"
-                                />
-                              ) : (
-                                <div
-                                  className="w-3 h-3 rounded-full border"
-                                  style={{ backgroundColor: item.selectedShade.colorCode }}
-                                />
+                    {cartItems.map((item) => {
+                      // Check if this is a multi-address order
+                      const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
+                      const multiAddressItems = isMultiAddress ? JSON.parse(localStorage.getItem('multiAddressItems') || '[]') : [];
+                      const itemWithAddress = multiAddressItems.find((i: any) => i.id === item.id);
+                      
+                      return (
+                        <div key={item.id} className="border-b pb-4 last:border-b-0 last:pb-0">
+                          <div className="flex items-center space-x-4">
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="h-16 w-16 object-cover rounded-lg"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-gray-900 truncate">{item.name}</h4>
+                              {item.selectedShade && (
+                                <Badge variant="secondary" className="mt-1 flex items-center gap-1.5 w-fit">
+                                  {item.selectedShade.imageUrl ? (
+                                    <img
+                                      src={item.selectedShade.imageUrl}
+                                      alt={item.selectedShade.name}
+                                      className="w-3 h-3 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div
+                                      className="w-3 h-3 rounded-full border"
+                                      style={{ backgroundColor: item.selectedShade.colorCode }}
+                                    />
+                                  )}
+                                  <span className="text-xs">{item.selectedShade.name}</span>
+                                </Badge>
                               )}
-                              <span className="text-xs">{item.selectedShade.name}</span>
-                            </Badge>
-                          )}
-                          <p className="text-sm text-gray-600 mt-1">Qty: {item.quantity}</p>
-
-                          {item.cashbackPrice && item.cashbackPercentage && (
-                            <div className="mt-2 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-md p-1.5">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="font-semibold text-orange-700">Cashback</span>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-bold text-orange-600">
-                                    ₹{(Number(item.cashbackPrice) * item.quantity).toFixed(2)}
-                                  </span>
-                                  <span className="bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full text-xs">
-                                    {item.cashbackPercentage}%
-                                  </span>
+                              <p className="text-sm text-gray-600 mt-1">Qty: {item.quantity}</p>
+                              
+                              {/* Show delivery address for multi-address orders */}
+                              {itemWithAddress?.deliveryAddress && (
+                                <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                                  <p className="font-medium text-gray-700">Delivering to:</p>
+                                  <p className="text-gray-600">{itemWithAddress.deliveryAddress.recipientName}</p>
+                                  <p className="text-gray-600">{itemWithAddress.deliveryAddress.fullAddress}</p>
+                                  <p className="text-gray-600">Phone: {itemWithAddress.deliveryAddress.phone}</p>
                                 </div>
-                              </div>
+                              )}
+
+                              {item.cashbackPrice && item.cashbackPercentage && (
+                                <div className="mt-2 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-md p-1.5">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-orange-700">Cashback</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-bold text-orange-600">
+                                        ₹{(Number(item.cashbackPrice) * item.quantity).toFixed(2)}
+                                      </span>
+                                      <span className="bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full text-xs">
+                                        {item.cashbackPercentage}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="border-t border-gray-200 mt-6 pt-6 space-y-2">

@@ -62,6 +62,7 @@ const OTPVerification = lazy(() => import("./pages/auth/otp-verification"));
 const Profile = lazy(() => import("./pages/profile"));
 const CartPage = lazy(() => import('./pages/cart'));
 const Checkout = lazy(() => import("./pages/checkout"));
+const SelectDeliveryAddress = lazy(() => import("./pages/select-delivery-address"));
 const Wishlist = lazy(() => import("./pages/wishlist"));
 const OrderHistory = lazy(() => import("./pages/order-history"));
 const TrackOrder = lazy(() => import("./pages/track-order"));
@@ -225,6 +226,7 @@ function Router() {
             <Route path="/profile" component={Profile} />
             <Route path="/cart" component={CartPage} />
             <Route path="/checkout" component={Checkout} />
+          <Route path="/select-delivery-address" component={SelectDeliveryAddress} />
             <Route path="/wishlist" component={Wishlist} />
             <Route path="/wallet" component={Wallet} />
             <Route path="/order-history" component={OrderHistory} />

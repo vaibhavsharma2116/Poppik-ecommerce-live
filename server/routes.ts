@@ -1710,11 +1710,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Multi-Address Orders API
+  app.post("/api/multi-address-orders", async (req, res) => {
+    try {
+      const { userId, itemAddressMapping, cartItems } = req.body;
+
+      if (!userId || !itemAddressMapping || !cartItems) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Validate that all items have addresses
+      const itemIds = cartItems.map((item: any) => item.id);
+      const mappingKeys = Object.keys(itemAddressMapping).map(k => parseInt(k));
+
+      const allItemsMapped = itemIds.every((id: number) => mappingKeys.includes(id));
+
+      if (!allItemsMapped) {
+        return res.status(400).json({ error: "All items must have delivery addresses assigned" });
+      }
+
+      // Get all addresses to include full details
+      const addressIds = Object.values(itemAddressMapping);
+      const addresses = await db
+        .select()
+        .from(schema.deliveryAddresses)
+        .where(sql`${schema.deliveryAddresses.id} IN (${sql.raw(addressIds.join(','))})`);
+
+      // Create a mapping of addressId to full address
+      const addressMap = addresses.reduce((acc, addr) => {
+        acc[addr.id] = addr;
+        return acc;
+      }, {} as any);
+
+      // Build response with full address details
+      const itemsWithAddresses = cartItems.map((item: any) => ({
+        ...item,
+        addressId: itemAddressMapping[item.id],
+        address: addressMap[itemAddressMapping[item.id]]
+      }));
+
+      res.json({
+        success: true,
+        message: "Multi-address order data saved",
+        itemsWithAddresses,
+        itemAddressMapping
+      });
+
+    } catch (error) {
+      console.error("Error saving multi-address order:", error);
+      res.status(500).json({ error: "Failed to save multi-address order" });
+    }
+  });
+
   // Get all active offers (public endpoint)
   app.get("/api/offers", async (req, res) => {
     try {
       console.log("📦 Fetching active offers...");
-      
+
       const offers = await db
         .select()
         .from(schema.offers)
@@ -1722,8 +1774,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .orderBy(desc(schema.offers.sortOrder), desc(schema.offers.createdAt));
 
       console.log(`✅ Found ${offers.length} active offers`);
-      
-      // Ensure we always return an array
+
+      // Ensure we always return an array, even if database is unavailable
       res.json(offers || []);
     } catch (error) {
       console.error("❌ Error fetching offers:", error);
@@ -1732,7 +1784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         code: error.code,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
-      
+
       // Return empty array instead of error to prevent UI breakage
       res.json([]);
     }
@@ -1839,7 +1891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (req.body.title) updateData.title = req.body.title;
       if (req.body.description) updateData.description = req.body.description;
-      
+
       // Price fields - ensure they are saved properly
       if (req.body.price !== undefined && req.body.price !== '') {
         updateData.price = parseFloat(req.body.price);
@@ -1847,14 +1899,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.body.originalPrice !== undefined && req.body.originalPrice !== '') {
         updateData.originalPrice = parseFloat(req.body.originalPrice);
       }
-      
+
       // Discount fields
       if (req.body.discountType) updateData.discountType = req.body.discountType;
       if (req.body.discountValue !== undefined && req.body.discountValue !== '') {
         updateData.discountValue = parseFloat(req.body.discountValue);
       }
       if (req.body.discountText !== undefined) updateData.discountText = req.body.discountText || null;
-      
+
       // Cashback fields
       if (req.body.cashbackPercentage !== undefined && req.body.cashbackPercentage !== '') {
         updateData.cashbackPercentage = parseFloat(req.body.cashbackPercentage);
@@ -1862,7 +1914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.body.cashbackPrice !== undefined && req.body.cashbackPrice !== '') {
         updateData.cashbackPrice = parseFloat(req.body.cashbackPrice);
       }
-      
+
       // Other fields
       if (req.body.validFrom) updateData.validFrom = new Date(req.body.validFrom);
       if (req.body.validUntil) updateData.validUntil = new Date(req.body.validUntil);
@@ -2648,6 +2700,197 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
+
+  // Delivery Address Management Routes
+  app.get("/api/delivery-addresses", async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const addresses = await db
+        .select()
+        .from(schema.deliveryAddresses)
+        .where(eq(schema.deliveryAddresses.userId, parseInt(userId as string)))
+        .orderBy(desc(schema.deliveryAddresses.isDefault), desc(schema.deliveryAddresses.createdAt));
+
+      res.json(addresses);
+    } catch (error) {
+      console.error("Error fetching delivery addresses:", error);
+      res.status(500).json({ error: "Failed to fetch delivery addresses" });
+    }
+  });
+
+  app.post("/api/delivery-addresses", async (req, res) => {
+    try {
+      const {
+        userId,
+        recipientName,
+        addressLine1,
+        addressLine2,
+        city,
+        state,
+        pincode,
+        country,
+        phoneNumber,
+        deliveryInstructions,
+        isDefault
+      } = req.body;
+
+      if (!userId || !recipientName || !addressLine1 || !city || !state || !pincode || !phoneNumber) {
+        return res.status(400).json({ error: "Required fields are missing" });
+      }
+
+      // If this is set as default, unset other default addresses
+      if (isDefault) {
+        await db
+          .update(schema.deliveryAddresses)
+          .set({ isDefault: false })
+          .where(eq(schema.deliveryAddresses.userId, parseInt(userId)));
+      }
+
+      const [newAddress] = await db
+        .insert(schema.deliveryAddresses)
+        .values({
+          userId: parseInt(userId),
+          recipientName: recipientName.trim(),
+          addressLine1: addressLine1.trim(),
+          addressLine2: addressLine2 ? addressLine2.trim() : null,
+          city: city.trim(),
+          state: state.trim(),
+          pincode: pincode.trim(),
+          country: country || 'India',
+          phoneNumber: phoneNumber.trim(),
+          deliveryInstructions: deliveryInstructions ? deliveryInstructions.trim() : null,
+          isDefault: Boolean(isDefault)
+        })
+        .returning();
+
+      res.status(201).json(newAddress);
+    } catch (error) {
+      console.error("Error creating delivery address:", error);
+      res.status(500).json({ error: "Failed to create delivery address" });
+    }
+  });
+
+  app.put("/api/delivery-addresses/:id", async (req, res) => {
+    try {
+      const addressId = parseInt(req.params.id);
+      const {
+        recipientName,
+        addressLine1,
+        addressLine2,
+        city,
+        state,
+        pincode,
+        country,
+        phoneNumber,
+        deliveryInstructions,
+        isDefault
+      } = req.body;
+
+      // If setting as default, unset other defaults for this user
+      if (isDefault) {
+        const address = await db
+          .select()
+          .from(schema.deliveryAddresses)
+          .where(eq(schema.deliveryAddresses.id, addressId))
+          .limit(1);
+
+        if (address.length > 0) {
+          await db
+            .update(schema.deliveryAddresses)
+            .set({ isDefault: false })
+            .where(eq(schema.deliveryAddresses.userId, address[0].userId));
+        }
+      }
+
+      const [updatedAddress] = await db
+        .update(schema.deliveryAddresses)
+        .set({
+          recipientName: recipientName?.trim(),
+          addressLine1: addressLine1?.trim(),
+          addressLine2: addressLine2 ? addressLine2.trim() : null,
+          city: city?.trim(),
+          state: state?.trim(),
+          pincode: pincode?.trim(),
+          country: country || 'India',
+          phoneNumber: phoneNumber?.trim(),
+          deliveryInstructions: deliveryInstructions ? deliveryInstructions.trim() : null,
+          isDefault: Boolean(isDefault),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.deliveryAddresses.id, addressId))
+        .returning();
+
+      if (!updatedAddress) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      res.json(updatedAddress);
+    } catch (error) {
+      console.error("Error updating delivery address:", error);
+      res.status(500).json({ error: "Failed to update delivery address" });
+    }
+  });
+
+  app.delete("/api/delivery-addresses/:id", async (req, res) => {
+    try {
+      const addressId = parseInt(req.params.id);
+
+      const [deletedAddress] = await db
+        .delete(schema.deliveryAddresses)
+        .where(eq(schema.deliveryAddresses.id, addressId))
+        .returning();
+
+      if (!deletedAddress) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      res.json({ success: true, message: "Address deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting delivery address:", error);
+      res.status(500).json({ error: "Failed to delete delivery address" });
+    }
+  });
+
+  app.put("/api/delivery-addresses/:id/set-default", async (req, res) => {
+    try {
+      const addressId = parseInt(req.params.id);
+
+      const address = await db
+        .select()
+        .from(schema.deliveryAddresses)
+        .where(eq(schema.deliveryAddresses.id, addressId))
+        .limit(1);
+
+      if (address.length === 0) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      // Unset all default addresses for this user
+      await db
+        .update(schema.deliveryAddresses)
+        .set({ isDefault: false })
+        .where(eq(schema.deliveryAddresses.userId, address[0].userId));
+
+      // Set this address as default
+      const [updatedAddress] = await db
+        .update(schema.deliveryAddresses)
+        .set({ isDefault: true, updatedAt: new Date() })
+        .where(eq(schema.deliveryAddresses.id, addressId))
+        .returning();
+
+      res.json(updatedAddress);
+    } catch (error) {
+      console.error("Error setting default address:", error);
+      res.status(500).json({ error: "Failed to set default address" });
+    }
+  });
+
+
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); 
       res.setHeader('CDN-Cache-Control', 'public, max-age=300'); 
@@ -2910,9 +3153,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Handle common variations and special cases
         const categoryMappings: Record<string, string[]> = {
-          'skincare': ['skin', 'face', 'facial'],
+          'skincare': ['skincare', 'skin', 'face', 'facial'],
           'haircare': ['hair'],
-          'makeup': ['cosmetics', 'beauty'],
+          'makeup': ['makeup', 'cosmetics', 'beauty'],
           'bodycare': ['body'],
           'eyecare': ['eye', 'eyes', 'eyecare', 'eye care', 'eye-care'],
           'eye-care': ['eye', 'eyes', 'eyecare', 'eye care'],
@@ -3901,12 +4144,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate discount
       let discountAmount = 0;
-      if (promo.discountType === 'percentage') {
+      if (promo.discountType === 'percentage' && promo.discountValue) {
         discountAmount = (cartTotal * parseFloat(promo.discountValue)) / 100;
         if (promo.maxDiscount) {
           discountAmount = Math.min(discountAmount, parseFloat(promo.maxDiscount));
         }
-      } else if (promo.discountType === 'flat') {
+      } else if (promo.discountType === 'flat' && promo.discountValue) {
         discountAmount = parseFloat(promo.discountValue);
       }
 
@@ -4259,8 +4502,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Create new wallet with cashback
             await db.insert(schema.userWallet).values({
               userId: parseInt(userId),
-              cashbackBalance: totalCashback.toFixed(2),
-              totalEarned: totalCashback.toFixed(2),
+              cashbackBalance: "0.00",
+              totalEarned: "0.00",
               totalRedeemed: "0.00"
             });
 
@@ -4379,13 +4622,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               type: 'withdrawal',
               amount: affiliateWalletAmount.toFixed(2),
               balanceType: commissionBalance >= affiliateWalletAmount ? 'commission' : 'mixed',
-              description: `Commission balance used for COD order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+              description: `Commission balance used for order ORD-${newOrder.id.toString().padStart(3, '0')}`,
               status: 'completed',
               processedAt: new Date(),
               createdAt: new Date()
             });
 
-            console.log(`✅ Affiliate wallet deducted: ₹${affiliateWalletAmount} for COD order ${newOrder.id}, transaction recorded`);
+            console.log(`✅ Affiliate wallet deducted: ₹${affiliateWalletAmount} for order ${newOrder.id}, transaction recorded`);
           } else {
             console.error(`❌ Affiliate wallet not found for user ${userId}`);
           }
@@ -6545,7 +6788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { id: 2, name: "Light to Medium", colorCode: "#F5D5AE", value: "light-medium", isActive: true, sortOrder: 2 },
         { id: 3, name: "Medium", colorCode: "#E8B895", value: "medium", isActive: true, sortOrder: 3 },
         { id: 4, name: "Medium to Deep", colorCode: "#D69E2E", value: "medium-deep", isActive: true, sortOrder: 4 },
-        { id: 5, name: "Deep", colorCode        : "#D69E2E", value: "deep", isActive: true, sortOrder: 5 },
+        { id: 5, name: "Deep", colorCode: "#D69E2E", value: "deep", isActive: true, sortOrder: 5 },
         { id: 6, name: "Very Deep", colorCode: "#B7791F", value: "very-deep", isActive: true, sortOrder: 6 },
         { id: 7, name: "Porcelain", colorCode: "#FFF8F0", value: "porcelain", isActive: true, sortOrder: 7 },
         { id: 8, name: "Ivory", colorCode: "#FFFFF0", value: "ivory", isActive: true, sortOrder: 8 },
@@ -7265,6 +7508,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/admin/offers/:id', adminMiddleware, upload.single('image'), async (req, res) => {
     try {
       const offerId = parseInt(req.params.id);
+      let updateData: any = {
+        title: req.body.title,
+        description: req.body.description,
+        discountType: req.body.discountType || 'none',
+        discountValue: req.body.discountValue ? parseFloat(req.body.discountValue) : null,
+        discountText: req.body.discountText || null,
+        validFrom: new Date(req.body.validFrom),
+        validUntil: new Date(req.body.validUntil),
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+        linkUrl: req.body.linkUrl || null,
+        buttonText: req.body.buttonText || 'Shop Now',
+        updatedAt: new Date()
+      };
 
       // Parse productIds and ensure it's an array of integers
       let productIds = [];
@@ -7279,26 +7536,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           productIds = [];
         }
       }
+      updateData.productIds = productIds.length > 0 ? productIds : null;
 
-      let updateData: any = {
-        title: req.body.title,
-        description: req.body.description,
-        productIds: productIds.length > 0 ? productIds : null,
-        price: req.body.price ? parseFloat(req.body.price) : null,
-        originalPrice: req.body.originalPrice ? parseFloat(req.body.originalPrice) : null,
-        discountType: req.body.discountType || 'none',
-        discountValue: req.body.discountValue ? parseFloat(req.body.discountValue) : null,
-        discountText: req.body.discountText || null,
-        cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
-        cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
-        validFrom: new Date(req.body.validFrom),
-        validUntil: new Date(req.body.validUntil),
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-        linkUrl: req.body.linkUrl || null,
-        buttonText: req.body.buttonText || 'Shop Now',
-        updatedAt: new Date()
-      };
 
       if (req.file) {
         updateData.imageUrl = `/api/images/${req.file.filename}`;
@@ -8528,7 +8767,7 @@ Poppik Affiliate Portal
       console.log('Application found:', application.length > 0 ? 'Yes' : 'No');
 
       if (!application || application.length === 0) {
-        // ChecklocalStorage fallback
+        // Check localStorage fallback
         return res.status(404).json({ error: 'No application found' });
       }
 
@@ -9389,30 +9628,50 @@ Poppik Affiliate Portal
   });
 
   // Public category sliders endpoint (for frontend display)
-  app.get('/api/categories/slug/:categorySlug/sliders', async (req, res) => {
+  app.get('/api/categories/slug/:slug/sliders', async (req, res) => {
     try {
-      const { categorySlug } = req.params;
+      const { slug } = req.params;
+      console.log('Fetching sliders for category slug:', slug);
 
       // First get the category by slug
-      const category = await storage.getCategoryBySlug(categorySlug);
-      if (!category) {
-        return res.status(404).json({ error: 'Category not found' });
+      const category = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.slug, slug))
+        .limit(1);
+
+      if (!category || category.length === 0) {
+        console.log('Category not found for slug:', slug);
+        // Return empty array instead of error to prevent UI issues
+        return res.json([]);
       }
 
-      // Get active sliders for this category
-      const sliders = await db
-        .select()
-        .from(schema.categorySliders)
-        .where(and(
-          eq(schema.categorySliders.categoryId, category.id),
-          eq(schema.categorySliders.isActive, true)
-        ))
-        .orderBy(asc(schema.categorySliders.sortOrder));
+      const categoryId = category[0].id;
+      console.log('Found category ID:', categoryId);
 
-      res.json(sliders);
+      // Get active sliders for this category
+      try {
+        const slidersResult = await db
+          .select()
+          .from(schema.categorySliders)
+          .where(and(
+            eq(schema.categorySliders.categoryId, categoryId),
+            eq(schema.categorySliders.isActive, true)
+          ))
+          .orderBy(asc(schema.categorySliders.sortOrder));
+
+        console.log('Found sliders count:', slidersResult.length);
+        // Always return an array, even if empty
+        res.json(slidersResult || []);
+      } catch (tableError) {
+        console.log('Error querying category sliders, returning empty array:', tableError.message);
+        // Return empty array on any database error
+        res.json([]);
+      }
     } catch (error) {
-      console.error('Error fetching public category sliders:', error);
-      res.json([]); // Return empty array as fallback
+      console.error('Error fetching category sliders by slug:', error);
+      // Return empty array instead of error to prevent UI breakage
+      res.json([]);
     }
   });
 

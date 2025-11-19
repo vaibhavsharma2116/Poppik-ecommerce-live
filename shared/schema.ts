@@ -112,6 +112,7 @@ export const ordersTable = pgTable("orders", {
   paymentId: text("payment_id"),
   affiliateCode: text("affiliate_code"),
   affiliateDiscount: integer("affiliate_discount").default(0),
+  isMultiAddress: boolean("is_multi_address").default(false),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -213,6 +214,9 @@ export const orderItemsTable = pgTable("order_items", {
   price: text("price").notNull(),
   cashbackPrice: decimal("cashback_price", { precision: 10, scale: 2 }),
   cashbackPercentage: decimal("cashback_percentage", { precision: 5, scale: 2 }),
+  deliveryAddress: text("delivery_address"),
+  recipientName: text("recipient_name"),
+  recipientPhone: text("recipient_phone"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -783,3 +787,25 @@ interface CartItem {
   isOfferItem?: boolean;
   itemKey?: string;
 }
+
+
+// Delivery Addresses Table
+export const deliveryAddresses = pgTable("delivery_addresses", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  recipientName: varchar("recipient_name", { length: 255 }).notNull(),
+  addressLine1: text("address_line1").notNull(),
+  addressLine2: text("address_line2"),
+  city: varchar("city", { length: 100 }).notNull(),
+  state: varchar("state", { length: 100 }).notNull(),
+  pincode: varchar("pincode", { length: 10 }).notNull(),
+  country: varchar("country", { length: 100 }).notNull().default('India'),
+  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
+  deliveryInstructions: text("delivery_instructions"),
+  isDefault: boolean("is_default").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type DeliveryAddress = typeof deliveryAddresses.$inferSelect;
+export type InsertDeliveryAddress = typeof deliveryAddresses.$inferInsert;

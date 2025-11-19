@@ -49,20 +49,7 @@ export default function OffersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
-      {/* Header Section - Fully Responsive */}
-      <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white py-8 sm:py-12 md:py-16 lg:py-20">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 backdrop-blur-sm rounded-full mb-3 sm:mb-4 md:mb-6">
-            <Tag className="h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10" />
-          </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 sm:mb-3 md:mb-4 px-2">
-            OFFERS
-          </h1>
-          <p className="text-sm sm:text-base md:text-lg lg:text-xl text-white/90 max-w-2xl mx-auto px-4">
-            Explore our exclusive deals and save big on your favorite beauty products
-          </p>
-        </div>
-      </div>
+    
 
       {/* Offers Grid - Responsive Layout */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 md:py-12 lg:py-16">
@@ -130,32 +117,6 @@ export default function OffersPage() {
           })}
         </div>
 
-        {/* CTA Section - Fully Responsive */}
-        <div className="mt-8 sm:mt-12 md:mt-16 text-center bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 lg:p-12 shadow-xl">
-          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full mb-4 sm:mb-5 md:mb-6">
-            <Gift className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-white" />
-          </div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4 px-2">
-            Don't Miss Out!
-          </h2>
-          <p className="text-sm sm:text-base md:text-lg text-gray-600 mb-4 sm:mb-5 md:mb-6 max-w-2xl mx-auto px-4">
-            These offers are for a limited time only. Shop now and save big on your favorite beauty products.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
-            <Link href="/products" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white px-6 sm:px-8 py-2.5 sm:py-3 text-base sm:text-lg font-semibold shadow-lg">
-                <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Shop All Products
-              </Button>
-            </Link>
-            <Link href="/combos" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto border-2 border-pink-500 text-pink-600 hover:bg-pink-50 px-6 sm:px-8 py-2.5 sm:py-3 text-base sm:text-lg font-semibold">
-                <Percent className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                View Combo Deals
-              </Button>
-            </Link>
-          </div>
-        </div>
       </div>
     </div>
   );

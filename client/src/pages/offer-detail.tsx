@@ -1,12 +1,11 @@
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { ChevronRight, ShoppingCart, ArrowLeft, Share2, Tag, Clock, Check, Sparkles, Palette, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -81,7 +80,7 @@ function ProductListItem({
   onOpenShadeSelector: () => void;
 }) {
   const hasShades = productShades.length > 0;
-  
+
   // Get product image - handle both images array and imageUrl
   const productImage = (() => {
     if (product.images && Array.isArray(product.images) && product.images.length > 0) {
@@ -108,7 +107,7 @@ function ProductListItem({
         <div className="flex-1 min-w-0 space-y-3">
           <div>
             <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
-            
+
             {/* Price Display */}
             <div className="flex items-baseline gap-2 mb-2">
               <span className="text-xl font-bold text-green-600">₹{product.price}</span>
@@ -137,7 +136,7 @@ function ProductListItem({
                   </div>
                 )}
               </div>
-              
+
               {/* Shades Preview Grid */}
               <div className="grid grid-cols-6 gap-2">
                 {productShades.slice(0, 6).map((shade) => (
@@ -169,37 +168,25 @@ function ProductListItem({
                   </div>
                 )}
               </div>
-              
+
               {/* Shade Selection Button */}
-              <Button
+              <button
                 onClick={onOpenShadeSelector}
-                variant="outline"
-                className={`w-full justify-between gap-2 h-14 border-2 transition-all ${
+                className={`w-full rounded-xl px-6 py-4 text-center font-bold text-lg transition-all ${
                   selectedShade
-                    ? 'border-purple-500 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 text-purple-700 shadow-sm'
-                    : 'border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50 text-gray-700'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg hover:shadow-xl hover:from-purple-700 hover:to-pink-700'
+                    : 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg hover:shadow-xl hover:from-pink-600 hover:to-purple-600'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <Palette className="w-5 h-5" />
-                  <div className="flex flex-col items-start">
-                    <span className="font-semibold text-sm">
-                      {selectedShade ? selectedShade : 'Select Your Shade'}
-                    </span>
-                    {!selectedShade && (
-                      <span className="text-xs text-gray-500">Tap to choose from {productShades.length} shades</span>
-                    )}
-                  </div>
-                </div>
                 {selectedShade ? (
-                  <div className="flex items-center gap-1 bg-purple-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold">
-                    <Check className="w-3 h-3" />
-                    Change
+                  <div className="flex items-center justify-center gap-2">
+                    <Check className="w-5 h-5" />
+                    <span>{selectedShade.split(', ').length} Shade{selectedShade.split(', ').length !== 1 ? 's' : ''} Selected</span>
                   </div>
                 ) : (
-                  <span className="text-red-500 font-bold">*</span>
+                  'Select Shades'
                 )}
-              </Button>
+              </button>
             </div>
           )}
         </div>
@@ -224,32 +211,86 @@ function ShadeSelectorSheet({
   onClose: () => void;
   onShadeSelect: (shade: string) => void;
 }) {
+  const [selectedShades, setSelectedShades] = React.useState<Set<string>>(new Set(selectedShade ? [selectedShade] : []));
+
+  React.useEffect(() => {
+    setSelectedShades(new Set(selectedShade ? [selectedShade] : []));
+  }, [selectedShade, isOpen]);
+
+  const handleSelectAll = () => {
+    setSelectedShades(new Set(shades.map(s => s.name)));
+  };
+
+  const handleClearAll = () => {
+    setSelectedShades(new Set());
+  };
+
+  const handleShadeToggle = (shadeName: string) => {
+    const newSelection = new Set(selectedShades);
+    if (newSelection.has(shadeName)) {
+      newSelection.delete(shadeName);
+    } else {
+      newSelection.add(shadeName);
+    }
+    setSelectedShades(newSelection);
+  };
+
+  const handleConfirm = () => {
+    if (selectedShades.size > 0) {
+      onShadeSelect(Array.from(selectedShades).join(', '));
+      onClose();
+    }
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="bottom" className="h-[90vh] sm:h-[75vh]">
         <SheetHeader className="border-b pb-4 mb-4 bg-gradient-to-r from-purple-50 to-pink-50 -mx-6 px-6 -mt-6 pt-6">
           <div className="flex items-start justify-between">
-            <div>
-              <SheetTitle className="text-2xl font-bold text-gray-900">Select Your Shade</SheetTitle>
+            <div className="flex-1">
+              <SheetTitle className="text-2xl font-bold text-gray-900">Select Your Shades</SheetTitle>
               <SheetDescription className="text-gray-600 mt-1">
                 Choose from {shades.length} beautiful shades for {product.name}
               </SheetDescription>
+              {selectedShades.size > 0 && (
+                <div className="mt-2 text-sm font-semibold text-purple-600">
+                  {selectedShades.size} shade{selectedShades.size !== 1 ? 's' : ''} selected
+                </div>
+              )}
             </div>
-            <Palette className="w-8 h-8 text-purple-600" />
+            <Palette className="w-8 h-8 text-purple-600 flex-shrink-0" />
+          </div>
+          
+          {/* Select All / Clear All Buttons */}
+          <div className="flex gap-2 mt-4">
+            <Button
+              onClick={handleSelectAll}
+              variant="outline"
+              size="sm"
+              className="flex-1 border-purple-300 text-purple-700 hover:bg-purple-50"
+            >
+              Select All
+            </Button>
+            <Button
+              onClick={handleClearAll}
+              variant="outline"
+              size="sm"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+              disabled={selectedShades.size === 0}
+            >
+              Clear All
+            </Button>
           </div>
         </SheetHeader>
 
-        <div className="overflow-y-auto h-[calc(100%-120px)] pb-4 -mx-6 px-6">
+        <div className="overflow-y-auto h-[calc(100%-180px)] pb-4 -mx-6 px-6">
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
             {shades.map((shade) => {
-              const isSelected = selectedShade === shade.name;
+              const isSelected = selectedShades.has(shade.name);
               return (
                 <button
                   key={shade.id}
-                  onClick={() => {
-                    onShadeSelect(shade.name);
-                    onClose();
-                  }}
+                  onClick={() => handleShadeToggle(shade.name)}
                   className={`group flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${
                     isSelected
                       ? 'border-purple-600 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg scale-105 ring-2 ring-purple-300'
@@ -292,23 +333,26 @@ function ShadeSelectorSheet({
           </div>
         </div>
 
-        {/* Selected Shade Footer */}
-        {selectedShade && (
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Check className="w-5 h-5" />
-              <span className="font-semibold">Selected: {selectedShade}</span>
-            </div>
-            <Button
-              onClick={onClose}
-              variant="secondary"
-              size="sm"
-              className="bg-white text-purple-700 hover:bg-gray-100"
-            >
-              Confirm
-            </Button>
+        {/* Selected Shades Footer */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 flex items-center justify-between shadow-2xl">
+          <div className="flex items-center gap-2">
+            <Check className="w-5 h-5" />
+            <span className="font-semibold">
+              {selectedShades.size > 0 
+                ? `${selectedShades.size} shade${selectedShades.size !== 1 ? 's' : ''} selected`
+                : 'Select at least 1 shade'}
+            </span>
           </div>
-        )}
+          <Button
+            onClick={handleConfirm}
+            variant="secondary"
+            size="sm"
+            disabled={selectedShades.size === 0}
+            className="bg-white text-purple-700 hover:bg-gray-100 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {selectedShades.size > 0 ? 'Confirm Selection' : 'Select Shades'}
+          </Button>
+        </div>
       </SheetContent>
     </Sheet>
   );
@@ -802,7 +846,7 @@ export default function OfferDetail() {
                     {productIds.length} Product{productIds.length !== 1 ? 's' : ''} in this Offer
                   </h3>
                 </div>
-                
+
                 {/* Product Preview Grid */}
                 <div className="grid grid-cols-3 gap-4">
                   {(offer?.products || []).map((product: any, index: number) => {
@@ -812,9 +856,9 @@ export default function OfferDetail() {
                       }
                       return product.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
                     })();
-                    
+
                     const productShades = productShadesData[product.id] || [];
-                    
+
                     return (
                       <div key={index} className="relative group">
                         <div className="aspect-square bg-white rounded-xl overflow-hidden border-2 border-purple-100 hover:border-purple-400 transition-all shadow-sm hover:shadow-md">
@@ -826,7 +870,7 @@ export default function OfferDetail() {
                         </div>
                         {productShades.length > 0 && (
                           <div className="mt-2 flex gap-1 justify-center flex-wrap">
-                            {productShades.slice(0, 5).map((shade: any) => (
+                            {productShades.map((shade: any) => (
                               <div
                                 key={shade.id}
                                 className="relative group/shade cursor-pointer"
@@ -846,11 +890,6 @@ export default function OfferDetail() {
                                 )}
                               </div>
                             ))}
-                            {productShades.length > 5 && (
-                              <div className="w-6 h-6 rounded-full bg-gray-200 border-2 border-gray-300 flex items-center justify-center text-[9px] font-bold text-gray-600">
-                                +{productShades.length - 5}
-                              </div>
-                            )}
                           </div>
                         )}
                       </div>
@@ -886,62 +925,9 @@ export default function OfferDetail() {
             </Button>
           </div>
         </div>
-
-      
-
-     
-
-       
       </div>
 
-      {/* Share Dialog */}
-      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Share This Offer</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-3 py-4">
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-12"
-              onClick={() => handleShare('whatsapp')}
-            >
-              <span className="text-2xl">💬</span>
-              <span>Share on WhatsApp</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-12"
-              onClick={() => handleShare('facebook')}
-            >
-              <span className="text-2xl">📘</span>
-              <span>Share on Facebook</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-12"
-              onClick={() => handleShare('twitter')}
-            >
-              <span className="text-2xl">🐦</span>
-              <span>Share on Twitter</span>
-            </Button>
-
-            <div className="pt-3 border-t">
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-3 h-12"
-                onClick={() => handleShare('copy')}
-              >
-                <span className="text-2xl">🔗</span>
-                <span>Copy Link</span>
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+     
     </div>
   );
 }
