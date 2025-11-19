@@ -206,19 +206,40 @@ const db = drizzle(pool, { schema: { products, productImages } });
         .orderBy(productImages.sortOrder)
         .limit(1);
 
-      const productImage = images[0]?.imageUrl || product.imageUrl || '/logo.png';
+      console.log('📸 Product:', product.name);
+      console.log('📸 Product imageUrl:', product.imageUrl);
+      console.log('📸 DB Images count:', images.length);
+      if (images.length > 0) {
+        console.log('📸 First DB image:', images[0].imageUrl);
+      }
+
+      // Get the best image URL
+      let productImage = images[0]?.imageUrl || product.imageUrl;
       
-      // Ensure full URL for image
+      // Fallback to a default image if no image found
+      if (!productImage || productImage.trim() === '') {
+        productImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+        console.log('⚠️ No product image found, using fallback');
+      }
+      
+      // Ensure full HTTPS URL for image (required for WhatsApp)
       let fullImageUrl = productImage;
       if (!fullImageUrl.startsWith('http')) {
+        // Always use HTTPS for production
+        const baseUrl = 'https://poppiklifestyle.com';
+        
         if (fullImageUrl.startsWith('/api/')) {
-          fullImageUrl = `https://poppiklifestyle.com${fullImageUrl}`;
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
+        } else if (fullImageUrl.startsWith('/uploads/')) {
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else if (fullImageUrl.startsWith('/')) {
-          fullImageUrl = `https://poppiklifestyle.com${fullImageUrl}`;
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else {
-          fullImageUrl = `https://poppiklifestyle.com/${fullImageUrl}`;
+          fullImageUrl = `${baseUrl}/${fullImageUrl}`;
         }
       }
+      
+      console.log('✅ Final OG Image URL:', fullImageUrl);
 
       const productUrl = `https://poppiklifestyle.com/product/${product.slug || product.id}`;
       const title = `${product.name} - ₹${product.price} | Poppik Lifestyle`;
@@ -246,10 +267,10 @@ const db = drizzle(pool, { schema: { products, productImages } });
   <meta property="og:description" content="${description}">
   <meta property="og:image" content="${fullImageUrl}">
   <meta property="og:image:secure_url" content="${fullImageUrl}">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
+  <meta property="og:image:width" content="800">
+  <meta property="og:image:height" content="800">
   <meta property="og:image:alt" content="${product.name}">
-  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:type" content="${fullImageUrl.endsWith('.png') ? 'image/png' : 'image/jpeg'}">
   <meta property="og:locale" content="en_IN">
   
   <!-- Twitter -->
