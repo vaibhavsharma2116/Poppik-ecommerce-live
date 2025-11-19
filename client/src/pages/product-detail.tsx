@@ -542,6 +542,16 @@ export default function ProductDetail() {
     
     const price = `₹${product?.price}`;
     
+    // Get the image to share - prioritize shade image if selected, otherwise use main product image
+    let shareImage = '';
+    if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
+      shareImage = selectedShades[0].imageUrl;
+    } else if (imageUrls.length > 0) {
+      shareImage = imageUrls[0];
+    } else if (product?.imageUrl) {
+      shareImage = product.imageUrl;
+    }
+    
     // Get the selected shade name if available
     const shadeInfo = selectedShades.length > 0 
       ? `\n🎨 Shade: ${selectedShades.map(s => s.name).join(', ')}`
