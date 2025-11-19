@@ -65,6 +65,17 @@ app.use('/uploads', express.static('uploads', {
   setHeaders: (res, path) => {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    
+    // Set proper content type for images
+    if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (path.endsWith('.png')) {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (path.endsWith('.webp')) {
+      res.setHeader('Content-Type', 'image/webp');
+    }
   }
 }));
 
@@ -203,18 +214,24 @@ const db = drizzle(pool, { schema: { products } });
         imageUrl = `https://poppiklifestyle.com/${imageUrl}`;
       }
 
+      // Handle /api/ prefix URLs
+      if (imageUrl.includes('/api/')) {
+        imageUrl = imageUrl.replace('/api/', 'https://poppiklifestyle.com/api/');
+      }
+
       console.log(`Product image URL for OG tags: ${imageUrl}`);
 
       const metaTags = `
   <title>${product.name} - Poppik Lifestyle</title>
   <meta name="description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
 
-  <!-- Open Graph / Facebook -->
+  <!-- Open Graph / Facebook / WhatsApp -->
   <meta property="og:type" content="product" />
   <meta property="og:url" content="${productUrl}" />
   <meta property="og:title" content="${product.name} - ₹${product.price} | Poppik Lifestyle" />
   <meta property="og:description" content="${product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle'}" />
   <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image:url" content="${imageUrl}" />
   <meta property="og:image:secure_url" content="${imageUrl}" />
   <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:width" content="1200" />
@@ -226,10 +243,10 @@ const db = drizzle(pool, { schema: { products } });
   <meta property="product:price:currency" content="INR" />
   <meta property="product:availability" content="${product.inStock ? 'in stock' : 'out of stock'}" />
   <meta property="product:condition" content="new" />
-
-  <!-- WhatsApp Specific -->
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
+  
+  <!-- Additional OG tags for better social sharing -->
+  <meta property="og:locale" content="en_IN" />
+  <meta property="og:determiner" content="auto" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
@@ -312,7 +329,7 @@ const db = drizzle(pool, { schema: { products } });
 
 
   // Serve the app on port 5000 (required for Replit web preview)
-  const port = 8085;
+  const port = 5000;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
 
