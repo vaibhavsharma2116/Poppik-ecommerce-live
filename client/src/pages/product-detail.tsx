@@ -631,9 +631,12 @@ export default function ProductDetail() {
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
-          let img = imageUrls[0] || product?.imageUrl || '/logo.png';
+          let img = imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           if (img && !img.startsWith('http')) {
-            if (img.startsWith('/api/')) {
+            if (img.startsWith('/api/image/')) {
+              const imageId = img.split('/').pop();
+              img = `https://poppiklifestyle.com/uploads/${imageId}`;
+            } else if (img.startsWith('/uploads/')) {
               img = `https://poppiklifestyle.com${img}`;
             } else if (img.startsWith('/')) {
               img = `https://poppiklifestyle.com${img}`;
@@ -644,9 +647,12 @@ export default function ProductDetail() {
           return img;
         })()} />
         <meta property="og:image:secure_url" content={(() => {
-          let img = imageUrls[0] || product?.imageUrl || '/logo.png';
+          let img = imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           if (img && !img.startsWith('http')) {
-            if (img.startsWith('/api/')) {
+            if (img.startsWith('/api/image/')) {
+              const imageId = img.split('/').pop();
+              img = `https://poppiklifestyle.com/uploads/${imageId}`;
+            } else if (img.startsWith('/uploads/')) {
               img = `https://poppiklifestyle.com${img}`;
             } else if (img.startsWith('/')) {
               img = `https://poppiklifestyle.com${img}`;

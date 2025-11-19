@@ -213,37 +213,48 @@ const db = drizzle(pool, { schema: { products, productImages } });
         console.log('📸 First DB image:', images[0].imageUrl);
       }
 
-      // Get the best image URL
+      // Get the best image URL with priority: DB images > product.imageUrl > fallback
       let productImage = images[0]?.imageUrl || product.imageUrl;
       
-      // Fallback to a default image if no image found
+      // Fallback to a default high-quality image if no image found
+      const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+      
       if (!productImage || productImage.trim() === '') {
-        productImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+        productImage = fallbackImage;
         console.log('⚠️ No product image found, using fallback');
       }
       
       // Ensure full HTTPS URL for image (required for WhatsApp)
       let fullImageUrl = productImage;
+      
+      // Always use HTTPS for production domain
+      const baseUrl = 'https://poppiklifestyle.com';
+      
       if (!fullImageUrl.startsWith('http')) {
-        // Get the base URL from request or use default
-        const protocol = req.protocol || 'https';
-        const host = req.get('host') || 'poppiklifestyle.com';
-        const baseUrl = `${protocol}://${host}`;
-        
         // Clean the image URL path
-        if (fullImageUrl.startsWith('/api/')) {
+        if (fullImageUrl.startsWith('/api/image/')) {
           // Convert /api/image/xxx to direct /uploads/xxx path
           const imageId = fullImageUrl.split('/').pop();
-          fullImageUrl = `/uploads/${imageId}`;
-        }
-        
-        if (fullImageUrl.startsWith('/uploads/')) {
+          fullImageUrl = `${baseUrl}/uploads/${imageId}`;
+        } else if (fullImageUrl.startsWith('/uploads/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else if (fullImageUrl.startsWith('/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else {
           fullImageUrl = `${baseUrl}/${fullImageUrl}`;
         }
+      }
+      
+      // Validate image URL - if it's not accessible, use fallback
+      try {
+        const imageTest = await fetch(fullImageUrl, { method: 'HEAD', timeout: 3000 });
+        if (!imageTest.ok) {
+          console.log('⚠️ Image URL not accessible, using fallback:', fullImageUrl);
+          fullImageUrl = fallbackImage;
+        }
+      } catch (error) {
+        console.log('⚠️ Image validation failed, using fallback:', error);
+        fullImageUrl = fallbackImage;
       }
       
       console.log('✅ Final OG Image URL:', fullImageUrl);
@@ -281,10 +292,20 @@ const db = drizzle(pool, { schema: { products, productImages } });
   <meta property="og:image:alt" content="${product.name}">
   <meta property="og:image:type" content="image/jpeg">
   
-  <!-- Additional image meta for WhatsApp -->
+  <!-- Additional image meta for WhatsApp and social platforms -->
   <meta name="thumbnail" content="${fullImageUrl}">
   <meta itemprop="image" content="${fullImageUrl}">
   <link rel="image_src" href="${fullImageUrl}">
+  
+  <!-- WhatsApp specific tags -->
+  <meta property="og:site_name" content="Poppik Lifestyle">
+  <meta property="og:locale" content="en_IN">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Force image refresh for debugging -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   
   <!-- Twitter Card tags -->
   <meta name="twitter:card" content="summary_large_image">
