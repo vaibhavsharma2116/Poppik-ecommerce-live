@@ -532,6 +532,8 @@ export default function ProductDetail() {
   };
 
   const shareToWhatsApp = () => {
+    if (!product) return;
+    
     // Get the URL with shade parameter if shade is selected
     let url = window.location.href.split('?')[0]; // Remove existing query params
     
@@ -540,7 +542,7 @@ export default function ProductDetail() {
       url += `?shade=${selectedShades[0].id}`;
     }
     
-    const price = `₹${product?.price}`;
+    const price = `₹${product.price}`;
     
     // Get the image to share - prioritize shade image if selected, otherwise use main product image
     let shareImage = '';
@@ -548,8 +550,22 @@ export default function ProductDetail() {
       shareImage = selectedShades[0].imageUrl;
     } else if (imageUrls.length > 0) {
       shareImage = imageUrls[0];
-    } else if (product?.imageUrl) {
+    } else if (product.imageUrl) {
       shareImage = product.imageUrl;
+    }
+    
+    // Convert relative URLs to absolute URLs for WhatsApp
+    if (shareImage && !shareImage.startsWith('http')) {
+      if (shareImage.startsWith('/api/image/')) {
+        const imageId = shareImage.split('/').pop();
+        shareImage = `https://poppiklifestyle.com/uploads/${imageId}`;
+      } else if (shareImage.startsWith('/uploads/')) {
+        shareImage = `https://poppiklifestyle.com${shareImage}`;
+      } else if (shareImage.startsWith('/')) {
+        shareImage = `https://poppiklifestyle.com${shareImage}`;
+      } else {
+        shareImage = `https://poppiklifestyle.com/${shareImage}`;
+      }
     }
     
     // Get the selected shade name if available
@@ -557,7 +573,7 @@ export default function ProductDetail() {
       ? `\n🎨 Shade: ${selectedShades.map(s => s.name).join(', ')}`
       : '';
 
-    const text = `🛍️ *${product?.name}*\n\n${product?.shortDescription || ''}${shadeInfo}\n\n💰 Price: ${price}\n\n👉 Check it out: ${url}`;
+    const text = `🛍️ *${product.name}*\n\n${product.shortDescription || ''}${shadeInfo}\n\n💰 Price: ${price}\n\n👉 Check it out: ${url}`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
