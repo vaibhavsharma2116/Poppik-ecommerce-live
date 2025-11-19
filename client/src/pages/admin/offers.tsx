@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Edit, Trash2, Image as ImageIcon, Eye, EyeOff } from "lucide-react";
+import { Plus, Edit, Trash2, ImageIcon, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Offer {
@@ -32,54 +31,151 @@ interface Offer {
   title: string;
   description: string;
   imageUrl: string;
-  discountPercentage?: number;
+  bannerImageUrl?: string; // Added bannerImageUrl
+  price?: number;
+  originalPrice?: number;
+  discountType?: 'percentage' | 'flat' | 'none';
+  discountValue?: number;
   discountText?: string;
+  cashbackPercentage?: number;
+  cashbackPrice?: number;
   validFrom: string;
   validUntil: string;
   isActive: boolean;
   sortOrder: number;
   linkUrl?: string;
   buttonText?: string;
+  productIds?: number[];
 }
 
 export default function AdminOffers() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [bannerImageFile, setBannerImageFile] = useState<File | null>(null); // State for banner image
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [bannerImagePreview, setBannerImagePreview] = useState<string>(""); // Preview for banner image
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch all products for selection
+  const { data: products } = useQuery({
+    queryKey: ['/api/products'],
+  });
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     imageUrl: "",
-    discountPercentage: "",
+    bannerImageUrl: "", // Added bannerImageUrl to form state
+    price: "",
+    originalPrice: "",
+    discountType: 'none' as 'percentage' | 'flat' | 'none',
+    discountValue: undefined as number | undefined,
     discountText: "",
+    cashbackPercentage: "",
+    cashbackPrice: "",
     validFrom: "",
     validUntil: "",
     isActive: true,
     sortOrder: 0,
     linkUrl: "",
-    buttonText: "Shop Now"
+    buttonText: 'Shop Now',
+    productIds: [] as number[],
   });
 
-  // Fetch offers
-  const { data: offers = [], isLoading } = useQuery<Offer[]>({
+  // Fetch offers with proper authorization
+  const { data: offers, isLoading, error } = useQuery<Offer[]>({
     queryKey: ['/api/admin/offers'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      console.log('🔑 Fetching offers with token:', token ? 'Present' : 'Missing');
+
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please login to continue",
+          variant: "destructive",
+        });
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch('/api/admin/offers', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('📊 Offers API response status:', response.status);
+
+      if (response.status === 401) {
+        toast({
+          title: "Session Expired",
+          description: "Please login again",
+          variant: "destructive",
+        });
+        localStorage.removeItem('token');
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('Authentication required');
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Offers fetch error:', errorData);
+        // Return empty array instead of throwing to prevent UI breakage
+        return [];
+      }
+
+      const data = await response.json();
+      console.log('✅ Offers fetched successfully:', data);
+      // Ensure we always return an array
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!localStorage.getItem('token'),
+    retry: 1,
+    staleTime: 30000
   });
+
+  // Show error toast if fetch fails
+  React.useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error Loading Offers",
+        description: error instanceof Error ? error.message : "Failed to load offers",
+        variant: "destructive",
+      });
+    }
+  }, [error]);
+
+  const offersList = Array.isArray(offers) ? offers : [];
 
   // Create offer mutation
   const createOfferMutation = useMutation({
     mutationFn: async (data: FormData) => {
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/admin/offers', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: data
       });
-      if (!response.ok) throw new Error('Failed to create offer');
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast({
+            title: "Authentication Error",
+            description: "Please login again",
+            variant: "destructive",
+          });
+          window.location.href = '/admin/auth/admin-login';
+          return;
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create offer');
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -96,14 +192,27 @@ export default function AdminOffers() {
   // Update offer mutation
   const updateOfferMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: FormData }) => {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/offers/${id}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: data
       });
-      if (!response.ok) throw new Error('Failed to update offer');
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast({
+            title: "Authentication Error",
+            description: "Please login again",
+            variant: "destructive",
+          });
+          window.location.href = '/admin/auth/admin-login';
+          return;
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update offer');
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -120,13 +229,26 @@ export default function AdminOffers() {
   // Delete offer mutation
   const deleteOfferMutation = useMutation({
     mutationFn: async (id: number) => {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/offers/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
-      if (!response.ok) throw new Error('Failed to delete offer');
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast({
+            title: "Authentication Error",
+            description: "Please login again",
+            variant: "destructive",
+          });
+          window.location.href = '/admin/auth/admin-login';
+          return;
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete offer');
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -150,26 +272,88 @@ export default function AdminOffers() {
     }
   };
 
+  const handleBannerImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setBannerImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setBannerImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation
+    if (!formData.title || !formData.description || !formData.validFrom || !formData.validUntil) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!imageFile && !formData.imageUrl) {
+      toast({
+        title: "Error",
+        description: "Please select a main image",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid offer price",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (formData.discountType !== 'none' && (!formData.discountValue || formData.discountValue <= 0)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid discount value",
+        variant: "destructive"
+      });
+      return;
+    }
 
     const data = new FormData();
     data.append('title', formData.title);
     data.append('description', formData.description);
-    data.append('discountPercentage', formData.discountPercentage);
-    data.append('discountText', formData.discountText);
+    data.append('price', formData.price);
+    data.append('originalPrice', formData.originalPrice || formData.price);
+    data.append('discountType', formData.discountType);
+    data.append('discountValue', formData.discountValue?.toString() || '0');
+    data.append('discountText', formData.discountText || '');
+    data.append('cashbackPercentage', formData.cashbackPercentage || '0');
+    data.append('cashbackPrice', formData.cashbackPrice || '0');
     data.append('validFrom', formData.validFrom);
     data.append('validUntil', formData.validUntil);
     data.append('isActive', String(formData.isActive));
     data.append('sortOrder', String(formData.sortOrder));
-    data.append('linkUrl', formData.linkUrl);
-    data.append('buttonText', formData.buttonText);
+    data.append('linkUrl', formData.linkUrl || '');
+    data.append('buttonText', formData.buttonText || 'Shop Now');
+    data.append('productIds', JSON.stringify(formData.productIds || []));
 
     if (imageFile) {
       data.append('image', imageFile);
     } else if (formData.imageUrl) {
-      data.append('imageUrl', formData.imageUrl);
+      data.append('imageUrl', formData.imageUrl); // Ensure existing imageUrl is sent if no new image
     }
+
+    if (bannerImageFile) {
+      data.append('bannerImage', bannerImageFile);
+    } else if (formData.bannerImageUrl) {
+      data.append('bannerImageUrl', formData.bannerImageUrl); // Ensure existing bannerImageUrl is sent if no new image
+    }
+
 
     if (editingOffer) {
       updateOfferMutation.mutate({ id: editingOffer.id, data });
@@ -183,35 +367,78 @@ export default function AdminOffers() {
       title: "",
       description: "",
       imageUrl: "",
-      discountPercentage: "",
+      bannerImageUrl: "", // Reset bannerImageUrl
+      price: "",
+      originalPrice: "",
+      discountType: "none",
+      discountValue: undefined,
       discountText: "",
+      cashbackPercentage: "",
+      cashbackPrice: "",
       validFrom: "",
       validUntil: "",
       isActive: true,
       sortOrder: 0,
       linkUrl: "",
-      buttonText: "Shop Now"
+      buttonText: "Shop Now",
+      productIds: [],
     });
     setImageFile(null);
     setImagePreview("");
+    setBannerImageFile(null); // Reset banner image state
+    setBannerImagePreview(""); // Reset banner image preview
   };
 
   const handleEdit = (offer: Offer) => {
     setEditingOffer(offer);
+
+    // Ensure productIds is always an array
+    let offerProductIds: number[] = [];
+    if (offer.productIds) {
+      if (Array.isArray(offer.productIds)) {
+        offerProductIds = offer.productIds;
+      } else if (typeof offer.productIds === 'string') {
+        try {
+          // Assuming productIds might be stored as a stringified array in some cases
+          offerProductIds = JSON.parse(offer.productIds);
+        } catch (e) {
+          console.error('Error parsing productIds:', e);
+          offerProductIds = [];
+        }
+      }
+      // Ensure all elements are numbers
+      offerProductIds = offerProductIds.map(id => Number(id)).filter(id => !isNaN(id));
+    }
+
+    // Format dates properly for input fields (YYYY-MM-DD)
+    const formatDateForInput = (dateString: string) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toISOString().split('T')[0];
+    };
+
     setFormData({
       title: offer.title,
       description: offer.description,
       imageUrl: offer.imageUrl,
-      discountPercentage: offer.discountPercentage?.toString() || "",
+      bannerImageUrl: offer.bannerImageUrl || "", // Set bannerImageUrl from offer
+      price: offer.price ? String(offer.price) : "",
+      originalPrice: offer.originalPrice ? String(offer.originalPrice) : "",
+      discountType: offer.discountType || "none",
+      discountValue: offer.discountValue,
       discountText: offer.discountText || "",
-      validFrom: offer.validFrom,
-      validUntil: offer.validUntil,
+      cashbackPercentage: offer.cashbackPercentage ? String(offer.cashbackPercentage) : "",
+      cashbackPrice: offer.cashbackPrice ? String(offer.cashbackPrice) : "",
+      validFrom: formatDateForInput(offer.validFrom),
+      validUntil: formatDateForInput(offer.validUntil),
       isActive: offer.isActive,
       sortOrder: offer.sortOrder,
       linkUrl: offer.linkUrl || "",
-      buttonText: offer.buttonText || "Shop Now"
+      buttonText: offer.buttonText || "Shop Now",
+      productIds: offerProductIds,
     });
     setImagePreview(offer.imageUrl);
+    setBannerImagePreview(offer.bannerImageUrl || ""); // Set banner image preview
     setIsCreateDialogOpen(true);
   };
 
@@ -249,57 +476,215 @@ export default function AdminOffers() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title *</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="discountText">Discount Text</Label>
-                  <Input
-                    id="discountText"
-                    placeholder="e.g., UP TO 25% OFF"
-                    value={formData.discountText}
-                    onChange={(e) => setFormData({ ...formData, discountText: e.target.value })}
-                  />
-                </div>
-              </div>
-
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
+                <Label htmlFor="title">Title *</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  required
                 />
               </div>
 
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="description">Description *</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Detailed offer description"
+                  rows={3}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  required
+                />
+              </div>
+
+              {/* Main Image Upload */}
+              <div className="space-y-2">
+                <Label htmlFor="image">Main Offer Image *</Label>
+                <Input
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                />
+                {imagePreview && (
+                  <div className="mt-2">
+                    <img src={imagePreview} alt="Main Image Preview" className="w-full h-48 object-cover rounded-lg" />
+                  </div>
+                )}
+              </div>
+
+              {/* Banner Image Upload */}
+              <div className="space-y-2">
+                <Label htmlFor="bannerImage">Detail Page Banner Image (Optional)</Label>
+                <Input
+                  id="bannerImage"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleBannerImageChange}
+                />
+                {bannerImagePreview && (
+                  <div className="mt-2">
+                    <img src={bannerImagePreview} alt="Banner Image Preview" className="w-full h-48 object-cover rounded-lg" />
+                  </div>
+                )}
+                <p className="text-xs text-slate-500">Separate banner for offer detail page (recommended: 1920x400px)</p>
+              </div>
+
+              {/* Price Fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="discountPercentage">Discount %</Label>
+                  <Label htmlFor="price">Offer Price (₹) *</Label>
                   <Input
-                    id="discountPercentage"
+                    id="price"
                     type="number"
+                    step="0.01"
                     min="0"
-                    max="100"
-                    value={formData.discountPercentage}
-                    onChange={(e) => setFormData({ ...formData, discountPercentage: e.target.value })}
+                    placeholder="e.g., 999"
+                    value={formData.price}
+                    onChange={(e) => {
+                      const offerPrice = e.target.value;
+                      setFormData(prev => ({ ...prev, price: offerPrice }));
+
+                      // Auto-calculate discount if original price is set
+                      if (formData.originalPrice && offerPrice) {
+                        const original = parseFloat(formData.originalPrice);
+                        const offer = parseFloat(offerPrice);
+                        if (original > offer) {
+                          const discountPercent = (((original - offer) / original) * 100).toFixed(2);
+                          setFormData(prev => ({
+                            ...prev,
+                            price: offerPrice,
+                            discountType: 'percentage',
+                            discountValue: parseFloat(discountPercent)
+                          }));
+                        }
+                      }
+
+                      // Auto-calculate cashback if percentage is set
+                      if (formData.cashbackPercentage && offerPrice) {
+                        const cashback = (parseFloat(offerPrice) * parseFloat(formData.cashbackPercentage) / 100).toFixed(2);
+                        setFormData(prev => ({ ...prev, cashbackPrice: cashback }));
+                      }
+                    }}
+                    required
                   />
+                  <p className="text-xs text-gray-500">Final price after all discounts</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sortOrder">Sort Order</Label>
+                  <Label htmlFor="originalPrice">Original Price (₹)</Label>
                   <Input
-                    id="sortOrder"
+                    id="originalPrice"
                     type="number"
-                    value={formData.sortOrder}
-                    onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) })}
+                    step="0.01"
+                    min="0"
+                    placeholder="e.g., 1499"
+                    value={formData.originalPrice}
+                    onChange={(e) => {
+                      const originalPrice = e.target.value;
+                      setFormData(prev => ({ ...prev, originalPrice: originalPrice }));
+
+                      // Auto-calculate discount if offer price is set
+                      if (formData.price && originalPrice) {
+                        const original = parseFloat(originalPrice);
+                        const offer = parseFloat(formData.price);
+                        if (original > offer) {
+                          const discountPercent = (((original - offer) / original) * 100).toFixed(2);
+                          setFormData(prev => ({
+                            ...prev,
+                            originalPrice: originalPrice,
+                            discountType: 'percentage',
+                            discountValue: parseFloat(discountPercent)
+                          }));
+                        }
+                      }
+                    }}
                   />
+                  <p className="text-xs text-gray-500">Price before discount (optional)</p>
+                </div>
+              </div>
+
+              {/* Discount Type & Value */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="discountType">Discount Type *</Label>
+                  <select
+                    id="discountType"
+                    className="w-full px-3 py-2 border rounded-md"
+                    value={formData.discountType || 'none'}
+                    onChange={(e) => setFormData({ ...formData, discountType: e.target.value as 'percentage' | 'flat' | 'none' })}
+                  >
+                    <option value="none">No Discount</option>
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="flat">Flat Amount (₹)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="discountValue">
+                    Discount Value {formData.discountType !== 'none' && '*'}
+                  </Label>
+                  <Input
+                    id="discountValue"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={formData.discountType === 'percentage' ? '100' : undefined}
+                    placeholder={formData.discountType === 'percentage' ? 'e.g., 20' : 'e.g., 300'}
+                    value={formData.discountValue?.toString() || ''}
+                    onChange={(e) => setFormData({ ...formData, discountValue: e.target.value ? parseFloat(e.target.value) : undefined })}
+                    disabled={formData.discountType === 'none'}
+                    required={formData.discountType !== 'none'}
+                  />
+                </div>
+              </div>
+
+              {/* Discount Text (Display Text) */}
+              <div className="space-y-2">
+                <Label htmlFor="discountText">Discount Display Text</Label>
+                <Input
+                  id="discountText"
+                  placeholder="e.g., UPTO 50% OFF, FLAT ₹500 OFF"
+                  value={formData.discountText || ''}
+                  onChange={(e) => setFormData({ ...formData, discountText: e.target.value })}
+                />
+              </div>
+
+              {/* Cashback Fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="cashbackPercentage">Cashback (%)</Label>
+                  <Input
+                    id="cashbackPercentage"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="e.g., 5"
+                    value={formData.cashbackPercentage}
+                    onChange={(e) => {
+                      setFormData({ ...formData, cashbackPercentage: e.target.value });
+                      // Auto-calculate cashback amount
+                      if (formData.price && e.target.value) {
+                        const cashback = (parseFloat(formData.price) * parseFloat(e.target.value) / 100).toFixed(2);
+                        setFormData(prev => ({ ...prev, cashbackPrice: cashback }));
+                      }
+                    }}
+                  />
+                  <p className="text-xs text-gray-500">Cashback percentage on offer price</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cashbackPrice">Cashback Amount (₹)</Label>
+                  <Input
+                    id="cashbackPrice"
+                    type="number"
+                    step="0.01"
+                    value={formData.cashbackPrice}
+                    placeholder="Auto-calculated"
+                    className="bg-gray-50"
+                    readOnly
+                  />
+                  <p className="text-xs text-gray-500">Auto-calculated from cashback %</p>
                 </div>
               </div>
 
@@ -326,48 +711,144 @@ export default function AdminOffers() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="linkUrl">Link URL</Label>
-                  <Input
-                    id="linkUrl"
-                    placeholder="/product/..."
-                    value={formData.linkUrl}
-                    onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
-                  />
+              {/* Select Products (Multi-select) */}
+              <div className="space-y-3">
+                <Label>Select Products (Optional)</Label>
+
+                {/* Selected Products Display */}
+                {formData.productIds && formData.productIds.length > 0 && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <p className="text-sm font-semibold text-purple-900 mb-2">
+                      Selected Products ({formData.productIds.length})
+                    </p>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {formData.productIds.map((productId) => {
+                        const product = products?.find((p: any) => p.id === productId);
+                        return product ? (
+                          <div key={productId} className="flex items-center gap-2 bg-white rounded p-2 shadow-sm">
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-10 h-10 rounded object-cover border"
+                            />
+                            <span className="text-sm font-medium text-gray-800 flex-1">
+                              {product.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  productIds: formData.productIds?.filter(id => id !== productId) || []
+                                });
+                              }}
+                              className="text-red-500 hover:text-red-700 text-xs px-2 py-1"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Product Selection List */}
+                <div className="border rounded-md p-3 max-h-64 overflow-y-auto bg-gray-50">
+                  {products && products.length > 0 ? (
+                    <div className="space-y-2">
+                      {products.map((product: any) => {
+                        const isSelected = formData.productIds?.includes(product.id) || false;
+                        return (
+                          <label
+                            key={product.id}
+                            htmlFor={`product-${product.id}`}
+                            className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all hover:bg-white ${
+                              isSelected ? 'bg-purple-100 border-2 border-purple-400' : 'bg-white border border-gray-200'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              id={`product-${product.id}`}
+                              checked={isSelected}
+                              onChange={(e) => {
+                                const currentIds = formData.productIds || [];
+                                if (e.target.checked) {
+                                  setFormData({ ...formData, productIds: [...currentIds, product.id] });
+                                } else {
+                                  setFormData({ ...formData, productIds: currentIds.filter(id => id !== product.id) });
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            />
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-12 h-12 rounded object-cover border"
+                            />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900">{product.name}</p>
+                              <p className="text-xs text-gray-500">
+                                {product.category} • ₹{product.price}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <Badge className="bg-purple-600">Selected</Badge>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-4">No products available</p>
+                  )}
                 </div>
+              </div>
+
+              {/* Button Text & Link URL */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="buttonText">Button Text</Label>
                   <Input
                     id="buttonText"
-                    value={formData.buttonText}
+                    placeholder="e.g., Shop Now, Add to Cart"
+                    value={formData.buttonText || 'Shop Now'}
                     onChange={(e) => setFormData({ ...formData, buttonText: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="linkUrl">External Link URL (Optional)</Label>
+                  <Input
+                    id="linkUrl"
+                    type="url"
+                    placeholder="https://example.com"
+                    value={formData.linkUrl || ''}
+                    onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="image">Offer Image *</Label>
-                <Input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                />
-                {imagePreview && (
-                  <div className="mt-2">
-                    <img src={imagePreview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="isActive"
-                  checked={formData.isActive}
-                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-                />
-                <Label htmlFor="isActive">Active</Label>
+              {/* Active Status & Sort Order */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2 pt-2">
+                  <Switch
+                    id="isActive"
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                  />
+                  <Label htmlFor="isActive" className="cursor-pointer">Is Active</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sortOrder">Sort Order</Label>
+                  <Input
+                    id="sortOrder"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={formData.sortOrder.toString()}
+                    onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2">
@@ -399,7 +880,7 @@ export default function AdminOffers() {
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8">Loading...</div>
-          ) : offers.length === 0 ? (
+          ) : offersList.length === 0 ? (
             <div className="text-center py-8 text-slate-500">
               <ImageIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No offers found. Create your first offer!</p>
@@ -410,14 +891,17 @@ export default function AdminOffers() {
                 <TableRow>
                   <TableHead>Image</TableHead>
                   <TableHead>Title</TableHead>
+                  <TableHead>Price</TableHead>
                   <TableHead>Discount</TableHead>
+                  <TableHead>Cashback</TableHead>
+                  <TableHead>Products</TableHead>
                   <TableHead>Valid Period</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {offers.map((offer) => (
+                {offersList.map((offer) => (
                   <TableRow key={offer.id}>
                     <TableCell>
                       <img
@@ -433,11 +917,54 @@ export default function AdminOffers() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {offer.discountPercentage && (
-                        <Badge variant="secondary">{offer.discountPercentage}% OFF</Badge>
+                      <div className="font-medium text-green-600">₹{offer.price || 0}</div>
+                      {offer.originalPrice && offer.originalPrice > (offer.price || 0) && (
+                        <div className="text-xs text-slate-500 line-through">₹{offer.originalPrice}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {offer.discountType === 'percentage' && offer.discountValue && (
+                        <Badge variant="secondary">{offer.discountValue}% OFF</Badge>
+                      )}
+                      {offer.discountType === 'flat' && offer.discountValue && (
+                        <Badge variant="secondary">₹{offer.discountValue} OFF</Badge>
+                      )}
+                      {offer.discountType === 'none' && (
+                        <Badge variant="outline">No Discount</Badge>
                       )}
                       {offer.discountText && (
                         <div className="text-xs text-slate-600 mt-1">{offer.discountText}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {offer.cashbackPercentage && offer.cashbackPercentage > 0 ? (
+                        <div>
+                          <Badge className="bg-orange-500">{offer.cashbackPercentage}%</Badge>
+                          <div className="text-xs text-slate-600 mt-1">₹{offer.cashbackPrice || 0}</div>
+                        </div>
+                      ) : (
+                        <Badge variant="outline">No Cashback</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell> {/* Products cell */}
+                      {offer.productIds && offer.productIds.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {offer.productIds.slice(0, 2).map((productId: number) => {
+                            const product = products?.find((p: any) => p.id === productId);
+                            return (
+                              <Badge key={productId} variant="outline" className="text-xs">
+                                {product ? product.name : `Product ${productId}`}
+                              </Badge>
+                            );
+                          })}
+                          {offer.productIds.length > 2 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{offer.productIds.length - 2} more
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <Badge variant="secondary">No Products</Badge>
                       )}
                     </TableCell>
                     <TableCell>

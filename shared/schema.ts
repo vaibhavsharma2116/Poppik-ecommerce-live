@@ -363,13 +363,13 @@ export const blogSubcategories = pgTable('blog_subcategories', {
   updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
 
-export const announcements = pgTable('announcements', {
-  id: serial('id').primaryKey(),
-  text: text('text').notNull(),
-  isActive: boolean('is_active').default(true).notNull(),
-  sortOrder: integer('sort_order').default(0).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull()
+export const announcements = pgTable("announcements", {
+  id: serial("id").primaryKey(),
+  text: text("text").notNull(),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export type BlogPost = typeof blogPosts.$inferSelect;
@@ -551,19 +551,26 @@ export type InsertAffiliateApplication = typeof affiliateApplications.$inferInse
 // Offers Table
 export const offers = pgTable("offers", {
   id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description"),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description").notNull(),
   imageUrl: text("image_url").notNull(),
-  discountPercentage: integer("discount_percentage"),
-  discountText: text("discount_text"),
-  validFrom: timestamp("valid_from").notNull(),
-  validUntil: timestamp("valid_until").notNull(),
+  bannerImageUrl: text("bannerimageurl"), // Added field for banner image
+  price: numeric("price", { precision: 10, scale: 2 }), // Offer price set by admin
+  originalPrice: numeric("original_price", { precision: 10, scale: 2 }), // Original price before discount
+  discountType: varchar("discount_type", { length: 20 }).default("none"), // 'percentage' | 'flat' | 'none'
+  discountValue: numeric("discount_value", { precision: 10, scale: 2 }),
+  discountText: varchar("discount_text", { length: 100 }),
+  cashbackPercentage: numeric("cashback_percentage", { precision: 5, scale: 2 }), // Cashback percentage
+  cashbackPrice: numeric("cashback_price", { precision: 10, scale: 2 }), // Auto-calculated cashback amount
+  validFrom: timestamp("valid_from", { mode: "date" }).notNull(),
+  validUntil: timestamp("valid_until", { mode: "date" }).notNull(),
+  linkUrl: text("link_url"),
+  buttonText: varchar("button_text", { length: 50 }).default("Shop Now"),
+  productIds: jsonb("product_ids").$type<number[]>(),
   isActive: boolean("is_active").default(true).notNull(),
   sortOrder: integer("sort_order").default(0).notNull(),
-  linkUrl: text("link_url"),
-  buttonText: text("button_text").default("Shop Now"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
 
 export type Offer = typeof offers.$inferSelect;
@@ -723,3 +730,56 @@ export const promoCodeUsage = pgTable("promo_code_usage", {
 
 export type PromoCodeUsage = typeof promoCodeUsage.$inferSelect;
 export type InsertPromoCodeUsage = typeof promoCodeUsage.$inferInsert;
+
+// Cart Table Structure (Recommended)
+export const cartItemsTable = pgTable("cart_items", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  productId: integer("product_id").references(() => products.id),
+  offerId: integer("offer_id").references(() => offers.id), // Jisse pata lage kaunsi offer lagi thi
+  qty: integer("qty").notNull(),
+  originalPrice: numeric("original_price", { precision: 10, scale: 2 }),
+  discountedPrice: numeric("discounted_price", { precision: 10, scale: 2 }),
+  discountType: varchar("discount_type", { length: 50 }),
+  discountValue: numeric("discount_value", { precision: 10, scale: 2 }),
+  addedAt: timestamp("added_at").defaultNow(),
+});
+
+export type CartItem = typeof cartItemsTable.$inferSelect;
+export type InsertCartItem = typeof cartItemsTable.$inferInsert;
+
+// Schema for Zod validation
+export const insertCartItemSchema = createInsertSchema(cartItemsTable).omit({
+  id: true,
+  userId: true, // User ID is handled by authentication
+});
+export const selectCartItemSchema = createSelectSchema(cartItemsTable);
+
+// Updated CartItem interface to include offer details
+interface CartItem {
+  id: number;
+  name: string;
+  price: string;
+  originalPrice?: string;
+  image: string;
+  quantity: number;
+  variant?: string;
+  inStock: boolean;
+  cashbackPercentage?: string;
+  cashbackPrice?: string;
+  selectedShade?: {
+    id: number;
+    name: string;
+    colorCode: string;
+    imageUrl?: string;
+  };
+  // Offer-specific fields
+  offerId?: number;
+  offerTitle?: string;
+  productId?: number;
+  discountType?: string; // 'percentage' | 'flat' | 'fixed'
+  discountAmount?: number;
+  discountValue?: number; // percentage value or flat amount
+  isOfferItem?: boolean;
+  itemKey?: string;
+}

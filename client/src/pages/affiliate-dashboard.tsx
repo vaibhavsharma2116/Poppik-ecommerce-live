@@ -1379,7 +1379,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                     <ShoppingBag className="h-5 w-5 text-pink-600" />
                     Combo   
                   </CardTitle>
-                  <CardDescription className="mt-1">Promote our exclusive combo deals and earn higher commissions</CardDescription>
+                  <CardDescription className="mt-1">Promote our Glow & Harmony Combo and earn higher commissions</CardDescription>
                 </div>
               </CardHeader>
               <CardContent className="pt-6">

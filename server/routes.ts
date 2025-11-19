@@ -11,6 +11,9 @@ import sharp from "sharp";
 import { adminAuthMiddleware as adminMiddleware } from "./admin-middleware";
 import nodemailer from 'nodemailer';
 
+// Verify adminMiddleware is working
+console.log('✅ Admin middleware imported:', typeof adminMiddleware === 'function');
+
 // Simple rate limiting
 const rateLimitMap = new Map();
 const adminRateLimitMap = new Map();
@@ -1060,6 +1063,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         balanceType: 'commission',
                         description: `Commission (${commissionRate}%) from Cashfree order ORD-${newOrder.id.toString().padStart(3, '0')}`,
                         status: 'completed',
+                        transactionId: null,
+                        notes: null,
+                        processedAt: new Date(),
                         createdAt: new Date()
                       });
 
@@ -1407,12 +1413,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const transactions = await db
-        .select()
+        .select({
+          id: schema.affiliateTransactions.id,
+          userId: schema.affiliateTransactions.userId,
+          type: schema.affiliateTransactions.type,
+          amount: schema.affiliateTransactions.amount,
+          balanceType: schema.affiliateTransactions.balanceType,
+          description: schema.affiliateTransactions.description,
+          orderId: schema.affiliateTransactions.orderId,
+          status: schema.affiliateTransactions.status,
+          transactionId: schema.affiliateTransactions.transactionId,
+          notes: schema.affiliateTransactions.notes,
+          processedAt: schema.affiliateTransactions.processedAt,
+          createdAt: schema.affiliateTransactions.createdAt,
+        })
         .from(schema.affiliateTransactions)
         .where(eq(schema.affiliateTransactions.userId, parseInt(userId as string)))
         .orderBy(desc(schema.affiliateTransactions.createdAt))
-        .limit(50);
+        .limit(100);
 
+      console.log(`✅ Fetched ${transactions.length} transactions for user ${userId}`);
       res.json(transactions);
     } catch (error) {
       console.error('Error fetching affiliate wallet transactions:', error);
@@ -1673,6 +1693,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         balanceType: commissionBalance >= withdrawAmount ? 'commission' : 'mixed',
         description: `Withdrawal request of ₹${withdrawAmount.toFixed(2)}`,
         status: 'pending',
+        transactionId: null,
+        notes: null,
+        processedAt: null,
         createdAt: new Date()
       });
 
@@ -1687,7 +1710,291 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get Affiliate Stats - Overview stats
+  // Get all active offers (public endpoint)
+  app.get("/api/offers", async (req, res) => {
+    try {
+      console.log("📦 Fetching active offers...");
+      
+      const offers = await db
+        .select()
+        .from(schema.offers)
+        .where(eq(schema.offers.isActive, true))
+        .orderBy(desc(schema.offers.sortOrder), desc(schema.offers.createdAt));
+
+      console.log(`✅ Found ${offers.length} active offers`);
+      
+      // Ensure we always return an array
+      res.json(offers || []);
+    } catch (error) {
+      console.error("❌ Error fetching offers:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+      
+      // Return empty array instead of error to prevent UI breakage
+      res.json([]);
+    }
+  });
+
+  // Get all offers for admin (including inactive)
+  app.get("/api/admin/offers", adminMiddleware, async (req, res) => {
+    try {
+      const offers = await db
+        .select()
+        .from(schema.offers)
+        .orderBy(desc(schema.offers.sortOrder), desc(schema.offers.createdAt));
+
+      res.json(offers);
+    } catch (error) {
+      console.error("Error fetching admin offers:", error);
+      res.status(500).json({ error: "Failed to fetch offers" });
+    }
+  });
+
+  // Create new offer (admin)
+  app.post("/api/admin/offers", adminMiddleware, upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'bannerImage', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      let imageUrl = req.body.imageUrl;
+      let bannerImageUrl = req.body.bannerImageUrl;
+
+      if (files?.image?.[0]) {
+        imageUrl = `/api/images/${files.image[0].filename}`;
+      }
+
+      if (files?.bannerImage?.[0]) {
+        bannerImageUrl = `/api/images/${files.bannerImage[0].filename}`;
+      }
+
+      const offerData: any = {
+        title: req.body.title,
+        description: req.body.description,
+        imageUrl: imageUrl || '',
+        bannerImageUrl: bannerImageUrl || null,
+        discountType: req.body.discountType || 'none',
+        discountValue: req.body.discountValue ? parseFloat(req.body.discountValue) : null,
+        discountText: req.body.discountText || null,
+        validFrom: new Date(req.body.validFrom),
+        validUntil: new Date(req.body.validUntil),
+        linkUrl: req.body.linkUrl || null,
+        buttonText: req.body.buttonText || 'Shop Now',
+        productIds: req.body.productIds ? JSON.parse(req.body.productIds) : null,
+        isActive: req.body.isActive === 'true' || req.body.isActive === true,
+        sortOrder: parseInt(req.body.sortOrder) || 0
+      };
+
+      // Add price fields
+      if (req.body.price) {
+        offerData.price = parseFloat(req.body.price);
+      }
+      if (req.body.originalPrice) {
+        offerData.originalPrice = parseFloat(req.body.originalPrice);
+      }
+      if (req.body.cashbackPercentage) {
+        offerData.cashbackPercentage = parseFloat(req.body.cashbackPercentage);
+      }
+      if (req.body.cashbackPrice) {
+        offerData.cashbackPrice = parseFloat(req.body.cashbackPrice);
+      }
+
+      console.log("Creating offer with data:", JSON.stringify(offerData, null, 2));
+
+      const [newOffer] = await db.insert(schema.offers).values(offerData).returning();
+
+      console.log("Offer created successfully:", JSON.stringify(newOffer, null, 2));
+      res.status(201).json(newOffer);
+    } catch (error) {
+      console.error("Error creating offer:", error);
+      res.status(500).json({ error: "Failed to create offer", details: error.message });
+    }
+  });
+
+  // Update offer (admin)
+  app.put("/api/admin/offers/:id", adminMiddleware, upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'bannerImage', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      const updateData: any = {};
+
+      if (files?.image?.[0]) {
+        updateData.imageUrl = `/api/images/${files.image[0].filename}`;
+      } else if (req.body.imageUrl) {
+        updateData.imageUrl = req.body.imageUrl;
+      }
+
+      if (files?.bannerImage?.[0]) {
+        updateData.bannerImageUrl = `/api/images/${files.bannerImage[0].filename}`;
+      } else if (req.body.bannerImageUrl !== undefined) {
+        updateData.bannerImageUrl = req.body.bannerImageUrl || null;
+      }
+
+      if (req.body.title) updateData.title = req.body.title;
+      if (req.body.description) updateData.description = req.body.description;
+      
+      // Price fields - ensure they are saved properly
+      if (req.body.price !== undefined && req.body.price !== '') {
+        updateData.price = parseFloat(req.body.price);
+      }
+      if (req.body.originalPrice !== undefined && req.body.originalPrice !== '') {
+        updateData.originalPrice = parseFloat(req.body.originalPrice);
+      }
+      
+      // Discount fields
+      if (req.body.discountType) updateData.discountType = req.body.discountType;
+      if (req.body.discountValue !== undefined && req.body.discountValue !== '') {
+        updateData.discountValue = parseFloat(req.body.discountValue);
+      }
+      if (req.body.discountText !== undefined) updateData.discountText = req.body.discountText || null;
+      
+      // Cashback fields
+      if (req.body.cashbackPercentage !== undefined && req.body.cashbackPercentage !== '') {
+        updateData.cashbackPercentage = parseFloat(req.body.cashbackPercentage);
+      }
+      if (req.body.cashbackPrice !== undefined && req.body.cashbackPrice !== '') {
+        updateData.cashbackPrice = parseFloat(req.body.cashbackPrice);
+      }
+      
+      // Other fields
+      if (req.body.validFrom) updateData.validFrom = new Date(req.body.validFrom);
+      if (req.body.validUntil) updateData.validUntil = new Date(req.body.validUntil);
+      if (req.body.linkUrl !== undefined) updateData.linkUrl = req.body.linkUrl || null;
+      if (req.body.buttonText !== undefined) updateData.buttonText = req.body.buttonText || 'Shop Now';
+      if (req.body.productIds !== undefined) {
+        updateData.productIds = req.body.productIds ? JSON.parse(req.body.productIds) : null;
+      }
+      if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive === 'true' || req.body.isActive === true;
+      if (req.body.sortOrder !== undefined) updateData.sortOrder = parseInt(req.body.sortOrder) || 0;
+
+      updateData.updatedAt = new Date();
+
+      console.log("Updating offer with data:", JSON.stringify(updateData, null, 2));
+
+      const [updatedOffer] = await db
+        .update(schema.offers)
+        .set(updateData)
+        .where(eq(schema.offers.id, offerId))
+        .returning();
+
+      if (!updatedOffer) {
+        return res.status(404).json({ error: "Offer not found" });
+      }
+
+      console.log("Offer updated successfully:", JSON.stringify(updatedOffer, null, 2));
+      res.json(updatedOffer);
+    } catch (error) {
+      console.error("Error updating offer:", error);
+      res.status(500).json({ error: "Failed to update offer", details: error.message });
+    }
+  });
+
+  // Delete offer (admin)
+  app.delete("/api/admin/offers/:id", adminMiddleware, async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+
+      const [deletedOffer] = await db
+        .delete(schema.offers)
+        .where(eq(schema.offers.id, offerId))
+        .returning();
+
+      if (!deletedOffer) {
+        return res.status(404).json({ error: "Offer not found" });
+      }
+
+      res.json({ message: "Offer deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting offer:", error);
+      res.status(500).json({ error: "Failed to delete offer" });
+    }
+  });
+
+  // Get single offer by ID with products and calculated prices
+  app.get("/api/offers/:id", async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+
+      if (isNaN(offerId)) {
+        return res.status(400).json({ error: "Invalid offer ID" });
+      }
+
+      const offer = await db
+        .select()
+        .from(schema.offers)
+        .where(and(
+          eq(schema.offers.id, offerId),
+          eq(schema.offers.isActive, true) // Only return active offers publicly
+        ))
+        .limit(1);
+
+      if (!offer || offer.length === 0) {
+        return res.status(404).json({ error: "Offer not found" });
+      }
+
+      const offerData = offer[0];
+
+      // Get products with calculated offer prices
+      if (offerData.productIds && Array.isArray(offerData.productIds)) {
+        const products = await Promise.all(
+          offerData.productIds.map(async (productId: number) => {
+            const product = await db
+              .select()
+              .from(schema.products)
+              .where(eq(schema.products.id, productId))
+              .limit(1);
+
+            if (product && product.length > 0) {
+              const productData = product[0];
+              const originalPrice = parseFloat(productData.price || '0');
+              let offerPrice = originalPrice;
+              let discountAmount = 0;
+
+              // Calculate offer price based on discount type
+              if (offerData.discountType === 'percentage' && offerData.discountValue) {
+                discountAmount = (originalPrice * parseFloat(offerData.discountValue)) / 100;
+                offerPrice = originalPrice - discountAmount;
+              } else if (offerData.discountType === 'flat' && offerData.discountValue) {
+                discountAmount = parseFloat(offerData.discountValue);
+                offerPrice = Math.max(0, originalPrice - discountAmount);
+              }
+
+              return {
+                ...productData,
+                offerPrice: offerPrice.toFixed(2),
+                discountAmount: discountAmount.toFixed(2),
+                originalPrice: originalPrice.toFixed(2)
+              };
+            }
+            return null;
+          })
+        );
+
+        // Filter out null products
+        const validProducts = products.filter(p => p !== null);
+
+        res.json({
+          ...offerData,
+          products: validProducts,
+          totalProducts: validProducts.length
+        });
+      } else {
+        res.json(offerData);
+      }
+    } catch (error) {
+      console.error("Error fetching offer:", error);
+      res.status(500).json({ error: "Failed to fetch offer" });
+    }
+  });
+
+  // Affiliate Stats - Overview stats
   app.get("/api/affiliate/stats", async (req, res) => {
     try {
       const { userId } = req.query;
@@ -1758,12 +2065,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         totalClicks,
         totalSales,
-        totalEarnings,
-        pendingEarnings,
+        totalEarnings: totalEarnings.toFixed(2),
+        pendingEarnings: pendingEarnings.toFixed(2),
         conversionRate: parseFloat(conversionRate.toFixed(2)),
         avgCommission: parseFloat(avgCommission.toFixed(2)),
-        clicksGrowth: 0,
-        salesGrowth: 0,
+        clicksGrowth: 0, // Placeholder, not calculated
+        salesGrowth: 0,  // Placeholder, not calculated
         monthlyGrowth: parseFloat(monthlyGrowth.toFixed(1))
       });
 
@@ -3851,6 +4158,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 balanceType: 'commission',
                 description: `Commission (${commissionRate}%) from COD order ORD-${newOrder.id.toString().padStart(3, '0')}`,
                 status: 'completed',
+                transactionId: null,
+                notes: null,
+                processedAt: new Date(),
                 createdAt: new Date()
               });
 
@@ -3878,6 +4188,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             price: item.price,
             cashbackPrice: item.cashbackPrice || null,
             cashbackPercentage: item.cashbackPercentage || null,
+            // Offer tracking - save complete details
+            offerId: item.offerId || null,
+            offerTitle: item.offerTitle || null,
+            originalPrice: item.originalPrice || null,
+            discountType: item.discountType || null,
+            discountValue: item.discountValue ? String(item.discountValue) : null,
+            discountAmount: item.discountAmount ? String(item.discountAmount) : null,
           };
 
           // Determine if this is a combo or regular product
@@ -4189,6 +4506,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 balanceType: 'commission',
                 description: `Commission (${commissionRate}%) from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
                 status: 'completed',
+                transactionId: null,
+                notes: null,
+                processedAt: new Date(),
                 createdAt: new Date()
               }).returning();
 
@@ -4661,6 +4981,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
           configured: true,
           error: "Unable to fetch real-time tracking data from Shiprocket. Using standard tracking."
         });
+      } else {
+        // Fetch real-time tracking from Shiprocket
+        try {
+          const trackingDetails = await shiprocketService.getTrackingDetails(orderData.shiprocket_order_id);
+          console.log("Shiprocket tracking details:", JSON.stringify(trackingDetails, null, 2));
+
+          // Extract necessary information and format timeline
+          const timeline = trackingDetails.tracking_data?.track?.map((track: any) => ({
+            step: track.description,
+            status: track.status, // Assuming Shiprocket status maps directly
+            date: new Date(track.shipment_date).toLocaleDateString('en-IN'),
+            time: new Date(track.shipment_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            description: track.location || track.status // Use location if available, otherwise status
+          })) || [];
+
+          // Ensure 'Order Placed' is the first step if not present
+          if (timeline.length === 0 || timeline[0].step !== 'Order Placed') {
+            timeline.unshift({
+              step: "Order Placed",
+              status: "completed",
+              date: new Date(orderData.created_at).toLocaleDateString('en-IN'),
+              time: new Date(orderData.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+              description: "Your order has been placed successfully"
+            });
+          }
+
+          // Ensure 'Delivered' status is handled correctly
+          let finalStatus = orderData.status;
+          if (trackingDetails.tracking_data?.track?.some((t: any) => t.status === 'Delivered')) {
+            finalStatus = 'delivered';
+          } else if (trackingDetails.tracking_data?.track?.some((t: any) => t.status === 'Shipped')) {
+            finalStatus = 'shipped';
+          } else if (trackingDetails.tracking_data?.track?.some((t: any) => t.status === 'Out For Delivery')) {
+            finalStatus = 'shipped'; // Map 'Out For Delivery' to 'shipped' for simplicity
+          }
+
+          res.json({
+            orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
+            shiprocketOrderId: orderData.shiprocket_order_id,
+            status: finalStatus,
+            trackingNumber: trackingDetails.tracking_number || orderData.tracking_number,
+            estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
+            timeline: timeline,
+            currentStep: getCurrentStep(finalStatus),
+            totalAmount: orderData.total_amount,
+            shippingAddress: orderData.shipping_address,
+            createdAt: orderData.created_at.toISOString().split('T')[0],
+            hasShiprocketTracking: true,
+            realTimeTracking: true
+          });
+
+        } catch (shiprocketTrackingError) {
+          console.error("Error fetching Shiprocket tracking details:", shiprocketTrackingError);
+          // Fallback to basic timeline if Shiprocket API fails
+          const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
+          res.json({
+            orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
+            shiprocketOrderId: orderData.shiprocket_order_id,
+            status: orderData.status,
+            trackingNumber: orderData.tracking_number,
+            estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
+            timeline: basicTimeline,
+            currentStep: getCurrentStep(orderData.status),
+            totalAmount: orderData.total_amount,
+            shippingAddress: orderData.shipping_address,
+            createdAt: orderData.created_at.toISOString().split('T')[0],
+            hasShiprocketTracking: true,
+            realTimeTracking: false,
+            error: "Failed to fetch real-time tracking from Shiprocket. Displaying standard tracking."
+          });
+        }
       }
     } catch (error) {
       console.error("Error fetching Shiprocket tracking:", error);
@@ -5333,14 +5724,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updateData: Partial<InsertBlogSubcategory> = {};
 
-      if (name !== undefined) {
-        updateData.name = name.trim();
-        updateData.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      }
+      if (name !== undefined) updateData.name = name.trim();
       if (description !== undefined) updateData.description = description.trim();
       if (categoryId !== undefined) updateData.categoryId = parseInt(categoryId);
       if (isActive !== undefined) updateData.isActive = isActive !== false && isActive !== 'false';
       if (sortOrder !== undefined) updateData.sortOrder = parseInt(sortOrder) || 0;
+
+      if (updateData.name !== undefined) {
+        updateData.slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      }
 
       const subcategory = await storage.updateBlogSubcategory(parseInt(id), updateData);
 
@@ -6484,7 +6876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Combo Sliders Management Routes
 
-  // Public endpoint for active combo sliders
+  // Public endpoints for combo sliders
   app.get('/api/combo-sliders', async (req, res) => {
     try {
       const sliders = await db
@@ -6742,6 +7134,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Offers Management Routes
+
+  // Public endpoint for active offers
+  app.get('/api/offers', async (req, res) => {
+    try {
+      const offers = await db
+        .select()
+        .from(schema.offers)
+        .where(eq(schema.offers.isActive, true))
+        .orderBy(asc(schema.offers.sortOrder));
+
+      res.json(offers);
+    } catch (error) {
+      console.error('Error fetching offers:', error);
+      // Return empty array instead of error to prevent UI breaking
+      res.json([]);
+    }
+  });
+
+  // Public endpoint for single offer by ID
+  app.get('/api/offers/:id', async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+
+      const offer = await db
+        .select()
+        .from(schema.offers)
+        .where(and(
+          eq(schema.offers.id, offerId),
+          eq(schema.offers.isActive, true) // Only return active offers publicly
+        ))
+        .limit(1);
+
+      if (!offer || offer.length === 0) {
+        return res.status(404).json({ error: 'Offer not found' });
+      }
+
+      res.json(offer[0]);
+    } catch (error) {
+      console.error('Error fetching offer:', error);
+      res.status(500).json({ error: 'Failed to fetch offer' });
+    }
+  });
+
   // Announcements Management Routes
 
   // Public endpoint for active announcements
@@ -6753,6 +7189,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error fetching announcements:', error);
       res.status(500).json({ error: 'Failed to fetch announcements' });
         }
+  });
+
+  // Admin endpoints for offers management
+  app.get('/api/admin/offers', adminMiddleware, async (req, res) => {
+    try {
+      console.log('📊 GET /api/admin/offers - Admin user authenticated');
+
+      const offers = await db
+        .select()
+        .from(schema.offers)
+        .orderBy(desc(schema.offers.createdAt));
+
+      console.log(`✅ Fetched ${offers.length} offers successfully`);
+      res.json(offers);
+    } catch (error) {
+      console.error('❌ Error fetching admin offers:', error);
+      res.status(500).json({ error: 'Failed to fetch offers' });
+    }
+  });
+
+  app.post('/api/admin/offers', adminMiddleware, upload.single('image'), async (req, res) => {
+    try {
+      let imageUrl = req.body.imageUrl;
+
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Parse productIds and ensure it's an array of integers
+      let productIds = [];
+      if (req.body.productIds) {
+        try {
+          const parsed = typeof req.body.productIds === 'string' 
+            ? JSON.parse(req.body.productIds) 
+            : req.body.productIds;
+          productIds = Array.isArray(parsed) ? parsed.map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+        } catch (e) {
+          console.error('Error parsing productIds:', e);
+          productIds = [];
+        }
+      }
+
+      const offerData = {
+        title: req.body.title,
+        description: req.body.description,
+        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800&h=500&fit=crop',
+        productIds: productIds.length > 0 ? productIds : null,
+        discountPercentage: req.body.discountPercentage ? parseFloat(req.body.discountPercentage) : null,
+        discountText: req.body.discountText || null,
+        validFrom: new Date(req.body.validFrom),
+        validUntil: new Date(req.body.validUntil),
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+        linkUrl: req.body.linkUrl || null,
+        buttonText: req.body.buttonText || 'Shop Now'
+      };
+
+      console.log('Creating offer with data:', offerData);
+
+      const [offer] = await db.insert(schema.offers).values(offerData).returning();
+
+      console.log('Offer created successfully:', offer);
+      res.json(offer);
+    } catch (error) {
+      console.error('Error creating offer:', error);
+      console.error('Error details:', error.message);
+      res.status(500).json({ 
+        error: 'Failed to create offer',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
+  app.put('/api/admin/offers/:id', adminMiddleware, upload.single('image'), async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+
+      // Parse productIds and ensure it's an array of integers
+      let productIds = [];
+      if (req.body.productIds) {
+        try {
+          const parsed = typeof req.body.productIds === 'string' 
+            ? JSON.parse(req.body.productIds) 
+            : req.body.productIds;
+          productIds = Array.isArray(parsed) ? parsed.map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+        } catch (e) {
+          console.error('Error parsing productIds:', e);
+          productIds = [];
+        }
+      }
+
+      let updateData: any = {
+        title: req.body.title,
+        description: req.body.description,
+        productIds: productIds.length > 0 ? productIds : null,
+        price: req.body.price ? parseFloat(req.body.price) : null,
+        originalPrice: req.body.originalPrice ? parseFloat(req.body.originalPrice) : null,
+        discountType: req.body.discountType || 'none',
+        discountValue: req.body.discountValue ? parseFloat(req.body.discountValue) : null,
+        discountText: req.body.discountText || null,
+        cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
+        cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
+        validFrom: new Date(req.body.validFrom),
+        validUntil: new Date(req.body.validUntil),
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+        linkUrl: req.body.linkUrl || null,
+        buttonText: req.body.buttonText || 'Shop Now',
+        updatedAt: new Date()
+      };
+
+      if (req.file) {
+        updateData.imageUrl = `/api/images/${req.file.filename}`;
+      } else if (req.body.imageUrl) {
+        updateData.imageUrl = req.body.imageUrl;
+      }
+
+      console.log('Updating offer with data:', updateData);
+
+      const [offer] = await db
+        .update(schema.offers)
+        .set(updateData)
+        .where(eq(schema.offers.id, offerId))
+        .returning();
+
+      if (!offer) {
+        return res.status(404).json({ error: 'Offer not found' });
+      }
+
+      console.log('Offer updated successfully:', offer);
+      res.json(offer);
+    } catch (error) {
+      console.error('Error updating offer:', error);
+      console.error('Error details:', error.message);
+      res.status(500).json({ 
+        error: 'Failed to update offer',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
+  app.delete('/api/admin/offers/:id', adminMiddleware, async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+
+      const [deletedOffer] = await db
+        .delete(schema.offers)
+        .where(eq(schema.offers.id, offerId))
+        .returning();
+
+      if (!deletedOffer) {
+        return res.status(404).json({ error: 'Offer not found' });
+      }
+
+      res.json({ message: 'Offer deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting offer:', error);
+      res.status(500).json({ error: 'Failed to delete offer' });
+    }
   });
 
   // Admin endpoints for announcements
@@ -8310,7 +8905,7 @@ Poppik Affiliate Portal
               </p>
             </div>
             <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
-              <p style="color: #999999; font-size: 12px; margin: 0;">© 2024 Poppik Lifestyle Private Limited</p>
+              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">© 2024 Poppik Lifestyle Private Limited</p>
             </div>
           </div>`;
 
@@ -8827,7 +9422,7 @@ Poppik Affiliate Portal
       const allSliders = await db.select().from(schema.sliders).orderBy(desc(schema.sliders.sortOrder));
       res.json(allSliders);
     } catch (error) {
-      console.error('Error fetching sliders:', error);
+      console.error('Error fetchingsliders:', error);
       res.status(500).json({ error: 'Failed to fetch sliders' });
     }
   });

@@ -122,10 +122,15 @@ export default function AffiliateWallet() {
     queryKey: ['/api/affiliate/wallet/transactions', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
+      console.log('Fetching transactions for user:', user.id);
       const res = await fetch(`/api/affiliate/wallet/transactions?userId=${user.id}`);
-      if (!res.ok) throw new Error('Failed to fetch transactions');
+      if (!res.ok) {
+        console.error('Failed to fetch transactions:', res.status, res.statusText);
+        throw new Error('Failed to fetch transactions');
+      }
       const data = await res.json();
-      console.log('Fetched transactions:', data);
+      console.log('✅ Fetched transactions:', data.length, 'records');
+      console.log('Transaction data:', data);
       return Array.isArray(data) ? data : [];
     },
     enabled: !!user?.id,
@@ -315,7 +320,7 @@ export default function AffiliateWallet() {
         {/* Wallet Balance Cards - Fully Responsive */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6 md:mb-8">
           {/* Cashback Balance - Mobile Optimized */}
-          <Card 
+          <Card
             className="border-2 border-blue-200 shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
             onClick={() => setShowCashbackInfoDialog(true)}
           >
@@ -409,11 +414,11 @@ export default function AffiliateWallet() {
                   💡 Important Information
                 </p>
                 <p className="text-sm text-blue-800">
-                  Cashback balance is <strong>only usable on Poppik purchases</strong>. 
+                  Cashback balance is <strong>only usable on Poppik purchases</strong>.
                   No cash withdrawal is allowed for cashback amounts.
                 </p>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Your Cashback Balance</span>

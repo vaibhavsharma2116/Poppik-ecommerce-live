@@ -31,6 +31,13 @@ interface CartItem {
     colorCode: string;
     imageUrl?: string;
   };
+  // Offer-specific fields
+  offerId?: number;
+  productId?: number;
+  discountType?: string;
+  discountAmount?: number;
+  isOfferItem?: boolean;
+  itemKey?: string;
 }
 
 // Placeholder for user object, assuming it's fetched elsewhere or available in context
@@ -624,7 +631,36 @@ export default function Cart() {
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
                         {item.name}
                       </h3>
-                      {item.selectedShade && (
+                      
+                      {/* Show included products for offers */}
+                      {item.isOfferItem && item.productNames && (
+                        <div className="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="default" className="bg-gradient-to-r from-purple-500 to-pink-500">
+                              🎁 {item.offerTitle || 'Special Offer'}
+                            </Badge>
+                            <span className="text-xs text-purple-700 font-semibold">
+                              {item.totalProducts} Products Included
+                            </span>
+                          </div>
+                          <div className="text-xs space-y-1">
+                            {item.productNames.map((productName: string, idx: number) => (
+                              <div key={idx} className="flex items-start gap-2">
+                                <span className="text-purple-600">•</span>
+                                <span className="text-gray-700">{productName}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="text-xs text-green-600 font-medium mt-2">
+                            {item.discountType === 'percentage' 
+                              ? `${item.discountValue}% discount applied` 
+                              : `₹${item.discountAmount?.toFixed(2)} off applied`
+                            }
+                          </div>
+                        </div>
+                      )}
+                      
+                      {item.selectedShade && !item.isOfferItem && (
                         <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
                           <Badge variant="secondary" className="flex items-center gap-1.5">
                             {item.selectedShade.imageUrl ? (
@@ -656,13 +692,14 @@ export default function Cart() {
                           )}
                         </div>
                         {item.originalPrice && (() => {
-                          const originalPrice = parseInt(item.originalPrice.replace(/[₹,]/g, ""));
-                          const currentPrice = parseInt(item.price.replace(/[₹,]/g, ""));
+                          const originalPrice = parseFloat(item.originalPrice.replace(/[₹,]/g, ""));
+                          const currentPrice = parseFloat(item.price.replace(/[₹,]/g, ""));
                           const discount = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
                           return discount > 0 ? (
                             <div className="flex items-center justify-center sm:justify-start mt-1">
                               <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
                                 {discount}% OFF • Save ₹{(originalPrice - currentPrice).toLocaleString()}
+                                {item.isOfferItem && " (Offer Discount)"}
                               </span>
                             </div>
                           ) : null;

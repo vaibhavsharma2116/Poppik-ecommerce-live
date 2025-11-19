@@ -106,6 +106,8 @@ const MakeupStudio = lazy(() => import("./pages/makeup-studio"));
 const FashionShow = lazy(() => import("./pages/fashion-show"));
 const AdminBlog = lazy(() => import("./pages/admin/blog"));
 const AdminReports = lazy(() => import("./pages/admin/reports"));
+import OffersPage from "@/pages/offers";
+import OfferDetail from "@/pages/offer-detail";
 
 // Loading component for better UX
 const LoadingSpinner = () => (
@@ -195,7 +197,8 @@ function Router() {
             <Route path="/" component={Home} />
             <Route path="/combos" component={ComboPage} />
             <Route path="/combo/:id" component={() => <LazyRoute component={lazy(() => import("./pages/combo-detail"))} />} />
-            <Route path="/offers" component={() => <LazyRoute component={lazy(() => import("./pages/offers"))} />} />
+            <Route path="/offers" component={OffersPage} />
+            <Route path="/offer/:id" component={OfferDetail} />
             <Route path="/academy" component={() => <LazyRoute component={AcademyPage} />} />
             <Route path="/drop-shipping" component={() => <LazyRoute component={DropShippingPage} />} />
             <Route path="/contest" component={() => <LazyRoute component={ContestPage} />} />

@@ -341,10 +341,11 @@ console.log("featured",featured)
             <div className="relative">
               <div
                 id="categories-scroll-container"
-                className="overflow-auto scrollbar-hide pb-4"
+                className="overflow-x-auto scrollbar-hide pb-4"
                 style={{
                   WebkitOverflowScrolling: 'touch',
-                  scrollBehavior: 'smooth'
+                  scrollBehavior: 'smooth',
+                  overflowY: 'hidden'
                 }}
               >
                 <style>{`
@@ -357,13 +358,14 @@ console.log("featured",featured)
             }
           `}</style>
                 <div
-                  className="flex gap-4 justify-center"
+                  className="flex gap-4"
                   style={{
                     display: 'flex',
-                    gap: 'clamp(8px, 2vw, 16px)',
-                    paddingLeft: 'clamp(8px, 2vw, 16px)',
-                    paddingRight: 'clamp(8px, 2vw, 16px)',
-                    justifyContent: 'center'
+                    gap: 'clamp(12px, 3vw, 16px)',
+                    paddingLeft: 'clamp(12px, 3vw, 16px)',
+                    paddingRight: 'clamp(12px, 3vw, 16px)',
+                    justifyContent: 'flex-start',
+                    minWidth: 'fit-content'
                   }}
                 >
                   {categories?.map((category, index) => (
@@ -372,8 +374,8 @@ console.log("featured",featured)
                       href={`/category/${category.slug}`}
                       className="group inline-block flex-shrink-0"
                       style={{
-                        width: 'clamp(140px, 40vw, 280px)',
-                        minWidth: '140px',
+                        width: 'clamp(160px, 45vw, 280px)',
+                        minWidth: '160px',
                         maxWidth: '280px'
                       }}
                     >
@@ -982,7 +984,7 @@ function ComboSection() {
         <div className="text-center mb-8 sm:mb-10 md:mb-12">
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium mb-2 sm:mb-4">
             <span className="text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
-              Exclusive Combo Deals
+              Glow & Harmony Combo
             </span>
           </h2>
           <p className="text-sm sm:text-base md:text-lg text-gray-600">

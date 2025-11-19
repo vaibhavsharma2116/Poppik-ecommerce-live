@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,109 +10,38 @@ interface Offer {
   title: string;
   description: string;
   imageUrl: string;
-  discount: string;
+  discountPercentage?: number;
+  discountText?: string;
+  validFrom: string;
   validUntil: string;
   isActive: boolean;
+  linkUrl?: string;
+  buttonText?: string;
 }
 
 export default function OffersPage() {
-  const { data: offers = [], isLoading } = useQuery<Offer[]>({
+  const { data: offers = [], isLoading, error } = useQuery<Offer[]>({
     queryKey: ['/api/offers'],
+    queryFn: async () => {
+      const response = await fetch('/api/offers');
+      if (!response.ok) {
+        console.error('Failed to fetch offers:', response.status);
+        return []; // Return empty array on error
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
+    retry: 1,
   });
 
-  // Mock offers data if API is not ready
-  const mockOffers = [
-    {
-      id: 1,
-      title: "Shop For ₹1499 & Get 25% Sitewide",
-      description: "Save big on your favorite beauty products",
-      imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=800&h=500&fit=crop",
-      discount: "25% OFF",
-      validUntil: "2024-12-31",
-      isActive: true,
-    },
-    {
-      id: 2,
-      title: "Free 4-in-1 Manicure Kit",
-      description: "On every order of ₹1500 + extra tablets on every order",
-      imageUrl: "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=800&h=500&fit=crop",
-      discount: "FREE GIFT",
-      validUntil: "2024-12-31",
-      isActive: true,
-    },
-    {
-      id: 3,
-      title: "Eyeshadow Palette Sale",
-      description: "Get stunning eyeshadow palettes at amazing prices",
-      imageUrl: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=800&h=500&fit=crop",
-      discount: "30% OFF",
-      validUntil: "2024-12-31",
-      isActive: true,
-    },
-    {
-      id: 4,
-      title: "Beauty Shopping Spree",
-      description: "Get ₹500 off on orders above ₹2000",
-      imageUrl: "https://images.unsplash.com/photo-1583241800698-c463e2daa44f?w=800&h=500&fit=crop",
-      discount: "₹500 OFF",
-      validUntil: "2024-12-31",
-      isActive: true,
-    },
-    {
-      id: 5,
-      title: "7-in-1 Manicure Kit Free",
-      description: "Luxury pedicure kit on every order of ₹2000",
-      imageUrl: "https://images.unsplash.com/photo-1599948128020-9a44c8f9547f?w=800&h=500&fit=crop",
-      discount: "FREE GIFT",
-      validUntil: "2024-12-31",
-      isActive: true,
-    },
-    {
-      id: 6,
-      title: "Lips Care Bonanza",
-      description: "Buy 3 lip products and get 40% off",
-      imageUrl: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=800&h=500&fit=crop",
-      discount: "40% OFF",
-      validUntil: "2024-12-31",
-      isActive: true,
-    },
-    {
-      id: 7,
-      title: "Free Tote Bag",
-      description: "On all orders above ₹1200",
-      imageUrl: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=800&h=500&fit=crop",
-      discount: "FREE GIFT",
-      validUntil: "2024-12-31",
-      isActive: true,
-    },
-    {
-      id: 8,
-      title: "Glitter Trousseau Box",
-      description: "Complete bridal makeup collection at special prices",
-      imageUrl: "https://images.unsplash.com/photo-1515688594390-b649af70d282?w=800&h=500&fit=crop",
-      discount: "35% OFF",
-      validUntil: "2024-12-31",
-      isActive: true,
-    },
-    {
-      id: 9,
-      title: "Enjoy 20% Off Sitewide",
-      description: "Limited time offer on all products",
-      imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&h=500&fit=crop",
-      discount: "20% OFF",
-      validUntil: "2024-12-31",
-      isActive: true,
-    },
-  ];
-
-  const displayOffers = offers.length > 0 ? offers : mockOffers;
+  const displayOffers = offers || [];
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-12 md:py-16 flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading offers...</p>
+          <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-pink-600 mx-auto"></div>
+          <p className="mt-4 text-sm sm:text-base text-gray-600">Loading offers...</p>
         </div>
       </div>
     );
@@ -121,89 +49,108 @@ export default function OffersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white py-12 sm:py-16">
-        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-white/20 backdrop-blur-sm rounded-full mb-4 sm:mb-6">
-            <Tag className="h-8 w-8 sm:h-10 sm:w-10" />
+      {/* Header Section - Fully Responsive */}
+      <div className="bg-gradient-to-r from-pink-500 to-purple-600 text-white py-8 sm:py-12 md:py-16 lg:py-20">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 text-center">
+          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 backdrop-blur-sm rounded-full mb-3 sm:mb-4 md:mb-6">
+            <Tag className="h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10" />
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 sm:mb-3 md:mb-4 px-2">
             OFFERS
           </h1>
-          <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-base md:text-lg lg:text-xl text-white/90 max-w-2xl mx-auto px-4">
             Explore our exclusive deals and save big on your favorite beauty products
           </p>
         </div>
       </div>
 
-      {/* Offers Grid */}
-      <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16">
-        <div className="grid grid-cols-1 gap-6 sm:gap-8 md:gap-10">
-          {displayOffers.map((offer) => (
-            <Card 
-              key={offer.id} 
-              className="group overflow-hidden border-0 shadow-lg hover:shadow-2xl transition-all duration-300 bg-white"
-            >
-              <CardContent className="p-0">
-                <div className="relative overflow-hidden">
-                  {/* Discount Badge */}
-                  <div className="absolute top-4 left-4 z-10">
-                    <Badge className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 text-sm sm:text-base font-bold shadow-lg">
-                      {offer.discount}
-                    </Badge>
-                  </div>
+      {/* Offers Grid - Responsive Layout */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 md:py-12 lg:py-16">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:gap-8 lg:gap-10">
+          {displayOffers.map((offer) => {
+            const discount = offer.discountPercentage 
+              ? `${offer.discountPercentage}% OFF` 
+              : offer.discountText || 'SPECIAL OFFER';
+            
+            const isExpired = new Date(offer.validUntil) < new Date();
+            
+            return (
+              <Link href={`/offer/${offer.id}`} key={offer.id}>
+                <Card 
+                  className="group overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-white cursor-pointer"
+                >
+                  <CardContent className="p-0">
+                    <div className="relative overflow-hidden">
+                      {/* Discount Badge - Responsive */}
+                      <div className="absolute top-2 left-2 sm:top-3 sm:left-3 md:top-4 md:left-4 z-10">
+                        <Badge className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg">
+                          {discount}
+                        </Badge>
+                      </div>
 
-                  {/* Image */}
-                  <div className="relative aspect-[16/9] sm:aspect-[21/9] overflow-hidden bg-gradient-to-br from-pink-100 to-purple-100">
-                    <img
-                      src={offer.imageUrl}
-                      alt={offer.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  </div>
+                      {/* Expired Badge - Responsive */}
+                      {isExpired && (
+                        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 md:top-4 md:right-4 z-10">
+                          <Badge className="bg-gray-600 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg">
+                            EXPIRED
+                          </Badge>
+                        </div>
+                      )}
 
-                  {/* Content Overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-6 sm:p-8">
-                    <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2">
-                      {offer.title}
-                    </h3>
-                    <p className="text-sm sm:text-base text-white/90 mb-4">
-                      {offer.description}
-                    </p>
-                    <Button className="bg-white text-pink-600 hover:bg-pink-50 font-semibold shadow-lg">
-                      <ShoppingBag className="h-4 w-4 mr-2" />
-                      Shop Now
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                      {/* Image - Responsive Heights */}
+                      <div className="relative h-48 xs:h-56 sm:h-72 md:h-80 lg:h-96 xl:h-[400px] overflow-hidden bg-gradient-to-br from-pink-100 to-purple-100">
+                        <img
+                          src={offer.imageUrl}
+                          alt={offer.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      </div>
+
+                      {/* Content Overlay - Responsive Padding & Text */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-3 sm:p-4 md:p-6 lg:p-8">
+                        <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold text-white mb-1 sm:mb-2 line-clamp-2">
+                          {offer.title}
+                        </h3>
+                        <p className="text-xs sm:text-sm md:text-base text-white/90 line-clamp-2 sm:line-clamp-3">
+                          {offer.description}
+                        </p>
+                        {!isExpired && (
+                          <p className="text-xs sm:text-sm text-white/75 mt-1 sm:mt-2">
+                            Valid until {new Date(offer.validUntil).toLocaleDateString('en-IN')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
 
-        {/* CTA Section */}
-        <div className="mt-12 sm:mt-16 text-center bg-white/70 backdrop-blur-md rounded-3xl p-8 sm:p-12 shadow-xl">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full mb-6">
-            <Gift className="h-8 w-8 text-white" />
+        {/* CTA Section - Fully Responsive */}
+        <div className="mt-8 sm:mt-12 md:mt-16 text-center bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 lg:p-12 shadow-xl">
+          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full mb-4 sm:mb-5 md:mb-6">
+            <Gift className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-white" />
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4 px-2">
             Don't Miss Out!
           </h2>
-          <p className="text-base sm:text-lg text-gray-600 mb-6 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-base md:text-lg text-gray-600 mb-4 sm:mb-5 md:mb-6 max-w-2xl mx-auto px-4">
             These offers are for a limited time only. Shop now and save big on your favorite beauty products.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/products">
-              <Button size="lg" className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white px-8 py-3 text-lg font-semibold shadow-lg">
-                <ShoppingBag className="h-5 w-5 mr-2" />
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
+            <Link href="/products" className="w-full sm:w-auto">
+              <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white px-6 sm:px-8 py-2.5 sm:py-3 text-base sm:text-lg font-semibold shadow-lg">
+                <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Shop All Products
               </Button>
             </Link>
-            <Link href="/combos">
-              <Button size="lg" variant="outline" className="border-2 border-pink-500 text-pink-600 hover:bg-pink-50 px-8 py-3 text-lg font-semibold">
-                <Percent className="h-5 w-5 mr-2" />
+            <Link href="/combos" className="w-full sm:w-auto">
+              <Button size="lg" variant="outline" className="w-full sm:w-auto border-2 border-pink-500 text-pink-600 hover:bg-pink-50 px-6 sm:px-8 py-2.5 sm:py-3 text-base sm:text-lg font-semibold">
+                <Percent className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 View Combo Deals
               </Button>
             </Link>

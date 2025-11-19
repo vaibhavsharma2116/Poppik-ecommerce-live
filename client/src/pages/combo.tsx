@@ -256,7 +256,7 @@ console.log("VCVVVVVV",combo)
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8 md:mb-10 lg:mb-12">
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-3 md:mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Exclusive Combo Deals
+            Glow & Harmony Combo
           </h1>
           <p className="text-sm sm:text-base md:text-lg text-gray-600 px-4">
             Save more with our curated beauty bundles
