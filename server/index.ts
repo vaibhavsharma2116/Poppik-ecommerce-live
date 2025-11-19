@@ -67,7 +67,7 @@ app.use('/uploads', express.static('uploads', {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
-    
+
     // Set proper content type for images
     if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
       res.setHeader('Content-Type', 'image/jpeg');
@@ -173,7 +173,7 @@ const db = drizzle(pool, { schema: { products, productImages } });
       const { slug } = req.params;
       const userAgent = req.headers['user-agent'] || '';
       const isBot = /bot|crawler|spider|crawling|whatsapp|facebook|twitter|telegram|skype|linkedin/i.test(userAgent);
-      
+
       console.log(`Product page requested for slug: ${slug} (Bot: ${isBot})`);
 
       // Read the index.html file first
@@ -198,9 +198,9 @@ const db = drizzle(pool, { schema: { products, productImages } });
         return res.send(html);
       }
 
+      // If product not found, send default HTML
       if (!product) {
         console.log(`Product not found for slug: ${slug}, sending default HTML`);
-        // Even if product not found, send the HTML so React can handle 404
         return res.send(html);
       }
 
@@ -280,7 +280,7 @@ const db = drizzle(pool, { schema: { products, productImages } });
   <meta property="og:url" content="${productUrl}" />
   <meta property="og:title" content="${cleanName} - ₹${product.price} | Poppik Lifestyle" />
   <meta property="og:description" content="${cleanDescription}" />
-  
+
   <!-- Primary Image Tags - Multiple declarations for better compatibility -->
   <meta property="og:image" content="${imageUrl}" />
   <meta property="og:image:url" content="${imageUrl}" />
@@ -289,11 +289,11 @@ const db = drizzle(pool, { schema: { products, productImages } });
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="${cleanName} - Product Image" />
-  
+
   <!-- WhatsApp specific - they prefer these tags -->
   <meta name="og:image" content="${imageUrl}" />
   <meta itemprop="image" content="${imageUrl}" />
-  
+
   <meta property="og:site_name" content="Poppik Lifestyle" />
   <meta property="og:locale" content="en_IN" />
   <meta property="product:brand" content="Poppik Lifestyle" />
@@ -327,7 +327,7 @@ const db = drizzle(pool, { schema: { products, productImages } });
       // Set headers for better caching and social media crawlers
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
-      
+
       // Add headers for better crawler support
       res.setHeader('X-Robots-Tag', 'index, follow');
 
