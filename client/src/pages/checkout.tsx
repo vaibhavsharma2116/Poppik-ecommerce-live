@@ -425,15 +425,39 @@ export default function CheckoutPage() {
           const addresses = await response.json();
           setSavedAddresses(addresses);
 
-          // Select the default address or the first one
-          const defaultAddress = addresses.find((addr: any) => addr.isDefault);
-          if (defaultAddress) {
-            setSelectedAddressId(defaultAddress.id);
-            // Populate form with default address
-            populateFormWithAddress(defaultAddress);
-          } else if (addresses.length > 0) {
-            setSelectedAddressId(addresses[0].id);
-            populateFormWithAddress(addresses[0]);
+          // Check if address was selected from delivery address page
+          const selectedAddressFromStorage = localStorage.getItem('selectedDeliveryAddress');
+
+          if (selectedAddressFromStorage) {
+            try {
+              const selectedAddr = JSON.parse(selectedAddressFromStorage);
+              const addressInList = addresses.find((addr: any) => addr.id === selectedAddr.id);
+
+              if (addressInList) {
+                setSelectedAddressId(addressInList.id);
+                populateFormWithAddress(addressInList);
+
+                toast({
+                  title: "Address Loaded",
+                  description: `Using address in ${addressInList.city}`,
+                });
+              }
+
+              // Clear the selected address from localStorage
+              localStorage.removeItem('selectedDeliveryAddress');
+            } catch (error) {
+              console.error('Error parsing selected address:', error);
+            }
+          } else {
+            // Select the default address or the first one if no address was selected
+            const defaultAddress = addresses.find((addr: any) => addr.isDefault);
+            if (defaultAddress) {
+              setSelectedAddressId(defaultAddress.id);
+              populateFormWithAddress(defaultAddress);
+            } else if (addresses.length > 0) {
+              setSelectedAddressId(addresses[0].id);
+              populateFormWithAddress(addresses[0]);
+            }
           }
         }
       } catch (error) {
@@ -1852,19 +1876,21 @@ export default function CheckoutPage() {
                       {savedAddresses.map((address) => (
                         <div
                           key={address.id}
-                          className={`border-2 rounded-lg p-3 transition-colors cursor-pointer ${
+                          className={`border-2 rounded-lg p-3 transition-colors ${
                             selectedAddressId === address.id
                               ? 'border-blue-500 bg-blue-50'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
-                          onClick={() => handleAddressSelection(address.id)}
                         >
                           <div className="flex items-start space-x-2.5">
-                            <div className={`w-4 h-4 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${
-                              selectedAddressId === address.id
-                                ? 'bg-blue-600'
-                                : 'border-2 border-gray-300'
-                            }`}>
+                            <div
+                              className={`w-4 h-4 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 cursor-pointer ${
+                                selectedAddressId === address.id
+                                  ? 'bg-blue-600'
+                                  : 'border-2 border-gray-300'
+                              }`}
+                              onClick={() => setSelectedAddressId(address.id)}
+                            >
                               {selectedAddressId === address.id && (
                                 <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                               )}
@@ -1880,179 +1906,52 @@ export default function CheckoutPage() {
                               <p className="text-xs text-gray-700 mt-0.5">
                                 {address.city}, {address.state}, {address.pincode}
                               </p>
-                              <p className="text-xs text-gray-600 mt-0.5">Ph: {address.phoneNumber}</p>
-                              <div className="flex gap-2 mt-2 text-xs">
-                                <button
-                                  type="button"
-                                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Edit functionality can be added here
-                                  }}
-                                >
-                                  Edit
-                                </button>
-                                <span className="text-gray-400">|</span>
-                                <Dialog open={showInstructionsDialog} onOpenChange={setShowInstructionsDialog}>
-                                  <DialogTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="text-blue-600 hover:text-blue-700 text-sm hover:underline block"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowInstructionsDialog(true);
-                                        // Pre-fill form with current address's data
-                                        setFormData(prev => ({
-                                          ...prev,
-                                          saturdayDelivery: address.saturdayDelivery,
-                                          sundayDelivery: address.sundayDelivery,
-                                          deliveryInstructions: address.deliveryInstructions || ''
-                                        }));
-                                      }}
-                                    >
-                                      Add delivery instructions
-                                    </button>
-                                  </DialogTrigger>
-                                  <DialogContent className="max-w-2xl">
-                                    <DialogHeader>
-                                      <DialogTitle>Add delivery instructions</DialogTitle>
-                                      <DialogDescription>
-                                        Your instructions help us deliver your packages to your expectations and will be used when possible.
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="space-y-4 pt-4">
-                                      <div className="bg-gray-50 p-3 rounded-lg">
-                                        <p className="font-semibold text-sm">{address.recipientName}</p>
-                                        <p className="text-sm text-gray-700">{address.addressLine1}</p>
-                                        {address.addressLine2 && <p className="text-sm text-gray-700">{address.addressLine2}</p>}
-                                        <p className="text-sm text-gray-700">
-                                          {address.city}, {address.state}, {address.pincode}, India</p>
-                                      </div>
-
-                                      <div className="space-y-4">
-                                        <h4 className="font-medium">Can you receive deliveries at this address on weekends?</h4>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                          <div>
-                                            <Label className="text-sm mb-2 block">Saturdays</Label>
-                                            <div className="grid grid-cols-2 gap-2">
-                                              <Button
-                                                type="button"
-                                                variant={formData.saturdayDelivery === false ? 'default' : 'outline'}
-                                                className="w-full"
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  setFormData(prev => ({ ...prev, saturdayDelivery: false }));
-                                                }}
-                                              >
-                                                No
-                                              </Button>
-                                              <Button
-                                                type="button"
-                                                variant={formData.saturdayDelivery === true ? 'default' : 'outline'}
-                                                className="w-full"
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  setFormData(prev => ({ ...prev, saturdayDelivery: true }));
-                                                }}
-                                              >
-                                                Yes
-                                              </Button>
-                                            </div>
-                                          </div>
-
-                                          <div>
-                                            <Label className="text-sm mb-2 block">Sundays</Label>
-                                            <div className="grid grid-cols-2 gap-2">
-                                              <Button
-                                                type="button"
-                                                variant={formData.sundayDelivery === false ? 'default' : 'outline'}
-                                                className="w-full"
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  setFormData(prev => ({ ...prev, sundayDelivery: false }));
-                                                }}
-                                              >
-                                                No
-                                              </Button>
-                                              <Button
-                                                type="button"
-                                                variant={formData.sundayDelivery === true ? 'default' : 'outline'}
-                                                className="w-full"
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  setFormData(prev => ({ ...prev, sundayDelivery: true }));
-                                                }}
-                                              >
-                                                Yes
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      <div>
-                                        <h4 className="font-medium mb-2">Do we need additional instructions to deliver to this address?</h4>
-                                        <Label className="text-sm mb-2 block">Delivery instructions</Label>
-                                        <Textarea
-                                          placeholder="Provide details such as building description, a nearby landmark, or other navigation instructions."
-                                          rows={4}
-                                          className="resize-none"
-                                          value={formData.deliveryInstructions || ''}
-                                          onChange={(e) => {
-                                            setFormData(prev => ({
-                                              ...prev,
-                                              deliveryInstructions: e.target.value
-                                            }));
-                                          }}
-                                        />
-                                        <p className="text-xs text-gray-500 mt-2">
-                                          Your instructions help us deliver your packages to your expectations and will be used when possible.
-                                        </p>
-                                      </div>
-
-                                      <Button
-                                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
-                                        type="button"
-                                        onClick={async () => {
-                                          try {
-                                            // Update address with delivery instructions
-                                            await fetch(`/api/delivery-addresses/${address.id}`, {
-                                              method: 'PUT',
-                                              headers: { 'Content-Type': 'application/json' },
-                                              body: JSON.stringify({
-                                                saturdayDelivery: formData.saturdayDelivery,
-                                                sundayDelivery: formData.sundayDelivery,
-                                                deliveryInstructions: formData.deliveryInstructions
-                                              })
-                                            });
-
-                                            toast({
-                                              title: "Instructions Saved",
-                                              description: "Your delivery instructions have been saved for this address"
-                                            });
-
-                                            // Close dialog
-                                            setShowInstructionsDialog(false);
-                                          } catch (error) {
-                                            toast({
-                                              title: "Error",
-                                              description: "Failed to save instructions",
-                                              variant: "destructive"
-                                            });
-                                          }
-                                        }}
-                                      >
-                                        Save instructions
-                                      </Button>
-                                    </div>
-                                  </DialogContent>
-                                </Dialog>
-                              </div>
+                              <p className="text-xs text-gray-600 mt-0.5">Phone: {address.phoneNumber}</p>
                             </div>
                           </div>
                         </div>
                       ))}
+
+                      {/* Deliver to this address button */}
+                      {selectedAddressId && (
+                        <Button
+                          type="button"
+                          className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
+                          onClick={() => {
+                            const selectedAddress = savedAddresses.find(addr => addr.id === selectedAddressId);
+                            if (selectedAddress) {
+                              populateFormWithAddress(selectedAddress);
+
+                              // Clear multi-address mode data
+                              localStorage.removeItem('isMultiAddressOrder');
+                              localStorage.removeItem('multiAddressItems');
+                              localStorage.removeItem('multiAddressMapping');
+                              localStorage.removeItem('multipleAddressMode');
+
+                              // Force a re-render by updating state
+                              setSelectedAddressId(selectedAddress.id);
+
+                              // Reload cart items to remove multi-address assignments
+                              const savedCart = localStorage.getItem("cart");
+                              if (savedCart) {
+                                try {
+                                  const parsedCart = JSON.parse(savedCart);
+                                  setCartItems(parsedCart);
+                                } catch (error) {
+                                  console.error("Error parsing cart data:", error);
+                                }
+                              }
+
+                              toast({
+                                title: "Address Selected",
+                                description: `All items will be delivered to ${selectedAddress.recipientName} in ${selectedAddress.city}`,
+                              });
+                            }
+                          }}
+                        >
+                          Deliver to this address
+                        </Button>
+                      )}
 
                       <div className="space-y-2">
                         <button
@@ -2562,55 +2461,6 @@ export default function CheckoutPage() {
                           <option value="medininagar">Medininagar</option>
                         </select>
                       </div>
-                      <div>
-                        <Label htmlFor="state">State *</Label>
-                        <select
-                          id="state"
-                          name="state"
-                          value={formData.state}
-                          onChange={handleInputChange}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          required
-                        >
-                          <option value="">Select State</option>
-                          <option value="andhra_pradesh">Andhra Pradesh</option>
-                          <option value="arunachal_pradesh">Arunachal Pradesh</option>
-                          <option value="assam">Assam</option>
-                          <option value="bihar">Bihar</option>
-                          <option value="chhattisgarh">Chhattisgarh</option>
-                          <option value="goa">Goa</option>
-                          <option value="gujarat">Gujarat</option>
-                          <option value="haryana">Haryana</option>
-                          <option value="himachal_pradesh">Himachal Pradesh</option>
-                          <option value="jharkhand">Jharkhand</option>
-                          <option value="karnataka">Karnataka</option>
-                          <option value="kerala">Kerala</option>
-                          <option value="madhya_pradesh">Madhya Pradesh</option>
-                          <option value="maharashtra">Maharashtra</option>
-                          <option value="manipur">Manipur</option>
-                          <option value="meghalaya">Meghalaya</option>
-                          <option value="mizoram">Mizoram</option>
-                          <option value="nagaland">Nagaland</option>
-                          <option value="odisha">Odisha</option>
-                          <option value="punjab">Punjab</option>
-                          <option value="rajasthan">Rajasthan</option>
-                          <option value="sikkim">Sikkim</option>
-                          <option value="tamil_nadu">Tamil Nadu</option>
-                          <option value="telangana">Telangana</option>
-                          <option value="tripura">Tripura</option>
-                          <option value="uttar_pradesh">Uttar Pradesh</option>
-                          <option value="uttarakhand">Uttarakhand</option>
-                          <option value="west_bengal">West Bengal</option>
-                          <option value="andaman_and_nicobar">Andaman and Nicobar Islands</option>
-                          <option value="chandigarh">Chandigarh</option>
-                          <option value="dadra_and_nagar_haveli">Dadra and Nagar Haveli and Daman and Diu</option>
-                          <option value="delhi">Delhi</option>
-                          <option value="jammu_and_kashmir">Jammu and Kashmir</option>
-                          <option value="ladakh">Ladakh</option>
-                          <option value="lakshadweep">Lakshadweep</option>
-                          <option value="puducherry">Puducherry</option>
-                        </select>
-                      </div>
                     </div>
                   )}
                   {(!userProfile || !userProfile.address) && (
@@ -2705,11 +2555,51 @@ export default function CheckoutPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
+                    {/* Show selected delivery address at top of order summary - only for single address mode */}
+                    {selectedAddressId && savedAddresses.length > 0 && !localStorage.getItem('isMultiAddressOrder') && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <MapPin className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-blue-900 mb-1">Delivering to:</p>
+                            {(() => {
+                              const selectedAddress = savedAddresses.find(addr => addr.id === selectedAddressId);
+                              if (selectedAddress) {
+                                return (
+                                  <>
+                                    <p className="text-sm font-medium text-gray-900">{selectedAddress.recipientName}</p>
+                                    <p className="text-xs text-gray-700 mt-0.5">{selectedAddress.addressLine1}</p>
+                                    {selectedAddress.addressLine2 && (
+                                      <p className="text-xs text-gray-700">{selectedAddress.addressLine2}</p>
+                                    )}
+                                    <p className="text-xs text-gray-700">
+                                      {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}, India
+                                    </p>
+                                    <p className="text-xs text-gray-600 mt-1">Phone: {selectedAddress.phoneNumber}</p>
+                                  </>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {cartItems.map((item) => {
-                      // Check if this is a multi-address order
-                      const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
-                      const multiAddressItems = isMultiAddress ? JSON.parse(localStorage.getItem('multiAddressItems') || '[]') : [];
-                      const itemWithAddress = multiAddressItems.find((i: any) => i.id === item.id);
+                      // Get delivery address for this item from multi-address data
+                      const multiAddressItems = localStorage.getItem('multiAddressItems');
+                      let deliveryAddress = null;
+
+                      if (multiAddressItems) {
+                        try {
+                          const items = JSON.parse(multiAddressItems);
+                          const itemWithAddress = items.find((i: any) => i.id === item.id);
+                          deliveryAddress = itemWithAddress?.deliveryAddress;
+                        } catch (error) {
+                          console.error('Error parsing multi-address items:', error);
+                        }
+                      }
 
                       return (
                         <div key={item.id} className="border-b pb-4 last:border-b-0 last:pb-0">
@@ -2741,12 +2631,26 @@ export default function CheckoutPage() {
                               <p className="text-sm text-gray-600 mt-1">Qty: {item.quantity}</p>
 
                               {/* Show delivery address for multi-address orders */}
-                              {itemWithAddress?.deliveryAddress && (
-                                <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-                                  <p className="font-medium text-gray-700">Delivering to:</p>
-                                  <p className="text-gray-600">{itemWithAddress.deliveryAddress.recipientName}</p>
-                                  <p className="text-gray-600">{itemWithAddress.deliveryAddress.fullAddress}</p>
-                                  <p className="text-gray-600">Phone: {itemWithAddress.deliveryAddress.phone}</p>
+                              {deliveryAddress && (
+                                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                                  <div className="flex items-start gap-1.5">
+                                    <MapPin className="h-3 w-3 text-blue-600 mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-blue-900 mb-0.5">
+                                        {deliveryAddress.recipientName}
+                                      </p>
+                                      <p className="text-xs text-gray-700 leading-relaxed">
+                                        {deliveryAddress.addressLine1}
+                                        {deliveryAddress.addressLine2 && `, ${deliveryAddress.addressLine2}`}
+                                      </p>
+                                      <p className="text-xs text-gray-700">
+                                        {deliveryAddress.city}, {deliveryAddress.state} - {deliveryAddress.pincode}
+                                      </p>
+                                      <p className="text-xs text-gray-600 mt-0.5">
+                                        Phone: {deliveryAddress.phone}
+                                      </p>
+                                    </div>
+                                  </div>
                                 </div>
                               )}
 
