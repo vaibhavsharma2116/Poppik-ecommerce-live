@@ -535,9 +535,10 @@ export default function ProductDetail() {
     const url = window.location.href;
     const price = `₹${product?.price}`;
 
-    // WhatsApp will fetch Open Graph image from URL automatically
-    const text = `🛍️ *${product?.name}*\n\n${product?.shortDescription || ''}\n\n💰 Price: ${price}\n\n✨ Check it out: ${url}`;
+    // WhatsApp will automatically fetch Open Graph tags (including image) from the URL
+    const text = `🛍️ *${product?.name}*\n\n${product?.shortDescription || ''}\n\n💰 Price: ${price}\n\n👉 Check it out: ${url}`;
 
+    // WhatsApp will fetch OG image from the URL automatically
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 

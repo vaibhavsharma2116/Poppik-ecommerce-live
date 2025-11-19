@@ -225,12 +225,19 @@ const db = drizzle(pool, { schema: { products, productImages } });
       // Ensure full HTTPS URL for image (required for WhatsApp)
       let fullImageUrl = productImage;
       if (!fullImageUrl.startsWith('http')) {
-        // Always use HTTPS for production
-        const baseUrl = 'https://poppiklifestyle.com';
+        // Get the base URL from request or use default
+        const protocol = req.protocol || 'https';
+        const host = req.get('host') || 'poppiklifestyle.com';
+        const baseUrl = `${protocol}://${host}`;
         
+        // Clean the image URL path
         if (fullImageUrl.startsWith('/api/')) {
-          fullImageUrl = `${baseUrl}${fullImageUrl}`;
-        } else if (fullImageUrl.startsWith('/uploads/')) {
+          // Convert /api/image/xxx to direct /uploads/xxx path
+          const imageId = fullImageUrl.split('/').pop();
+          fullImageUrl = `/uploads/${imageId}`;
+        }
+        
+        if (fullImageUrl.startsWith('/uploads/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else if (fullImageUrl.startsWith('/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
@@ -267,11 +274,15 @@ const db = drizzle(pool, { schema: { products, productImages } });
   <meta property="og:description" content="${description}">
   <meta property="og:image" content="${fullImageUrl}">
   <meta property="og:image:secure_url" content="${fullImageUrl}">
-  <meta property="og:image:width" content="800">
-  <meta property="og:image:height" content="800">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="${product.name}">
-  <meta property="og:image:type" content="${fullImageUrl.endsWith('.png') ? 'image/png' : 'image/jpeg'}">
+  <meta property="og:image:type" content="${fullImageUrl.match(/\.(png|webp)$/i) ? 'image/png' : 'image/jpeg'}">
   <meta property="og:locale" content="en_IN">
+  
+  <!-- Additional meta tags for better preview -->
+  <meta name="thumbnail" content="${fullImageUrl}">
+  <link rel="image_src" href="${fullImageUrl}">
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
