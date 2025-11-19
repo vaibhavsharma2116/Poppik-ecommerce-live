@@ -79,7 +79,7 @@ export default function AdminOrders() {
       const response = await fetch('/api/admin/orders');
       if (response.ok) {
         const data = await response.json();
-        setOrders(data);
+        setOrders(Array.isArray(data) ? data : []);
       } else {
         throw new Error('Failed to fetch orders');
       }
@@ -90,6 +90,7 @@ export default function AdminOrders() {
         description: "Failed to fetch orders",
         variant: "destructive",
       });
+      setOrders([]); // Set to empty array on error
     } finally {
       setLoading(false);
     }
@@ -169,7 +170,7 @@ export default function AdminOrders() {
   }, []);
 
   // Filter orders based on search term, status, and date
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = Array.isArray(orders) ? orders.filter(order => {
     const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.customer.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -180,19 +181,19 @@ export default function AdminOrders() {
     const matchesDate = dateFilter === 'all' || true; // Simplified for demo
 
     return matchesSearch && matchesStatus && matchesDate;
-  });
+  }) : [];
 
   // Calculate stats
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter(o => o.status === 'pending').length;
-  const processingOrders = orders.filter(o => o.status === 'processing').length;
-  const shippedOrders = orders.filter(o => o.status === 'shipped').length;
-  const deliveredOrders = orders.filter(o => o.status === 'delivered').length;
+  const totalOrders = Array.isArray(orders) ? orders.length : 0;
+  const pendingOrders = Array.isArray(orders) ? orders.filter(o => o.status === 'pending').length : 0;
+  const processingOrders = Array.isArray(orders) ? orders.filter(o => o.status === 'processing').length : 0;
+  const shippedOrders = Array.isArray(orders) ? orders.filter(o => o.status === 'shipped').length : 0;
+  const deliveredOrders = Array.isArray(orders) ? orders.filter(o => o.status === 'delivered').length : 0;
 
-  const totalRevenue = orders.reduce((sum, order) => {
+  const totalRevenue = Array.isArray(orders) ? orders.reduce((sum, order) => {
     const amount = order.totalAmount || parseFloat(order.total.replace(/[₹$,]/g, ''));
     return sum + amount;
-  }, 0);
+  }, 0) : 0;
 
   const stats = [
     { label: "Total Orders", value: totalOrders.toString(), icon: Package, color: "from-blue-500 to-cyan-500" },

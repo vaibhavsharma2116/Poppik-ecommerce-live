@@ -625,36 +625,32 @@ export default function ProductDetail() {
 
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="product" />
+        <meta property="og:site_name" content="Poppik Lifestyle" />
         <meta property="og:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
-          // Get the first available image - prioritize product images over selected shade
           let img = imageUrls[0] || product?.imageUrl || '/logo.png';
-
-          // If it's a relative path, make it absolute
           if (img && !img.startsWith('http')) {
-            // Check if it starts with /api/
             if (img.startsWith('/api/')) {
-              img = `https://localhost:8085${img}`;
+              img = `https://poppiklifestyle.com${img}`;
             } else if (img.startsWith('/')) {
-              img = `https://localhost:8085${img}`;
+              img = `https://poppiklifestyle.com${img}`;
             } else {
-              img = `https://localhost:8085/${img}`;
+              img = `https://poppiklifestyle.com/${img}`;
             }
           }
-
           return img;
         })()} />
         <meta property="og:image:secure_url" content={(() => {
           let img = imageUrls[0] || product?.imageUrl || '/logo.png';
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/')) {
-              img = `https://localhost:8085${img}`;
+              img = `https://poppiklifestyle.com${img}`;
             } else if (img.startsWith('/')) {
-              img = `https://localhost:8085${img}`;
+              img = `https://poppiklifestyle.com${img}`;
             } else {
-              img = `https://localhost:8085/${img}`;
+              img = `https://poppiklifestyle.com/${img}`;
             }
           }
           return img;
@@ -663,27 +659,26 @@ export default function ProductDetail() {
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content={product?.name || 'Product Image'} />
         <meta property="og:image:type" content="image/jpeg" />
+        <meta property="og:locale" content="en_IN" />
 
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content={`https://localhost:8085/product/${productSlug}`} />
+        <meta name="twitter:site" content="@PoppikLifestyle" />
+        <meta name="twitter:creator" content="@PoppikLifestyle" />
+        <meta name="twitter:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
         <meta name="twitter:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta name="twitter:image" content={(() => {
-          // Get the first available image
           let img = imageUrls[0] || product?.imageUrl || '/logo.png';
-
-          // If it's a relative path, make it absolute
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/')) {
-              img = `https://localhost:8085${img}`;
+              img = `https://poppiklifestyle.com${img}`;
             } else if (img.startsWith('/')) {
-              img = `https://localhost:8085${img}`;
+              img = `https://poppiklifestyle.com${img}`;
             } else {
-              img = `https://localhost:8085/${img}`;
+              img = `https://poppiklifestyle.com/${img}`;
             }
           }
-
           return img;
         })()} />
         <meta name="twitter:image:alt" content={product?.name || 'Product Image'} />
@@ -691,6 +686,10 @@ export default function ProductDetail() {
         {/* Product specific meta */}
         {product?.price && <meta property="product:price:amount" content={product.price.toString()} />}
         {product?.price && <meta property="product:price:currency" content="INR" />}
+        {product?.inStock && <meta property="product:availability" content="in stock" />}
+        {product?.category && <meta property="product:category" content={product.category} />}
+        {product?.rating && <meta property="product:rating:value" content={product.rating} />}
+        {product?.reviewCount && <meta property="product:rating:count" content={product.reviewCount.toString()} />}
 
         <link rel="canonical" href={`https://poppiklifestyle.com/product/${productSlug}`} />
       </Helmet>

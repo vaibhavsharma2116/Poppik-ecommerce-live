@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Heart, Share2 } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -70,6 +70,7 @@ export default function Cart() {
 
   // Placeholder for user data, replace with actual user context or hook
   const [user, setUser] = useState<User | null>(null);
+  const [isAffiliate, setIsAffiliate] = useState(false);
 
   // Fetch announcements for dynamic offers
   const { data: announcements = [] } = useQuery({
@@ -104,6 +105,27 @@ export default function Cart() {
     },
     enabled: !!user?.id,
   });
+
+  // Fetch affiliate application status
+  const { data: affiliateApplication } = useQuery({
+    queryKey: ['/api/affiliate/my-application', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/affiliate/my-application?userId=${user.id}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  // Update affiliate status based on application approval
+  useEffect(() => {
+    if (affiliateApplication?.status === 'approved') {
+      setIsAffiliate(true);
+    } else {
+      setIsAffiliate(false);
+    }
+  }, [affiliateApplication]);
 
 
   // Load cart from localStorage on component mount
@@ -370,29 +392,7 @@ export default function Cart() {
     }
   };
 
-  const shareCart = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'My Shopping Cart',
-          text: `Check out my cart with ${cartItems.length} items!`,
-          url: window.location.href,
-        });
-      } catch (error) {
-        copyCartLink();
-      }
-    } else {
-      copyCartLink();
-    }
-  };
-
-  const copyCartLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast({
-      title: "Link Copied",
-      description: "Cart link has been copied to clipboard",
-    });
-  };
+  
 
   // Calculate subtotal (before product discounts)
   const subtotal = cartItems.reduce((sum, item) => {
@@ -600,10 +600,6 @@ export default function Cart() {
             <div className="flex gap-2">
               {cartItems.length > 0 && (
                 <>
-                  <Button variant="outline" size="sm" onClick={shareCart}>
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share
-                  </Button>
                   <Button variant="outline" size="sm" onClick={clearCart} className="text-red-600 border-red-600 hover:bg-red-50">
                     Clear Cart
                   </Button>
@@ -849,37 +845,42 @@ export default function Cart() {
                   Available cashback: ₹{walletData?.cashbackBalance || '0'} (Will be credited after delivery)
                 </p>
 
-                {/* Affiliate Wallet Section */}
-                <Label htmlFor="affiliateWalletAmount" className="text-base font-semibold text-purple-700 mt-4">Affiliate Wallet</Label>
-                <div className="relative">
-                  <Input
-                    id="affiliateWalletAmount"
-                    type="number"
-                    min="0"
-                    max={parseFloat(affiliateWalletData?.commissionBalance || '0')}
-                    step="0.01"
-                    value={affiliateWalletAmount}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value) || 0;
-                      const maxCommission = parseFloat(affiliateWalletData?.commissionBalance || '0');
-                      setAffiliateWalletAmount(Math.min(value, maxCommission));
-                    }}
-                    placeholder="0"
-                    className="text-lg pl-3 pr-16 h-12 border-2 border-purple-300 focus:border-purple-500"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setAffiliateWalletAmount(0)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-purple-500 hover:text-purple-700"
-                  >
-                    Clear
-                  </Button>
-                </div>
-                <p className="text-sm text-purple-600 mt-1">
-                  Commission earnings: ₹{affiliateWalletData?.commissionBalance || '0'}
-                </p>
+                {/* Affiliate Wallet Section - Only for Affiliates */}
+                {isAffiliate && (
+                  <>
+                    <Separator className="my-4" />
+                    <Label htmlFor="affiliateWalletAmount" className="text-base font-semibold text-purple-700">Affiliate Wallet</Label>
+                    <div className="relative">
+                      <Input
+                        id="affiliateWalletAmount"
+                        type="number"
+                        min="0"
+                        max={parseFloat(affiliateWalletData?.commissionBalance || '0')}
+                        step="0.01"
+                        value={affiliateWalletAmount}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          const maxCommission = parseFloat(affiliateWalletData?.commissionBalance || '0');
+                          setAffiliateWalletAmount(Math.min(value, maxCommission));
+                        }}
+                        placeholder="0"
+                        className="text-lg pl-3 pr-16 h-12 border-2 border-purple-300 focus:border-purple-500"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAffiliateWalletAmount(0)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-purple-500 hover:text-purple-700"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                    <p className="text-sm text-purple-600 mt-1">
+                      Commission earnings: ₹{affiliateWalletData?.commissionBalance || '0'}
+                    </p>
+                  </>
+                )}
 
 
                 <Separator />
@@ -965,24 +966,26 @@ export default function Cart() {
               </CardContent>
             </Card>
 
-            {/* Display total balance in summary */}
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 mb-4 border-2 border-purple-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                    <WalletIcon className="h-5 w-5 text-white" />
+            {/* Display total balance in summary - Only for Affiliates */}
+            {isAffiliate && (
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 mb-4 border-2 border-purple-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                      <WalletIcon className="h-5 w-5 text-white" />
+                    </div>
+                    <span className="text-base font-bold text-purple-800">Total Balance</span>
                   </div>
-                  <span className="text-base font-bold text-purple-800">Total Balance</span>
+                  <span className="text-2xl font-bold text-purple-600">
+                    ₹{(parseFloat(walletData?.cashbackBalance || '0') + parseFloat(affiliateWalletData?.commissionBalance || '0')).toFixed(2)}
+                  </span>
                 </div>
-                <span className="text-2xl font-bold text-purple-600">
-                  ₹{(parseFloat(walletData?.cashbackBalance || '0') + parseFloat(affiliateWalletData?.commissionBalance || '0')).toFixed(2)}
-                </span>
+                <div className="flex justify-between text-sm text-purple-700 mt-2">
+                  <span>Cashback: ₹{parseFloat(walletData?.cashbackBalance || '0').toFixed(2)}</span>
+                  <span>Commission: ₹{parseFloat(affiliateWalletData?.commissionBalance || '0').toFixed(2)}</span>
+                </div>
               </div>
-              <div className="flex justify-between text-sm text-purple-700 mt-2">
-                <span>Cashback: ₹{parseFloat(walletData?.cashbackBalance || '0').toFixed(2)}</span>
-                <span>Commission: ₹{parseFloat(affiliateWalletData?.commissionBalance || '0').toFixed(2)}</span>
-              </div>
-            </div>
+            )}
 
           </div>
         </div>

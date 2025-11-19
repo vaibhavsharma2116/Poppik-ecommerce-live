@@ -297,6 +297,9 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false); // Added state for processing
   const [isRedeeming, setIsRedeeming] = useState(false); // State for cashback redemption
 
+  // State for the instructions dialog
+  const [showInstructionsDialog, setShowInstructionsDialog] = useState(false);
+
   const [formData, setFormData] = useState({
     email: "",
     firstName: "",
@@ -309,11 +312,16 @@ export default function CheckoutPage() {
     paymentMethod: "cashfree",
     affiliateCode: passedAffiliateCode || "",
     affiliateDiscount: 0,
+    deliveryInstructions: "", // Added state for delivery instructions
+    saturdayDelivery: false, // Changed to boolean for easier handling
+    sundayDelivery: false // Changed to boolean for easier handling
   });
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [profileDataLoaded, setProfileDataLoaded] = useState(false);
   const [showAddAddressDialog, setShowAddAddressDialog] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [newAddressData, setNewAddressData] = useState({
     fullName: "",
     mobile: "",
@@ -324,6 +332,9 @@ export default function CheckoutPage() {
     town: "",
     state: "",
     makeDefault: false,
+    deliveryInstructions: '', // For new address dialog
+    saturdayDelivery: false, // For new address dialog
+    sundayDelivery: false, // For new address dialog
   });
 
   // Initialize shipping cost state and loading indicator
@@ -406,10 +417,36 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Fetch saved addresses
+    const fetchAddresses = async () => {
+      try {
+        const response = await fetch(`/api/delivery-addresses?userId=${user.id}`);
+        if (response.ok) {
+          const addresses = await response.json();
+          setSavedAddresses(addresses);
+
+          // Select the default address or the first one
+          const defaultAddress = addresses.find((addr: any) => addr.isDefault);
+          if (defaultAddress) {
+            setSelectedAddressId(defaultAddress.id);
+            // Populate form with default address
+            populateFormWithAddress(defaultAddress);
+          } else if (addresses.length > 0) {
+            setSelectedAddressId(addresses[0].id);
+            populateFormWithAddress(addresses[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching addresses:', error);
+      }
+    };
+
+    fetchAddresses();
+
     // Check if this is a multi-address order
     const isMultiAddress = localStorage.getItem('isMultiAddressOrder');
     const multiAddressItems = localStorage.getItem('multiAddressItems');
-    
+
     if (isMultiAddress === 'true' && multiAddressItems) {
       try {
         const items = JSON.parse(multiAddressItems);
@@ -553,6 +590,9 @@ export default function CheckoutPage() {
           zipCode: zipCode,
           phone: userData.phone || "",
           paymentMethod: "cashfree",
+          deliveryInstructions: userData.deliveryInstructions || "",
+          saturdayDelivery: userData.saturdayDelivery === true, // Ensure boolean conversion
+          sundayDelivery: userData.sundayDelivery === true // Ensure boolean conversion
         });
 
         setProfileDataLoaded(true);
@@ -734,7 +774,7 @@ export default function CheckoutPage() {
 
   // Calculate total before redemption (same as cart page)
   const totalBeforeRedemption = subtotalAfterDiscount + shipping;
-  
+
   // Apply wallet deductions at the end (same as cart page)
   const total = Math.max(0, totalBeforeRedemption - walletAmount - affiliateWalletAmount);
 
@@ -825,6 +865,9 @@ export default function CheckoutPage() {
         zipCode: zipCode,
         phone: userProfile.phone || "",
         paymentMethod: "cashfree",
+        deliveryInstructions: userProfile.deliveryInstructions || "",
+        saturdayDelivery: userProfile.saturdayDelivery === true, // Ensure boolean
+        sundayDelivery: userProfile.sundayDelivery === true // Ensure boolean
       });
 
       toast({
@@ -867,25 +910,25 @@ export default function CheckoutPage() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        
+
         try {
           // Use Nominatim OpenStreetMap API for reverse geocoding
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
           );
-          
+
           if (!response.ok) throw new Error('Failed to fetch location data');
-          
+
           const data = await response.json();
           const address = data.address;
-          
+
           // Extract and format address details
           const city = address.city || address.town || address.village || address.suburb || '';
           const state = address.state || '';
           const pincode = address.postcode || '';
           const area = address.road || address.neighbourhood || '';
           const landmark = address.amenity || '';
-          
+
           // Update form fields
           setNewAddressData(prev => ({
             ...prev,
@@ -895,7 +938,7 @@ export default function CheckoutPage() {
             area: area,
             landmark: landmark,
           }));
-          
+
           toast({
             title: "Location Detected!",
             description: `${city}, ${state}`,
@@ -912,7 +955,7 @@ export default function CheckoutPage() {
       (error) => {
         console.error('Geolocation error:', error);
         let errorMessage = "Could not access your location";
-        
+
         if (error.code === error.PERMISSION_DENIED) {
           errorMessage = "Location permission denied. Please enable location access in your browser.";
         } else if (error.code === error.POSITION_UNAVAILABLE) {
@@ -920,7 +963,7 @@ export default function CheckoutPage() {
         } else if (error.code === error.TIMEOUT) {
           errorMessage = "Location request timed out.";
         }
-        
+
         toast({
           title: "Location Error",
           description: errorMessage,
@@ -935,9 +978,33 @@ export default function CheckoutPage() {
     );
   };
 
+  const populateFormWithAddress = (address: any) => {
+    setFormData({
+      ...formData,
+      firstName: address.recipientName.split(' ')[0] || "",
+      lastName: address.recipientName.split(' ').slice(1).join(' ') || "",
+      phone: address.phoneNumber || "",
+      address: address.addressLine1 || "",
+      city: address.city || "",
+      state: address.state || "",
+      zipCode: address.pincode || "",
+      saturdayDelivery: address.saturdayDelivery === true, // Populate weekend delivery info as boolean
+      sundayDelivery: address.sundayDelivery === true, // Populate weekend delivery info as boolean
+      deliveryInstructions: address.deliveryInstructions || "", // Populate delivery instructions
+    });
+  };
+
+  const handleAddressSelection = (addressId: number) => {
+    setSelectedAddressId(addressId);
+    const selectedAddress = savedAddresses.find(addr => addr.id === addressId);
+    if (selectedAddress) {
+      populateFormWithAddress(selectedAddress);
+    }
+  };
+
   const handleNewAddressSubmit = async () => {
     // Validate required fields
-    if (!newAddressData.fullName || !newAddressData.mobile || !newAddressData.pincode || 
+    if (!newAddressData.fullName || !newAddressData.mobile || !newAddressData.pincode ||
         !newAddressData.flat || !newAddressData.area || !newAddressData.town || !newAddressData.state) {
       toast({
         title: "Missing Information",
@@ -971,7 +1038,7 @@ export default function CheckoutPage() {
 
     // Build full address
     const fullAddress = `${newAddressData.flat}, ${newAddressData.area}${newAddressData.landmark ? ', ' + newAddressData.landmark : ''}`;
-    
+
     // Split name into first and last
     const [firstName, ...lastNameParts] = newAddressData.fullName.trim().split(' ');
     const lastName = lastNameParts.join(' ') || firstName;
@@ -993,8 +1060,10 @@ export default function CheckoutPage() {
           pincode: newAddressData.pincode,
           country: 'India',
           phoneNumber: newAddressData.mobile,
-          deliveryInstructions: null,
+          deliveryInstructions: newAddressData.deliveryInstructions, // Save delivery instructions
           isDefault: newAddressData.makeDefault,
+          saturdayDelivery: newAddressData.saturdayDelivery, // Save Saturday delivery preference
+          sundayDelivery: newAddressData.sundayDelivery, // Save Sunday delivery preference
         }),
       });
 
@@ -1004,17 +1073,16 @@ export default function CheckoutPage() {
 
       const savedAddress = await response.json();
 
-      // Update form data with new address
-      setFormData({
-        ...formData,
-        firstName: firstName || "",
-        lastName: lastName || "",
-        phone: newAddressData.mobile,
-        address: fullAddress,
-        city: newAddressData.town,
-        state: newAddressData.state,
-        zipCode: newAddressData.pincode,
-      });
+      // Refresh addresses list
+      const addressesResponse = await fetch(`/api/delivery-addresses?userId=${user.id}`);
+      if (addressesResponse.ok) {
+        const updatedAddresses = await addressesResponse.json();
+        setSavedAddresses(updatedAddresses);
+
+        // Select the newly added address
+        setSelectedAddressId(savedAddress.id);
+        populateFormWithAddress(savedAddress);
+      }
 
       // Reset new address form
       setNewAddressData({
@@ -1027,6 +1095,9 @@ export default function CheckoutPage() {
         town: "",
         state: "",
         makeDefault: false,
+        deliveryInstructions: '',
+        saturdayDelivery: false,
+        sundayDelivery: false,
       });
 
       setShowAddAddressDialog(false);
@@ -1177,6 +1248,9 @@ export default function CheckoutPage() {
             promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
             redeemAmount: Math.round(redeemAmount) || 0,
             affiliateWalletAmount: Math.round(affiliateWalletAmount) || 0,
+            deliveryInstructions: formData.deliveryInstructions, // Include general delivery instructions
+            saturdayDelivery: formData.saturdayDelivery, // Include weekend delivery preferences
+            sundayDelivery: formData.sundayDelivery,   // Include weekend delivery preferences
             items: cartItems.map(item => ({
               productId: item.id,
               productName: item.name,
@@ -1409,9 +1483,9 @@ export default function CheckoutPage() {
         paymentMethod = 'Cash on Delivery';
 
         // Check if this is a multi-address order
-        const isMultiAddress = localStorage.getItem('isMultiAddressOrder');
+        const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         const multiAddressItems = localStorage.getItem('multiAddressItems');
-        
+
         let shippingAddressData = fullAddress;
         let itemsData = cartItems.map(item => ({
           productId: item.id,
@@ -1421,10 +1495,11 @@ export default function CheckoutPage() {
           price: item.price,
           cashbackPrice: item.cashbackPrice || null,
           cashbackPercentage: item.cashbackPercentage || null,
+          deliveryInstructions: item.deliveryInstructions || null, // Include delivery instructions
         }));
 
         // If multi-address order, include delivery addresses for each item
-        if (isMultiAddress === 'true' && multiAddressItems) {
+        if (isMultiAddress && multiAddressItems) {
           try {
             const items = JSON.parse(multiAddressItems);
             itemsData = items.map((item: any) => ({
@@ -1438,8 +1513,11 @@ export default function CheckoutPage() {
               deliveryAddress: item.deliveryAddress ? item.deliveryAddress.fullAddress : null,
               recipientName: item.deliveryAddress ? item.deliveryAddress.recipientName : null,
               recipientPhone: item.deliveryAddress ? item.deliveryAddress.phone : null,
+              deliveryInstructions: item.deliveryAddress?.deliveryInstructions || null, // Include delivery instructions from the address
+              saturdayDelivery: item.deliveryAddress?.saturdayDelivery, // Include weekend delivery preferences from address
+              sundayDelivery: item.deliveryAddress?.sundayDelivery,   // Include weekend delivery preferences from address
             }));
-            
+
             // For multi-address orders, use first address or a combined note
             shippingAddressData = "Multiple Delivery Addresses - See individual items";
           } catch (error) {
@@ -1452,13 +1530,16 @@ export default function CheckoutPage() {
           totalAmount: Math.round(total), // Round to integer
           paymentMethod: paymentMethod,
           shippingAddress: shippingAddressData,
-          isMultiAddress: isMultiAddress === 'true',
+          isMultiAddress: isMultiAddress,
           affiliateCode: formData.affiliateCode || passedAffiliateCode || null,
           affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
           promoCode: appliedPromo?.code || null,
           promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
           redeemAmount: Math.round(redeemAmount) || 0,
           affiliateWalletAmount: Math.round(affiliateWalletAmount) || 0,
+          deliveryInstructions: formData.deliveryInstructions, // Include general delivery instructions from the main form
+          saturdayDelivery: formData.saturdayDelivery, // Include weekend delivery preferences
+          sundayDelivery: formData.sundayDelivery,   // Include weekend delivery preferences
           items: itemsData,
           customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
           customerEmail: formData.email.trim(),
@@ -1531,6 +1612,7 @@ export default function CheckoutPage() {
           localStorage.removeItem("isMultiAddressOrder");
           localStorage.removeItem("multiAddressItems");
           localStorage.removeItem("multiAddressMapping");
+          localStorage.removeItem("multipleAddressMode"); // Remove this flag too
           sessionStorage.removeItem('pendingOrder');
           localStorage.setItem("cartCount", "0");
           window.dispatchEvent(new Event("cartUpdated"));
@@ -1625,7 +1707,7 @@ export default function CheckoutPage() {
           <div className="text-center py-16">
             <User className="mx-auto h-24 w-24 text-gray-300 mb-6" />
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h2>
-            <p className="text-gray-600 mb-8">Please login or create an account to proceed with checkout.</p>
+            <p className="text-gray-600 mb-8">Please log in or create an account to proceed with checkout.</p>
             <div className="flex gap-4 justify-center">
               <Link href="/auth/login">
                 <Button className="bg-red-600 hover:bg-red-700">
@@ -1750,7 +1832,7 @@ export default function CheckoutPage() {
         <form onSubmit={handlePlaceOrder}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-6">
-     
+
 
               <Card>
                 <CardHeader>
@@ -1762,65 +1844,257 @@ export default function CheckoutPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Saved Address Section */}
-                  {userProfile && userProfile.address && (
+                  {/* Saved Addresses Section */}
+                  {savedAddresses.length > 0 && (
                     <div className="space-y-3">
-                      <h3 className="font-semibold text-gray-900">Delivery addresses (1)</h3>
+                      <h3 className="font-semibold text-gray-900">Delivery addresses ({savedAddresses.length})</h3>
 
-                      <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-start space-x-3">
-                          <input
-                            type="radio"
-                            name="savedAddress"
-                            checked={true}
-                            className="mt-1"
-                            readOnly
-                          />
-                          <div className="flex-1">
-                            <p className="font-semibold text-gray-900">
-                              {userProfile.firstName} {userProfile.lastName}
-                            </p>
-                            <p className="text-gray-700 mt-1">{formData.address}</p>
-                            <p className="text-gray-700">
-                              {formData.city}, {formData.state}, {formData.zipCode}, India
-                            </p>
-                            {formData.phone && (
-                              <p className="text-gray-700 mt-1">Phone number: {formData.phone}</p>
-                            )}
-                            <div className="flex gap-3 mt-2 text-sm">
-                              <button
-                                type="button"
-                                className="text-blue-600 hover:text-blue-700 hover:underline"
-                                onClick={() => setShowProfileDialog(true)}
-                              >
-                                Edit address
-                              </button>
-                              <span className="text-gray-300">|</span>
-                              <button
-                                type="button"
-                                className="text-blue-600 hover:text-blue-700 hover:underline"
-                              >
-                                Add delivery instructions
-                              </button>
+                      {savedAddresses.map((address) => (
+                        <div
+                          key={address.id}
+                          className={`border-2 rounded-lg p-3 transition-colors cursor-pointer ${
+                            selectedAddressId === address.id
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => handleAddressSelection(address.id)}
+                        >
+                          <div className="flex items-start space-x-2.5">
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                              selectedAddressId === address.id
+                                ? 'bg-blue-600'
+                                : 'border-2 border-gray-300'
+                            }`}>
+                              {selectedAddressId === address.id && (
+                                <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm text-gray-900 truncate">
+                                {address.recipientName}
+                              </p>
+                              <p className="text-xs text-gray-700 mt-0.5 line-clamp-2">{address.addressLine1}</p>
+                              {address.addressLine2 && (
+                                <p className="text-xs text-gray-700 line-clamp-1">{address.addressLine2}</p>
+                              )}
+                              <p className="text-xs text-gray-700 mt-0.5">
+                                {address.city}, {address.state}, {address.pincode}
+                              </p>
+                              <p className="text-xs text-gray-600 mt-0.5">Ph: {address.phoneNumber}</p>
+                              <div className="flex gap-2 mt-2 text-xs">
+                                <button
+                                  type="button"
+                                  className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Edit functionality can be added here
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <span className="text-gray-400">|</span>
+                                <Dialog open={showInstructionsDialog} onOpenChange={setShowInstructionsDialog}>
+                                  <DialogTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="text-blue-600 hover:text-blue-700 text-sm hover:underline block"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowInstructionsDialog(true);
+                                        // Pre-fill form with current address's data
+                                        setFormData(prev => ({
+                                          ...prev,
+                                          saturdayDelivery: address.saturdayDelivery,
+                                          sundayDelivery: address.sundayDelivery,
+                                          deliveryInstructions: address.deliveryInstructions || ''
+                                        }));
+                                      }}
+                                    >
+                                      Add delivery instructions
+                                    </button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-2xl">
+                                    <DialogHeader>
+                                      <DialogTitle>Add delivery instructions</DialogTitle>
+                                      <DialogDescription>
+                                        Your instructions help us deliver your packages to your expectations and will be used when possible.
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-4 pt-4">
+                                      <div className="bg-gray-50 p-3 rounded-lg">
+                                        <p className="font-semibold text-sm">{address.recipientName}</p>
+                                        <p className="text-sm text-gray-700">{address.addressLine1}</p>
+                                        {address.addressLine2 && <p className="text-sm text-gray-700">{address.addressLine2}</p>}
+                                        <p className="text-sm text-gray-700">
+                                          {address.city}, {address.state}, {address.pincode}, India</p>
+                                      </div>
+
+                                      <div className="space-y-4">
+                                        <h4 className="font-medium">Can you receive deliveries at this address on weekends?</h4>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                          <div>
+                                            <Label className="text-sm mb-2 block">Saturdays</Label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <Button
+                                                type="button"
+                                                variant={formData.saturdayDelivery === false ? 'default' : 'outline'}
+                                                className="w-full"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  setFormData(prev => ({ ...prev, saturdayDelivery: false }));
+                                                }}
+                                              >
+                                                No
+                                              </Button>
+                                              <Button
+                                                type="button"
+                                                variant={formData.saturdayDelivery === true ? 'default' : 'outline'}
+                                                className="w-full"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  setFormData(prev => ({ ...prev, saturdayDelivery: true }));
+                                                }}
+                                              >
+                                                Yes
+                                              </Button>
+                                            </div>
+                                          </div>
+
+                                          <div>
+                                            <Label className="text-sm mb-2 block">Sundays</Label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <Button
+                                                type="button"
+                                                variant={formData.sundayDelivery === false ? 'default' : 'outline'}
+                                                className="w-full"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  setFormData(prev => ({ ...prev, sundayDelivery: false }));
+                                                }}
+                                              >
+                                                No
+                                              </Button>
+                                              <Button
+                                                type="button"
+                                                variant={formData.sundayDelivery === true ? 'default' : 'outline'}
+                                                className="w-full"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  setFormData(prev => ({ ...prev, sundayDelivery: true }));
+                                                }}
+                                              >
+                                                Yes
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div>
+                                        <h4 className="font-medium mb-2">Do we need additional instructions to deliver to this address?</h4>
+                                        <Label className="text-sm mb-2 block">Delivery instructions</Label>
+                                        <Textarea
+                                          placeholder="Provide details such as building description, a nearby landmark, or other navigation instructions."
+                                          rows={4}
+                                          className="resize-none"
+                                          value={formData.deliveryInstructions || ''}
+                                          onChange={(e) => {
+                                            setFormData(prev => ({
+                                              ...prev,
+                                              deliveryInstructions: e.target.value
+                                            }));
+                                          }}
+                                        />
+                                        <p className="text-xs text-gray-500 mt-2">
+                                          Your instructions help us deliver your packages to your expectations and will be used when possible.
+                                        </p>
+                                      </div>
+
+                                      <Button
+                                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            // Update address with delivery instructions
+                                            await fetch(`/api/delivery-addresses/${address.id}`, {
+                                              method: 'PUT',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({
+                                                saturdayDelivery: formData.saturdayDelivery,
+                                                sundayDelivery: formData.sundayDelivery,
+                                                deliveryInstructions: formData.deliveryInstructions
+                                              })
+                                            });
+
+                                            toast({
+                                              title: "Instructions Saved",
+                                              description: "Your delivery instructions have been saved for this address"
+                                            });
+
+                                            // Close dialog
+                                            setShowInstructionsDialog(false);
+                                          } catch (error) {
+                                            toast({
+                                              title: "Error",
+                                              description: "Failed to save instructions",
+                                              variant: "destructive"
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        Save instructions
+                                      </Button>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
+                      ))}
 
                       <div className="space-y-2">
                         <button
                           type="button"
                           onClick={() => {
+                            // Store only essential cart data to avoid localStorage quota
+                            const minimalCartData = cartItems.map(item => ({
+                              id: item.id,
+                              name: item.name,
+                              quantity: item.quantity,
+                              price: item.price,
+                              image: item.image
+                            }));
                             localStorage.setItem('multipleAddressMode', 'true');
-                            localStorage.setItem('checkoutCartItems', JSON.stringify(cartItems));
+                            localStorage.setItem('checkoutCartItems', JSON.stringify(minimalCartData));
                             setLocation('/select-delivery-address');
                           }}
                           className="text-blue-600 hover:text-blue-700 text-sm hover:underline block"
                         >
                           Deliver to multiple addresses
                         </button>
-                        
-                        <Dialog open={showAddAddressDialog} onOpenChange={setShowAddAddressDialog}>
+
+                        <Dialog open={showAddAddressDialog} onOpenChange={(open) => {
+                          setShowAddAddressDialog(open);
+                          // Reset form when opening dialog
+                          if (open) {
+                            setNewAddressData({
+                              fullName: "",
+                              mobile: "",
+                              pincode: "",
+                              flat: "",
+                              area: "",
+                              landmark: "",
+                              town: "",
+                              state: "",
+                              makeDefault: false,
+                              deliveryInstructions: '', // Reset new address instructions
+                              saturdayDelivery: false, // Reset new address weekend delivery
+                              sundayDelivery: false,  // Reset new address weekend delivery
+                            });
+                          }
+                        }}>
                           <DialogTrigger asChild>
                             <button
                               type="button"
@@ -1838,10 +2112,10 @@ export default function CheckoutPage() {
                                 <MapPin className="h-4 w-4 text-blue-600 mt-0.5" />
                                 <div>
                                   <p className="text-sm font-medium text-blue-900">Save time. Autofill your current location.</p>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="mt-2" 
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-2"
                                     type="button"
                                     onClick={handleAutofillLocation}
                                   >
@@ -1865,63 +2139,63 @@ export default function CheckoutPage() {
 
                               <div>
                                 <Label htmlFor="newFullName">Full name (First and Last name) *</Label>
-                                <Input 
-                                  id="newFullName" 
+                                <Input
+                                  id="newFullName"
                                   value={newAddressData.fullName}
                                   onChange={(e) => setNewAddressData({...newAddressData, fullName: e.target.value})}
-                                  required 
+                                  required
                                 />
                               </div>
 
                               <div>
                                 <Label htmlFor="newMobile">Mobile number *</Label>
-                                <Input 
-                                  id="newMobile" 
+                                <Input
+                                  id="newMobile"
                                   placeholder="May be used to assist delivery"
                                   value={newAddressData.mobile}
                                   onChange={(e) => setNewAddressData({...newAddressData, mobile: e.target.value})}
                                   maxLength={10}
-                                  required 
+                                  required
                                 />
                               </div>
 
                               <div>
                                 <Label htmlFor="newPincode">Pincode *</Label>
-                                <Input 
-                                  id="newPincode" 
+                                <Input
+                                  id="newPincode"
                                   placeholder="6 digits [0-9] PIN code"
                                   value={newAddressData.pincode}
                                   onChange={(e) => setNewAddressData({...newAddressData, pincode: e.target.value})}
                                   maxLength={6}
-                                  required 
+                                  required
                                 />
                               </div>
 
                               <div>
                                 <Label htmlFor="newFlat">Flat, House no., Building, Company, Apartment *</Label>
-                                <Input 
+                                <Input
                                   id="newFlat"
                                   value={newAddressData.flat}
                                   onChange={(e) => setNewAddressData({...newAddressData, flat: e.target.value})}
-                                  required 
+                                  required
                                 />
                               </div>
 
                               <div>
                                 <Label htmlFor="newArea">Area, Street, Sector, Village *</Label>
-                                <Input 
-                                  id="newArea" 
+                                <Input
+                                  id="newArea"
                                   placeholder="e.g., hawa, nandpuri colony"
                                   value={newAddressData.area}
                                   onChange={(e) => setNewAddressData({...newAddressData, area: e.target.value})}
-                                  required 
+                                  required
                                 />
                               </div>
 
                               <div>
                                 <Label htmlFor="newLandmark">Landmark</Label>
-                                <Input 
-                                  id="newLandmark" 
+                                <Input
+                                  id="newLandmark"
                                   placeholder="E.g. near apollo hospital"
                                   value={newAddressData.landmark}
                                   onChange={(e) => setNewAddressData({...newAddressData, landmark: e.target.value})}
@@ -1931,11 +2205,11 @@ export default function CheckoutPage() {
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <Label htmlFor="newTown">Town/City *</Label>
-                                  <Input 
+                                  <Input
                                     id="newTown"
                                     value={newAddressData.town}
                                     onChange={(e) => setNewAddressData({...newAddressData, town: e.target.value})}
-                                    required 
+                                    required
                                   />
                                 </div>
                                 <div>
@@ -1981,9 +2255,9 @@ export default function CheckoutPage() {
                               </div>
 
                               <div className="flex items-center space-x-2">
-                                <input 
-                                  type="checkbox" 
-                                  id="makeDefault" 
+                                <input
+                                  type="checkbox"
+                                  id="makeDefault"
                                   className="rounded"
                                   checked={newAddressData.makeDefault}
                                   onChange={(e) => setNewAddressData({...newAddressData, makeDefault: e.target.checked})}
@@ -1993,12 +2267,20 @@ export default function CheckoutPage() {
                                 </Label>
                               </div>
 
-                              <div className="bg-gray-50 p-3 rounded-lg">
+                              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                                 <p className="text-sm font-semibold mb-2">Add delivery instructions (optional)</p>
-                                <p className="text-xs text-gray-600">Preferences are used to plan your delivery. However, shipments can sometimes arrive early or later than planned.</p>
+                                <Textarea
+                                  placeholder="E.g., Leave at door, Ring bell twice, Call before delivery..."
+                                  rows={3}
+                                  className="mt-2 resize-none"
+                                  onChange={(e) => {
+                                    setNewAddressData({...newAddressData, deliveryInstructions: e.target.value});
+                                  }}
+                                />
+                                <p className="text-xs text-gray-600 mt-2">Preferences are used to plan your delivery. However, shipments can sometimes arrive early or later than planned.</p>
                               </div>
 
-                              <Button 
+                              <Button
                                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
                                 type="button"
                                 onClick={handleNewAddressSubmit}
@@ -2008,352 +2290,354 @@ export default function CheckoutPage() {
                             </div>
                           </DialogContent>
                         </Dialog>
-                       
+
                       </div>
 
-                     
+
                     </div>
                   )}
 
                   {/* Manual Address Entry (fallback) */}
                   {(!userProfile || !userProfile.address) && (
-                    <>
+                    <div>
+                      <Label htmlFor="address">Address *</Label>
+                      <Textarea
+                        id="address"
+                        name="address"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                  )}
+                  {(!userProfile || !userProfile.address) && (
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="address">Address *</Label>
-                        <Textarea
-                          id="address"
-                          name="address"
-                          value={formData.address}
-                          onChange={handleInputChange}
-                          required
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="city">City *</Label>
-                          <select
-                            id="city"
-                            name="city"
-                            value={formData.city}
-                            onChange={handleInputChange}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            required
-                          >
-                            <option value="">Select City</option>
-                            <option value="mumbai">Mumbai</option>
-                            <option value="delhi">Delhi</option>
-                            <option value="bangalore">Bangalore</option>
-                            <option value="hyderabad">Hyderabad</option>
-                            <option value="ahmedabad">Ahmedabad</option>
-                            <option value="chennai">Chennai</option>
-                            <option value="kolkata">Kolkata</option>
-                            <option value="pune">Pune</option>
-                            <option value="jaipur">Jaipur</option>
-                            <option value="lucknow">Lucknow</option>
-                            <option value="kanpur">Kanpur</option>
-                            <option value="nagpur">Nagpur</option>
-                            <option value="surat">Surat</option>
-                            <option value="indore">Indore</option>
-                            <option value="thane">Thane</option>
-                            <option value="bhopal">Bhopal</option>
-                            <option value="visakhapatnam">Visakhapatnam</option>
-                            <option value="patna">Patna</option>
-                            <option value="vadodara">Vadodara</option>
-                            <option value="ghaziabad">Ghaziabad</option>
-                            <option value="ludhiana">Ludhiana</option>
-                            <option value="agra">Agra</option>
-                            <option value="nashik">Nashik</option>
-                            <option value="faridabad">Faridabad</option>
-                            <option value="meerut">Meerut</option>
-                            <option value="rajkot">Rajkot</option>
-                            <option value="kalyan">Kalyan</option>
-                            <option value="vasai">Vasai</option>
-                            <option value="varanasi">Varanasi</option>
-                            <option value="srinagar">Srinagar</option>
-                            <option value="aurangabad">Aurangabad</option>
-                            <option value="dhanbad">Dhanbad</option>
-                            <option value="amritsar">Amritsar</option>
-                            <option value="navi_mumbai">Navi Mumbai</option>
-                            <option value="allahabad">Allahabad</option>
-                            <option value="ranchi">Ranchi</option>
-                            <option value="howrah">Howrah</option>
-                            <option value="coimbatore">Coimbatore</option>
-                            <option value="jabalpur">Jabalpur</option>
-                            <option value="gwalior">Gwalior</option>
-                            <option value="vijayawada">Vijayawada</option>
-                            <option value="jodhpur">Jodhpur</option>
-                            <option value="madurai">Madurai</option>
-                            <option value="raipur">Raipur</option>
-                            <option value="kota">Kota</option>
-                            <option value="guwahati">Guwahati</option>
-                            <option value="chandigarh">Chandigarh</option>
-                            <option value="solapur">Solapur</option>
-                            <option value="hubli">Hubli</option>
-                            <option value="tiruchirappalli">Tiruchirappalli</option>
-                            <option value="bareilly">Bareilly</option>
-                            <option value="mysore">Mysore</option>
-                            <option value="tiruppur">Tiruppur</option>
-                            <option value="gurgaon">Gurgaon</option>
-                            <option value="aligarh">Aligarh</option>
-                            <option value="jalandhar">Jalandhar</option>
-                            <option value="bhubaneswar">Bhubaneswar</option>
-                            <option value="salem">Salem</option>
-                            <option value="warangal">Warangal</option>
-                            <option value="mira_bhayandar">Mira Bhayandar</option>
-                            <option value="thiruvananthapuram">Thiruvananthapuram</option>
-                            <option value="bhiwandi">Bhiwandi</option>
-                            <option value="saharanpur">Saharanpur</option>
-                            <option value="guntur">Guntur</option>
-                            <option value="amravati">Amravati</option>
-                            <option value="bikaner">Bikaner</option>
-                            <option value="noida">Noida</option>
-                            <option value="jamshedpur">Jamshedpur</option>
-                            <option value="bhilai_nagar">Bhilai Nagar</option>
-                            <option value="cuttack">Cuttack</option>
-                            <option value="firozabad">Firozabad</option>
-                            <option value="kochi">Kochi</option>
-                            <option value="nellore">Nellore</option>
-                            <option value="bhavnagar">Bhavnagar</option>
-                            <option value="dehradun">Dehradun</option>
-                            <option value="durgapur">Durgapur</option>
-                            <option value="asansol">Asansol</option>
-                            <option value="rourkela">Rourkela</option>
-                            <option value="nanded">Nanded</option>
-                            <option value="kolhapur">Kolhapur</option>
-                            <option value="ajmer">Ajmer</option>
-                            <option value="akola">Akola</option>
-                            <option value="gulbarga">Gulbarga</option>
-                            <option value="jamnagar">Jamnagar</option>
-                            <option value="ujjain">Ujjain</option>
-                            <option value="loni">Loni</option>
-                            <option value="siliguri">Siliguri</option>
-                            <option value="jhansi">Jhansi</option>
-                            <option value="ulhasnagar">Ulhasnagar</option>
-                            <option value="jammu">Jammu</option>
-                            <option value="sangli_miraj_kupwad">Sangli Miraj Kupwad</option>
-                            <option value="mangalore">Mangalore</option>
-                            <option value="erode">Erode</option>
-                            <option value="belgaum">Belgaum</option>
-                            <option value="ambattur">Ambattur</option>
-                            <option value="tirunelveli">Tirunelveli</option>
-                            <option value="malegaon">Malegaon</option>
-                            <option value="gaya">Gaya</option>
-                            <option value="jalgaon">Jalgaon</option>
-                            <option value="udaipur">Udaipur</option>
-                            <option value="maheshtala">Maheshtala</option>
-                            <option value="davanagere">Davanagere</option>
-                            <option value="kozhikode">Kozhikode</option>
-                            <option value="kurnool">Kurnool</option>
-                            <option value="rajpur_sonarpur">Rajpur Sonarpur</option>
-                            <option value="rajahmundry">Rajahmundry</option>
-                            <option value="bokaro_steel_city">Bokaro Steel City</option>
-                            <option value="south_dumdum">South Dumdum</option>
-                            <option value="bellary">Bellary</option>
-                            <option value="patiala">Patiala</option>
-                            <option value="gopalpur">Gopalpur</option>
-                            <option value="agartala">Agartala</option>
-                            <option value="bhagalpur">Bhagalpur</option>
-                            <option value="muzaffarnagar">Muzaffarnagar</option>
-                            <option value="bhatpara">Bhatpara</option>
-                            <option value="latur">Latur</option>
-                            <option value="dhule">Dhule</option>
-                            <option value="rohtak">Rohtak</option>
-                            <option value="korba">Korba</option>
-                            <option value="bhilwara">Bhilwara</option>
-                            <option value="berhampur">Berhampur</option>
-                            <option value="muzaffarpur">Muzaffarpur</option>
-                            <option value="ahmednagar">Ahmednagar</option>
-                            <option value="mathura">Mathura</option>
-                            <option value="kollam">Kollam</option>
-                            <option value="avadi">Avadi</option>
-                            <option value="kadapa">Kadapa</option>
-                            <option value="kamarhati">Kamarhati</option>
-                            <option value="sambalpur">Sambalpur</option>
-                            <option value="bilaspur">Bilaspur</option>
-                            <option value="shahjahanpur">Shahjahanpur</option>
-                            <option value="satara">Satara</option>
-                            <option value="bijapur">Bijapur</option>
-                            <option value="rampur">Rampur</option>
-                            <option value="shivamogga">Shivamogga</option>
-                            <option value="chandrapur">Chandrapur</option>
-                            <option value="junagadh">Junagadh</option>
-                            <option value="thrissur">Thrissur</option>
-                            <option value="alwar">Alwar</option>
-                            <option value="bardhaman">Bardhaman</option>
-                            <option value="kulti">Kulti</option>
-                            <option value="kakinada">Kakinada</option>
-                            <option value="nizamabad">Nizamabad</option>
-                            <option value="parbhani">Parbhani</option>
-                            <option value="tumkur">Tumkur</option>
-                            <option value="khammam">Khammam</option>
-                            <option value="ozhukarai">Ozhukarai</option>
-                            <option value="bihar_sharif">Bihar Sharif</option>
-                            <option value="panipat">Panipat</option>
-                            <option value="darbhanga">Darbhanga</option>
-                            <option value="bally">Bally</option>
-                            <option value="aizawl">Aizawl</option>
-                            <option value="dewas">Dewas</option>
-                            <option value="ichalkaranji">Ichalkaranji</option>
-                            <option value="karnal">Karnal</option>
-                            <option value="bathinda">Bathinda</option>
-                            <option value="jalna">Jalna</option>
-                            <option value="eluru">Eluru</option>
-                            <option value="kirari_suleman_nagar">Kirari Suleman Nagar</option>
-                            <option value="barasat">Barasat</option>
-                            <option value="purnia">Purnia</option>
-                            <option value="satna">Satna</option>
-                            <option value="mau">Mau</option>
-                            <option value="sonipat">Sonipat</option>
-                            <option value="farrukhabad">Farrukhabad</option>
-                            <option value="sagar">Sagar</option>
-                            <option value="durg">Durg</option>
-                            <option value="imphal">Imphal</option>
-                            <option value="ratlam">Ratlam</option>
-                            <option value="hapur">Hapur</option>
-                            <option value="arrah">Arrah</option>
-                            <option value="karimnagar">Karimnagar</option>
-                            <option value="anantapur">Anantapur</option>
-                            <option value="etawah">Etawah</option>
-                            <option value="ambernath">Ambernath</option>
-                            <option value="north_dumdum">North Dumdum</option>
-                            <option value="bharatpur">Bharatpur</option>
-                            <option value="begusarai">Begusarai</option>
-                            <option value="new_delhi">New Delhi</option>
-                            <option value="gandhidham">Gandhidham</option>
-                            <option value="baranagar">Baranagar</option>
-                            <option value="tiruvottiyur">Tiruvottiyur</option>
-                            <option value="puducherry">Pondicherry</option>
-                            <option value="sikar">Sikar</option>
-                            <option value="thoothukudi">Thoothukudi</option>
-                            <option value="rewa">Rewa</option>
-                            <option value="mirzapur">Mirzapur</option>
-                            <option value="raichur">Raichur</option>
-                            <option value="pali">Pali</option>
-                            <option value="ramagundam">Ramagundam</option>
-                            <option value="haridwar">Haridwar</option>
-                            <option value="vijayanagaram">Vijayanagaram</option>
-                            <option value="katihar">Katihar</option>
-                            <option value="kharagpur">Kharagpur</option>
-                            <option value="dindigul">Dindigul</option>
-                            <option value="gandhinagar">Gandhinagar</option>
-                            <option value="hospet">Hospet</option>
-                            <option value="nangloi_jat">Nangloi Jat</option>
-                            <option value="malda">Malda</option>
-                            <option value="ongole">Ongole</option>
-                            <option value="deoghar">Deoghar</option>
-                            <option value="chapra">Chapra</option>
-                            <option value="haldia">Haldia</option>
-                            <option value="khandwa">Khandwa</option>
-                            <option value="nandyal">Nandyal</option>
-                            <option value="chittoor">Chittoor</option>
-                            <option value="morbi">Morbi</option>
-                            <option value="amroha">Amroha</option>
-                            <option value="anand">Anand</option>
-                            <option value="bhusawal">Bhusawal</option>
-                            <option value="orai">Orai</option>
-                            <option value="bahraich">Bahraich</option>
-                            <option value="vellore">Vellore</option>
-                            <option value="mahesana">Mahesana</option>
-                            <option value="sambalpur">Sambalpur</option>
-                            <option value="raiganj">Raiganj</option>
-                            <option value="sirsa">Sirsa</option>
-                            <option value="danapur">Danapur</option>
-                            <option value="serampore">Serampore</option>
-                            <option value="sultan_pur_majra">Sultan Pur Majra</option>
-                            <option value="guna">Guna</option>
-                            <option value="jaunpur">Jaunpur</option>
-                            <option value="panvel">Panvel</option>
-                            <option value="shillong">Shillong</option>
-                            <option value="tenali">Tenali</option>
-                            <option value="khora">Khora</option>
-                            <option value="guntakal">Guntakal</option>
-                            <option value="puri">Puri</option>
-                            <option value="compiegne">Compiegne</option>
-                            <option value="kishanganj">Kishanganj</option>
-                            <option value="supaul">Supaul</option>
-                            <option value="godda">Godda</option>
-                            <option value="hazaribagh">Hazaribagh</option>
-                            <option value="pakur">Pakur</option>
-                            <option value="paschim_bardhaman">Paschim Bardhaman</option>
-                            <option value="dharwad">Dharwad</option>
-                            <option value="medininagar">Medininagar</option>
-                          </select>
-                        </div>
-                        <div>
-                          <Label htmlFor="state">State *</Label>
-                          <select
-                            id="state"
-                            name="state"
-                            value={formData.state}
-                            onChange={handleInputChange}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            required
-                          >
-                            <option value="">Select State</option>
-                            <option value="andhra_pradesh">Andhra Pradesh</option>
-                            <option value="arunachal_pradesh">Arunachal Pradesh</option>
-                            <option value="assam">Assam</option>
-                            <option value="bihar">Bihar</option>
-                            <option value="chhattisgarh">Chhattisgarh</option>
-                            <option value="goa">Goa</option>
-                            <option value="gujarat">Gujarat</option>
-                            <option value="haryana">Haryana</option>
-                            <option value="himachal_pradesh">Himachal Pradesh</option>
-                            <option value="jharkhand">Jharkhand</option>
-                            <option value="karnataka">Karnataka</option>
-                            <option value="kerala">Kerala</option>
-                            <option value="madhya_pradesh">Madhya Pradesh</option>
-                            <option value="maharashtra">Maharashtra</option>
-                            <option value="manipur">Manipur</option>
-                            <option value="meghalaya">Meghalaya</option>
-                            <option value="mizoram">Mizoram</option>
-                            <option value="nagaland">Nagaland</option>
-                            <option value="odisha">Odisha</option>
-                            <option value="punjab">Punjab</option>
-                            <option value="rajasthan">Rajasthan</option>
-                            <option value="sikkim">Sikkim</option>
-                            <option value="tamil_nadu">Tamil Nadu</option>
-                            <option value="telangana">Telangana</option>
-                            <option value="tripura">Tripura</option>
-                            <option value="uttar_pradesh">Uttar Pradesh</option>
-                            <option value="uttarakhand">Uttarakhand</option>
-                            <option value="west_bengal">West Bengal</option>
-                            <option value="andaman_and_nicobar">Andaman and Nicobar Islands</option>
-                            <option value="chandigarh">Chandigarh</option>
-                            <option value="dadra_and_nagar_haveli">Dadra and Nagar Haveli and Daman and Diu</option>
-                            <option value="delhi">Delhi</option>
-                            <option value="jammu_and_kashmir">Jammu and Kashmir</option>
-                            <option value="ladakh">Ladakh</option>
-                            <option value="lakshadweep">Lakshadweep</option>
-                            <option value="puducherry">Puducherry</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="zipCode">PIN Code *</Label>
+                        <Label htmlFor="city">City *</Label>
                         <select
-                          id="zipCode"
-                          name="zipCode"
-                          value={formData.zipCode}
+                          id="city"
+                          name="city"
+                          value={formData.city}
                           onChange={handleInputChange}
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           required
-                          disabled={!formData.city}
                         >
-                          <option value="">
-                            {formData.city ? "Select PIN Code" : "Select city first"}
-                          </option>
-                          {getAvailablePincodes().map((pincode) => (
-                            <option key={pincode} value={pincode}>
-                              {pincode}
-                            </option>
-                          ))}
+                          <option value="">Select City</option>
+                          <option value="mumbai">Mumbai</option>
+                          <option value="delhi">Delhi</option>
+                          <option value="bangalore">Bangalore</option>
+                          <option value="hyderabad">Hyderabad</option>
+                          <option value="ahmedabad">Ahmedabad</option>
+                          <option value="chennai">Chennai</option>
+                          <option value="kolkata">Kolkata</option>
+                          <option value="pune">Pune</option>
+                          <option value="jaipur">Jaipur</option>
+                          <option value="lucknow">Lucknow</option>
+                          <option value="kanpur">Kanpur</option>
+                          <option value="nagpur">Nagpur</option>
+                          <option value="surat">Surat</option>
+                          <option value="indore">Indore</option>
+                          <option value="thane">Thane</option>
+                          <option value="bhopal">Bhopal</option>
+                          <option value="visakhapatnam">Visakhapatnam</option>
+                          <option value="patna">Patna</option>
+                          <option value="vadodara">Vadodara</option>
+                          <option value="ghaziabad">Ghaziabad</option>
+                          <option value="ludhiana">Ludhiana</option>
+                          <option value="agra">Agra</option>
+                          <option value="nashik">Nashik</option>
+                          <option value="faridabad">Faridabad</option>
+                          <option value="meerut">Meerut</option>
+                          <option value="rajkot">Rajkot</option>
+                          <option value="kalyan">Kalyan</option>
+                          <option value="vasai">Vasai</option>
+                          <option value="varanasi">Varanasi</option>
+                          <option value="srinagar">Srinagar</option>
+                          <option value="aurangabad">Aurangabad</option>
+                          <option value="dhanbad">Dhanbad</option>
+                          <option value="amritsar">Amritsar</option>
+                          <option value="navi_mumbai">Navi Mumbai</option>
+                          <option value="allahabad">Allahabad</option>
+                          <option value="ranchi">Ranchi</option>
+                          <option value="howrah">Howrah</option>
+                          <option value="coimbatore">Coimbatore</option>
+                          <option value="jabalpur">Jabalpur</option>
+                          <option value="gwalior">Gwalior</option>
+                          <option value="vijayawada">Vijayawada</option>
+                          <option value="jodhpur">Jodhpur</option>
+                          <option value="madurai">Madurai</option>
+                          <option value="raipur">Raipur</option>
+                          <option value="kota">Kota</option>
+                          <option value="guwahati">Guwahati</option>
+                          <option value="chandigarh">Chandigarh</option>
+                          <option value="solapur">Solapur</option>
+                          <option value="hubli">Hubli</option>
+                          <option value="tiruchirappalli">Tiruchirappalli</option>
+                          <option value="bareilly">Bareilly</option>
+                          <option value="mysore">Mysore</option>
+                          <option value="tiruppur">Tiruppur</option>
+                          <option value="gurgaon">Gurgaon</option>
+                          <option value="aligarh">Aligarh</option>
+                          <option value="jalandhar">Jalandhar</option>
+                          <option value="bhubaneswar">Bhubaneswar</option>
+                          <option value="salem">Salem</option>
+                          <option value="warangal">Warangal</option>
+                          <option value="mira_bhayandar">Mira Bhayandar</option>
+                          <option value="thiruvananthapuram">Thiruvananthapuram</option>
+                          <option value="bhiwandi">Bhiwandi</option>
+                          <option value="saharanpur">Saharanpur</option>
+                          <option value="guntur">Guntur</option>
+                          <option value="amravati">Amravati</option>
+                          <option value="bikaner">Bikaner</option>
+                          <option value="noida">Noida</option>
+                          <option value="jamshedpur">Jamshedpur</option>
+                          <option value="bhilai_nagar">Bhilai Nagar</option>
+                          <option value="cuttack">Cuttack</option>
+                          <option value="firozabad">Firozabad</option>
+                          <option value="kochi">Kochi</option>
+                          <option value="nellore">Nellore</option>
+                          <option value="bhavnagar">Bhavnagar</option>
+                          <option value="dehradun">Dehradun</option>
+                          <option value="durgapur">Durgapur</option>
+                          <option value="asansol">Asansol</option>
+                          <option value="rourkela">Rourkela</option>
+                          <option value="nanded">Nanded</option>
+                          <option value="kolhapur">Kolhapur</option>
+                          <option value="ajmer">Ajmer</option>
+                          <option value="akola">Akola</option>
+                          <option value="gulbarga">Gulbarga</option>
+                          <option value="jamnagar">Jamnagar</option>
+                          <option value="ujjain">Ujjain</option>
+                          <option value="loni">Loni</option>
+                          <option value="siliguri">Siliguri</option>
+                          <option value="jhansi">Jhansi</option>
+                          <option value="ulhasnagar">Ulhasnagar</option>
+                          <option value="jammu">Jammu</option>
+                          <option value="sangli_miraj_kupwad">Sangli Miraj Kupwad</option>
+                          <option value="mangalore">Mangalore</option>
+                          <option value="erode">Erode</option>
+                          <option value="belgaum">Belgaum</option>
+                          <option value="ambattur">Ambattur</option>
+                          <option value="tirunelveli">Tirunelveli</option>
+                          <option value="malegaon">Malegaon</option>
+                          <option value="gaya">Gaya</option>
+                          <option value="jalgaon">Jalgaon</option>
+                          <option value="udaipur">Udaipur</option>
+                          <option value="maheshtala">Maheshtala</option>
+                          <option value="davanagere">Davanagere</option>
+                          <option value="kozhikode">Kozhikode</option>
+                          <option value="kurnool">Kurnool</option>
+                          <option value="rajpur_sonarpur">Rajpur Sonarpur</option>
+                          <option value="rajahmundry">Rajahmundry</option>
+                          <option value="bokaro_steel_city">Bokaro Steel City</option>
+                          <option value="south_dumdum">South Dumdum</option>
+                          <option value="bellary">Bellary</option>
+                          <option value="patiala">Patiala</option>
+                          <option value="gopalpur">Gopalpur</option>
+                          <option value="agartala">Agartala</option>
+                          <option value="bhagalpur">Bhagalpur</option>
+                          <option value="muzaffarnagar">Muzaffarnagar</option>
+                          <option value="bhatpara">Bhatpara</option>
+                          <option value="latur">Latur</option>
+                          <option value="dhule">Dhule</option>
+                          <option value="rohtak">Rohtak</option>
+                          <option value="korba">Korba</option>
+                          <option value="bhilwara">Bhilwara</option>
+                          <option value="berhampur">Berhampur</option>
+                          <option value="muzaffarpur">Muzaffarpur</option>
+                          <option value="ahmednagar">Ahmednagar</option>
+                          <option value="mathura">Mathura</option>
+                          <option value="kollam">Kollam</option>
+                          <option value="avadi">Avadi</option>
+                          <option value="kadapa">Kadapa</option>
+                          <option value="kamarhati">Kamarhati</option>
+                          <option value="sambalpur">Sambalpur</option>
+                          <option value="bilaspur">Bilaspur</option>
+                          <option value="shahjahanpur">Shahjahanpur</option>
+                          <option value="satara">Satara</option>
+                          <option value="bijapur">Bijapur</option>
+                          <option value="rampur">Rampur</option>
+                          <option value="shivamogga">Shivamogga</option>
+                          <option value="chandrapur">Chandrapur</option>
+                          <option value="junagadh">Junagadh</option>
+                          <option value="thrissur">Thrissur</option>
+                          <option value="alwar">Alwar</option>
+                          <option value="bardhaman">Bardhaman</option>
+                          <option value="kulti">Kulti</option>
+                          <option value="kakinada">Kakinada</option>
+                          <option value="nizamabad">Nizamabad</option>
+                          <option value="parbhani">Parbhani</option>
+                          <option value="tumkur">Tumkur</option>
+                          <option value="khammam">Khammam</option>
+                          <option value="ozhukarai">Ozhukarai</option>
+                          <option value="bihar_sharif">Bihar Sharif</option>
+                          <option value="panipat">Panipat</option>
+                          <option value="darbhanga">Darbhanga</option>
+                          <option value="bally">Bally</option>
+                          <option value="aizawl">Aizawl</option>
+                          <option value="dewas">Dewas</option>
+                          <option value="ichalkaranji">Ichalkaranji</option>
+                          <option value="karnal">Karnal</option>
+                          <option value="bathinda">Bathinda</option>
+                          <option value="jalna">Jalna</option>
+                          <option value="eluru">Eluru</option>
+                          <option value="kirari_suleman_nagar">Kirari Suleman Nagar</option>
+                          <option value="barasat">Barasat</option>
+                          <option value="purnia">Purnia</option>
+                          <option value="satna">Satna</option>
+                          <option value="mau">Mau</option>
+                          <option value="sonipat">Sonipat</option>
+                          <option value="farrukhabad">Farrukhabad</option>
+                          <option value="sagar">Sagar</option>
+                          <option value="durg">Durg</option>
+                          <option value="imphal">Imphal</option>
+                          <option value="ratlam">Ratlam</option>
+                          <option value="hapur">Hapur</option>
+                          <option value="arrah">Arrah</option>
+                          <option value="karimnagar">Karimnagar</option>
+                          <option value="anantapur">Anantapur</option>
+                          <option value="etawah">Etawah</option>
+                          <option value="ambernath">Ambernath</option>
+                          <option value="north_dumdum">North Dumdum</option>
+                          <option value="bharatpur">Bharatpur</option>
+                          <option value="begusarai">Begusarai</option>
+                          <option value="new_delhi">New Delhi</option>
+                          <option value="gandhidham">Gandhidham</option>
+                          <option value="baranagar">Baranagar</option>
+                          <option value="tiruvottiyur">Tiruvottiyur</option>
+                          <option value="puducherry">Pondicherry</option>
+                          <option value="sikar">Sikar</option>
+                          <option value="thoothukudi">Thoothukudi</option>
+                          <option value="rewa">Rewa</option>
+                          <option value="mirzapur">Mirzapur</option>
+                          <option value="raichur">Raichur</option>
+                          <option value="pali">Pali</option>
+                          <option value="ramagundam">Ramagundam</option>
+                          <option value="haridwar">Haridwar</option>
+                          <option value="vijayanagaram">Vijayanagaram</option>
+                          <option value="katihar">Katihar</option>
+                          <option value="kharagpur">Kharagpur</option>
+                          <option value="dindigul">Dindigul</option>
+                          <option value="gandhinagar">Gandhinagar</option>
+                          <option value="hospet">Hospet</option>
+                          <option value="nangloi_jat">Nangloi Jat</option>
+                          <option value="malda">Malda</option>
+                          <option value="ongole">Ongole</option>
+                          <option value="deoghar">Deoghar</option>
+                          <option value="chapra">Chapra</option>
+                          <option value="haldia">Haldia</option>
+                          <option value="khandwa">Khandwa</option>
+                          <option value="nandyal">Nandyal</option>
+                          <option value="chittoor">Chittoor</option>
+                          <option value="morbi">Morbi</option>
+                          <option value="amroha">Amroha</option>
+                          <option value="anand">Anand</option>
+                          <option value="bhusawal">Bhusawal</option>
+                          <option value="orai">Orai</option>
+                          <option value="bahraich">Bahraich</option>
+                          <option value="vellore">Vellore</option>
+                          <option value="mahesana">Mahesana</option>
+                          <option value="sambalpur">Sambalpur</option>
+                          <option value="raiganj">Raiganj</option>
+                          <option value="sirsa">Sirsa</option>
+                          <option value="danapur">Danapur</option>
+                          <option value="serampore">Serampore</option>
+                          <option value="sultan_pur_majra">Sultan Pur Majra</option>
+                          <option value="guna">Guna</option>
+                          <option value="jaunpur">Jaunpur</option>
+                          <option value="panvel">Panvel</option>
+                          <option value="shillong">Shillong</option>
+                          <option value="tenali">Tenali</option>
+                          <option value="khora">Khora</option>
+                          <option value="guntakal">Guntakal</option>
+                          <option value="puri">Puri</option>
+                          <option value="compiegne">Compiegne</option>
+                          <option value="kishanganj">Kishanganj</option>
+                          <option value="supaul">Supaul</option>
+                          <option value="godda">Godda</option>
+                          <option value="hazaribagh">Hazaribagh</option>
+                          <option value="pakur">Pakur</option>
+                          <option value="paschim_bardhaman">Paschim Bardhaman</option>
+                          <option value="dharwad">Dharwad</option>
+                          <option value="medininagar">Medininagar</option>
                         </select>
-                        {!formData.city && (
-                          <p className="text-xs text-gray-500 mt-1">Please select a city to see available PIN codes</p>
-                        )}
                       </div>
-                    </>
+                      <div>
+                        <Label htmlFor="state">State *</Label>
+                        <select
+                          id="state"
+                          name="state"
+                          value={formData.state}
+                          onChange={handleInputChange}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          required
+                        >
+                          <option value="">Select State</option>
+                          <option value="andhra_pradesh">Andhra Pradesh</option>
+                          <option value="arunachal_pradesh">Arunachal Pradesh</option>
+                          <option value="assam">Assam</option>
+                          <option value="bihar">Bihar</option>
+                          <option value="chhattisgarh">Chhattisgarh</option>
+                          <option value="goa">Goa</option>
+                          <option value="gujarat">Gujarat</option>
+                          <option value="haryana">Haryana</option>
+                          <option value="himachal_pradesh">Himachal Pradesh</option>
+                          <option value="jharkhand">Jharkhand</option>
+                          <option value="karnataka">Karnataka</option>
+                          <option value="kerala">Kerala</option>
+                          <option value="madhya_pradesh">Madhya Pradesh</option>
+                          <option value="maharashtra">Maharashtra</option>
+                          <option value="manipur">Manipur</option>
+                          <option value="meghalaya">Meghalaya</option>
+                          <option value="mizoram">Mizoram</option>
+                          <option value="nagaland">Nagaland</option>
+                          <option value="odisha">Odisha</option>
+                          <option value="punjab">Punjab</option>
+                          <option value="rajasthan">Rajasthan</option>
+                          <option value="sikkim">Sikkim</option>
+                          <option value="tamil_nadu">Tamil Nadu</option>
+                          <option value="telangana">Telangana</option>
+                          <option value="tripura">Tripura</option>
+                          <option value="uttar_pradesh">Uttar Pradesh</option>
+                          <option value="uttarakhand">Uttarakhand</option>
+                          <option value="west_bengal">West Bengal</option>
+                          <option value="andaman_and_nicobar">Andaman and Nicobar Islands</option>
+                          <option value="chandigarh">Chandigarh</option>
+                          <option value="dadra_and_nagar_haveli">Dadra and Nagar Haveli and Daman and Diu</option>
+                          <option value="delhi">Delhi</option>
+                          <option value="jammu_and_kashmir">Jammu and Kashmir</option>
+                          <option value="ladakh">Ladakh</option>
+                          <option value="lakshadweep">Lakshadweep</option>
+                          <option value="puducherry">Puducherry</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  {(!userProfile || !userProfile.address) && (
+                    <div>
+                      <Label htmlFor="zipCode">PIN Code *</Label>
+                      <select
+                        id="zipCode"
+                        name="zipCode"
+                        value={formData.zipCode}
+                        onChange={handleInputChange}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        required
+                        disabled={!formData.city}
+                      >
+                        <option value="">
+                          {formData.city ? "Select PIN Code" : "Select city first"}
+                        </option>
+                        {getAvailablePincodes().map((pincode) => (
+                          <option key={pincode} value={pincode}>
+                            {pincode}
+                          </option>
+                        ))}
+                      </select>
+                      {!formData.city && (
+                        <p className="text-xs text-gray-500 mt-1">Please select a city to see available PIN codes</p>
+                      )}
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -2413,7 +2697,7 @@ export default function CheckoutPage() {
             </div>
 
             <div className="space-y-6">
-            
+
 
               <Card>
                 <CardHeader>
@@ -2426,7 +2710,7 @@ export default function CheckoutPage() {
                       const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                       const multiAddressItems = isMultiAddress ? JSON.parse(localStorage.getItem('multiAddressItems') || '[]') : [];
                       const itemWithAddress = multiAddressItems.find((i: any) => i.id === item.id);
-                      
+
                       return (
                         <div key={item.id} className="border-b pb-4 last:border-b-0 last:pb-0">
                           <div className="flex items-center space-x-4">
@@ -2455,7 +2739,7 @@ export default function CheckoutPage() {
                                 </Badge>
                               )}
                               <p className="text-sm text-gray-600 mt-1">Qty: {item.quantity}</p>
-                              
+
                               {/* Show delivery address for multi-address orders */}
                               {itemWithAddress?.deliveryAddress && (
                                 <div className="mt-2 p-2 bg-gray-50 rounded text-xs">

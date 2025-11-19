@@ -8,6 +8,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 
 interface Offer {
   id: number;
@@ -471,12 +476,51 @@ export default function OfferDetail() {
   const [productShadesData, setProductShadesData] = useState<Record<number, Shade[]>>({});
   const [selectedShades, setSelectedShades] = useState<Record<number, string | null>>({});
   const [shadeSelectorOpen, setShadeSelectorOpen] = useState<number | null>(null);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [newReview, setNewReview] = useState({
+    rating: 5,
+    title: "",
+    comment: "",
+    userName: "",
+  });
+  const [canReview, setCanReview] = useState<{ canReview: boolean; orderId?: number; message: string }>({ canReview: false, message: "" });
   const { toast } = useToast();
 
   const { data: offer, isLoading, error } = useQuery<any>({
     queryKey: [`/api/offers/${offerId}`],
     enabled: !!offerId,
   });
+
+  const { data: reviews = [], isLoading: reviewsLoading } = useQuery<any[]>({
+    queryKey: [`/api/offers/${offerId}/reviews`],
+    enabled: !!offerId,
+  });
+
+  // Check if user can review this offer
+  const { data: reviewEligibility } = useQuery({
+    queryKey: [`/api/offers/${offerId}/can-review`],
+    queryFn: async () => {
+      if (!offerId) return { canReview: false, message: "" };
+
+      const user = localStorage.getItem("user");
+      if (!user) return { canReview: false, message: "Please login to review" };
+
+      const userData = JSON.parse(user);
+      const response = await fetch(`/api/offers/${offerId}/can-review?userId=${userData.id}`);
+      if (!response.ok) {
+        return { canReview: false, message: "Unable to check review eligibility" };
+      }
+      return response.json();
+    },
+    enabled: !!offerId,
+  });
+
+  // Update canReview state when eligibility data changes
+  useEffect(() => {
+    if (reviewEligibility && typeof reviewEligibility === 'object') {
+      setCanReview(reviewEligibility);
+    }
+  }, [reviewEligibility]);
 
   useEffect(() => {
     if (offer?.productIds && offer.productIds.length > 0) {
@@ -531,6 +575,99 @@ export default function OfferDetail() {
         setShowShareDialog(false);
         break;
     }
+  };
+
+  const handleSubmitReview = async () => {
+    const user = localStorage.getItem("user");
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to write a review",
+        variant: "destructive",
+      });
+      window.location.href = "/auth/login";
+      return;
+    }
+
+    if (!canReview.canReview) {
+      toast({
+        title: "Cannot Review",
+        description: canReview.message || "You must purchase this offer to leave a review",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newReview.title.trim() || !newReview.comment.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both a title and comment for your review",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const userData = JSON.parse(user);
+      const response = await fetch(`/api/offers/${offerId}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...newReview,
+          userName: newReview.userName || userData.username || "Anonymous",
+          orderId: canReview.orderId,
+        }),
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Review Submitted",
+          description: "Thank you for your feedback!",
+        });
+        setShowReviewDialog(false);
+        setNewReview({ rating: 5, title: "", comment: "", userName: "" });
+        window.location.reload();
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Error",
+          description: errorData.error || "Failed to submit review",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit review. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const calculateRatingDistribution = () => {
+    const distribution = [0, 0, 0, 0, 0];
+    const reviewsArray = Array.isArray(reviews) ? reviews : [];
+    reviewsArray.forEach((review) => {
+      const rating = Math.round(review.rating);
+      if (rating >= 1 && rating <= 5) {
+        distribution[rating - 1]++;
+      }
+    });
+    return distribution;
+  };
+
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`w-5 h-5 ${
+          i < Math.floor(rating) 
+            ? "fill-yellow-400 text-yellow-400" 
+            : "text-gray-300"
+        }`}
+      />
+    ));
   };
 
   const handleShadeChange = (productId: number, shade: string | null) => {
@@ -1011,9 +1148,325 @@ export default function OfferDetail() {
             </div>
           </div>
         </div>
+
+        {/* Tabs Section */}
+        <div className="mb-8 sm:mb-12 md:mb-16">
+          <Tabs defaultValue="description" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 bg-white/70 backdrop-blur-md rounded-lg sm:rounded-xl md:rounded-2xl p-1 sm:p-1.5 md:p-2 shadow-lg border border-white/20 mb-6 sm:mb-8 gap-0.5 sm:gap-1">
+              <TabsTrigger 
+                value="description" 
+                className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+              >
+                Description
+              </TabsTrigger>
+              <TabsTrigger 
+                value="products" 
+                className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+              >
+                Products
+              </TabsTrigger>
+              <TabsTrigger 
+                value="benefits" 
+                className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+              >
+                Benefits
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="description" className="m-0">
+              <Card className="border-0 shadow-xl sm:shadow-2xl bg-gradient-to-br from-blue-50/80 to-white/80 backdrop-blur-md rounded-xl sm:rounded-3xl border border-white/20">
+                <CardHeader className="pb-4 sm:pb-6">
+                  <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl sm:rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full"></div>
+                    </div>
+                    Detailed Description
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="prose prose-gray max-w-none">
+                    {offer.detailedDescription ? (
+                      <div className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal whitespace-pre-line">
+                        {offer.detailedDescription}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 sm:py-12">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-300 to-indigo-300 rounded-xl sm:rounded-2xl"></div>
+                        </div>
+                        <p className="text-gray-500 text-lg sm:text-xl font-normal">No detailed description available.</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="products" className="m-0">
+              <Card className="border-0 shadow-xl sm:shadow-2xl bg-gradient-to-br from-green-50/80 to-white/80 backdrop-blur-md rounded-xl sm:rounded-3xl border border-white/20">
+                <CardHeader className="pb-4 sm:pb-6">
+                  <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl sm:rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full"></div>
+                    </div>
+                    Products Included
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {offer?.productsIncluded ? (
+                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line font-normal">
+                      {offer.productsIncluded}
+                    </div>
+                  ) : offer?.products && Array.isArray(offer.products) && offer.products.length > 0 ? (
+                    <div className="grid gap-3 sm:gap-4">
+                      {offer.products.map((product: any, index: number) => (
+                        <div key={index} className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-green-100/50 transform hover:scale-105 transition-all duration-200">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
+                          <span className="text-gray-700 font-normal text-base sm:text-lg">{product.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 sm:py-12">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-300 to-emerald-300 rounded-xl sm:rounded-2xl"></div>
+                      </div>
+                      <p className="text-gray-500 text-lg sm:text-xl font-normal">This offer contains carefully selected premium products.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="benefits" className="m-0">
+              <Card className="border-0 shadow-xl sm:shadow-2xl bg-gradient-to-br from-yellow-50/80 to-white/80 backdrop-blur-md rounded-xl sm:rounded-3xl border border-white/20">
+                <CardHeader className="pb-4 sm:pb-6">
+                  <CardTitle className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl sm:rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-full"></div>
+                    </div>
+                    Key Benefits
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {offer.benefits ? (
+                    <div className="grid gap-3 sm:gap-4">
+                      {offer.benefits.split('\n').filter(b => b.trim()).map((benefit, index) => (
+                        <div key={index} className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
+                          <span className="text-gray-700 font-normal text-base sm:text-lg">{benefit.trim()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 sm:py-12">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-yellow-300 to-orange-300 rounded-xl sm:rounded-2xl"></div>
+                      </div>
+                      <p className="text-gray-500 text-lg sm:text-xl font-normal">No benefits information available.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Customer Reviews Section */}
+        <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 mb-8 sm:mb-12 md:mb-16">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-3xl font-bold">Customer Reviews</h2>
+            {canReview.canReview && (
+              <Button
+                onClick={() => setShowReviewDialog(true)}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              >
+                Write a Review
+              </Button>
+            )}
+          </div>
+          {!canReview.canReview && canReview.message && (
+            <div className="bg-gray-100 border border-gray-200 rounded-lg p-4 mb-4 text-center">
+              <p className="text-gray-600">{canReview.message}</p>
+            </div>
+          )}
+          <p className="text-center text-gray-600 mb-8">What our customers are saying</p>
+
+          <div className="bg-yellow-50 rounded-2xl p-8 mb-8">
+            <div className="flex items-center justify-center space-x-4 mb-6">
+              <div className="flex">
+                {renderStars(reviews && Array.isArray(reviews) && reviews.length > 0
+                  ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length
+                  : 5)}
+              </div>
+              <span className="text-4xl font-bold">
+                {reviews && Array.isArray(reviews) && reviews.length > 0
+                  ? (reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length).toFixed(1)
+                  : '5.0'}
+              </span>
+            </div>
+            <p className="text-center text-gray-600">
+              Based on {Array.isArray(reviews) ? reviews.length : 0} {Array.isArray(reviews) && reviews.length === 1 ? 'review' : 'reviews'}
+            </p>
+
+            <div className="mt-6 space-y-2">
+              {[5, 4, 3, 2, 1].map((star) => {
+                const distribution = calculateRatingDistribution();
+                const count = distribution[star - 1];
+                const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+
+                return (
+                  <div key={star} className="flex items-center space-x-3">
+                    <span className="w-8 text-sm font-medium">{star}★</span>
+                    <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-yellow-400 rounded-full transition-all duration-300" 
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className="w-16 text-sm text-gray-600 text-right">
+                      {count} ({percentage.toFixed(0)}%)
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Reviews List */}
+          <div className="space-y-6">
+            {reviewsLoading ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600">Loading reviews...</p>
+              </div>
+            ) : !Array.isArray(reviews) || reviews.length === 0 ? (
+              <div className="bg-gray-50 rounded-2xl p-8 text-center">
+                <p className="text-gray-600 mb-4">No reviews yet. Be the first to review this offer!</p>
+                {canReview.canReview && (
+                  <Button
+                    onClick={() => setShowReviewDialog(true)}
+                    variant="outline"
+                    className="border-2 border-purple-200 hover:border-purple-400"
+                  >
+                    Write the First Review
+                  </Button>
+                )}
+              </div>
+            ) : (
+              reviews.map((review: any) => (
+                <Card key={review.id} className="bg-white/80 backdrop-blur-sm border-2 border-purple-100">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="font-semibold text-gray-900">{review.userName || "Anonymous"}</span>
+                          <Badge variant="outline" className="text-xs">Verified Purchase</Badge>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="flex">
+                            {renderStars(review.rating)}
+                          </div>
+                          <span className="text-sm text-gray-600">
+                            {new Date(review.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <h4 className="font-bold text-lg mb-2">{review.title}</h4>
+                    <p className="text-gray-700 leading-relaxed">{review.comment}</p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
-     
+      {/* Write Review Dialog */}
+      <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Write a Review
+            </DialogTitle>
+            <p className="text-gray-600">Share your experience with {offer?.title}</p>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="rating" className="text-base font-semibold mb-2 block">Rating</Label>
+              <div className="flex space-x-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setNewReview({ ...newReview, rating: star })}
+                    className="focus:outline-none transform hover:scale-110 transition-transform"
+                  >
+                    <Star
+                      className={`w-8 h-8 ${
+                        star <= newReview.rating
+                          ? "fill-yellow-400 text-yellow-400"
+                          : "text-gray-300"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="userName" className="text-base font-semibold mb-2 block">Your Name</Label>
+              <Input
+                id="userName"
+                placeholder="Enter your name"
+                value={newReview.userName}
+                onChange={(e) => setNewReview({ ...newReview, userName: e.target.value })}
+                className="border-2 border-gray-200 focus:border-purple-400"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="title" className="text-base font-semibold mb-2 block">Review Title</Label>
+              <Input
+                id="title"
+                placeholder="Sum up your experience"
+                value={newReview.title}
+                onChange={(e) => setNewReview({ ...newReview, title: e.target.value })}
+                className="border-2 border-gray-200 focus:border-purple-400"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="comment" className="text-base font-semibold mb-2 block">Your Review</Label>
+              <Textarea
+                id="comment"
+                placeholder="Tell us about your experience with this offer"
+                value={newReview.comment}
+                onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+                rows={4}
+                className="border-2 border-gray-200 focus:border-purple-400"
+              />
+            </div>
+
+            <div className="flex space-x-3 pt-4">
+              <Button
+                onClick={() => setShowReviewDialog(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitReview}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              >
+                Submit Review
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

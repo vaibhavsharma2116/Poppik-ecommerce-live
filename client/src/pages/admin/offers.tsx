@@ -46,6 +46,9 @@ interface Offer {
   linkUrl?: string;
   buttonText?: string;
   productIds?: number[];
+  detailedDescription?: string; // Added detailedDescription
+  productsIncluded?: string; // Added productsIncluded
+  benefits?: string; // Added benefits
 }
 
 export default function AdminOffers() {
@@ -82,6 +85,9 @@ export default function AdminOffers() {
     linkUrl: "",
     buttonText: 'Shop Now',
     productIds: [] as number[],
+    detailedDescription: "", // Added detailedDescription
+    productsIncluded: "", // Added productsIncluded
+    benefits: "", // Added benefits
   });
 
   // Fetch offers with proper authorization
@@ -327,6 +333,9 @@ export default function AdminOffers() {
     const data = new FormData();
     data.append('title', formData.title);
     data.append('description', formData.description);
+    data.append('detailedDescription', formData.detailedDescription || ''); // Append new field
+    data.append('productsIncluded', formData.productsIncluded || ''); // Append new field
+    data.append('benefits', formData.benefits || ''); // Append new field
     data.append('price', formData.price);
     data.append('originalPrice', formData.originalPrice || formData.price);
     data.append('discountType', formData.discountType);
@@ -382,6 +391,9 @@ export default function AdminOffers() {
       linkUrl: "",
       buttonText: "Shop Now",
       productIds: [],
+      detailedDescription: "", // Reset new field
+      productsIncluded: "", // Reset new field
+      benefits: "", // Reset new field
     });
     setImageFile(null);
     setImagePreview("");
@@ -436,6 +448,9 @@ export default function AdminOffers() {
       linkUrl: offer.linkUrl || "",
       buttonText: offer.buttonText || "Shop Now",
       productIds: offerProductIds,
+      detailedDescription: offer.detailedDescription || "", // Set new field
+      productsIncluded: offer.productsIncluded || "", // Set new field
+      benefits: offer.benefits || "", // Set new field
     });
     setImagePreview(offer.imageUrl);
     setBannerImagePreview(offer.bannerImageUrl || ""); // Set banner image preview
@@ -488,14 +503,74 @@ export default function AdminOffers() {
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
+                <Label htmlFor="description">Short Description *</Label>
                 <Textarea
                   id="description"
-                  placeholder="Detailed offer description"
+                  placeholder="Brief offer description"
                   rows={3}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   required
+                />
+              </div>
+
+              {/* Detailed Description */}
+              <div className="space-y-2">
+                <Label htmlFor="detailedDescription">Detailed Description (for Description tab)</Label>
+                <Textarea
+                  id="detailedDescription"
+                  placeholder="Complete offer details..."
+                  rows={5}
+                  value={formData.detailedDescription || ''}
+                  onChange={(e) => setFormData({ ...formData, detailedDescription: e.target.value })}
+                />
+              </div>
+
+              {/* Products Included */}
+              <div className="space-y-2">
+                <Label htmlFor="productsIncluded">Products Included (for Products tab)</Label>
+                <Textarea
+                  id="productsIncluded"
+                  placeholder="List all products included in this offer..."
+                  rows={5}
+                  value={formData.productsIncluded || ''}
+                  onChange={(e) => setFormData({ ...formData, productsIncluded: e.target.value })}
+                />
+              </div>
+
+              {/* Benefits */}
+              <div className="space-y-2">
+                <Label htmlFor="benefits">Key Benefits (for Benefits tab)</Label>
+                <Textarea
+                  id="benefits"
+                  placeholder="List the key benefits of this offer..."
+                  rows={5}
+                  value={formData.benefits || ''}
+                  onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
+                />
+              </div>
+
+              {/* Products Included */}
+              <div className="space-y-2">
+                <Label htmlFor="productsIncluded">Products Included (for Products tab)</Label>
+                <Textarea
+                  id="productsIncluded"
+                  placeholder="List of products included in this offer..."
+                  rows={5}
+                  value={formData.productsIncluded || ''}
+                  onChange={(e) => setFormData({ ...formData, productsIncluded: e.target.value })}
+                />
+              </div>
+
+              {/* Benefits */}
+              <div className="space-y-2">
+                <Label htmlFor="benefits">Benefits (for Benefits tab)</Label>
+                <Textarea
+                  id="benefits"
+                  placeholder="Key benefits of this offer..."
+                  rows={5}
+                  value={formData.benefits || ''}
+                  onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
                 />
               </div>
 

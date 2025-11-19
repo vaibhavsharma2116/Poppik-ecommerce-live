@@ -62,7 +62,8 @@ function rateLimit(req: any, res: any, next: any) {
   next();
 }
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, desc, and, sql, or, like, isNull, asc } from "drizzle-orm";
+import { eq, and, sql, or, like, isNull, asc } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
@@ -246,12 +247,25 @@ async function sendOrderNotificationEmail(orderData: any) {
             <p style="margin: 0; font-size: 14px;">${customerEmail}</p>
             <p style="margin: 0; font-size: 14px;">${customerPhone || 'N/A'}</p>
             <p style="margin: 0; font-size: 14px;">${shippingAddress}</p>
+            ${orderData.deliveryInstructions ? `
+            <div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-left: 3px solid #ffc107; border-radius: 4px;">
+              <p style="margin: 0; font-size: 13px; font-weight: bold; color: #856404;">Delivery Instructions:</p>
+              <p style="margin: 5px 0 0 0; font-size: 13px; color: #856404;">${orderData.deliveryInstructions}</p>
+            </div>
+            ` : ''}
           </div>
           <div>
             <h4 style="color: #555; margin-bottom: 10px;">Order Info:</h4>
             <p style="margin: 0; font-size: 14px;"><strong>Payment Method:</strong> ${paymentMethod}</p>
             <p style="margin: 0; font-size: 14px;"><strong>Total Amount:</strong> ₹${totalAmount.toFixed(2)}</p>
             <p style="margin: 0; font-size: 14px;"><strong>Order Status:</strong> Confirmed</p>
+            ${orderData.saturdayDelivery !== undefined || orderData.sundayDelivery !== undefined ? `
+            <div style="margin-top: 10px;">
+              <p style="margin: 0; font-size: 13px;"><strong>Weekend Delivery:</strong></p>
+              <p style="margin: 5px 0 0 0; font-size: 13px;">Saturday: ${orderData.saturdayDelivery ? 'Yes' : 'No'}</p>
+              <p style="margin: 0; font-size: 13px;">Sunday: ${orderData.sundayDelivery ? 'Yes' : 'No'}</p>
+            </div>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -1771,7 +1785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select()
         .from(schema.offers)
         .where(eq(schema.offers.isActive, true))
-        .orderBy(desc(schema.offers.sortOrder), desc(schema.offers.createdAt));
+        .orderBy(desc(schema.offers.sortOrder));
 
       console.log(`✅ Found ${offers.length} active offers`);
 
@@ -1836,6 +1850,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         linkUrl: req.body.linkUrl || null,
         buttonText: req.body.buttonText || 'Shop Now',
         productIds: req.body.productIds ? JSON.parse(req.body.productIds) : null,
+        detailedDescription: req.body.detailedDescription || null,
+        productsIncluded: req.body.productsIncluded || null,
+        benefits: req.body.benefits || null,
         isActive: req.body.isActive === 'true' || req.body.isActive === true,
         sortOrder: parseInt(req.body.sortOrder) || 0
       };
@@ -1923,6 +1940,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.body.productIds !== undefined) {
         updateData.productIds = req.body.productIds ? JSON.parse(req.body.productIds) : null;
       }
+      if (req.body.detailedDescription !== undefined) updateData.detailedDescription = req.body.detailedDescription || null;
+      if (req.body.productsIncluded !== undefined) updateData.productsIncluded = req.body.productsIncluded || null;
+      if (req.body.benefits !== undefined) updateData.benefits = req.body.benefits || null;
       if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive === 'true' || req.body.isActive === true;
       if (req.body.sortOrder !== undefined) updateData.sortOrder = parseInt(req.body.sortOrder) || 0;
 
@@ -1991,7 +2011,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Offer not found" });
       }
 
-      const offerData = offer[0];
+      const offerData = {
+        ...offer[0],
+        detailedDescription: offer[0].detailedDescription || offer[0].description,
+        productsIncluded: offer[0].productsIncluded || null,
+        benefits: offer[0].benefits || null,
+      };
 
       // Get products with calculated offer prices
       if (offerData.productIds && Array.isArray(offerData.productIds)) {
@@ -4303,6 +4328,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'pending', // Default to 'pending' for COD, will be updated by webhook/payment confirmation
         paymentMethod: paymentMethod || 'Cash on Delivery',
         shippingAddress: shippingAddress,
+        deliveryInstructions: req.body.deliveryInstructions || null,
+        saturdayDelivery: req.body.saturdayDelivery !== undefined ? req.body.saturdayDelivery : true,
+        sundayDelivery: req.body.sundayDelivery !== undefined ? req.body.sundayDelivery : true,
         affiliateCode: affiliateCode || null,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
       };
