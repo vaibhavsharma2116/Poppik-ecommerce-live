@@ -224,6 +224,10 @@ const db = drizzle(pool, { schema: { products, productImages } });
       const title = `${product.name} - ₹${product.price} | Poppik Lifestyle`;
       const description = product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle';
 
+      // Check if it's a social media crawler (WhatsApp, Facebook, Twitter, etc.)
+      const userAgent = req.headers['user-agent'] || '';
+      const isCrawler = /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|Pinterest/i.test(userAgent);
+
       // Serve HTML with OG tags for social media crawlers
       const html = `
 <!DOCTYPE html>
@@ -267,21 +271,29 @@ const db = drizzle(pool, { schema: { products, productImages } });
   ${product.reviewCount ? `<meta property="product:rating:count" content="${product.reviewCount}">` : ''}
   
   <link rel="canonical" href="${productUrl}">
-  
+  ${!isCrawler ? `
   <script>
-    // Redirect to React app after meta tags are loaded
-    window.location.href = '/product/${product.slug || product.id}';
+    // Only redirect for real users, not crawlers
+    setTimeout(function() {
+      window.location.href = '${productUrl}';
+    }, 100);
   </script>
+  ` : ''}
 </head>
-<body>
-  <h1>${product.name}</h1>
-  <p>${description}</p>
-  <img src="${fullImageUrl}" alt="${product.name}">
+<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center;">
+    <img src="${fullImageUrl}" alt="${product.name}" style="max-width: 100%; height: auto; border-radius: 10px; margin-bottom: 20px;">
+    <h1 style="color: #333;">${product.name}</h1>
+    <p style="color: #666; font-size: 18px;">${description}</p>
+    <p style="color: #10b981; font-size: 24px; font-weight: bold;">₹${product.price}</p>
+    ${!isCrawler ? `<p style="color: #999;">Redirecting to product page...</p>` : `<a href="${productUrl}" style="display: inline-block; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px;">View Product</a>`}
+  </div>
 </body>
 </html>
       `;
 
       res.setHeader('Content-Type', 'text/html');
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
       res.send(html);
     } catch (error) {
       console.error("Error serving product page:", error);
