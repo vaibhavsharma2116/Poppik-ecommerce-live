@@ -9,8 +9,8 @@ import { setupVite, serveStatic, log } from "./vite";
 import { pool } from "./storage";
 import path from "path";
 import { fileURLToPath } from "url";
-import { products, productImages, shades } from "@shared/schema"; // Import shades table
-import { eq, asc } from "drizzle-orm"; // Import asc for sorting
+import { products, productImages } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import fs from "fs";
 import { drizzle } from "drizzle-orm/node-postgres";
 
@@ -150,6 +150,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Import shades table
+import { shades } from "@shared/schema";
+
 // Create db instance
 const db = drizzle(pool, { schema: { products, productImages, shades } });
 
@@ -170,11 +173,11 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   app.get("/product/:slug", async (req, res, next) => {
     try {
       const { slug } = req.params;
-      const shadeId = req.query.shade ? parseInt(req.query.shade as string) : null; // Get shade ID from query parameter if exists
-
+      const shadeId = req.query.shade; // Get shade ID from query parameter
+      
       // Check if slug is actually an ID (numeric)
       const isNumeric = /^\d+$/.test(slug);
-
+      
       let product;
       if (isNumeric) {
         // Fetch by ID
@@ -199,45 +202,59 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
         return next(); // Let React handle 404
       }
 
-      // Get product images from database
+      // If shade ID is provided, try to get shade image
+      let shadeImage = null;
+      let shadeName = '';
+      if (shadeId) {
+        try {
+          const shadeResult = await db
+            .select()
+            .from(shades)
+            .where(eq(shades.id, parseInt(shadeId as string)))
+            .limit(1);
+          
+          if (shadeResult.length > 0 && shadeResult[0].imageUrl) {
+            shadeImage = shadeResult[0].imageUrl;
+            shadeName = shadeResult[0].name;
+            console.log('🎨 Shade image found:', shadeName, shadeImage);
+          }
+        } catch (err) {
+          console.log('⚠️ Could not fetch shade image:', err);
+        }
+      }
+
+      // Get product images
       const images = await db
         .select()
         .from(productImages)
         .where(eq(productImages.productId, product.id))
-        .orderBy(asc(productImages.sortOrder)); // Use asc for sorting
+        .orderBy(productImages.sortOrder)
+        .limit(1);
 
-      // Get shade image if shade is specified
-      let shadeImage = null;
-      if (shadeId) {
-        const shade = await db
-          .select()
-          .from(shades)
-          .where(eq(shades.id, shadeId))
-          .limit(1);
-
-        if (shade && shade.length > 0 && shade[0].imageUrl) {
-          shadeImage = shade[0].imageUrl;
-          console.log('Using shade image for OG tags:', shadeImage);
-        }
+      console.log('📸 Product:', product.name);
+      console.log('📸 Product imageUrl:', product.imageUrl);
+      console.log('📸 DB Images count:', images.length);
+      if (images.length > 0) {
+        console.log('📸 First DB image:', images[0].imageUrl);
       }
 
-      // Get the best image URL with priority: DB images > product.imageUrl > shade image only if selected > fallback
-      let productImage = images[0]?.imageUrl || product.imageUrl || (shadeId ? shadeImage : null);
-
+      // Get the best image URL with priority: Shade image > DB images > product.imageUrl > fallback
+      let productImage = shadeImage || images[0]?.imageUrl || product.imageUrl;
+      
       // Fallback to a default high-quality image if no image found
       const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
-
+      
       if (!productImage || productImage.trim() === '') {
         productImage = fallbackImage;
         console.log('⚠️ No product image found, using fallback');
       }
-
+      
       // Ensure full HTTPS URL for image (required for WhatsApp)
       let fullImageUrl = productImage;
-
+      
       // Always use HTTPS for production domain
       const baseUrl = 'https://poppiklifestyle.com';
-
+      
       if (!fullImageUrl.startsWith('http')) {
         // Clean the image URL path
         if (fullImageUrl.startsWith('/api/image/')) {
@@ -252,7 +269,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
           fullImageUrl = `${baseUrl}/${fullImageUrl}`;
         }
       }
-
+      
       // Validate image URL - if it's not accessible, use fallback
       try {
         const imageTest = await fetch(fullImageUrl, { method: 'HEAD', timeout: 3000 });
@@ -264,11 +281,11 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
         console.log('⚠️ Image validation failed, using fallback:', error);
         fullImageUrl = fallbackImage;
       }
-
+      
       console.log('✅ Final OG Image URL:', fullImageUrl);
 
       const productUrl = `https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}`;
-      const title = `${product.name}${shadeId && shadeImage ? ` - ${shades.find(s => s.id === shadeId)?.name || ''}` : ''} - ₹${product.price} | Poppik Lifestyle`; // Dynamically get shade name if available
+      const title = `${product.name}${shadeName ? ` - ${shadeName}` : ''} - ₹${product.price} | Poppik Lifestyle`;
       const description = product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle';
 
       // Check if it's a social media crawler (WhatsApp, Facebook, Twitter, etc.)
@@ -283,14 +300,14 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
   <meta name="description" content="${description}">
-
+  
   <!-- Primary Open Graph tags -->
   <meta property="og:type" content="product">
   <meta property="og:site_name" content="Poppik Lifestyle">
   <meta property="og:url" content="${productUrl}">
   <meta property="og:title" content="${title}">
   <meta property="og:description" content="${description}">
-
+  
   <!-- Image tags - multiple formats for better compatibility -->
   <meta property="og:image" content="${fullImageUrl}">
   <meta property="og:image:url" content="${fullImageUrl}">
@@ -299,22 +316,22 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="${product.name}">
   <meta property="og:image:type" content="image/jpeg">
-
+  
   <!-- Additional image meta for WhatsApp and social platforms -->
   <meta name="thumbnail" content="${fullImageUrl}">
   <meta itemprop="image" content="${fullImageUrl}">
   <link rel="image_src" href="${fullImageUrl}">
-
+  
   <!-- WhatsApp specific tags -->
   <meta property="og:site_name" content="Poppik Lifestyle">
   <meta property="og:locale" content="en_IN">
   <meta name="robots" content="index, follow">
-
+  
   <!-- Force image refresh for debugging -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-
+  
   <!-- Twitter Card tags -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@PoppikLifestyle">
@@ -322,7 +339,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta name="twitter:description" content="${description}">
   <meta name="twitter:image" content="${fullImageUrl}">
   <meta name="twitter:image:alt" content="${product.name}">
-
+  
   <!-- Product specific meta -->
   <meta property="product:price:amount" content="${product.price}">
   <meta property="product:price:currency" content="INR">
@@ -330,7 +347,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta property="product:retailer_item_id" content="${product.id}">
   ${product.category ? `<meta property="product:category" content="${product.category}">` : ''}
   ${product.rating ? `<meta property="product:rating:value" content="${product.rating}">` : ''}
-
+  
   <!-- Schema.org markup for better indexing -->
   <script type="application/ld+json">
   {
@@ -352,7 +369,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
     }
   }
   </script>
-
+  
   <link rel="canonical" href="${productUrl}">
   ${!isCrawler ? `
   <script>
