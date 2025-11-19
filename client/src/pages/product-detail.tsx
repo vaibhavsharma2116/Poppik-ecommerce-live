@@ -544,12 +544,12 @@ export default function ProductDetail() {
     
     const price = `₹${product.price}`;
     
-    // Get the image to share - prioritize shade image if selected, otherwise use main product image
+    // Get the image to share - prioritize main product images, then shade if selected
     let shareImage = '';
-    if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
-      shareImage = selectedShades[0].imageUrl;
-    } else if (imageUrls.length > 0) {
+    if (imageUrls.length > 0) {
       shareImage = imageUrls[0];
+    } else if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
+      shareImage = selectedShades[0].imageUrl;
     } else if (product.imageUrl) {
       shareImage = product.imageUrl;
     }
