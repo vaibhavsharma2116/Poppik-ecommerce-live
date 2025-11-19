@@ -9,7 +9,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { pool } from "./storage";
 import path from "path";
 import { fileURLToPath } from "url";
-import { products } from "@shared/schema";
+import { products, productImages } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import fs from "fs";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -151,7 +151,7 @@ app.use((req, res, next) => {
 });
 
 // Create db instance
-const db = drizzle(pool, { schema: { products } });
+const db = drizzle(pool, { schema: { products, productImages } });
 
 (async () => {
   // Simple database connection test
@@ -204,19 +204,41 @@ const db = drizzle(pool, { schema: { products } });
       // Prepare meta tags
       const productUrl = `https://poppiklifestyle.com/product/${slug}`;
 
-      // Ensure image URL is absolute and properly formatted for social media
-      let imageUrl = product.imageUrl || 'https://poppiklifestyle.com/favicon.png';
+      // Get the first image from product images or fallback to product.imageUrl
+      let imageUrl = product.imageUrl;
 
-      // Make sure image URL is always absolute with HTTPS
-      if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-        // Remove any leading slashes and add domain
-        imageUrl = imageUrl.replace(/^\/+/, '');
-        imageUrl = `https://poppiklifestyle.com/${imageUrl}`;
+      // Try to fetch product images to get the first actual product image
+      try {
+        const imagesResponse = await db.query.productImages.findMany({
+          where: (productImages, { eq }) => eq(productImages.productId, product.id),
+          orderBy: (productImages, { asc }) => [asc(productImages.sortOrder)],
+          limit: 1
+        });
+
+        if (imagesResponse && imagesResponse.length > 0) {
+          imageUrl = imagesResponse[0].imageUrl || imagesResponse[0].url || product.imageUrl;
+        }
+      } catch (err) {
+        console.log('Could not fetch product images for OG tags:', err);
       }
 
-      // Handle /api/ prefix URLs
-      if (imageUrl.includes('/api/')) {
-        imageUrl = imageUrl.replace('/api/', 'https://poppiklifestyle.com/api/');
+      // Make sure image URL is always absolute with HTTPS
+      if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+        // Handle /api/ prefix URLs
+        if (imageUrl.startsWith('/api/')) {
+          imageUrl = `https://poppiklifestyle.com${imageUrl}`;
+        } else if (imageUrl.startsWith('/uploads/')) {
+          imageUrl = `https://poppiklifestyle.com${imageUrl}`;
+        } else {
+          // Remove any leading slashes and add domain
+          imageUrl = imageUrl.replace(/^\/+/, '');
+          imageUrl = `https://poppiklifestyle.com/${imageUrl}`;
+        }
+      }
+
+      // Final fallback if no image found
+      if (!imageUrl) {
+        imageUrl = 'https://poppiklifestyle.com/favicon.png';
       }
 
       console.log(`Product image URL for OG tags: ${imageUrl}`);
