@@ -168,7 +168,125 @@ const db = drizzle(pool, { schema: { products, productImages } });
   const server = await registerRoutes(app);
 
   app.get("/product/:slug", async (req, res, next) => {
-   
+    try {
+      const { slug } = req.params;
+      
+      // Check if slug is actually an ID (numeric)
+      const isNumeric = /^\d+$/.test(slug);
+      
+      let product;
+      if (isNumeric) {
+        // Fetch by ID
+        const productId = parseInt(slug);
+        const productResult = await db
+          .select()
+          .from(products)
+          .where(eq(products.id, productId))
+          .limit(1);
+        product = productResult[0];
+      } else {
+        // Fetch by slug
+        const productResult = await db
+          .select()
+          .from(products)
+          .where(eq(products.slug, slug))
+          .limit(1);
+        product = productResult[0];
+      }
+
+      if (!product) {
+        return next(); // Let React handle 404
+      }
+
+      // Get product images
+      const images = await db
+        .select()
+        .from(productImages)
+        .where(eq(productImages.productId, product.id))
+        .orderBy(productImages.sortOrder)
+        .limit(1);
+
+      const productImage = images[0]?.imageUrl || product.imageUrl || '/logo.png';
+      
+      // Ensure full URL for image
+      let fullImageUrl = productImage;
+      if (!fullImageUrl.startsWith('http')) {
+        if (fullImageUrl.startsWith('/api/')) {
+          fullImageUrl = `https://poppiklifestyle.com${fullImageUrl}`;
+        } else if (fullImageUrl.startsWith('/')) {
+          fullImageUrl = `https://poppiklifestyle.com${fullImageUrl}`;
+        } else {
+          fullImageUrl = `https://poppiklifestyle.com/${fullImageUrl}`;
+        }
+      }
+
+      const productUrl = `https://poppiklifestyle.com/product/${product.slug || product.id}`;
+      const title = `${product.name} - ₹${product.price} | Poppik Lifestyle`;
+      const description = product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle';
+
+      // Serve HTML with OG tags for social media crawlers
+      const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <meta name="description" content="${description}">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="product">
+  <meta property="og:site_name" content="Poppik Lifestyle">
+  <meta property="og:url" content="${productUrl}">
+  <meta property="og:title" content="${title}">
+  <meta property="og:description" content="${description}">
+  <meta property="og:image" content="${fullImageUrl}">
+  <meta property="og:image:secure_url" content="${fullImageUrl}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="${product.name}">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:locale" content="en_IN">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@PoppikLifestyle">
+  <meta name="twitter:creator" content="@PoppikLifestyle">
+  <meta name="twitter:url" content="${productUrl}">
+  <meta name="twitter:title" content="${title}">
+  <meta name="twitter:description" content="${description}">
+  <meta name="twitter:image" content="${fullImageUrl}">
+  <meta name="twitter:image:alt" content="${product.name}">
+  
+  <!-- Product specific meta -->
+  <meta property="product:price:amount" content="${product.price}">
+  <meta property="product:price:currency" content="INR">
+  <meta property="product:availability" content="${product.inStock ? 'in stock' : 'out of stock'}">
+  <meta property="product:category" content="${product.category || ''}">
+  ${product.rating ? `<meta property="product:rating:value" content="${product.rating}">` : ''}
+  ${product.reviewCount ? `<meta property="product:rating:count" content="${product.reviewCount}">` : ''}
+  
+  <link rel="canonical" href="${productUrl}">
+  
+  <script>
+    // Redirect to React app after meta tags are loaded
+    window.location.href = '/product/${product.slug || product.id}';
+  </script>
+</head>
+<body>
+  <h1>${product.name}</h1>
+  <p>${description}</p>
+  <img src="${fullImageUrl}" alt="${product.name}">
+</body>
+</html>
+      `;
+
+      res.setHeader('Content-Type', 'text/html');
+      res.send(html);
+    } catch (error) {
+      console.error("Error serving product page:", error);
+      next();
+    }
   });
 
   // Vite/Static setup
