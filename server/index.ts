@@ -246,6 +246,8 @@ const db = drizzle(pool, { schema: { products, productImages } });
           imageUrl = `https://poppiklifestyle.com${imageUrl}`;
         } else if (imageUrl.startsWith('/uploads/')) {
           imageUrl = `https://poppiklifestyle.com${imageUrl}`;
+        } else if (imageUrl.startsWith('/')) {
+          imageUrl = `https://poppiklifestyle.com${imageUrl}`;
         } else {
           // Remove any leading slashes and add domain
           imageUrl = imageUrl.replace(/^\/+/, '');
@@ -253,8 +255,8 @@ const db = drizzle(pool, { schema: { products, productImages } });
         }
       }
 
-      // Final fallback - use a default product placeholder image instead of logo
-      if (!imageUrl) {
+      // Final fallback - use a default product placeholder image
+      if (!imageUrl || imageUrl === 'https://poppiklifestyle.com/logo.png') {
         imageUrl = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
         console.log('No product image found, using placeholder');
       }

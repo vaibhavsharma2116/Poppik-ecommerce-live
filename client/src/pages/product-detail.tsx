@@ -76,7 +76,7 @@ export default function ProductDetail() {
 
   // Check if the slug is actually an ID (numeric)
   const isProductId = /^\d+$/.test(productSlugOrId);
-  
+
   const { data: product, isLoading } = useQuery<Product>({
     queryKey: [`/api/products/${productSlugOrId}`],
     enabled: !!productSlugOrId,
@@ -218,7 +218,7 @@ export default function ProductDetail() {
     // Track affiliate click if ref parameter exists
     const urlParams = new URLSearchParams(window.location.search);
     const affiliateRef = urlParams.get('ref');
-    
+
     if (affiliateRef && product?.id) {
       // Track the click
       fetch('/api/affiliate/track-click', {
@@ -401,10 +401,10 @@ export default function ProductDetail() {
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
 
-    const shadeText = selectedShades.length > 0 
-      ? ` (${selectedShades.map(s => s.name).join(', ')})` 
+    const shadeText = selectedShades.length > 0
+      ? ` (${selectedShades.map(s => s.name).join(', ')})`
       : '';
-    
+
     toast({
       title: "Added to Cart",
       description: `${product.name}${shadeText} (${quantity} each) has been added to your cart`,
@@ -413,11 +413,11 @@ export default function ProductDetail() {
 
   const handleShadeSelect = (shade: Shade) => {
     const isSelected = selectedShades.some(s => s.id === shade.id);
-    
+
     if (isSelected) {
       // Remove shade from selection
       setSelectedShades(selectedShades.filter(s => s.id !== shade.id));
-      
+
       // If removing last shade, revert to main product image
       if (selectedShades.length === 1 && imageUrls.length > 0) {
         setSelectedImageUrl(imageUrls[0]);
@@ -425,7 +425,7 @@ export default function ProductDetail() {
     } else {
       // Add shade to selection
       setSelectedShades([...selectedShades, shade]);
-      
+
       // Set the newly selected shade's image
       if (shade.imageUrl) {
         setSelectedImageUrl(shade.imageUrl);
@@ -613,7 +613,7 @@ export default function ProductDetail() {
   }
 
   const filteredRelatedProducts = relatedProducts?.filter(p => p.id !== product.id).slice(0, 4) || [];
-  
+
   // Define productSlug for meta tags - use product.slug if available, otherwise use productSlugOrId
   const productSlug = product.slug || productSlugOrId;
 
@@ -669,9 +669,11 @@ export default function ProductDetail() {
         <meta name="twitter:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta name="twitter:image" content={(() => {
-          let img = imageUrls[0] || product?.imageUrl || '/logo.png';
+          let img = imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/')) {
+              img = `https://poppiklifestyle.com${img}`;
+            } else if (img.startsWith('/uploads/')) {
               img = `https://poppiklifestyle.com${img}`;
             } else if (img.startsWith('/')) {
               img = `https://poppiklifestyle.com${img}`;
@@ -1256,7 +1258,7 @@ export default function ProductDetail() {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Show warning if no shade is selected */}
                 {selectedShades.length === 0 && (
                   <>
