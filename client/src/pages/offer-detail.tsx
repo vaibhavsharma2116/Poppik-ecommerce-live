@@ -91,25 +91,26 @@ function ProductListItem({
 
   return (
     <div className="bg-white rounded-xl border-2 border-purple-100 overflow-hidden hover:shadow-lg hover:border-purple-300 transition-all duration-300">
-      <div className="flex flex-col sm:flex-row gap-4 p-4">
-        {/* Product Image */}
-        <div className="w-full sm:w-32 h-32 flex-shrink-0">
-          <div className="relative w-full h-full bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden">
-            <img
-              src={productImage}
-              alt={product.name}
-              className="w-full h-full object-contain hover:scale-110 transition-transform duration-300"
-            />
+      <div className="flex flex-col gap-4 p-4">
+        {/* Product Image and Name Section */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* Product Image */}
+          <div className="w-full sm:w-32 h-32 flex-shrink-0">
+            <div className="relative w-full h-full bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden">
+              <img
+                src={productImage}
+                alt={product.name}
+                className="w-full h-full object-contain hover:scale-110 transition-transform duration-300"
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Product Details */}
-        <div className="flex-1 min-w-0 space-y-3">
-          <div>
-            <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
+          {/* Product Details */}
+          <div className="flex-1 min-w-0 space-y-2">
+            <h3 className="text-base font-bold text-gray-900 line-clamp-2">{product.name}</h3>
 
             {/* Price Display */}
-            <div className="flex items-baseline gap-2 mb-2">
+            <div className="flex items-baseline gap-2">
               <span className="text-xl font-bold text-green-600">₹{product.price}</span>
               {product.originalPrice && Number(product.originalPrice) > Number(product.price) && (
                 <>
@@ -121,23 +122,16 @@ function ProductListItem({
               )}
             </div>
           </div>
+        </div>
 
-          {/* Available Shades Display */}
-          {hasShades && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-900">
-                  Available Shades ({productShades.length}):
-                </p>
-                {selectedShade && (
-                  <div className="flex items-center gap-1 text-xs font-medium text-purple-700 bg-purple-50 px-2 py-1 rounded-full">
-                    <Check className="w-3 h-3" />
-                    Selected
-                  </div>
-                )}
-              </div>
-
-              {/* Shades Preview Grid */}
+        {/* Shade Selection Button - Below Image */}
+        {hasShades ? (
+          <div className="space-y-3">
+            {/* Available Shades Preview */}
+            <div>
+              <p className="text-sm font-semibold text-gray-900 mb-2">
+                Available Shades ({productShades.length}):
+              </p>
               <div className="grid grid-cols-6 gap-2">
                 {productShades.slice(0, 6).map((shade) => (
                   <div
@@ -168,28 +162,34 @@ function ProductListItem({
                   </div>
                 )}
               </div>
-
-              {/* Shade Selection Button */}
-              <button
-                onClick={onOpenShadeSelector}
-                className={`w-full rounded-xl px-6 py-4 text-center font-bold text-lg transition-all ${
-                  selectedShade
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg hover:shadow-xl hover:from-purple-700 hover:to-pink-700'
-                    : 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg hover:shadow-xl hover:from-pink-600 hover:to-purple-600'
-                }`}
-              >
-                {selectedShade ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <Check className="w-5 h-5" />
-                    <span>{selectedShade.split(', ').length} Shade{selectedShade.split(', ').length !== 1 ? 's' : ''} Selected</span>
-                  </div>
-                ) : (
-                  'Select Shades'
-                )}
-              </button>
             </div>
-          )}
-        </div>
+
+            {/* Select Shades Button */}
+            <button
+              onClick={onOpenShadeSelector}
+              className={`w-full rounded-xl px-6 py-3 text-center font-bold text-base transition-all flex items-center justify-center gap-2 ${
+                selectedShade
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg hover:shadow-xl hover:from-purple-700 hover:to-pink-700'
+                  : 'bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg hover:shadow-xl hover:from-pink-600 hover:to-purple-600'
+              }`}
+            >
+              <Palette className="w-5 h-5" />
+              {selectedShade ? (
+                <span>{selectedShade.split(', ').length} Shade{selectedShade.split(', ').length !== 1 ? 's' : ''} Selected</span>
+              ) : (
+                <span>Select Shades</span>
+              )}
+              {selectedShade && <Check className="w-5 h-5" />}
+            </button>
+          </div>
+        ) : (
+          <Button
+            className="w-full rounded-xl px-6 py-3 text-center font-bold text-base bg-gradient-to-r from-pink-500 to-purple-500 text-white shadow-lg hover:shadow-xl hover:from-pink-600 hover:to-purple-600 transition-all flex items-center justify-center gap-2"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            <span>No Shades Required</span>
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -269,7 +269,7 @@ function ShadeSelectorSheet({
               size="sm"
               className="flex-1 border-purple-300 text-purple-700 hover:bg-purple-50"
             >
-              Select All
+              Select All Product Shades
             </Button>
             <Button
               onClick={handleClearAll}
@@ -429,15 +429,21 @@ function ProductsList({
       </div>
 
       {products.map((product) => (
-        <ShadeSelectorSheet
-          key={`shade-selector-${product.id}`}
-          product={product}
-          shades={productShadesData[product.id] || []}
-          selectedShade={selectedShades[product.id] || null}
-          isOpen={shadeSelectorOpen === product.id}
-          onClose={() => setShadeSelectorOpen(null)}
-          onShadeSelect={(shade) => onShadeChange(product.id, shade)}
-        />
+        <React.Fragment key={`shade-selector-wrapper-${product.id}`}>
+          <button
+            id={`shade-selector-${product.id}`}
+            onClick={() => setShadeSelectorOpen(product.id)}
+            style={{ display: 'none' }}
+          />
+          <ShadeSelectorSheet
+            product={product}
+            shades={productShadesData[product.id] || []}
+            selectedShade={selectedShades[product.id] || null}
+            isOpen={shadeSelectorOpen === product.id}
+            onClose={() => setShadeSelectorOpen(null)}
+            onShadeSelect={(shade) => onShadeChange(product.id, shade)}
+          />
+        </React.Fragment>
       ))}
     </>
   );
@@ -464,6 +470,7 @@ export default function OfferDetail() {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [productShadesData, setProductShadesData] = useState<Record<number, Shade[]>>({});
   const [selectedShades, setSelectedShades] = useState<Record<number, string | null>>({});
+  const [shadeSelectorOpen, setShadeSelectorOpen] = useState<number | null>(null);
   const { toast } = useToast();
 
   const { data: offer, isLoading, error } = useQuery<any>({
@@ -793,6 +800,132 @@ export default function OfferDetail() {
               <p className="text-gray-700">{offer.description}</p>
             </div>
 
+            {/* Product Count - Show product previews */}
+            {productIds.length > 0 && (
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-purple-900 mb-1">Included Products</p>
+                  <h3 className="text-2xl font-bold text-purple-700">
+                    {productIds.length} Product{productIds.length !== 1 ? 's' : ''} in this Offer
+                  </h3>
+                </div>
+
+                {/* Product Preview List with Shade Buttons */}
+                <div className="space-y-2">
+                  {(offer?.products || []).map((product: any, index: number) => {
+                    const productImage = (() => {
+                      if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+                        return product.images[0].url || product.images[0].imageUrl || product.imageUrl;
+                      }
+                      return product.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
+                    })();
+
+                    const productShades = productShadesData[product.id] || [];
+                    const hasShades = productShades.length > 0;
+                    const selectedCount = selectedShades[product.id]?.split(', ').length || 0;
+
+                    return (
+                      <div key={index} className="flex items-center gap-2 bg-white rounded-lg border border-purple-100 hover:border-purple-300 p-2 transition-all group">
+                        {/* Product Image */}
+                        <div className="w-16 h-16 flex-shrink-0 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden">
+                          <img
+                            src={productImage}
+                            alt={product.name}
+                            className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
+                          />
+                        </div>
+                        
+                        {/* Product Info and Shade Button in Same Row */}
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-semibold text-gray-900 line-clamp-1">
+                              {product.name}
+                            </h4>
+                            {hasShades && (
+                              <div className="mt-1 flex gap-1 items-center">
+                                <span className="text-xs text-gray-500">{productShades.length} shades</span>
+                                <div className="flex gap-0.5">
+                                  {productShades.slice(0, 4).map((shade: any) => (
+                                    <div
+                                      key={shade.id}
+                                      className="relative"
+                                      title={shade.name}
+                                    >
+                                      {shade.imageUrl ? (
+                                        <img
+                                          src={shade.imageUrl}
+                                          alt={shade.name}
+                                          className="w-4 h-4 rounded-full border border-gray-300 object-cover"
+                                        />
+                                      ) : (
+                                        <div
+                                          className="w-4 h-4 rounded-full border border-gray-300"
+                                          style={{ backgroundColor: shade.colorCode || getShadeColor(shade.name) }}
+                                        />
+                                      )}
+                                    </div>
+                                  ))}
+                                  {productShades.length > 4 && (
+                                    <div className="w-4 h-4 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center text-[7px] font-bold text-purple-700">
+                                      +{productShades.length - 4}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Shade Selection Button - Inline with Product Name */}
+                          {hasShades && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setShadeSelectorOpen(product.id);
+                              }}
+                              className={`flex-shrink-0 rounded-lg px-3 py-2 text-xs font-bold transition-all flex flex-col items-center gap-1 shadow-md hover:shadow-lg ${
+                                selectedShades[product.id]
+                                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
+                                  : 'bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600'
+                              }`}
+                            >
+                              <Palette className="w-4 h-4" />
+                              {selectedShades[product.id] ? (
+                                <>
+                                  <span className="text-[9px] whitespace-nowrap">{selectedCount} selected</span>
+                                  <Check className="w-3 h-3" />
+                                </>
+                              ) : (
+                                <span className="text-[9px] whitespace-nowrap">Select</span>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Shade Selector Sheets for Products */}
+                {(offer?.products || []).map((product: any) => {
+                  const productShades = productShadesData[product.id] || [];
+                  if (productShades.length === 0) return null;
+                  
+                  return (
+                    <ShadeSelectorSheet
+                      key={`shade-sheet-${product.id}`}
+                      product={product}
+                      shades={productShades}
+                      selectedShade={selectedShades[product.id] || null}
+                      isOpen={shadeSelectorOpen === product.id}
+                      onClose={() => setShadeSelectorOpen(null)}
+                      onShadeSelect={(shade) => handleShadeChange(product.id, shade)}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
             {/* Price Section */}
             {offer.price && (
               <div className="bg-white rounded-lg border p-4">
@@ -800,11 +933,11 @@ export default function OfferDetail() {
                   <span className="text-3xl font-bold text-green-600">
                     ₹{offer.price}
                   </span>
-                  {offer.originalPrice && (
+                  {offer.originalPrice && Number(offer.originalPrice) > Number(offer.price) && (
                     <>
                       <span className="text-xl text-gray-500 line-through">₹{offer.originalPrice}</span>
                       <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
-                        {offer.discountPercentage}% OFF
+                        {Math.round(((Number(offer.originalPrice) - Number(offer.price)) / Number(offer.originalPrice)) * 100)}% OFF
                       </span>
                     </>
                   )}
@@ -837,68 +970,6 @@ export default function OfferDetail() {
               </div>
             )}
 
-            {/* Product Count - Show product previews */}
-            {productIds.length > 0 && (
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
-                <div className="mb-4">
-                  <p className="text-sm font-semibold text-purple-900 mb-1">Included Products</p>
-                  <h3 className="text-2xl font-bold text-purple-700">
-                    {productIds.length} Product{productIds.length !== 1 ? 's' : ''} in this Offer
-                  </h3>
-                </div>
-
-                {/* Product Preview Grid */}
-                <div className="grid grid-cols-3 gap-4">
-                  {(offer?.products || []).map((product: any, index: number) => {
-                    const productImage = (() => {
-                      if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-                        return product.images[0].url || product.images[0].imageUrl || product.imageUrl;
-                      }
-                      return product.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
-                    })();
-
-                    const productShades = productShadesData[product.id] || [];
-
-                    return (
-                      <div key={index} className="relative group">
-                        <div className="aspect-square bg-white rounded-xl overflow-hidden border-2 border-purple-100 hover:border-purple-400 transition-all shadow-sm hover:shadow-md">
-                          <img
-                            src={productImage}
-                            alt={product.name}
-                            className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform"
-                          />
-                        </div>
-                        {productShades.length > 0 && (
-                          <div className="mt-2 flex gap-1 justify-center flex-wrap">
-                            {productShades.map((shade: any) => (
-                              <div
-                                key={shade.id}
-                                className="relative group/shade cursor-pointer"
-                                title={shade.name}
-                              >
-                                {shade.imageUrl ? (
-                                  <img
-                                    src={shade.imageUrl}
-                                    alt={shade.name}
-                                    className="w-6 h-6 rounded-full border-2 border-gray-300 hover:border-purple-500 transition-all object-cover"
-                                  />
-                                ) : (
-                                  <div
-                                    className="w-6 h-6 rounded-full border-2 border-gray-300 hover:border-purple-500 transition-all"
-                                    style={{ backgroundColor: shade.colorCode || getShadeColor(shade.name) }}
-                                  />
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {/* Validity */}
             <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
               <Clock className="h-5 w-5 text-blue-600" />
@@ -914,15 +985,30 @@ export default function OfferDetail() {
               </div>
             </div>
 
-            {/* Share Button */}
-            <Button
-              onClick={() => setShowShareDialog(true)}
-              variant="outline"
-              className="w-full border-2"
-            >
-              <Share2 className="h-4 w-4 mr-2" />
-              Share This Offer
-            </Button>
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              {/* Add to Cart Button */}
+              <Button
+                onClick={handleAddAllToCart}
+                disabled={isExpired || productsWithShades.some(id => !selectedShades[id])}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                <ShoppingCart className="h-5 w-5 mr-2" />
+                {productsWithShades.length > 0 && !allShadesSelected
+                  ? 'Select All Shades First'
+                  : 'Add All to Cart'}
+              </Button>
+
+              {/* Share Button */}
+              <Button
+                onClick={() => setShowShareDialog(true)}
+                variant="outline"
+                size="lg"
+                className="border-2 border-purple-200 hover:border-purple-400 rounded-xl p-4 transform hover:scale-105 transition-all duration-200"
+              >
+                <Share2 className="h-5 w-5 text-purple-500" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

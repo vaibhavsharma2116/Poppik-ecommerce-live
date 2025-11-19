@@ -66,7 +66,7 @@ export default function AdminDashboard() {
 
   // Calculate real stats from data
   const calculateStats = () => {
-    if (customersLoading || ordersLoading || productsLoading) {
+    if (customersLoading || ordersLoading || productsLoading || !Array.isArray(orders) || !Array.isArray(customers) || !Array.isArray(products)) {
       return {
         totalRevenue: 0,
         totalOrders: 0,
@@ -150,7 +150,7 @@ export default function AdminDashboard() {
 
   // Get recent activity from orders
   const getRecentActivity = () => {
-    if (!orders.length) return [];
+    if (!Array.isArray(orders) || !orders.length) return [];
     
     return orders
       .slice(0, 4)
@@ -178,7 +178,7 @@ export default function AdminDashboard() {
 
   // Get top products from orders
   const getTopProducts = () => {
-    if (!orders.length) return [];
+    if (!Array.isArray(orders) || !orders.length) return [];
     
     const productSales = {};
     
