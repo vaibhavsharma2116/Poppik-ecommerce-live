@@ -257,38 +257,38 @@ const db = drizzle(pool, { schema: { products, productImages } });
       const isCrawler = /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|Pinterest/i.test(userAgent);
 
       // Serve HTML with OG tags for social media crawlers
-      const html = `
-<!DOCTYPE html>
-<html lang="en">
+      const html = `<!DOCTYPE html>
+<html lang="en" prefix="og: http://ogp.me/ns#">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
   <meta name="description" content="${description}">
   
-  <!-- Open Graph / Facebook -->
+  <!-- Primary Open Graph tags -->
   <meta property="og:type" content="product">
   <meta property="og:site_name" content="Poppik Lifestyle">
   <meta property="og:url" content="${productUrl}">
   <meta property="og:title" content="${title}">
   <meta property="og:description" content="${description}">
+  
+  <!-- Image tags - multiple formats for better compatibility -->
   <meta property="og:image" content="${fullImageUrl}">
+  <meta property="og:image:url" content="${fullImageUrl}">
   <meta property="og:image:secure_url" content="${fullImageUrl}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="${product.name}">
-  <meta property="og:image:type" content="${fullImageUrl.match(/\.(png|webp)$/i) ? 'image/png' : 'image/jpeg'}">
-  <meta property="og:locale" content="en_IN">
+  <meta property="og:image:type" content="image/jpeg">
   
-  <!-- Additional meta tags for better preview -->
+  <!-- Additional image meta for WhatsApp -->
   <meta name="thumbnail" content="${fullImageUrl}">
+  <meta itemprop="image" content="${fullImageUrl}">
   <link rel="image_src" href="${fullImageUrl}">
   
-  <!-- Twitter -->
+  <!-- Twitter Card tags -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@PoppikLifestyle">
-  <meta name="twitter:creator" content="@PoppikLifestyle">
-  <meta name="twitter:url" content="${productUrl}">
   <meta name="twitter:title" content="${title}">
   <meta name="twitter:description" content="${description}">
   <meta name="twitter:image" content="${fullImageUrl}">
@@ -298,14 +298,35 @@ const db = drizzle(pool, { schema: { products, productImages } });
   <meta property="product:price:amount" content="${product.price}">
   <meta property="product:price:currency" content="INR">
   <meta property="product:availability" content="${product.inStock ? 'in stock' : 'out of stock'}">
-  <meta property="product:category" content="${product.category || ''}">
+  <meta property="product:retailer_item_id" content="${product.id}">
+  ${product.category ? `<meta property="product:category" content="${product.category}">` : ''}
   ${product.rating ? `<meta property="product:rating:value" content="${product.rating}">` : ''}
-  ${product.reviewCount ? `<meta property="product:rating:count" content="${product.reviewCount}">` : ''}
+  
+  <!-- Schema.org markup for better indexing -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": "${product.name}",
+    "image": "${fullImageUrl}",
+    "description": "${description}",
+    "brand": {
+      "@type": "Brand",
+      "name": "Poppik Lifestyle"
+    },
+    "offers": {
+      "@type": "Offer",
+      "url": "${productUrl}",
+      "priceCurrency": "INR",
+      "price": "${product.price}",
+      "availability": "https://schema.org/${product.inStock ? 'InStock' : 'OutOfStock'}"
+    }
+  }
+  </script>
   
   <link rel="canonical" href="${productUrl}">
   ${!isCrawler ? `
   <script>
-    // Only redirect for real users, not crawlers
     setTimeout(function() {
       window.location.href = '${productUrl}';
     }, 100);
@@ -321,11 +342,11 @@ const db = drizzle(pool, { schema: { products, productImages } });
     ${!isCrawler ? `<p style="color: #999;">Redirecting to product page...</p>` : `<a href="${productUrl}" style="display: inline-block; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px;">View Product</a>`}
   </div>
 </body>
-</html>
-      `;
+</html>`;
 
-      res.setHeader('Content-Type', 'text/html');
-      res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400'); // Cache for 24 hours
+      res.setHeader('X-Content-Type-Options', 'nosniff');
       res.send(html);
     } catch (error) {
       console.error("Error serving product page:", error);
