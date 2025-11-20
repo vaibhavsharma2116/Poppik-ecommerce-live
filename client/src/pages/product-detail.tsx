@@ -651,10 +651,22 @@ export default function ProductDetail() {
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
-          // Priority: 1. Selected shade image, 2. Product imageUrl, 3. First product image, 4. Fallback
-          let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
-            ? selectedShades[0].imageUrl 
-            : product?.imageUrl || imageUrls[0] || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+          // Priority: 1. Selected shade image, 2. Product imageUrl, 3. First product image from imageUrls, 4. Fallback
+          let img;
+          
+          if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
+            // Use selected shade image
+            img = selectedShades[0].imageUrl;
+          } else if (product?.imageUrl) {
+            // Use main product image
+            img = product.imageUrl;
+          } else if (imageUrls.length > 0) {
+            // Use first image from imageUrls array
+            img = imageUrls[0];
+          } else {
+            // Fallback image
+            img = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+          }
           
           // Convert to absolute URL with proper domain for WhatsApp
           if (img && !img.startsWith('http')) {
@@ -685,9 +697,17 @@ export default function ProductDetail() {
           return img;
         })()} />
         <meta property="og:image:secure_url" content={(() => {
-          let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
-            ? selectedShades[0].imageUrl 
-            : product?.imageUrl || imageUrls[0] || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+          let img;
+          
+          if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
+            img = selectedShades[0].imageUrl;
+          } else if (product?.imageUrl) {
+            img = product.imageUrl;
+          } else if (imageUrls.length > 0) {
+            img = imageUrls[0];
+          } else {
+            img = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+          }
           
           if (img && !img.startsWith('http')) {
             const cleanPath = img.replace(/^\/+/, '');
@@ -724,9 +744,17 @@ export default function ProductDetail() {
         <meta name="twitter:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta name="twitter:image" content={(() => {
-          let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
-            ? selectedShades[0].imageUrl 
-            : product?.imageUrl || imageUrls[0] || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+          let img;
+          
+          if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
+            img = selectedShades[0].imageUrl;
+          } else if (product?.imageUrl) {
+            img = product.imageUrl;
+          } else if (imageUrls.length > 0) {
+            img = imageUrls[0];
+          } else {
+            img = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+          }
           
           if (img && !img.startsWith('http')) {
             const cleanPath = img.replace(/^\/+/, '');
