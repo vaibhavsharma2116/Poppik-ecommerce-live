@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRoute, Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet";
 import { ChevronRight, Star, ShoppingCart, Heart, ChevronDown, ChevronUp, CheckCircle, Badge, Video, Share2, Copy, Check, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -77,10 +77,13 @@ export default function ProductDetail() {
   // Check if the slug is actually an ID (numeric)
   const isProductId = /^\d+$/.test(productSlugOrId);
 
+  // Memoize the product slug to prevent unnecessary re-fetches
+  const productSlug = useMemo(() => params?.slug, [params?.slug]);
+
   const { data: product, isLoading } = useQuery<Product>({
-    queryKey: [`/api/products/${productSlugOrId}`],
-    enabled: !!productSlugOrId,
-    retry: false,
+    queryKey: [`/api/products/${productSlug}`],
+    enabled: !!productSlug,
+    retry: false, // Prevent retries on initial fetch
   });
 
   // Fetch product images from database
@@ -113,9 +116,6 @@ export default function ProductDetail() {
       // Remove duplicates using Set
       const uniqueUrls = Array.from(new Set(imageUrlsFromDb));
       urls.push(...uniqueUrls);
-
-      console.log('Product images from DB:', productImages.length);
-      console.log('Unique URLs after processing:', uniqueUrls.length);
     } else if (product?.imageUrl) {
       urls.push(product.imageUrl);
     }
@@ -125,9 +125,8 @@ export default function ProductDetail() {
       urls.push(product.videoUrl);
     }
 
-    console.log('Final image URLs:', urls.length);
     return urls;
-  }, [productImages, product?.imageUrl, product?.videoUrl])
+  }, [productImages, product?.imageUrl, product?.videoUrl]);
 
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
 
@@ -137,9 +136,21 @@ export default function ProductDetail() {
     }
   }, [imageUrls.length, selectedImageUrl]); // Only depend on length and current selection
 
-  const { data: relatedProducts } = useQuery<Product[]>({
-    queryKey: [`/api/products/category/${product?.category}`],
-    enabled: !!product?.category,
+
+  // Fetch related products - memoized
+  const { data: relatedProducts = [] } = useQuery<Product[]>({
+    queryKey: ['/api/products/related', product?.categoryId, product?.id],
+    queryFn: async () => {
+      if (!product?.categoryId) return [];
+      const response = await fetch('/api/products');
+      const data = await response.json();
+      return data
+        .filter((p: any) => p.categoryId === product.categoryId && p.id !== product.id)
+        .slice(0, 4);
+    },
+    enabled: !!product?.categoryId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   });
 
   // Mock category and subcategory data (replace with actual data fetching)
@@ -253,7 +264,6 @@ export default function ProductDetail() {
   useEffect(() => {
     // Set shades
     if (shadesFromAPI && Array.isArray(shadesFromAPI)) {
-      console.log('Setting shades for product:', product?.id, shadesFromAPI);
       setShades(shadesFromAPI);
 
       // Auto-select shade from URL if provided
@@ -268,14 +278,12 @@ export default function ProductDetail() {
         }
       }
     } else {
-      console.log('No shades available for product:', product?.id);
       setShades([]);
     }
   }, [shadesFromAPI, product?.id, shadeIdFromUrl]);
 
 
-
-  const toggleWishlist = () => {
+  const toggleWishlist = useCallback(() => {
     if (!product) return;
 
     // Check if user is logged in
@@ -331,9 +339,10 @@ export default function ProductDetail() {
         variant: "destructive",
       });
     }
-  };
+  }, [product, toast]);
 
-  const addToCart = () => {
+
+  const addToCart = useCallback(() => {
     if (!product) return;
 
     // If product has shades but none selected, show warning
@@ -409,7 +418,8 @@ export default function ProductDetail() {
       title: "Added to Cart",
       description: `${product.name}${shadeText} (${quantity} each) has been added to your cart`,
     });
-  };
+  }, [product, quantity, selectedShades, toast, shades.length]);
+
 
   const handleShadeSelect = (shade: Shade) => {
     const isSelected = selectedShades.some(s => s.id === shade.id);
@@ -531,55 +541,55 @@ export default function ProductDetail() {
     ));
   };
 
-  const shareToWhatsApp = () => {
+  const shareToWhatsApp = useCallback(() => {
     if (!product) return;
-    
+
     // Use the production URL with proper slug for WhatsApp preview
     const productSlug = product.slug || productSlugOrId;
-    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co') 
-      ? window.location.origin 
+    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co')
+      ? window.location.origin
       : 'https://poppiklifestyle.com';
-    
+
     let url = `${baseUrl}/product/${productSlug}`;
-    
+
     // If shades are selected, add shade parameter to URL
     if (selectedShades.length > 0) {
       url += `?shade=${selectedShades[0].id}`;
     }
-    
+
     // WhatsApp will automatically fetch Open Graph tags from the URL
     // Just send the URL - the preview will be generated automatically
     window.open(`https://wa.me/?text=${encodeURIComponent(url)}`, '_blank');
-  };
+  }, [product, productSlugOrId, selectedShades]);
 
-  const shareToFacebook = () => {
+  const shareToFacebook = useCallback(() => {
     const productSlug = product?.slug || productSlugOrId;
-    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co') 
-      ? window.location.origin 
+    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co')
+      ? window.location.origin
       : 'https://poppiklifestyle.com';
-    
+
     const url = `${baseUrl}/product/${productSlug}`;
     // Facebook will automatically fetch Open Graph tags from the URL
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
-  };
+  }, [product, productSlugOrId]);
 
-  const shareToTwitter = () => {
+  const shareToTwitter = useCallback(() => {
     const productSlug = product?.slug || productSlugOrId;
-    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co') 
-      ? window.location.origin 
+    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co')
+      ? window.location.origin
       : 'https://poppiklifestyle.com';
-    
+
     const url = `${baseUrl}/product/${productSlug}`;
     const text = `Check out ${product?.name} - ₹${product?.price} on Poppik!`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
-  };
+  }, [product, productSlugOrId]);
 
-  const copyProductLink = async () => {
+  const copyProductLink = useCallback(async () => {
     const productSlug = product?.slug || productSlugOrId;
-    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co') 
-      ? window.location.origin 
+    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co')
+      ? window.location.origin
       : 'https://poppiklifestyle.com';
-    
+
     const url = `${baseUrl}/product/${productSlug}`;
     try {
       await navigator.clipboard.writeText(url);
@@ -596,7 +606,27 @@ export default function ProductDetail() {
         variant: "destructive",
       });
     }
-  };
+  }, [product, productSlugOrId, toast]);
+
+  // Optimize image selection effect
+  useEffect(() => {
+    if (imageUrls.length > 0 && !selectedImageUrl) {
+      setSelectedImageUrl(imageUrls[0]);
+    }
+    // Reset selectedImageUrl if the current one is no longer in the list of available images
+    if (selectedImageUrl && !imageUrls.includes(selectedImageUrl)) {
+      setSelectedImageUrl(imageUrls.length > 0 ? imageUrls[0] : '');
+    }
+  }, [imageUrls, selectedImageUrl]);
+
+
+  if (!productSlug) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">Product not found</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -638,10 +668,11 @@ export default function ProductDetail() {
     );
   }
 
+  // Filter related products to exclude the current product and limit to 4
   const filteredRelatedProducts = relatedProducts?.filter(p => p.id !== product.id).slice(0, 4) || [];
 
   // Define productSlug for meta tags - use product.slug if available, otherwise use productSlugOrId
-  const productSlug = product.slug || productSlugOrId;
+  const productSlugForMeta = product.slug || productSlugOrId;
 
   return (
     <>
@@ -652,10 +683,10 @@ export default function ProductDetail() {
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="product" />
         <meta property="og:site_name" content="Poppik Lifestyle" />
-        <meta property="og:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
+        <meta property="og:url" content={`https://poppiklifestyle.com/product/${productSlugForMeta}`} />
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
-        
+
         {/* Force refresh OG cache */}
         <meta property="og:updated_time" content={new Date().toISOString()} />
         <meta property="og:image" content={(() => {
@@ -700,7 +731,7 @@ export default function ProductDetail() {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@PoppikLifestyle" />
         <meta name="twitter:creator" content="@PoppikLifestyle" />
-        <meta name="twitter:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
+        <meta name="twitter:url" content={`https://poppiklifestyle.com/product/${productSlugForMeta}`} />
         <meta name="twitter:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta name="twitter:image" content={(() => {
@@ -723,12 +754,12 @@ export default function ProductDetail() {
         {/* Product specific meta */}
         {product?.price && <meta property="product:price:amount" content={product.price.toString()} />}
         {product?.price && <meta property="product:price:currency" content="INR" />}
-        {product?.inStock && <meta property="product:availability" content="in stock" />}
+        {product.inStock !== undefined && <meta property="product:availability" content={product.inStock ? "in stock" : "out of stock"} />}
         {product?.category && <meta property="product:category" content={product.category} />}
-        {product?.rating && <meta property="product:rating:value" content={product.rating} />}
+        {product?.rating && <meta property="product:rating:value" content={product.rating.toString()} />}
         {product?.reviewCount && <meta property="product:rating:count" content={product.reviewCount.toString()} />}
 
-        <link rel="canonical" href={`https://poppiklifestyle.com/product/${productSlug}`} />
+        <link rel="canonical" href={`https://poppiklifestyle.com/product/${productSlugForMeta}`} />
       </Helmet>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-16">
         <div className="max-w-7xl mx-auto product-detail-container lg:px-8">
@@ -738,10 +769,12 @@ export default function ProductDetail() {
             Home
           </Link>
           <ChevronRight className="h-4 w-4 text-purple-400" />
-          <Link href={`/category/${product.category}`} className="text-purple-600 hover:text-purple-700 capitalize font-medium transition-colors">
-            {product.category}
-          </Link>
-          <ChevronRight className="h-4 w-4 text-purple-400" />
+          {product.category && (
+            <Link href={`/category/${product.category}`} className="text-purple-600 hover:text-purple-700 capitalize font-medium transition-colors">
+              {product.category}
+            </Link>
+          )}
+          {product.category && <ChevronRight className="h-4 w-4 text-purple-400" />}
           <span className="text-gray-900 font-semibold">{product.name}</span>
         </nav>
 
