@@ -1822,7 +1822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new offer (admin)
   app.post("/api/admin/offers", adminMiddleware, upload.fields([
     { name: 'image', maxCount: 1 },
-    { name: 'bannerImage', maxCount: 1 },
+    { name: 'bannerImages', maxCount: 10 },
     { name: 'additionalImages', maxCount: 10 },
     { name: 'video', maxCount: 1 }
   ]), async (req, res) => {
@@ -1830,20 +1830,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       let imageUrl = req.body.imageUrl;
       let bannerImageUrl = req.body.bannerImageUrl;
-      let images: string[] = [];
+      let additionalImages: string[] = [];
       let videoUrl = null;
 
+      // Handle main image
       if (files?.image?.[0]) {
         imageUrl = `/api/images/${files.image[0].filename}`;
       }
 
-      if (files?.bannerImage?.[0]) {
-        bannerImageUrl = `/api/images/${files.bannerImage[0].filename}`;
+      // Handle banner images - save multiple images to bannerImages array
+      let bannerImages: string[] = [];
+      if (files?.bannerImages) {
+        bannerImages = files.bannerImages.map(file => `/api/images/${file.filename}`);
       }
 
-      // Handle additional images
+      // Handle additional images - these go in the images array
       if (files?.additionalImages) {
-        images = files.additionalImages.map(file => `/api/images/${file.filename}`);
+        additionalImages = files.additionalImages.map(file => `/api/images/${file.filename}`);
       }
 
       // Handle video
@@ -1856,7 +1859,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: req.body.description,
         imageUrl: imageUrl || '',
         bannerImageUrl: bannerImageUrl || null,
-        images: images.length > 0 ? images : null,
+        bannerImages: bannerImages.length > 0 ? bannerImages : null,
+        images: additionalImages.length > 0 ? additionalImages : null,
         videoUrl: videoUrl,
         discountType: req.body.discountType || 'none',
         discountValue: req.body.discountValue ? parseFloat(req.body.discountValue) : null,
@@ -1902,7 +1906,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update offer (admin)
   app.put("/api/admin/offers/:id", adminMiddleware, upload.fields([
     { name: 'image', maxCount: 1 },
-    { name: 'bannerImage', maxCount: 1 },
+    { name: 'bannerImages', maxCount: 10 },
     { name: 'additionalImages', maxCount: 10 },
     { name: 'video', maxCount: 1 }
   ]), async (req, res) => {
@@ -1912,21 +1916,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updateData: any = {};
 
+      // Handle main image
       if (files?.image?.[0]) {
         updateData.imageUrl = `/api/images/${files.image[0].filename}`;
       } else if (req.body.imageUrl) {
         updateData.imageUrl = req.body.imageUrl;
       }
 
-      if (files?.bannerImage?.[0]) {
-        updateData.bannerImageUrl = `/api/images/${files.bannerImage[0].filename}`;
-      } else if (req.body.bannerImageUrl !== undefined) {
-        updateData.bannerImageUrl = req.body.bannerImageUrl || null;
+      // Handle banner images - save to bannerImages array
+      let allBannerImages: string[] = [];
+      
+      // Add existing banner images if provided
+      if (req.body.existingBannerImages) {
+        try {
+          const existingImages = JSON.parse(req.body.existingBannerImages);
+          if (Array.isArray(existingImages)) {
+            allBannerImages = [...existingImages];
+          }
+        } catch (e) {
+          console.error('Error parsing existingBannerImages:', e);
+        }
+      }
+      
+      // Add new uploaded banner images
+      if (files?.bannerImages) {
+        const newImages = files.bannerImages.map(file => `/api/images/${file.filename}`);
+        allBannerImages = [...allBannerImages, ...newImages];
+      }
+      
+      // Only update bannerImages array if there are images
+      if (allBannerImages.length > 0) {
+        updateData.bannerImages = allBannerImages;
+      } else if (req.body.existingBannerImages === '[]') {
+        // If explicitly cleared
+        updateData.bannerImages = null;
       }
 
-      // Handle additional images
+      // Handle additional images - these go in the images array, NOT the banner image
+      let allAdditionalImages: string[] = [];
+      
+      // Add existing additional images if provided
+      if (req.body.existingAdditionalImages) {
+        try {
+          const existingImages = JSON.parse(req.body.existingAdditionalImages);
+          if (Array.isArray(existingImages)) {
+            allAdditionalImages = [...existingImages];
+          }
+        } catch (e) {
+          console.error('Error parsing existingAdditionalImages:', e);
+        }
+      }
+      
+      // Add new uploaded additional images (NOT banner image)
       if (files?.additionalImages) {
-        updateData.images = files.additionalImages.map(file => `/api/images/${file.filename}`);
+        const newImages = files.additionalImages.map(file => `/api/images/${file.filename}`);
+        allAdditionalImages = [...allAdditionalImages, ...newImages];
+      }
+      
+      // Only update images array with additional images
+      if (allAdditionalImages.length > 0) {
+        updateData.images = allAdditionalImages;
+      } else if (req.body.existingAdditionalImages === '[]') {
+        // If explicitly cleared
+        updateData.images = null;
       }
 
       // Handle video

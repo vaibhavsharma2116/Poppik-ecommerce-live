@@ -561,7 +561,9 @@ export const offers = pgTable("offers", {
   title: varchar("title", { length: 200 }).notNull(),
   description: text("description").notNull(),
   imageUrl: text("image_url").notNull(),
-  bannerImageUrl: text("bannerimageurl"), // Added field for banner image
+  bannerImageUrl: text("banner_image_url"),
+  bannerImages: jsonb("banner_images").$type<string[]>(),
+  images: jsonb("images").$type<string[]>(),
   price: numeric("price", { precision: 10, scale: 2 }), // Offer price set by admin
   originalPrice: numeric("original_price", { precision: 10, scale: 2 }), // Original price before discount
   discountType: varchar("discount_type", { length: 20 }).default("none"), // 'percentage' | 'flat' | 'none'

@@ -57,11 +57,13 @@ export default function AdminOffers() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [bannerImageFile, setBannerImageFile] = useState<File | null>(null); // State for banner image
+  const [bannerImageFiles, setBannerImageFiles] = useState<File[]>([]); // State for multiple banner images
   const [imagePreview, setImagePreview] = useState<string>("");
-  const [bannerImagePreview, setBannerImagePreview] = useState<string>(""); // Preview for banner image
+  const [bannerImagePreviews, setBannerImagePreviews] = useState<string[]>([]); // Previews for banner images
+  const [existingBannerImages, setExistingBannerImages] = useState<string[]>([]); // Existing banner images
   const [additionalImages, setAdditionalImages] = useState<File[]>([]);
   const [additionalImagePreviews, setAdditionalImagePreviews] = useState<string[]>([]);
+  const [existingAdditionalImages, setExistingAdditionalImages] = useState<string[]>([]);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string>('');
   const { toast } = useToast();
@@ -284,16 +286,24 @@ export default function AdminOffers() {
     }
   };
 
-  const handleBannerImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setBannerImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setBannerImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+  const handleBannerImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setBannerImageFiles(prev => [...prev, ...files]);
+
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setBannerImagePreviews(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
     }
+  };
+
+  const removeBannerImage = (index: number) => {
+    setBannerImageFiles(prev => prev.filter((_, i) => i !== index));
+    setBannerImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -395,13 +405,22 @@ export default function AdminOffers() {
       formDataToSend.append('imageUrl', formData.imageUrl); // Ensure existing imageUrl is sent if no new image
     }
 
-    if (bannerImageFile) {
-      formDataToSend.append('bannerImage', bannerImageFile);
-    } else if (formData.bannerImageUrl) {
-      formDataToSend.append('bannerImageUrl', formData.bannerImageUrl); // Ensure existing bannerImageUrl is sent if no new image
+    // Add existing banner images (to preserve them)
+    if (existingBannerImages.length > 0) {
+      formDataToSend.append('existingBannerImages', JSON.stringify(existingBannerImages));
     }
+    
+    // Add new banner images
+    bannerImageFiles.forEach((file) => {
+      formDataToSend.append('bannerImages', file);
+    });
 
-    // Add additional images
+    // Add existing additional images (to preserve them)
+    if (existingAdditionalImages.length > 0) {
+      formDataToSend.append('existingAdditionalImages', JSON.stringify(existingAdditionalImages));
+    }
+    
+    // Add new additional images
     additionalImages.forEach((file, index) => {
       formDataToSend.append(`additionalImages`, file);
     });
@@ -445,10 +464,12 @@ export default function AdminOffers() {
     });
     setImageFile(null);
     setImagePreview("");
-    setBannerImageFile(null); // Reset banner image state
-    setBannerImagePreview(""); // Reset banner image preview
+    setBannerImageFiles([]); // Reset banner images state
+    setBannerImagePreviews([]); // Reset banner image previews
+    setExistingBannerImages([]); // Reset existing banner images
     setAdditionalImages([]); // Reset additional images state
     setAdditionalImagePreviews([]); // Reset additional image previews
+    setExistingAdditionalImages([]); // Reset existing additional images
     setVideoFile(null); // Reset video file state
     setVideoPreview(''); // Reset video preview
   };
@@ -505,11 +526,26 @@ export default function AdminOffers() {
       benefits: offer.benefits || "", // Set new field
     });
     setImagePreview(offer.imageUrl);
-    setBannerImagePreview(offer.bannerImageUrl || ""); // Set banner image preview
-    // Note: For editing existing offers, we don't load additional images or videos directly into the form state here.
-    // The backend should handle associating existing additional images/videos with the offer and the frontend
-    // would need a mechanism to display/manage them if they were fetched.
-    // For simplicity in this example, we focus on upload for new/updated offers.
+    
+    // Load existing banner images
+    if (offer.bannerImages && Array.isArray(offer.bannerImages)) {
+      setExistingBannerImages(offer.bannerImages);
+    } else if (offer.bannerImageUrl) {
+      // Handle legacy single banner image
+      setExistingBannerImages([offer.bannerImageUrl]);
+    } else {
+      setExistingBannerImages([]);
+    }
+    
+    // Load existing additional images
+    if (offer.additionalImageUrls && Array.isArray(offer.additionalImageUrls)) {
+      setExistingAdditionalImages(offer.additionalImageUrls);
+    } else if (offer.images && Array.isArray(offer.images)) {
+      setExistingAdditionalImages(offer.images);
+    } else {
+      setExistingAdditionalImages([]);
+    }
+    
     setIsCreateDialogOpen(true);
   };
 
@@ -622,26 +658,92 @@ export default function AdminOffers() {
                 )}
               </div>
 
-              {/* Listing Page Banner Image Upload */}
+              {/* Listing Page Banner Images Upload */}
               <div className="space-y-2">
-                <Label htmlFor="bannerImage">Listing Page Banner Image (Optional)</Label>
-                <Input
-                  id="bannerImage"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleBannerImageChange}
-                />
-                {bannerImagePreview && (
-                  <div className="mt-2">
-                    <img src={bannerImagePreview} alt="Banner Image Preview" className="w-full h-48 object-cover rounded-lg" />
+                <Label htmlFor="bannerImages">Listing Page Banner Images (Optional)</Label>
+                
+                {/* Show existing banner images */}
+                {existingBannerImages.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-sm text-slate-600 mb-2">Current banner images:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {existingBannerImages.map((imageUrl, index) => (
+                        <div key={`existing-banner-${index}`} className="relative">
+                          <img src={imageUrl} alt={`Banner ${index + 1}`} className="w-full h-32 object-cover rounded-lg border-2 border-blue-300" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExistingBannerImages(prev => prev.filter((_, i) => i !== index));
+                            }}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                          <span className="absolute bottom-1 left-1 bg-blue-500 text-white text-xs px-2 py-1 rounded">Existing</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <p className="text-xs text-slate-500">Banner for offers listing page only (recommended: 1920x400px)</p>
+                
+                <Input
+                  id="bannerImages"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleBannerImagesChange}
+                />
+                {bannerImagePreviews.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm text-slate-600 mb-2">New banner images to upload:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {bannerImagePreviews.map((preview, index) => (
+                        <div key={`new-banner-${index}`} className="relative">
+                          <img src={preview} alt={`New Banner ${index + 1}`} className="w-full h-32 object-cover rounded-lg border-2 border-green-300" />
+                          <button
+                            type="button"
+                            onClick={() => removeBannerImage(index)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                          <span className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-2 py-1 rounded">New</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-slate-500">Multiple banners for offers listing page (recommended: 1920x400px each)</p>
               </div>
 
               {/* Additional Images Upload */}
               <div className="space-y-2">
                 <Label htmlFor="additionalImages">Additional Detail Page Images</Label>
+                
+                {/* Show existing additional images */}
+                {existingAdditionalImages.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-sm text-slate-600 mb-2">Current additional images:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {existingAdditionalImages.map((imageUrl, index) => (
+                        <div key={`existing-${index}`} className="relative">
+                          <img src={imageUrl} alt={`Existing ${index + 1}`} className="w-full h-32 object-cover rounded-lg border-2 border-blue-300" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExistingAdditionalImages(prev => prev.filter((_, i) => i !== index));
+                            }}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                          <span className="absolute bottom-1 left-1 bg-blue-500 text-white text-xs px-2 py-1 rounded">Existing</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <Input
                   id="additionalImages"
                   type="file"
@@ -650,19 +752,23 @@ export default function AdminOffers() {
                   onChange={handleAdditionalImagesChange}
                 />
                 {additionalImagePreviews.length > 0 && (
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {additionalImagePreviews.map((preview, index) => (
-                      <div key={index} className="relative">
-                        <img src={preview} alt={`Additional ${index + 1}`} className="w-full h-32 object-cover rounded-lg" />
-                        <button
-                          type="button"
-                          onClick={() => removeAdditionalImage(index)}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+                  <div className="mt-2">
+                    <p className="text-sm text-slate-600 mb-2">New images to upload:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {additionalImagePreviews.map((preview, index) => (
+                        <div key={`new-${index}`} className="relative">
+                          <img src={preview} alt={`New ${index + 1}`} className="w-full h-32 object-cover rounded-lg border-2 border-green-300" />
+                          <button
+                            type="button"
+                            onClick={() => removeAdditionalImage(index)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                          <span className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-2 py-1 rounded">New</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <p className="text-xs text-slate-500">Multiple images for offer detail page gallery</p>
@@ -682,10 +788,10 @@ export default function AdminOffers() {
                     <video src={videoPreview} controls className="w-full h-48 rounded-lg" />
                   </div>
                 )}
-                {editingOffer && offerData.videoUrl && !videoPreview && (
+                {editingOffer && editingOffer.videoUrl && !videoPreview && (
                   <div className="mt-2">
                     <p className="text-sm text-slate-600 mb-1">Current video:</p>
-                    <video src={offerData.videoUrl} controls className="w-full h-48 rounded-lg" />
+                    <video src={editingOffer.videoUrl} controls className="w-full h-48 rounded-lg" />
                   </div>
                 )}
                 <p className="text-xs text-slate-500">Video for offer detail page gallery</p>
