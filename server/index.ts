@@ -245,6 +245,12 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       // Fallback to a default high-quality image if no image found
       const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
       
+      // Check if imageUrl is base64 encoded data (starts with data:image)
+      if (productImage && productImage.startsWith('data:image')) {
+        console.log('⚠️ Product has base64 image data, using fallback or DB images');
+        productImage = images[0]?.imageUrl || fallbackImage;
+      }
+      
       if (!productImage || productImage.trim() === '') {
         productImage = fallbackImage;
         console.log('⚠️ No product image found, using fallback');
