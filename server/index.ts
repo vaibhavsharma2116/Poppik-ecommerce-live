@@ -170,7 +170,8 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   // Register API routes FIRST
   const server = await registerRoutes(app);
 
-  app.get("/product/:slug", async (req, res, next) => {
+  // Handle both /product/:slug and /api/products/:slug for Open Graph tags
+  const handleProductOG = async (req: any, res: any, next: any) => {
     try {
       const { slug } = req.params;
       const shadeId = req.query.shade; // Get shade ID from query parameter
@@ -398,7 +399,13 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       console.error("Error serving product page:", error);
       next();
     }
-  });
+  };
+
+  // Add route for /product/:slug
+  app.get("/product/:slug", handleProductOG);
+  
+  // Add route for /api/products/:slug to also show OG tags
+  app.get("/api/products/:slug", handleProductOG);
 
   // Vite/Static setup
   if (app.get("env") === "development") {

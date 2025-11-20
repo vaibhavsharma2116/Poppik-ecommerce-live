@@ -534,64 +534,53 @@ export default function ProductDetail() {
   const shareToWhatsApp = () => {
     if (!product) return;
     
-    // Get the URL with shade parameter if shade is selected
-    let url = window.location.href.split('?')[0]; // Remove existing query params
+    // Use the production URL with proper slug for WhatsApp preview
+    const productSlug = product.slug || productSlugOrId;
+    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co') 
+      ? window.location.origin 
+      : 'https://poppiklifestyle.com';
+    
+    let url = `${baseUrl}/product/${productSlug}`;
     
     // If shades are selected, add shade parameter to URL
     if (selectedShades.length > 0) {
       url += `?shade=${selectedShades[0].id}`;
     }
     
-    const price = `₹${product.price}`;
-    
-    // Get the image to share - prioritize main product images, then shade if selected
-    let shareImage = '';
-    if (imageUrls.length > 0) {
-      shareImage = imageUrls[0];
-    } else if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
-      shareImage = selectedShades[0].imageUrl;
-    } else if (product.imageUrl) {
-      shareImage = product.imageUrl;
-    }
-    
-    // Convert relative URLs to absolute URLs for WhatsApp
-    if (shareImage && !shareImage.startsWith('http')) {
-      if (shareImage.startsWith('/api/image/')) {
-        const imageId = shareImage.split('/').pop();
-        shareImage = `https://poppiklifestyle.com/uploads/${imageId}`;
-      } else if (shareImage.startsWith('/uploads/')) {
-        shareImage = `https://poppiklifestyle.com${shareImage}`;
-      } else if (shareImage.startsWith('/')) {
-        shareImage = `https://poppiklifestyle.com${shareImage}`;
-      } else {
-        shareImage = `https://poppiklifestyle.com/${shareImage}`;
-      }
-    }
-    
-    // Get the selected shade name if available
-    const shadeInfo = selectedShades.length > 0 
-      ? `\n🎨 Shade: ${selectedShades.map(s => s.name).join(', ')}`
-      : '';
-
-    const text = `🛍️ *${product.name}*\n\n${product.shortDescription || ''}${shadeInfo}\n\n💰 Price: ${price}\n\n👉 Check it out: ${url}`;
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    // WhatsApp will automatically fetch Open Graph tags from the URL
+    // Just send the URL - the preview will be generated automatically
+    window.open(`https://wa.me/?text=${encodeURIComponent(url)}`, '_blank');
   };
 
   const shareToFacebook = () => {
-    const url = window.location.href;
+    const productSlug = product?.slug || productSlugOrId;
+    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co') 
+      ? window.location.origin 
+      : 'https://poppiklifestyle.com';
+    
+    const url = `${baseUrl}/product/${productSlug}`;
     // Facebook will automatically fetch Open Graph tags from the URL
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
   };
 
   const shareToTwitter = () => {
-    const url = window.location.href;
-    const text = `Check out ${product?.name} - ₹${product?.price} on Poppik! ${product?.shortDescription || ''}`;
+    const productSlug = product?.slug || productSlugOrId;
+    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co') 
+      ? window.location.origin 
+      : 'https://poppiklifestyle.com';
+    
+    const url = `${baseUrl}/product/${productSlug}`;
+    const text = `Check out ${product?.name} - ₹${product?.price} on Poppik!`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
   };
 
   const copyProductLink = async () => {
-    const url = window.location.href;
+    const productSlug = product?.slug || productSlugOrId;
+    const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co') 
+      ? window.location.origin 
+      : 'https://poppiklifestyle.com';
+    
+    const url = `${baseUrl}/product/${productSlug}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -666,6 +655,9 @@ export default function ProductDetail() {
         <meta property="og:url" content={`https://poppiklifestyle.com/product/${productSlug}`} />
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
+        
+        {/* Force refresh OG cache */}
+        <meta property="og:updated_time" content={new Date().toISOString()} />
         <meta property="og:image" content={(() => {
           let img = imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           if (img && !img.startsWith('http')) {
