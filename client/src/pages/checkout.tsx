@@ -469,18 +469,8 @@ export default function CheckoutPage() {
 
     // Check if this is a multi-address order
     const isMultiAddress = localStorage.getItem('isMultiAddressOrder');
-    const multiAddressItems = localStorage.getItem('multiAddressItems');
-
-    if (isMultiAddress === 'true' && multiAddressItems) {
-      try {
-        const items = JSON.parse(multiAddressItems);
-        console.log('✅ Multi-address order detected:', items);
-        // Items will be loaded from cart, addresses are already assigned
-      } catch (error) {
-        console.error('Error loading multi-address data:', error);
-        localStorage.removeItem('isMultiAddressOrder');
-        localStorage.removeItem('multiAddressItems');
-      }
+    if (isMultiAddress === 'true') {
+      console.log('✅ Multi-address order detected');
     }
 
     // Load affiliate discount from localStorage first
@@ -1508,7 +1498,7 @@ export default function CheckoutPage() {
 
         // Check if this is a multi-address order
         const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
-        const multiAddressItems = localStorage.getItem('multiAddressItems');
+        const multiAddressMapping = localStorage.getItem('multiAddressMapping');
 
         let shippingAddressData = fullAddress;
         let itemsData = cartItems.map(item => ({
@@ -1519,33 +1509,39 @@ export default function CheckoutPage() {
           price: item.price,
           cashbackPrice: item.cashbackPrice || null,
           cashbackPercentage: item.cashbackPercentage || null,
-          deliveryInstructions: item.deliveryInstructions || null, // Include delivery instructions
+          deliveryInstructions: item.deliveryInstructions || null,
         }));
 
         // If multi-address order, include delivery addresses for each item
-        if (isMultiAddress && multiAddressItems) {
+        if (isMultiAddress && multiAddressMapping && savedAddresses.length > 0) {
           try {
-            const items = JSON.parse(multiAddressItems);
-            itemsData = items.map((item: any) => ({
-              productId: item.id,
-              productName: item.name,
-              productImage: item.image,
-              quantity: item.quantity,
-              price: item.price,
-              cashbackPrice: item.cashbackPrice || null,
-              cashbackPercentage: item.cashbackPercentage || null,
-              deliveryAddress: item.deliveryAddress ? item.deliveryAddress.fullAddress : null,
-              recipientName: item.deliveryAddress ? item.deliveryAddress.recipientName : null,
-              recipientPhone: item.deliveryAddress ? item.deliveryAddress.phone : null,
-              deliveryInstructions: item.deliveryAddress?.deliveryInstructions || null, // Include delivery instructions from the address
-              saturdayDelivery: item.deliveryAddress?.saturdayDelivery, // Include weekend delivery preferences from address
-              sundayDelivery: item.deliveryAddress?.sundayDelivery,   // Include weekend delivery preferences from address
-            }));
+            const mapping = JSON.parse(multiAddressMapping);
+            
+            itemsData = cartItems.map((item: any) => {
+              const addressId = mapping[item.id];
+              const address = savedAddresses.find(addr => addr.id === addressId);
+              
+              return {
+                productId: item.id,
+                productName: item.name,
+                productImage: item.image,
+                quantity: item.quantity,
+                price: item.price,
+                cashbackPrice: item.cashbackPrice || null,
+                cashbackPercentage: item.cashbackPercentage || null,
+                deliveryAddress: address ? `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}` : null,
+                recipientName: address ? address.recipientName : null,
+                recipientPhone: address ? address.phoneNumber : null,
+                deliveryInstructions: address?.deliveryInstructions || null,
+                saturdayDelivery: address?.saturdayDelivery,
+                sundayDelivery: address?.sundayDelivery,
+              };
+            });
 
             // For multi-address orders, use first address or a combined note
             shippingAddressData = "Multiple Delivery Addresses - See individual items";
           } catch (error) {
-            console.error('Error parsing multi-address items:', error);
+            console.error('Error parsing multi-address mapping:', error);
           }
         }
 
@@ -1630,13 +1626,12 @@ export default function CheckoutPage() {
           localStorage.removeItem("cart");
           localStorage.removeItem("appliedPromoCode");
           localStorage.removeItem("affiliateDiscount");
-          localStorage.removeItem("promoDiscount"); // Remove promo discount from local storage
+          localStorage.removeItem("promoDiscount");
           localStorage.removeItem("redeemAmount");
           localStorage.removeItem("affiliateWalletAmount");
           localStorage.removeItem("isMultiAddressOrder");
-          localStorage.removeItem("multiAddressItems");
           localStorage.removeItem("multiAddressMapping");
-          localStorage.removeItem("multipleAddressMode"); // Remove this flag too
+          localStorage.removeItem("multipleAddressMode");
           sessionStorage.removeItem('pendingOrder');
           localStorage.setItem("cartCount", "0");
           window.dispatchEvent(new Event("cartUpdated"));
@@ -1790,7 +1785,7 @@ export default function CheckoutPage() {
 
           {userProfile && (
             <div className="space-y-4 py-4">
-              <div className="bg-gradient-to-br from-red-50 to-pink-50 p-4 rounded-lg space-y-4 border border-red-100">
+              <div className="bg-gradient-to-br from-red-50 to-pink-50 p-4 rounded-lg border border-red-100">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <h4 className="font-semibold text-sm text-red-700 mb-2">Contact Information</h4>
@@ -1957,13 +1952,10 @@ export default function CheckoutPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            // Store only essential cart data to avoid localStorage quota
+                            // Store only item IDs and quantities to avoid localStorage quota
                             const minimalCartData = cartItems.map(item => ({
                               id: item.id,
-                              name: item.name,
-                              quantity: item.quantity,
-                              price: item.price,
-                              image: item.image
+                              quantity: item.quantity
                             }));
                             localStorage.setItem('multipleAddressMode', 'true');
                             localStorage.setItem('checkoutCartItems', JSON.stringify(minimalCartData));
@@ -2587,17 +2579,58 @@ export default function CheckoutPage() {
                     )}
 
                     {cartItems.map((item) => {
-                      // Get delivery address for this item from multi-address data
-                      const multiAddressItems = localStorage.getItem('multiAddressItems');
-                      let deliveryAddress = null;
+                      // Get delivery addresses for this item from multi-address mapping
+                      const multiAddressMapping = localStorage.getItem('multiAddressMapping');
+                      let deliveryAddresses: any[] = [];
+                      let hasInstanceMapping = false;
 
-                      if (multiAddressItems) {
+                      if (multiAddressMapping && savedAddresses.length > 0) {
                         try {
-                          const items = JSON.parse(multiAddressItems);
-                          const itemWithAddress = items.find((i: any) => i.id === item.id);
-                          deliveryAddress = itemWithAddress?.deliveryAddress;
+                          const mapping = JSON.parse(multiAddressMapping);
+                          
+                          // Check if there are instance-based mappings (e.g., "123-0", "123-1")
+                          const instanceKeys = Object.keys(mapping).filter(key => key.startsWith(`${item.id}-`));
+                          
+                          if (instanceKeys.length > 0) {
+                            // Item has individual addresses for each quantity
+                            hasInstanceMapping = true;
+                            deliveryAddresses = instanceKeys.map((key, index) => {
+                              const addressId = mapping[key];
+                              const address = savedAddresses.find(addr => addr.id === addressId);
+                              return address ? {
+                                instanceNumber: index + 1,
+                                id: address.id,
+                                recipientName: address.recipientName,
+                                addressLine1: address.addressLine1,
+                                addressLine2: address.addressLine2 || '',
+                                city: address.city,
+                                state: address.state,
+                                pincode: address.pincode,
+                                phone: address.phoneNumber,
+                              } : null;
+                            }).filter(Boolean);
+                          } else {
+                            // Single address for all quantities
+                            const addressId = mapping[item.id];
+                            if (addressId) {
+                              const address = savedAddresses.find(addr => addr.id === addressId);
+                              if (address) {
+                                deliveryAddresses = [{
+                                  instanceNumber: null,
+                                  id: address.id,
+                                  recipientName: address.recipientName,
+                                  addressLine1: address.addressLine1,
+                                  addressLine2: address.addressLine2 || '',
+                                  city: address.city,
+                                  state: address.state,
+                                  pincode: address.pincode,
+                                  phone: address.phoneNumber,
+                                }];
+                              }
+                            }
+                          }
                         } catch (error) {
-                          console.error('Error parsing multi-address items:', error);
+                          console.error('Error parsing multi-address mapping:', error);
                         }
                       }
 
@@ -2630,27 +2663,56 @@ export default function CheckoutPage() {
                               )}
                               <p className="text-sm text-gray-600 mt-1">Qty: {item.quantity}</p>
 
-                              {/* Show delivery address for multi-address orders */}
-                              {deliveryAddress && (
-                                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                                  <div className="flex items-start gap-1.5">
-                                    <MapPin className="h-3 w-3 text-blue-600 mt-0.5 flex-shrink-0" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-semibold text-blue-900 mb-0.5">
-                                        {deliveryAddress.recipientName}
-                                      </p>
-                                      <p className="text-xs text-gray-700 leading-relaxed">
-                                        {deliveryAddress.addressLine1}
-                                        {deliveryAddress.addressLine2 && `, ${deliveryAddress.addressLine2}`}
-                                      </p>
-                                      <p className="text-xs text-gray-700">
-                                        {deliveryAddress.city}, {deliveryAddress.state} - {deliveryAddress.pincode}
-                                      </p>
-                                      <p className="text-xs text-gray-600 mt-0.5">
-                                        Phone: {deliveryAddress.phone}
-                                      </p>
+                              {/* Show delivery addresses for multi-address orders */}
+                              {deliveryAddresses.length > 0 && (
+                                <div className="mt-2 space-y-2">
+                                  {hasInstanceMapping && deliveryAddresses.length > 1 ? (
+                                    // Multiple instances with different addresses
+                                    deliveryAddresses.map((deliveryAddress, idx) => (
+                                      <div key={idx} className="p-2 bg-blue-50 border border-blue-200 rounded-md">
+                                        <div className="flex items-start gap-1.5">
+                                          <MapPin className="h-3 w-3 text-blue-600 mt-0.5 flex-shrink-0" />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-semibold text-blue-900 mb-0.5">
+                                              Item {deliveryAddress.instanceNumber}: {deliveryAddress.recipientName}
+                                            </p>
+                                            <p className="text-xs text-gray-700 leading-relaxed">
+                                              {deliveryAddress.addressLine1}
+                                              {deliveryAddress.addressLine2 && `, ${deliveryAddress.addressLine2}`}
+                                            </p>
+                                            <p className="text-xs text-gray-700">
+                                              {deliveryAddress.city}, {deliveryAddress.state} - {deliveryAddress.pincode}
+                                            </p>
+                                            <p className="text-xs text-gray-600 mt-0.5">
+                                              Phone: {deliveryAddress.phone}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    // Single address for all quantities
+                                    <div className="p-2 bg-blue-50 border border-blue-200 rounded-md">
+                                      <div className="flex items-start gap-1.5">
+                                        <MapPin className="h-3 w-3 text-blue-600 mt-0.5 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-semibold text-blue-900 mb-0.5">
+                                            {deliveryAddresses[0].recipientName}
+                                          </p>
+                                          <p className="text-xs text-gray-700 leading-relaxed">
+                                            {deliveryAddresses[0].addressLine1}
+                                            {deliveryAddresses[0].addressLine2 && `, ${deliveryAddresses[0].addressLine2}`}
+                                          </p>
+                                          <p className="text-xs text-gray-700">
+                                            {deliveryAddresses[0].city}, {deliveryAddresses[0].state} - {deliveryAddresses[0].pincode}
+                                          </p>
+                                          <p className="text-xs text-gray-600 mt-0.5">
+                                            Phone: {deliveryAddresses[0].phone}
+                                          </p>
+                                        </div>
+                                      </div>
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
                               )}
 

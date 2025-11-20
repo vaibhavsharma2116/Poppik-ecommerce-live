@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Plus, Pencil, Trash2, Package, Check } from "lucide-react";
+import { MapPin, Plus, Pencil, Trash2, Package, Check, Minus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import Layout from "@/components/layout";
 
@@ -29,8 +29,15 @@ interface CartItem {
   id: number;
   name: string;
   price: string;
+  originalPrice?: string;
   image: string;
   quantity: number;
+  selectedShade?: {
+    id: number;
+    name: string;
+    colorCode: string;
+    imageUrl?: string;
+  };
 }
 
 interface ItemAddressMapping {
@@ -47,6 +54,8 @@ export default function SelectDeliveryAddress() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [itemAddressMapping, setItemAddressMapping] = useState<ItemAddressMapping>({});
   const [isMultipleAddressMode, setIsMultipleAddressMode] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
+  const [itemInstanceMapping, setItemInstanceMapping] = useState<{[key: string]: number}>({});
   const [formData, setFormData] = useState({
     recipientName: '',
     addressLine1: '',
@@ -72,8 +81,28 @@ export default function SelectDeliveryAddress() {
     if (multipleMode === 'true') {
       setIsMultipleAddressMode(true);
       const savedCart = localStorage.getItem('checkoutCartItems');
-      if (savedCart) {
-        setCartItems(JSON.parse(savedCart));
+      const fullCart = localStorage.getItem('cart');
+      
+      if (savedCart && fullCart) {
+        try {
+          const minimalCart = JSON.parse(savedCart);
+          const fullCartItems = JSON.parse(fullCart);
+          
+          // Reconstruct cart items with full data
+          const reconstructedItems = minimalCart.map((minimal: any) => {
+            const fullItem = fullCartItems.find((item: any) => item.id === minimal.id);
+            return fullItem ? { ...fullItem, quantity: minimal.quantity } : null;
+          }).filter(Boolean);
+          
+          setCartItems(reconstructedItems);
+        } catch (error) {
+          console.error('Error reconstructing cart items:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load cart items. Please try again.",
+            variant: "destructive",
+          });
+        }
       }
       toast({
         title: "Multiple Addresses Mode",
@@ -204,6 +233,31 @@ export default function SelectDeliveryAddress() {
     }
   };
 
+  const updateQuantity = (itemId: number, newQuantity: number) => {
+    if (newQuantity < 1 || newQuantity > 10) return;
+    
+    setCartItems(items =>
+      items.map(item =>
+        item.id === itemId ? { ...item, quantity: newQuantity } : item
+      )
+    );
+
+    // Update localStorage
+    const updatedCart = cartItems.map(item =>
+      item.id === itemId ? { ...item, quantity: newQuantity } : item
+    );
+    localStorage.setItem('cart', JSON.stringify(updatedCart));
+    localStorage.setItem('checkoutCartItems', JSON.stringify(
+      updatedCart.map(item => ({ id: item.id, quantity: item.quantity }))
+    ));
+    window.dispatchEvent(new Event('cartUpdated'));
+
+    toast({
+      title: "Quantity Updated",
+      description: `Item quantity changed to ${newQuantity}`,
+    });
+  };
+
   const handleItemAddressChange = (itemId: number, addressId: number) => {
     setItemAddressMapping(prev => ({
       ...prev,
@@ -211,48 +265,84 @@ export default function SelectDeliveryAddress() {
     }));
   };
 
-  const handleSaveMultipleAddresses = async () => {
-    // Check if all items have addresses assigned
-    const unassignedItems = cartItems.filter(item => !itemAddressMapping[item.id]);
+  const handleItemInstanceAddressChange = (itemKey: string, addressId: number) => {
+    setItemInstanceMapping(prev => ({
+      ...prev,
+      [itemKey]: addressId
+    }));
+  };
 
-    if (unassignedItems.length > 0) {
+  const toggleExpandItem = (itemId: number) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSaveMultipleAddresses = async () => {
+    // Check if all items and their instances have addresses assigned
+    let totalInstances = 0;
+    let assignedInstances = 0;
+
+    cartItems.forEach(item => {
+      const isExpanded = expandedItems.has(item.id);
+      
+      if (isExpanded && item.quantity > 1) {
+        // Count individual instances
+        totalInstances += item.quantity;
+        for (let i = 0; i < item.quantity; i++) {
+          const instanceKey = `${item.id}-${i}`;
+          if (itemInstanceMapping[instanceKey]) {
+            assignedInstances++;
+          }
+        }
+      } else {
+        // Count as single item
+        totalInstances++;
+        if (itemAddressMapping[item.id]) {
+          assignedInstances++;
+        }
+      }
+    });
+
+    if (assignedInstances < totalInstances) {
       toast({
         title: "Missing Addresses",
-        description: `Please assign delivery addresses to all ${unassignedItems.length} remaining item(s)`,
+        description: `Please assign delivery addresses to all ${totalInstances - assignedInstances} remaining item(s)`,
         variant: "destructive"
       });
       return;
     }
 
     try {
-      // Get full address details for each item
-      const itemsWithFullAddresses = cartItems.map(item => {
-        const addressId = itemAddressMapping[item.id];
-        const address = addresses.find(addr => addr.id === addressId);
-
-        return {
-          ...item,
-          deliveryAddress: address ? {
-            id: address.id,
-            recipientName: address.recipientName,
-            fullAddress: `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}`,
-            phone: address.phoneNumber,
-            addressLine1: address.addressLine1,
-            addressLine2: address.addressLine2,
-            city: address.city,
-            state: address.state,
-            pincode: address.pincode,
-            country: address.country
-          } : null
-        };
+      const minimalMapping: { [key: string]: number } = {};
+      
+      cartItems.forEach(item => {
+        const isExpanded = expandedItems.has(item.id);
+        
+        if (isExpanded && item.quantity > 1) {
+          // Save individual instance mappings
+          for (let i = 0; i < item.quantity; i++) {
+            const instanceKey = `${item.id}-${i}`;
+            if (itemInstanceMapping[instanceKey]) {
+              minimalMapping[instanceKey] = itemInstanceMapping[instanceKey];
+            }
+          }
+        } else {
+          // Save single item mapping
+          if (itemAddressMapping[item.id]) {
+            minimalMapping[item.id.toString()] = itemAddressMapping[item.id];
+          }
+        }
       });
 
-      // Save to localStorage for checkout page
-      localStorage.setItem('multiAddressMapping', JSON.stringify(itemAddressMapping));
-      localStorage.setItem('multiAddressItems', JSON.stringify(itemsWithFullAddresses));
+      localStorage.setItem('multiAddressMapping', JSON.stringify(minimalMapping));
       localStorage.setItem('isMultiAddressOrder', 'true');
-
-      // Clear multi-address mode flags
       localStorage.removeItem('multipleAddressMode');
       localStorage.removeItem('checkoutCartItems');
 
@@ -261,13 +351,12 @@ export default function SelectDeliveryAddress() {
         description: "Delivery addresses saved for all items"
       });
 
-      // Redirect to checkout
-      setTimeout(() => setLocation('/checkout'), 300);
+      setLocation('/checkout');
     } catch (error) {
       console.error('Error saving multi-address data:', error);
       toast({
         title: "Error",
-        description: "Failed to save delivery addresses",
+        description: error instanceof Error ? error.message : "Failed to save delivery addresses",
         variant: "destructive"
       });
     }
@@ -302,45 +391,161 @@ export default function SelectDeliveryAddress() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {cartItems.map((item) => (
-                  <div key={item.id} className="flex items-start gap-4 p-4 bg-white rounded-lg border">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-20 h-20 object-cover rounded"
-                    />
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{item.name}</h3>
-                      <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>
-                      <p className="text-sm font-medium">{item.price}</p>
+                {cartItems.map((item) => {
+                  const isExpanded = expandedItems.has(item.id);
+                  const originalPrice = item.originalPrice ? parseInt(item.originalPrice.replace(/[₹,]/g, "")) : 0;
+                  const currentPrice = parseInt(item.price.replace(/[₹,]/g, ""));
+                  const discount = originalPrice > 0 ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100) : 0;
+                  
+                  return (
+                    <div key={item.id} className="p-4 bg-white rounded-lg border">
+                      <div className="flex items-start gap-4">
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-20 h-20 object-cover rounded"
+                        />
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{item.name}</h3>
+                          {item.selectedShade && (
+                            <p className="text-xs text-gray-600 mt-1">Shade: {item.selectedShade.name}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-lg font-medium">{item.price}</span>
+                            {item.originalPrice && (
+                              <>
+                                <span className="text-sm text-gray-500 line-through">{item.originalPrice}</span>
+                                {discount > 0 && (
+                                  <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                                    {discount}% OFF
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
 
-                      <div className="mt-3">
-                        <Label className="text-xs">Select delivery address:</Label>
-                        <select
-                          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          value={itemAddressMapping[item.id] || ''}
-                          onChange={(e) => handleItemAddressChange(item.id, parseInt(e.target.value))}
-                        >
-                          <option value="">Choose an address...</option>
-                          {addresses.map((addr) => (
-                            <option key={addr.id} value={addr.id}>
-                              {addr.recipientName} - {addr.city}, {addr.pincode}
-                            </option>
-                          ))}
-                        </select>
+                          <div className="mt-3 flex items-center gap-3">
+                            <div className="flex items-center border border-gray-300 rounded-lg">
+                              <button
+                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                className="p-2 hover:bg-gray-100 transition-colors"
+                                aria-label="Decrease quantity"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </button>
+                              <span className="px-4 py-2 font-medium min-w-[3rem] text-center">{item.quantity}</span>
+                              <button
+                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                                disabled={item.quantity >= 10}
+                                aria-label="Increase quantity"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
+                            </div>
+                            
+                            {item.quantity > 1 && !isExpanded && (
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => toggleExpandItem(item.id)}
+                                className="text-blue-600 hover:text-blue-700 p-0 h-auto"
+                              >
+                                Deliver this item to additional addresses
+                              </Button>
+                            )}
+                          </div>
+
+                          {!isExpanded && (
+                            <div className="mt-3">
+                              <Label className="text-xs">Select delivery address:</Label>
+                              <select
+                                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                value={itemAddressMapping[item.id] || ''}
+                                onChange={(e) => handleItemAddressChange(item.id, parseInt(e.target.value))}
+                              >
+                                <option value="">Choose an address...</option>
+                                {addresses.map((addr) => (
+                                  <option key={addr.id} value={addr.id}>
+                                    {addr.recipientName} - {addr.city}, {addr.pincode}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
                       </div>
+
+                      {isExpanded && item.quantity > 1 && (
+                        <div className="mt-4 pt-4 border-t space-y-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-gray-700">Assign address to each item:</p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleExpandItem(item.id)}
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              Use same address for all
+                            </Button>
+                          </div>
+                          {Array.from({ length: item.quantity }).map((_, index) => {
+                            const instanceKey = `${item.id}-${index}`;
+                            return (
+                              <div key={instanceKey} className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
+                                <span className="text-sm font-medium text-gray-700 min-w-[80px]">
+                                  Item {index + 1}:
+                                </span>
+                                <select
+                                  className="flex-1 rounded-md border border-input bg-white px-3 py-2 text-sm"
+                                  value={itemInstanceMapping[instanceKey] || ''}
+                                  onChange={(e) => handleItemInstanceAddressChange(instanceKey, parseInt(e.target.value))}
+                                >
+                                  <option value="">Choose an address...</option>
+                                  {addresses.map((addr) => (
+                                    <option key={addr.id} value={addr.id}>
+                                      {addr.recipientName} - {addr.city}, {addr.pincode}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              <div className="mt-6 flex gap-3">
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
+                <h3 className="font-semibold mb-3">Order Summary</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Total Items:</span>
+                    <span className="font-medium">{cartItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span className="font-medium">
+                      ₹{cartItems.reduce((sum, item) => {
+                        const price = parseInt(item.price.replace(/[₹,]/g, ""));
+                        return sum + (price * item.quantity);
+                      }, 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 pt-2 border-t">
+                    Shipping and final total will be calculated at checkout
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex gap-3">
                 <Button
                   onClick={handleSaveMultipleAddresses}
-                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
-                  disabled={Object.keys(itemAddressMapping).length !== cartItems.length}
+                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-6 text-base"
                 >
-                  Continue to Payment
+                  Proceed to Buy
                 </Button>
               </div>
             </CardContent>
