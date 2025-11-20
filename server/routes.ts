@@ -2097,6 +2097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         productsIncluded: offer[0].productsIncluded || null,
         benefits: offer[0].benefits || null,
         images: offer[0].images || [],
+        bannerImages: offer[0].bannerImages || [],
         videoUrl: offer[0].videoUrl || null,
         additionalImages: offer[0].images || [],
       };
