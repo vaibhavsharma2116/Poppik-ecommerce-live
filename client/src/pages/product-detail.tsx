@@ -644,30 +644,31 @@ export default function ProductDetail() {
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
-          // Priority: 1. Selected shade image, 2. First product image, 3. Main imageUrl, 4. Poppik logo fallback
+          // Priority: 1. Selected shade image, 2. First product image, 3. Main imageUrl, 4. Fallback
           let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
             ? selectedShades[0].imageUrl 
-            : imageUrls[0] || product?.imageUrl || 'https://poppiklifestyle.com/uploads/1763291967434-zvnfb5.jpg';
+            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
-          // Convert to absolute URL with proper domain
+          // Convert to absolute URL with proper domain for WhatsApp
           if (img && !img.startsWith('http')) {
-            if (img.startsWith('/api/images/')) {
+            // Remove any leading slashes and clean the path
+            img = img.replace(/^\/+/, '');
+            
+            // Handle all API paths
+            if (img.startsWith('api/')) {
               const filename = img.split('/').pop();
               img = `https://poppiklifestyle.com/uploads/${filename}`;
-            } else if (img.startsWith('/api/image/')) {
-              const filename = img.split('/').pop();
-              img = `https://poppiklifestyle.com/uploads/${filename}`;
-            } else if (img.startsWith('/api/')) {
-              const filename = img.split('/').pop();
-              img = `https://poppiklifestyle.com/uploads/${filename}`;
-            } else if (img.startsWith('/uploads/')) {
-              img = `https://poppiklifestyle.com${img}`;
-            } else if (img.startsWith('/')) {
-              img = `https://poppiklifestyle.com${img}`;
+            } else if (img.startsWith('uploads/')) {
+              img = `https://poppiklifestyle.com/${img}`;
             } else {
               // If it's just a filename, assume it's in uploads
               img = `https://poppiklifestyle.com/uploads/${img}`;
             }
+          }
+          
+          // Ensure the URL uses https for WhatsApp compatibility
+          if (img && img.startsWith('http://')) {
+            img = img.replace('http://', 'https://');
           }
           
           console.log('📸 WhatsApp OG Image URL:', img);
@@ -676,20 +677,25 @@ export default function ProductDetail() {
         <meta property="og:image:secure_url" content={(() => {
           let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
             ? selectedShades[0].imageUrl 
-            : imageUrls[0] || product?.imageUrl || 'https://poppiklifestyle.com/uploads/1763291967434-zvnfb5.jpg';
+            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           if (img && !img.startsWith('http')) {
-            if (img.startsWith('/api/images/')) {
+            img = img.replace(/^\/+/, '');
+            
+            if (img.startsWith('api/')) {
               const filename = img.split('/').pop();
               img = `https://poppiklifestyle.com/uploads/${filename}`;
-            } else if (img.startsWith('/uploads/')) {
-              img = `https://poppiklifestyle.com${img}`;
-            } else if (img.startsWith('/')) {
-              img = `https://poppiklifestyle.com${img}`;
+            } else if (img.startsWith('uploads/')) {
+              img = `https://poppiklifestyle.com/${img}`;
             } else {
               img = `https://poppiklifestyle.com/uploads/${img}`;
             }
           }
+          
+          if (img && img.startsWith('http://')) {
+            img = img.replace('http://', 'https://');
+          }
+          
           return img;
         })()} />
         <meta property="og:image:width" content="1200" />
@@ -708,20 +714,25 @@ export default function ProductDetail() {
         <meta name="twitter:image" content={(() => {
           let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
             ? selectedShades[0].imageUrl 
-            : imageUrls[0] || product?.imageUrl || 'https://poppiklifestyle.com/uploads/1763291967434-zvnfb5.jpg';
+            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           if (img && !img.startsWith('http')) {
-            if (img.startsWith('/api/images/')) {
+            img = img.replace(/^\/+/, '');
+            
+            if (img.startsWith('api/')) {
               const filename = img.split('/').pop();
               img = `https://poppiklifestyle.com/uploads/${filename}`;
-            } else if (img.startsWith('/uploads/')) {
-              img = `https://poppiklifestyle.com${img}`;
-            } else if (img.startsWith('/')) {
-              img = `https://poppiklifestyle.com${img}`;
+            } else if (img.startsWith('uploads/')) {
+              img = `https://poppiklifestyle.com/${img}`;
             } else {
               img = `https://poppiklifestyle.com/uploads/${img}`;
             }
           }
+          
+          if (img && img.startsWith('http://')) {
+            img = img.replace('http://', 'https://');
+          }
+          
           return img;
         })()} />
         <meta name="twitter:image:alt" content={product?.name || 'Product Image'} />
