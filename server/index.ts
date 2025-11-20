@@ -291,9 +291,14 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
       // Check if it's a social media crawler (WhatsApp, Facebook, Twitter, etc.)
       const userAgent = req.headers['user-agent'] || '';
-      const isCrawler = /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|Pinterest/i.test(userAgent);
+      const isCrawler = /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|Pinterest|Slackbot|Discordbot/i.test(userAgent);
 
-      // Serve HTML with OG tags for social media crawlers
+      // For regular browsers, let React handle the routing
+      if (!isCrawler) {
+        return next();
+      }
+
+      // Only serve static HTML with OG tags for social media crawlers
       const html = `<!DOCTYPE html>
 <html lang="en" prefix="og: http://ogp.me/ns#">
 <head>
@@ -372,13 +377,6 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   </script>
   
   <link rel="canonical" href="${productUrl}">
-  ${!isCrawler ? `
-  <script>
-    setTimeout(function() {
-      window.location.href = '${productUrl}';
-    }, 100);
-  </script>
-  ` : ''}
 </head>
 <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
   <div style="text-align: center;">
@@ -386,7 +384,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
     <h1 style="color: #333;">${product.name}</h1>
     <p style="color: #666; font-size: 18px;">${description}</p>
     <p style="color: #10b981; font-size: 24px; font-weight: bold;">₹${product.price}</p>
-    ${!isCrawler ? `<p style="color: #999;">Redirecting to product page...</p>` : `<a href="${productUrl}" style="display: inline-block; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px;">View Product</a>`}
+    <a href="${productUrl}" style="display: inline-block; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px;">View Product on Poppik</a>
   </div>
 </body>
 </html>`;
