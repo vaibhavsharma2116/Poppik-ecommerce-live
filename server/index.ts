@@ -238,15 +238,14 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
         console.log('📸 First DB image:', images[0].imageUrl);
       }
 
-      // Get the best image URL with priority: Shade image > DB images > product.imageUrl > fallback
+      // Get the best image URL with priority: Shade image > DB images > product.imageUrl (NO fallback to generic image)
       let productImage = shadeImage || images[0]?.imageUrl || product.imageUrl;
       
-      // Fallback to a default high-quality image if no image found
-      const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
-      
+      // IMPORTANT: Don't use generic fallback - always use actual product image
       if (!productImage || productImage.trim() === '') {
-        productImage = fallbackImage;
-        console.log('⚠️ No product image found, using fallback');
+        // If still no image, use product.imageUrl as last resort
+        productImage = product.imageUrl || '';
+        console.log('⚠️ Using product.imageUrl as fallback:', productImage);
       }
       
       // Ensure full HTTPS URL for image (required for WhatsApp)
@@ -255,7 +254,8 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       // Always use HTTPS for production domain
       const baseUrl = 'https://poppiklifestyle.com';
       
-      if (!fullImageUrl.startsWith('http')) {
+      // Only convert to absolute URL if it's not already an absolute URL
+      if (fullImageUrl && !fullImageUrl.startsWith('http')) {
         // Clean the image URL path
         if (fullImageUrl.startsWith('/api/images/')) {
           // Convert /api/images/xxx to direct /uploads/xxx path
@@ -277,6 +277,10 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
           // If it's just a filename, assume it's in uploads
           fullImageUrl = `${baseUrl}/uploads/${fullImageUrl}`;
         }
+      } else if (!fullImageUrl) {
+        // Only use fallback if absolutely no image exists
+        fullImageUrl = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+        console.log('⚠️ No product image available, using generic fallback');
       }
       
       console.log('📸 Final product image URL for OG tags:', fullImageUrl);
