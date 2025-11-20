@@ -660,7 +660,7 @@ export default function AdminOffers() {
 
               {/* Listing Page Banner Images Upload */}
               <div className="space-y-2">
-                <Label htmlFor="bannerImages">Listing Page Banner Images (Optional)</Label>
+                <Label htmlFor="bannerImages">Listing Page Banner Images</Label>
                 
                 {/* Show existing banner images */}
                 {existingBannerImages.length > 0 && (
@@ -714,64 +714,6 @@ export default function AdminOffers() {
                   </div>
                 )}
                 <p className="text-xs text-slate-500">Multiple banners for offers listing page (recommended: 1920x400px each)</p>
-              </div>
-
-              {/* Additional Images Upload */}
-              <div className="space-y-2">
-                <Label htmlFor="additionalImages">Additional Detail Page Images</Label>
-                
-                {/* Show existing additional images */}
-                {existingAdditionalImages.length > 0 && (
-                  <div className="mb-2">
-                    <p className="text-sm text-slate-600 mb-2">Current additional images:</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {existingAdditionalImages.map((imageUrl, index) => (
-                        <div key={`existing-${index}`} className="relative">
-                          <img src={imageUrl} alt={`Existing ${index + 1}`} className="w-full h-32 object-cover rounded-lg border-2 border-blue-300" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setExistingAdditionalImages(prev => prev.filter((_, i) => i !== index));
-                            }}
-                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            ×
-                          </button>
-                          <span className="absolute bottom-1 left-1 bg-blue-500 text-white text-xs px-2 py-1 rounded">Existing</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                <Input
-                  id="additionalImages"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleAdditionalImagesChange}
-                />
-                {additionalImagePreviews.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-sm text-slate-600 mb-2">New images to upload:</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {additionalImagePreviews.map((preview, index) => (
-                        <div key={`new-${index}`} className="relative">
-                          <img src={preview} alt={`New ${index + 1}`} className="w-full h-32 object-cover rounded-lg border-2 border-green-300" />
-                          <button
-                            type="button"
-                            onClick={() => removeAdditionalImage(index)}
-                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            ×
-                          </button>
-                          <span className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-2 py-1 rounded">New</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <p className="text-xs text-slate-500">Multiple images for offer detail page gallery</p>
               </div>
 
               {/* Video Upload */}

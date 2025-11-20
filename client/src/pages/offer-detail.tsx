@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Offer {
   id: number;
@@ -36,6 +37,10 @@ interface Offer {
   productId?: number;
   productIds?: number[];
   products?: any[];
+  bannerImages?: string[];
+  detailedDescription?: string;
+  productsIncluded?: string;
+  benefits?: string;
 }
 
 interface Product {
@@ -45,6 +50,9 @@ interface Product {
   price: string;
   originalPrice?: string;
   imageUrl: string;
+  images?: { url?: string; imageUrl?: string }[];
+  offerPrice?: string;
+  discountAmount?: string;
 }
 
 interface Shade {
@@ -265,7 +273,7 @@ function ShadeSelectorSheet({
             </div>
             <Palette className="w-8 h-8 text-purple-600 flex-shrink-0" />
           </div>
-          
+
           {/* Select All / Clear All Buttons */}
           <div className="flex gap-2 mt-4">
             <Button
@@ -343,7 +351,7 @@ function ShadeSelectorSheet({
           <div className="flex items-center gap-2">
             <Check className="w-5 h-5" />
             <span className="font-semibold">
-              {selectedShades.size > 0 
+              {selectedShades.size > 0
                 ? `${selectedShades.size} shade${selectedShades.size !== 1 ? 's' : ''} selected`
                 : 'Select at least 1 shade'}
             </span>
@@ -477,6 +485,7 @@ export default function OfferDetail() {
   const [selectedShades, setSelectedShades] = useState<Record<number, string | null>>({});
   const [shadeSelectorOpen, setShadeSelectorOpen] = useState<number | null>(null);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string>("");
   const [newReview, setNewReview] = useState({
     rating: 5,
     title: "",
@@ -490,6 +499,17 @@ export default function OfferDetail() {
     queryKey: [`/api/offers/${offerId}`],
     enabled: !!offerId,
   });
+
+  // Set initial selected image to first banner image when offer loads
+  useEffect(() => {
+    if (offer?.bannerImages && Array.isArray(offer.bannerImages) && offer.bannerImages.length > 0 && !selectedImage) {
+      setSelectedImage(offer.bannerImages[0]);
+    } else if (!selectedImage && offer?.bannerImageUrl) {
+      setSelectedImage(offer.bannerImageUrl);
+    } else if (!selectedImage && offer?.imageUrl) {
+      setSelectedImage(offer.imageUrl);
+    }
+  }, [offer]);
 
   const { data: reviews = [], isLoading: reviewsLoading } = useQuery<any[]>({
     queryKey: [`/api/offers/${offerId}/reviews`],
@@ -662,8 +682,8 @@ export default function OfferDetail() {
       <Star
         key={i}
         className={`w-5 h-5 ${
-          i < Math.floor(rating) 
-            ? "fill-yellow-400 text-yellow-400" 
+          i < Math.floor(rating)
+            ? "fill-yellow-400 text-yellow-400"
             : "text-gray-300"
         }`}
       />
@@ -881,35 +901,100 @@ export default function OfferDetail() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Left Column - Image */}
+          {/* Left Column - Image Gallery with Thumbnails */}
           <div>
-            <div className="bg-white rounded-lg overflow-hidden shadow-sm sticky top-8">
-              <div className="relative aspect-square bg-gray-100">
-                <img
-                  src={bannerImage}
-                  alt={offer.title}
-                  className="w-full h-full object-cover"
-                />
+            <div className="flex gap-4">
+              {/* Vertical Thumbnail Gallery - Only Listing Images */}
+              <ScrollArea className="h-[500px] w-24">
+                <div className="flex flex-col gap-3">
+                  {/* Banner Images Thumbnails (Listing Images Only) */}
+                  {offer.bannerImages && Array.isArray(offer.bannerImages) && offer.bannerImages.length > 0 && (
+                    <>
+                      {offer.bannerImages.map((bannerUrl: string, index: number) => (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedImage(bannerUrl)}
+                          className={`relative aspect-square bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden border-2 transition-all ${
+                            selectedImage === bannerUrl ? 'border-purple-500 ring-2 ring-purple-300' : 'border-purple-100 hover:border-purple-300'
+                          }`}
+                        >
+                          <img
+                            src={bannerUrl}
+                            alt={`Listing ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </ScrollArea>
 
-                {/* Discount Badge */}
-                {(offer.discountPercentage || offer.discountText) && (
-                  <div className="absolute top-4 right-4 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-lg font-bold text-lg shadow-lg">
-                    {offer.discountPercentage ? `${offer.discountPercentage}% OFF` : offer.discountText}
-                  </div>
-                )}
-
-                {/* Status Badge */}
-                <div className="absolute top-4 left-4">
-                  {isExpired ? (
-                    <div className="bg-gray-800 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      Expired
-                    </div>
+              {/* Main Display Area */}
+              <div className="flex-1 bg-white rounded-lg overflow-hidden shadow-sm sticky top-8">
+                <div className="relative aspect-square bg-gray-100 group cursor-zoom-in">
+                  {selectedImage === offer.videoUrl ? (
+                    <video
+                      src={offer.videoUrl}
+                      controls
+                      className="w-full h-full"
+                      poster={offer.imageUrl}
+                      autoPlay
+                    >
+                      Your browser does not support the video tag.
+                    </video>
                   ) : (
-                    <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
-                      <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                      Active
+                    <img
+                      src={selectedImage}
+                      alt={offer.title}
+                      className="w-full h-full object-cover transition-transform duration-300"
+                      onClick={() => {
+                        // Create zoom modal
+                        const modal = document.createElement('div');
+                        modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4 cursor-zoom-out';
+                        modal.onclick = () => modal.remove();
+                        
+                        const img = document.createElement('img');
+                        img.src = selectedImage;
+                        img.alt = offer.title;
+                        img.className = 'max-w-full max-h-full object-contain';
+                        
+                        modal.appendChild(img);
+                        document.body.appendChild(modal);
+                      }}
+                    />
+                  )}
+
+                  {/* Zoom Hint - Only for images */}
+                  {selectedImage !== offer.videoUrl && (
+                    <div className="absolute bottom-4 right-4 bg-black bg-opacity-50 text-white text-sm px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                      </svg>
+                      Click to zoom
                     </div>
                   )}
+
+                  {/* Discount Badge */}
+                  {(offer.discountPercentage || offer.discountText) && (
+                    <div className="absolute top-4 right-4 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-lg font-bold text-lg shadow-lg">
+                      {offer.discountPercentage ? `${offer.discountPercentage}% OFF` : offer.discountText}
+                    </div>
+                  )}
+
+                  {/* Status Badge */}
+                  <div className="absolute top-4 left-4">
+                    {isExpired ? (
+                      <div className="bg-gray-800 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                      </div>
+                    ) : (
+                      <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
+                        <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                        Active
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -971,7 +1056,7 @@ export default function OfferDetail() {
                             className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
                           />
                         </div>
-                        
+
                         {/* Product Info and Shade Button in Same Row */}
                         <div className="flex-1 min-w-0 flex items-center gap-2">
                           <div className="flex-1 min-w-0">
@@ -1047,7 +1132,7 @@ export default function OfferDetail() {
                 {(offer?.products || []).map((product: any) => {
                   const productShades = productShadesData[product.id] || [];
                   if (productShades.length === 0) return null;
-                  
+
                   return (
                     <ShadeSelectorSheet
                       key={`shade-sheet-${product.id}`}
@@ -1087,8 +1172,8 @@ export default function OfferDetail() {
               </div>
             )}
 
-            {/* Cashback */}
-            {offer.cashbackPercentage && offer.cashbackPrice && (
+            {/* Cashback - Only show if cashback amount is greater than 0 */}
+            {offer.cashbackPercentage && offer.cashbackPrice && Number(offer.cashbackPrice) > 0 && (
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1153,20 +1238,20 @@ export default function OfferDetail() {
         <div className="mb-8 sm:mb-12 md:mb-16">
           <Tabs defaultValue="description" className="w-full">
             <TabsList className="grid w-full grid-cols-3 bg-white/70 backdrop-blur-md rounded-lg sm:rounded-xl md:rounded-2xl p-1 sm:p-1.5 md:p-2 shadow-lg border border-white/20 mb-6 sm:mb-8 gap-0.5 sm:gap-1">
-              <TabsTrigger 
-                value="description" 
+              <TabsTrigger
+                value="description"
                 className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
               >
                 Description
               </TabsTrigger>
-              <TabsTrigger 
-                value="products" 
+              <TabsTrigger
+                value="products"
                 className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
               >
                 Products
               </TabsTrigger>
-              <TabsTrigger 
-                value="benefits" 
+              <TabsTrigger
+                value="benefits"
                 className="py-2.5 px-1 sm:py-3 sm:px-2 md:py-4 md:px-6 text-[10px] sm:text-xs md:text-sm font-medium rounded-md sm:rounded-lg md:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
               >
                 Benefits
@@ -1214,7 +1299,7 @@ export default function OfferDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {offer?.productsIncluded ? (
-                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line font-normal">
+                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line">
                       {offer.productsIncluded}
                     </div>
                   ) : offer?.products && Array.isArray(offer.products) && offer.products.length > 0 ? (
@@ -1319,8 +1404,8 @@ export default function OfferDetail() {
                   <div key={star} className="flex items-center space-x-3">
                     <span className="w-8 text-sm font-medium">{star}★</span>
                     <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-yellow-400 rounded-full transition-all duration-300" 
+                      <div
+                        className="h-full bg-yellow-400 rounded-full transition-all duration-300"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
