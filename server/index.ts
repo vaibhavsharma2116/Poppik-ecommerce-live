@@ -279,10 +279,10 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
           // If it's just a filename, assume it's in uploads
           fullImageUrl = `${baseUrl}/uploads/${fullImageUrl}`;
         }
-      } else if (!fullImageUrl) {
-        // Only use fallback if absolutely no image exists
-        fullImageUrl = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
-        console.log('⚠️ No product image available, using generic fallback');
+      } else if (!fullImageUrl || fullImageUrl.trim() === '') {
+        // Fallback: Use Poppik logo as product placeholder
+        fullImageUrl = 'https://poppiklifestyle.com/uploads/1763291967434-zvnfb5.jpg';
+        console.log('⚠️ No product image available, using Poppik logo fallback');
       }
       
       console.log('✅ Final OG Image URL for WhatsApp:', fullImageUrl);

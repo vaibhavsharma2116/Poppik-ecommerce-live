@@ -644,10 +644,10 @@ export default function ProductDetail() {
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
-          // Priority: 1. Selected shade image, 2. First product image, 3. Main imageUrl, 4. Fallback
+          // Priority: 1. Selected shade image, 2. First product image, 3. Main imageUrl, 4. Poppik logo fallback
           let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
             ? selectedShades[0].imageUrl 
-            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+            : imageUrls[0] || product?.imageUrl || 'https://poppiklifestyle.com/uploads/1763291967434-zvnfb5.jpg';
           
           // Convert to absolute URL with proper domain
           if (img && !img.startsWith('http')) {
@@ -676,7 +676,7 @@ export default function ProductDetail() {
         <meta property="og:image:secure_url" content={(() => {
           let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
             ? selectedShades[0].imageUrl 
-            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+            : imageUrls[0] || product?.imageUrl || 'https://poppiklifestyle.com/uploads/1763291967434-zvnfb5.jpg';
           
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/images/')) {
@@ -708,7 +708,7 @@ export default function ProductDetail() {
         <meta name="twitter:image" content={(() => {
           let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
             ? selectedShades[0].imageUrl 
-            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+            : imageUrls[0] || product?.imageUrl || 'https://poppiklifestyle.com/uploads/1763291967434-zvnfb5.jpg';
           
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/images/')) {
