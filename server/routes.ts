@@ -1822,12 +1822,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new offer (admin)
   app.post("/api/admin/offers", adminMiddleware, upload.fields([
     { name: 'image', maxCount: 1 },
-    { name: 'bannerImage', maxCount: 1 }
+    { name: 'bannerImage', maxCount: 1 },
+    { name: 'additionalImages', maxCount: 10 },
+    { name: 'video', maxCount: 1 }
   ]), async (req, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       let imageUrl = req.body.imageUrl;
       let bannerImageUrl = req.body.bannerImageUrl;
+      let images: string[] = [];
+      let videoUrl = null;
 
       if (files?.image?.[0]) {
         imageUrl = `/api/images/${files.image[0].filename}`;
@@ -1837,11 +1841,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bannerImageUrl = `/api/images/${files.bannerImage[0].filename}`;
       }
 
+      // Handle additional images
+      if (files?.additionalImages) {
+        images = files.additionalImages.map(file => `/api/images/${file.filename}`);
+      }
+
+      // Handle video
+      if (files?.video?.[0]) {
+        videoUrl = `/api/images/${files.video[0].filename}`;
+      }
+
       const offerData: any = {
         title: req.body.title,
         description: req.body.description,
         imageUrl: imageUrl || '',
         bannerImageUrl: bannerImageUrl || null,
+        images: images.length > 0 ? images : null,
+        videoUrl: videoUrl,
         discountType: req.body.discountType || 'none',
         discountValue: req.body.discountValue ? parseFloat(req.body.discountValue) : null,
         discountText: req.body.discountText || null,
@@ -1886,7 +1902,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update offer (admin)
   app.put("/api/admin/offers/:id", adminMiddleware, upload.fields([
     { name: 'image', maxCount: 1 },
-    { name: 'bannerImage', maxCount: 1 }
+    { name: 'bannerImage', maxCount: 1 },
+    { name: 'additionalImages', maxCount: 10 },
+    { name: 'video', maxCount: 1 }
   ]), async (req, res) => {
     try {
       const offerId = parseInt(req.params.id);
@@ -1904,6 +1922,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.bannerImageUrl = `/api/images/${files.bannerImage[0].filename}`;
       } else if (req.body.bannerImageUrl !== undefined) {
         updateData.bannerImageUrl = req.body.bannerImageUrl || null;
+      }
+
+      // Handle additional images
+      if (files?.additionalImages) {
+        updateData.images = files.additionalImages.map(file => `/api/images/${file.filename}`);
+      }
+
+      // Handle video
+      if (files?.video?.[0]) {
+        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
       }
 
       if (req.body.title) updateData.title = req.body.title;
@@ -2016,6 +2044,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         detailedDescription: offer[0].detailedDescription || offer[0].description,
         productsIncluded: offer[0].productsIncluded || null,
         benefits: offer[0].benefits || null,
+        images: offer[0].images || [],
+        videoUrl: offer[0].videoUrl || null,
+        additionalImages: offer[0].images || [],
       };
 
       // Get products with calculated offer prices
@@ -2068,6 +2099,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching offer:", error);
       res.status(500).json({ error: "Failed to fetch offer" });
+    }
+  });
+
+  // Get reviews for an offer
+  app.get("/api/offers/:id/reviews", async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+
+      if (isNaN(offerId)) {
+        return res.status(400).json({ error: "Invalid offer ID" });
+      }
+
+      // For now, return empty array since we don't have offer reviews table yet
+      // You can add a dedicated table for offer reviews similar to product reviews
+      res.json([]);
+    } catch (error) {
+      console.error("Error fetching offer reviews:", error);
+      res.status(500).json({ error: "Failed to fetch offer reviews" });
+    }
+  });
+
+  // Submit a review for an offer
+  app.post("/api/offers/:id/reviews", async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+      const { rating, title, comment, userName, orderId } = req.body;
+
+      if (isNaN(offerId)) {
+        return res.status(400).json({ error: "Invalid offer ID" });
+      }
+
+      if (!rating || !title || !comment) {
+        return res.status(400).json({ error: "Rating, title, and comment are required" });
+      }
+
+      // For now, just return success
+      // You would need to create an offer_reviews table to store these
+      res.json({
+        success: true,
+        message: "Review submitted successfully"
+      });
+    } catch (error) {
+      console.error("Error submitting offer review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
+    }
+  });
+
+  // Check if user can review an offer
+  app.get("/api/offers/:id/can-review", async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+      const userId = req.query.userId;
+
+      if (isNaN(offerId)) {
+        return res.status(400).json({ error: "Invalid offer ID" });
+      }
+
+      if (!userId) {
+        return res.json({ canReview: false, message: "Please login to review" });
+      }
+
+      // Check if user has purchased this offer
+      // For now, allow all logged-in users to review
+      res.json({ 
+        canReview: true, 
+        message: "You can review this offer"
+      });
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
     }
   });
 

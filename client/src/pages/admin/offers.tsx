@@ -49,6 +49,8 @@ interface Offer {
   detailedDescription?: string; // Added detailedDescription
   productsIncluded?: string; // Added productsIncluded
   benefits?: string; // Added benefits
+  additionalImageUrls?: string[]; // To store URLs of additional images
+  videoUrl?: string; // To store URL of the video
 }
 
 export default function AdminOffers() {
@@ -58,6 +60,10 @@ export default function AdminOffers() {
   const [bannerImageFile, setBannerImageFile] = useState<File | null>(null); // State for banner image
   const [imagePreview, setImagePreview] = useState<string>("");
   const [bannerImagePreview, setBannerImagePreview] = useState<string>(""); // Preview for banner image
+  const [additionalImages, setAdditionalImages] = useState<File[]>([]);
+  const [additionalImagePreviews, setAdditionalImagePreviews] = useState<string[]>([]);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string>('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -290,6 +296,38 @@ export default function AdminOffers() {
     }
   };
 
+  const handleAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setAdditionalImages(prev => [...prev, ...files]);
+
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAdditionalImagePreviews(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeAdditionalImage = (index: number) => {
+    setAdditionalImages(prev => prev.filter((_, i) => i !== index));
+    setAdditionalImagePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setVideoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setVideoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -330,44 +368,54 @@ export default function AdminOffers() {
       return;
     }
 
-    const data = new FormData();
-    data.append('title', formData.title);
-    data.append('description', formData.description);
-    data.append('detailedDescription', formData.detailedDescription || ''); // Append new field
-    data.append('productsIncluded', formData.productsIncluded || ''); // Append new field
-    data.append('benefits', formData.benefits || ''); // Append new field
-    data.append('price', formData.price);
-    data.append('originalPrice', formData.originalPrice || formData.price);
-    data.append('discountType', formData.discountType);
-    data.append('discountValue', formData.discountValue?.toString() || '0');
-    data.append('discountText', formData.discountText || '');
-    data.append('cashbackPercentage', formData.cashbackPercentage || '0');
-    data.append('cashbackPrice', formData.cashbackPrice || '0');
-    data.append('validFrom', formData.validFrom);
-    data.append('validUntil', formData.validUntil);
-    data.append('isActive', String(formData.isActive));
-    data.append('sortOrder', String(formData.sortOrder));
-    data.append('linkUrl', formData.linkUrl || '');
-    data.append('buttonText', formData.buttonText || 'Shop Now');
-    data.append('productIds', JSON.stringify(formData.productIds || []));
+    const formDataToSend = new FormData();
+    formDataToSend.append('title', formData.title);
+    formDataToSend.append('description', formData.description);
+    formDataToSend.append('detailedDescription', formData.detailedDescription || ''); // Append new field
+    formDataToSend.append('productsIncluded', formData.productsIncluded || ''); // Append new field
+    formDataToSend.append('benefits', formData.benefits || ''); // Append new field
+    formDataToSend.append('price', formData.price);
+    formDataToSend.append('originalPrice', formData.originalPrice || formData.price);
+    formDataToSend.append('discountType', formData.discountType);
+    formDataToSend.append('discountValue', formData.discountValue?.toString() || '0');
+    formDataToSend.append('discountText', formData.discountText || '');
+    formDataToSend.append('cashbackPercentage', formData.cashbackPercentage || '0');
+    formDataToSend.append('cashbackPrice', formData.cashbackPrice || '0');
+    formDataToSend.append('validFrom', formData.validFrom);
+    formDataToSend.append('validUntil', formData.validUntil);
+    formDataToSend.append('isActive', String(formData.isActive));
+    formDataToSend.append('sortOrder', String(formData.sortOrder));
+    formDataToSend.append('linkUrl', formData.linkUrl || '');
+    formDataToSend.append('buttonText', formData.buttonText || 'Shop Now');
+    formDataToSend.append('productIds', JSON.stringify(formData.productIds || []));
 
     if (imageFile) {
-      data.append('image', imageFile);
+      formDataToSend.append('image', imageFile);
     } else if (formData.imageUrl) {
-      data.append('imageUrl', formData.imageUrl); // Ensure existing imageUrl is sent if no new image
+      formDataToSend.append('imageUrl', formData.imageUrl); // Ensure existing imageUrl is sent if no new image
     }
 
     if (bannerImageFile) {
-      data.append('bannerImage', bannerImageFile);
+      formDataToSend.append('bannerImage', bannerImageFile);
     } else if (formData.bannerImageUrl) {
-      data.append('bannerImageUrl', formData.bannerImageUrl); // Ensure existing bannerImageUrl is sent if no new image
+      formDataToSend.append('bannerImageUrl', formData.bannerImageUrl); // Ensure existing bannerImageUrl is sent if no new image
+    }
+
+    // Add additional images
+    additionalImages.forEach((file, index) => {
+      formDataToSend.append(`additionalImages`, file);
+    });
+
+    // Add video if present
+    if (videoFile) {
+      formDataToSend.append('video', videoFile);
     }
 
 
     if (editingOffer) {
-      updateOfferMutation.mutate({ id: editingOffer.id, data });
+      updateOfferMutation.mutate({ id: editingOffer.id, data: formDataToSend });
     } else {
-      createOfferMutation.mutate(data);
+      createOfferMutation.mutate(formDataToSend);
     }
   };
 
@@ -399,6 +447,10 @@ export default function AdminOffers() {
     setImagePreview("");
     setBannerImageFile(null); // Reset banner image state
     setBannerImagePreview(""); // Reset banner image preview
+    setAdditionalImages([]); // Reset additional images state
+    setAdditionalImagePreviews([]); // Reset additional image previews
+    setVideoFile(null); // Reset video file state
+    setVideoPreview(''); // Reset video preview
   };
 
   const handleEdit = (offer: Offer) => {
@@ -454,6 +506,10 @@ export default function AdminOffers() {
     });
     setImagePreview(offer.imageUrl);
     setBannerImagePreview(offer.bannerImageUrl || ""); // Set banner image preview
+    // Note: For editing existing offers, we don't load additional images or videos directly into the form state here.
+    // The backend should handle associating existing additional images/videos with the offer and the frontend
+    // would need a mechanism to display/manage them if they were fetched.
+    // For simplicity in this example, we focus on upload for new/updated offers.
     setIsCreateDialogOpen(true);
   };
 
@@ -550,30 +606,6 @@ export default function AdminOffers() {
                 />
               </div>
 
-              {/* Products Included */}
-              <div className="space-y-2">
-                <Label htmlFor="productsIncluded">Products Included (for Products tab)</Label>
-                <Textarea
-                  id="productsIncluded"
-                  placeholder="List of products included in this offer..."
-                  rows={5}
-                  value={formData.productsIncluded || ''}
-                  onChange={(e) => setFormData({ ...formData, productsIncluded: e.target.value })}
-                />
-              </div>
-
-              {/* Benefits */}
-              <div className="space-y-2">
-                <Label htmlFor="benefits">Benefits (for Benefits tab)</Label>
-                <Textarea
-                  id="benefits"
-                  placeholder="Key benefits of this offer..."
-                  rows={5}
-                  value={formData.benefits || ''}
-                  onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
-                />
-              </div>
-
               {/* Main Image Upload */}
               <div className="space-y-2">
                 <Label htmlFor="image">Main Offer Image *</Label>
@@ -590,9 +622,9 @@ export default function AdminOffers() {
                 )}
               </div>
 
-              {/* Banner Image Upload */}
+              {/* Listing Page Banner Image Upload */}
               <div className="space-y-2">
-                <Label htmlFor="bannerImage">Detail Page Banner Image (Optional)</Label>
+                <Label htmlFor="bannerImage">Listing Page Banner Image (Optional)</Label>
                 <Input
                   id="bannerImage"
                   type="file"
@@ -604,7 +636,59 @@ export default function AdminOffers() {
                     <img src={bannerImagePreview} alt="Banner Image Preview" className="w-full h-48 object-cover rounded-lg" />
                   </div>
                 )}
-                <p className="text-xs text-slate-500">Separate banner for offer detail page (recommended: 1920x400px)</p>
+                <p className="text-xs text-slate-500">Banner for offers listing page only (recommended: 1920x400px)</p>
+              </div>
+
+              {/* Additional Images Upload */}
+              <div className="space-y-2">
+                <Label htmlFor="additionalImages">Additional Detail Page Images</Label>
+                <Input
+                  id="additionalImages"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleAdditionalImagesChange}
+                />
+                {additionalImagePreviews.length > 0 && (
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {additionalImagePreviews.map((preview, index) => (
+                      <div key={index} className="relative">
+                        <img src={preview} alt={`Additional ${index + 1}`} className="w-full h-32 object-cover rounded-lg" />
+                        <button
+                          type="button"
+                          onClick={() => removeAdditionalImage(index)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-slate-500">Multiple images for offer detail page gallery</p>
+              </div>
+
+              {/* Video Upload */}
+              <div className="space-y-2">
+                <Label htmlFor="video">Offer Video (Optional)</Label>
+                <Input
+                  id="video"
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoChange}
+                />
+                {videoPreview && (
+                  <div className="mt-2">
+                    <video src={videoPreview} controls className="w-full h-48 rounded-lg" />
+                  </div>
+                )}
+                {editingOffer && offerData.videoUrl && !videoPreview && (
+                  <div className="mt-2">
+                    <p className="text-sm text-slate-600 mb-1">Current video:</p>
+                    <video src={offerData.videoUrl} controls className="w-full h-48 rounded-lg" />
+                  </div>
+                )}
+                <p className="text-xs text-slate-500">Video for offer detail page gallery</p>
               </div>
 
               {/* Price Fields */}
@@ -950,7 +1034,7 @@ export default function AdminOffers() {
       <Card>
         <CardHeader>
           <CardTitle>All Offers</CardTitle>
-          <CardDescription>View and manage all promotional offers</CardDescription>
+          <CardDescription>Manage promotional offers and discounts</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
