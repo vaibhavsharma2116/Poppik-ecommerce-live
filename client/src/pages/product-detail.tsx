@@ -128,16 +128,23 @@ export default function ProductDetail() {
     }
 
     console.log('Final image URLs:', urls.length);
+    
+    // Fallback to default image if no images found
+    if (urls.length === 0 && product) {
+      urls.push('https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80');
+    }
+    
     return urls;
-  }, [productImages, product?.imageUrl, product?.videoUrl])
+  }, [productImages, product?.imageUrl, product?.videoUrl, product?.id])
 
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
 
   useEffect(() => {
     if (imageUrls.length > 0 && !selectedImageUrl) {
       setSelectedImageUrl(imageUrls[0]);
+      console.log('Setting initial image:', imageUrls[0]);
     }
-  }, [imageUrls.length, selectedImageUrl]); // Only depend on length and current selection
+  }, [imageUrls]); // Simplified dependency
 
   const { data: relatedProducts } = useQuery<Product[]>({
     queryKey: [`/api/products/category/${product?.category}`],
