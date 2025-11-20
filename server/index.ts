@@ -223,13 +223,12 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
         }
       }
 
-      // Get product images
+      // Get ALL product images to ensure we have the best image
       const images = await db
         .select()
         .from(productImages)
         .where(eq(productImages.productId, product.id))
-        .orderBy(productImages.sortOrder)
-        .limit(1);
+        .orderBy(productImages.sortOrder);
 
       console.log('📸 Product:', product.name);
       console.log('📸 Product imageUrl:', product.imageUrl);
@@ -238,15 +237,16 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
         console.log('📸 First DB image:', images[0].imageUrl);
       }
 
-      // Get the best image URL with priority: Shade image > DB images > product.imageUrl (NO fallback to generic image)
-      let productImage = shadeImage || images[0]?.imageUrl || product.imageUrl;
+      // Get the best image URL with priority: Shade image > DB images > product.imageUrl
+      let productImage = shadeImage || (images.length > 0 ? images[0].imageUrl : null) || product.imageUrl;
       
-      // IMPORTANT: Don't use generic fallback - always use actual product image
+      // IMPORTANT: Ensure we have a valid product image
       if (!productImage || productImage.trim() === '') {
-        // If still no image, use product.imageUrl as last resort
+        console.log('⚠️ No product image found for:', product.name);
         productImage = product.imageUrl || '';
-        console.log('⚠️ Using product.imageUrl as fallback:', productImage);
       }
+      
+      console.log('📸 Selected product image:', productImage);
       
       // Ensure full HTTPS URL for image (required for WhatsApp)
       let fullImageUrl = productImage;
@@ -256,6 +256,8 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       
       // Only convert to absolute URL if it's not already an absolute URL
       if (fullImageUrl && !fullImageUrl.startsWith('http')) {
+        console.log('📸 Converting relative URL to absolute:', fullImageUrl);
+        
         // Clean the image URL path
         if (fullImageUrl.startsWith('/api/images/')) {
           // Convert /api/images/xxx to direct /uploads/xxx path
@@ -283,8 +285,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
         console.log('⚠️ No product image available, using generic fallback');
       }
       
-      console.log('📸 Final product image URL for OG tags:', fullImageUrl);
-      console.log('✅ Final OG Image URL:', fullImageUrl);
+      console.log('✅ Final OG Image URL for WhatsApp:', fullImageUrl);
 
       const productUrl = `https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}`;
       const title = `${product.name}${shadeName ? ` - ${shadeName}` : ''} - ₹${product.price} | Poppik Lifestyle`;
