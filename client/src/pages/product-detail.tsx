@@ -128,23 +128,16 @@ export default function ProductDetail() {
     }
 
     console.log('Final image URLs:', urls.length);
-    
-    // Fallback to default image if no images found
-    if (urls.length === 0 && product) {
-      urls.push('https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80');
-    }
-    
     return urls;
-  }, [productImages, product?.imageUrl, product?.videoUrl, product?.id])
+  }, [productImages, product?.imageUrl, product?.videoUrl])
 
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
 
   useEffect(() => {
     if (imageUrls.length > 0 && !selectedImageUrl) {
       setSelectedImageUrl(imageUrls[0]);
-      console.log('Setting initial image:', imageUrls[0]);
     }
-  }, [imageUrls]); // Simplified dependency
+  }, [imageUrls.length, selectedImageUrl]); // Only depend on length and current selection
 
   const { data: relatedProducts } = useQuery<Product[]>({
     queryKey: [`/api/products/category/${product?.category}`],
@@ -575,14 +568,7 @@ export default function ProductDetail() {
   };
 
   const copyProductLink = async () => {
-    if (!product) return;
-    
-    // Create proper URL with shade parameter if shade is selected
-    const baseUrl = `${window.location.origin}/product/${product.slug || product.id}`;
-    const url = selectedShades.length > 0 
-      ? `${baseUrl}?shade=${selectedShades[0].id}`
-      : baseUrl;
-    
+    const url = window.location.href;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -658,108 +644,45 @@ export default function ProductDetail() {
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
-          // Priority: 1. Selected shade image from URL, 2. Product imageUrl, 3. First product image from imageUrls, 4. Fallback
-          let img;
+          // Priority: 1. Selected shade image, 2. First product image, 3. Main imageUrl, 4. Fallback
+          let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
+            ? selectedShades[0].imageUrl 
+            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
-          // Check if shade is selected via URL parameter
-          const urlParams = new URLSearchParams(window.location.search);
-          const shadeIdFromUrl = urlParams.get('shade');
-          
-          if (shadeIdFromUrl && shades.length > 0) {
-            // Find the shade from URL parameter
-            const urlShade = shades.find(s => s.id === parseInt(shadeIdFromUrl));
-            if (urlShade && urlShade.imageUrl) {
-              img = urlShade.imageUrl;
-            }
-          } else if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
-            // Use selected shade image from state
-            img = selectedShades[0].imageUrl;
-          }
-          
-          // Fallback to product images if no shade image
-          if (!img) {
-            if (product?.imageUrl) {
-              img = product.imageUrl;
-            } else if (imageUrls.length > 0) {
-              img = imageUrls[0];
-            } else {
-              img = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
-            }
-          }
-          
-          // Convert to absolute URL with proper domain for WhatsApp
+          // Convert to absolute URL
           if (img && !img.startsWith('http')) {
-            // Remove any leading slashes and clean the path
-            const cleanPath = img.replace(/^\/+/, '');
-            
-            // Handle all API paths and uploads
-            if (cleanPath.startsWith('api/images/')) {
-              const filename = cleanPath.replace('api/images/', '');
-              img = `https://poppiklifestyle.com/api/images/${filename}`;
-            } else if (cleanPath.startsWith('uploads/')) {
-              img = `https://poppiklifestyle.com/${cleanPath}`;
-            } else if (cleanPath.includes('/')) {
-              // If it has a path structure, use it as is
-              img = `https://poppiklifestyle.com/${cleanPath}`;
+            if (img.startsWith('/api/images/')) {
+              const filename = img.split('/').pop();
+              img = `https://poppiklifestyle.com/uploads/${filename}`;
+            } else if (img.startsWith('/uploads/')) {
+              img = `https://poppiklifestyle.com${img}`;
+            } else if (img.startsWith('/')) {
+              img = `https://poppiklifestyle.com${img}`;
             } else {
-              // If it's just a filename, assume it's in api/images
-              img = `https://poppiklifestyle.com/api/images/${cleanPath}`;
+              img = `https://poppiklifestyle.com/uploads/${img}`;
             }
           }
           
-          // Ensure the URL uses https for WhatsApp compatibility
-          if (img && img.startsWith('http://')) {
-            img = img.replace('http://', 'https://');
-          }
-          
-          console.log('📸 WhatsApp OG Image URL:', img);
+          console.log('OG Image URL:', img);
           return img;
         })()} />
         <meta property="og:image:secure_url" content={(() => {
-          let img;
-          
-          // Check if shade is selected via URL parameter
-          const urlParams = new URLSearchParams(window.location.search);
-          const shadeIdFromUrl = urlParams.get('shade');
-          
-          if (shadeIdFromUrl && shades.length > 0) {
-            const urlShade = shades.find(s => s.id === parseInt(shadeIdFromUrl));
-            if (urlShade && urlShade.imageUrl) {
-              img = urlShade.imageUrl;
-            }
-          } else if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
-            img = selectedShades[0].imageUrl;
-          }
-          
-          if (!img) {
-            if (product?.imageUrl) {
-              img = product.imageUrl;
-            } else if (imageUrls.length > 0) {
-              img = imageUrls[0];
-            } else {
-              img = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
-            }
-          }
+          let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
+            ? selectedShades[0].imageUrl 
+            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           if (img && !img.startsWith('http')) {
-            const cleanPath = img.replace(/^\/+/, '');
-            
-            if (cleanPath.startsWith('api/images/')) {
-              const filename = cleanPath.replace('api/images/', '');
-              img = `https://poppiklifestyle.com/api/images/${filename}`;
-            } else if (cleanPath.startsWith('uploads/')) {
-              img = `https://poppiklifestyle.com/${cleanPath}`;
-            } else if (cleanPath.includes('/')) {
-              img = `https://poppiklifestyle.com/${cleanPath}`;
+            if (img.startsWith('/api/images/')) {
+              const filename = img.split('/').pop();
+              img = `https://poppiklifestyle.com/uploads/${filename}`;
+            } else if (img.startsWith('/uploads/')) {
+              img = `https://poppiklifestyle.com${img}`;
+            } else if (img.startsWith('/')) {
+              img = `https://poppiklifestyle.com${img}`;
             } else {
-              img = `https://poppiklifestyle.com/api/images/${cleanPath}`;
+              img = `https://poppiklifestyle.com/uploads/${img}`;
             }
           }
-          
-          if (img && img.startsWith('http://')) {
-            img = img.replace('http://', 'https://');
-          }
-          
           return img;
         })()} />
         <meta property="og:image:width" content="1200" />
@@ -776,50 +699,22 @@ export default function ProductDetail() {
         <meta name="twitter:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta name="twitter:image" content={(() => {
-          let img;
-          
-          // Check if shade is selected via URL parameter
-          const urlParams = new URLSearchParams(window.location.search);
-          const shadeIdFromUrl = urlParams.get('shade');
-          
-          if (shadeIdFromUrl && shades.length > 0) {
-            const urlShade = shades.find(s => s.id === parseInt(shadeIdFromUrl));
-            if (urlShade && urlShade.imageUrl) {
-              img = urlShade.imageUrl;
-            }
-          } else if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
-            img = selectedShades[0].imageUrl;
-          }
-          
-          if (!img) {
-            if (product?.imageUrl) {
-              img = product.imageUrl;
-            } else if (imageUrls.length > 0) {
-              img = imageUrls[0];
-            } else {
-              img = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
-            }
-          }
+          let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
+            ? selectedShades[0].imageUrl 
+            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           if (img && !img.startsWith('http')) {
-            const cleanPath = img.replace(/^\/+/, '');
-            
-            if (cleanPath.startsWith('api/images/')) {
-              const filename = cleanPath.replace('api/images/', '');
-              img = `https://poppiklifestyle.com/api/images/${filename}`;
-            } else if (cleanPath.startsWith('uploads/')) {
-              img = `https://poppiklifestyle.com/${cleanPath}`;
-            } else if (cleanPath.includes('/')) {
-              img = `https://poppiklifestyle.com/${cleanPath}`;
+            if (img.startsWith('/api/images/')) {
+              const filename = img.split('/').pop();
+              img = `https://poppiklifestyle.com/uploads/${filename}`;
+            } else if (img.startsWith('/uploads/')) {
+              img = `https://poppiklifestyle.com${img}`;
+            } else if (img.startsWith('/')) {
+              img = `https://poppiklifestyle.com${img}`;
             } else {
-              img = `https://poppiklifestyle.com/api/images/${cleanPath}`;
+              img = `https://poppiklifestyle.com/uploads/${img}`;
             }
           }
-          
-          if (img && img.startsWith('http://')) {
-            img = img.replace('http://', 'https://');
-          }
-          
           return img;
         })()} />
         <meta name="twitter:image:alt" content={product?.name || 'Product Image'} />
