@@ -74,16 +74,15 @@ export default function ProductDetail() {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  // Check if the slug is actually an ID (numeric)
-  const isProductId = /^\d+$/.test(productSlugOrId);
-
   // Memoize the product slug to prevent unnecessary re-fetches
   const productSlug = useMemo(() => params?.slug, [params?.slug]);
 
   const { data: product, isLoading } = useQuery<Product>({
     queryKey: [`/api/products/${productSlug}`],
     enabled: !!productSlug,
-    retry: false, // Prevent retries on initial fetch
+    retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   // Fetch product images from database
