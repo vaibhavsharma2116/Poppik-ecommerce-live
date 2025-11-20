@@ -652,17 +652,20 @@ export default function ProductDetail() {
           // Convert to absolute URL with proper domain for WhatsApp
           if (img && !img.startsWith('http')) {
             // Remove any leading slashes and clean the path
-            img = img.replace(/^\/+/, '');
+            const cleanPath = img.replace(/^\/+/, '');
             
-            // Handle all API paths
-            if (img.startsWith('api/')) {
-              const filename = img.split('/').pop();
-              img = `https://poppiklifestyle.com/uploads/${filename}`;
-            } else if (img.startsWith('uploads/')) {
-              img = `https://poppiklifestyle.com/${img}`;
+            // Handle all API paths and uploads
+            if (cleanPath.startsWith('api/images/')) {
+              const filename = cleanPath.replace('api/images/', '');
+              img = `https://poppiklifestyle.com/api/images/${filename}`;
+            } else if (cleanPath.startsWith('uploads/')) {
+              img = `https://poppiklifestyle.com/${cleanPath}`;
+            } else if (cleanPath.includes('/')) {
+              // If it has a path structure, use it as is
+              img = `https://poppiklifestyle.com/${cleanPath}`;
             } else {
-              // If it's just a filename, assume it's in uploads
-              img = `https://poppiklifestyle.com/uploads/${img}`;
+              // If it's just a filename, assume it's in api/images
+              img = `https://poppiklifestyle.com/api/images/${cleanPath}`;
             }
           }
           
@@ -680,15 +683,17 @@ export default function ProductDetail() {
             : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           if (img && !img.startsWith('http')) {
-            img = img.replace(/^\/+/, '');
+            const cleanPath = img.replace(/^\/+/, '');
             
-            if (img.startsWith('api/')) {
-              const filename = img.split('/').pop();
-              img = `https://poppiklifestyle.com/uploads/${filename}`;
-            } else if (img.startsWith('uploads/')) {
-              img = `https://poppiklifestyle.com/${img}`;
+            if (cleanPath.startsWith('api/images/')) {
+              const filename = cleanPath.replace('api/images/', '');
+              img = `https://poppiklifestyle.com/api/images/${filename}`;
+            } else if (cleanPath.startsWith('uploads/')) {
+              img = `https://poppiklifestyle.com/${cleanPath}`;
+            } else if (cleanPath.includes('/')) {
+              img = `https://poppiklifestyle.com/${cleanPath}`;
             } else {
-              img = `https://poppiklifestyle.com/uploads/${img}`;
+              img = `https://poppiklifestyle.com/api/images/${cleanPath}`;
             }
           }
           
@@ -717,15 +722,17 @@ export default function ProductDetail() {
             : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           if (img && !img.startsWith('http')) {
-            img = img.replace(/^\/+/, '');
+            const cleanPath = img.replace(/^\/+/, '');
             
-            if (img.startsWith('api/')) {
-              const filename = img.split('/').pop();
-              img = `https://poppiklifestyle.com/uploads/${filename}`;
-            } else if (img.startsWith('uploads/')) {
-              img = `https://poppiklifestyle.com/${img}`;
+            if (cleanPath.startsWith('api/images/')) {
+              const filename = cleanPath.replace('api/images/', '');
+              img = `https://poppiklifestyle.com/api/images/${filename}`;
+            } else if (cleanPath.startsWith('uploads/')) {
+              img = `https://poppiklifestyle.com/${cleanPath}`;
+            } else if (cleanPath.includes('/')) {
+              img = `https://poppiklifestyle.com/${cleanPath}`;
             } else {
-              img = `https://poppiklifestyle.com/uploads/${img}`;
+              img = `https://poppiklifestyle.com/api/images/${cleanPath}`;
             }
           }
           
