@@ -257,24 +257,29 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       
       if (!fullImageUrl.startsWith('http')) {
         // Clean the image URL path
-        if (fullImageUrl.startsWith('/api/image/')) {
+        if (fullImageUrl.startsWith('/api/images/')) {
+          // Convert /api/images/xxx to direct /uploads/xxx path
+          const filename = fullImageUrl.split('/').pop();
+          fullImageUrl = `${baseUrl}/uploads/${filename}`;
+        } else if (fullImageUrl.startsWith('/api/image/')) {
           // Convert /api/image/xxx to direct /uploads/xxx path
           const imageId = fullImageUrl.split('/').pop();
           fullImageUrl = `${baseUrl}/uploads/${imageId}`;
         } else if (fullImageUrl.startsWith('/api/')) {
           // Handle other API paths
-          const imagePath = fullImageUrl.replace('/api/', '');
-          fullImageUrl = `${baseUrl}/${imagePath}`;
+          const filename = fullImageUrl.split('/').pop();
+          fullImageUrl = `${baseUrl}/uploads/${filename}`;
         } else if (fullImageUrl.startsWith('/uploads/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else if (fullImageUrl.startsWith('/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else {
-          fullImageUrl = `${baseUrl}/${fullImageUrl}`;
+          // If it's just a filename, assume it's in uploads
+          fullImageUrl = `${baseUrl}/uploads/${fullImageUrl}`;
         }
       }
       
-      // Skip validation to avoid delays
+      console.log('📸 Final product image URL for OG tags:', fullImageUrl);
       console.log('✅ Final OG Image URL:', fullImageUrl);
 
       const productUrl = `https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}`;

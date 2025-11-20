@@ -649,9 +649,15 @@ export default function ProductDetail() {
             ? selectedShades[0].imageUrl 
             : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
-          // Convert to absolute URL
+          // Convert to absolute URL with proper domain
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/images/')) {
+              const filename = img.split('/').pop();
+              img = `https://poppiklifestyle.com/uploads/${filename}`;
+            } else if (img.startsWith('/api/image/')) {
+              const filename = img.split('/').pop();
+              img = `https://poppiklifestyle.com/uploads/${filename}`;
+            } else if (img.startsWith('/api/')) {
               const filename = img.split('/').pop();
               img = `https://poppiklifestyle.com/uploads/${filename}`;
             } else if (img.startsWith('/uploads/')) {
@@ -659,11 +665,12 @@ export default function ProductDetail() {
             } else if (img.startsWith('/')) {
               img = `https://poppiklifestyle.com${img}`;
             } else {
+              // If it's just a filename, assume it's in uploads
               img = `https://poppiklifestyle.com/uploads/${img}`;
             }
           }
           
-          console.log('OG Image URL:', img);
+          console.log('📸 WhatsApp OG Image URL:', img);
           return img;
         })()} />
         <meta property="og:image:secure_url" content={(() => {
