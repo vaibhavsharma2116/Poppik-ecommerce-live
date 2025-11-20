@@ -788,25 +788,7 @@ export default function ComboDetail() {
                 You save ₹{(originalPrice - price).toLocaleString()}
               </p>
 
-              {/* Cashback Badge */}
-              {combo.cashbackPercentage && combo.cashbackPrice && (
-                <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-sm font-semibold text-orange-700">Get Cashback</span>
-                      <p className="text-xs text-orange-600 mt-1">Earn on this purchase</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl font-bold text-orange-600">
-                        ₹{Number(combo.cashbackPrice).toFixed(2)}
-                      </span>
-                      <span className="text-sm bg-orange-200 text-orange-800 px-3 py-1 rounded-full font-semibold">
-                        {combo.cashbackPercentage}% Cashback
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
+             
 
               {/* Cashback Badge */}
               {combo.cashbackPercentage && combo.cashbackPrice && (
