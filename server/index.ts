@@ -261,6 +261,10 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
           // Convert /api/image/xxx to direct /uploads/xxx path
           const imageId = fullImageUrl.split('/').pop();
           fullImageUrl = `${baseUrl}/uploads/${imageId}`;
+        } else if (fullImageUrl.startsWith('/api/')) {
+          // Handle other API paths
+          const imagePath = fullImageUrl.replace('/api/', '');
+          fullImageUrl = `${baseUrl}/${imagePath}`;
         } else if (fullImageUrl.startsWith('/uploads/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else if (fullImageUrl.startsWith('/')) {
@@ -270,18 +274,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
         }
       }
       
-      // Validate image URL - if it's not accessible, use fallback
-      try {
-        const imageTest = await fetch(fullImageUrl, { method: 'HEAD', timeout: 3000 });
-        if (!imageTest.ok) {
-          console.log('⚠️ Image URL not accessible, using fallback:', fullImageUrl);
-          fullImageUrl = fallbackImage;
-        }
-      } catch (error) {
-        console.log('⚠️ Image validation failed, using fallback:', error);
-        fullImageUrl = fallbackImage;
-      }
-      
+      // Skip validation to avoid delays
       console.log('✅ Final OG Image URL:', fullImageUrl);
 
       const productUrl = `https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}`;
@@ -290,9 +283,14 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
       // Check if it's a social media crawler (WhatsApp, Facebook, Twitter, etc.)
       const userAgent = req.headers['user-agent'] || '';
-      const isCrawler = /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|Pinterest/i.test(userAgent);
+      const isCrawler = /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|Pinterest|Slackbot|TelegramBot/i.test(userAgent);
 
-      // Serve HTML with OG tags for social media crawlers
+      // If not a crawler, let React app handle it
+      if (!isCrawler) {
+        return next();
+      }
+
+      // Serve HTML with OG tags for social media crawlers only
       const html = `<!DOCTYPE html>
 <html lang="en" prefix="og: http://ogp.me/ns#">
 <head>
@@ -314,13 +312,16 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta property="og:image:secure_url" content="${fullImageUrl}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="${product.name}">
+  <meta property="og:image:alt" content="${product.name}${shadeName ? ` - ${shadeName}` : ''}">
   <meta property="og:image:type" content="image/jpeg">
   
   <!-- Additional image meta for WhatsApp and social platforms -->
   <meta name="thumbnail" content="${fullImageUrl}">
   <meta itemprop="image" content="${fullImageUrl}">
   <link rel="image_src" href="${fullImageUrl}">
+  
+  <!-- Force image refresh -->
+  <meta property="og:updated_time" content="${Date.now()}">
   
   <!-- WhatsApp specific tags -->
   <meta property="og:site_name" content="Poppik Lifestyle">
@@ -371,13 +372,6 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   </script>
   
   <link rel="canonical" href="${productUrl}">
-  ${!isCrawler ? `
-  <script>
-    setTimeout(function() {
-      window.location.href = '${productUrl}';
-    }, 100);
-  </script>
-  ` : ''}
 </head>
 <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
   <div style="text-align: center;">

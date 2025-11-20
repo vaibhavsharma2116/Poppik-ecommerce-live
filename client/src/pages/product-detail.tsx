@@ -534,45 +534,20 @@ export default function ProductDetail() {
   const shareToWhatsApp = () => {
     if (!product) return;
     
-    // Get the URL with shade parameter if shade is selected
-    let url = window.location.href.split('?')[0]; // Remove existing query params
-    
-    // If shades are selected, add shade parameter to URL
-    if (selectedShades.length > 0) {
-      url += `?shade=${selectedShades[0].id}`;
-    }
+    // Create proper URL with shade parameter if shade is selected
+    const baseUrl = `${window.location.origin}/product/${product.slug || product.id}`;
+    const url = selectedShades.length > 0 
+      ? `${baseUrl}?shade=${selectedShades[0].id}`
+      : baseUrl;
     
     const price = `₹${product.price}`;
-    
-    // Get the image to share - prioritize main product images, then shade if selected
-    let shareImage = '';
-    if (imageUrls.length > 0) {
-      shareImage = imageUrls[0];
-    } else if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
-      shareImage = selectedShades[0].imageUrl;
-    } else if (product.imageUrl) {
-      shareImage = product.imageUrl;
-    }
-    
-    // Convert relative URLs to absolute URLs for WhatsApp
-    if (shareImage && !shareImage.startsWith('http')) {
-      if (shareImage.startsWith('/api/image/')) {
-        const imageId = shareImage.split('/').pop();
-        shareImage = `https://poppiklifestyle.com/uploads/${imageId}`;
-      } else if (shareImage.startsWith('/uploads/')) {
-        shareImage = `https://poppiklifestyle.com${shareImage}`;
-      } else if (shareImage.startsWith('/')) {
-        shareImage = `https://poppiklifestyle.com${shareImage}`;
-      } else {
-        shareImage = `https://poppiklifestyle.com/${shareImage}`;
-      }
-    }
     
     // Get the selected shade name if available
     const shadeInfo = selectedShades.length > 0 
       ? `\n🎨 Shade: ${selectedShades.map(s => s.name).join(', ')}`
       : '';
 
+    // WhatsApp will automatically fetch the OG image from the URL
     const text = `🛍️ *${product.name}*\n\n${product.shortDescription || ''}${shadeInfo}\n\n💰 Price: ${price}\n\n👉 Check it out: ${url}`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
