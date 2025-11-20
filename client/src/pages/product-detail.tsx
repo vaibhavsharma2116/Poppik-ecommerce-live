@@ -568,7 +568,14 @@ export default function ProductDetail() {
   };
 
   const copyProductLink = async () => {
-    const url = window.location.href;
+    if (!product) return;
+    
+    // Create proper URL with shade parameter if shade is selected
+    const baseUrl = `${window.location.origin}/product/${product.slug || product.id}`;
+    const url = selectedShades.length > 0 
+      ? `${baseUrl}?shade=${selectedShades[0].id}`
+      : baseUrl;
+    
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -644,10 +651,10 @@ export default function ProductDetail() {
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
-          // Priority: 1. Selected shade image, 2. First product image, 3. Main imageUrl, 4. Fallback
+          // Priority: 1. Selected shade image, 2. Product imageUrl, 3. First product image, 4. Fallback
           let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
             ? selectedShades[0].imageUrl 
-            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+            : product?.imageUrl || imageUrls[0] || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           // Convert to absolute URL with proper domain for WhatsApp
           if (img && !img.startsWith('http')) {
@@ -680,7 +687,7 @@ export default function ProductDetail() {
         <meta property="og:image:secure_url" content={(() => {
           let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
             ? selectedShades[0].imageUrl 
-            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+            : product?.imageUrl || imageUrls[0] || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           if (img && !img.startsWith('http')) {
             const cleanPath = img.replace(/^\/+/, '');
@@ -719,7 +726,7 @@ export default function ProductDetail() {
         <meta name="twitter:image" content={(() => {
           let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
             ? selectedShades[0].imageUrl 
-            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+            : product?.imageUrl || imageUrls[0] || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           if (img && !img.startsWith('http')) {
             const cleanPath = img.replace(/^\/+/, '');
