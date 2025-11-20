@@ -99,28 +99,30 @@ export default function ProductDetail() {
     enabled: !!product?.id,
   });
 
-  // Get image URLs sorted by sortOrder
+  // Get image URLs sorted by sortOrder - prioritize database images
   const imageUrls = useMemo(() => {
     const urls: string[] = [];
 
+    // Priority 1: Product images from database
     if (productImages && productImages.length > 0) {
-      // Get unique URLs from product images only - use Set to ensure uniqueness
       const imageUrlsFromDb = productImages
         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
         .map(img => img.url || img.imageUrl)
-        .filter(url => url && url.trim() !== ''); // Filter out empty/null URLs
+        .filter(url => url && url.trim() !== '');
 
-      // Remove duplicates using Set
       const uniqueUrls = Array.from(new Set(imageUrlsFromDb));
       urls.push(...uniqueUrls);
 
       console.log('Product images from DB:', productImages.length);
       console.log('Unique URLs after processing:', uniqueUrls.length);
-    } else if (product?.imageUrl) {
+    }
+    
+    // Priority 2: Main product imageUrl (if not already in urls)
+    if (product?.imageUrl && !urls.includes(product.imageUrl)) {
       urls.push(product.imageUrl);
     }
 
-    // Add video URL at the end if it exists (only if not already in urls)
+    // Priority 3: Video URL at the end (only if not already in urls)
     if (product?.videoUrl && !urls.includes(product.videoUrl)) {
       urls.push(product.videoUrl);
     }
@@ -642,13 +644,14 @@ export default function ProductDetail() {
         <meta property="og:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta property="og:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta property="og:image" content={(() => {
-          // Get the first available image
-          let img = imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+          // Priority: 1. Selected shade image, 2. First product image, 3. Main imageUrl, 4. Fallback
+          let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
+            ? selectedShades[0].imageUrl 
+            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           // Convert to absolute URL
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/images/')) {
-              // Extract filename from /api/images/filename
               const filename = img.split('/').pop();
               img = `https://poppiklifestyle.com/uploads/${filename}`;
             } else if (img.startsWith('/uploads/')) {
@@ -664,7 +667,9 @@ export default function ProductDetail() {
           return img;
         })()} />
         <meta property="og:image:secure_url" content={(() => {
-          let img = imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+          let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
+            ? selectedShades[0].imageUrl 
+            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/images/')) {
@@ -694,7 +699,9 @@ export default function ProductDetail() {
         <meta name="twitter:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
         <meta name="twitter:image" content={(() => {
-          let img = imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+          let img = selectedShades.length > 0 && selectedShades[0].imageUrl 
+            ? selectedShades[0].imageUrl 
+            : imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
           
           if (img && !img.startsWith('http')) {
             if (img.startsWith('/api/images/')) {
