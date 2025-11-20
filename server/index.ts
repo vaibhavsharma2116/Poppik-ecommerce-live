@@ -285,9 +285,14 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       const userAgent = req.headers['user-agent'] || '';
       const isCrawler = /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|Pinterest|Slackbot|TelegramBot/i.test(userAgent);
 
-      // If not a crawler, let React app handle it
+      // If not a crawler, serve the React app directly
       if (!isCrawler) {
-        return next();
+        // Skip to React app, don't call next() which causes loop
+        const indexPath = path.join(process.cwd(), "dist/public/index.html");
+        if (fs.existsSync(indexPath)) {
+          return res.sendFile(indexPath);
+        }
+        return res.status(404).send('Not Found');
       }
 
       // Serve HTML with OG tags for social media crawlers only
