@@ -183,6 +183,7 @@ const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
   sonipat: { state: "haryana", pincode: "131001" },
   farrukhabad: { state: "uttar_pradesh", pincode: "209625" },
   sagar: { state: "madhya_pradesh", pincode: "470001" },
+  rourkela: { state: "odisha", pincode: "769001" },
   durg: { state: "chhattisgarh", pincode: "491001" },
   imphal: { state: "manipur", pincode: "795001" },
   ratlam: { state: "madhya_pradesh", pincode: "457001" },
@@ -287,7 +288,7 @@ interface CartItem {
 export default function CheckoutPage() {
   const [location, setLocation] = useLocation();
   const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0 } = (location as any).state || {};
-  
+
   const user = getCurrentUser();
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -1533,11 +1534,11 @@ export default function CheckoutPage() {
         if (isMultiAddress && multiAddressMapping && savedAddresses.length > 0) {
           try {
             const mapping = JSON.parse(multiAddressMapping);
-            
+
             itemsData = cartItems.map((item: any) => {
               const addressId = mapping[item.id];
               const address = savedAddresses.find(addr => addr.id === addressId);
-              
+
               return {
                 productId: item.id,
                 productName: item.name,
@@ -1881,6 +1882,226 @@ export default function CheckoutPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* No Saved Addresses - Show Add New Address Button */}
+                  {savedAddresses.length === 0 && (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Add delivery address</h3>
+                      <p className="text-sm text-gray-600 mb-6">Enter your address to see delivery options</p>
+                      <Dialog open={showAddAddressDialog} onOpenChange={(open) => {
+                        setShowAddAddressDialog(open);
+                        if (open) {
+                          setNewAddressData({
+                            fullName: "",
+                            mobile: "",
+                            pincode: "",
+                            flat: "",
+                            area: "",
+                            landmark: "",
+                            town: "",
+                            state: "",
+                            makeDefault: false,
+                            deliveryInstructions: '',
+                            saturdayDelivery: false,
+                            sundayDelivery: false,
+                          });
+                        }
+                      }}>
+                        <DialogTrigger asChild>
+                          <Button className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold px-8 py-6 text-base">
+                            Add a new delivery address
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Enter a new delivery address</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-start gap-2">
+                              <MapPin className="h-4 w-4 text-blue-600 mt-0.5" />
+                              <div>
+                                <p className="text-sm font-medium text-blue-900">Save time. Autofill your current location.</p>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="mt-2"
+                                  type="button"
+                                  onClick={handleAutofillLocation}
+                                >
+                                  <MapPin className="h-3 w-3 mr-1" />
+                                  Autofill
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newCountry">Country/Region *</Label>
+                              <select
+                                id="newCountry"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                defaultValue="India"
+                                disabled
+                              >
+                                <option value="India">India</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newFullName">Full name (First and Last name) *</Label>
+                              <Input
+                                id="newFullName"
+                                value={newAddressData.fullName}
+                                onChange={(e) => setNewAddressData({...newAddressData, fullName: e.target.value})}
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newMobile">Mobile number *</Label>
+                              <Input
+                                id="newMobile"
+                                placeholder="May be used to assist delivery"
+                                value={newAddressData.mobile}
+                                onChange={(e) => setNewAddressData({...newAddressData, mobile: e.target.value})}
+                                maxLength={10}
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newPincode">Pincode *</Label>
+                              <Input
+                                id="newPincode"
+                                placeholder="6 digits [0-9] PIN code"
+                                value={newAddressData.pincode}
+                                onChange={(e) => setNewAddressData({...newAddressData, pincode: e.target.value})}
+                                maxLength={6}
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newFlat">Flat, House no., Building, Company, Apartment *</Label>
+                              <Input
+                                id="newFlat"
+                                value={newAddressData.flat}
+                                onChange={(e) => setNewAddressData({...newAddressData, flat: e.target.value})}
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newArea">Area, Street, Sector, Village *</Label>
+                              <Input
+                                id="newArea"
+                                placeholder="e.g., hawa, nandpuri colony"
+                                value={newAddressData.area}
+                                onChange={(e) => setNewAddressData({...newAddressData, area: e.target.value})}
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newLandmark">Landmark</Label>
+                              <Input
+                                id="newLandmark"
+                                placeholder="E.g. near apollo hospital"
+                                value={newAddressData.landmark}
+                                onChange={(e) => setNewAddressData({...newAddressData, landmark: e.target.value})}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="newTown">Town/City *</Label>
+                                <Input
+                                  id="newTown"
+                                  value={newAddressData.town}
+                                  onChange={(e) => setNewAddressData({...newAddressData, town: e.target.value})}
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="newState">State *</Label>
+                                <select
+                                  id="newState"
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                  value={newAddressData.state}
+                                  onChange={(e) => setNewAddressData({...newAddressData, state: e.target.value})}
+                                >
+                                  <option value="">Select State</option>
+                                  <option value="andhra_pradesh">Andhra Pradesh</option>
+                                  <option value="arunachal_pradesh">Arunachal Pradesh</option>
+                                  <option value="assam">Assam</option>
+                                  <option value="bihar">Bihar</option>
+                                  <option value="chhattisgarh">Chhattisgarh</option>
+                                  <option value="goa">Goa</option>
+                                  <option value="gujarat">Gujarat</option>
+                                  <option value="haryana">Haryana</option>
+                                  <option value="himachal_pradesh">Himachal Pradesh</option>
+                                  <option value="jharkhand">Jharkhand</option>
+                                  <option value="karnataka">Karnataka</option>
+                                  <option value="kerala">Kerala</option>
+                                  <option value="madhya_pradesh">Madhya Pradesh</option>
+                                  <option value="maharashtra">Maharashtra</option>
+                                  <option value="manipur">Manipur</option>
+                                  <option value="meghalaya">Meghalaya</option>
+                                  <option value="mizoram">Mizoram</option>
+                                  <option value="nagaland">Nagaland</option>
+                                  <option value="odisha">Odisha</option>
+                                  <option value="punjab">Punjab</option>
+                                  <option value="rajasthan">Rajasthan</option>
+                                  <option value="sikkim">Sikkim</option>
+                                  <option value="tamil_nadu">Tamil Nadu</option>
+                                  <option value="telangana">Telangana</option>
+                                  <option value="tripura">Tripura</option>
+                                  <option value="uttar_pradesh">Uttar Pradesh</option>
+                                  <option value="uttarakhand">Uttarakhand</option>
+                                  <option value="west_bengal">West Bengal</option>
+                                  <option value="delhi">Delhi</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id="makeDefault"
+                                className="rounded"
+                                checked={newAddressData.makeDefault}
+                                onChange={(e) => setNewAddressData({...newAddressData, makeDefault: e.target.checked})}
+                              />
+                              <Label htmlFor="makeDefault" className="text-sm font-normal">
+                                Make this my default address
+                              </Label>
+                            </div>
+
+                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                              <p className="text-sm font-semibold mb-2">Add delivery instructions (optional)</p>
+                              <Textarea
+                                placeholder="E.g., Leave at door, Ring bell twice, Call before delivery..."
+                                rows={3}
+                                className="mt-2 resize-none"
+                                onChange={(e) => {
+                                  setNewAddressData({...newAddressData, deliveryInstructions: e.target.value});
+                                }}
+                              />
+                              <p className="text-xs text-gray-600 mt-2">Preferences are used to plan your delivery. However, shipments can sometimes arrive early or later than planned.</p>
+                            </div>
+
+                            <Button
+                              className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
+                              type="button"
+                              onClick={handleNewAddressSubmit}
+                            >
+                              Use this address
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  )}
+
                   {/* Saved Addresses Section */}
                   {savedAddresses.length > 0 && (
                     <div className="space-y-3">
@@ -2207,7 +2428,7 @@ export default function CheckoutPage() {
                   )}
 
                   {/* Manual Address Entry (fallback) */}
-                  {(!userProfile || !userProfile.address) && (
+                  {/* {(!userProfile || !userProfile.address) && (
                     <div>
                       <Label htmlFor="address">Address *</Label>
                       <Textarea
@@ -2498,7 +2719,7 @@ export default function CheckoutPage() {
                         <p className="text-xs text-gray-500 mt-1">Please select a city to see available PIN codes</p>
                       )}
                     </div>
-                  )}
+                  )} */}
                 </CardContent>
               </Card>
 
@@ -2605,10 +2826,10 @@ export default function CheckoutPage() {
                       if (multiAddressMapping && savedAddresses.length > 0) {
                         try {
                           const mapping = JSON.parse(multiAddressMapping);
-                          
+
                           // Check if there are instance-based mappings (e.g., "123-0", "123-1")
                           const instanceKeys = Object.keys(mapping).filter(key => key.startsWith(`${item.id}-`));
-                          
+
                           if (instanceKeys.length > 0) {
                             // Item has individual addresses for each quantity
                             hasInstanceMapping = true;
@@ -2772,7 +2993,7 @@ export default function CheckoutPage() {
                     {affiliateDiscountAmount > 0 && formData.affiliateCode && (
                       <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
                         <span className="text-green-700 font-medium">Affiliate Discount ({formData.affiliateCode})</span>
-                        <span className="font-bold text-green-600">-₹{affiliateDiscountAmount.toLocaleString()}</span>
+                        <span className="font-bold text-green-600">-₹{Math.round(affiliateDiscountAmount).toLocaleString()}</span>
                       </div>
                     )}
 
