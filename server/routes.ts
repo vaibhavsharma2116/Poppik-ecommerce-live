@@ -77,7 +77,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration and error recovery
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -2214,9 +2214,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user has purchased this offer
-      // For now, allow all logged-in users to review
+      const orders = await db
+        .select()
+        .from(schema.orders)
+        .where(eq(schema.orders.userId, parseInt(userId as string)));
+
+      // Check if any order contains this offer
+      let hasPurchased = false;
+      let purchaseOrderId: number | undefined;
+
+      for (const order of orders) {
+        const items = JSON.parse(order.items);
+        const hasOfferItem = items.some((item: any) => {
+          return item.offerId === offerId || item.isOfferItem && item.offerId === offerId;
+        });
+
+        if (hasOfferItem) {
+          hasPurchased = true;
+          purchaseOrderId = order.id;
+          break;
+        }
+      }
+
+      if (!hasPurchased) {
+        return res.json({ 
+          canReview: false, 
+          message: "You must purchase this offer to leave a review"
+        });
+      }
+
       res.json({ 
         canReview: true, 
+        orderId: purchaseOrderId,
         message: "You can review this offer"
       });
     } catch (error) {
@@ -2889,16 +2918,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "User ID is required" });
       }
 
+      const userIdNum = parseInt(userId as string);
+      if (isNaN(userIdNum)) {
+        return res.status(400).json({ error: "Invalid user ID format" });
+      }
+
       const addresses = await db
         .select()
         .from(schema.deliveryAddresses)
-        .where(eq(schema.deliveryAddresses.userId, parseInt(userId as string)))
+        .where(eq(schema.deliveryAddresses.userId, userIdNum))
         .orderBy(desc(schema.deliveryAddresses.isDefault), desc(schema.deliveryAddresses.createdAt));
 
-      res.json(addresses);
+      res.json(addresses || []);
     } catch (error) {
       console.error("Error fetching delivery addresses:", error);
-      res.status(500).json({ error: "Failed to fetch delivery addresses" });
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+      res.status(500).json({ 
+        error: "Failed to fetch delivery addresses",
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 

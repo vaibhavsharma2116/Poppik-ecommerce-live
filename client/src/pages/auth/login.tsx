@@ -101,7 +101,7 @@ export default function Login() {
 
         <Card className="shadow-lg">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">Log In</CardTitle>
             <CardDescription className="text-center">
               Enter your credentials to access your account
             </CardDescription>
@@ -166,7 +166,7 @@ export default function Login() {
               </div>
 
               <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
-                Sign In
+                Log In
               </Button>
             </form>
 

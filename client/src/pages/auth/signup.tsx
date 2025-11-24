@@ -422,8 +422,8 @@ export default function Signup() {
                   </div>
 
                   <div className="space-y-4">
-                    <div className="flex items-start space-x-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <div className="flex items-center h-5 pt-0.5">
+                    <div className="flex items-center space-x-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center justify-center">
                         <Checkbox
                           id="agreeToTerms"
                           checked={formData.agreeToTerms}
@@ -531,7 +531,7 @@ export default function Signup() {
             <div className="text-center">
               <span className="text-gray-600">Already have an account? </span>
               <Link href="/auth/login" className="text-red-600 hover:text-red-700 font-medium">
-                Sign in
+                Log in
               </Link>
             </div>
           </CardContent>

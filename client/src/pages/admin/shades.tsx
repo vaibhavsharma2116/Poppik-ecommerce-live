@@ -530,8 +530,8 @@ export default function AdminShades() {
             <TableBody>
               {shades.map((shade) => {
                 const shadeProducts = getShadeProducts(shade);
-                const shadeCategories = categories.filter(cat => shade.categoryIds?.includes(cat.id));
-                const shadeSubcategories = subcategories.filter(sub => shade.subcategoryIds?.includes(sub.id));
+                const shadeCategories = Array.isArray(categories) ? categories.filter(cat => shade.categoryIds?.includes(cat.id)) : [];
+                const shadeSubcategories = Array.isArray(subcategories) ? subcategories.filter(sub => shade.subcategoryIds?.includes(sub.id)) : [];
 
                 return (
                   <TableRow key={shade.id} className="border-b border-slate-100 hover:bg-slate-50/60 transition-all duration-200">

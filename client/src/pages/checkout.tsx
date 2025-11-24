@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award, ChevronDown, Tag } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { getCurrentUser } from "@/lib/utils";
 
 
 import { Button } from "@/components/ui/button";
@@ -182,7 +183,6 @@ const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
   sonipat: { state: "haryana", pincode: "131001" },
   farrukhabad: { state: "uttar_pradesh", pincode: "209625" },
   sagar: { state: "madhya_pradesh", pincode: "470001" },
-  rourkela: { state: "odisha", pincode: "769001" },
   durg: { state: "chhattisgarh", pincode: "491001" },
   imphal: { state: "manipur", pincode: "795001" },
   ratlam: { state: "madhya_pradesh", pincode: "457001" },
@@ -287,6 +287,8 @@ interface CartItem {
 export default function CheckoutPage() {
   const [location, setLocation] = useLocation();
   const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0 } = (location as any).state || {};
+  
+  const user = getCurrentUser();
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -299,43 +301,6 @@ export default function CheckoutPage() {
 
   // State for the instructions dialog
   const [showInstructionsDialog, setShowInstructionsDialog] = useState(false);
-
-  const [formData, setFormData] = useState({
-    email: "",
-    firstName: "",
-    lastName: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    phone: "",
-    paymentMethod: "cashfree",
-    affiliateCode: passedAffiliateCode || "",
-    affiliateDiscount: 0,
-    deliveryInstructions: "", // Added state for delivery instructions
-    saturdayDelivery: false, // Changed to boolean for easier handling
-    sundayDelivery: false // Changed to boolean for easier handling
-  });
-  const [showProfileDialog, setShowProfileDialog] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
-  const [profileDataLoaded, setProfileDataLoaded] = useState(false);
-  const [showAddAddressDialog, setShowAddAddressDialog] = useState(false);
-  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
-  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
-  const [newAddressData, setNewAddressData] = useState({
-    fullName: "",
-    mobile: "",
-    pincode: "",
-    flat: "",
-    area: "",
-    landmark: "",
-    town: "",
-    state: "",
-    makeDefault: false,
-    deliveryInstructions: '', // For new address dialog
-    saturdayDelivery: false, // For new address dialog
-    sundayDelivery: false, // For new address dialog
-  });
 
   // Initialize shipping cost state and loading indicator
   const [shippingCost, setShippingCost] = useState<number>(99);
@@ -368,13 +333,63 @@ export default function CheckoutPage() {
   const [hasPromoCode, setHasPromoCode] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(passedPromoDiscount); // Initialize with passed value
 
-  // Get user from localStorage - must be before any hooks that use it
-  const getCurrentUser = () => {
-    const userStr = localStorage.getItem("user");
-    return userStr ? JSON.parse(userStr) : null;
-  };
+  // Affiliate discount state - load from localStorage
+  const [affiliateDiscountAmount, setAffiliateDiscountAmount] = useState(() => {
+    // Try to get from passed props first
+    if (passedAffiliateDiscount > 0) {
+      return passedAffiliateDiscount;
+    }
+    // Then try localStorage
+    const savedAffiliateDiscount = localStorage.getItem('affiliateDiscount');
+    if (savedAffiliateDiscount) {
+      try {
+        const affiliateData = JSON.parse(savedAffiliateDiscount);
+        return affiliateData.discount || 0;
+      } catch (error) {
+        console.error('Error parsing affiliate discount:', error);
+        return 0;
+      }
+    }
+    return 0;
+  });
 
-  const user = getCurrentUser();
+
+  const [formData, setFormData] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    phone: "",
+    paymentMethod: "cashfree",
+    affiliateCode: passedAffiliateCode || "",
+    affiliateDiscount: passedAffiliateDiscount || 0,
+    deliveryInstructions: "", // Added state for delivery instructions
+    saturdayDelivery: false, // Changed to boolean for easier handling
+    sundayDelivery: false // Changed to boolean for easier handling
+  });
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+  const [profileDataLoaded, setProfileDataLoaded] = useState(false);
+  const [showAddAddressDialog, setShowAddAddressDialog] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+  const [newAddressData, setNewAddressData] = useState({
+    fullName: "",
+    mobile: "",
+    pincode: "",
+    flat: "",
+    area: "",
+    landmark: "",
+    town: "",
+    state: "",
+    makeDefault: false,
+    deliveryInstructions: '', // For new address dialog
+    saturdayDelivery: false, // For new address dialog
+    sundayDelivery: false, // For new address dialog
+  });
 
   // Fetch wallet data
   const { data: walletData, refetch: refetchWalletData } = useQuery({
@@ -473,22 +488,25 @@ export default function CheckoutPage() {
       console.log('✅ Multi-address order detected');
     }
 
-    // Load affiliate discount from localStorage first
+    // Load affiliate discount from localStorage
     const savedAffiliateDiscount = localStorage.getItem('affiliateDiscount');
-    let affiliateDiscountAmount = 0;
-    let affiliateCodeValue = '';
+    let loadedAffiliateDiscountAmount = 0;
+    let loadedAffiliateCodeValue = '';
 
     if (savedAffiliateDiscount) {
       try {
         const affiliateData = JSON.parse(savedAffiliateDiscount);
-        affiliateDiscountAmount = affiliateData.discount;
-        affiliateCodeValue = affiliateData.code;
+        loadedAffiliateDiscountAmount = affiliateData.discount;
+        loadedAffiliateCodeValue = affiliateData.code;
 
         setFormData(prev => ({
           ...prev,
           affiliateCode: affiliateData.code,
           affiliateDiscount: affiliateData.discount,
         }));
+
+        // Set the affiliate discount state
+        setAffiliateDiscountAmount(affiliateData.discount);
 
         console.log('✅ Loaded affiliate discount from localStorage:', affiliateData);
       } catch (error) {
@@ -775,8 +793,7 @@ export default function CheckoutPage() {
   const cartSubtotal = calculateSubtotal();
   const cartSubtotalAfterProductDiscount = cartSubtotal - productDiscount;
 
-  // Use affiliate discount from formData (loaded from localStorage) or passed value
-  const affiliateDiscountAmount = formData.affiliateDiscount || passedAffiliateDiscount || 0;
+  // Use affiliate discount state variable
   const subtotalAfterAffiliate = cartSubtotalAfterProductDiscount - affiliateDiscountAmount;
 
   const subtotalAfterDiscount = subtotalAfterAffiliate - promoDiscount;
@@ -1553,6 +1570,7 @@ export default function CheckoutPage() {
           isMultiAddress: isMultiAddress,
           affiliateCode: formData.affiliateCode || passedAffiliateCode || null,
           affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
+          affiliateDiscount: affiliateDiscountAmount > 0 ? Math.round(affiliateDiscountAmount) : null,
           promoCode: appliedPromo?.code || null,
           promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
           redeemAmount: Math.round(redeemAmount) || 0,
@@ -1980,9 +1998,9 @@ export default function CheckoutPage() {
                               town: "",
                               state: "",
                               makeDefault: false,
-                              deliveryInstructions: '', // Reset new address instructions
-                              saturdayDelivery: false, // Reset new address weekend delivery
-                              sundayDelivery: false,  // Reset new address weekend delivery
+                              deliveryInstructions: '',
+                              saturdayDelivery: false,
+                              sundayDelivery: false,
                             });
                           }
                         }}>
@@ -2751,9 +2769,9 @@ export default function CheckoutPage() {
                       </div>
                     )}
 
-                    {affiliateDiscountAmount > 0 && (
+                    {affiliateDiscountAmount > 0 && formData.affiliateCode && (
                       <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
-                        <span className="text-green-700 font-medium">Affiliate Discount ({formData.affiliateCode || passedAffiliateCode})</span>
+                        <span className="text-green-700 font-medium">Affiliate Discount ({formData.affiliateCode})</span>
                         <span className="font-bold text-green-600">-₹{affiliateDiscountAmount.toLocaleString()}</span>
                       </div>
                     )}

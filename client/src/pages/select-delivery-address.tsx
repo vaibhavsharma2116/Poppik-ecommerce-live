@@ -71,9 +71,30 @@ export default function SelectDeliveryAddress() {
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
 
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [user] = useState(() => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch (error) {
+      console.error('Error parsing user from localStorage:', error);
+      return null;
+    }
+  });
 
   useEffect(() => {
+    // Validate user before fetching
+    if (!user || !user.id) {
+      console.error('No valid user found');
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to view delivery addresses",
+        variant: "destructive",
+      });
+      setLoading(false);
+      setLocation('/auth/login');
+      return;
+    }
+
     fetchAddresses();
 
     // Check if in multiple address mode
@@ -119,14 +140,30 @@ export default function SelectDeliveryAddress() {
   }, []);
 
   const fetchAddresses = async () => {
+    if (!user || !user.id) {
+      console.error('Cannot fetch addresses: user not found');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch(`/api/delivery-addresses?userId=${user.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setAddresses(data);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
+      
+      const data = await response.json();
+      setAddresses(data || []);
     } catch (error) {
       console.error('Error fetching addresses:', error);
+      toast({
+        title: "Error Loading Addresses",
+        description: error instanceof Error ? error.message : "Failed to fetch delivery addresses. Please try again.",
+        variant: "destructive",
+      });
+      setAddresses([]);
     } finally {
       setLoading(false);
     }

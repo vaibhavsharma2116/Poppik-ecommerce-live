@@ -177,7 +177,7 @@ function ProductListItem({
               </div>
             </div>
 
-            {/* Select Shades Button */}
+            {/* Select Shade Button */}
             <button
               onClick={onOpenShadeSelector}
               className={`w-full rounded-xl px-6 py-3 text-center font-bold text-base transition-all flex items-center justify-center gap-2 ${
@@ -188,9 +188,9 @@ function ProductListItem({
             >
               <Palette className="w-5 h-5" />
               {selectedShade ? (
-                <span>{selectedShade.split(', ').length} Shade{selectedShade.split(', ').length !== 1 ? 's' : ''} Selected</span>
+                <span>Shade Selected: {selectedShade}</span>
               ) : (
-                <span>Select Shades</span>
+                <span>Select Shade</span>
               )}
               {selectedShade && <Check className="w-5 h-5" />}
             </button>
@@ -231,7 +231,8 @@ function ShadeSelectorSheet({
   }, [selectedShade, isOpen]);
 
   const handleSelectAll = () => {
-    setSelectedShades(new Set(shades.map(s => s.name)));
+    // Disabled for offers - only single shade allowed
+    return;
   };
 
   const handleClearAll = () => {
@@ -239,10 +240,9 @@ function ShadeSelectorSheet({
   };
 
   const handleShadeToggle = (shadeName: string) => {
-    const newSelection = new Set(selectedShades);
-    if (newSelection.has(shadeName)) {
-      newSelection.delete(shadeName);
-    } else {
+    // For offers, only allow ONE shade selection
+    const newSelection = new Set<string>();
+    if (!selectedShades.has(shadeName)) {
       newSelection.add(shadeName);
     }
     setSelectedShades(newSelection);
@@ -261,29 +261,24 @@ function ShadeSelectorSheet({
         <SheetHeader className="border-b pb-4 mb-4 bg-gradient-to-r from-purple-50 to-pink-50 -mx-6 px-6 -mt-6 pt-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <SheetTitle className="text-2xl font-bold text-gray-900">Select Your Shades</SheetTitle>
+              <SheetTitle className="text-2xl font-bold text-gray-900">Select Your Shade</SheetTitle>
               <SheetDescription className="text-gray-600 mt-1">
-                Choose from {shades.length} beautiful shades for {product.name}
+                Choose 1 shade from {shades.length} beautiful options for {product.name}
               </SheetDescription>
               {selectedShades.size > 0 && (
                 <div className="mt-2 text-sm font-semibold text-purple-600">
-                  {selectedShades.size} shade{selectedShades.size !== 1 ? 's' : ''} selected
+                  {selectedShades.size} shade selected
                 </div>
               )}
+              <div className="mt-2 text-xs font-medium text-orange-600 bg-orange-50 px-3 py-2 rounded-lg border border-orange-200">
+                ⚠️ Only 1 shade can be selected per product in this offer
+              </div>
             </div>
             <Palette className="w-8 h-8 text-purple-600 flex-shrink-0" />
           </div>
 
-          {/* Select All / Clear All Buttons */}
+          {/* Clear Selection Button */}
           <div className="flex gap-2 mt-4">
-            <Button
-              onClick={handleSelectAll}
-              variant="outline"
-              size="sm"
-              className="flex-1 border-purple-300 text-purple-700 hover:bg-purple-50"
-            >
-              Select All Product Shades
-            </Button>
             <Button
               onClick={handleClearAll}
               variant="outline"
@@ -291,7 +286,7 @@ function ShadeSelectorSheet({
               className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
               disabled={selectedShades.size === 0}
             >
-              Clear All
+              Clear Selection
             </Button>
           </div>
         </SheetHeader>
@@ -352,8 +347,8 @@ function ShadeSelectorSheet({
             <Check className="w-5 h-5" />
             <span className="font-semibold">
               {selectedShades.size > 0
-                ? `${selectedShades.size} shade${selectedShades.size !== 1 ? 's' : ''} selected`
-                : 'Select at least 1 shade'}
+                ? `1 shade selected`
+                : 'Select 1 shade'}
             </span>
           </div>
           <Button
@@ -363,7 +358,7 @@ function ShadeSelectorSheet({
             disabled={selectedShades.size === 0}
             className="bg-white text-purple-700 hover:bg-gray-100 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {selectedShades.size > 0 ? 'Confirm Selection' : 'Select Shades'}
+            {selectedShades.size > 0 ? 'Confirm Selection' : 'Select Shade'}
           </Button>
         </div>
       </SheetContent>
@@ -533,6 +528,8 @@ export default function OfferDetail() {
       return response.json();
     },
     enabled: !!offerId,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Update canReview state when eligibility data changes

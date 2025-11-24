@@ -436,7 +436,7 @@ export default function AdminBlog() {
       const response = await fetch(`/api/admin/blog/categories/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.JSON.stringify(categoryData)
+        body: JSON.stringify(categoryData)
       });
       if (!response.ok) throw new Error('Failed to update category');
       return response.json();
