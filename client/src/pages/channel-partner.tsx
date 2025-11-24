@@ -88,7 +88,7 @@ export default function ChannelPartnerPage() {
             
             <div className="flex flex-col sm:flex-row gap-2 xs:gap-3 sm:gap-4 justify-center px-2 xs:px-3">
               <Button 
-                onClick={() => window.open('https://forms.gle/Y16AYjY8WpSDjFJt9', '_blank')}
+                onClick={() => window.open('https://forms.gle/FBpJH1oZ1aKaNGhE6', '_blank')}
                 size="lg"
                 className="bg-white text-purple-600 hover:bg-pink-50 font-semibold text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
               >
@@ -464,7 +464,7 @@ export default function ChannelPartnerPage() {
             Join the Poppik family and unlock unlimited growth potential
           </p>
           <Button 
-            onClick={() => window.open('https://forms.gle/Y16AYjY8WpSDjFJt9', '_blank')}
+            onClick={() => window.open('https://forms.gle/FBpJH1oZ1aKaNGhE6', '_blank')}
             size="lg"
             className="bg-white text-purple-600 hover:bg-pink-50"
           >

@@ -20,7 +20,7 @@ export default function InfluencerCollabPage() {
   const { toast } = useToast();
 
   const handleApplyClick = () => {
-    window.open('https://forms.gle/XMttjRBYg5wzMHKw7', '_blank');
+    window.open('https://forms.gle/yLGN34wRPc8hKsd29', '_blank');
   };
 
   return (
