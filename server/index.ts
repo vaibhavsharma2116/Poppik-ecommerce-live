@@ -415,7 +415,6 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
     <h1 style="color: #333; margin: 20px 0; font-size: 28px;">${product.name}</h1>
     <p style="color: #666; font-size: 16px; margin: 15px 0;">${description}</p>
     <p style="color: #10b981; font-size: 32px; font-weight: bold; margin: 20px 0;">₹${product.price}</p>
-    <p style="color: #999; font-size: 14px; margin: 20px 0;">Redirecting to product page...</p>
     <a href="${productUrl}" style="display: inline-block; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px; font-size: 16px; transition: transform 0.2s;">View Product on Poppik</a>
   </div>
 </body>
