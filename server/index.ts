@@ -171,7 +171,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   const server = await registerRoutes(app);
 
   // Handle product share URLs for social media crawlers
-  app.get(["/product/:slug", "/share/product/:slug"], async (req, res, next) => {
+  app.get(["/product/:slug", "/product/:slug"], async (req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
 
     // Detect social media crawlers and bots - be more specific
