@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/admin/rich-text-editor";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -609,36 +610,27 @@ export default function AdminOffers() {
               {/* Detailed Description */}
               <div className="space-y-2">
                 <Label htmlFor="detailedDescription">Detailed Description (for Description tab)</Label>
-                <Textarea
-                  id="detailedDescription"
-                  placeholder="Complete offer details..."
-                  rows={5}
-                  value={formData.detailedDescription || ''}
-                  onChange={(e) => setFormData({ ...formData, detailedDescription: e.target.value })}
+                <RichTextEditor
+                  content={formData.detailedDescription || ''}
+                  onChange={(html) => setFormData({ ...formData, detailedDescription: html })}
                 />
               </div>
 
               {/* Products Included */}
               <div className="space-y-2">
                 <Label htmlFor="productsIncluded">Products Included (for Products tab)</Label>
-                <Textarea
-                  id="productsIncluded"
-                  placeholder="List all products included in this offer..."
-                  rows={5}
-                  value={formData.productsIncluded || ''}
-                  onChange={(e) => setFormData({ ...formData, productsIncluded: e.target.value })}
+                <RichTextEditor
+                  content={formData.productsIncluded || ''}
+                  onChange={(html) => setFormData({ ...formData, productsIncluded: html })}
                 />
               </div>
 
               {/* Benefits */}
               <div className="space-y-2">
                 <Label htmlFor="benefits">Key Benefits (for Benefits tab)</Label>
-                <Textarea
-                  id="benefits"
-                  placeholder="List the key benefits of this offer..."
-                  rows={5}
-                  value={formData.benefits || ''}
-                  onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
+                <RichTextEditor
+                  content={formData.benefits || ''}
+                  onChange={(html) => setFormData({ ...formData, benefits: html })}
                 />
               </div>
 

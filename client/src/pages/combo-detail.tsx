@@ -883,7 +883,23 @@ export default function ComboDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="prose prose-gray max-w-none">
-                    <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">{combo.detailedDescription || combo.description}</p>
+                    { (combo.detailedDescription || combo.description) ? (
+                      typeof (combo.detailedDescription || combo.description) === 'string' && (combo.detailedDescription || combo.description).includes('<') ? (
+                        <div
+                          className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal prose prose-gray max-w-none"
+                          dangerouslySetInnerHTML={{ __html: combo.detailedDescription || combo.description }}
+                        />
+                      ) : (
+                        <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal whitespace-pre-line">{combo.detailedDescription || combo.description}</p>
+                      )
+                    ) : (
+                      <div className="text-center py-8 sm:py-12">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-300 to-indigo-300 rounded-xl sm:rounded-2xl"></div>
+                        </div>
+                        <p className="text-gray-500 text-lg sm:text-xl font-normal">No detailed description available.</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -901,17 +917,19 @@ export default function ComboDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {combo.productsIncluded ? (
-                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line font-normal">
-                      {combo.productsIncluded}
-                    </div>
+                    typeof combo.productsIncluded === 'string' && combo.productsIncluded.includes('<') ? (
+                      <div
+                        className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal prose prose-gray max-w-none"
+                        dangerouslySetInnerHTML={{ __html: combo.productsIncluded }}
+                      />
+                    ) : (
+                      <div className="prose prose-gray max-w-none">
+                        <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">{combo.productsIncluded}</p>
+                      </div>
+                    )
                   ) : Array.isArray(products) && products.length > 0 ? (
-                    <div className="grid gap-3 sm:gap-4">
-                      {products.map((product: any, index: number) => (
-                        <div key={index} className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-green-100/50 transform hover:scale-105 transition-all duration-200">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                          <span className="text-gray-700 font-normal text-base sm:text-lg">{typeof product === 'string' ? product : product.name}</span>
-                        </div>
-                      ))}
+                    <div className="prose prose-gray max-w-none">
+                      <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">{products.map((product: any) => (typeof product === 'string' ? product : product.name)).join('\n')}</p>
                     </div>
                   ) : (
                     <div className="text-center py-8 sm:py-12">
@@ -937,33 +955,19 @@ export default function ComboDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {combo.benefits ? (
-                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line font-normal">
-                      {combo.benefits}
-                    </div>
+                    typeof combo.benefits === 'string' && combo.benefits.includes('<') ? (
+                      <div
+                        className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal prose prose-gray max-w-none"
+                        dangerouslySetInnerHTML={{ __html: combo.benefits }}
+                      />
+                    ) : (
+                      <div className="prose prose-gray max-w-none">
+                        <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">{combo.benefits}</p>
+                      </div>
+                    )
                   ) : (
-                    <div className="grid gap-3 sm:gap-4">
-                      <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
-                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                        <span className="text-gray-700 font-normal text-base sm:text-lg">Complete beauty routine in one combo</span>
-                      </div>
-                      <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
-                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                        <span className="text-gray-700 font-normal text-base sm:text-lg">Save ₹{(originalPrice - price).toLocaleString()} with this bundle</span>
-                      </div>
-                      <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
-                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                        <span className="text-gray-700 font-normal text-base sm:text-lg">Get {discountPercentage}% discount on the original price</span>
-                      </div>
-                      <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
-                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                        <span className="text-gray-700 font-normal text-base sm:text-lg">Premium quality products at discounted price</span>
-                      </div>
-                      {Array.isArray(products) && products.length > 0 && (
-                        <div className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                          <span className="text-gray-700 font-normal text-base sm:text-lg">Includes {products.length} carefully curated products</span>
-                        </div>
-                      )}
+                    <div className="prose prose-gray max-w-none">
+                      <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">Complete beauty routine in one combo. Save ₹{(originalPrice - price).toLocaleString()} with this bundle. Get {discountPercentage}% discount on the original price. Premium quality products at discounted price. {Array.isArray(products) ? `Includes ${products.length} carefully curated products` : ''}</p>
                     </div>
                   )}
                 </CardContent>
@@ -982,18 +986,21 @@ export default function ComboDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {combo.howToUse ? (
-                    <div className="bg-white/70 backdrop-blur-sm p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-purple-100/50">
-                      <div className="prose prose-gray max-w-none">
-                        <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal mb-0 whitespace-pre-line">
-                          {combo.howToUse}
-                        </p>
+                    typeof combo.howToUse === 'string' && combo.howToUse.includes('<') ? (
+                      <div
+                        className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal prose prose-gray max-w-none"
+                        dangerouslySetInnerHTML={{ __html: combo.howToUse }}
+                      />
+                    ) : (
+                      <div className="prose prose-gray max-w-none bg-white/70 backdrop-blur-sm p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-purple-100/50">
+                        <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal mb-0 whitespace-pre-line">{combo.howToUse}</p>
                       </div>
-                    </div>
+                    )
                   ) : (
                     <div className="bg-white/70 backdrop-blur-sm p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg border border-purple-100/50">
                       <div className="text-gray-700 leading-relaxed text-base sm:text-lg space-y-3 sm:space-y-4">
                         <p className="font-normal">
-                          Follow the individual product instructions included in this combo for best results. 
+                          Follow the individual product instructions included in this combo for best results.
                           Use as part of your daily beauty routine.
                         </p>
                         {Array.isArray(products) && products.length > 0 && (

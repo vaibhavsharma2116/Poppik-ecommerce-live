@@ -8159,7 +8159,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle image updates
       if (files?.images && files.images.length > 0) {
-        updateData.imageUrl = `/api/images/${files.images[0].filename}`;
+        const imageUrls = files.images.map(file => `/api/images/${file.filename}`);
+        updateData.imageUrl = imageUrls;
 
         // Delete existing images from combo_images table
         await db.delete(schema.comboImages).where(eq(schema.comboImages.comboId, id));
@@ -8177,7 +8178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         );
       } else if (req.body.imageUrl) {
-        updateData.imageUrl = req.body.imageUrl;
+        updateData.imageUrl = Array.isArray(req.body.imageUrl) ? req.body.imageUrl : [req.body.imageUrl];
       }
 
       // Handle video upload

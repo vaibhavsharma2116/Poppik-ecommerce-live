@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/admin/rich-text-editor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -620,41 +621,33 @@ export default function AdminCombos() {
 
             <div>
               <Label>Detailed Description</Label>
-              <Textarea
-                value={formData.detailedDescription}
-                onChange={(e) => setFormData({ ...formData, detailedDescription: e.target.value })}
-                rows={5}
-                placeholder="Full description for combo detail page"
+              <RichTextEditor
+                content={formData.detailedDescription}
+                onChange={(html) => setFormData({ ...formData, detailedDescription: html })}
               />
             </div>
 
             <div>
               <Label>Products Included Details</Label>
-              <Textarea
-                value={formData.productsIncluded}
-                onChange={(e) => setFormData({ ...formData, productsIncluded: e.target.value })}
-                rows={5}
-                placeholder="Describe what products are included and their benefits"
+              <RichTextEditor
+                content={formData.productsIncluded}
+                onChange={(html) => setFormData({ ...formData, productsIncluded: html })}
               />
             </div>
 
             <div>
               <Label>Benefits</Label>
-              <Textarea
-                value={formData.benefits}
-                onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
-                rows={5}
-                placeholder="List the benefits of this combo (one per line or separated by commas)"
+              <RichTextEditor
+                content={formData.benefits}
+                onChange={(html) => setFormData({ ...formData, benefits: html })}
               />
             </div>
 
             <div>
               <Label>How to Use</Label>
-              <Textarea
-                value={formData.howToUse}
-                onChange={(e) => setFormData({ ...formData, howToUse: e.target.value })}
-                rows={5}
-                placeholder="Step-by-step instructions on how to use the products in this combo"
+              <RichTextEditor
+                content={formData.howToUse}
+                onChange={(html) => setFormData({ ...formData, howToUse: html })}
               />
             </div>
 

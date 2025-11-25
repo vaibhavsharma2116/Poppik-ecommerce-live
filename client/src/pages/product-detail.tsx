@@ -633,7 +633,8 @@ export default function ProductDetail() {
 
     // Use the dedicated share endpoint so social crawlers (WhatsApp) get
     // the server-generated OG tags and image without client-side rendering.
-    let url = `${baseUrl}/product/${productSlug}`;
+    // Use the `/share/product` path which the server specially handles for crawlers.
+    let url = `${baseUrl}/share/product/${productSlug}`;
 
     // If shades are selected, add shade parameter to URL
     if (selectedShades.length > 0) {
@@ -651,7 +652,8 @@ export default function ProductDetail() {
       ? window.location.origin
       : 'https://poppiklifestyle.com';
     // Use share endpoint so Facebook crawlers see OG tags immediately
-    let url = `${baseUrl}/product/${productSlug}`;
+    // Use the `/share/product` path which the server specially handles for crawlers.
+    let url = `${baseUrl}/share/product/${productSlug}`;
 
     // If shades are selected, add shade parameter to URL
     if (selectedShades.length > 0) {
@@ -668,7 +670,8 @@ export default function ProductDetail() {
       ? window.location.origin
       : 'https://poppiklifestyle.com';
     // Use share endpoint so Twitter crawlers see OG tags immediately
-    let url = `${baseUrl}/product/${productSlug}`;
+    // Use the `/share/product` path which the server specially handles for crawlers.
+    let url = `${baseUrl}/share/product/${productSlug}`;
 
     // If shades are selected, add shade parameter to URL
     if (selectedShades.length > 0) {
