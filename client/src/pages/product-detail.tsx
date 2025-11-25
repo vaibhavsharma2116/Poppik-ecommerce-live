@@ -819,10 +819,10 @@ export default function ProductDetail() {
 
         <link rel="canonical" href={`https://poppiklifestyle.com/product/${productSlugForMeta}`} />
       </Helmet>
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-16">
+      <div className="min-h-screen bg-white py-8 sm:py-16">
         <div className="max-w-7xl mx-auto product-detail-container lg:px-8">
         {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm mb-6 sm:mb-8 bg-white/60 backdrop-blur-md rounded-xl sm:rounded-2xl breadcrumb-mobile sm:px-6 sm:py-4 shadow-lg border border-white/20">
+        <nav className="flex items-center space-x-2 text-sm mb-6 sm:mb-8 bg-white breadcrumb-mobile sm:px-6 sm:py-4">
           <Link href="/" className="text-purple-600 hover:text-purple-700 font-medium transition-colors">
             Home
           </Link>
@@ -841,8 +841,8 @@ export default function ProductDetail() {
           {/* Product Images - Expanded */}
           <div className="lg:col-span-1">
             <div className="sticky top-8">
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl border border-white/20">
-                <div className="space-y-4">
+                <div className="bg-white p-4 rounded-none shadow-none border-none">
+                  <div className="space-y-4">
                   {/* Vertical Layout: Thumbnails on Left, Main Image on Right */}
                   <div className="flex gap-4">
                     {/* Thumbnail Column - Swipeable Vertical Carousel */}
@@ -1222,7 +1222,7 @@ export default function ProductDetail() {
 
           {/* Product Info */}
           <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-            <div className="bg-white/70 backdrop-blur-md rounded-xl sm:rounded-3xl p-4 sm:p-8 shadow-xl sm:shadow-2xl border border-white/20">
+            <div className="bg-white p-4 rounded-none shadow-none border-none">
               {/* Product badges */}
               <div className="flex gap-3 mb-6">
                 {product.bestseller && (
@@ -1237,7 +1237,7 @@ export default function ProductDetail() {
                 )}
               </div>
 
-              <h1 className="product-detail-title sm:text-4xl bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-3 sm:mb-4">{product.name}</h1>
+              <h1 className="product-detail-title sm:text-4xl text-gray-900 mb-3 sm:mb-4">{product.name}</h1>
 
               <p className="product-detail-description sm:text-lg text-gray-600 mb-4 sm:mb-6">{product.shortDescription}</p>
 
@@ -1401,7 +1401,7 @@ export default function ProductDetail() {
 
               {/* Price */}
               <div className="flex items-center space-x-3 sm:space-x-4 mb-6 sm:mb-8">
-                <span className="product-detail-price sm:text-4xl bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">₹{product.price}</span>
+                <span className="product-detail-price sm:text-4xl text-green-600 font-bold">₹{product.price}</span>
                 {product.originalPrice && (
                   <span className="text-lg sm:text-2xl text-gray-500 line-through">₹{product.originalPrice}</span>
                 )}
@@ -1588,7 +1588,7 @@ export default function ProductDetail() {
         {/* Product Information Tabs */}
         <div className="product-detail-tabs sm:mb-16">
           <Tabs defaultValue="description" className="w-full">
-            <TabsList className="product-detail-tab-list grid w-full grid-cols-2 lg:grid-cols-4 bg-white/70 backdrop-blur-md rounded-xl sm:rounded-2xl p-1 sm:p-2 shadow-lg border border-white/20">
+            <TabsList className="product-detail-tab-list grid w-full grid-cols-2 lg:grid-cols-4 bg-white p-1 sm:p-2 rounded-none border-none shadow-none">
               <TabsTrigger
                 value="description"
                 className="product-detail-tab-trigger sm:py-4 sm:px-6 sm:text-sm rounded-lg sm:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
@@ -1617,7 +1617,7 @@ export default function ProductDetail() {
 
             <div className="product-detail-tab-content sm:mt-8">
               <TabsContent value="description" className="m-0">
-                <Card className="product-detail-card border-0 shadow-xl sm:shadow-2xl bg-gradient-to-br from-blue-50/80 to-white/80 backdrop-blur-md rounded-xl sm:rounded-3xl border border-white/20">
+                <Card className="product-detail-card bg-white border-none shadow-none rounded-none">
                   <CardHeader className="pb-4 sm:pb-6">
                     <CardTitle className="product-detail-card-title sm:text-3xl text-gray-900 flex items-center">
                       <div className="product-detail-card-icon sm:w-12 sm:h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
@@ -1635,7 +1635,7 @@ export default function ProductDetail() {
               </TabsContent>
 
               <TabsContent value="ingredients" className="m-0">
-                <Card className="border-0 shadow-2xl bg-gradient-to-br from-red-50/80 to-white/80 backdrop-blur-md rounded-3xl border border-white/20">
+                <Card className="bg-white border-none shadow-none rounded-none">
                   <CardHeader className="pb-6">
                     <CardTitle className="text-3xl font-bold text-gray-900 flex items-center">
                       <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-pink-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
@@ -1670,7 +1670,7 @@ export default function ProductDetail() {
               </TabsContent>
 
               <TabsContent value="benefits" className="m-0">
-                <Card className="border-0 shadow-2xl bg-gradient-to-br from-green-50/80 to-white/80 backdrop-blur-md rounded-3xl border border-white/20">
+                <Card className="bg-white border-none shadow-none rounded-none">
                   <CardHeader className="pb-6">
                     <CardTitle className="text-3xl font-bold text-gray-900 flex items-center">
                       <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
@@ -1705,7 +1705,7 @@ export default function ProductDetail() {
               </TabsContent>
 
               <TabsContent value="how-to-use" className="m-0">
-                <Card className="border-0 shadow-2xl bg-gradient-to-br from-purple-50/80 to-white/80 backdrop-blur-md rounded-3xl border border-white/20">
+                <Card className="bg-white border-none shadow-none rounded-none">
                   <CardHeader className="pb-6">
                     <CardTitle className="text-3xl font-bold text-gray-900 flex items-center">
                       <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
