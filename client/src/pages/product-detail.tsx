@@ -503,14 +503,25 @@ export default function ProductDetail() {
       if (selectedShades.length === 1 && imageUrls.length > 0) {
         setSelectedImageUrl(imageUrls[0]);
       }
+
+      // Update URL to remove shade parameter
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.delete('shade');
+      window.history.replaceState({}, '', newUrl.toString());
     } else {
       // Add shade to selection
-      setSelectedShades([...selectedShades, shade]);
+      const newShades = [...selectedShades, shade];
+      setSelectedShades(newShades);
 
       // Set the newly selected shade's image
       if (shade.imageUrl) {
         setSelectedImageUrl(shade.imageUrl);
       }
+
+      // Update URL to include shade parameter
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.set('shade', shade.id.toString());
+      window.history.replaceState({}, '', newUrl.toString());
     }
   };
 
