@@ -129,6 +129,78 @@ export default function ProductDetail() {
 
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
 
+  // Helper: detect base64/data URLs
+  const isBase64Image = (u?: string) => {
+    if (!u) return false;
+    return u.trim().startsWith('data:');
+  };
+
+  // Helper: normalize image paths to absolute URLs used for social sharing
+  const normalizeImageUrl = (img?: string) => {
+    if (!img) return img;
+    let resolved = img;
+    if (resolved && !resolved.startsWith('http')) {
+      if (resolved.startsWith('/api/image/')) {
+        const imageId = resolved.split('/').pop();
+        resolved = `https://poppiklifestyle.com/uploads/${imageId}`;
+      } else if (resolved.startsWith('/api/')) {
+        resolved = `https://poppiklifestyle.com${resolved}`;
+      } else if (resolved.startsWith('/uploads/')) {
+        resolved = `https://poppiklifestyle.com${resolved}`;
+      } else if (resolved.startsWith('/')) {
+        resolved = `https://poppiklifestyle.com${resolved}`;
+      } else {
+        resolved = `https://poppiklifestyle.com/${resolved}`;
+      }
+    }
+    return resolved;
+  };
+
+  // Choose best image for meta tags / social sharing.
+  // Priority when a shade is selected: shade image.
+  // When no shade selected: 1) first non-base64 DB image, 2) product.imageUrl if non-base64,
+  // 3) first DB image (even if base64), 4) product.imageUrl (even if base64), 5) fallback.
+  const metaImage = useMemo(() => {
+    const fallback = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+
+    // 1) Shade selection (explicit or via URL param)
+    let shadeToUse: Shade | undefined;
+    if (selectedShades && selectedShades.length > 0) {
+      shadeToUse = selectedShades[0];
+    } else if (shadeIdFromUrl && shades && shades.length > 0) {
+      shadeToUse = shades.find(s => s.id === parseInt(shadeIdFromUrl));
+    }
+
+    if (shadeToUse && shadeToUse.imageUrl) {
+      return normalizeImageUrl(shadeToUse.imageUrl);
+    }
+
+    // 2) first non-base64 DB image
+    if (productImages && productImages.length > 0) {
+      const nonBase = productImages.find((img: any) => {
+        const u = img.url || img.imageUrl;
+        return u && !isBase64Image(u);
+      });
+      if (nonBase) return normalizeImageUrl(nonBase.url || nonBase.imageUrl);
+    }
+
+    // 3) product.imageUrl if not base64
+    if (product?.imageUrl && !isBase64Image(product.imageUrl)) {
+      return normalizeImageUrl(product.imageUrl);
+    }
+
+    // 4) first DB image even if base64
+    if (productImages && productImages.length > 0) {
+      const first = productImages[0];
+      if (first) return normalizeImageUrl(first.url || first.imageUrl);
+    }
+
+    // 5) product.imageUrl even if base64
+    if (product?.imageUrl) return normalizeImageUrl(product.imageUrl);
+
+    return fallback;
+  }, [selectedShades, shadeIdFromUrl, shades, productImages, product?.imageUrl]);
+
   useEffect(() => {
     if (imageUrls.length > 0 && !selectedImageUrl) {
       setSelectedImageUrl(imageUrls[0]);
@@ -708,38 +780,8 @@ export default function ProductDetail() {
 
         {/* Force refresh OG cache */}
         <meta property="og:updated_time" content={new Date().toISOString()} />
-        <meta property="og:image" content={(() => {
-          let img = imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
-          if (img && !img.startsWith('http')) {
-            if (img.startsWith('/api/image/')) {
-              const imageId = img.split('/').pop();
-              img = `https://poppiklifestyle.com/uploads/${imageId}`;
-            } else if (img.startsWith('/uploads/')) {
-              img = `https://poppiklifestyle.com${img}`;
-            } else if (img.startsWith('/')) {
-              img = `https://poppiklifestyle.com${img}`;
-            } else {
-              img = `https://poppiklifestyle.com/${img}`;
-            }
-          }
-          return img;
-        })()} />
-        <meta property="og:image:secure_url" content={(() => {
-          let img = imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
-          if (img && !img.startsWith('http')) {
-            if (img.startsWith('/api/image/')) {
-              const imageId = img.split('/').pop();
-              img = `https://poppiklifestyle.com/uploads/${imageId}`;
-            } else if (img.startsWith('/uploads/')) {
-              img = `https://poppiklifestyle.com${img}`;
-            } else if (img.startsWith('/')) {
-              img = `https://poppiklifestyle.com${img}`;
-            } else {
-              img = `https://poppiklifestyle.com/${img}`;
-            }
-          }
-          return img;
-        })()} />
+        <meta property="og:image" content={metaImage} />
+        <meta property="og:image:secure_url" content={metaImage} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content={product?.name || 'Product Image'} />
@@ -753,21 +795,7 @@ export default function ProductDetail() {
         <meta name="twitter:url" content={`https://poppiklifestyle.com/product/${productSlugForMeta}`} />
         <meta name="twitter:title" content={product?.name ? `${product.name} - ₹${product.price} | Poppik Lifestyle` : 'Product - Poppik Lifestyle'} />
         <meta name="twitter:description" content={product?.shortDescription || product?.description || 'Shop premium beauty products at Poppik Lifestyle'} />
-        <meta name="twitter:image" content={(() => {
-          let img = imageUrls[0] || product?.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
-          if (img && !img.startsWith('http')) {
-            if (img.startsWith('/api/')) {
-              img = `https://poppiklifestyle.com${img}`;
-            } else if (img.startsWith('/uploads/')) {
-              img = `https://poppiklifestyle.com${img}`;
-            } else if (img.startsWith('/')) {
-              img = `https://poppiklifestyle.com${img}`;
-            } else {
-              img = `https://poppiklifestyle.com/${img}`;
-            }
-          }
-          return img;
-        })()} />
+        <meta name="twitter:image" content={metaImage} />
         <meta name="twitter:image:alt" content={product?.name || 'Product Image'} />
 
         {/* Product specific meta */}
@@ -1440,7 +1468,22 @@ export default function ProductDetail() {
                 )}
                 <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
                   <DialogTrigger asChild>
-                    <Button size="lg" variant="outline" className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200">
+                    <Button 
+                      size="lg" 
+                      variant="outline" 
+                      className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={shades.length > 0 && selectedShades.length === 0}
+                      onClick={(e) => {
+                        if (shades.length > 0 && selectedShades.length === 0) {
+                          e.preventDefault();
+                          toast({
+                            title: "Select a Shade",
+                            description: "Please select at least one shade before sharing",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    >
                       <Share2 className="w-5 h-5 sm:w-6 sm:h-5 text-purple-500" />
                     </Button>
                   </DialogTrigger>
