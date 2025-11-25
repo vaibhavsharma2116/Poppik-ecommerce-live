@@ -338,8 +338,8 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <title>${title.replace(/"/g, '&quot;')}</title>
   <meta name="description" content="${description.replace(/"/g, '&quot;')}">
   
-    <!-- Redirect for regular browsers -->
-    ${req.path && req.path.startsWith('/share') ? '' : `<meta http-equiv="refresh" content="0;url=https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}">`}
+    <!-- No automatic meta refresh to avoid redirect loops. -->
+    <!-- Visitors can use the "View Product on Poppik" link below to open the product page. -->
   <link rel="canonical" href="https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}">
   
   <!-- Primary Open Graph tags -->
