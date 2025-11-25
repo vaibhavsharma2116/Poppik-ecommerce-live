@@ -239,11 +239,11 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
         console.log('📸 First DB image:', images[0].imageUrl);
       }
 
-      // Get the best image URL with priority: Shade image > DB images > product.imageUrl > fallback
-      let productImage = shadeImage || images[0]?.imageUrl || product.imageUrl;
-      
       // Fallback to a default high-quality image if no image found
       const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+      
+      // Get the best image URL with priority: Shade image > DB images > product.imageUrl > fallback
+      let productImage = shadeImage || images[0]?.imageUrl || product.imageUrl || fallbackImage;
       
       if (!productImage || productImage.trim() === '') {
         productImage = fallbackImage;
@@ -256,23 +256,32 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       // Always use HTTPS for production domain
       const baseUrl = 'https://poppiklifestyle.com';
       
-      if (!fullImageUrl.startsWith('http')) {
+      // Check if URL is already a full HTTP/HTTPS URL
+      if (fullImageUrl && !fullImageUrl.toLowerCase().startsWith('http')) {
         // Clean the image URL path
-        if (fullImageUrl.startsWith('/api/image/')) {
-          // Convert /api/image/xxx to direct /uploads/xxx path
+        if (fullImageUrl.startsWith('/api/images/')) {
+          // Keep /api/images/ path as-is, just make it absolute
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
+        } else if (fullImageUrl.startsWith('/api/image/')) {
+          // Convert /api/image/xxx to /api/images/xxx path
           const imageId = fullImageUrl.split('/').pop();
-          fullImageUrl = `${baseUrl}/uploads/${imageId}`;
+          fullImageUrl = `${baseUrl}/api/images/${imageId}`;
         } else if (fullImageUrl.startsWith('/uploads/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else if (fullImageUrl.startsWith('/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
-        } else {
+        } else if (fullImageUrl.length > 0) {
           fullImageUrl = `${baseUrl}/${fullImageUrl}`;
+        } else {
+          fullImageUrl = fallbackImage;
         }
       }
       
-      // Note: Skipping image validation as it can timeout and WhatsApp will fetch the image anyway
-      // The crawler will handle broken images gracefully and use fallback if needed
+      // If still no valid URL, use fallback
+      if (!fullImageUrl || fullImageUrl.trim() === '') {
+        fullImageUrl = fallbackImage;
+        console.log('⚠️ No valid image URL, using fallback');
+      }
       
       console.log('✅ Final OG Image URL:', fullImageUrl);
 
@@ -374,7 +383,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 </head>
 <body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
   <div style="text-align: center; background: white; border-radius: 15px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
-    <img src="${fullImageUrl}" alt="${product.name}" style="max-width: 100%; height: auto; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.15);">
+    <img src="${fullImageUrl}" alt="${product.name}" onerror="this.src='https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80'" style="max-width: 100%; height: auto; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.15);">
     <h1 style="color: #333; margin: 20px 0; font-size: 28px;">${product.name}</h1>
     <p style="color: #666; font-size: 16px; margin: 15px 0;">${description}</p>
     <p style="color: #10b981; font-size: 32px; font-weight: bold; margin: 20px 0;">₹${product.price}</p>
@@ -389,6 +398,10 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Pragma', 'public');
       res.setHeader('Expires', new Date(Date.now() + 3600000).toUTCString());
+      
+      console.log('📤 Sending OG page with image:', fullImageUrl);
+      console.log('📤 Serving HTML for:', req.path);
+      
       res.send(html);
     } catch (error) {
       console.error("Error serving product page:", error);
