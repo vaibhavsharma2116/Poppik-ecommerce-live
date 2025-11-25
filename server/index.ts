@@ -170,15 +170,35 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   // Register API routes FIRST
   const server = await registerRoutes(app);
 
-  // Handle both /product/:slug and /api/products/:slug for Open Graph tags
-  const handleProductOG = async (req: any, res: any, next: any) => {
+  // Handle product share URLs for social media crawlers
+  app.get(["/product/:slug", "/share/product/:slug"], async (req, res, next) => {
+    const userAgent = req.headers['user-agent'] || '';
+
+    // Detect social media crawlers and bots - be more specific
+    const isCrawler = /bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot|linkedinbot|pinterestbot|telegrambot|slackbot|discordbot|google/i.test(userAgent);
+
+    // IMPORTANT: Skip if it's a regular browser (contains Mozilla but not a bot)
+    const isBrowser = /mozilla/i.test(userAgent) && !/bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot/i.test(userAgent);
+
+    console.log('🤖 Product page request:', {
+      path: req.path,
+      userAgent: userAgent.substring(0, 100),
+      isCrawler,
+      isBrowser
+    });
+
+    // Only serve static OG page to crawlers, not browsers
+    if (!isCrawler || isBrowser) {
+      return next();
+    }
+
     try {
       const { slug } = req.params;
       const shadeId = req.query.shade; // Get shade ID from query parameter
-      
+
       // Check if slug is actually an ID (numeric)
       const isNumeric = /^\d+$/.test(slug);
-      
+
       let product;
       if (isNumeric) {
         // Fetch by ID
@@ -213,7 +233,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
             .from(shades)
             .where(eq(shades.id, parseInt(shadeId as string)))
             .limit(1);
-          
+
           if (shadeResult.length > 0 && shadeResult[0].imageUrl) {
             shadeImage = shadeResult[0].imageUrl;
             shadeName = shadeResult[0].name;
@@ -241,49 +261,49 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
       // Fallback to a default high-quality image if no image found
       const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
-      
-      // Get the best image URL with priority: 
+
+      // Get the best image URL with priority:
       // 1. Shade image (if shade selected)
       // 2. First non-base64 DB image (better for social sharing)
       // 3. product.imageUrl if not base64
       // 4. First DB image (even if base64)
       // 5. product.imageUrl (even if base64)
       // 6. Fallback
-      
+
       let productImage = shadeImage;
-      
+
       if (!productImage) {
         // Try to find a non-base64 image in DB first
         const nonBase64DbImage = images.find(img => img.imageUrl && !img.imageUrl.startsWith('data:'));
         productImage = nonBase64DbImage?.imageUrl;
       }
-      
+
       if (!productImage && product.imageUrl && !product.imageUrl.startsWith('data:')) {
         // Use product imageUrl if it's not base64
         productImage = product.imageUrl;
       }
-      
+
       if (!productImage && images.length > 0) {
         // Fallback to first DB image
         productImage = images[0].imageUrl;
       }
-      
+
       if (!productImage) {
         // Last resort: use product imageUrl (even if base64)
         productImage = product.imageUrl;
       }
-      
+
       if (!productImage || productImage.trim() === '') {
         productImage = fallbackImage;
         console.log('⚠️ No product image found, using fallback');
       }
-      
+
       // Ensure full HTTPS URL for image (required for WhatsApp)
       let fullImageUrl = productImage;
-      
+
       // Always use HTTPS for production domain
       const baseUrl = 'https://poppiklifestyle.com';
-      
+
       // Check if URL is already a full HTTP/HTTPS URL
       if (fullImageUrl && !fullImageUrl.toLowerCase().startsWith('http')) {
         // Clean the image URL path
@@ -304,13 +324,13 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
           fullImageUrl = fallbackImage;
         }
       }
-      
+
       // If still no valid URL, use fallback
       if (!fullImageUrl || fullImageUrl.trim() === '') {
         fullImageUrl = fallbackImage;
         console.log('⚠️ No valid image URL, using fallback');
       }
-      
+
       console.log('✅ Final OG Image URL:', fullImageUrl);
 
       const productUrl = `https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}`;
@@ -319,9 +339,8 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
       // Check if it's a social media crawler (WhatsApp, Facebook, Twitter, etc.)
       // Also check for search engine bots and specific keywords
-      const userAgent = req.headers['user-agent'] || '';
-      const isCrawler = /WhatsApp|facebookexternalhit|FacebookBot|facebook-external-hit|Twitterbot|LinkedInBot|Pinterest|Slackbot|Discordbot|wechat|Telegram|Viber|Line|Skype|OdnoklassnikiBot|bot|crawler|spider|scraper/i.test(userAgent);
-      
+      const isCrawler = /bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot|linkedinbot|pinterestbot|telegrambot|slackbot|discordbot|google/i.test(userAgent);
+
       console.log(`📱 User Agent: ${userAgent}`);
       console.log(`🤖 Is Crawler: ${isCrawler}`);
 
@@ -337,18 +356,18 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title.replace(/"/g, '&quot;')}</title>
   <meta name="description" content="${description.replace(/"/g, '&quot;')}">
-  
+
     <!-- No automatic meta refresh to avoid redirect loops. -->
     <!-- Visitors can use the "View Product on Poppik" link below to open the product page. -->
   <link rel="canonical" href="https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}">
-  
+
   <!-- Primary Open Graph tags -->
   <meta property="og:type" content="product">
   <meta property="og:site_name" content="Poppik Lifestyle">
   <meta property="og:url" content="${productUrl}">
   <meta property="og:title" content="${title.replace(/"/g, '&quot;')}">
   <meta property="og:description" content="${description.replace(/"/g, '&quot;')}">
-  
+
   <!-- Image tags - multiple formats for better compatibility -->
   <meta property="og:image" content="${fullImageUrl}">
   <meta property="og:image:url" content="${fullImageUrl}">
@@ -357,20 +376,20 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="${product.name.replace(/"/g, '&quot;')}">
   <meta property="og:image:type" content="image/jpeg">
-  
+
   <!-- Additional image meta for WhatsApp and social platforms -->
   <meta name="thumbnail" content="${fullImageUrl}">
   <meta itemprop="image" content="${fullImageUrl}">
   <link rel="image_src" href="${fullImageUrl}">
-  
+
   <!-- WhatsApp specific tags -->
   <meta property="og:site_name" content="Poppik Lifestyle">
   <meta property="og:locale" content="en_IN">
   <meta name="robots" content="index, follow">
-  
+
   <!-- Force image refresh for crawlers -->
   <meta http-equiv="Cache-Control" content="max-age=3600">
-  
+
   <!-- Twitter Card tags -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@PoppikLifestyle">
@@ -378,7 +397,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}">
   <meta name="twitter:image" content="${fullImageUrl}">
   <meta name="twitter:image:alt" content="${product.name.replace(/"/g, '&quot;')}">
-  
+
   <!-- Product specific meta -->
   <meta property="product:price:amount" content="${product.price}">
   <meta property="product:price:currency" content="INR">
@@ -386,7 +405,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta property="product:retailer_item_id" content="${product.id}">
   ${product.category ? `<meta property="product:category" content="${product.category}">` : ''}
   ${product.rating ? `<meta property="product:rating:value" content="${product.rating}">` : ''}
-  
+
   <!-- Schema.org markup for better indexing -->
   <script type="application/ld+json">
   {
@@ -425,24 +444,16 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Pragma', 'public');
       res.setHeader('Expires', new Date(Date.now() + 3600000).toUTCString());
-      
+
       console.log('📤 Sending OG page with image:', fullImageUrl);
       console.log('📤 Serving HTML for:', req.path);
-      
+
       res.send(html);
     } catch (error) {
       console.error("Error serving product page:", error);
       next();
     }
-  };
-
-  // Add route for /product/:slug with OG tags for social media crawlers
-  app.get("/product/:slug", handleProductOG);
-
-  // Dedicated share endpoint without immediate redirect - reliably used for
-  // social previews (WhatsApp, Facebook, Twitter). Use this in share links
-  // when you want crawlers to see the OG tags and image without a redirect.
-  app.get("/share/product/:slug", handleProductOG);
+  });
 
   // Vite/Static setup
   if (app.get("env") === "development") {
@@ -494,7 +505,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
 
   // Serve the app on port 5000 (required for Replit web preview)
-  const port = 8085;
+  const port = process.env.PORT || 5000;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
 
