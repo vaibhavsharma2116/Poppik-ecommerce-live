@@ -622,7 +622,7 @@ export default function ProductDetail() {
     ));
   };
 
-  const shareToWhatsApp = useCallback(() => {
+  const shareToWhatsApp = useCallback(async () => {
     if (!product) return;
 
     // Use the production URL with proper slug for WhatsApp preview
@@ -641,10 +641,37 @@ export default function ProductDetail() {
       url += `?shade=${selectedShades[0].id}`;
     }
 
-    // WhatsApp will automatically fetch Open Graph tags from the URL
-    // Just send the URL - the preview will be generated automatically
+    // Try Web Share API first (allows sharing images/files on supported mobile browsers)
+    try {
+      const shareImageUrl = metaImage || (product.imageUrl ? product.imageUrl : undefined);
+
+      if (navigator && (navigator as any).canShare && shareImageUrl) {
+        // Fetch the image as blob
+        const res = await fetch(shareImageUrl, { mode: 'cors' });
+        const blob = await res.blob();
+
+        // Create a File from blob (some platforms require a filename)
+        const fileName = `${productSlug}-image.${(blob.type || 'image/jpeg').split('/').pop()}`;
+        const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
+
+        if ((navigator as any).canShare({ files: [file] })) {
+          await (navigator as any).share({
+            title: product.name,
+            text: `${product.name} - ₹${product.price}`,
+            files: [file],
+            url,
+          });
+          return;
+        }
+      }
+    } catch (err) {
+      // Ignore and fall back to wa.me link below
+      console.debug('Native share failed, falling back to wa.me:', err);
+    }
+
+    // Fallback: open WhatsApp web intent with the product share URL
     window.open(`https://wa.me/?text=${encodeURIComponent(url)}`, '_blank');
-  }, [product, productSlugOrId, selectedShades]);
+  }, [product, productSlugOrId, selectedShades, metaImage]);
 
   const shareToFacebook = useCallback(() => {
     const productSlug = product?.slug || productSlugOrId;
