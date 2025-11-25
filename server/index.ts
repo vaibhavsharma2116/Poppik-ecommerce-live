@@ -271,17 +271,8 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
         }
       }
       
-      // Validate image URL - if it's not accessible, use fallback
-      try {
-        const imageTest = await fetch(fullImageUrl, { method: 'HEAD', timeout: 3000 });
-        if (!imageTest.ok) {
-          console.log('⚠️ Image URL not accessible, using fallback:', fullImageUrl);
-          fullImageUrl = fallbackImage;
-        }
-      } catch (error) {
-        console.log('⚠️ Image validation failed, using fallback:', error);
-        fullImageUrl = fallbackImage;
-      }
+      // Note: Skipping image validation as it can timeout and WhatsApp will fetch the image anyway
+      // The crawler will handle broken images gracefully and use fallback if needed
       
       console.log('✅ Final OG Image URL:', fullImageUrl);
 
@@ -291,7 +282,10 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
       // Check if it's a social media crawler (WhatsApp, Facebook, Twitter, etc.)
       const userAgent = req.headers['user-agent'] || '';
-      const isCrawler = /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|Pinterest|Slackbot|Discordbot/i.test(userAgent);
+      const isCrawler = /WhatsApp|facebookexternalhit|FacebookBot|facebook-external-hit|Twitterbot|LinkedInBot|Pinterest|Slackbot|Discordbot|wechat|Telegram|Viber|Line|Skype|OdnoklassnikiBot/i.test(userAgent);
+      
+      console.log(`📱 User Agent: ${userAgent}`);
+      console.log(`🤖 Is Crawler: ${isCrawler}`);
 
       // For regular browsers, let React handle the routing
       if (!isCrawler) {
@@ -304,15 +298,15 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
-  <meta name="description" content="${description}">
+  <title>${title.replace(/"/g, '&quot;')}</title>
+  <meta name="description" content="${description.replace(/"/g, '&quot;')}">
   
   <!-- Primary Open Graph tags -->
   <meta property="og:type" content="product">
   <meta property="og:site_name" content="Poppik Lifestyle">
   <meta property="og:url" content="${productUrl}">
-  <meta property="og:title" content="${title}">
-  <meta property="og:description" content="${description}">
+  <meta property="og:title" content="${title.replace(/"/g, '&quot;')}">
+  <meta property="og:description" content="${description.replace(/"/g, '&quot;')}">
   
   <!-- Image tags - multiple formats for better compatibility -->
   <meta property="og:image" content="${fullImageUrl}">
@@ -320,7 +314,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta property="og:image:secure_url" content="${fullImageUrl}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="${product.name}">
+  <meta property="og:image:alt" content="${product.name.replace(/"/g, '&quot;')}">
   <meta property="og:image:type" content="image/jpeg">
   
   <!-- Additional image meta for WhatsApp and social platforms -->
@@ -333,18 +327,16 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta property="og:locale" content="en_IN">
   <meta name="robots" content="index, follow">
   
-  <!-- Force image refresh for debugging -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
+  <!-- Force image refresh for crawlers -->
+  <meta http-equiv="Cache-Control" content="max-age=3600">
   
   <!-- Twitter Card tags -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@PoppikLifestyle">
-  <meta name="twitter:title" content="${title}">
-  <meta name="twitter:description" content="${description}">
+  <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}">
+  <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}">
   <meta name="twitter:image" content="${fullImageUrl}">
-  <meta name="twitter:image:alt" content="${product.name}">
+  <meta name="twitter:image:alt" content="${product.name.replace(/"/g, '&quot;')}">
   
   <!-- Product specific meta -->
   <meta property="product:price:amount" content="${product.price}">
@@ -359,9 +351,9 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   {
     "@context": "https://schema.org/",
     "@type": "Product",
-    "name": "${product.name}",
+    "name": "${product.name.replace(/"/g, '\\"')}",
     "image": "${fullImageUrl}",
-    "description": "${description}",
+    "description": "${description.replace(/"/g, '\\"')}",
     "brand": {
       "@type": "Brand",
       "name": "Poppik Lifestyle"
@@ -390,8 +382,10 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 </html>`;
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400'); // Cache for 24 hours
+      res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600'); // Cache for 1 hour
       res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Pragma', 'public');
+      res.setHeader('Expires', new Date(Date.now() + 3600000).toUTCString());
       res.send(html);
     } catch (error) {
       console.error("Error serving product page:", error);
@@ -399,11 +393,8 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
     }
   };
 
-  // Add route for /product/:slug
+  // Add route for /product/:slug with OG tags for social media crawlers
   app.get("/product/:slug", handleProductOG);
-  
-  // Add route for /api/products/:slug to also show OG tags
-  app.get("/api/products/:slug", handleProductOG);
 
   // Vite/Static setup
   if (app.get("env") === "development") {
