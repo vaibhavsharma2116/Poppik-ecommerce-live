@@ -1268,9 +1268,16 @@ export default function OfferDetail() {
                 <CardContent className="pt-0">
                   <div className="prose prose-gray max-w-none">
                     {offer.detailedDescription ? (
-                      <div className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal whitespace-pre-line">
-                        {offer.detailedDescription}
-                      </div>
+                      typeof offer.detailedDescription === 'string' && offer.detailedDescription.includes('<') ? (
+                        <div 
+                          className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal prose prose-gray max-w-none"
+                          dangerouslySetInnerHTML={{ __html: offer.detailedDescription }}
+                        />
+                      ) : (
+                        <div className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal whitespace-pre-line">
+                          {offer.detailedDescription}
+                        </div>
+                      )
                     ) : (
                       <div className="text-center py-8 sm:py-12">
                         <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
@@ -1296,11 +1303,18 @@ export default function OfferDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {offer?.productsIncluded ? (
-                    <div className="prose prose-gray max-w-none">
-                      <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">
-                        {offer.productsIncluded}
-                      </p>
-                    </div>
+                    typeof offer.productsIncluded === 'string' && offer.productsIncluded.includes('<') ? (
+                      <div 
+                        className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal prose prose-gray max-w-none"
+                        dangerouslySetInnerHTML={{ __html: offer.productsIncluded }}
+                      />
+                    ) : (
+                      <div className="prose prose-gray max-w-none">
+                        <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">
+                          {offer.productsIncluded}
+                        </p>
+                      </div>
+                    )
                   ) : offer?.products && Array.isArray(offer.products) && offer.products.length > 0 ? (
                     <div className="prose prose-gray max-w-none">
                       <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">
@@ -1331,11 +1345,18 @@ export default function OfferDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {offer.benefits ? (
-                    <div className="prose prose-gray max-w-none">
-                      <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">
-                        {offer.benefits}
-                      </p>
-                    </div>
+                      typeof offer.benefits === 'string' && offer.benefits.includes('<') ? (
+                        <div 
+                          className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal prose prose-gray max-w-none"
+                          dangerouslySetInnerHTML={{ __html: offer.benefits }}
+                        />
+                      ) : (
+                        <div className="prose prose-gray max-w-none">
+                          <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">
+                            {offer.benefits}
+                          </p>
+                        </div>
+                      )
                   ) : (
                     <div className="text-center py-8 sm:py-12">
                       <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6">

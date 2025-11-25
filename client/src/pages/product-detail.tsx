@@ -1612,7 +1612,14 @@ export default function ProductDetail() {
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="prose prose-gray max-w-none">
-                      <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">{product.description}</p>
+                      {product.description && (typeof product.description === 'string' && product.description.includes('<')) ? (
+                        <div 
+                          className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal prose prose-gray max-w-none"
+                          dangerouslySetInnerHTML={{ __html: product.description }}
+                        />
+                      ) : (
+                        <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">{product.description}</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1631,11 +1638,18 @@ export default function ProductDetail() {
                   <CardContent className="pt-0">
                     {product.ingredients ? (
                       <div className="prose prose-gray max-w-none">
-                        <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">
-                          {Array.isArray(product.ingredients)
-                            ? product.ingredients.join('\n')
-                            : product.ingredients}
-                        </p>
+                        {typeof product.ingredients === 'string' && product.ingredients.includes('<') ? (
+                          <div 
+                            className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal prose prose-gray max-w-none"
+                            dangerouslySetInnerHTML={{ __html: product.ingredients }}
+                          />
+                        ) : (
+                          <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">
+                            {Array.isArray(product.ingredients)
+                              ? product.ingredients.join('\n')
+                              : product.ingredients}
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <div className="text-center py-12">
@@ -1662,11 +1676,18 @@ export default function ProductDetail() {
                   <CardContent className="pt-0">
                     {product.benefits ? (
                       <div className="prose prose-gray max-w-none">
-                        <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">
-                          {Array.isArray(product.benefits)
-                            ? product.benefits.join('\n')
-                            : product.benefits}
-                        </p>
+                        {typeof product.benefits === 'string' && product.benefits.includes('<') ? (
+                          <div 
+                            className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal prose prose-gray max-w-none"
+                            dangerouslySetInnerHTML={{ __html: product.benefits }}
+                          />
+                        ) : (
+                          <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">
+                            {Array.isArray(product.benefits)
+                              ? product.benefits.join('\n')
+                              : product.benefits}
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <div className="text-center py-12">
@@ -1693,7 +1714,14 @@ export default function ProductDetail() {
                   <CardContent className="pt-0">
                     {product.howToUse ? (
                       <div className="prose prose-gray max-w-none">
-                        <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">{product.howToUse}</p>
+                        {typeof product.howToUse === 'string' && product.howToUse.includes('<') ? (
+                          <div 
+                            className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal prose prose-gray max-w-none"
+                            dangerouslySetInnerHTML={{ __html: product.howToUse }}
+                          />
+                        ) : (
+                          <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">{product.howToUse}</p>
+                        )}
                       </div>
                     ) : (
                       <div className="text-center py-12">
