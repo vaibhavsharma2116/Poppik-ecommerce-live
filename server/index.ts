@@ -281,16 +281,16 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       const description = product.shortDescription || product.description || 'Shop premium beauty products at Poppik Lifestyle';
 
       // Check if it's a social media crawler (WhatsApp, Facebook, Twitter, etc.)
+      // Also check for search engine bots and specific keywords
       const userAgent = req.headers['user-agent'] || '';
-      const isCrawler = /WhatsApp|facebookexternalhit|FacebookBot|facebook-external-hit|Twitterbot|LinkedInBot|Pinterest|Slackbot|Discordbot|wechat|Telegram|Viber|Line|Skype|OdnoklassnikiBot/i.test(userAgent);
+      const isCrawler = /WhatsApp|facebookexternalhit|FacebookBot|facebook-external-hit|Twitterbot|LinkedInBot|Pinterest|Slackbot|Discordbot|wechat|Telegram|Viber|Line|Skype|OdnoklassnikiBot|bot|crawler|spider|scraper/i.test(userAgent);
       
       console.log(`📱 User Agent: ${userAgent}`);
       console.log(`🤖 Is Crawler: ${isCrawler}`);
 
-      // For regular browsers, let React handle the routing
-      if (!isCrawler) {
-        return next();
-      }
+      // For regular browsers, we'll still serve the static page with OG tags
+      // This ensures WhatsApp and other crawlers always get proper meta tags
+      // Regular browsers will just see the static page which redirects to React
 
       // Only serve static HTML with OG tags for social media crawlers
       const html = `<!DOCTYPE html>
@@ -300,6 +300,10 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title.replace(/"/g, '&quot;')}</title>
   <meta name="description" content="${description.replace(/"/g, '&quot;')}">
+  
+  <!-- Redirect for regular browsers -->
+  <meta http-equiv="refresh" content="0;url=https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}">
+  <link rel="canonical" href="https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}">
   
   <!-- Primary Open Graph tags -->
   <meta property="og:type" content="product">
@@ -367,16 +371,15 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
     }
   }
   </script>
-  
-  <link rel="canonical" href="${productUrl}">
 </head>
-<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
-  <div style="text-align: center;">
-    <img src="${fullImageUrl}" alt="${product.name}" style="max-width: 100%; height: auto; border-radius: 10px; margin-bottom: 20px;">
-    <h1 style="color: #333;">${product.name}</h1>
-    <p style="color: #666; font-size: 18px;">${description}</p>
-    <p style="color: #10b981; font-size: 24px; font-weight: bold;">₹${product.price}</p>
-    <a href="${productUrl}" style="display: inline-block; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px;">View Product on Poppik</a>
+<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
+  <div style="text-align: center; background: white; border-radius: 15px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+    <img src="${fullImageUrl}" alt="${product.name}" style="max-width: 100%; height: auto; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.15);">
+    <h1 style="color: #333; margin: 20px 0; font-size: 28px;">${product.name}</h1>
+    <p style="color: #666; font-size: 16px; margin: 15px 0;">${description}</p>
+    <p style="color: #10b981; font-size: 32px; font-weight: bold; margin: 20px 0;">₹${product.price}</p>
+    <p style="color: #999; font-size: 14px; margin: 20px 0;">Redirecting to product page...</p>
+    <a href="${productUrl}" style="display: inline-block; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px; font-size: 16px; transition: transform 0.2s;">View Product on Poppik</a>
   </div>
 </body>
 </html>`;
