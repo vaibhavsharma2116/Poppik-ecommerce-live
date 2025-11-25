@@ -310,8 +310,8 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <title>${title.replace(/"/g, '&quot;')}</title>
   <meta name="description" content="${description.replace(/"/g, '&quot;')}">
   
-  <!-- Redirect for regular browsers -->
-  <meta http-equiv="refresh" content="0;url=https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}">
+    <!-- Redirect for regular browsers -->
+    ${req.path && req.path.startsWith('/share') ? '' : `<meta http-equiv="refresh" content="0;url=https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}">`}
   <link rel="canonical" href="https://poppiklifestyle.com/product/${product.slug || product.id}${shadeId ? `?shade=${shadeId}` : ''}">
   
   <!-- Primary Open Graph tags -->
@@ -411,6 +411,11 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
   // Add route for /product/:slug with OG tags for social media crawlers
   app.get("/product/:slug", handleProductOG);
+
+  // Dedicated share endpoint without immediate redirect - reliably used for
+  // social previews (WhatsApp, Facebook, Twitter). Use this in share links
+  // when you want crawlers to see the OG tags and image without a redirect.
+  app.get("/share/product/:slug", handleProductOG);
 
   // Vite/Static setup
   if (app.get("env") === "development") {

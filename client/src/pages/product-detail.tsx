@@ -549,7 +549,9 @@ export default function ProductDetail() {
       ? window.location.origin
       : 'https://poppiklifestyle.com';
 
-    let url = `${baseUrl}/product/${productSlug}`;
+    // Use the dedicated share endpoint so social crawlers (WhatsApp) get
+    // the server-generated OG tags and image without client-side rendering.
+    let url = `${baseUrl}/share/product/${productSlug}`;
 
     // If shades are selected, add shade parameter to URL
     if (selectedShades.length > 0) {
@@ -566,8 +568,8 @@ export default function ProductDetail() {
     const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co')
       ? window.location.origin
       : 'https://poppiklifestyle.com';
-
-    const url = `${baseUrl}/product/${productSlug}`;
+    // Use share endpoint so Facebook crawlers see OG tags immediately
+    const url = `${baseUrl}/share/product/${productSlug}`;
     // Facebook will automatically fetch Open Graph tags from the URL
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
   }, [product, productSlugOrId]);
@@ -577,8 +579,8 @@ export default function ProductDetail() {
     const baseUrl = window.location.hostname === 'localhost' || window.location.hostname.includes('repl.co')
       ? window.location.origin
       : 'https://poppiklifestyle.com';
-
-    const url = `${baseUrl}/product/${productSlug}`;
+    // Use share endpoint so Twitter crawlers see OG tags immediately
+    const url = `${baseUrl}/share/product/${productSlug}`;
     const text = `Check out ${product?.name} - ₹${product?.price} on Poppik!`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
   }, [product, productSlugOrId]);
