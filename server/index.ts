@@ -8,6 +8,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { pool } from "./storage";
 import path from "path";
+import http from 'http';
+import https from 'https';
 import { fileURLToPath } from "url";
 import { products, productImages } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -329,6 +331,43 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       if (!fullImageUrl || fullImageUrl.trim() === '') {
         fullImageUrl = fallbackImage;
         console.log('⚠️ No valid image URL, using fallback');
+      }
+
+      // Do a quick HEAD request to verify the image is reachable and get content-type/status for diagnostics
+      try {
+        const imageStatus = await new Promise<{ status?: number; contentType?: string }>((resolve) => {
+          try {
+            const urlObj = new URL(fullImageUrl);
+            const lib = urlObj.protocol === 'https:' ? https : http;
+            const opts: any = { method: 'HEAD', timeout: 5000 };
+            const reqImg = lib.request(fullImageUrl, opts, (imgRes: any) => {
+              const ct = imgRes.headers['content-type'];
+              resolve({ status: imgRes.statusCode, contentType: ct });
+            });
+
+            reqImg.on('error', (err: any) => {
+              console.log('⚠️ Image HEAD request error:', err && err.message ? err.message : err);
+              resolve({});
+            });
+            reqImg.on('timeout', () => {
+              reqImg.destroy();
+              console.log('⚠️ Image HEAD request timed out');
+              resolve({});
+            });
+            reqImg.end();
+          } catch (err) {
+            console.log('⚠️ Image HEAD request failed (sync):', err);
+            resolve({});
+          }
+        });
+
+        if (imageStatus && imageStatus.status) {
+          console.log('🔎 Image HEAD result:', imageStatus.status, imageStatus.contentType || 'unknown content-type');
+        } else {
+          console.log('🔎 Image HEAD result: no response');
+        }
+      } catch (err) {
+        console.log('⚠️ Error during image HEAD check:', err);
       }
 
       console.log('✅ Final OG Image URL:', fullImageUrl);
