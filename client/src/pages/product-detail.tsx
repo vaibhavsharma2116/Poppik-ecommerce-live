@@ -1478,17 +1478,7 @@ export default function ProductDetail() {
                           size="lg"
                           variant="outline"
                           className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={shades.length > 0 && selectedShades.length === 0}
-                          onClick={(e) => {
-                            if (shades.length > 0 && selectedShades.length === 0) {
-                              e.preventDefault();
-                              toast({
-                                title: "Select a Shade",
-                                description: "Please select at least one shade before sharing",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
+                         
                         >
                           <Share2 className="w-5 h-5 sm:w-6 sm:h-5 text-purple-500" />
                         </Button>
