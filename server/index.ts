@@ -230,7 +230,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
         .from(productImages)
         .where(eq(productImages.productId, product.id))
         .orderBy(productImages.sortOrder)
-        .limit(1);
+        .limit(10); // Get multiple images to find best one
 
       console.log('📸 Product:', product.name);
       console.log('📸 Product imageUrl:', product.imageUrl);
@@ -242,8 +242,36 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       // Fallback to a default high-quality image if no image found
       const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
       
-      // Get the best image URL with priority: Shade image > DB images > product.imageUrl > fallback
-      let productImage = shadeImage || images[0]?.imageUrl || product.imageUrl || fallbackImage;
+      // Get the best image URL with priority: 
+      // 1. Shade image (if shade selected)
+      // 2. First non-base64 DB image (better for social sharing)
+      // 3. product.imageUrl if not base64
+      // 4. First DB image (even if base64)
+      // 5. product.imageUrl (even if base64)
+      // 6. Fallback
+      
+      let productImage = shadeImage;
+      
+      if (!productImage) {
+        // Try to find a non-base64 image in DB first
+        const nonBase64DbImage = images.find(img => img.imageUrl && !img.imageUrl.startsWith('data:'));
+        productImage = nonBase64DbImage?.imageUrl;
+      }
+      
+      if (!productImage && product.imageUrl && !product.imageUrl.startsWith('data:')) {
+        // Use product imageUrl if it's not base64
+        productImage = product.imageUrl;
+      }
+      
+      if (!productImage && images.length > 0) {
+        // Fallback to first DB image
+        productImage = images[0].imageUrl;
+      }
+      
+      if (!productImage) {
+        // Last resort: use product imageUrl (even if base64)
+        productImage = product.imageUrl;
+      }
       
       if (!productImage || productImage.trim() === '') {
         productImage = fallbackImage;
