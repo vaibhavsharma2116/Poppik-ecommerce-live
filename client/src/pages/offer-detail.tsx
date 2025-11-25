@@ -1296,17 +1296,16 @@ export default function OfferDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {offer?.productsIncluded ? (
-                    <div className="text-gray-700 leading-relaxed text-base sm:text-lg whitespace-pre-line">
-                      {offer.productsIncluded}
+                    <div className="prose prose-gray max-w-none">
+                      <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">
+                        {offer.productsIncluded}
+                      </p>
                     </div>
                   ) : offer?.products && Array.isArray(offer.products) && offer.products.length > 0 ? (
-                    <div className="grid gap-3 sm:gap-4">
-                      {offer.products.map((product: any, index: number) => (
-                        <div key={index} className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-green-100/50 transform hover:scale-105 transition-all duration-200">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                          <span className="text-gray-700 font-normal text-base sm:text-lg">{product.name}</span>
-                        </div>
-                      ))}
+                    <div className="prose prose-gray max-w-none">
+                      <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">
+                        {offer.products.map((product: any) => product.name).join('\n')}
+                      </p>
                     </div>
                   ) : (
                     <div className="text-center py-8 sm:py-12">
@@ -1332,13 +1331,10 @@ export default function OfferDetail() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {offer.benefits ? (
-                    <div className="grid gap-3 sm:gap-4">
-                      {offer.benefits.split('\n').filter(b => b.trim()).map((benefit, index) => (
-                        <div key={index} className="flex items-start p-3 sm:p-4 bg-white/70 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-lg border border-yellow-100/50 transform hover:scale-105 transition-all duration-200">
-                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full mt-1.5 sm:mt-2 mr-3 sm:mr-4 flex-shrink-0"></div>
-                          <span className="text-gray-700 font-normal text-base sm:text-lg">{benefit.trim()}</span>
-                        </div>
-                      ))}
+                    <div className="prose prose-gray max-w-none">
+                      <p className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal">
+                        {offer.benefits}
+                      </p>
                     </div>
                   ) : (
                     <div className="text-center py-8 sm:py-12">

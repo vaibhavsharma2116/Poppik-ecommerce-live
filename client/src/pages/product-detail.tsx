@@ -1619,27 +1619,23 @@ export default function ProductDetail() {
               </TabsContent>
 
               <TabsContent value="ingredients" className="m-0">
-                <Card className="bg-white border-none shadow-none rounded-none">
-                  <CardHeader className="pb-6">
-                    <CardTitle className="text-3xl font-bold text-gray-900 flex items-center">
-                      <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-pink-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
-                        <div className="w-6 h-6 bg-white rounded-full"></div>
+                <Card className="product-detail-card bg-white border-none shadow-none rounded-none">
+                  <CardHeader className="pb-4 sm:pb-6">
+                    <CardTitle className="product-detail-card-title sm:text-3xl text-gray-900 flex items-center">
+                      <div className="product-detail-card-icon sm:w-12 sm:h-12 bg-gradient-to-br from-red-400 to-pink-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
+                        <div className="w-4 h-4 sm:w-6 sm:h-6 bg-white rounded-full"></div>
                       </div>
                       Key Ingredients
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0">
                     {product.ingredients ? (
-                      <div className="grid gap-4">
-                        {(Array.isArray(product.ingredients)
-                          ? product.ingredients
-                          : product.ingredients.split('\n').filter(ingredient => ingredient.trim())
-                        ).map((ingredient, index) => (
-                          <div key={index} className="flex items-start p-4 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-red-100/50 transform hover:scale-105 transition-all duration-200">
-                            <div className="w-3 h-3 bg-gradient-to-r from-red-400 to-pink-400 rounded-full mt-2 mr-4 flex-shrink-0"></div>
-                            <span className="text-gray-700 font-normal text-lg">{ingredient.trim()}</span>
-                          </div>
-                        ))}
+                      <div className="prose prose-gray max-w-none">
+                        <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">
+                          {Array.isArray(product.ingredients)
+                            ? product.ingredients.join('\n')
+                            : product.ingredients}
+                        </p>
                       </div>
                     ) : (
                       <div className="text-center py-12">
@@ -1654,27 +1650,23 @@ export default function ProductDetail() {
               </TabsContent>
 
               <TabsContent value="benefits" className="m-0">
-                <Card className="bg-white border-none shadow-none rounded-none">
-                  <CardHeader className="pb-6">
-                    <CardTitle className="text-3xl font-bold text-gray-900 flex items-center">
-                      <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
-                        <div className="w-6 h-6 bg-white rounded-full"></div>
+                <Card className="product-detail-card bg-white border-none shadow-none rounded-none">
+                  <CardHeader className="pb-4 sm:pb-6">
+                    <CardTitle className="product-detail-card-title sm:text-3xl text-gray-900 flex items-center">
+                      <div className="product-detail-card-icon sm:w-12 sm:h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
+                        <div className="w-4 h-4 sm:w-6 sm:h-6 bg-white rounded-full"></div>
                       </div>
                       Key Benefits
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0">
                     {product.benefits ? (
-                      <div className="grid gap-4">
-                        {(Array.isArray(product.benefits)
-                          ? product.benefits
-                          : product.benefits.split('\n').filter(benefit => benefit.trim())
-                        ).map((benefit, index) => (
-                          <div key={index} className="flex items-start p-4 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-green-100/50 transform hover:scale-105 transition-all duration-200">
-                            <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full mt-2 mr-4 flex-shrink-0"></div>
-                            <span className="text-gray-700 font-normal text-lg">{benefit.trim()}</span>
-                          </div>
-                        ))}
+                      <div className="prose prose-gray max-w-none">
+                        <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">
+                          {Array.isArray(product.benefits)
+                            ? product.benefits.join('\n')
+                            : product.benefits}
+                        </p>
                       </div>
                     ) : (
                       <div className="text-center py-12">
@@ -1689,23 +1681,19 @@ export default function ProductDetail() {
               </TabsContent>
 
               <TabsContent value="how-to-use" className="m-0">
-                <Card className="bg-white border-none shadow-none rounded-none">
-                  <CardHeader className="pb-6">
-                    <CardTitle className="text-3xl font-bold text-gray-900 flex items-center">
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
-                        <div className="w-6 h-6 bg-white rounded-full"></div>
+                <Card className="product-detail-card bg-white border-none shadow-none rounded-none">
+                  <CardHeader className="pb-4 sm:pb-6">
+                    <CardTitle className="product-detail-card-title sm:text-3xl text-gray-900 flex items-center">
+                      <div className="product-detail-card-icon sm:w-12 sm:h-12 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
+                        <div className="w-4 h-4 sm:w-6 sm:h-6 bg-white rounded-full"></div>
                       </div>
                       How to Use
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0">
                     {product.howToUse ? (
-                      <div className="bg-white/70 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-purple-100/50">
-                        <div className="prose prose-gray max-w-none">
-                          <p className="text-gray-700 leading-relaxed text-lg font-normal mb-0">
-                            {product.howToUse}
-                          </p>
-                        </div>
+                      <div className="prose prose-gray max-w-none">
+                        <p className="text-gray-700 leading-relaxed text-sm sm:text-lg font-normal">{product.howToUse}</p>
                       </div>
                     ) : (
                       <div className="text-center py-12">

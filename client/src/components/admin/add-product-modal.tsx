@@ -11,6 +11,7 @@ import { Plus, Upload, X } from "lucide-react";
 import { Product } from "@/lib/types";
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import RichTextEditor from './rich-text-editor';
 
 interface AddProductModalProps {
   onAddProduct: (product: any) => void;
@@ -832,46 +833,33 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
 
             <div className="space-y-2">
               <Label htmlFor="description">Full Description *</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Detailed product description..."
-                rows={3}
-                required
+              <RichTextEditor
+                content={formData.description}
+                onChange={(content) => handleInputChange('description', content)}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="ingredients">Ingredients</Label>
-              <Textarea
-                id="ingredients"
-                value={formData.ingredients}
-                onChange={(e) => handleInputChange('ingredients', e.target.value)}
-                placeholder="List of ingredients..."
-                rows={2}
+              <RichTextEditor
+                content={formData.ingredients}
+                onChange={(content) => handleInputChange('ingredients', content)}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="benefits">Benefits</Label>
-              <Textarea
-                id="benefits"
-                value={formData.benefits}
-                onChange={(e) => handleInputChange('benefits', e.target.value)}
-                placeholder="Product benefits..."
-                rows={2}
+              <RichTextEditor
+                content={formData.benefits}
+                onChange={(content) => handleInputChange('benefits', content)}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="howToUse">How to Use</Label>
-              <Textarea
-                id="howToUse"
-                value={formData.howToUse}
-                onChange={(e) => handleInputChange('howToUse', e.target.value)}
-                placeholder="Usage instructions..."
-                rows={2}
+              <RichTextEditor
+                content={formData.howToUse}
+                onChange={(content) => handleInputChange('howToUse', content)}
               />
             </div>
           </div>

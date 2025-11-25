@@ -32,7 +32,8 @@ import {
   Image as ImageIcon,
   Link as LinkIcon,
   Eye,
-  Loader2
+  Loader2,
+  Upload
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
