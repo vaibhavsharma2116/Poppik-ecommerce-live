@@ -569,10 +569,16 @@ export default function ProductDetail() {
       ? window.location.origin
       : 'https://poppiklifestyle.com';
     // Use share endpoint so Facebook crawlers see OG tags immediately
-    const url = `${baseUrl}/share/product/${productSlug}`;
+    let url = `${baseUrl}/share/product/${productSlug}`;
+    
+    // If shades are selected, add shade parameter to URL
+    if (selectedShades.length > 0) {
+      url += `?shade=${selectedShades[0].id}`;
+    }
+    
     // Facebook will automatically fetch Open Graph tags from the URL
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
-  }, [product, productSlugOrId]);
+  }, [product, productSlugOrId, selectedShades]);
 
   const shareToTwitter = useCallback(() => {
     const productSlug = product?.slug || productSlugOrId;
@@ -580,10 +586,16 @@ export default function ProductDetail() {
       ? window.location.origin
       : 'https://poppiklifestyle.com';
     // Use share endpoint so Twitter crawlers see OG tags immediately
-    const url = `${baseUrl}/share/product/${productSlug}`;
+    let url = `${baseUrl}/share/product/${productSlug}`;
+    
+    // If shades are selected, add shade parameter to URL
+    if (selectedShades.length > 0) {
+      url += `?shade=${selectedShades[0].id}`;
+    }
+    
     const text = `Check out ${product?.name} - ₹${product?.price} on Poppik!`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
-  }, [product, productSlugOrId]);
+  }, [product, productSlugOrId, selectedShades]);
 
   const copyProductLink = useCallback(async () => {
     const productSlug = product?.slug || productSlugOrId;
@@ -591,7 +603,13 @@ export default function ProductDetail() {
       ? window.location.origin
       : 'https://poppiklifestyle.com';
 
-    const url = `${baseUrl}/product/${productSlug}`;
+    let url = `${baseUrl}/product/${productSlug}`;
+    
+    // If shades are selected, add shade parameter to URL
+    if (selectedShades.length > 0) {
+      url += `?shade=${selectedShades[0].id}`;
+    }
+    
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -607,7 +625,7 @@ export default function ProductDetail() {
         variant: "destructive",
       });
     }
-  }, [product, productSlugOrId, toast]);
+  }, [product, productSlugOrId, selectedShades, toast]);
 
   // Optimize image selection effect
   useEffect(() => {
