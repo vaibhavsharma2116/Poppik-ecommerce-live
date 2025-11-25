@@ -614,11 +614,10 @@ export default function ProductDetail() {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
-        className={`w-5 h-5 ${
-          i < Math.floor(rating)
+        className={`w-5 h-5 ${i < Math.floor(rating)
             ? "fill-yellow-400 text-yellow-400"
             : "text-gray-300"
-        }`}
+          }`}
       />
     ));
   };
@@ -653,12 +652,12 @@ export default function ProductDetail() {
       : 'https://poppiklifestyle.com';
     // Use share endpoint so Facebook crawlers see OG tags immediately
     let url = `${baseUrl}/share/product/${productSlug}`;
-    
+
     // If shades are selected, add shade parameter to URL
     if (selectedShades.length > 0) {
       url += `?shade=${selectedShades[0].id}`;
     }
-    
+
     // Facebook will automatically fetch Open Graph tags from the URL
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
   }, [product, productSlugOrId, selectedShades]);
@@ -670,12 +669,12 @@ export default function ProductDetail() {
       : 'https://poppiklifestyle.com';
     // Use share endpoint so Twitter crawlers see OG tags immediately
     let url = `${baseUrl}/share/product/${productSlug}`;
-    
+
     // If shades are selected, add shade parameter to URL
     if (selectedShades.length > 0) {
       url += `?shade=${selectedShades[0].id}`;
     }
-    
+
     const text = `Check out ${product?.name} - ₹${product?.price} on Poppik!`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
   }, [product, productSlugOrId, selectedShades]);
@@ -687,12 +686,12 @@ export default function ProductDetail() {
       : 'https://poppiklifestyle.com';
 
     let url = `${baseUrl}/product/${productSlug}`;
-    
+
     // If shades are selected, add shade parameter to URL
     if (selectedShades.length > 0) {
       url += `?shade=${selectedShades[0].id}`;
     }
-    
+
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -821,774 +820,769 @@ export default function ProductDetail() {
       </Helmet>
       <div className="min-h-screen bg-white py-8 sm:py-16">
         <div className="max-w-7xl mx-auto product-detail-container lg:px-8">
-        {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm mb-6 sm:mb-8 bg-white breadcrumb-mobile sm:px-6 sm:py-4">
-          <Link href="/" className="text-purple-600 hover:text-purple-700 font-medium transition-colors">
-            Home
-          </Link>
-          <ChevronRight className="h-4 w-4 text-purple-400" />
-          {product.category && (
-            <Link href={`/category/${product.category}`} className="text-purple-600 hover:text-purple-700 capitalize font-medium transition-colors">
-              {product.category}
+          {/* Breadcrumb */}
+          <nav className="flex items-center space-x-2 text-sm mb-6 sm:mb-8 bg-white breadcrumb-mobile sm:px-6 sm:py-4">
+            <Link href="/" className="text-purple-600 hover:text-purple-700 font-medium transition-colors">
+              Home
             </Link>
-          )}
-          {product.category && <ChevronRight className="h-4 w-4 text-purple-400" />}
-          <span className="text-gray-900 font-semibold">{product.name}</span>
-        </nav>
+            <ChevronRight className="h-4 w-4 text-purple-400" />
+            {product.category && (
+              <Link href={`/category/${product.category}`} className="text-purple-600 hover:text-purple-700 capitalize font-medium transition-colors">
+                {product.category}
+              </Link>
+            )}
+            {product.category && <ChevronRight className="h-4 w-4 text-purple-400" />}
+            <span className="text-gray-900 font-semibold">{product.name}</span>
+          </nav>
 
-        {/* Product Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-8 sm:mb-16">
-          {/* Product Images - Expanded */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8">
-                <div className="bg-white p-4 rounded-none shadow-none border-none">
+          {/* Product Details */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-8 sm:mb-16">
+            {/* Product Images - Expanded */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-8">
+                <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-xl border border-white/20">
                   <div className="space-y-4">
-                  {/* Vertical Layout: Thumbnails on Left, Main Image on Right */}
-                  <div className="flex gap-4">
-                    {/* Thumbnail Column - Swipeable Vertical Carousel */}
-                    {imageUrls.length > 1 && (
-                      <div className="w-20 flex-shrink-0 relative">
-                        <div
-                          className="h-80 overflow-hidden scroll-smooth"
-                          style={{ scrollBehavior: 'smooth' }}
-                        >
+                    {/* Vertical Layout: Thumbnails on Left, Main Image on Right */}
+                    <div className="flex gap-4">
+                      {/* Thumbnail Column - Swipeable Vertical Carousel */}
+                      {imageUrls.length > 1 && (
+                        <div className="w-20 flex-shrink-0 relative">
                           <div
-                            id="thumbnail-container"
-                            className="flex flex-col gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
-                            style={{
-                              scrollSnapType: 'y mandatory',
-                              scrollBehavior: 'smooth',
-                              WebkitOverflowScrolling: 'touch'
-                            }}
-                            onScroll={(e) => {
-                              // Skip auto-selection if user is manually scrolling after a click
-                              if ((window as any).thumbnailClickInProgress) {
-                                return;
-                              }
-
-                              // Capture container reference before setTimeout
-                              const container = e.currentTarget;
-                              if (!container) return;
-
-                              // Debounce scroll handler to avoid conflicts with click
-                              clearTimeout((window as any).thumbnailScrollTimeout);
-                              (window as any).thumbnailScrollTimeout = setTimeout(() => {
-                                // Double check click is not in progress
+                            className="h-80 overflow-hidden scroll-smooth"
+                            style={{ scrollBehavior: 'smooth' }}
+                          >
+                            <div
+                              id="thumbnail-container"
+                              className="flex flex-col gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
+                              style={{
+                                scrollSnapType: 'y mandatory',
+                                scrollBehavior: 'smooth',
+                                WebkitOverflowScrolling: 'touch'
+                              }}
+                              onScroll={(e) => {
+                                // Skip auto-selection if user is manually scrolling after a click
                                 if ((window as any).thumbnailClickInProgress) {
                                   return;
                                 }
 
-                                const scrollTop = container.scrollTop;
-                                const scrollHeight = container.scrollHeight;
-                                const clientHeight = container.clientHeight;
-                                const itemHeight = 92; // 80px height + 12px gap
+                                // Capture container reference before setTimeout
+                                const container = e.currentTarget;
+                                if (!container) return;
 
-                                // Check if scrolled to bottom
-                                const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 5;
+                                // Debounce scroll handler to avoid conflicts with click
+                                clearTimeout((window as any).thumbnailScrollTimeout);
+                                (window as any).thumbnailScrollTimeout = setTimeout(() => {
+                                  // Double check click is not in progress
+                                  if ((window as any).thumbnailClickInProgress) {
+                                    return;
+                                  }
 
-                                // Check if scrolled to top
-                                const isAtTop = scrollTop < 5;
+                                  const scrollTop = container.scrollTop;
+                                  const scrollHeight = container.scrollHeight;
+                                  const clientHeight = container.clientHeight;
+                                  const itemHeight = 92; // 80px height + 12px gap
 
-                                let visibleIndex;
-                                if (isAtTop) {
-                                  // If at top, select first image
-                                  visibleIndex = 0;
-                                } else if (isAtBottom) {
-                                  // If at bottom, select last image
-                                  visibleIndex = imageUrls.length - 1;
-                                } else {
-                                  // Calculate middle visible item with better accuracy
-                                  const scrollCenter = scrollTop + (clientHeight / 2);
-                                  visibleIndex = Math.min(
-                                    Math.max(0, Math.round(scrollCenter / itemHeight)),
-                                    imageUrls.length - 1
-                                  );
-                                }
+                                  // Check if scrolled to bottom
+                                  const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 5;
 
-                                // Auto-select image based on scroll position only if not manually clicked
-                                if (imageUrls[visibleIndex] && imageUrls[visibleIndex] !== selectedImageUrl) {
-                                  setSelectedImageUrl(imageUrls[visibleIndex]);
-                                }
-                              }, 150); // 150ms debounce
-                            }}
-                          >
-                            {imageUrls.map((imageUrl, index) => {
-                              // Better video detection
-                              const isVideo = imageUrl?.endsWith('.mp4') ||
-                                            imageUrl?.endsWith('.webm') ||
-                                            imageUrl?.endsWith('.mov') ||
-                                            imageUrl?.includes('video') ||
-                                            imageUrl?.match(/\.(mp4|webm|mov)(\?|$)/i);
+                                  // Check if scrolled to top
+                                  const isAtTop = scrollTop < 5;
 
-                              return (
-                                <button
-                                  key={`thumb-${index}`}
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
+                                  let visibleIndex;
+                                  if (isAtTop) {
+                                    // If at top, select first image
+                                    visibleIndex = 0;
+                                  } else if (isAtBottom) {
+                                    // If at bottom, select last image
+                                    visibleIndex = imageUrls.length - 1;
+                                  } else {
+                                    // Calculate middle visible item with better accuracy
+                                    const scrollCenter = scrollTop + (clientHeight / 2);
+                                    visibleIndex = Math.min(
+                                      Math.max(0, Math.round(scrollCenter / itemHeight)),
+                                      imageUrls.length - 1
+                                    );
+                                  }
 
-                                    // Set flag to prevent scroll handler from interfering
-                                    (window as any).thumbnailClickInProgress = true;
+                                  // Auto-select image based on scroll position only if not manually clicked
+                                  if (imageUrls[visibleIndex] && imageUrls[visibleIndex] !== selectedImageUrl) {
+                                    setSelectedImageUrl(imageUrls[visibleIndex]);
+                                  }
+                                }, 150); // 150ms debounce
+                              }}
+                            >
+                              {imageUrls.map((imageUrl, index) => {
+                                // Better video detection
+                                const isVideo = imageUrl?.endsWith('.mp4') ||
+                                  imageUrl?.endsWith('.webm') ||
+                                  imageUrl?.endsWith('.mov') ||
+                                  imageUrl?.includes('video') ||
+                                  imageUrl?.match(/\.(mp4|webm|mov)(\?|$)/i);
 
-                                    // Immediately set the selected image
-                                    setSelectedImageUrl(imageUrl);
+                                return (
+                                  <button
+                                    key={`thumb-${index}`}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
 
-                                    // Center the clicked thumbnail in view
-                                    const container = document.getElementById('thumbnail-container');
-                                    if (container) {
-                                      const itemHeight = 92; // 80px height + 12px gap
-                                      const containerHeight = container.clientHeight;
-                                      const scrollPosition = (index * itemHeight) - (containerHeight / 2) + (itemHeight / 2);
+                                      // Set flag to prevent scroll handler from interfering
+                                      (window as any).thumbnailClickInProgress = true;
 
-                                      // Ensure scroll position is within valid range
-                                      const maxScroll = container.scrollHeight - container.clientHeight;
-                                      const targetScroll = Math.max(0, Math.min(scrollPosition, maxScroll));
+                                      // Immediately set the selected image
+                                      setSelectedImageUrl(imageUrl);
 
-                                      // Use setTimeout to ensure state update happens first
-                                      setTimeout(() => {
-                                        container.scrollTo({
-                                          top: targetScroll,
-                                          behavior: 'smooth'
-                                        });
+                                      // Center the clicked thumbnail in view
+                                      const container = document.getElementById('thumbnail-container');
+                                      if (container) {
+                                        const itemHeight = 92; // 80px height + 12px gap
+                                        const containerHeight = container.clientHeight;
+                                        const scrollPosition = (index * itemHeight) - (containerHeight / 2) + (itemHeight / 2);
 
-                                        // Clear the flag after scroll animation completes
+                                        // Ensure scroll position is within valid range
+                                        const maxScroll = container.scrollHeight - container.clientHeight;
+                                        const targetScroll = Math.max(0, Math.min(scrollPosition, maxScroll));
+
+                                        // Use setTimeout to ensure state update happens first
+                                        setTimeout(() => {
+                                          container.scrollTo({
+                                            top: targetScroll,
+                                            behavior: 'smooth'
+                                          });
+
+                                          // Clear the flag after scroll animation completes
+                                          setTimeout(() => {
+                                            (window as any).thumbnailClickInProgress = false;
+                                          }, 500);
+                                        }, 0);
+                                      } else {
+                                        // Clear flag if no container found
                                         setTimeout(() => {
                                           (window as any).thumbnailClickInProgress = false;
-                                        }, 500);
-                                      }, 0);
-                                    } else {
-                                      // Clear flag if no container found
-                                      setTimeout(() => {
-                                        (window as any).thumbnailClickInProgress = false;
-                                      }, 100);
-                                    }
-                                  }}
-                                  className={`w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-300 hover:border-purple-300 flex-shrink-0 relative ${
-                                    selectedImageUrl === imageUrl
-                                      ? 'border-purple-500 ring-2 ring-purple-200 scale-105'
-                                      : 'border-gray-200'
-                                  }`}
-                                  style={{ scrollSnapAlign: 'start' }}
-                                >
-                                  <div className="w-full h-full flex items-center justify-center p-1 bg-white rounded-lg">
-                                    {isVideo ? (
-                                      <>
-                                        <video
+                                        }, 100);
+                                      }
+                                    }}
+                                    className={`w-20 h-20 bg-gray-100 rounded-lg overflow-hidden border-2 transition-all duration-300 hover:border-purple-300 flex-shrink-0 relative ${selectedImageUrl === imageUrl
+                                        ? 'border-purple-500 ring-2 ring-purple-200 scale-105'
+                                        : 'border-gray-200'
+                                      }`}
+                                    style={{ scrollSnapAlign: 'start' }}
+                                  >
+                                    <div className="w-full h-full flex items-center justify-center p-1 bg-white rounded-lg">
+                                      {isVideo ? (
+                                        <>
+                                          <video
+                                            src={imageUrl}
+                                            className="w-full h-full object-cover rounded"
+                                            muted
+                                            style={{
+                                              objectFit: 'cover',
+                                              width: '100%',
+                                              height: '100%',
+                                              borderRadius: '6px'
+                                            }}
+                                          />
+                                          {/* Video play icon overlay */}
+                                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded-lg">
+                                            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                              <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                                            </svg>
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <img
                                           src={imageUrl}
-                                          className="w-full h-full object-cover rounded"
-                                          muted
+                                          alt={`${product.name} view ${index + 1}`}
+                                          className="w-full h-full hover:scale-110 transition-transform duration-200"
+                                          width={80}
+                                          height={80}
                                           style={{
-                                            objectFit: 'cover',
+                                            objectFit: 'contain',
                                             width: '100%',
                                             height: '100%',
                                             borderRadius: '6px'
                                           }}
                                         />
-                                        {/* Video play icon overlay */}
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded-lg">
-                                          <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                                          </svg>
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <img
-                                        src={imageUrl}
-                                        alt={`${product.name} view ${index + 1}`}
-                                        className="w-full h-full hover:scale-110 transition-transform duration-200"
-                                        width={80}
-                                        height={80}
-                                        style={{
-                                          objectFit: 'contain',
-                                          width: '100%',
-                                          height: '100%',
-                                          borderRadius: '6px'
-                                        }}
-                                      />
-                                    )}
-                                  </div>
-                                </button>
-                              );
-                            })}
+                                      )}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Navigation Arrows for Better UX */}
-                        {imageUrls.length > 3 && (
-                          <>
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
+                          {/* Navigation Arrows for Better UX */}
+                          {imageUrls.length > 3 && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
 
-                                // Set flag to prevent scroll handler interference
-                                (window as any).thumbnailClickInProgress = true;
+                                  // Set flag to prevent scroll handler interference
+                                  (window as any).thumbnailClickInProgress = true;
 
-                                const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
+                                  const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
 
-                                // Circular navigation - if on first image, go to last
-                                const prevIndex = currentIndex <= 0 ? imageUrls.length - 1 : currentIndex - 1;
-                                setSelectedImageUrl(imageUrls[prevIndex]);
+                                  // Circular navigation - if on first image, go to last
+                                  const prevIndex = currentIndex <= 0 ? imageUrls.length - 1 : currentIndex - 1;
+                                  setSelectedImageUrl(imageUrls[prevIndex]);
 
-                                const container = document.getElementById('thumbnail-container');
-                                if (container) {
-                                  if (currentIndex <= 0) {
-                                    // Going to last image - scroll to bottom
-                                    container.scrollTo({
-                                      top: container.scrollHeight,
-                                      behavior: 'smooth'
-                                    });
-                                  } else {
-                                    container.scrollTo({
-                                      top: prevIndex * 92,
-                                      behavior: 'smooth'
-                                    });
-                                  }
+                                  const container = document.getElementById('thumbnail-container');
+                                  if (container) {
+                                    if (currentIndex <= 0) {
+                                      // Going to last image - scroll to bottom
+                                      container.scrollTo({
+                                        top: container.scrollHeight,
+                                        behavior: 'smooth'
+                                      });
+                                    } else {
+                                      container.scrollTo({
+                                        top: prevIndex * 92,
+                                        behavior: 'smooth'
+                                      });
+                                    }
 
-                                  // Clear flag after animation
-                                  setTimeout(() => {
-                                    (window as any).thumbnailClickInProgress = false;
-                                  }, 500);
-                                } else {
-                                  setTimeout(() => {
-                                    (window as any).thumbnailClickInProgress = false;
-                                  }, 100);
-                                }
-                              }}
-                              className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 z-10 hover:bg-white cursor-pointer"
-                            >
-                              <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                              </svg>
-                            </button>
-
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-
-                                // Set flag to prevent scroll handler interference
-                                (window as any).thumbnailClickInProgress = true;
-
-                                const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
-
-                                // Circular navigation - if on last image, go to first
-                                const nextIndex = currentIndex >= imageUrls.length - 1 ? 0 : currentIndex + 1;
-                                const container = document.getElementById('thumbnail-container');
-
-                                if (container) {
-                                  if (currentIndex >= imageUrls.length - 1) {
-                                    // Going to first image - scroll to top
-                                    container.scrollTo({
-                                      top: 0,
-                                      behavior: 'smooth'
-                                    });
-                                  } else if (nextIndex === imageUrls.length - 1) {
-                                    // Going to last image - scroll to bottom
-                                    container.scrollTo({
-                                      top: container.scrollHeight,
-                                      behavior: 'smooth'
-                                    });
-                                  } else {
-                                    container.scrollTo({
-                                      top: nextIndex * 92,
-                                      behavior: 'smooth'
-                                    });
-                                  }
-
-                                  // Set image after a small delay to sync with scroll
-                                  setTimeout(() => {
-                                    setSelectedImageUrl(imageUrls[nextIndex]);
-
-                                    // Clear flag after complete
+                                    // Clear flag after animation
                                     setTimeout(() => {
                                       (window as any).thumbnailClickInProgress = false;
-                                    }, 400);
-                                  }, 100);
-                                } else {
-                                  setSelectedImageUrl(imageUrls[nextIndex]);
-                                  setTimeout(() => {
-                                    (window as any).thumbnailClickInProgress = false;
-                                  }, 100);
-                                }
+                                    }, 500);
+                                  } else {
+                                    setTimeout(() => {
+                                      (window as any).thumbnailClickInProgress = false;
+                                    }, 100);
+                                  }
+                                }}
+                                className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 z-10 hover:bg-white cursor-pointer"
+                              >
+                                <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                </svg>
+                              </button>
+
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+
+                                  // Set flag to prevent scroll handler interference
+                                  (window as any).thumbnailClickInProgress = true;
+
+                                  const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
+
+                                  // Circular navigation - if on last image, go to first
+                                  const nextIndex = currentIndex >= imageUrls.length - 1 ? 0 : currentIndex + 1;
+                                  const container = document.getElementById('thumbnail-container');
+
+                                  if (container) {
+                                    if (currentIndex >= imageUrls.length - 1) {
+                                      // Going to first image - scroll to top
+                                      container.scrollTo({
+                                        top: 0,
+                                        behavior: 'smooth'
+                                      });
+                                    } else if (nextIndex === imageUrls.length - 1) {
+                                      // Going to last image - scroll to bottom
+                                      container.scrollTo({
+                                        top: container.scrollHeight,
+                                        behavior: 'smooth'
+                                      });
+                                    } else {
+                                      container.scrollTo({
+                                        top: nextIndex * 92,
+                                        behavior: 'smooth'
+                                      });
+                                    }
+
+                                    // Set image after a small delay to sync with scroll
+                                    setTimeout(() => {
+                                      setSelectedImageUrl(imageUrls[nextIndex]);
+
+                                      // Clear flag after complete
+                                      setTimeout(() => {
+                                        (window as any).thumbnailClickInProgress = false;
+                                      }, 400);
+                                    }, 100);
+                                  } else {
+                                    setSelectedImageUrl(imageUrls[nextIndex]);
+                                    setTimeout(() => {
+                                      (window as any).thumbnailClickInProgress = false;
+                                    }, 100);
+                                  }
+                                }}
+                                className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 z-10 hover:bg-white cursor-pointer"
+                              >
+                                <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </button>
+                            </>
+                          )}
+
+                          {/* Scroll Indicator */}
+                          <div className="absolute right-1 top-1/2 transform -translate-y-1/2 w-1 h-16 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="w-full bg-purple-500 rounded-full transition-all duration-300"
+                              style={{
+                                height: `${Math.min(100, (3 / imageUrls.length) * 100)}%`,
+                                transform: `translateY(${(imageUrls.findIndex(img => img === selectedImageUrl) / Math.max(1, imageUrls.length - 3)) * (64 - Math.min(64, (3 / imageUrls.length) * 64))}px)`
                               }}
-                              className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 z-10 hover:bg-white cursor-pointer"
-                            >
-                              <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-                          </>
-                        )}
-
-                        {/* Scroll Indicator */}
-                        <div className="absolute right-1 top-1/2 transform -translate-y-1/2 w-1 h-16 bg-gray-200 rounded-full overflow-hidden">
-                          <div
-                            className="w-full bg-purple-500 rounded-full transition-all duration-300"
-                            style={{
-                              height: `${Math.min(100, (3 / imageUrls.length) * 100)}%`,
-                              transform: `translateY(${(imageUrls.findIndex(img => img === selectedImageUrl) / Math.max(1, imageUrls.length - 3)) * (64 - Math.min(64, (3 / imageUrls.length) * 64))}px)`
-                            }}
-                          ></div>
+                            ></div>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Main Image/Video with Zoom */}
-                    <div className="flex-1 bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px', width: '100%', position: 'relative' }}>
-                      <div className="w-full h-full flex items-center justify-center p-2" style={{ position: 'relative' }}>
-                        {/* Better video detection */}
+                      {/* Main Image/Video with Zoom */}
+                      <div className="flex-1 bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-lg relative group cursor-zoom-in" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px', width: '100%', position: 'relative' }}>
+                        <div className="w-full h-full flex items-center justify-center p-2" style={{ position: 'relative' }}>
+                          {/* Better video detection */}
+                          {(() => {
+                            const currentUrl = selectedImageUrl || imageUrls[0];
+                            const isVideo = currentUrl?.match(/\.(mp4|webm|mov)(\?|$)/i);
+
+                            if (isVideo) {
+                              return (
+                                <video
+                                  src={currentUrl}
+                                  className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
+                                  controls
+                                  poster={imageUrls.find(url => !url.match(/\.(mp4|webm|mov)(\?|$)/i)) || product.imageUrl}
+                                  width={400}
+                                  height={400}
+                                />
+                              );
+                            } else if (currentUrl) {
+                              return (
+                                <img
+                                  src={currentUrl}
+                                  alt={product.name}
+                                  className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110"
+                                  width={400}
+                                  height={400}
+                                  fetchpriority="high"
+                                  decoding="async"
+                                  onClick={() => {
+                                    // Create zoom modal
+                                    const modal = document.createElement('div');
+                                    modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
+                                    modal.onclick = () => modal.remove();
+
+                                    const img = document.createElement('img');
+                                    img.src = currentUrl;
+                                    img.className = 'max-w-full max-h-full object-contain rounded-lg';
+                                    img.onclick = (e) => e.stopPropagation();
+
+                                    const closeBtn = document.createElement('button');
+                                    closeBtn.innerHTML = '×';
+                                    closeBtn.className = 'absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors';
+                                    closeBtn.onclick = () => modal.remove();
+
+                                    modal.appendChild(img);
+                                    modal.appendChild(closeBtn);
+                                    document.body.appendChild(modal);
+                                  }}
+                                />
+                              );
+                            } else {
+                              return (
+                                <div className="w-full h-full bg-gray-200 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                                  <span className="text-gray-500">No media available</span>
+                                </div>
+                              );
+                            }
+                          })()}
+                        </div>
+
+                        {/* Zoom Hint - Only for images */}
                         {(() => {
                           const currentUrl = selectedImageUrl || imageUrls[0];
                           const isVideo = currentUrl?.match(/\.(mp4|webm|mov)(\?|$)/i);
+                          return !isVideo && (
+                            <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                              Click to zoom
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
 
-                          if (isVideo) {
+                    {/* Image Count Indicator */}
+                    {imageUrls.length > 1 && (
+                      <div className="text-center text-sm text-gray-500">
+                        {imageUrls.findIndex(img => img === selectedImageUrl) + 1} of {imageUrls.length} images
+                      </div>
+                    )}
+                  </div>
+
+
+                </div>
+              </div>
+            </div>
+            <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20">
+              {/* Product Info */}
+              <div className="lg:col-span-1 space-y-4 sm:space-y-6">
+                <div className="bg-white p-4 rounded-none shadow-none border-none">
+                  {/* Product badges */}
+                  <div className="flex gap-3 mb-6">
+                    {product.bestseller && (
+                      <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+                        #{product.category === 'skincare' ? '1' : product.category === 'haircare' ? '2' : '1'} in {product.category}
+                      </Badge>
+                    )}
+                    {product.newLaunch && (
+                      <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+                        NEW LAUNCH
+                      </Badge>
+                    )}
+                  </div>
+
+                  <h1 className="product-detail-title sm:text-4xl text-gray-900 mb-3 sm:mb-4">{product.name}</h1>
+
+                  <p className="product-detail-description sm:text-lg text-gray-600 mb-4 sm:mb-6">{product.shortDescription}</p>
+
+                  {/* Rating */}
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
+                    <div className="flex">
+                      {renderStars(parseFloat(product.rating))}
+                    </div>
+                    <span className="product-detail-rating sm:text-xl font-bold text-gray-900">{product.rating}</span>
+                    <span className="text-sm sm:text-base text-gray-600 font-medium">({product.reviewCount.toLocaleString()} reviews)</span>
+                  </div>
+
+                  {/* Size */}
+                  {product.size && (
+                    <div className="mb-6">
+                      <span className="text-gray-700 font-bold">Size: </span>
+                      <span className="text-gray-900 font-semibold bg-gray-100 px-3 py-1 rounded-lg">{product.size}</span>
+                    </div>
+                  )}
+
+                  {/* Shades Selection - Only show if product has shades */}
+                  {shades.length > 0 && (
+                    <div className="space-y-4 mb-6">
+                      <div className="flex items-center justify-between">
+                        <label className="text-gray-700 font-bold text-lg">
+                          Select Shades: {selectedShades.length > 0 ? (
+                            <span className="text-purple-600 font-normal">
+                              ({selectedShades.length} selected)
+                            </span>
+                          ) : (
+                            <span className="text-gray-500 font-normal">
+                              No shades selected
+                            </span>
+                          )}
+                        </label>
+                        {selectedShades.length > 0 && (
+                          <button
+                            onClick={() => setSelectedShades([])}
+                            className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                          >
+                            Clear All
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-5 gap-3">
+                        {(() => {
+                          const shadesToShow = showAllShades ? shades : shades.slice(0, 5);
+
+                          return shadesToShow.map((shade) => {
+                            const isSelected = selectedShades.some(s => s.id === shade.id);
                             return (
-                              <video
-                                src={currentUrl}
-                                className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
-                                controls
-                                poster={imageUrls.find(url => !url.match(/\.(mp4|webm|mov)(\?|$)/i)) || product.imageUrl}
-                                width={400}
-                                height={400}
-                              />
-                            );
-                          } else if (currentUrl) {
-                            return (
-                              <img
-                                src={currentUrl}
-                                alt={product.name}
-                                className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110"
-                                width={400}
-                                height={400}
-                                fetchpriority="high"
-                                decoding="async"
-                                onClick={() => {
-                                  // Create zoom modal
-                                  const modal = document.createElement('div');
-                                  modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
-                                  modal.onclick = () => modal.remove();
-
-                                  const img = document.createElement('img');
-                                  img.src = currentUrl;
-                                  img.className = 'max-w-full max-h-full object-contain rounded-lg';
-                                  img.onclick = (e) => e.stopPropagation();
-
-                                  const closeBtn = document.createElement('button');
-                                  closeBtn.innerHTML = '×';
-                                  closeBtn.className = 'absolute top-4 right-4 text-white text-4xl font-bold hover:text-gray-300 transition-colors';
-                                  closeBtn.onclick = () => modal.remove();
-
-                                  modal.appendChild(img);
-                                  modal.appendChild(closeBtn);
-                                  document.body.appendChild(modal);
-                                }}
-                              />
-                            );
-                          } else {
-                            return (
-                              <div className="w-full h-full bg-gray-200 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                                <span className="text-gray-500">No media available</span>
+                              <div
+                                key={shade.value}
+                                className="flex flex-col items-center group cursor-pointer"
+                                onClick={() => handleShadeSelect(shade)}
+                              >
+                                <div className="relative">
+                                  {isSelected && (
+                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center z-10 shadow-lg">
+                                      <CheckCircle className="w-3 h-3 text-white" />
+                                    </div>
+                                  )}
+                                  {shade.imageUrl ? (
+                                    <img
+                                      src={shade.imageUrl}
+                                      alt={shade.name}
+                                      className={`w-12 h-12 rounded-full border-3 object-cover transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${isSelected
+                                          ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
+                                          : 'border-gray-300 hover:border-purple-400'
+                                        }`}
+                                      title={shade.name}
+                                    />
+                                  ) : (
+                                    <div
+                                      className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${isSelected
+                                          ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
+                                          : 'border-gray-300 hover:border-purple-400'
+                                        }`}
+                                      style={{ backgroundColor: shade.colorCode }}
+                                      title={shade.name}
+                                    ></div>
+                                  )}
+                                </div>
+                                <span className={`text-xs mt-2 text-center leading-tight transition-colors ${isSelected
+                                    ? 'text-purple-700 font-semibold'
+                                    : 'text-gray-600 group-hover:text-purple-600'
+                                  }`}>
+                                  {shade.name.split(' ').slice(0, 2).join(' ')}
+                                </span>
                               </div>
                             );
-                          }
+                          });
                         })()}
                       </div>
 
-                      {/* Zoom Hint - Only for images */}
-                      {(() => {
-                        const currentUrl = selectedImageUrl || imageUrls[0];
-                        const isVideo = currentUrl?.match(/\.(mp4|webm|mov)(\?|$)/i);
-                        return !isVideo && (
-                          <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                            Click to zoom
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
+                      {/* View All Button */}
+                      {!showAllShades && shades.length > 5 && (
+                        <div className="text-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowAllShades(true)}
+                            className="border-2 border-purple-200 hover:border-purple-400 rounded-xl px-6 py-2 font-semibold text-purple-600 hover:text-purple-700 transition-all duration-200"
+                          >
+                            <ChevronDown className="w-4 h-4 mr-2" />
+                            View All Shades ({shades.length})
+                          </Button>
+                        </div>
+                      )}
 
-                  {/* Image Count Indicator */}
-                  {imageUrls.length > 1 && (
-                    <div className="text-center text-sm text-gray-500">
-                      {imageUrls.findIndex(img => img === selectedImageUrl) + 1} of {imageUrls.length} images
+                      {/* Show Less Button */}
+                      {showAllShades && shades.length > 5 && (
+                        <div className="text-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowAllShades(false)}
+                            className="border-2 border-purple-200 hover:border-purple-400 rounded-xl px-6 py-2 font-semibold text-purple-600 hover:text-purple-700 transition-all duration-200"
+                          >
+                            <ChevronUp className="w-4 h-4 mr-2" />
+                            Show Less
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Show selected shades preview */}
+                      {selectedShades.length > 0 && (
+                        <div className="mt-3 bg-purple-50 p-3 rounded-lg border border-purple-200">
+                          <p className="text-sm font-semibold text-purple-700 mb-2">Selected Shades:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedShades.map(shade => (
+                              <div key={shade.id} className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-full border border-purple-300 shadow-sm">
+                                {shade.imageUrl ? (
+                                  <img src={shade.imageUrl} alt={shade.name} className="w-4 h-4 rounded-full object-cover" />
+                                ) : (
+                                  <div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: shade.colorCode }} />
+                                )}
+                                <span className="text-xs font-medium text-purple-700">{shade.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Show warning if no shade is selected */}
+                      {selectedShades.length === 0 && (
+                        <>
+                          <p className="text-sm text-red-500 font-semibold mt-3">
+                            ⚠️ Please select at least one shade before adding to cart
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            💡 Not sure about your shade? Our beauty experts can help you find the perfect match!
+                          </p>
+                        </>
+                      )}
                     </div>
                   )}
-                </div>
 
-
-              </div>
-            </div>
-          </div>
-
-          {/* Product Info */}
-          <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-            <div className="bg-white p-4 rounded-none shadow-none border-none">
-              {/* Product badges */}
-              <div className="flex gap-3 mb-6">
-                {product.bestseller && (
-                  <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-                    #{product.category === 'skincare' ? '1' : product.category === 'haircare' ? '2' : '1'} in {product.category}
-                  </Badge>
-                )}
-                {product.newLaunch && (
-                  <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-                    NEW LAUNCH
-                  </Badge>
-                )}
-              </div>
-
-              <h1 className="product-detail-title sm:text-4xl text-gray-900 mb-3 sm:mb-4">{product.name}</h1>
-
-              <p className="product-detail-description sm:text-lg text-gray-600 mb-4 sm:mb-6">{product.shortDescription}</p>
-
-              {/* Rating */}
-              <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
-                <div className="flex">
-                  {renderStars(parseFloat(product.rating))}
-                </div>
-                <span className="product-detail-rating sm:text-xl font-bold text-gray-900">{product.rating}</span>
-                <span className="text-sm sm:text-base text-gray-600 font-medium">({product.reviewCount.toLocaleString()} reviews)</span>
-              </div>
-
-              {/* Size */}
-              {product.size && (
-                <div className="mb-6">
-                  <span className="text-gray-700 font-bold">Size: </span>
-                  <span className="text-gray-900 font-semibold bg-gray-100 px-3 py-1 rounded-lg">{product.size}</span>
-                </div>
-              )}
-
-              {/* Shades Selection - Only show if product has shades */}
-              {shades.length > 0 && (
-                <div className="space-y-4 mb-6">
-                  <div className="flex items-center justify-between">
-                    <label className="text-gray-700 font-bold text-lg">
-                      Select Shades: {selectedShades.length > 0 ? (
-                        <span className="text-purple-600 font-normal">
-                          ({selectedShades.length} selected)
-                        </span>
-                      ) : (
-                        <span className="text-gray-500 font-normal">
-                          No shades selected
-                        </span>
-                      )}
-                    </label>
-                    {selectedShades.length > 0 && (
-                      <button
-                        onClick={() => setSelectedShades([])}
-                        className="text-sm text-purple-600 hover:text-purple-700 font-medium"
-                      >
-                        Clear All
-                      </button>
+                  {/* Price */}
+                  <div className="flex items-center space-x-3 sm:space-x-4 mb-6 sm:mb-8">
+                    <span className="product-detail-price sm:text-4xl text-green-600 font-bold">₹{product.price}</span>
+                    {product.originalPrice && (
+                      <span className="text-lg sm:text-2xl text-gray-500 line-through">₹{product.originalPrice}</span>
                     )}
                   </div>
-                <div className="grid grid-cols-5 gap-3">
-                  {(() => {
-                    const shadesToShow = showAllShades ? shades : shades.slice(0, 5);
 
-                    return shadesToShow.map((shade) => {
-                      const isSelected = selectedShades.some(s => s.id === shade.id);
-                      return (
-                        <div
-                          key={shade.value}
-                          className="flex flex-col items-center group cursor-pointer"
-                          onClick={() => handleShadeSelect(shade)}
-                        >
-                          <div className="relative">
-                            {isSelected && (
-                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center z-10 shadow-lg">
-                                <CheckCircle className="w-3 h-3 text-white" />
-                              </div>
-                            )}
-                            {shade.imageUrl ? (
-                              <img
-                                src={shade.imageUrl}
-                                alt={shade.name}
-                                className={`w-12 h-12 rounded-full border-3 object-cover transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
-                                  isSelected
-                                    ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
-                                    : 'border-gray-300 hover:border-purple-400'
-                                }`}
-                                title={shade.name}
-                              />
-                            ) : (
-                              <div
-                                className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${
-                                  isSelected
-                                    ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
-                                    : 'border-gray-300 hover:border-purple-400'
-                                }`}
-                                style={{ backgroundColor: shade.colorCode }}
-                                title={shade.name}
-                              ></div>
-                            )}
-                          </div>
-                          <span className={`text-xs mt-2 text-center leading-tight transition-colors ${
-                            isSelected
-                              ? 'text-purple-700 font-semibold'
-                              : 'text-gray-600 group-hover:text-purple-600'
-                          }`}>
-                            {shade.name.split(' ').slice(0, 2).join(' ')}
+                  {/* Cashback Badge */}
+                  {product.cashbackPercentage && product.cashbackPrice && (
+                    <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm font-semibold text-orange-700">Get Cashback</span>
+                          <p className="text-xs text-orange-600 mt-1">Earn on this purchase</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl font-bold text-orange-600">
+                            ₹{Number(product.cashbackPrice).toFixed(2)}
+                          </span>
+                          <span className="text-sm bg-orange-200 text-orange-800 px-3 py-1 rounded-full font-semibold">
+                            {product.cashbackPercentage}% Cashback
                           </span>
                         </div>
-                      );
-                    });
-                  })()}
-                </div>
-
-                {/* View All Button */}
-                {!showAllShades && shades.length > 5 && (
-                  <div className="text-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAllShades(true)}
-                      className="border-2 border-purple-200 hover:border-purple-400 rounded-xl px-6 py-2 font-semibold text-purple-600 hover:text-purple-700 transition-all duration-200"
-                    >
-                      <ChevronDown className="w-4 h-4 mr-2" />
-                      View All Shades ({shades.length})
-                    </Button>
-                  </div>
-                )}
-
-                {/* Show Less Button */}
-                {showAllShades && shades.length > 5 && (
-                  <div className="text-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAllShades(false)}
-                      className="border-2 border-purple-200 hover:border-purple-400 rounded-xl px-6 py-2 font-semibold text-purple-600 hover:text-purple-700 transition-all duration-200"
-                    >
-                      <ChevronUp className="w-4 h-4 mr-2" />
-                      Show Less
-                    </Button>
-                  </div>
-                )}
-
-                {/* Show selected shades preview */}
-                {selectedShades.length > 0 && (
-                  <div className="mt-3 bg-purple-50 p-3 rounded-lg border border-purple-200">
-                    <p className="text-sm font-semibold text-purple-700 mb-2">Selected Shades:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedShades.map(shade => (
-                        <div key={shade.id} className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-full border border-purple-300 shadow-sm">
-                          {shade.imageUrl ? (
-                            <img src={shade.imageUrl} alt={shade.name} className="w-4 h-4 rounded-full object-cover" />
-                          ) : (
-                            <div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: shade.colorCode }} />
-                          )}
-                          <span className="text-xs font-medium text-purple-700">{shade.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Show warning if no shade is selected */}
-                {selectedShades.length === 0 && (
-                  <>
-                    <p className="text-sm text-red-500 font-semibold mt-3">
-                      ⚠️ Please select at least one shade before adding to cart
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      💡 Not sure about your shade? Our beauty experts can help you find the perfect match!
-                    </p>
-                  </>
-                )}
-                </div>
-              )}
-
-              {/* Price */}
-              <div className="flex items-center space-x-3 sm:space-x-4 mb-6 sm:mb-8">
-                <span className="product-detail-price sm:text-4xl text-green-600 font-bold">₹{product.price}</span>
-                {product.originalPrice && (
-                  <span className="text-lg sm:text-2xl text-gray-500 line-through">₹{product.originalPrice}</span>
-                )}
-              </div>
-
-              {/* Cashback Badge */}
-              {product.cashbackPercentage && product.cashbackPrice && (
-                <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-sm font-semibold text-orange-700">Get Cashback</span>
-                      <p className="text-xs text-orange-600 mt-1">Earn on this purchase</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl font-bold text-orange-600">
-                        ₹{Number(product.cashbackPrice).toFixed(2)}
-                      </span>
-                      <span className="text-sm bg-orange-200 text-orange-800 px-3 py-1 rounded-full font-semibold">
-                        {product.cashbackPercentage}% Cashback
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Quantity Selector */}
-              <div className="mb-6">
-                <label className="text-gray-700 font-bold text-lg mb-3 block">Quantity:</label>
-                <div className="flex items-center gap-4 bg-gray-50 rounded-lg p-3 w-fit">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    disabled={quantity <= 1}
-                    className="h-10 w-10 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 disabled:opacity-30"
-                  >
-                    <Minus className="h-4 w-4 text-purple-600" />
-                  </Button>
-                  <div className="text-center min-w-[3rem]">
-                    <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{quantity}</span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="h-10 w-10 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50"
-                  >
-                    <Plus className="h-4 w-4 text-purple-600" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex product-detail-buttons sm:flex-row sm:space-x-4 sm:space-y-0 mb-4 sm:mb-6">
-                {product.inStock ? (
-                  <>
-                    <Button
-                      size="lg"
-                      className="product-detail-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                      onClick={addToCart}
-                      disabled={shades.length > 0 && selectedShades.length === 0}
-                    >
-                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                      {selectedShades.length > 0 ? `Add ${selectedShades.length} Shade${selectedShades.length > 1 ? 's' : ''} to Cart` : 'Add to Cart'}
-                    </Button>
-                    <Button size="lg" variant="outline" className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200" onClick={toggleWishlist}>
-                      <Heart className={`w-5 h-5 sm:w-6 sm:h-5 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />
-                    </Button>
-                  </>
-                ) : (
-                  <Button size="lg" className="product-detail-button bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 flex-1" onClick={toggleWishlist}>
-                    <Heart className={`w-4 h-4 sm:w-5 sm:h-5 mr-2 ${isInWishlist ? 'fill-current' : ''}`} />
-                    {isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
-                  </Button>
-                )}
-                <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      size="lg" 
-                      variant="outline" 
-                      className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={shades.length > 0 && selectedShades.length === 0}
-                      onClick={(e) => {
-                        if (shades.length > 0 && selectedShades.length === 0) {
-                          e.preventDefault();
-                          toast({
-                            title: "Select a Shade",
-                            description: "Please select at least one shade before sharing",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                    >
-                      <Share2 className="w-5 h-5 sm:w-6 sm:h-5 text-purple-500" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                        Share Product
-                      </DialogTitle>
-                      <DialogDescription>
-                        Share this product with your friends and family
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3 py-4">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start gap-3 h-12 hover:bg-green-50 hover:border-green-300 transition-colors"
-                        onClick={shareToWhatsApp}
-                      >
-                        <svg className="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                        </svg>
-                        WhatsApp
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start gap-3 h-12 hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                        onClick={shareToFacebook}
-                      >
-                        <svg className="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                        </svg>
-                        Facebook
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start gap-3 h-12 hover:bg-sky-50 hover:border-sky-300 transition-colors"
-                        onClick={shareToTwitter}
-                      >
-                        <svg className="h-6 w-6 text-sky-500" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-                        </svg>
-                        Twitter
-                      </Button>
-
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                          <span className="bg-white px-2 text-gray-500">Or</span>
-                        </div>
                       </div>
+                    </div>
+                  )}
 
+                  {/* Quantity Selector */}
+                  <div className="mb-6">
+                    <label className="text-gray-700 font-bold text-lg mb-3 block">Quantity:</label>
+                    <div className="flex items-center gap-4 bg-gray-50 rounded-lg p-3 w-fit">
                       <Button
                         variant="outline"
-                        className="w-full justify-start gap-3 h-12 hover:bg-purple-50 hover:border-purple-300 transition-colors"
-                        onClick={copyProductLink}
+                        size="icon"
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        disabled={quantity <= 1}
+                        className="h-10 w-10 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 disabled:opacity-30"
                       >
-                        {copied ? (
-                          <Check className="h-6 w-6 text-green-600" />
-                        ) : (
-                          <Copy className="h-6 w-6 text-purple-600" />
-                        )}
-                        {copied ? "Link Copied!" : "Copy Link"}
+                        <Minus className="h-4 w-4 text-purple-600" />
+                      </Button>
+                      <div className="text-center min-w-[3rem]">
+                        <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{quantity}</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setQuantity(quantity + 1)}
+                        className="h-10 w-10 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50"
+                      >
+                        <Plus className="h-4 w-4 text-purple-600" />
                       </Button>
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
+                  </div>
 
-              {/* Stock status */}
-              <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
-                <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 rounded-full animate-pulse ${
-                  product.inStock
-                    ? 'bg-gradient-to-r from-green-400 to-emerald-400'
-                    : 'bg-gradient-to-r from-red-400 to-rose-400'
-                }`}></div>
-                <span className={`font-bold text-sm sm:text-base md:text-lg ${
-                  product.inStock ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {product.inStock ? 'In Stock' : 'Out of Stock'}
-                </span>
+                  {/* Actions */}
+                  <div className="flex product-detail-buttons sm:flex-row sm:space-x-4 sm:space-y-0 mb-4 sm:mb-6">
+                    {product.inStock ? (
+                      <>
+                        <Button
+                          size="lg"
+                          className="product-detail-button bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                          onClick={addToCart}
+                          disabled={shades.length > 0 && selectedShades.length === 0}
+                        >
+                          <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                          {selectedShades.length > 0 ? `Add ${selectedShades.length} Shade${selectedShades.length > 1 ? 's' : ''} to Cart` : 'Add to Cart'}
+                        </Button>
+                        <Button size="lg" variant="outline" className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200" onClick={toggleWishlist}>
+                          <Heart className={`w-5 h-5 sm:w-6 sm:h-5 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />
+                        </Button>
+                      </>
+                    ) : (
+                      <Button size="lg" className="product-detail-button bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold rounded-lg sm:rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 flex-1" onClick={toggleWishlist}>
+                        <Heart className={`w-4 h-4 sm:w-5 sm:h-5 mr-2 ${isInWishlist ? 'fill-current' : ''}`} />
+                        {isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                      </Button>
+                    )}
+                    <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+                      <DialogTrigger asChild>
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={shades.length > 0 && selectedShades.length === 0}
+                          onClick={(e) => {
+                            if (shades.length > 0 && selectedShades.length === 0) {
+                              e.preventDefault();
+                              toast({
+                                title: "Select a Shade",
+                                description: "Please select at least one shade before sharing",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        >
+                          <Share2 className="w-5 h-5 sm:w-6 sm:h-5 text-purple-500" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                            Share Product
+                          </DialogTitle>
+                          <DialogDescription>
+                            Share this product with your friends and family
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-3 py-4">
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start gap-3 h-12 hover:bg-green-50 hover:border-green-300 transition-colors"
+                            onClick={shareToWhatsApp}
+                          >
+                            <svg className="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                            </svg>
+                            WhatsApp
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start gap-3 h-12 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                            onClick={shareToFacebook}
+                          >
+                            <svg className="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                            </svg>
+                            Facebook
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start gap-3 h-12 hover:bg-sky-50 hover:border-sky-300 transition-colors"
+                            onClick={shareToTwitter}
+                          >
+                            <svg className="h-6 w-6 text-sky-500" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
+                            </svg>
+                            Twitter
+                          </Button>
+
+                          <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                              <span className="w-full border-t" />
+                            </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                              <span className="bg-white px-2 text-gray-500">Or</span>
+                            </div>
+                          </div>
+
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start gap-3 h-12 hover:bg-purple-50 hover:border-purple-300 transition-colors"
+                            onClick={copyProductLink}
+                          >
+                            {copied ? (
+                              <Check className="h-6 w-6 text-green-600" />
+                            ) : (
+                              <Copy className="h-6 w-6 text-purple-600" />
+                            )}
+                            {copied ? "Link Copied!" : "Copy Link"}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+
+                  {/* Stock status */}
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
+                    <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 rounded-full animate-pulse ${product.inStock
+                        ? 'bg-gradient-to-r from-green-400 to-emerald-400'
+                        : 'bg-gradient-to-r from-red-400 to-rose-400'
+                      }`}></div>
+                    <span className={`font-bold text-sm sm:text-base md:text-lg ${product.inStock ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                      {product.inStock ? 'In Stock' : 'Out of Stock'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
         </div>
 
         {/* Product Information Tabs */}
         <div className="product-detail-tabs sm:mb-16">
           <Tabs defaultValue="description" className="w-full">
-            <TabsList className="product-detail-tab-list grid w-full grid-cols-2 lg:grid-cols-4 bg-white p-1 sm:p-2 rounded-none border-none shadow-none">
+            <TabsList className="h-10 items-center justify-center text-muted-foreground grid w-full grid-cols-4 bg-white/70 backdrop-blur-md rounded-lg sm:rounded-xl md:rounded-2xl p-1 sm:p-1.5 md:p-2 shadow-lg border border-white/20 mb-6 sm:mb-8 gap-0.5 sm:gap-1">
               <TabsTrigger
                 value="description"
                 className="product-detail-tab-trigger sm:py-4 sm:px-6 sm:text-sm rounded-lg sm:rounded-xl data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
@@ -1772,11 +1766,10 @@ export default function ProductDetail() {
                             key={star}
                             type="button"
                             onClick={() => handleStarClick(star)}
-                            className={`w-8 h-8 ${
-                              star <= reviewRating
+                            className={`w-8 h-8 ${star <= reviewRating
                                 ? "text-yellow-400 fill-yellow-400"
                                 : "text-gray-300"
-                            } hover:text-yellow-400 transition-colors`}
+                              } hover:text-yellow-400 transition-colors`}
                           >
                             <Star className="w-full h-full" />
                           </button>
@@ -1957,26 +1950,26 @@ export default function ProductDetail() {
         </section>
 
         {/* Product Video - Show if available */}
-            {product.videoUrl && (
-              <Card className="overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-pink-50 to-rose-50 border-b">
-                  <CardTitle className="flex items-center gap-2">
-                    <Video className="h-5 w-5 text-pink-600" />
-                    Product Video
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <video
-                    src={product.videoUrl.startsWith('/api/') ? product.videoUrl : `/api/images/${product.videoUrl}`}
-                    controls
-                    className="w-full aspect-video"
-                    poster={product.imageUrl}
-                  >
-                    Your browser does not support the video tag.
-                  </video>
-                </CardContent>
-              </Card>
-            )}
+        {product.videoUrl && (
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-pink-50 to-rose-50 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <Video className="h-5 w-5 text-pink-600" />
+                Product Video
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <video
+                src={product.videoUrl.startsWith('/api/') ? product.videoUrl : `/api/images/${product.videoUrl}`}
+                controls
+                className="w-full aspect-video"
+                poster={product.imageUrl}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </CardContent>
+          </Card>
+        )}
 
         {/* You May Also Like - Horizontal Scroll */}
         {filteredRelatedProducts.length > 0 && (
