@@ -112,6 +112,19 @@ export default function Blog() {
 
     const matchesCategory = selectedCategory === "All" || post.category === selectedCategory;
     return matchesSearch && matchesCategory;
+  }).sort((a, b) => {
+    // Get sort order for categories
+    const categoryA = categories.find(cat => cat.name === a.category);
+    const categoryB = categories.find(cat => cat.name === b.category);
+    
+    const sortOrderA = categoryA?.sortOrder ?? 999;
+    const sortOrderB = categoryB?.sortOrder ?? 999;
+    
+    // Sort by category sort order first, then by date (newest first)
+    if (sortOrderA !== sortOrderB) {
+      return sortOrderA - sortOrderB;
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
   const featuredPosts = blogPosts.filter(post => post.featured);

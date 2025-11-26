@@ -1316,11 +1316,7 @@ export default function Layout({ children }: LayoutProps) {
               />
             </div>
             <p className="text-gray-300 text-sm leading-relaxed mb-6 text-justify px-0">
-              Poppik Lifestyle brings together Beauty, Wellness, and Lifestyle to help you live naturally and beautifully. 🌿
-Our mission is to enhance your everyday life through safe, effective, and nature-inspired products that nourish your body, mind, and soul.
-From skincare and self-care essentials to wellness and lifestyle products, every creation blends nature, science, and mindfulness.
-At Poppik, we believe beauty begins with wellness and grows through balance.
-✨ Choose Poppik Lifestyle — where beauty meets wellness, and self-care becomes your way of living.
+             Poppik Lifestyle is a global Indian brand that brings together Beauty, Wellness, and Lifestyle to help you live naturally and beautifully. 🌿 Our mission is to enhance everyday life through safe, effective, and nature-inspired products that nourish the body, mind, and soul. Founded and directed by a team of passionate visionaries led by Mr. Jay Gupta (Director & CEO), Mr. Hanmnt Dadas (Director & COO), Mr. Akshay Chopade (Director & CFO) and Mr. Vishal Karande (Director & Admin Head), Poppik Lifestyle Private Limited represents India’s growing global presence in the beauty and wellness industry. From skincare and self-care essentials to wellness and lifestyle innovations, every Poppik creation is a mindful blend of nature, science, and balance. At Poppik, we believe that beauty begins with wellness and flourishes through harmony. ✨ Choose Poppik Lifestyle — a global Indian brand where beauty meets wellness, and self-care becomes your way of living.
             </p>
 
             {/* Social Media Icons - Centered below description */}

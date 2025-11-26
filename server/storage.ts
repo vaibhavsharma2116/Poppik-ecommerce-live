@@ -1396,7 +1396,7 @@ export class DatabaseStorage implements IStorage {
   // Get all blog categories
   async getBlogCategories(): Promise<BlogCategory[]> {
     try {
-      return await this.db.select().from(blogCategories).where(eq(blogCategories.isActive, true)).orderBy(asc(blogCategories.sortOrder));
+      return await this.db.select().from(blogCategories).where(eq(blogCategories.isActive, true)).orderBy(asc(blogCategories.sortOrder), asc(blogCategories.name));
     } catch (error) {
       console.error("Database error in getBlogCategories:", error);
       // Ensure an empty array is returned or re-throw the error

@@ -62,13 +62,12 @@ function rateLimit(req: any, res: any, next: any) {
   next();
 }
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, and, sql, or, like, isNull, asc } from "drizzle-orm";
-import { desc } from "drizzle-orm";
+import { eq, and, sql, or, like, isNull, asc, desc } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
-import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage } from "../shared/schema";
+import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage, InsertBlogPost } from "../shared/schema";
 import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema } from "../shared/schema"; // Import users table explicitly
 import type { Request, Response } from 'express'; // Import Request and Response types for clarity
 
@@ -208,7 +207,6 @@ async function sendOrderNotificationEmail(orderData: any) {
           ${item.productName}
         </td>
         <td style="padding: 10px 0; text-align: right;">${item.quantity}</td>
-        <td style="padding: 10px 0; text-align: right;">₹${item.price}</td>
         <td style="padding: 10px 0; text-align: right;">₹${(parseFloat(item.price.replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
       </tr>
     `;
@@ -229,7 +227,6 @@ async function sendOrderNotificationEmail(orderData: any) {
             <tr style="background-color: #f8f8f8;">
               <th style="padding: 12px 0; text-align: left;">Product</th>
               <th style="padding: 12px 0; text-align: right;">Qty</th>
-              <th style="padding: 12px 0; text-align: right;">Unit Price</th>
               <th style="padding: 12px 0; text-align: right;">Total</th>
             </tr>
           </thead>
@@ -1659,8 +1656,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const wallet = await db
         .select()
         .from(schema.affiliateWallet)
-        .where(eq(schema.affiliateWallet.userId, parseInt(userId)))
-        .limit(1);
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId)));
 
       if (!wallet || wallet.length === 0) {
         return res.status(404).json({ error: 'Wallet not found' });
@@ -1771,7 +1767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error("Error saving multi-address order:", error);
+      console.error("Errorsaving multi-address order:", error);
       res.status(500).json({ error: "Failed to save multi-address order" });
     }
   });
@@ -1925,7 +1921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle banner images - save to bannerImages array
       let allBannerImages: string[] = [];
-      
+
       // Add existing banner images if provided
       if (req.body.existingBannerImages) {
         try {
@@ -1937,13 +1933,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('Error parsing existingBannerImages:', e);
         }
       }
-      
+
       // Add new uploaded banner images
       if (files?.bannerImages) {
         const newImages = files.bannerImages.map(file => `/api/images/${file.filename}`);
         allBannerImages = [...allBannerImages, ...newImages];
       }
-      
+
       // Only update bannerImages array if there are images
       if (allBannerImages.length > 0) {
         updateData.bannerImages = allBannerImages;
@@ -1954,7 +1950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle additional images - these go in the images array, NOT the banner image
       let allAdditionalImages: string[] = [];
-      
+
       // Add existing additional images if provided
       if (req.body.existingAdditionalImages) {
         try {
@@ -1966,13 +1962,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('Error parsing existingAdditionalImages:', e);
         }
       }
-      
+
       // Add new uploaded additional images (NOT banner image)
       if (files?.additionalImages) {
         const newImages = files.additionalImages.map(file => `/api/images/${file.filename}`);
         allAdditionalImages = [...allAdditionalImages, ...newImages];
       }
-      
+
       // Only update images array with additional images
       if (allAdditionalImages.length > 0) {
         updateData.images = allAdditionalImages;
@@ -2210,14 +2206,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!userId) {
-        return res.json({ canReview: false, message: "Please login to review" });
+        return res.json({ canReview: false, message: "Please login to leave a review" });
       }
 
       // Check if user has purchased this offer
       const orders = await db
         .select()
-        .from(schema.orders)
-        .where(eq(schema.orders.userId, parseInt(userId as string)));
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.userId, parseInt(userId as string)));
 
       // Check if any order contains this offer
       let hasPurchased = false;
@@ -2907,210 +2903,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn("Products data is not an array, returning empty array");
         return res.json([]);
       }
-
-
-  // Delivery Address Management Routes
-  app.get("/api/delivery-addresses", async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(400).json({ error: "User ID is required" });
-      }
-
-      const userIdNum = parseInt(userId as string);
-      if (isNaN(userIdNum)) {
-        return res.status(400).json({ error: "Invalid user ID format" });
-      }
-
-      const addresses = await db
-        .select()
-        .from(schema.deliveryAddresses)
-        .where(eq(schema.deliveryAddresses.userId, userIdNum))
-        .orderBy(desc(schema.deliveryAddresses.isDefault), desc(schema.deliveryAddresses.createdAt));
-
-      res.json(addresses || []);
-    } catch (error) {
-      console.error("Error fetching delivery addresses:", error);
-      console.error("Error details:", {
-        message: error.message,
-        code: error.code,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      });
-      res.status(500).json({ 
-        error: "Failed to fetch delivery addresses",
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  });
-
-  app.post("/api/delivery-addresses", async (req, res) => {
-    try {
-      const {
-        userId,
-        recipientName,
-        addressLine1,
-        addressLine2,
-        city,
-        state,
-        pincode,
-        country,
-        phoneNumber,
-        deliveryInstructions,
-        isDefault
-      } = req.body;
-
-      if (!userId || !recipientName || !addressLine1 || !city || !state || !pincode || !phoneNumber) {
-        return res.status(400).json({ error: "Required fields are missing" });
-      }
-
-      // If this is set as default, unset other default addresses
-      if (isDefault) {
-        await db
-          .update(schema.deliveryAddresses)
-          .set({ isDefault: false })
-          .where(eq(schema.deliveryAddresses.userId, parseInt(userId)));
-      }
-
-      const [newAddress] = await db
-        .insert(schema.deliveryAddresses)
-        .values({
-          userId: parseInt(userId),
-          recipientName: recipientName.trim(),
-          addressLine1: addressLine1.trim(),
-          addressLine2: addressLine2 ? addressLine2.trim() : null,
-          city: city.trim(),
-          state: state.trim(),
-          pincode: pincode.trim(),
-          country: country || 'India',
-          phoneNumber: phoneNumber.trim(),
-          deliveryInstructions: deliveryInstructions ? deliveryInstructions.trim() : null,
-          isDefault: Boolean(isDefault)
-        })
-        .returning();
-
-      res.status(201).json(newAddress);
-    } catch (error) {
-      console.error("Error creating delivery address:", error);
-      res.status(500).json({ error: "Failed to create delivery address" });
-    }
-  });
-
-  app.put("/api/delivery-addresses/:id", async (req, res) => {
-    try {
-      const addressId = parseInt(req.params.id);
-      const {
-        recipientName,
-        addressLine1,
-        addressLine2,
-        city,
-        state,
-        pincode,
-        country,
-        phoneNumber,
-        deliveryInstructions,
-        isDefault
-      } = req.body;
-
-      // If setting as default, unset other defaults for this user
-      if (isDefault) {
-        const address = await db
-          .select()
-          .from(schema.deliveryAddresses)
-          .where(eq(schema.deliveryAddresses.id, addressId))
-          .limit(1);
-
-        if (address.length > 0) {
-          await db
-            .update(schema.deliveryAddresses)
-            .set({ isDefault: false })
-            .where(eq(schema.deliveryAddresses.userId, address[0].userId));
-        }
-      }
-
-      const [updatedAddress] = await db
-        .update(schema.deliveryAddresses)
-        .set({
-          recipientName: recipientName?.trim(),
-          addressLine1: addressLine1?.trim(),
-          addressLine2: addressLine2 ? addressLine2.trim() : null,
-          city: city?.trim(),
-          state: state?.trim(),
-          pincode: pincode?.trim(),
-          country: country || 'India',
-          phoneNumber: phoneNumber?.trim(),
-          deliveryInstructions: deliveryInstructions ? deliveryInstructions.trim() : null,
-          isDefault: Boolean(isDefault),
-          updatedAt: new Date()
-        })
-        .where(eq(schema.deliveryAddresses.id, addressId))
-        .returning();
-
-      if (!updatedAddress) {
-        return res.status(404).json({ error: "Address not found" });
-      }
-
-      res.json(updatedAddress);
-    } catch (error) {
-      console.error("Error updating delivery address:", error);
-      res.status(500).json({ error: "Failed to update delivery address" });
-    }
-  });
-
-  app.delete("/api/delivery-addresses/:id", async (req, res) => {
-    try {
-      const addressId = parseInt(req.params.id);
-
-      const [deletedAddress] = await db
-        .delete(schema.deliveryAddresses)
-        .where(eq(schema.deliveryAddresses.id, addressId))
-        .returning();
-
-      if (!deletedAddress) {
-        return res.status(404).json({ error: "Address not found" });
-      }
-
-      res.json({ success: true, message: "Address deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting delivery address:", error);
-      res.status(500).json({ error: "Failed to delete delivery address" });
-    }
-  });
-
-  app.put("/api/delivery-addresses/:id/set-default", async (req, res) => {
-    try {
-      const addressId = parseInt(req.params.id);
-
-      const address = await db
-        .select()
-        .from(schema.deliveryAddresses)
-        .where(eq(schema.deliveryAddresses.id, addressId))
-        .limit(1);
-
-      if (address.length === 0) {
-        return res.status(404).json({ error: "Address not found" });
-      }
-
-      // Unset all default addresses for this user
-      await db
-        .update(schema.deliveryAddresses)
-        .set({ isDefault: false })
-        .where(eq(schema.deliveryAddresses.userId, address[0].userId));
-
-      // Set this address as default
-      const [updatedAddress] = await db
-        .update(schema.deliveryAddresses)
-        .set({ isDefault: true, updatedAt: new Date() })
-        .where(eq(schema.deliveryAddresses.id, addressId))
-        .returning();
-
-      res.json(updatedAddress);
-    } catch (error) {
-      console.error("Error setting default address:", error);
-      res.status(500).json({ error: "Failed to set default address" });
-    }
-  });
-
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); 
@@ -3975,7 +3767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             customer: {
               name: `${userData.firstName} ${userData.lastName}`,
               email: userData.email,
-              phone: userData.phone || 'N/A',
+              phone: userData.phone,
               address: order.shippingAddress,
             },
             date: order.createdAt.toISOString().split('T')[0],
@@ -4399,7 +4191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           code: schema.promoCodes.code,
           userId: schema.promoCodeUsage.userId,
           orderId: schema.promoCodeUsage.orderId,
-          discountAmount: schema.promoCodeUsage.discountAmount,
+          discountAmount: schema.promoCodeUsage.usage.discountAmount,
           createdAt: schema.promoCodeUsage.createdAt
         })
         .from(schema.promoCodeUsage)
@@ -4408,8 +4200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(usage);
     } catch (error) {
-      console.error("Error fetching promo code usage:", error);
-      res.status(500).json({ error: "Failed to fetch promo code usage" });
+      console.error("Error fetching promo code usage:", error);      res.status(500).json({ error: "Failed to fetch promo code usage" });
     }
   });
 
@@ -4862,136 +4653,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Credit affiliate commission to wallet if affiliate code was used
-      if (affiliateCode && affiliateCode.startsWith('POPPIKAP') && paymentMethod !== 'Cash on Delivery') {
-        const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
-
-        console.log(`🔍 Processing affiliate commission for code: ${affiliateCode}, userId: ${affiliateUserId}`);
-
-        if (!isNaN(affiliateUserId)) {
-          try {
-            // Verify affiliate exists and is approved
-            const affiliateApp = await db
-              .select()
-              .from(schema.affiliateApplications)
-              .where(and(
-                eq(schema.affiliateApplications.userId, affiliateUserId),
-                eq(schema.affiliateApplications.status, 'approved')
-              ))
-              .limit(1);
-
-            if (!affiliateApp || affiliateApp.length === 0) {
-              console.error(`❌ Affiliate application not found or not approved for user ${affiliateUserId}`);
-              // Continue with order creation even if affiliate is invalid
-            } else {
-              // Get affiliate settings for commission rate
-              const settings = await db.select().from(schema.affiliateSettings);
-              const commissionRate = parseFloat(
-                settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'
-              );
-
-              // Calculate commission - use total amount after all deductions
-              const calculatedCommission = (Number(totalAmount) * commissionRate) / 100;
-
-              console.log(`💰 Calculated commission: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${totalAmount})`);
-
-              // Get or create affiliate wallet
-              let wallet = await db
-                .select()
-                .from(schema.affiliateWallet)
-                .where(eq(schema.affiliateWallet.userId, affiliateUserId))
-                .limit(1);
-
-              if (wallet.length === 0) {
-                console.log(`📝 Creating new wallet for affiliate ${affiliateUserId}`);
-                // Create wallet
-                const [newWallet] = await db.insert(schema.affiliateWallet).values({
-                  userId: affiliateUserId,
-                  cashbackBalance: "0.00",
-                  commissionBalance: calculatedCommission.toFixed(2),
-                  totalEarnings: calculatedCommission.toFixed(2),
-                  totalWithdrawn: "0.00"
-                }).returning();
-
-                console.log(`✅ Wallet created:`, newWallet);
-              } else {
-                console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
-                // Update wallet
-                const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
-                const currentEarnings = parseFloat(wallet[0].totalEarnings || '0');
-
-                const [updatedWallet] = await db.update(schema.affiliateWallet)
-                  .set({
-                    commissionBalance: (currentCommission + calculatedCommission).toFixed(2),
-                    totalEarnings: (currentEarnings + calculatedCommission).toFixed(2),
-                    updatedAt: new Date()
-                  })
-                  .where(eq(schema.affiliateWallet.userId, affiliateUserId))
-                  .returning();
-
-                console.log(`✅ Wallet updated:`, updatedWallet);
-              }
-
-              // Get user details for sale record
-              const orderUser = await db
-                .select({
-                  firstName: schema.users.firstName,
-                  lastName: schema.users.lastName,
-                  email: schema.users.email,
-                  phone: schema.users.phone,
-                })
-                .from(schema.users)
-                .where(eq(schema.users.id, Number(userId)))
-                .limit(1);
-
-              const userData = orderUser[0] || { firstName: 'Customer', lastName: '', email: 'customer@email.com', phone: null };
-
-              // Record affiliate sale in database
-              const [saleRecord] = await db.insert(schema.affiliateSales).values({
-                affiliateUserId,
-                affiliateCode,
-                orderId: newOrder.id,
-                customerId: Number(userId),
-                customerName: customerName || `${userData.firstName} ${userData.lastName}`,
-                customerEmail: customerEmail || userData.email,
-                customerPhone: customerPhone || userData.phone || null,
-                productName: items.map((item: any) => item.productName || item.name).join(', '),
-                saleAmount: Number(totalAmount).toFixed(2),
-                commissionAmount: calculatedCommission.toFixed(2),
-                commissionRate: commissionRate.toFixed(2),
-                status: 'confirmed'
-              }).returning();
-
-              console.log(`✅ Sale record created:`, saleRecord);
-
-              // Add transaction record
-              const [transactionRecord] = await db.insert(schema.affiliateTransactions).values({
-                userId: affiliateUserId,
-                orderId: newOrder.id,
-                type: 'commission',
-                amount: calculatedCommission.toFixed(2),
-                balanceType: 'commission',
-                description: `Commission (${commissionRate}%) from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
-                status: 'completed',
-                transactionId: null,
-                notes: null,
-                processedAt: new Date(),
-                createdAt: new Date()
-              }).returning();
-
-              console.log(`✅ Transaction record created:`, transactionRecord);
-
-              console.log(`✅ Affiliate commission credited: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for order ${newOrder.id}`);
-            }
-          } catch (affiliateError) {
-            console.error(`❌ Error processing affiliate commission:`, affiliateError);
-            // Continue with order creation even if affiliate tracking fails
-          }
-        } else {
-          console.error(`❌ Invalid affiliate user ID from code: ${affiliateCode}`);
-        }
-      }
-
       const orderId = `ORD-${newOrder.id.toString().padStart(3, '0')}`;
 
       // Always try to create Shiprocket order for all new orders
@@ -5166,17 +4827,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orderId = req.params.id.replace('ORD-', '');
 
-      const order = await db
-        .select()
-        .from(schema.ordersTable)
-        .where(eq(schema.ordersTable.id, Number(orderId)))
-        .limit(1);
+      // Extract numeric ID from order ID (e.g., "ORD-001" -> 1)
+      const numericId = parseInt(orderId.replace(/\D/g, ''));
 
-      if (order.length === 0) {
+      if (isNaN(numericId)) {
+        return res.status(400).json({ error: "Invalid order ID format" });
+      }
+
+      // Fetch order from database
+      const result = await pool.query(
+        'SELECT * FROM orders WHERE id = $1',
+        [numericId]
+      );
+
+      if (result.rows.length === 0) {
         return res.status(404).json({ error: "Order not found" });
       }
 
-      const orderData = order[0];
+      const orderData = result.rows[0];
 
       // Generate tracking timeline based on order status
       const trackingTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.createdAt), orderData.estimatedDelivery);
@@ -5409,41 +5077,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orderData = result.rows[0];
 
       // Check if order has Shiprocket integration
-      if (!orderData.shiprocket_order_id) {
+      if (!orderData.shiprocketOrderId) {
         // Generate basic timeline for non-Shiprocket orders
-        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
+        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.createdAt), orderData.estimatedDelivery);
 
         return res.json({
           error: "This order is not shipped through Shiprocket",
           hasShiprocketTracking: false,
           orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
           status: orderData.status,
-          trackingNumber: orderData.tracking_number,
-          estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
+          trackingNumber: orderData.trackingNumber,
+          estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
           timeline: basicTimeline,
           realTimeTracking: false,
-          totalAmount: orderData.total_amount,
-          shippingAddress: orderData.shipping_address,
-          createdAt: orderData.created_at.toISOString().split('T')[0]
+          totalAmount: orderData.totalAmount,
+          shippingAddress: orderData.shippingAddress,
+          createdAt: orderData.createdAt.toISOString().split('T')[0]
         });
       }
 
       // Check if Shiprocket is configured
       if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD) {
         // Fallback to basic tracking if Shiprocket not configured
-        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
+        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.createdAt), orderData.estimatedDelivery);
 
         res.json({
           orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-          shiprocketOrderId: orderData.shiprocket_order_id,
+          shiprocketOrderId: orderData.shiprocketOrderId,
           status: orderData.status,
-          trackingNumber: orderData.tracking_number,
-          estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
+          trackingNumber: orderData.trackingNumber,
+          estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
           timeline: basicTimeline,
           realTimeTracking: false,
-          totalAmount: orderData.total_amount,
-          shippingAddress: orderData.shipping_address,
-          createdAt: orderData.created_at.toISOString().split('T')[0],
+          totalAmount: orderData.totalAmount,
+          shippingAddress: orderData.shippingAddress,
+          createdAt: orderData.createdAt.toISOString().split('T')[0],
           hasShiprocketTracking: true,
           configured: true,
           error: "Unable to fetch real-time tracking data from Shiprocket. Using standard tracking."
@@ -5451,7 +5119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Fetch real-time tracking from Shiprocket
         try {
-          const trackingDetails = await shiprocketService.getTrackingDetails(orderData.shiprocket_order_id);
+          const trackingDetails = await shiprocketService.getTrackingDetails(orderData.shiprocketOrderId);
           console.log("Shiprocket tracking details:", JSON.stringify(trackingDetails, null, 2));
 
           // Extract necessary information and format timeline
@@ -5468,8 +5136,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timeline.unshift({
               step: "Order Placed",
               status: "completed",
-              date: new Date(orderData.created_at).toLocaleDateString('en-IN'),
-              time: new Date(orderData.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+              date: new Date(orderData.createdAt).toLocaleDateString('en-IN'),
+              time: new Date(orderData.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
               description: "Your order has been placed successfully"
             });
           }
@@ -5486,15 +5154,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           res.json({
             orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-            shiprocketOrderId: orderData.shiprocket_order_id,
+            shiprocketOrderId: orderData.shiprocketOrderId,
             status: finalStatus,
-            trackingNumber: trackingDetails.tracking_number || orderData.tracking_number,
-            estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
+            trackingNumber: trackingDetails.tracking_number || orderData.trackingNumber,
+            estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
             timeline: timeline,
             currentStep: getCurrentStep(finalStatus),
-            totalAmount: orderData.total_amount,
-            shippingAddress: orderData.shipping_address,
-            createdAt: orderData.created_at.toISOString().split('T')[0],
+            totalAmount: orderData.totalAmount,
+            shippingAddress: orderData.shippingAddress,
+            createdAt: orderData.createdAt.toISOString().split('T')[0],
             hasShiprocketTracking: true,
             realTimeTracking: true
           });
@@ -5502,18 +5170,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (shiprocketTrackingError) {
           console.error("Error fetching Shiprocket tracking details:", shiprocketTrackingError);
           // Fallback to basic timeline if Shiprocket API fails
-          const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
+          const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.createdAt), orderData.estimatedDelivery);
           res.json({
             orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-            shiprocketOrderId: orderData.shiprocket_order_id,
+            shiprocketOrderId: orderData.shiprocketOrderId,
             status: orderData.status,
-            trackingNumber: orderData.tracking_number,
-            estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
+            trackingNumber: orderData.trackingNumber,
+            estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
             timeline: basicTimeline,
             currentStep: getCurrentStep(orderData.status),
-            totalAmount: orderData.total_amount,
-            shippingAddress: orderData.shipping_address,
-            createdAt: orderData.created_at.toISOString().split('T')[0],
+            totalAmount: orderData.totalAmount,
+            shippingAddress: orderData.shippingAddress,
+            createdAt: orderData.createdAt.toISOString().split('T')[0],
             hasShiprocketTracking: true,
             realTimeTracking: false,
             error: "Failed to fetch real-time tracking from Shiprocket. Displaying standard tracking."
@@ -5776,165 +5444,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public blog categories endpoint (sorted by sortOrder)
   app.get("/api/blog/categories", async (req, res) => {
     try {
       const categories = await storage.getBlogCategories();
-      res.json(categories);
+      // Ensure we always return an array
+      res.json(Array.isArray(categories) ? categories : []);
     } catch (error) {
       console.error("Error fetching blog categories:", error);
-      // Return default categories when database is unavailable
-      res.json([
-        { id: 1, name: "Skincare", slug: "skincare", description: "All about skincare", isActive: true, sortOrder: 1 },
-        { id: 2, name: "Makeup", slug: "makeup", description: "All about makeup", isActive        : true, sortOrder: 2 },
-        { id: 3, name: "Haircare", slug: "haircare", description: "All about haircare", isActive: true, sortOrder: 3 }
-      ]);
+      res.status(500).json({ error: "Failed to fetch blog categories", categories: [] });
     }
   });
 
-  // Admin blog routes
+  // Admin blog categories
+  app.get("/api/admin/blog/categories", adminMiddleware, async (req, res) => {
+    try {
+      const categories = await db
+        .select()
+        .from(schema.blogCategories)
+        .orderBy(asc(schema.blogCategories.sortOrder), asc(schema.blogCategories.name));
+
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching blog categories:", error);
+      res.status(500).json({ error: "Failed to fetch blog categories" });
+    }
+  });
+
+  // Blog categories endpoint (admin)
+  app.get("/api/admin/blog/categories", async (req, res) => {
+    try {
+      const categories = await storage.getBlogCategories();
+      // Ensure we always return an array
+      res.json(Array.isArray(categories) ? categories : []);
+    } catch (error) {
+      console.error("Error fetching blog categories:", error);
+      res.status(500).json({ error: "Failed to fetch blog categories", categories: [] });
+    }
+  });
+
+  // Blog posts endpoint (admin)
   app.get("/api/admin/blog/posts", async (req, res) => {
     try {
       const posts = await storage.getBlogPosts();
-
-      // Parse tags for frontend
-      const postsWithParsedTags = posts.map(post => ({
-        ...post,
-        tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags
-      }));
-
-      res.json(postsWithParsedTags);
+      res.json(posts);
     } catch (error) {
-      console.error("Error fetching admin blog posts:", error);
+      console.error("Error fetching blog posts:", error);
       res.status(500).json({ error: "Failed to fetch blog posts" });
     }
   });
 
-  app.post("/api/admin/blog/posts", upload.fields([
-    { name: 'image', maxCount: 1 },
-    { name: 'video', maxCount: 1 },
-    { name: 'contentVideos', maxCount: 10 }
-  ]), async (req, res) => {
+  // Create blog post (admin)
+  app.post("/api/admin/blog/posts", adminMiddleware, async (req, res) => {
     try {
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      let imageUrl = req.body.imageUrl;
-      let videoUrl = req.body.videoUrl;
-      const contentVideoUrls: string[] = [];
+      const { title, excerpt, content, author, category, imageUrl, videoUrl, featured, published, readTime } = req.body;
 
-      // Handle image upload
-      if (files?.image?.[0]) {
-        imageUrl = `/api/images/${files.image[0].filename}`;
+      if (!title || !content || !author || !category) {
+        return res.status(400).json({ error: "Title, content, author, and category are required" });
       }
 
-      // Handle video upload
-      if (files?.video?.[0]) {
-        videoUrl = `/api/images/${files.video[0].filename}`;
-      }
-
-      // Handle content videos upload
-      if (files?.contentVideos && files.contentVideos.length > 0) {
-        for (const videoFile of files.contentVideos) {
-          contentVideoUrls.push(`/api/images/${videoFile.filename}`);
-        }
-      }
-
-      // If content videos were uploaded, add them to the content
-      let content = req.body.content;
-      if (contentVideoUrls.length > 0 && content) {
-        // Insert video tags into content at specified positions or append
-        const videoInsertPositions = req.body.videoPositions ? JSON.parse(req.body.videoPositions) : [];
-        contentVideoUrls.forEach((url, index) => {
-          const videoHtml = `<div class="video-container" style="margin: 20px 0; text-align: center;"><video controls preload="metadata" style="width: 100%; max-width: 800px; border-radius: 8px;"><source src="${url}" type="video/mp4" />Your browser does not support the video tag.</video></div>`;
-          if (videoInsertPositions[index]) {
-            content = content.slice(0, videoInsertPositions[index]) + videoHtml + content.slice(videoInsertPositions[index]);
-          } else {
-            content += videoHtml;
-          }
-        });
-      }
-
-      const postData = {
-        title: req.body.title,
-        excerpt: req.body.excerpt,
-        content: content,
-        author: req.body.author,
-        category: req.body.category,
-        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400',
-        videoUrl,
-        featured: req.body.featured === 'true',
-        published: req.body.published === 'true',
-        readTime: req.body.readTime || '5 min read'
+      const postData: InsertBlogPost = {
+        title: title.trim(),
+        excerpt: excerpt?.trim() || '',
+        content,
+        author: author.trim(),
+        category: category.trim(),
+        imageUrl: imageUrl || '',
+        videoUrl: videoUrl || '',
+        featured: featured !== false && featured !== 'false',
+        published: published !== false && published !== 'false',
+        readTime: readTime || '5 min read'
       };
 
       const post = await storage.createBlogPost(postData);
       res.status(201).json(post);
     } catch (error) {
       console.error("Error creating blog post:", error);
-      res.status(500).json({ error: "Failed to create blog post" });
+      const errorMessage = error instanceof Error ? error.message : "Failed to create blog post";
+      res.status(500).json({
+        error: "Failed to create blog post",
+        details: errorMessage
+      });
     }
   });
 
-  app.put("/api/admin/blog/posts/:id", upload.fields([
-    { name: 'image', maxCount: 1 },
-    { name: 'video', maxCount: 1 },
-    { name: 'contentVideos', maxCount: 10 }
-  ]), async (req, res) => {
+  // Update blog post (admin)
+  app.put("/api/admin/blog/posts/:id", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const { title, excerpt, content, author, category, imageUrl, videoUrl, featured, published, readTime } = req.body;
 
-      const updateData: any = {};
+      const updateData: Partial<InsertBlogPost> = {};
 
-      // Only update fields that are provided
-      if (req.body.title) updateData.title = req.body.title;
-      if (req.body.excerpt) updateData.excerpt = req.body.excerpt;
-      if (req.body.author) updateData.author = req.body.author;
-      if (req.body.category) updateData.category = req.body.category;
-      if (req.body.readTime) updateData.readTime = req.body.readTime;
-
-      if (req.body.tags) {
-        updateData.tags = Array.isArray(req.body.tags) ? req.body.tags :
-                          typeof req.body.tags === 'string' ? req.body.tags.split(',').map(t => t.trim()) : [];
-      }
-
-      if (req.body.featured !== undefined) updateData.featured = req.body.featured === 'true';
-      if (req.body.published !== undefined) updateData.published = req.body.published === 'true';
-
-      // Handle content with new videos
-      let content = req.body.content;
-      if (files?.contentVideos && files.contentVideos.length > 0) {
-        const contentVideoUrls: string[] = [];
-        for (const videoFile of files.contentVideos) {
-          contentVideoUrls.push(`/api/images/${videoFile.filename}`);
-        }
-
-        const videoInsertPositions = req.body.videoPositions ? JSON.parse(req.body.videoPositions) : [];
-        contentVideoUrls.forEach((url, index) => {
-          const videoHtml = `<div class="video-container" style="margin: 20px 0;"><video controls style="width: 100%; max-width: 800px; border-radius: 8px;"><source src="${url}" type="video/mp4">Your browser does not support the video tag.</video></div>`;
-          if (videoInsertPositions[index]) {
-            content = content.slice(0, videoInsertPositions[index]) + videoHtml + content.slice(videoInsertPositions[index]);
-          } else {
-            content += videoHtml;
-          }
-        });
-      }
-
-      if (content) updateData.content = content;
-
-      // Handle image upload
-      if (files?.image?.[0]) {
-        updateData.imageUrl = `/api/images/${files.image[0].filename}`;
-      } else if (req.body.imageUrl) {
-        updateData.imageUrl = req.body.imageUrl;
-      }
-
-      // Handle video upload
-      if (files?.video?.[0]) {
-        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
-      } else if (req.body.videoUrl !== undefined) {
-        updateData.videoUrl = req.body.videoUrl || null;
-      }
+      if (title !== undefined) updateData.title = title.trim();
+      if (excerpt !== undefined) updateData.excerpt = excerpt.trim();
+      if (content !== undefined) updateData.content = content;
+      if (author !== undefined) updateData.author = author.trim();
+      if (category !== undefined) updateData.category = category.trim();
+      if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+      if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
+      if (featured !== undefined) updateData.featured = featured !== false && featured !== 'false';
+      if (published !== undefined) updateData.published = published !== false && published !== 'false';
+      if (readTime !== undefined) updateData.readTime = readTime;
 
       const post = await storage.updateBlogPost(parseInt(id), updateData);
+
       if (!post) {
         return res.status(404).json({ error: "Blog post not found" });
       }
@@ -5942,14 +5556,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(post);
     } catch (error) {
       console.error("Error updating blog post:", error);
-      res.status(500).json({ error: "Failed to update blog post" });
+      const errorMessage = error instanceof Error ? error.message : "Failed to update blog post";
+      res.status(500).json({
+        error: "Failed to update blog post",
+        details: errorMessage
+      });
     }
   });
 
-  app.delete("/api/admin/blog/posts/:id", async (req, res) => {
+  // Delete blog post (admin)
+  app.delete("/api/admin/blog/posts/:id", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
-      const success = await storage.deleteBlogPost(parseInt(id));
+      const postId = parseInt(id);
+
+      if (isNaN(postId)) {
+        return res.status(400).json({ error: "Invalid post ID" });
+      }
+
+      const success = await storage.deleteBlogPost(postId);
 
       if (!success) {
         return res.status(404).json({ error: "Blog post not found" });
@@ -5958,116 +5583,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, message: "Blog post deleted successfully" });
     } catch (error) {
       console.error("Error deleting blog post:", error);
-      res.status(500).json({ error: "Failed to delete blog post" });
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete blog post";
+      res.status(500).json({
+        error: "Failed to delete blog post",
+        details: errorMessage
+      });
     }
   });
 
-
-
-  app.post("/api/admin/featured-sections", async (req, res) => {
-    try {
-      const { title, subtitle, imageUrl, linkUrl, buttonText, displayOrder, isActive } = req.body;
-
-      if (!title || !imageUrl) {
-        return res.status(400).json({ error: "Title and image URL are required" });
-      }
-
-      const sectionData = {
-        title: title.trim(),
-        subtitle: subtitle ? subtitle.trim() : null,
-        imageUrl: imageUrl.trim(),
-        linkUrl: linkUrl ? linkUrl.trim() : null,
-        buttonText: buttonText ? buttonText.trim() : null,
-        displayOrder: parseInt(displayOrder) || 0,
-        isActive: Boolean(isActive ?? true)
-      };
-
-      const section = await storage.createFeaturedSection(sectionData);
-      res.status(201).json(section);
-    } catch (error) {
-      console.error("Error creating featured section:", error);
-      res.status(500).json({ error: "Failed to create featured section" });
-    }
-  });
-
-  app.put("/api/admin/featured-sections/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { title, subtitle, imageUrl, linkUrl, buttonText, displayOrder, isActive } = req.body;
-
-      if (!title || !imageUrl) {
-        return res.status(400).json({ error: "Title and image URL are required" });
-      }
-
-      const sectionData = {
-        title: title.trim(),
-        subtitle: subtitle ? subtitle.trim() : null,
-        imageUrl: imageUrl.trim(),
-        linkUrl: linkUrl ? linkUrl.trim() : null,
-        buttonText: buttonText ? buttonText.trim() : null,
-        displayOrder: parseInt(displayOrder) || 0,
-        isActive: Boolean(isActive ?? true)
-      };
-
-      const section = await storage.updateFeaturedSection(parseInt(id), sectionData);
-      if (!section) {
-        return res.status(404).json({ error: "Featured section not found" });
-      }
-
-      res.json(section);
-    } catch (error) {
-      console.error("Error updating featured section:", error);
-      res.status(500).json({ error: "Failed to update featured section" });
-    }
-  });
-
-  app.delete("/api/admin/featured-sections/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteFeaturedSection(parseInt(id));
-      res.json({ message: "Featured section deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting featured section:", error);
-      res.status(500).json({ error: "Failed to delete featured section" });
-    }
-  });
-
-
-
-  // Admin blog categories
-  app.get("/api/admin/blog/categories", async (req, res) => {
-    try {
-      const categories = await storage.getBlogCategories();
-      res.json(categories);
-    } catch (error) {
-      console.error("Error fetching blog categories:", error);
-      res.status(500).json({ error: "Failed to fetch blog categories" });
-    }
-  });
-
-  // Admin blog subcategories
-  app.get("/api/admin/blog/subcategories", async (req, res) => {
-    try {
-      const subcategories = await storage.getBlogSubcategories();
-      res.json(subcategories);
-    } catch (error) {
-      console.error("Error fetching blog subcategories:", error);
-      res.status(500).json({ error: "Failed to fetch blog subcategories" });
-    }
-  });
-
-  app.get("/api/admin/blog/categories/:categoryId/subcategories", async (req, res) => {
-    try {
-      const { categoryId } = req.params;
-      const subcategories = await storage.getBlogSubcategoriesByCategory(parseInt(categoryId));
-      res.json(subcategories);
-    } catch (error) {
-      console.error("Error fetching blog subcategories by category:", error);
-      res.status(500).json({ error: "Failed to fetch blog subcategories" });
-    }
-  });
-
-  app.post("/api/admin/blog/categories", async (req, res) => {
+  // Create blog category (admin)
+  app.post("/api/admin/blog/categories", adminMiddleware, async (req, res) => {
     try {
       const { name, description, isActive, sortOrder } = req.body;
 
@@ -6094,7 +5619,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/blog/categories/:id", async (req, res) => {
+  // Update blog category (admin)
+  app.put("/api/admin/blog/categories/:id", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
       const { name, description, isActive, sortOrder } = req.body;
@@ -6116,14 +5642,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating blog category:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to update blog category";
-      res.status.json({
+      res.status(500).json({
         error: "Failed to update blog category",
         details: errorMessage
       });
     }
   });
 
-  app.delete("/api/admin/blog/categories/:id", async (req, res) => {
+  // Delete blog category (admin)
+  app.delete("/api/admin/blog/categories/:id", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
       const categoryId = parseInt(id);
@@ -6149,7 +5676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/blog/subcategories", async (req, res) => {
+  app.post("/api/admin/blog/subcategories", adminMiddleware, async (req, res) => {
     try {
       const { name, description, categoryId, isActive, sortOrder } = req.body;
 
@@ -6184,7 +5711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/blog/subcategories/:id", async (req, res) => {
+  app.put("/api/admin/blog/subcategories/:id", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
       const { name, description, categoryId, isActive, sortOrder } = req.body;
@@ -6218,7 +5745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/blog/subcategories/:id", async (req, res) => {
+  app.delete("/api/admin/blog/subcategories/:id", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
       const subcategoryId = parseInt(id);
@@ -6297,7 +5824,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Contact submissions management endpoints (Admin)
-  app.get("/api/admin/contact-submissions", async (req, res) => {
+  app.get("/api/admin/contact-submissions", adminMiddleware, async (req, res) => {
     try {
       const submissions = await storage.getContactSubmissions();
       res.json(submissions);
@@ -6307,7 +5834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/contact-submissions/:id", async (req, res) => {
+  app.get("/api/admin/contact-submissions/:id", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
       const submission = await storage.getContactSubmission(parseInt(id));
@@ -6321,7 +5848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/contact-submissions/:id/status", async (req, res) => {
+  app.put("/api/admin/contact-submissions/:id/status", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -6347,7 +5874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/contact-submissions/:id", async (req, res) => {
+  app.delete("/api/admin/contact-submissions/:id", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteContactSubmission(parseInt(id));
@@ -6740,7 +6267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify JWT token
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as any;
         res.json({ valid: true, message: "Token is valid", user: decoded });
       } catch (jwtError) {
         return res.status(401).json({ error: "Invalid token" });
@@ -6752,7 +6279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all customers (admin)
-  app.get("/api/admin/customers", async (req, res) => {
+  app.get("/api/admin/customers", adminMiddleware, async (req, res) => {
     try {
       // Get all users from database
       const allUsers = await db.select({
@@ -6775,7 +6302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(eq(schema.ordersTable.userId, user.id));
 
           const totalOrders = userOrders.length;
-          const totalSpent = userOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+          const totalSpent = userOrders.reduce((sum, order) => order.totalAmount, 0);
 
           // Determine status based on activity
           let status = 'New';
@@ -6812,7 +6339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get customer details by ID (admin)
-  app.get("/api/admin/customers/:id", async (req, res) => {
+  app.get("/api/admin/customers/:id", adminMiddleware, async (req, res) => {
     try {
       const customerId = parseInt(req.params.id);
 
@@ -6842,7 +6369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(5);
 
       const totalOrders = userOrders.length;
-      const totalSpent = userOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+      const totalSpent = userOrders.reduce((sum, order) => order.totalAmount, 0);
 
       // Determine status
       let status = 'New';
@@ -6886,7 +6413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin search endpoint
-  app.get("/api/admin/search", async (req, res) => {
+  app.get("/api/admin/search", adminMiddleware, async (req, res) => {
     try {
       const query = req.query.q;
 
@@ -7028,7 +6555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin shade management routes
-  app.get("/api/admin/shades", async (req, res) => {
+  app.get("/api/admin/shades", adminMiddleware, async (req, res) => {
     try {
       const allShades = await storage.getShades();
       res.json(allShades);    } catch (error) {
@@ -7037,7 +6564,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/shades", async (req, res) => {
+  app.post("/api/admin/shades", adminMiddleware, async (req, res) => {
     try {
       console.log("Creating shade with data:", req.body);
 
@@ -7097,9 +6624,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
-  });
+    });
 
-  app.put("/api/admin/shades/:id", async (req, res) => {
+  app.put("/api/admin/shades/:id", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
       console.log("Updating shade with ID:", id);
@@ -7137,7 +6664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/shades/:id", async (req, res) => {
+  app.delete("/api/admin/shades/:id", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteShade(parseInt(id));
@@ -7148,2707 +6675,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting shade:", error);
       res.status(5050).json({ error: "Failed to delete shade" });
-    }
-  });
-
-  // Public category sliders endpoint (for frontend display)
-  app.get('/api/categories/slug/:slug/sliders', async (req, res) => {
-    try {
-      const { slug } = req.params;
-      console.log('Fetching sliders for category slug:', slug);
-
-      // First get the category by slug
-      const category = await db
-        .select()
-        .from(schema.categories)
-        .where(eq(schema.categories.slug, slug))
-        .limit(1);
-
-      if (!category || category.length === 0) {
-        console.log('Category not found for slug:', slug);
-        // Return empty array instead of error to prevent UI issues
-        return res.json([]);
-      }
-
-      const categoryId = category[0].id;
-      console.log('Found category ID:', categoryId);
-
-      // Get sliders for this category
-      try {
-        const slidersResult = await db
-          .select()
-          .from(schema.categorySliders)
-          .where(and(
-            eq(schema.categorySliders.categoryId, categoryId),
-            eq(schema.categorySliders.isActive, true)
-          ))
-          .orderBy(asc(schema.categorySliders.sortOrder));
-
-        console.log('Found sliders count:', slidersResult.length);
-        // Always return an array, even if empty
-        res.json(slidersResult || []);
-      } catch (tableError) {
-        console.log('Error querying category sliders, returning empty array:', tableError.message);
-        // Return empty array on any database error
-        res.json([]);
-      }
-    } catch (error) {
-      console.error('Error fetching category sliders by slug:', error);
-      // Return empty array instead of error to prevent UI breakage
-      res.json([]);
-    }
-  });
-
-  // Category slider management routes
-  app.get('/api/admin/categories/:categoryId/sliders', async (req, res) => {
-    try {
-      const categoryId = parseInt(req.params.categoryId);
-      console.log('Fetching sliders for category ID:', categoryId);
-
-      // Check if categorySliders table exists, if not return empty array
-      try {
-        const slidersResult = await db
-          .select()
-          .from(schema.categorySliders)
-          .where(eq(schema.categorySliders.categoryId, categoryId))
-          .orderBy(asc(schema.categorySliders.sortOrder));
-
-        console.log('Found sliders:', slidersResult);
-        res.json(slidersResult);
-      } catch (tableError) {
-        console.log('CategorySliders table may not exist, returning empty array');
-        res.json([]);
-      }
-    } catch (error) {
-      console.error('Error fetching category sliders:', error);
-      res.status(500).json({ error: 'Failed to fetch category sliders', details: error.message });
-    }
-  });
-
-  app.post('/api/admin/categories/:categoryId/sliders', async (req, res) => {
-    try {
-      const categoryId = parseInt(req.params.categoryId);
-      const { imageUrl, title, subtitle, isActive, sortOrder } = req.body;
-
-      console.log('Creating category slider for category:', categoryId);
-      console.log('Slider data:', { imageUrl, title, subtitle, isActive, sortOrder });
-
-      // Validation
-      if (!imageUrl) {
-        return res.status(400).json({ error: 'Image URL is required' });
-      }
-
-      if (isNaN(categoryId)) {
-        return res.status(400).json({ error: 'Invalid category ID' });
-      }
-
-      // Check if category exists
-      const category = await db
-        .select()
-        .from(schema.categories)
-        .where(eq(schema.categories.id, categoryId))
-        .limit(1);
-
-      if (category.length === 0) {
-        return res.status(404).json({ error: 'Category not found' });
-      }
-
-      const sliderData = {
-        categoryId,
-        imageUrl: imageUrl.trim(),
-        title: (title || '').trim(),
-        subtitle: (subtitle || '').trim(),
-        isActive: Boolean(isActive ?? true),
-        sortOrder: parseInt(sortOrder) || 0
-      };
-
-      console.log('Inserting slider data:', sliderData);
-
-      const [newSlider] = await db.insert(schema.categorySliders).values(sliderData).returning();
-
-      console.log('Created slider successfully:', newSlider);
-      res.json(newSlider);
-    } catch (error) {
-      console.error('Error creating category slider:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        constraint: error.constraint,
-        detail: error.detail
-      });
-
-      if (error.code === '23505') { // Unique constraint violation
-        return res.status(400).json({ error: 'A slider with similar data already exists' });
-      }
-
-      if (error.code === '23503') { // Foreign key constraint violation
-        return res.status(400).json({ error: 'Invalid category reference' });
-      }
-
-      res.status(500).json({
-        error: 'Failed to create category slider',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  });
-
-  app.put('/api/admin/categories/:categoryId/sliders/:sliderId', async (req, res) => {
-    try {
-      const sliderId = parseInt(req.params.sliderId);
-      const { imageUrl, title, subtitle, isActive, sortOrder } = req.body;
-
-      const [updatedSlider] = await db
-        .update(schema.categorySliders)
-        .set({
-          imageUrl,
-          title: title || '',
-          subtitle: subtitle || '',
-          isActive: isActive !== false,
-          sortOrder: sortOrder || 0,
-          updatedAt: new Date()
-        })
-        .where(eq(schema.categorySliders.id, sliderId))
-        .returning();
-
-      if (!updatedSlider) {
-        return res.status(404).json({ error: 'Category slider not found' });
-      }
-
-      res.json(updatedSlider);
-    } catch (error) {
-      console.error('Error updating category slider:', error);
-      res.status(500).json({ error: 'Failed to update category slider' });
-    }
-  });
-
-  app.delete('/api/admin/categories/:categoryId/sliders/:sliderId', async (req, res) => {
-    try {
-      const sliderId = parseInt(req.params.sliderId);
-
-      const [deletedSlider] = await db
-        .delete(schema.categorySliders)
-        .where(eq(schema.categorySliders.id, sliderId))
-        .returning();
-
-      if (!deletedSlider) {
-        return res.status(404).json({ error: 'Category slider not found' });
-      }
-
-      res.json({ message: 'Category slider deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting category slider:', error);
-      res.status(500).json({ error: 'Failed to delete category slider' });
-    }
-  });
-
-  // Combo Sliders Management Routes
-
-  // Public endpoints for combo sliders
-  app.get('/api/combo-sliders', async (req, res) => {
-    try {
-      const sliders = await db
-        .select()
-        .from(schema.comboSliders)
-        .where(eq(schema.comboSliders.isActive, true))
-        .orderBy(asc(schema.comboSliders.sortOrder));
-
-      res.json(sliders);
-    } catch (error) {
-      console.error('Error fetching combo sliders:', error);
-      res.status(500).json({ error: 'Failed to fetch combo sliders' });
-    }
-  });
-
-  // Admin endpoints for combo sliders
-  app.get('/api/admin/combo-sliders', async (req, res) => {
-    try {
-      const sliders = await db
-        .select()
-        .from(schema.comboSliders)
-        .orderBy(asc(schema.comboSliders.sortOrder));
-
-      res.json(sliders);
-    } catch (error) {
-      console.error('Error fetching combo sliders:', error);
-      res.status(500).json({ error: 'Failed to fetch combo sliders' });
-    }
-  });
-
-  app.post('/api/admin/combo-sliders', upload.single('image'), async (req, res) => {
-    try {
-      const { title, subtitle, isActive, sortOrder } = req.body;
-
-      let imageUrl = '';
-      if (req.file) {
-        imageUrl = `/api/images/${req.file.filename}`;
-      } else if (req.body.imageUrl) {
-        imageUrl = req.body.imageUrl;
-      } else {
-        return res.status(400).json({ error: 'Image is required' });
-      }
-
-      const [slider] = await db
-        .insert(schema.comboSliders)
-        .values({
-          imageUrl: imageUrl.trim(),
-          title: title?.trim() || null,
-          subtitle: subtitle?.trim() || null,
-          isActive: isActive === 'true' || isActive === true,
-          sortOrder: parseInt(sortOrder) || 0,
-        })
-        .returning();
-
-      res.json(slider);
-    } catch (error) {
-      console.error('Error creating combo slider:', error);
-      res.status(500).json({ error: 'Failed to create combo slider' });
-    }
-  });
-
-  app.put('/api/admin/combo-sliders/:id', upload.single('image'), async (req, res) => {
-    try {
-      const sliderId = parseInt(req.params.id);
-      const { title, subtitle, isActive, sortOrder } = req.body;
-
-      let imageUrl = req.body.imageUrl;
-      if (req.file) {
-        imageUrl = `/api/images/${req.file.filename}`;
-      }
-
-      const [updatedSlider] = await db
-        .update(schema.comboSliders)
-        .set({
-          ...(imageUrl && { imageUrl: imageUrl.trim() }),
-          title: title?.trim() || null,
-          subtitle: subtitle?.trim() || null,
-          isActive: isActive === 'true' || isActive === true,
-          sortOrder: parseInt(sortOrder) || 0,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.comboSliders.id, sliderId))
-        .returning();
-
-      if (!updatedSlider) {
-        return res.status(404).json({ error: 'Combo slider not found' });
-      }
-
-      res.json(updatedSlider);
-    }catch (error) {
-      console.error('Error updating combo slider:', error);
-      res.status(500).json({ error: 'Failed to update combo slider' });
-    }
-  });
-
-  app.delete('/api/admin/combo-sliders/:id', async (req, res) => {
-    try {
-      const sliderId = parseInt(req.params.id);
-
-      const [deletedSlider] = await db
-        .delete(schema.comboSliders)
-        .where(eq(schema.comboSliders.id, sliderId))
-        .returning();
-
-      if (!deletedSlider) {
-        return res.status(404).json({ error: 'Combo slider not found' });
-      }
-
-      res.json({ message: 'Combo slider deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting combo slider:', error);
-      res.status(500).json({ error: 'Failed to delete combo slider' });
-    }
-  });
-
-  // Video Testimonials Management Routes
-
-  // Public endpoints for video testimonials
-  app.get('/api/video-testimonials', async (req, res) => {
-    try {
-      const testimonials = await db
-        .select()
-        .from(schema.videoTestimonials)
-        .where(eq(schema.videoTestimonials.isActive, true))
-        .orderBy(asc(schema.videoTestimonials.sortOrder));
-
-      res.json(testimonials);
-    } catch (error) {
-      console.error('Error fetching video testimonials:', error);
-      res.status(500).json({ error: 'Failed to fetch video testimonials' });
-    }
-  });
-
-  // Admin endpoints for video testimonials management
-  app.get('/api/admin/video-testimonials', async (req, res) => {
-    try {
-      const testimonials = await db
-        .select()
-        .from(schema.videoTestimonials)
-        .orderBy(desc(schema.videoTestimonials.createdAt));
-
-      res.json(testimonials);
-    } catch (error) {
-      console.error('Error fetching video testimonials:', error);
-      res.status(500).json({ error: 'Failed to fetch video testimonials' });
-    }
-  });
-
-  app.post('/api/admin/video-testimonials', upload.fields([
-    { name: 'video', maxCount: 1 },
-    { name: 'thumbnail', maxCount: 1 }
-  ]), async (req, res) => {
-    try {
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-      let videoUrl = req.body.videoUrl;
-      let thumbnailUrl = req.body.thumbnailUrl;
-
-      // Handle video upload
-      if (files?.video?.[0]) {
-        videoUrl = `/api/images/${files.video[0].filename}`;
-      }
-
-      // Handle thumbnail upload
-      if (files?.thumbnail?.[0]) {
-        thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
-      }
-
-      const testimonialData = {
-        customerImage: '', // Empty string for backward compatibility
-        videoUrl: videoUrl,
-        thumbnailUrl: thumbnailUrl,
-        productId: parseInt(req.body.productId),
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-      };
-
-      const [testimonial] = await db
-        .insert(schema.videoTestimonials)
-        .values(testimonialData)
-        .returning();
-
-      res.status(201).json(testimonial);
-    } catch (error) {
-      console.error('Error creating video testimonial:', error);
-      res.status(500).json({ error: 'Failed to create video testimonial' });
-    }
-  });
-
-  app.put('/api/admin/video-testimonials/:id', upload.fields([
-    { name: 'video', maxCount: 1 },
-    { name: 'thumbnail', maxCount: 1 }
-  ]), async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-      let updateData: any = {
-        customerName: req.body.customerName,
-        customerImage: '', // Empty string for backward compatibility
-        productId: parseInt(req.body.productId),
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-        updatedAt: new Date(),
-      };
-
-      // Handle video upload
-      if (files?.video?.[0]) {
-        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
-      } else if (req.body.videoUrl) {
-        updateData.videoUrl = req.body.videoUrl;
-      }
-
-      // Handle thumbnail upload
-      if (files?.thumbnail?.[0]) {
-        updateData.thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
-      } else if (req.body.thumbnailUrl) {
-        updateData.thumbnailUrl = req.body.thumbnailUrl;
-      }
-
-      const [testimonial] = await db
-        .update(schema.videoTestimonials)
-        .set(updateData)
-        .where(eq(schema.videoTestimonials.id, id))
-        .returning();
-
-      if (!testimonial) {
-        return res.status(404).json({ error: 'Video testimonial not found' });
-      }
-
-      res.json(testimonial);
-    } catch (error) {
-      console.error('Error updating video testimonial:', error);
-      res.status(500).json({ error: 'Failed to update video testimonial' });
-    }
-  });
-
-  app.delete('/api/admin/video-testimonials/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-
-      const [deletedTestimonial] = await db
-        .delete(schema.videoTestimonials)
-        .where(eq(schema.videoTestimonials.id, id))
-        .returning();
-
-      if (!deletedTestimonial) {
-        return res.status(404).json({ error: 'Video testimonial not found' });
-      }
-
-      res.json({ message: 'Video testimonial deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting video testimonial:', error);
-      res.status(500).json({ error: 'Failed to delete video testimonial' });
-    }
-  });
-
-  // Offers Management Routes
-
-  // Public endpoint for active offers
-  app.get('/api/offers', async (req, res) => {
-    try {
-      const offers = await db
-        .select()
-        .from(schema.offers)
-        .where(eq(schema.offers.isActive, true))
-        .orderBy(asc(schema.offers.sortOrder));
-
-      res.json(offers);
-    } catch (error) {
-      console.error('Error fetching offers:', error);
-      // Return empty array instead of error to prevent UI breaking
-      res.json([]);
-    }
-  });
-
-  // Public endpoint for single offer by ID
-  app.get('/api/offers/:id', async (req, res) => {
-    try {
-      const offerId = parseInt(req.params.id);
-
-      const offer = await db
-        .select()
-        .from(schema.offers)
-        .where(and(
-          eq(schema.offers.id, offerId),
-          eq(schema.offers.isActive, true) // Only return active offers publicly
-        ))
-        .limit(1);
-
-      if (!offer || offer.length === 0) {
-        return res.status(404).json({ error: 'Offer not found' });
-      }
-
-      res.json(offer[0]);
-    } catch (error) {
-      console.error('Error fetching offer:', error);
-      res.status(500).json({ error: 'Failed to fetch offer' });
-    }
-  });
-
-  // Announcements Management Routes
-
-  // Public endpoint for active announcements
-  app.get('/api/announcements', async (req, res) => {
-    try {
-      const announcements = await storage.getActiveAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error('Error fetching announcements:', error);
-      res.status(500).json({ error: 'Failed to fetch announcements' });
-        }
-  });
-
-  // Admin endpoints for offers management
-  app.get('/api/admin/offers', adminMiddleware, async (req, res) => {
-    try {
-      console.log('📊 GET /api/admin/offers - Admin user authenticated');
-
-      const offers = await db
-        .select()
-        .from(schema.offers)
-        .orderBy(desc(schema.offers.createdAt));
-
-      console.log(`✅ Fetched ${offers.length} offers successfully`);
-      res.json(offers);
-    } catch (error) {
-      console.error('❌ Error fetching admin offers:', error);
-      res.status(500).json({ error: 'Failed to fetch offers' });
-    }
-  });
-
-  app.post('/api/admin/offers', adminMiddleware, upload.single('image'), async (req, res) => {
-    try {
-      let imageUrl = req.body.imageUrl;
-
-      if (req.file) {
-        imageUrl = `/api/images/${req.file.filename}`;
-      }
-
-      // Parse productIds and ensure it's an array of integers
-      let productIds = [];
-      if (req.body.productIds) {
-        try {
-          const parsed = typeof req.body.productIds === 'string' 
-            ? JSON.parse(req.body.productIds) 
-            : req.body.productIds;
-          productIds = Array.isArray(parsed) ? parsed.map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-        } catch (e) {
-          console.error('Error parsing productIds:', e);
-          productIds = [];
-        }
-      }
-
-      const offerData = {
-        title: req.body.title,
-        description: req.body.description,
-        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800&h=500&fit=crop',
-        productIds: productIds.length > 0 ? productIds : null,
-        discountPercentage: req.body.discountPercentage ? parseFloat(req.body.discountPercentage) : null,
-        discountText: req.body.discountText || null,
-        validFrom: new Date(req.body.validFrom),
-        validUntil: new Date(req.body.validUntil),
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-        linkUrl: req.body.linkUrl || null,
-        buttonText: req.body.buttonText || 'Shop Now'
-      };
-
-      console.log('Creating offer with data:', offerData);
-
-      const [offer] = await db.insert(schema.offers).values(offerData).returning();
-
-      console.log('Offer created successfully:', offer);
-      res.json(offer);
-    } catch (error) {
-      console.error('Error creating offer:', error);
-      console.error('Error details:', error.message);
-      res.status(500).json({ 
-        error: 'Failed to create offer',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  });
-
-  app.put('/api/admin/offers/:id', adminMiddleware, upload.single('image'), async (req, res) => {
-    try {
-      const offerId = parseInt(req.params.id);
-      let updateData: any = {
-        title: req.body.title,
-        description: req.body.description,
-        discountType: req.body.discountType || 'none',
-        discountValue: req.body.discountValue ? parseFloat(req.body.discountValue) : null,
-        discountText: req.body.discountText || null,
-        validFrom: new Date(req.body.validFrom),
-        validUntil: new Date(req.body.validUntil),
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-        linkUrl: req.body.linkUrl || null,
-        buttonText: req.body.buttonText || 'Shop Now',
-        updatedAt: new Date()
-      };
-
-      // Parse productIds and ensure it's an array of integers
-      let productIds = [];
-      if (req.body.productIds) {
-        try {
-          const parsed = typeof req.body.productIds === 'string' 
-            ? JSON.parse(req.body.productIds) 
-            : req.body.productIds;
-          productIds = Array.isArray(parsed) ? parsed.map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
-        } catch (e) {
-          console.error('Error parsing productIds:', e);
-          productIds = [];
-        }
-      }
-      updateData.productIds = productIds.length > 0 ? productIds : null;
-
-
-      if (req.file) {
-        updateData.imageUrl = `/api/images/${req.file.filename}`;
-      } else if (req.body.imageUrl) {
-        updateData.imageUrl = req.body.imageUrl;
-      }
-
-      console.log('Updating offer with data:', updateData);
-
-      const [offer] = await db
-        .update(schema.offers)
-        .set(updateData)
-        .where(eq(schema.offers.id, offerId))
-        .returning();
-
-      if (!offer) {
-        return res.status(404).json({ error: 'Offer not found' });
-      }
-
-      console.log('Offer updated successfully:', offer);
-      res.json(offer);
-    } catch (error) {
-      console.error('Error updating offer:', error);
-      console.error('Error details:', error.message);
-      res.status(500).json({ 
-        error: 'Failed to update offer',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  });
-
-  app.delete('/api/admin/offers/:id', adminMiddleware, async (req, res) => {
-    try {
-      const offerId = parseInt(req.params.id);
-
-      const [deletedOffer] = await db
-        .delete(schema.offers)
-        .where(eq(schema.offers.id, offerId))
-        .returning();
-
-      if (!deletedOffer) {
-        return res.status(404).json({ error: 'Offer not found' });
-      }
-
-      res.json({ message: 'Offer deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting offer:', error);
-      res.status(500).json({ error: 'Failed to delete offer' });
-    }
-  });
-
-  // Admin endpoints for announcements
-  app.get('/api/admin/announcements', async (req, res) => {
-    try {
-      const announcements = await storage.getAnnouncements();
-      res.json(announcements);
-    } catch (error) {
-      console.error('Error fetching announcements:', error);
-      res.status(500).json({ error: 'Failed to fetch announcements' });
-        }
-  });
-
-  app.get('/api/admin/announcements/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const announcement = await storage.getAnnouncement(id);
-      if (!announcement) {
-        return res.status(404).json({ error: 'Announcement not found' });
-      }
-      res.json(announcement);
-    } catch (error) {
-      console.error('Error fetching announcement:', error);
-      res.status(500).json({ error: 'Failed to fetch announcement' });
-    }
-  });
-
-  app.post('/api/admin/announcements', async (req, res) => {
-    try {
-      const announcement = await storage.createAnnouncement(req.body);
-      res.json(announcement);
-    } catch (error) {
-      console.error('Error creating announcement:', error);
-      res.status(500).json({ error: 'Failed to create announcement' });
-    }
-  });
-
-  app.put('/api/admin/announcements/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { text, isActive, sortOrder } = req.body;
-
-      console.log('Updating announcement ID:', id);
-      console.log('Request body:', req.body);
-
-      // Validate required fields
-      if (!text || text.trim().length === 0) {
-        return res.status(400).json({ error: 'Announcement text is required' });
-      }
-
-      const updateData = {
-        text: text.trim(),
-        isActive: isActive === true || isActive === 'true' || isActive === true,
-        sortOrder: sortOrder !== undefined ? parseInt(sortOrder) : 0,
-        updatedAt: new Date()
-      };
-
-      console.log('Update data prepared:', updateData);
-
-      const [updatedAnnouncement] = await db
-        .update(schema.announcements)
-        .set(updateData)
-        .where(eq(schema.announcements.id, id))
-        .returning();
-
-      if (!updatedAnnouncement) {
-        return res.status(404).json({ error: 'Announcement not found' });
-      }
-
-      console.log('Announcement updated successfully:', updatedAnnouncement);
-      res.json(updatedAnnouncement);
-    } catch (error) {
-      console.error('Error updating announcement:', error);
-      console.error('Error details:', error.message, error.stack);
-      res.status(500).json({ 
-        error: 'Failed to update announcement',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  });
-
-  app.delete('/api/admin/announcements/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const deleted = await storage.deleteAnnouncement(id);
-      if (!deleted) {
-        return res.status(404).json({ error: 'Announcement not found' });
-      }
-      res.json({ message: 'Announcement deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting announcement:', error);
-      res.status(500).json({ error: 'Failed to delete announcement' });
-    }
-  });
-
-  // Combos Management Routes
-
-  // Public endpoint for active combos
-  app.get('/api/combos', async (req, res) => {
-    try {
-      console.log('Fetching combos from database...');
-
-      const activeCombos = await db
-        .select()
-        .from(schema.combos)
-        .where(eq(schema.combos.isActive, true))
-        .orderBy(asc(schema.combos.sortOrder));
-
-      console.log('Active combos found:', activeCombos.length);
-
-      if (!activeCombos || activeCombos.length === 0) {
-        console.log('No active combos found, returning empty array');
-        return res.json([]);
-      }
-
-      // Get images for each combo
-      const combosWithImages = await Promise.all(
-        activeCombos.map(async (combo) => {
-          try {
-            const images = await db
-              .select()
-              .from(schema.comboImages)
-              .where(eq(schema.comboImages.comboId, combo.id))
-              .orderBy(asc(schema.comboImages.sortOrder));
-
-            return {
-              ...combo,
-              imageUrls: images.map(img => img.imageUrl)
-            };
-          } catch (imgError) {
-            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
-            return {
-              ...combo,
-              imageUrls: []
-            };
-          }
-        })
-      );
-
-      console.log('Returning combos with images:', combosWithImages.length);
-      res.json(combosWithImages);
-    } catch (error) {
-      console.error('Error fetching combos:', error);
-      console.error('Error details:', error.message);
-      res.status(500).json({ error: 'Failed to fetch combos', details: error.message });
-    }
-  });
-
-  // Debug endpoint to check combos table
-  app.get('/api/combos/debug', async (req, res) => {
-    try {
-      const allCombos = await db.select().from(schema.combos);
-      const activeCombos = await db.select().from(schema.combos).where(eq(schema.combos.isActive, true));
-
-      res.json({
-        totalCombos: allCombos.length,
-        activeCombos: activeCombos.length,
-        allCombosData: allCombos,
-        activeCombosData: activeCombos
-      });
-    } catch (error) {
-      console.error('Debug combos error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Admin endpoints for combos management
-  app.get('/api/admin/combos', async (req, res) => {
-    try {
-      const allCombos = await db
-        .select()
-        .from(schema.combos)
-        .orderBy(desc(schema.combos.createdAt));
-
-      // Get images for each combo
-      const combosWithImages = await Promise.all(
-        allCombos.map(async (combo) => {
-          try {
-            const images = await db
-              .select()
-              .from(schema.comboImages)
-              .where(eq(schema.comboImages.comboId, combo.id))
-              .orderBy(asc(schema.comboImages.sortOrder));
-
-            return {
-              ...combo,
-              imageUrls: images.map(img => img.imageUrl)
-            };
-          } catch (imgError) {
-            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
-            return {
-              ...combo,
-              imageUrls: []
-            };
-          }
-        })
-      );
-
-      res.json(combosWithImages);
-    } catch (error) {
-      console.error('Error fetching combos:', error);
-      res.status(500).json({ error: 'Failed to fetch combos' });
-    }
-  });
-
-  app.post('/api/admin/combos', upload.fields([{ name: 'images', maxCount: 10 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
-    try {
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-      const name = (req.body.name || '').substring(0, 200);
-      const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 200);
-
-      // Get products array - ensure it's properly parsed and limited
-      let products = req.body.products || [];
-      if (typeof products === 'string') {
-        try {
-          products = JSON.parse(products);
-        } catch (e) {
-          console.error('Error parsing products:', e);
-          products = [];
-        }
-      }
-
-      // Ensure products is an array and limit to 20 items
-      if (!Array.isArray(products)) {
-        products = [];
-      }
-      products = products.slice(0, 20);
-
-      // Get productShades from request body
-      let productShades = req.body.productShades || {};
-      if (typeof productShades === 'string') {
-        try {
-          productShades = JSON.parse(productShades);
-        } catch (e) {
-          console.error('Error parsing productShades:', e);
-          productShades = {};
-        }
-      }
-
-      // Collect all image URLs into an array
-      let imageUrls: string[] = [];
-
-      if (files?.images && files.images.length > 0) {
-        imageUrls = files.images.map(file => `/api/images/${file.filename}`);
-      } else if (req.body.imageUrl) {
-        // If imageUrl is provided in body, ensure it's an array
-        imageUrls = Array.isArray(req.body.imageUrl) ? req.body.imageUrl : [req.body.imageUrl];
-      } else {
-        // Default fallback image
-        imageUrls = ['https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop'];
-      }
-
-      // Handle video upload
-      let videoUrl = null;
-      if (files?.video?.[0]) {
-        videoUrl = `/api/images/${files.video[0].filename}`;
-      } else if (req.body.videoUrl) {
-        videoUrl = req.body.videoUrl;
-      }
-
-      const comboData = {
-        name: name,
-        slug,
-        description: (req.body.description || '').substring(0, 500),
-        detailedDescription: req.body.detailedDescription || null,
-        productsIncluded: req.body.productsIncluded || null,
-        benefits: req.body.benefits || null,
-        howToUse: req.body.howToUse || null,
-        price: parseFloat(req.body.price) || 0,
-        originalPrice: parseFloat(req.body.originalPrice) || 0,
-        discount: (req.body.discount || '').substring(0, 50),
-        cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
-        cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
-        imageUrl: imageUrls,
-        videoUrl: videoUrl,
-        products: JSON.stringify(products),
-        productShades: JSON.stringify(productShades || {}),
-        rating: parseFloat(req.body.rating) || 5.0,
-        reviewCount: parseInt(req.body.reviewCount) || 0,
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-      };
-
-      console.log("Final combo data to insert:", comboData);
-
-      // Insert combo into database
-      const [combo] = await db
-        .insert(schema.combos)
-        .values(comboData)
-        .returning();
-
-      console.log("Combo created successfully:", combo);
-      res.json(combo);
-    } catch (error) {
-      console.error("Error creating combo:", error);
-      console.error('Error details:', error.message);
-      res.status(500).json({
-        error: "Failed to create combo",
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  });
-
-  app.put('/api/admin/combos/:id', upload.fields([{ name: 'images', maxCount: 10 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-      // Get products array - ensure it's properly parsed and limited
-      let products = req.body.products || [];
-      if (typeof products === 'string') {
-        try {
-          products = JSON.parse(products);
-        } catch (e) {
-          console.error('Error parsing products:', e);
-          products = [];
-        }
-      }
-
-      // Ensure products is an array and limit to 20 items
-      if (!Array.isArray(products)) {
-        products = [];
-      }
-      products = products.slice(0, 20);
-
-      let updateData: any = {
-        name: (req.body.name || '').substring(0, 200),
-        description: (req.body.description || '').substring(0, 500),
-        detailedDescription: req.body.detailedDescription || null,
-        productsIncluded: req.body.productsIncluded || null,
-        benefits: req.body.benefits || null,
-        howToUse: req.body.howToUse || null,
-        price: parseFloat(req.body.price) || 0,
-        originalPrice: parseFloat(req.body.originalPrice) || 0,
-        discount: (req.body.discount || '').substring(0, 50),
-        cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
-        cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
-        products: JSON.stringify(products),
-        rating: parseFloat(req.body.rating) || 5.0,
-        reviewCount: parseInt(req.body.reviewCount) || 0,
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-        updatedAt: new Date()
-      };
-
-      // Handle image updates
-      if (files?.images && files.images.length > 0) {
-        const imageUrls = files.images.map(file => `/api/images/${file.filename}`);
-        updateData.imageUrl = imageUrls;
-
-        // Delete existing images from combo_images table
-        await db.delete(schema.comboImages).where(eq(schema.comboImages.comboId, id));
-
-        // Insert new combo images into combo_images table
-        await Promise.all(
-          files.images.map(async (file, index) => {
-            await db.insert(schema.comboImages).values({
-              comboId: id,
-              imageUrl: `/api/images/${file.filename}`,
-              altText: `${updateData.name} - Image ${index + 1}`,
-              isPrimary: index === 0,
-              sortOrder: index
-            });
-          })
-        );
-      } else if (req.body.imageUrl) {
-        updateData.imageUrl = Array.isArray(req.body.imageUrl) ? req.body.imageUrl : [req.body.imageUrl];
-      }
-
-      // Handle video upload
-      if (files?.video?.[0]) {
-        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
-      } else if (req.body.videoUrl) {
-        updateData.videoUrl = req.body.videoUrl;
-      }
-
-      const [combo] = await db
-        .update(schema.combos)
-        .set(updateData)
-        .where(eq(schema.combos.id, id))
-        .returning();
-
-      if (!combo) {
-        return res.status(404).json({ error: 'Combo not found' });
-      }
-
-      res.json(combo);
-    } catch (error) {
-      console.error('Error updating combo:', error);
-      console.error('Error details:', error.message);
-      res.status(500).json({
-        error: 'Failed to update combo',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  });
-
-  app.delete('/api/admin/combos/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-
-      const [deletedCombo] = await db
-        .delete(schema.combos)
-        .where(eq(schema.combos.id, id))
-        .returning();
-
-      if (!deletedCombo) {
-        return res.status(404).json({ error: 'Combo not found' });
-      }
-
-      res.json({ message: 'Combo deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting combo:', error);
-      res.status(500).json({ error: 'Failed to delete combo' });
-    }
-  });
-
-  // Job application submission endpoint
-  app.post('/api/job-applications', upload.single('resume'), async (req, res) => {
-    try {
-      const { fullName, email, phone, position, location, isFresher, experienceYears, experienceMonths, coverLetter } = req.body;
-
-      // Validation
-      if (!fullName || !email || !phone || !position || !location || !coverLetter) {
-        return res.status(400).json({ error: 'All required fields must be provided' });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({ error: 'Resume file is required' });
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: 'Please provide a valid email address' });
-      }
-
-      const resumeUrl = `/api/images/${req.file.filename}`;
-
-      // Save application to database
-      const [savedApplication] = await db.insert(schema.jobApplications).values({
-        fullName,
-        email,
-        phone,
-        position,
-        location,
-        isFresher: isFresher === 'true',
-        experienceYears: experienceYears || null,
-        experienceMonths: experienceMonths || null,
-        coverLetter,
-        resumeUrl,
-        status: 'pending'
-      }).returning();
-
-      // HR Manager's email
-      const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
-
-      // Prepare email content
-      const experienceInfo = isFresher === 'true' 
-        ? 'Fresher' 
-        : `${experienceYears || 0} years ${experienceMonths || 0} months`;
-
-      const emailSubject = `New Job Application - ${position}`;
-      const emailBody = `
-Dear HR Manager,
-
-A new job application has been received.
-
-APPLICATION DETAILS:
-------------------
-Full Name: ${fullName}
-Email: ${email}
-Phone: ${phone}
-Position: ${position}
-Location: ${location}
-Experience: ${experienceInfo}
-
-COVER LETTER:
--------------
-${coverLetter}
-
-Please find the resume attached to this email.
-
-Best regards,
-Poppik Career Portal
-      `;
-
-      const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #e74c3c;">New Job Application</h2>
-
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="color: #333;">Application Details</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Full Name:</td>
-                <td style="padding: 8px;">${fullName}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Email:</td>
-                <td style="padding: 8px;">${email}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Phone:</td>
-                <td style="padding: 8px;">${phone}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Position:</td>
-                <td style="padding: 8px;">${position}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Location:</td>
-                <td style="padding: 8px;">${location}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Experience:</td>
-                <td style="padding: 8px;">${experienceInfo}</td>
-              </tr>
-            </table>
-          </div>
-
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="color: #333;">Cover Letter</h3>
-            <p style="white-space: pre-wrap;">${coverLetter}</p>
-          </div>
-
-          <p style="color: #666; font-size: 12px; margin-top: 30px;">
-            Resume is attached to this email.
-          </p>
-        </div>
-      `;
-
-      console.log('Sending job application email to HR:', {
-        to: HR_EMAIL,
-        from: email,
-        position: position,
-        applicant: fullName
-      });
-
-      try {
-        // Send email to HR manager using the existing transporter
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'careers@poppik.in',
-          to: HR_EMAIL,
-          subject: emailSubject,
-          text: emailBody,
-          html: emailHtml
-        });
-
-        console.log('✅ Job application email sent successfully to:', HR_EMAIL);
-
-        res.json({
-          success: true,
-          message: 'Application submitted successfully! Our HR team will review your application and get back to you soon.',
-          applicationId: savedApplication.id
-        });
-
-      } catch (emailError) {
-        console.error('❌ Failed to send job application email:', emailError);
-
-        // Still return success to the user, but log the email failure
-        res.json({
-          success: true,
-          message: 'Application submitted successfully! Our HR team will review your application and get back to you soon.',
-          applicationId: savedApplication.id,
-          emailSent: false
-        });
-      }
-
-    } catch (error) {
-      console.error('Job application submission error:', error);
-      res.status(500).json({ 
-        error: 'Failed to submit application',
-        details: error.message 
-      });
-    }
-  });
-
-  // Admin job applications endpoints
-  app.get('/api/admin/job-applications', adminMiddleware, async (req, res) => {
-    try {
-      const applications = await db
-        .select()
-        .from(schema.jobApplications)
-        .orderBy(desc(schema.jobApplications.appliedAt));
-
-      res.json(applications);
-    } catch (error) {
-      console.error('Error fetching job applications:', error);
-      res.status(500).json({ error: 'Failed to fetch job applications' });
-    }
-  });
-
-  app.get('/api/admin/job-applications/:id', adminMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const application = await db
-        .select()
-        .from(schema.jobApplications)
-        .where(eq(schema.jobApplications.id, id))
-        .limit(1);
-
-      if (!application || application.length === 0) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json(application[0]);
-    } catch (error) {
-      console.error('Error fetching job application:', error);
-      res.status(500).json({ error: 'Failed to fetch job application' });
-    }
-  });
-
-  app.put('/api/admin/job-applications/:id/status', adminMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { status } = req.body;
-
-      if (!['pending', 'reviewing', 'shortlisted', 'accepted', 'rejected'].includes(status)) {
-        return res.status(400).json({ error: 'Invalid status' });
-      }
-
-      const [updatedApplication] = await db
-        .update(schema.jobApplications)
-        .set({
-          status,
-          reviewedAt: new Date()
-        })
-        .where(eq(schema.jobApplications.id, id))
-        .returning();
-
-      if (!updatedApplication) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json({ 
-        success: true, 
-        message: `Application status updated to ${status}`,
-        application: updatedApplication 
-      });
-    } catch (error) {
-      console.error('Error updating application status:', error);
-      res.status(500).json({ error: 'Failed to update application status' });
-    }
-  });
-
-  app.delete('/api/admin/job-applications/:id', adminMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-
-      const [deleted] = await db
-        .delete(schema.jobApplications)
-        .where(eq(schema.jobApplications.id, id))
-        .returning();
-
-      if (!deleted) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json({ success: true, message: 'Application deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting job application:', error);
-      res.status(500).json({ error: 'Failed to delete job application' });
-    }
-  });
-
-  // User Wallet endpoint - get wallet balance
-  app.get('/api/wallet', async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      // Get or create wallet
-      let wallet = await db
-        .select()
-        .from(schema.userWallet)
-        .where(eq(schema.userWallet.userId, parseInt(userId as string)))
-        .limit(1);
-
-      if (!wallet || wallet.length === 0) {
-        // Create new wallet if it doesn't exist
-        const [newWallet] = await db.insert(schema.userWallet).values({
-          userId: parseInt(userId as string),
-          cashbackBalance: "0.00",
-          totalEarned: "0.00",
-          totalRedeemed: "0.00"
-        }).returning();
-
-        wallet = [newWallet];
-      }
-
-      res.json({
-        userId: parseInt(userId as string),
-        cashbackBalance: parseFloat(wallet[0].cashbackBalance),
-        totalEarned: parseFloat(wallet[0].totalEarned),
-        totalRedeemed: parseFloat(wallet[0].totalRedeemed),
-        createdAt: wallet[0].createdAt,
-        updatedAt: wallet[0].updatedAt
-      });
-    } catch (error) {
-      console.error('Error fetching wallet:', error);
-      res.status(500).json({ error: 'Failed to fetch wallet' });
-    }
-  });
-
-  // Get wallet transactions
-  app.get('/api/wallet/transactions', async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      const transactions = await db
-        .select()
-        .from(schema.userWalletTransactions)
-        .where(eq(schema.userWalletTransactions.userId, parseInt(userId as string)))
-        .orderBy(desc(schema.userWalletTransactions.createdAt));
-
-      res.json(transactions);
-    } catch (error) {
-      console.error('Error fetching wallet transactions:', error);
-      res.status(500).json({ error: 'Failed to fetch transactions' });
-    }
-  });
-
-  // Credit cashback to wallet (when order is delivered)
-  app.post('/api/wallet/credit', async (req, res) => {
-    try {
-      const { userId, amount, orderId, description } = req.body;
-
-      if (!userId || !amount) {
-        return res.status(400).json({ error: 'User ID and amount required' });
-      }
-
-      // Get current wallet
-      let wallet = await db
-        .select()
-        .from(schema.userWallet)
-        .where(eq(schema.userWallet.userId, parseInt(userId)))
-        .limit(1);
-
-      if (!wallet || wallet.length === 0) {
-        // Create wallet if doesn't exist
-        const [newWallet] = await db.insert(schema.userWallet).values({
-          userId: parseInt(userId),
-          cashbackBalance: "0.00",
-          totalEarned: "0.00",
-          totalRedeemed: "0.00"
-        }).returning();
-        wallet = [newWallet];
-      }
-
-      const currentBalance = parseFloat(wallet[0].cashbackBalance);
-      const creditAmount = parseFloat(amount);
-      const newBalance = currentBalance + creditAmount;
-
-      // Update wallet
-      await db
-        .update(schema.userWallet)
-        .set({
-          cashbackBalance: newBalance.toFixed(2),
-          totalEarned: (parseFloat(wallet[0].totalEarned) + creditAmount).toFixed(2),
-          updatedAt: new Date()
-        })
-        .where(eq(schema.userWallet.userId, parseInt(userId)));
-
-      // Create transaction record
-      await db.insert(schema.userWalletTransactions).values({
-        userId: parseInt(userId),
-        type: 'credit',
-        amount: creditAmount.toFixed(2),
-        description: description || 'Cashback credited',
-        orderId: orderId ? parseInt(orderId) : null,
-        balanceBefore: currentBalance.toFixed(2),
-        balanceAfter: newBalance.toFixed(2),
-        status: 'completed'
-      });
-
-      res.json({
-        success: true,
-        message: 'Cashback credited successfully',
-        newBalance: newBalance.toFixed(2)
-      });
-    } catch (error) {
-      console.error('Error crediting wallet:', error);
-      res.status(500).json({ error: 'Failed to credit cashback' });
-    }
-  });
-
-  // Redeem cashback
-  app.post('/api/wallet/redeem', async (req, res) => {
-    try {
-      const { userId, amount, description } = req.body;
-
-      if (!userId || !amount) {
-        return res.status(400).json({ error: 'User ID and amount required' });
-      }
-
-      // Get current wallet
-      const wallet = await db
-        .select()
-        .from(schema.userWallet)
-        .where(eq(schema.userWallet.userId, parseInt(userId)))
-        .limit(1);
-
-      if (!wallet || wallet.length === 0) {
-        return res.status(404).json({ error: 'Wallet not found' });
-      }
-
-      const currentBalance = parseFloat(wallet[0].cashbackBalance);
-      const redeemAmount = parseFloat(amount);
-
-      if (currentBalance < redeemAmount) {
-        return res.status(400).json({ error: 'Insufficient cashback balance' });
-      }
-
-      const newBalance = currentBalance - redeemAmount;
-
-      // Update wallet
-      await db
-        .update(schema.userWallet)
-        .set({
-          cashbackBalance: newBalance.toFixed(2),
-          totalRedeemed: (parseFloat(wallet[0].totalRedeemed) + redeemAmount).toFixed(2),
-          updatedAt: new Date()
-        })
-        .where(eq(schema.userWallet.userId, parseInt(userId)));
-
-      // Create transaction record
-      await db.insert(schema.userWalletTransactions).values({
-        userId: parseInt(userId),
-        type: 'redeem',
-        amount: redeemAmount.toFixed(2),
-        description: description || 'Cashback redeemed',
-        orderId: null,
-        balanceBefore: currentBalance.toFixed(2),
-        balanceAfter: newBalance.toFixed(2),
-        status: 'completed'
-      });
-
-      res.json({
-        success: true,
-        message: 'Cashback redeemed successfully',
-        newBalance: newBalance.toFixed(2)
-      });
-    } catch (error) {
-      console.error('Error redeeming cashback:', error);
-      res.status(500).json({ error: 'Failed to redeem cashback' });
-    }
-  });
-
-  // Affiliate Applications Routes
-
-  // Submit affiliate application (public) - alternative endpoint
-  app.post('/api/affiliate/apply', async (req, res) => {
-    try {
-      const { 
-        userId,
-        firstName, 
-        lastName, 
-        email, 
-        phone,
-        address,
-        city,
-        state,
-        pincode,
-        landmark,
-        country,
-        bankName,
-        branchName,
-        ifscCode,
-        accountNumber
-      } = req.body;
-
-      // Validate required fields
-      if (!userId || !firstName || !lastName || !email || !phone || !address || !country) {
-        return res.status(400).json({ error: 'All required fields must be provided' });
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: 'Please provide a valid email address' });
-      }
-
-      // Check if user already has an application
-      const existingApplicationByUser = await db
-        .select()
-        .from(schema.affiliateApplications)
-        .where(
-          or(
-            eq(schema.affiliateApplications.userId, parseInt(userId)),
-            eq(schema.affiliateApplications.email, email.toLowerCase())
-          )
-        )
-        .limit(1);
-
-      if (existingApplicationByUser && existingApplicationByUser.length > 0) {
-        const application = existingApplicationByUser[0];
-        const status = application.status || 'pending';
-
-        return res.status(400).json({ 
-          error: `You have already submitted an affiliate application. Status: ${status}`,
-          application: {
-            ...application,
-            status: status
-          }
-        });
-      }
-
-      // Save to database
-      const savedApplication = await db.insert(schema.affiliateApplications).values({
-        userId: parseInt(userId),
-        firstName,
-        lastName,
-        email,
-        phone,
-        address,
-        city: city || null,
-        state: state || null,
-        pincode: pincode || null,
-        landmark: landmark || null,
-        country,
-        bankName: bankName || null,
-        branchName: branchName || null,
-        ifscCode: ifscCode || null,
-        accountNumber: accountNumber || null,
-        status: 'pending'
-      }).returning();
-
-      console.log('Affiliate application saved:', savedApplication[0].id);
-
-      res.json({
-        success: true,
-        message: 'Application submitted successfully! Our team will review your application and get back to you within 5-7 business days.',
-        applicationId: savedApplication[0].id
-      });
-
-    } catch (error) {
-      console.error('Error submitting affiliate application:', error);
-      res.status(500).json({ 
-        error: 'Failed to submit application',
-        details: error.message 
-      });
-    }
-  });
-
-  // Submit affiliate application (public)
-  app.post('/api/affiliate-applications', async (req, res) => {
-    try {
-      const { 
-        userId,
-        firstName, 
-        lastName, 
-        email, 
-        phone,
-        address,
-        city,
-        state,
-        pincode,
-        landmark,
-        country,
-        bankName,
-        branchName,
-        ifscCode,
-        accountNumber
-      } = req.body;
-
-      // Validate required fields
-      if (!userId || !firstName || !lastName || !email || !phone || !address || !country) {
-        return res.status(400).json({ error: 'All required fields must be provided' });
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: 'Please provide a valid email address' });
-      }
-
-      // Check if user already has an application (by userId or email)
-      const existingApplicationByUser = await db
-        .select()
-        .from(schema.affiliateApplications)
-        .where(
-          or(
-            eq(schema.affiliateApplications.userId, parseInt(userId)),
-            eq(schema.affiliateApplications.email, email.toLowerCase())
-          )
-        )
-        .limit(1);
-
-      if (existingApplicationByUser && existingApplicationByUser.length > 0) {
-        const application = existingApplicationByUser[0];
-        const status = application.status || 'pending';
-
-        return res.status(400).json({ 
-          error: `You have already submitted an affiliate application. Status: ${status}`,
-          application: {
-            ...application,
-            status: status
-          }
-        });
-      }
-
-      // Save to database
-      const savedApplication = await db.insert(schema.affiliateApplications).values({
-        userId: parseInt(userId),
-        firstName,
-        lastName,
-        email,
-        phone,
-        address,
-        city: city || null,
-        state: state || null,
-        pincode: pincode || null,
-        landmark: landmark || null,
-        country,
-        bankName: bankName || null,
-        branchName: branchName || null,
-        ifscCode: ifscCode || null,
-        accountNumber: accountNumber || null,
-        status: 'pending' // Default status
-      }).returning();
-
-      console.log('Affiliate application saved to DB:', savedApplication[0].id);
-
-      // TODO: Send email notification to applicant
-      // For now, just send email notification to admin
-      const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
-
-      const emailSubject = `New Affiliate Application - ${firstName} ${lastName}`;
-      const emailBody = `
-Dear Admin,
-
-A new affiliate application has been received.
-
-APPLICANT DETAILS:
-------------------
-Application ID: #${savedApplication.id}
-Name: ${firstName} ${lastName}
-Email: ${email}
-Phone: ${phone}
-Address: ${address}, ${city}, ${state} - ${pincode}
-
-BANKING DETAILS:
-----------------
-Bank Name: ${bankName || 'Not provided'}
-Branch Name: ${branchName || 'Not provided'}
-IFSC Code: ${ifscCode || 'Not provided'}
-Account Number: ${accountNumber ? '****' + accountNumber.slice(-4) : 'Not provided'}
-
-Please review this application in the admin panel at:
-${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/admin/affiliate-applications` : 'Admin Panel'}
-
-Best regards,
-Poppik Affiliate Portal
-      `;
-
-      const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #e74c3c;">New Affiliate Application #${savedApplication.id}</h2>
-
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="color: #333;">Application Details</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Application ID:</td>
-                <td style="padding: 8px;">#${savedApplication.id}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Name:</td>
-                <td style="padding: 8px;">${firstName} ${lastName}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Email:</td>
-                <td style="padding: 8px;">${email}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Phone:</td>
-                <td style="padding: 8px;">${phone}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Address:</td>
-                <td style="padding: 8px;">${address}, ${city}, ${state} - ${pincode}</td>
-              </tr>
-            </table>
-          </div>
-
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="color: #333;">Banking Details</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Bank Name:</td>
-                <td style="padding: 8px;">${bankName || 'Not provided'}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Branch Name:</td>
-                <td style="padding: 8px;">${branchName || 'Not provided'}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">IFSC Code:</td>
-                <td style="padding: 8px;">${ifscCode || 'Not provided'}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px; font-weight: bold;">Account Number:</td>
-                <td style="padding: 8px;">${accountNumber ? '****' + accountNumber.slice(-4) : 'Not provided'}</td>
-              </tr>
-            </table>
-          </div>
-        </div>
-      `;
-
-      console.log('Sending affiliate application email to:', HR_EMAIL);
-
-      try {
-        // Send email notification
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'affiliates@poppik.in',
-          to: HR_EMAIL,
-          subject: emailSubject,
-          text: emailBody,
-          html: emailHtml
-        });
-
-        console.log('✅ Affiliate application email sent successfully');
-
-        res.json({
-          success: true,
-          message: 'Application submitted successfully! Our team will review your application and get back to you within 5-7 business days.',
-          applicationId: savedApplication.id
-        });
-
-      } catch (emailError) {
-        console.error('❌ Failed to send affiliate application email:', emailError);
-
-        // Still return success to user since application was saved to database
-        res.json({
-          success: true,
-          message: 'Application submitted successfully! Our team will review your application and get back to you within 5-7 business days.',
-          applicationId: savedApplication.id,
-          emailSent: false
-        });
-      }
-
-    } catch (error) {
-      console.error('Error submitting affiliate application:', error);
-      res.status(500).json({ 
-        error: 'Failed to submit application',
-        details: error.message 
-      });
-    }
-  });
-
-  // Get user's affiliate application
-  app.get('/api/affiliate/my-application', async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      console.log('Fetching affiliate application for userId:', userId);
-
-      // Find application by userId using proper eq operator
-      const application = await db
-        .select()
-        .from(schema.affiliateApplications)
-        .where(eq(schema.affiliateApplications.userId, parseInt(userId as string)))
-        .orderBy(desc(schema.affiliateApplications.createdAt))
-        .limit(1);
-
-      console.log('Application found:', application.length > 0 ? 'Yes' : 'No');
-
-      if (!application || application.length === 0) {
-        // Check localStorage fallback
-        return res.status(404).json({ error: 'No application found' });
-      }
-
-      // Ensure status field exists - default to 'pending' if not set
-      const appData = {
-        ...application[0],
-        status: application[0].status || 'pending'
-      };
-
-      console.log('Application data:', {
-        id: appData.id,
-        userId: appData.userId,
-        status: appData.status,
-        email: appData.email
-      });
-
-      res.json(appData);
-    } catch (error) {
-      console.error('Error fetching affiliate application:', error);
-      res.status(500).json({ error: 'Failed to fetch application' });
-    }
-  });
-
-  // Get affiliate stats with wallet details
-  app.get('/api/affiliate/stats', async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      // Generate affiliate code for tracking
-      const user = await db
-        .select()
-        .from(schema.users)
-        .where(eq(schema.users.id, parseInt(userId as string)))
-        .limit(1);
-
-      if (!user || user.length === 0) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      // Format user ID as 2-digit number (01, 02, 03, etc.)
-      const formattedUserId = userId.toString().padStart(2, '0');
-      const affiliateCode = `POPPIKAP${formattedUserId}`;
-
-      // Get wallet data
-      const wallet = await db
-        .select()
-        .from(schema.affiliateWallet)
-        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
-        .limit(1);
-
-      // Get sales data
-      const sales = await db
-        .select()
-        .from(schema.affiliateSales)
-        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)));
-
-      // Get clicks data
-      const clicks = await db
-        .select()
-        .from(schema.affiliateClicks)
-        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)));
-
-      const totalClicks = clicks.length;
-      const totalConversions = sales.length;
-      const totalEarnings = wallet && wallet[0] ? parseFloat(wallet[0].totalEarnings || '0') : 0;
-      const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
-      const avgCommission = totalConversions > 0 ? totalEarnings / totalConversions : 0;
-
-      res.json({
-        affiliateCode,
-        totalClicks,
-        totalConversions,
-        totalEarnings,
-        conversionRate,
-        avgCommission,
-        pendingAmount: wallet && wallet.length > 0 ? parseFloat(wallet[0].pendingBalance?.toString() || '0') : 0,
-      });
-    } catch (error) {
-      console.error('Error fetching affiliate stats:', error);
-      res.status(500).json({ error: 'Failed to fetch affiliate stats' });
-    }
-  });
-
-  // Get affiliate sales history
-  app.get('/api/affiliate/sales', async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      // Check if user is an approved affiliate
-      const application = await db
-        .select()
-        .from(schema.affiliateApplications)
-        .where(eq(schema.affiliateApplications.userId, parseInt(userId as string)))
-        .limit(1);
-
-      if (!application || application.length === 0 || application[0].status !== 'approved') {
-        return res.status(403).json({ error: 'Not an approved affiliate' });
-      }
-
-      // Fetch affiliate sales with detailed information
-      const sales = await db
-        .select({
-          id: schema.affiliateSales.id,
-          orderId: schema.affiliateSales.orderId,
-          productName: schema.affiliateSales.productName,
-          productId: schema.affiliateSales.productId,
-          comboId: schema.affiliateSales.comboId,
-          customerName: schema.affiliateSales.customerName,
-          customerEmail: schema.affiliateSales.customerEmail,
-          customerPhone: schema.affiliateSales.customerPhone,
-          saleAmount: schema.affiliateSales.saleAmount,
-          commissionRate: schema.affiliateSales.commissionRate,
-          commissionAmount: schema.affiliateSales.commissionAmount,
-          status: schema.affiliateSales.status,
-          createdAt: schema.affiliateSales.createdAt,
-          paidAt: schema.affiliateSales.paidAt,
-        })
-        .from(schema.affiliateSales)
-        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)))
-        .orderBy(desc(schema.affiliateSales.createdAt))
-        .limit(100);
-
-      res.json(sales);
-    } catch (error) {
-      console.error('Error fetching affiliate sales:', error);
-      res.status(500).json({ error: 'Failed to fetch affiliate sales' });
-    }
-  });
-
-  // Get affiliate clicks
-  app.get('/api/affiliate/clicks', async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      // Fetch total clicks and recent clicks
-      const clicks = await db
-        .select()
-        .from(schema.affiliateClicks)
-        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)))
-        .orderBy(desc(schema.affiliateClicks.createdAt))
-        .limit(50);
-
-      const totalClicks = clicks.length;
-
-      res.json({
-        total: totalClicks,
-        recent: clicks.slice(0, 10)
-      });
-    } catch (error) {
-      console.error('Error fetching affiliate clicks:', error);
-      res.status(500).json({ error: 'Failed to fetch affiliate clicks' });
-    }
-  });
-
-  // Get affiliate wallet stats for dashboard
-  app.get('/api/affiliate/wallet/stats', async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      // Get wallet
-      const wallet = await db
-        .select()
-        .from(schema.affiliateWallet)
-        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
-        .limit(1);
-
-      // Get this month's sales
-      const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      const thisMonthSales = await db
-        .select()
-        .from(schema.affiliateSales)
-        .where(and(
-          eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)),
-          sql`${schema.affiliateSales.createdAt} >= ${firstDayOfMonth}`
-        ));
-
-      const thisMonthEarnings = thisMonthSales.reduce((sum, sale) => 
-        sum + parseFloat(sale.commissionAmount || '0'), 0
-      );
-
-      // Get pending commission
-      const allSales = await db
-        .select()
-        .from(schema.affiliateSales)
-        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)));
-
-      const pendingCommission = allSales
-        .filter(s => s.status === 'confirmed')
-        .reduce((sum, sale) => sum + parseFloat(sale.commissionAmount || '0'), 0);
-
-      res.json({
-        totalEarnings: wallet && wallet.length > 0 ? wallet[0].totalEarnings : '0.00',
-        availableBalance: wallet && wallet.length > 0 ? wallet[0].commissionBalance : '0.00',
-        pendingCommission: pendingCommission.toFixed(2),
-        totalWithdrawn: wallet && wallet.length > 0 ? wallet[0].totalWithdrawn : '0.00',
-        thisMonthEarnings: thisMonthEarnings.toFixed(2)
-      });
-    } catch (error) {
-      console.error("Error fetching wallet stats:", error);
-      res.status(500).json({ error: "Failed to fetch wallet stats" });
-    }
-  });
-
-  // Admin endpoints for affiliate applications
-  app.get('/api/admin/affiliate-applications', async (req, res) => {
-    try {
-      const applications = await db
-        .select()
-        .from(schema.affiliateApplications)
-        .orderBy(desc(schema.affiliateApplications.createdAt));
-
-      res.json(applications);
-    } catch (error) {
-      console.error('Error fetching affiliate applications:', error);
-      res.status(500).json({ error: 'Failed to fetch applications' });
-    }
-  });
-
-  app.get('/api/admin/affiliate-applications/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const application = await db
-        .select()
-        .from(schema.affiliateApplications)
-        .where(eq(schema.affiliateApplications.id, id))
-        .limit(1);
-
-      if (!application || application.length === 0) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json(application[0]);
-    } catch (error) {
-      console.error('Error fetching affiliate application:', error);
-      res.status(500).json({ error: 'Failed to fetch application' });
-    }
-  });
-
-  app.put('/api/admin/affiliate-applications/:id/status', async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { status, notes } = req.body;
-
-      if (!['pending', 'approved', 'rejected'].includes(status)) {
-        return res.status(400).json({ error: 'Invalid status' });
-      }
-
-      const [updatedApplication] = await db
-        .update(schema.affiliateApplications)
-        .set({
-          status,
-          reviewNotes: notes,
-          reviewedAt: new Date()
-        })
-        .where(eq(schema.affiliateApplications.id, parseInt(id)))
-        .returning();
-
-      if (!updatedApplication) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      // If approved, create affiliate wallet
-      if (status === 'approved' && updatedApplication.userId) {
-        try {
-          const existingWallet = await db
-            .select()
-            .from(schema.affiliateWallet)
-            .where(eq(schema.affiliateWallet.userId, updatedApplication.userId))
-            .limit(1);
-
-          if (existingWallet.length === 0) {
-            await db.insert(schema.affiliateWallet).values({
-              userId: updatedApplication.userId,
-              cashbackBalance: "0.00",
-              commissionBalance: "0.00",
-              totalEarnings: "0.00",
-              totalWithdrawn: "0.00"
-            });
-            console.log(`✅ Affiliate wallet created for user ${updatedApplication.userId}`);
-          }
-        } catch (walletError) {
-          console.error('Error creating affiliate wallet:', walletError);
-        }
-      }
-
-      // Send email notification
-      try {
-        const formattedUserId = updatedApplication.userId.toString().padStart(2, '0');
-        const affiliateCode = `POPPIKAP${formattedUserId}`;
-        const dashboardUrl = process.env.REPL_SLUG 
-          ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate-dashboard`
-          : 'https://poppik.in/affiliate-dashboard';
-
-        const emailSubject = status === 'approved' 
-          ? 'Welcome to the Poppik Lifestyle Private Limited Affiliate Program'
-          : 'Update on Your Poppik Affiliate Application';
-
-        const emailHtml = status === 'approved'
-          ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-            <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 40px 20px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to the Poppik Lifestyle Private Limited Affiliate Program</h1>
-            </div>
-            <div style="padding: 40px 30px;">
-              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName}</strong>,</p>
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 20px 0;">
-                We are delighted to welcome you as an official affiliate partner of Poppik Lifestyle Private Limited.
-              </p>
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 30px 0;">
-                Your skills and dedication align perfectly with our vision, and we are excited to collaborate with you. As a valued member of our affiliate program, you now have access to your unique referral link, marketing materials, and performance dashboard to help you start promoting our brand effectively.
-              </p>
-              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
-                <p style="color: #ffffff; margin: 0 0 10px 0; font-size: 14px;">Your Unique Affiliate Code</p>
-                <p style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 2px;">${affiliateCode}</p>
-              </div>
-              <div style="text-align: center; margin: 30px 0;">
-                <p style="font-size: 16px; color: #555555; margin: 0 0 15px 0;">
-                  Please log in to your affiliate account here:
-                </p>
-                <a href="${dashboardUrl}" style="display: inline-block; background-color: #e74c3c; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">
-                  Access Dashboard
-                </a>
-              </div>
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 30px 0 20px 0;">
-                If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
-              </p>
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0;">
-                Thank you for joining us. We look forward to a successful and rewarding partnership.
-              </p>
-            </div>
-            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
-              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">
-                © 2024 Poppik Lifestyle Private Limited. All rights reserved.
-              </p>
-              <p style="color: #999999; font-size: 12px; margin: 0;">
-                Office No.- 213, A- Wing, Skylark Building, Plot No.- 63, Sector No.- 11, C.B.D. Belapur, Navi Mumbai- 400614 INDIA
-              </p>
-            </div>
-          </div>`
-          : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: #6c757d; padding: 40px 20px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Poppik Affiliate Application Update</h1>
-            </div>
-            <div style="background: white; padding: 40px 30px;">
-              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName} ${updatedApplication.lastName}</strong>,</p>
-              <p style="font-size: 16px; color: #555555; line-height: 1.6;">
-                Thank you for your interest in the Poppik Affiliate Program. After careful review, we are unable to approve your application at this time.
-              </p>
-              ${notes ? `<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
-                <p style="margin: 0; color: #856404;"><strong>Reason:</strong> ${notes}</p>
-              </div>` : ''}
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0 0 0;">
-                We encourage you to reapply in the future. Keep creating amazing content!
-              </p>
-              <p style="font-size: 14px; color: #999999; margin: 20px 0 0 0;">
-                Questions? Contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c;">info@poppik.in</a>
-              </p>
-            </div>
-            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
-              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">© 2024 Poppik Lifestyle Private Limited</p>
-            </div>
-          </div>`;
-
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'info@poppik.in',
-          to: updatedApplication.email,
-          subject: emailSubject,
-          html: emailHtml
-        });
-
-        console.log(`✅ Affiliate ${status} email sent to: ${updatedApplication.email}`);
-      } catch (emailError) {
-        console.error('❌ Failed to send email:', emailError);
-      }
-
-      res.json({ 
-        success: true, 
-        message: `Application ${status} successfully`,
-        application: updatedApplication 
-      });
-    } catch (error) {
-      console.error('Error updating application status:', error);
-      res.status(500).json({ error: 'Failed to update application status' });
-    }
-  });
-
-  app.delete('/api/admin/affiliate-applications/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-
-      const [deleted] = await db
-        .delete(schema.affiliateApplications)
-        .where(eq(schema.affiliateApplications.id, id))
-        .returning();
-
-      if (!deleted) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json({ success: true, message: 'Application deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting affiliate application:', error);
-      res.status(500).json({ error: 'Failed to delete application' });
-    }
-  });
-
-  // Influencer Applications Routes
-
-  // Submit influencer application (public)
-  app.post('/api/influencer-applications', async (req, res) => {
-    try {
-      const { 
-        firstName, 
-        lastName, 
-        email, 
-        contactNumber, 
-        fullAddress, 
-        landmark, 
-        city, 
-        pinCode, 
-        state, 
-        country,
-        instagramProfile,
-        youtubeChannel,
-        facebookProfile
-      } = req.body;
-
-      // Validate required fields
-      if (!firstName || !lastName || !email || !contactNumber || !fullAddress || !city || !pinCode || !state || !country) {
-        return res.status(400).json({ error: 'All required fields must be provided' });
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: 'Please provide a valid email address' });
-      }
-
-      // Save to database
-      const [savedApplication] = await db.insert(schema.influencerApplications).values({
-        firstName,
-        lastName,
-        email,
-        contactNumber,
-        fullAddress,
-        landmark: landmark || null,
-        city,
-        pinCode,
-        state,
-        country,
-        instagramProfile: instagramProfile || null,
-        youtubeChannel: youtubeChannel || null,
-        facebookProfile: facebookProfile || null,
-        status: 'pending'
-      }).returning();
-
-      console.log('Influencer application created:', savedApplication.id);
-
-      res.json({
-        success: true,
-        message: 'Application submitted successfully! We will review your application and get back to you soon.',
-        applicationId: savedApplication.id
-      });
-    } catch (error) {
-      console.error('Error submitting influencer application:', error);
-      res.status(500).json({ error: 'Failed to submit application' });
-    }
-  });
-
-  // Admin endpoints for influencer applications
-  app.get('/api/admin/influencer-applications', async (req, res) => {
-    try {
-      const applications = await storage.getInfluencerApplications();
-      res.json(applications);
-    } catch (error) {
-      console.error('Error fetching influencer applications:', error);
-      res.status(500).json({ error: 'Failed to fetch applications' });
-    }
-  });
-
-  app.get('/api/admin/influencer-applications/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const application = await storage.getInfluencerApplication(id);
-
-      if (!application) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json(application);
-    } catch (error) {
-      console.error('Error fetching influencer application:', error);
-      res.status(500).json({ error: 'Failed to fetch application' });
-    }
-  });
-
-  app.put('/api/admin/influencer-applications/:id/status', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { status } = req.body;
-
-      if (!['pending', 'accepted', 'rejected'].includes(status)) {
-        return res.status(400).json({ error: 'Invalid status' });
-      }
-
-      const application = await storage.updateInfluencerApplicationStatus(id, status);
-
-      if (!application) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json({ 
-        success: true, 
-        message: `Application ${status} successfully`,
-        application 
-      });
-    } catch (error) {
-      console.error('Error updating application status:', error);
-      res.status(500).json({ error: 'Failed to update application status' });
-    }
-  });
-
-  app.delete('/api/admin/influencer-applications/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      await storage.deleteInfluencerApplication(id);
-      res.json({ success: true, message: 'Application deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting influencer application:', error);
-      res.status(500).json({ error: 'Failed to delete application' });
-    }
-  });
-
-  // Job Positions Management Routes
-
-  // Get all job positions (public)
-  app.get('/api/job-positions', async (req, res) => {
-    try {
-      console.log('GET /api/job-positions - Fetching all job positions');
-
-      // Auto-expire old job positions
-      try {
-        await storage.autoExpireJobPositions();
-      } catch (expireError) {
-        console.log('Auto-expire error (continuing):', expireError.message);
-      }
-
-      // Get all positions (both active and inactive)
-      const positions = await storage.getAllJobPositions();
-      console.log('Total positions found:', positions.length);
-      console.log('Positions data:', JSON.stringify(positions, null, 2));
-
-      // Parse JSONB fields for all positions
-      const parsedPositions = positions.map(position => ({
-        ...position,
-        responsibilities: typeof position.responsibilities === 'string' 
-          ? JSON.parse(position.responsibilities) 
-          : position.responsibilities,
-        requirements: typeof position.requirements === 'string' 
-          ? JSON.parse(position.requirements) 
-          : position.requirements,
-        skills: typeof position.skills === 'string' 
-          ? JSON.parse(position.skills) 
-          : position.skills,
-      }));
-
-      res.json(parsedPositions);
-    } catch (error) {
-      console.error('Error fetching job positions:', error);
-      res.status(500).json({ error: 'Failed to fetch job positions' });
-    }
-  });
-
-  app.get("/api/job-positions/:slug", async (req, res) => {
-    try {
-      const { slug } = req.params;
-      console.log(`GET /api/job-positions/${slug} - Fetching job position`);
-
-      // Auto-expire positions
-      await storage.autoExpireJobPositions();
-
-      const position = await storage.getJobPositionBySlug(slug);
-
-      if (!position) {
-        return res.status(404).json({ error: 'Job position not found' });
-      }
-
-      // Parse JSONB fields if they are strings
-      const parsedPosition = {
-        ...position,
-        responsibilities: typeof position.responsibilities === 'string' 
-          ? JSON.parse(position.responsibilities) 
-          : position.responsibilities,
-        requirements: typeof position.requirements === 'string' 
-          ? JSON.parse(position.requirements) 
-          : position.requirements,
-        skills: typeof position.skills === 'string' 
-          ? JSON.parse(position.skills) 
-          : position.skills,
-      };
-
-      res.json(parsedPosition);
-    } catch (error) {
-      console.error('Error fetching job position:', error);
-      res.status(500).json({ error: 'Failed to fetch job position' });
-    }
-  });
-
-  // Admin endpoints for job positions management
-  app.get('/api/admin/job-positions', async (req, res) => {
-    try {
-      console.log('GET /api/admin/job-positions - Fetching all job positions for admin');
-
-      const positions = await storage.getJobPositions();
-      console.log('Total positions found for admin:', positions.length);
-
-      res.json(positions);
-    } catch (error) {
-      console.error('Error fetching job positions:', error);
-      res.status(500).json({ error: 'Failed to fetch job positions' });
-    }
-  });
-
-  app.post('/api/admin/job-positions', async (req, res) => {
-    try {
-      console.log('Creating job position with data:', req.body);
-
-      // Validate required fields
-      if (!req.body.title || !req.body.department || !req.body.location || !req.body.type) {
-        return res.status(400).json({ 
-          error: 'Missing required fields: title, department, location, and type are required' 
-        });
-      }
-
-      const slug = req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-
-      // Set expiry date to 15 days from now if not provided
-      const expiresAt = req.body.expiresAt 
-        ? new Date(req.body.expiresAt) 
-        : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
-
-      const positionData = {
-        title: req.body.title,
-        slug,
-        department: req.body.department,
-        location: req.body.location,
-        type: req.body.type,
-        jobId: req.body.jobId || null,
-        experienceLevel: req.body.experienceLevel || 'Entry Level',
-        workExperience: req.body.workExperience || '0-1 years',
-        education: req.body.education || 'Bachelor\'s Degree',
-        description: req.body.description || '',
-        aboutRole: req.body.aboutRole || '',
-        responsibilities: Array.isArray(req.body.responsibilities) 
-          ? req.body.responsibilities 
-          : (typeof req.body.responsibilities === 'string' ? JSON.parse(req.body.responsibilities || '[]') : []),
-        requirements: Array.isArray(req.body.requirements) 
-          ? req.body.requirements 
-          : (typeof req.body.requirements === 'string' ? JSON.parse(req.body.requirements || '[]') : []),
-        skills: Array.isArray(req.body.skills) 
-          ? req.body.skills 
-          : (typeof req.body.skills === 'string' ? JSON.parse(req.body.skills || '[]') : []),
-        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
-        expiresAt,
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-      };
-
-      console.log('Processed position data:', positionData);
-
-      const position = await storage.createJobPosition(positionData);
-      console.log('Job position created successfully:', position);
-
-      res.status(201).json(position);
-    } catch (error) {
-      console.error('Error creating job position:', error);
-      console.error('Error details:', error.message, error.stack);
-      res.status(500).json({ 
-        error: 'Failed to create job position',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      });
-    }
-  });
-
-  app.put('/api/admin/job-positions/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const updateData = {
-        ...req.body,
-        slug: req.body.title ? req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : undefined,
-        responsibilities: req.body.responsibilities ? (Array.isArray(req.body.responsibilities) ? req.body.responsibilities : JSON.parse(req.body.responsibilities)) : undefined,
-        requirements: req.body.requirements ? (Array.isArray(req.body.requirements) ? req.body.requirements : JSON.parse(req.body.requirements)) : undefined,
-        skills: req.body.skills ? (Array.isArray(req.body.skills) ? req.body.skills : JSON.parse(req.body.skills)) : undefined,
-        expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : undefined,
-      };
-
-      const position = await storage.updateJobPosition(id, updateData);
-      if (!position) {
-        return res.status(404).json({ error: 'Job position not found' });
-      }
-      res.json(position);
-    } catch (error) {
-      console.error('Error updating job position:', error);
-      res.status(500).json({ error: 'Failed to update job position' });
-    }
-  });
-
-  app.delete('/api/admin/job-positions/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteJobPosition(id);
-      if (!success) {
-        return res.status(404).json({ error: 'Job position not found' });
-      }
-      res.json({ message: 'Job position deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting job position:', error);
-      res.status(500).json({ error: 'Failed to delete job position' });
-    }
-  });
-
-  // Testimonials Management Routes
-
-  // Public endpoints for testimonials
-  app.get('/api/testimonials', async (req, res) => {
-    try {
-      const testimonials = await storage.getActiveTestimonials();
-      // Map customer_image to customerImageUrl for frontend compatibility
-      const formattedTestimonials = testimonials.map(t => ({
-        id: t.id,
-        customerName: t.customerName,
-        customerImageUrl: t.customerImage,
-        rating: t.rating,
-        content: t.reviewText,
-        isActive: t.isActive,
-        createdAt: t.createdAt,
-      }));
-      res.json(formattedTestimonials);
-    } catch (error) {
-      console.error('Error fetching testimonials:', error);
-      res.status(500).json({ error: 'Failed to fetch testimonials' });
-    }
-  });
-
-  // Admin endpoints for testimonials management
-  app.get('/api/admin/testimonials', async (req, res) => {
-    try {
-      const testimonials = await storage.getTestimonials();
-      // Map customer_image to customerImage for admin panel
-      const formattedTestimonials = testimonials.map(t => ({
-        ...t,
-        customerImage: t.customerImage || t.customer_image,
-      }));
-      res.json(formattedTestimonials);
-    } catch (error) {
-      console.error('Error fetching testimonials:', error);
-      res.status(500).json({ error: 'Failed to fetch testimonials' });
-    }
-  });
-
-  app.get('/api/admin/testimonials/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const testimonial = await storage.getTestimonial(id);
-      if (!testimonial) {
-        return res.status(404).json({ error: 'Testimonial not found' });
-      }
-      res.json(testimonial);
-    } catch (error) {
-      console.error('Error fetching testimonial:', error);
-      res.status(500).json({ error: 'Failed to fetch testimonial' });
-    }
-  });
-
-  app.post('/api/admin/testimonials', upload.single('image'), async (req, res) => {
-    try {
-      let customerImage = req.body.customerImage;
-
-      // Handle image upload
-      if (req.file) {
-        customerImage = `/api/images/${req.file.filename}`;
-      }
-
-      const testimonialData = {
-        customerName: req.body.customerName,
-        customerImage: customerImage || null,
-        rating: parseInt(req.body.rating) || 5,
-        reviewText: req.body.reviewText,
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-      };
-
-      const testimonial = await storage.createTestimonial(testimonialData);
-      res.status(201).json(testimonial);
-    } catch (error) {
-      console.error('Error creating testimonial:', error);
-      res.status(500).json({ error: 'Failed to create testimonial' });
-    }
-  });
-
-  app.put('/api/admin/testimonials/:id', upload.single('image'), async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      let updateData: any = {
-        customerName: req.body.customerName,
-        rating: parseInt(req.body.rating) || 5,
-        reviewText: req.body.reviewText,
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-      };
-
-      // Handle image upload
-      if (req.file) {
-        updateData.customerImage = `/api/images/${req.file.filename}`;
-      } else if (req.body.customerImage) {
-        updateData.customerImage = req.body.customerImage;
-      }
-
-      const testimonial = await storage.updateTestimonial(id, updateData);
-      if (!testimonial) {
-        return res.status(404).json({ error: 'Testimonial not found' });
-      }
-      res.json(testimonial);
-    } catch (error) {
-      console.error('Error updating testimonial:', error);
-      res.status(500).json({ error: 'Failed to update testimonial' });
-    }
-  });
-
-  app.delete('/api/admin/testimonials/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteTestimonial(id);
-      if (!success) {
-        return res.status(404).json({ error: 'Testimonial not found' });
-      }
-      res.json({ message: 'Testimonial deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting testimonial:', error);
-      res.status(500).json({ error: 'Failed to delete testimonial' });
     }
   });
 
@@ -9901,7 +6727,7 @@ Poppik Affiliate Portal
   });
 
   // General slider management routes
-  app.get('/api/admin/sliders', async (req, res) => {
+  app.get('/api/admin/sliders', adminMiddleware, async (req, res) => {
     try {
       const allSliders = await db.select().from(schema.sliders).orderBy(desc(schema.sliders.sortOrder));
       res.json(allSliders);
@@ -9911,7 +6737,7 @@ Poppik Affiliate Portal
     }
   });
 
-  app.post('/api/admin/sliders', upload.single("image"), async (req, res) => {
+  app.post('/api/admin/sliders', adminMiddleware, upload.single("image"), async (req, res) => {
     try {
       // Handle image URL - require uploaded file
       if (!req.file) {
@@ -9944,7 +6770,7 @@ Poppik Affiliate Portal
     }
   });
 
-  app.put('/api/admin/sliders/:id', upload.single("image"), async (req, res) => {
+  app.put('/api/admin/sliders/:id', adminMiddleware, upload.single("image"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const body = req.body;
@@ -9982,7 +6808,7 @@ Poppik Affiliate Portal
     }
   });
 
-  app.delete('/api/admin/sliders/:id', async (req, res) => {
+  app.delete('/api/admin/sliders/:id', adminMiddleware, async (req, res) => {
     try{
       const id = parseInt(req.params.id);
 
@@ -10064,8 +6890,8 @@ Poppik Affiliate Portal
         return res.status(401).json({ error: "User authentication required" });
       }
 
-      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
-      res.json(result);
+      const canReview = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(canReview);
     } catch (error) {
       console.error("Error checking review eligibility:", error);
       res.status(500).json({ error: "Failed to check review eligibility" });
@@ -10182,7 +7008,7 @@ Poppik Affiliate Portal
                 productId: parseInt(id),
                 imageUrl: imageUrl,
                 altText: `${req.body.name || 'Product'} - Image ${index + 1}`,
-                isPrimary: index === 0,
+                isPrimary: index === 0, // First image is primary
                 sortOrder: index
               });
             })
@@ -10197,7 +7023,7 @@ Poppik Affiliate Portal
     }
   });
 
-  app.delete("/api/products/:id", async (req, res) => {
+  app.delete("/api/products/:id", adminMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
       const productId = parseInt(id);

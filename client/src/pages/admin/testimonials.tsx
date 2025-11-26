@@ -359,14 +359,23 @@ export default function AdminTestimonials() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reviewText">Review Text *</Label>
+              <Label htmlFor="reviewText">Review Text * (Max 80 words)</Label>
               <Textarea
                 id="reviewText"
                 value={formData.reviewText}
-                onChange={(e) => setFormData(prev => ({ ...prev, reviewText: e.target.value }))}
+                onChange={(e) => {
+                  const text = e.target.value;
+                  const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+                  if (wordCount <= 80) {
+                    setFormData(prev => ({ ...prev, reviewText: text }));
+                  }
+                }}
                 rows={4}
                 required
               />
+              <p className="text-xs text-gray-500">
+                {formData.reviewText.trim().split(/\s+/).filter(word => word.length > 0).length} / 80 words
+              </p>
             </div>
 
             <div className="space-y-2">

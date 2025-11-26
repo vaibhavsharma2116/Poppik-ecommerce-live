@@ -328,11 +328,34 @@ export default function ComboDetail() {
   const addToCart = () => {
     if (!combo) return;
 
+    // Check if all products with shades have at least one shade selected
+    const productsWithShades = products.filter((product: any) => {
+      const productShades = productShadesData[product.id] || [];
+      return productShades.length > 0;
+    });
+
+    const unselectedProducts = productsWithShades.filter((product: any) => {
+      return !selectedShades[product.id] || selectedShades[product.id].trim() === '';
+    });
+
+    if (unselectedProducts.length > 0) {
+      toast({
+        title: "Shade Selection Required",
+        description: `Please select shade(s) for all products: ${unselectedProducts.map((p: any) => p.name).join(', ')}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
     const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id && cartItem.isCombo);
 
     if (existingItem) {
       existingItem.quantity += 1;
+      // Update selected shades if any
+      if (Object.keys(selectedShades).length > 0) {
+        existingItem.selectedShades = selectedShades;
+      }
     } else {
       const cartItem = {
         id: combo.id,
@@ -346,6 +369,7 @@ export default function ComboDetail() {
         isCombo: true,
         cashbackPercentage: combo.cashbackPercentage,
         cashbackPrice: combo.cashbackPrice,
+        selectedShades: Object.keys(selectedShades).length > 0 ? selectedShades : undefined,
       };
       cart.push(cartItem);
     }
@@ -1057,12 +1081,53 @@ export default function ComboDetail() {
                 </div>
               )}
 
+              {/* Shade Selection Warning */}
+              {(() => {
+                const productsWithShades = products.filter((product: any) => {
+                  const productShades = productShadesData[product.id] || [];
+                  return productShades.length > 0;
+                });
+
+                const unselectedProducts = productsWithShades.filter((product: any) => {
+                  return !selectedShades[product.id] || selectedShades[product.id].trim() === '';
+                });
+
+                if (unselectedProducts.length > 0) {
+                  return (
+                    <div className="mb-4 bg-orange-50 border-2 border-orange-300 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-white text-sm font-bold">!</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-orange-800 mb-1">Shade Selection Required</p>
+                          <p className="text-xs text-orange-700">
+                            Please select shades for: {unselectedProducts.map((p: any) => p.name).join(', ')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               {/* Actions */}
               <div className="flex space-x-4 mb-6">
                 <Button 
                   size="lg" 
-                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200" 
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
                   onClick={addToCart}
+                  disabled={(() => {
+                    const productsWithShades = products.filter((product: any) => {
+                      const productShades = productShadesData[product.id] || [];
+                      return productShades.length > 0;
+                    });
+                    const unselectedProducts = productsWithShades.filter((product: any) => {
+                      return !selectedShades[product.id] || selectedShades[product.id].trim() === '';
+                    });
+                    return unselectedProducts.length > 0;
+                  })()}
                 >
                   <ShoppingCart className="w-5 h-5 mr-2" />
                   Add to Cart

@@ -206,7 +206,12 @@ export default function AdminBlog() {
   const { data: blogPostsData = [], isLoading: postsLoading } = useQuery({
     queryKey: ['/api/admin/blog/posts'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/blog/posts');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/blog/posts', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch blog posts');
       return response.json();
     }
@@ -216,7 +221,12 @@ export default function AdminBlog() {
   const { data: blogCategories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ['/api/admin/blog/categories'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/blog/categories');
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/admin/blog/categories', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch blog categories');
       return response.json();
     }
@@ -381,8 +391,12 @@ export default function AdminBlog() {
   // Delete blog post
   const deletePostMutation = useMutation({
     mutationFn: async (id: number) => {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/blog/posts/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       if (!response.ok) throw new Error('Failed to delete blog post');
       return response.json();
@@ -403,9 +417,13 @@ export default function AdminBlog() {
   // Create blog category
   const createCategoryMutation = useMutation({
     mutationFn: async (categoryData: any) => {
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/admin/blog/categories', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(categoryData)
       });
       if (!response.ok) throw new Error('Failed to create category');
@@ -433,9 +451,13 @@ export default function AdminBlog() {
   // Update blog category
   const updateCategoryMutation = useMutation({
     mutationFn: async ({ id, ...categoryData }: any) => {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/blog/categories/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(categoryData)
       });
       if (!response.ok) throw new Error('Failed to update category');
@@ -463,8 +485,12 @@ export default function AdminBlog() {
   // Delete blog category
   const deleteCategoryMutation = useMutation({
     mutationFn: async (id: number) => {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/blog/categories/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       if (!response.ok) throw new Error('Failed to delete category');
       return response.json();
@@ -524,7 +550,7 @@ export default function AdminBlog() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  {blogCategories.map((category) => (
+                  {Array.isArray(blogCategories) && blogCategories.map((category) => (
                     <SelectItem key={category.id} value={category.name}>
                       {category.name}
                     </SelectItem>
@@ -741,7 +767,7 @@ export default function AdminBlog() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {blogCategories.map((category) => (
+                {Array.isArray(blogCategories) && blogCategories.map((category) => (
                   <TableRow key={category.id}>
                     <TableCell className="font-medium">{category.name}</TableCell>
                     <TableCell>{category.description}</TableCell>
@@ -1343,7 +1369,7 @@ export default function AdminBlog() {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {blogCategories.map((category) => (
+                  {Array.isArray(blogCategories) && blogCategories.map((category) => (
                     <SelectItem key={category.id} value={category.name}>
                       {category.name}
                     </SelectItem>

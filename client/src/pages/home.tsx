@@ -364,8 +364,9 @@ console.log("featured",featured)
                     gap: 'clamp(12px, 3vw, 16px)',
                     paddingLeft: 'clamp(12px, 3vw, 16px)',
                     paddingRight: 'clamp(12px, 3vw, 16px)',
-                    justifyContent: 'flex-start',
-                    minWidth: 'fit-content'
+                    justifyContent: 'center',
+                    minWidth: 'fit-content',
+                    margin: '0 auto'
                   }}
                 >
                   {categories?.map((category, index) => (
@@ -1199,8 +1200,18 @@ function LatestBlogPostsPerCategory() {
       }
     });
 
-    return Array.from(categoryMap.values());
-  }, [blogPosts]);
+    // Sort by category sort order
+    const postsArray = Array.from(categoryMap.values());
+    return postsArray.sort((a, b) => {
+      const categoryA = blogCategories.find(cat => cat.name === a.category);
+      const categoryB = blogCategories.find(cat => cat.name === b.category);
+      
+      const sortOrderA = categoryA?.sortOrder ?? 999;
+      const sortOrderB = categoryB?.sortOrder ?? 999;
+      
+      return sortOrderA - sortOrderB;
+    });
+  }, [blogPosts, blogCategories]);
 
   if (isLoading) {
     return (
