@@ -306,6 +306,16 @@ export default function Cart() {
     try {
       // Check if it's an affiliate code (starts with POPPIKAP)
       if (code.toUpperCase().startsWith('POPPIKAP')) {
+        // Check if promo code is already applied - prevent affiliate code if promo exists
+        if (appliedPromo) {
+          toast({
+            title: "Cannot Apply Affiliate Code",
+            description: `Please remove the promo code "${appliedPromo.code}" first before applying an affiliate code. You can only use one discount at a time.`,
+            variant: "destructive",
+          });
+          return;
+        }
+
         // Fetch affiliate settings for discount
         const settingsResponse = await fetch('/api/affiliate-settings');
         if (!settingsResponse.ok) {
@@ -329,10 +339,14 @@ export default function Cart() {
         }
 
         setAppliedPromo(null); // Clear general promo if any
-        setAffiliateCode(code.toUpperCase()); // This variable seems unused, consider removing or using it
+        setAffiliateCode(code.toUpperCase()); // Store affiliate code
         setAffiliateDiscount(discountAmount);
         setPromoCode(''); // Clear input after applying
         setPromoDiscount(0); // Reset general promo discount
+
+        // Store affiliate code in localStorage for checkout
+        localStorage.setItem('affiliateCode', code.toUpperCase());
+        localStorage.setItem('affiliateDiscount', JSON.stringify({ discount: discountAmount }));
 
         toast({
           title: "Affiliate Discount Applied!",
@@ -342,6 +356,16 @@ export default function Cart() {
       }
 
       // General promo code validation
+      // Check if affiliate code is already applied - prevent promo if affiliate exists
+      if (affiliateCode) {
+        toast({
+          title: "Cannot Apply Promo Code",
+          description: `Please remove the affiliate code "${affiliateCode}" first before applying a promo code. You can only use one discount at a time.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       const response = await fetch('/api/promo-codes/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -366,6 +390,9 @@ export default function Cart() {
         setPromoDiscount(result.promoCode.discountAmount); // Set the promo discount state
         // Store promo code in localStorage for checkout
         localStorage.setItem('appliedPromoCode', JSON.stringify(result.promoCode));
+        // Clear affiliate code from localStorage
+        localStorage.removeItem('affiliateCode');
+        localStorage.removeItem('affiliateDiscount');
         toast({
           title: "Promo Code Applied! 🎉",
           description: `You saved ₹${result.promoCode.discountAmount.toLocaleString()}`,
@@ -390,6 +417,31 @@ export default function Cart() {
         variant: "destructive",
       });
     }
+  };
+
+  // Function to remove/clear promo code
+  const clearPromoCode = () => {
+    setAppliedPromo(null);
+    setPromoDiscount(0);
+    setPromoCode("");
+    localStorage.removeItem('appliedPromoCode');
+    toast({
+      title: "Promo Code Removed",
+      description: "Your promo code discount has been removed",
+    });
+  };
+
+  // Function to remove/clear affiliate code
+  const clearAffiliateCode = () => {
+    setAffiliateCode(null);
+    setAffiliateDiscount(0);
+    setPromoCode("");
+    localStorage.removeItem('affiliateCode');
+    localStorage.removeItem('affiliateDiscount');
+    toast({
+      title: "Affiliate Code Removed",
+      description: "Your affiliate code discount has been removed",
+    });
   };
 
   
@@ -906,16 +958,32 @@ export default function Cart() {
                   )}
 
                   {affiliateDiscount > 0 && affiliateCode && (
-                    <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                    <div className="flex items-center justify-between text-sm bg-green-50 p-2 rounded">
                       <span className="text-green-700 font-medium">Affiliate Discount ({affiliateCode})</span>
-                      <span className="font-bold text-green-600">-₹{affiliateDiscount.toLocaleString()}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-green-600">-₹{affiliateDiscount.toLocaleString()}</span>
+                        <button
+                          onClick={clearAffiliateCode}
+                          className="text-xs text-red-600 hover:text-red-800 font-medium underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   )}
 
                   {appliedPromo && generalPromoDiscount > 0 && (
-                    <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                    <div className="flex items-center justify-between text-sm bg-green-50 p-2 rounded">
                       <span className="text-green-700 font-medium">Promo Code ({appliedPromo.code})</span>
-                      <span className="font-bold text-green-600">-₹{generalPromoDiscount.toLocaleString()}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-green-600">-₹{generalPromoDiscount.toLocaleString()}</span>
+                        <button
+                          onClick={clearPromoCode}
+                          className="text-xs text-red-600 hover:text-red-800 font-medium underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   )}
 

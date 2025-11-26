@@ -1495,6 +1495,16 @@ export default function CheckoutPage() {
       return false;
     }
 
+    // VALIDATION: Check if both promo and affiliate codes are applied (mutual exclusivity)
+    if (appliedPromo && formData.affiliateCode) {
+      toast({
+        title: "Cannot Apply Both Discounts",
+        description: "Please choose either a promo code or an affiliate code, not both. Remove one discount to proceed.",
+        variant: "destructive",
+      });
+      setIsProcessing(false);
+      return false;
+    }
 
     try {
       let paymentSuccessful = false;

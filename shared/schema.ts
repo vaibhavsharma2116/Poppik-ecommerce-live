@@ -30,6 +30,9 @@ export const products = pgTable("products", {
   discount: numeric('discount', { precision: 10, scale: 2 }), // Discount percentage
   cashbackPercentage: numeric('cashback_percentage', { precision: 5, scale: 2 }), // Cashback percentage
   cashbackPrice: numeric('cashback_price', { precision: 10, scale: 2 }), // Auto-calculated cashback amount
+  // Per-product affiliate settings
+  affiliateCommission: numeric('affiliate_commission', { precision: 5, scale: 2 }).default(0), // commission % for affiliates on this product
+  affiliateUserDiscount: numeric('affiliate_user_discount', { precision: 5, scale: 2 }).default(0), // discount % given to customer when affiliate code used
   category: text('category').notNull(),
   subcategory: text("subcategory"),
   imageUrl: text("image_url").notNull(),

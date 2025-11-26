@@ -59,6 +59,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
     howToUse: '',
     tags: '',
     shadeIds: [] as number[] // Added to store selected shade IDs
+    ,affiliateCommission: '',
+    affiliateUserDiscount: ''
   });
 
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
@@ -243,6 +245,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
         images: imageUrls,
         videoUrl: videoUrl || null,
         shadeIds: formData.shadeIds || []
+        ,affiliateCommission: formData.affiliateCommission ? parseFloat(formData.affiliateCommission) : 0,
+        affiliateUserDiscount: formData.affiliateUserDiscount ? parseFloat(formData.affiliateUserDiscount) : 0
       };
 
       console.log('Creating product:', newProduct);
@@ -345,6 +349,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       howToUse: '',
       tags: '',
       shadeIds: []
+      ,affiliateCommission: ''
+      ,affiliateUserDiscount: ''
     });
     setSelectedImages([]);
     setImagePreviews([]);
@@ -577,6 +583,38 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
                 placeholder="e.g., Moisturizing Face Cream"
                 required
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="affiliateCommission">Affiliate Commission (%)</Label>
+                <Input
+                  id="affiliateCommission"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={(formData as any).affiliateCommission}
+                  onChange={(e) => handleInputChange('affiliateCommission', e.target.value)}
+                  placeholder="e.g., 10"
+                />
+                <p className="text-xs text-gray-500">Percentage commission for affiliates on this product</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="affiliateUserDiscount">Affiliate User Discount (%)</Label>
+                <Input
+                  id="affiliateUserDiscount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={(formData as any).affiliateUserDiscount}
+                  onChange={(e) => handleInputChange('affiliateUserDiscount', e.target.value)}
+                  placeholder="e.g., 5"
+                />
+                <p className="text-xs text-gray-500">Discount % applied to customer when affiliate code used</p>
+              </div>
             </div>
 
             <div className="space-y-2">

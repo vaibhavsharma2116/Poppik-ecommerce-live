@@ -77,7 +77,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration and error recovery
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -10157,6 +10157,8 @@ Poppik Affiliate Portal
         ...req.body,
         cashbackPercentage: req.body.cashbackPercentage ? Number(req.body.cashbackPercentage) : null,
         cashbackPrice: req.body.cashbackPrice ? Number(req.body.cashbackPrice) : null
+        ,affiliateCommission: req.body.affiliateCommission !== undefined ? Number(req.body.affiliateCommission) : undefined
+        ,affiliateUserDiscount: req.body.affiliateUserDiscount !== undefined ? Number(req.body.affiliateUserDiscount) : undefined
       };
 
       const product = await storage.updateProduct(productId, updateData);

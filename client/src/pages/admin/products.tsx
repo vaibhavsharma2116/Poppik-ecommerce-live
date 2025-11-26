@@ -60,6 +60,8 @@ interface Product {
   tags?: string;
   skinType?: string;
   shadeIds?: number[]; // Added for shade management
+  affiliateCommission?: number; // percentage
+  affiliateUserDiscount?: number; // percentage
 }
 
 interface Category {
@@ -130,6 +132,8 @@ export default function AdminProducts() {
     tags: '',
     skinType: '',
     shadeIds: [] as number[], // Initialize shadeIds as an empty array
+    affiliateCommission: '',
+    affiliateUserDiscount: '',
   });
 
   const [editImages, setEditImages] = useState<File[]>([]);
@@ -301,6 +305,8 @@ export default function AdminProducts() {
         tags: product.tags || '',
         skinType: product.skinType || '',
         shadeIds: product.shadeIds || [], // Set shadeIds from product data
+        affiliateCommission: product.affiliateCommission?.toString() || '',
+        affiliateUserDiscount: product.affiliateUserDiscount?.toString() || '',
       });
 
       // Set existing images for preview
@@ -400,6 +406,8 @@ export default function AdminProducts() {
           imageUrl: finalImages[0] || editFormData.imageUrl,
           videoUrl: finalVideoUrl || null,
           shadeIds: editFormData.shadeIds, // Include shadeIds in updateData
+          affiliateCommission: editFormData.affiliateCommission ? parseFloat(editFormData.affiliateCommission) : 0,
+          affiliateUserDiscount: editFormData.affiliateUserDiscount ? parseFloat(editFormData.affiliateUserDiscount) : 0,
         };
 
         console.log('Updating product with data:', updateData);
@@ -1358,6 +1366,36 @@ export default function AdminProducts() {
                   disabled
                 />
                 <p className="text-xs text-gray-500">Auto-calculated from sale price and cashback percentage</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-affiliateCommission">Affiliate Commission (%)</Label>
+                <Input
+                  id="edit-affiliateCommission"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={(editFormData as any).affiliateCommission}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, affiliateCommission: e.target.value }))}
+                  placeholder="e.g., 10"
+                />
+                <p className="text-xs text-gray-500">Percentage commission for affiliates on this product</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-affiliateUserDiscount">Affiliate User Discount (%)</Label>
+                <Input
+                  id="edit-affiliateUserDiscount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={(editFormData as any).affiliateUserDiscount}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, affiliateUserDiscount: e.target.value }))}
+                  placeholder="e.g., 5"
+                />
+                <p className="text-xs text-gray-500">Discount % applied to customer when affiliate code used</p>
               </div>
 
               <div className="space-y-2">

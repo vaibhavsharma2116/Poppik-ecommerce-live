@@ -67,7 +67,7 @@ dotenv.config();
 
 
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
   ssl: false,
   max: 20, // Maximum pool size
   idleTimeoutMillis: 30000,
@@ -348,6 +348,8 @@ export class DatabaseStorage implements IStorage {
           discount: products.discount,
           cashbackPercentage: products.cashbackPercentage,
           cashbackPrice: products.cashbackPrice,
+          affiliateCommission: products.affiliateCommission,
+          affiliateUserDiscount: products.affiliateUserDiscount,
           category: products.category,
           subcategory: products.subcategory,
           imageUrl: products.imageUrl,
@@ -484,6 +486,8 @@ export class DatabaseStorage implements IStorage {
       if (productData.discount !== undefined) productToInsert.discount = Number(productData.discount);
       if (productData.cashbackPercentage !== undefined) productToInsert.cashbackPercentage = Number(productData.cashbackPercentage);
       if (productData.cashbackPrice !== undefined) productToInsert.cashbackPrice = Number(productData.cashbackPrice);
+      if (productData.affiliateCommission !== undefined) productToInsert.affiliateCommission = Number(productData.affiliateCommission);
+      if (productData.affiliateUserDiscount !== undefined) productToInsert.affiliateUserDiscount = Number(productData.affiliateUserDiscount);
 
       // Ensure numeric fields are properly formatted
       const finalProductData = {
@@ -491,6 +495,8 @@ export class DatabaseStorage implements IStorage {
         discount: productToInsert.discount ? parseFloat(productToInsert.discount.toString()) : null,
         cashbackPercentage: productToInsert.cashbackPercentage ? parseFloat(productToInsert.cashbackPercentage.toString()) : null,
         cashbackPrice: productToInsert.cashbackPrice ? parseFloat(productToInsert.cashbackPrice.toString()) : null,
+        affiliateCommission: productToInsert.affiliateCommission !== undefined ? parseFloat(productToInsert.affiliateCommission.toString()) : 0,
+        affiliateUserDiscount: productToInsert.affiliateUserDiscount !== undefined ? parseFloat(productToInsert.affiliateUserDiscount.toString()) : 0,
       };
 
       console.log("Inserting product data:", finalProductData);
@@ -553,6 +559,8 @@ export class DatabaseStorage implements IStorage {
         discount: productData.discount !== undefined ? (productData.discount ? parseFloat(productData.discount.toString()) : null) : undefined,
         cashbackPercentage: productData.cashbackPercentage !== undefined ? (productData.cashbackPercentage ? parseFloat(productData.cashbackPercentage.toString()) : null) : undefined,
         cashbackPrice: productData.cashbackPrice !== undefined ? (productData.cashbackPrice ? parseFloat(productData.cashbackPrice.toString()) : null) : undefined,
+        affiliateCommission: productData.affiliateCommission !== undefined ? (productData.affiliateCommission ? parseFloat(productData.affiliateCommission.toString()) : 0) : undefined,
+        affiliateUserDiscount: productData.affiliateUserDiscount !== undefined ? (productData.affiliateUserDiscount ? parseFloat(productData.affiliateUserDiscount.toString()) : 0) : undefined,
       };
 
       const [updatedProduct] = await this.db
