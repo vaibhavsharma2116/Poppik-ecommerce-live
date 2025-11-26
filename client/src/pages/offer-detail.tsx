@@ -1229,15 +1229,7 @@ export default function OfferDetail() {
                   : 'Add All to Cart'}
               </Button>
 
-              {/* Share Button */}
-              <Button
-                onClick={() => setShowShareDialog(true)}
-                variant="outline"
-                size="lg"
-                className="border-2 border-purple-200 hover:border-purple-400 rounded-xl p-4 transform hover:scale-105 transition-all duration-200"
-              >
-                <Share2 className="h-5 w-5 text-purple-500" />
-              </Button>
+              {/* Share moved to image overlay; inline share removed */}
             </div>
           </div>
         </div>

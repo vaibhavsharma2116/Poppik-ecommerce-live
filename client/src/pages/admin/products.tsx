@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/admin/rich-text-editor";
 import AddProductModal from "@/components/admin/add-product-modal";
 import DynamicFilter from "@/components/dynamic-filter";
 import {
@@ -1184,7 +1185,11 @@ export default function AdminProducts() {
                 {selectedProduct.ingredients && (
                   <div>
                     <Label className="text-sm font-semibold text-slate-600">Ingredients</Label>
-                    <p className="text-slate-700 mt-1">{selectedProduct.ingredients}</p>
+                    {typeof selectedProduct.ingredients === 'string' && selectedProduct.ingredients.includes('<') ? (
+                      <div className="text-slate-700 mt-1 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: selectedProduct.ingredients }} />
+                    ) : (
+                      <p className="text-slate-700 mt-1">{selectedProduct.ingredients}</p>
+                    )}
                   </div>
                 )}
                 {selectedProduct.benefits && (
@@ -1537,46 +1542,33 @@ export default function AdminProducts() {
 
               <div className="space-y-2">
                 <Label htmlFor="edit-description">Full Description *</Label>
-                <Textarea
-                  id="edit-description"
-                  value={editFormData.description}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Detailed product description..."
-                  rows={3}
-                  required
+                <RichTextEditor
+                  content={editFormData.description || ''}
+                  onChange={(html) => setEditFormData(prev => ({ ...prev, description: html }))}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="edit-ingredients">Ingredients</Label>
-                <Textarea
-                  id="edit-ingredients"
-                  value={editFormData.ingredients}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, ingredients: e.target.value }))}
-                  placeholder="List of ingredients..."
-                  rows={2}
+                <RichTextEditor
+                  content={editFormData.ingredients || ''}
+                  onChange={(html) => setEditFormData(prev => ({ ...prev, ingredients: html }))}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="edit-benefits">Benefits</Label>
-                <Textarea
-                  id="edit-benefits"
-                  value={editFormData.benefits}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, benefits: e.target.value }))}
-                  placeholder="Product benefits..."
-                  rows={2}
+                <RichTextEditor
+                  content={editFormData.benefits || ''}
+                  onChange={(html) => setEditFormData(prev => ({ ...prev, benefits: html }))}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="edit-howToUse">How to Use</Label>
-                <Textarea
-                  id="edit-howToUse"
-                  value={editFormData.howToUse}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, howToUse: e.target.value }))}
-                  placeholder="Usage instructions..."
-                  rows={2}
+                <RichTextEditor
+                  content={editFormData.howToUse || ''}
+                  onChange={(html) => setEditFormData(prev => ({ ...prev, howToUse: html }))}
                 />
               </div>
 

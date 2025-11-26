@@ -57,8 +57,43 @@ export default function AdminCombos() {
     howToUse: "",
   });
 
-  const { data: combos = [], isLoading } = useQuery({
+  const { data: combos, isLoading, error } = useQuery<any[]>({
     queryKey: ["/api/admin/combos"],
+    queryFn: async () => {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      console.log('🔑 Fetching admin combos with token:', token ? 'Present' : 'Missing');
+
+      if (!token) {
+        toast({ title: 'Authentication Required', description: 'Please login to continue', variant: 'destructive' });
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('No authentication token found');
+      }
+
+      const res = await fetch('/api/admin/combos', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.status === 401) {
+        toast({ title: 'Session Expired', description: 'Please login again', variant: 'destructive' });
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('Authentication required');
+      }
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to fetch admin combos:', err);
+        return [];
+      }
+
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!(localStorage.getItem('token') || localStorage.getItem('adminToken')),
+    retry: 1,
+    staleTime: 30000,
   });
 
   // Fetch all products for selection
@@ -66,10 +101,41 @@ export default function AdminCombos() {
     queryKey: ['/api/products'],
   });
 
-  // Fetch shades for all products
-  const { data: allShades = [] } = useQuery({
+  // Fetch shades for all products (use auth like other admin endpoints)
+  const { data: allShades, isLoading: shadesLoading, error: shadesError } = useQuery<any[]>({
     queryKey: ['/api/admin/shades'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      if (!token) {
+        return [];
+      }
+
+      const res = await fetch('/api/admin/shades', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('Authentication required');
+      }
+
+      if (!res.ok) {
+        return [];
+      }
+
+      const data = await res.json().catch(() => []);
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!(localStorage.getItem('token') || localStorage.getItem('adminToken')),
+    retry: 1,
+    staleTime: 30000,
   });
+
+  // Ensure combos is always treated as an array
+  const combosList = Array.isArray(combos) ? combos : [];
 
   // Filter products based on search
   const filteredProducts = allProducts.filter(product =>
@@ -79,10 +145,26 @@ export default function AdminCombos() {
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      if (!token) {
+        toast({ title: 'Authentication Required', description: 'Please login to continue', variant: 'destructive' });
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch("/api/admin/combos", {
         method: "POST",
         body: data,
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('Authentication required');
+      }
       if (!response.ok) throw new Error("Failed to create combo");
       return response.json();
     },
@@ -95,10 +177,28 @@ export default function AdminCombos() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: FormData }) => {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      if (!token) {
+        toast({ title: 'Authentication Required', description: 'Please login to continue', variant: 'destructive' });
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch(`/api/admin/combos/${id}`, {
         method: "PUT",
         body: data,
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('Authentication required');
+      }
+
       if (!response.ok) throw new Error("Failed to update combo");
       return response.json();
     },
@@ -111,9 +211,27 @@ export default function AdminCombos() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      if (!token) {
+        toast({ title: 'Authentication Required', description: 'Please login to continue', variant: 'destructive' });
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch(`/api/admin/combos/${id}`, {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('Authentication required');
+      }
+
       if (!response.ok) throw new Error("Failed to delete combo");
       return response.json();
     },
@@ -371,7 +489,7 @@ export default function AdminCombos() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {combos.map((combo: any) => (
+              {combosList.map((combo: any) => (
                 <TableRow key={combo.id}>
                   <TableCell>
                     <img src={combo.imageUrl} alt={combo.name} className="w-16 h-16 object-cover rounded" />
@@ -675,9 +793,11 @@ export default function AdminCombos() {
                       if (!product) return null;
                       
                       // Get shades for this product
-                      const productShades = allShades.filter((shade: any) => 
-                        shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(productId)
-                      );
+                      const productShades = Array.isArray(allShades)
+                        ? allShades.filter((shade: any) => 
+                            shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(productId)
+                          )
+                        : [];
 
                       return (
                         <div key={productId} className="bg-white p-3 rounded border space-y-2">

@@ -7169,6 +7169,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== COMBO SLIDERS ROUTES ====================
+
+  // Public: Get active combo sliders
+  app.get('/api/combo-sliders', async (req, res) => {
+    try {
+      const sliders = await db
+        .select()
+        .from(schema.comboSliders)
+        .where(eq(schema.comboSliders.isActive, true))
+        .orderBy(asc(schema.comboSliders.sortOrder));
+
+      res.json(sliders || []);
+    } catch (error) {
+      console.error('Error fetching combo sliders:', error);
+      res.status(500).json({ error: 'Failed to fetch combo sliders' });
+    }
+  });
+
+  // Admin: Get all combo sliders
+  app.get('/api/admin/combo-sliders', adminMiddleware, async (req, res) => {
+    try {
+      const sliders = await db.select().from(schema.comboSliders).orderBy(asc(schema.comboSliders.sortOrder));
+      res.json(sliders);
+    } catch (error) {
+      console.error('Error fetching admin combo sliders:', error);
+      res.status(500).json({ error: 'Failed to fetch admin combo sliders' });
+    }
+  });
+
+  // Admin: Create combo slider
+  app.post('/api/admin/combo-sliders', adminMiddleware, upload.single('image'), async (req, res) => {
+    try {
+      let imageUrl = req.body.imageUrl;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      const sliderData = {
+        imageUrl: imageUrl,
+        title: req.body.title || null,
+        subtitle: req.body.subtitle || null,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder, 10) || 0,
+      };
+
+      const [newSlider] = await db.insert(schema.comboSliders).values(sliderData).returning();
+      res.status(201).json(newSlider);
+    } catch (error) {
+      console.error('Error creating combo slider:', error);
+      res.status(500).json({ error: 'Failed to create combo slider' });
+    }
+  });
+
+  // Admin: Update combo slider
+  app.put('/api/admin/combo-sliders/:id', adminMiddleware, upload.single('image'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      let imageUrl = req.body.imageUrl;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      const updateData: any = {
+        title: req.body.title || null,
+        subtitle: req.body.subtitle || null,
+        isActive: req.body.isActive !== undefined ? req.body.isActive === 'true' : true,
+        sortOrder: req.body.sortOrder !== undefined ? parseInt(req.body.sortOrder, 10) : 0,
+        updatedAt: new Date(),
+      };
+
+      if (imageUrl) updateData.imageUrl = imageUrl;
+
+      const [updatedSlider] = await db.update(schema.comboSliders).set(updateData).where(eq(schema.comboSliders.id, id)).returning();
+      if (!updatedSlider) return res.status(404).json({ error: 'Combo slider not found' });
+      res.json(updatedSlider);
+    } catch (error) {
+      console.error('Error updating combo slider:', error);
+      res.status(500).json({ error: 'Failed to update combo slider' });
+    }
+  });
+
+  // Admin: Delete combo slider
+  app.delete('/api/admin/combo-sliders/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const [deleted] = await db.delete(schema.comboSliders).where(eq(schema.comboSliders.id, id)).returning();
+      if (!deleted) return res.status(404).json({ error: 'Combo slider not found' });
+      res.json({ message: 'Combo slider deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting combo slider:', error);
+      res.status(500).json({ error: 'Failed to delete combo slider' });
+    }
+  });
+
   // Get product images
   app.get("/api/products/:productId/images", async (req, res) => {
     try {
@@ -7969,6 +8063,156 @@ app.get('/api/testimonials', async (req, res) => {
       console.error('Error fetching combos:', error);
       console.error('Error details:', error.message);
       res.status(500).json({ error: 'Failed to fetch combos', details: error.message });
+    }
+  });
+
+  // Admin: Get all combos (includes inactive)
+  app.get('/api/admin/combos', adminMiddleware, async (req, res) => {
+    try {
+      const combos = await db
+        .select()
+        .from(schema.combos)
+        .orderBy(asc(schema.combos.sortOrder));
+
+      const combosWithImages = await Promise.all(
+        combos.map(async (combo) => {
+          try {
+            const images = await db
+              .select()
+              .from(schema.comboImages)
+              .where(eq(schema.comboImages.comboId, combo.id))
+              .orderBy(asc(schema.comboImages.sortOrder));
+
+            return {
+              ...combo,
+              products: typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products,
+              imageUrls: images.length > 0 ? images.map(img => img.imageUrl) : [combo.imageUrl]
+            };
+          } catch (imgError) {
+            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
+            return {
+              ...combo,
+              imageUrls: []
+            };
+          }
+        })
+      );
+
+      res.json(combosWithImages);
+    } catch (error) {
+      console.error('Error fetching admin combos:', error);
+      res.status(500).json({ error: 'Failed to fetch admin combos', details: (error as any).message });
+    }
+  });
+
+  // Admin: Create combo
+  app.post('/api/admin/combos', adminMiddleware, upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'images', maxCount: 10 }
+  ]), async (req, res) => {
+    try {
+      const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
+      const body = req.body as any;
+
+      let imageUrl = body.imageUrl || null;
+      if (files?.image?.[0]) {
+        imageUrl = `/api/images/${files.image[0].filename}`;
+      }
+
+      const comboData: any = {
+        title: body.title,
+        slug: body.slug || null,
+        description: body.description || null,
+        products: body.products ? (typeof body.products === 'string' ? body.products : JSON.stringify(body.products)) : null,
+        price: body.price !== undefined ? body.price : null,
+        originalPrice: body.originalPrice !== undefined ? body.originalPrice : null,
+        imageUrl: imageUrl,
+        isActive: body.isActive !== undefined ? (body.isActive === 'true' || body.isActive === true) : true,
+        sortOrder: parseInt(body.sortOrder, 10) || 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const [newCombo] = await db.insert(schema.combos).values(comboData).returning();
+
+      // Insert any additional images into combo_images
+      if (files?.images && files.images.length > 0) {
+        const imagesToInsert = files.images.map((f, idx) => ({
+          comboId: newCombo.id,
+          imageUrl: `/api/images/${f.filename}`,
+          sortOrder: idx
+        }));
+        await db.insert(schema.comboImages).values(imagesToInsert);
+      }
+
+      res.status(201).json(newCombo);
+    } catch (error) {
+      console.error('Error creating combo:', error);
+      res.status(500).json({ error: 'Failed to create combo', details: (error as any)?.message });
+    }
+  });
+
+  // Admin: Update combo
+  app.put('/api/admin/combos/:id', adminMiddleware, upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'images', maxCount: 10 }
+  ]), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
+      const body = req.body as any;
+
+      const updateData: any = {};
+      if (body.title !== undefined) updateData.title = body.title;
+      if (body.slug !== undefined) updateData.slug = body.slug;
+      if (body.description !== undefined) updateData.description = body.description;
+      if (body.products !== undefined) updateData.products = typeof body.products === 'string' ? body.products : JSON.stringify(body.products);
+      if (body.price !== undefined) updateData.price = body.price;
+      if (body.originalPrice !== undefined) updateData.originalPrice = body.originalPrice;
+      if (body.isActive !== undefined) updateData.isActive = body.isActive === 'true' || body.isActive === true;
+      if (body.sortOrder !== undefined) updateData.sortOrder = parseInt(body.sortOrder, 10) || 0;
+
+      if (files?.image?.[0]) {
+        updateData.imageUrl = `/api/images/${files.image[0].filename}`;
+      } else if (body.imageUrl) {
+        updateData.imageUrl = body.imageUrl;
+      }
+
+      updateData.updatedAt = new Date();
+
+      const [updated] = await db.update(schema.combos).set(updateData).where(eq(schema.combos.id, id)).returning();
+      if (!updated) return res.status(404).json({ error: 'Combo not found' });
+
+      // If new images uploaded, replace existing combo_images for this combo
+      if (files?.images && files.images.length > 0) {
+        await db.delete(schema.comboImages).where(eq(schema.comboImages.comboId, id));
+        const imagesToInsert = files.images.map((f, idx) => ({
+          comboId: id,
+          imageUrl: `/api/images/${f.filename}`,
+          sortOrder: idx
+        }));
+        await db.insert(schema.comboImages).values(imagesToInsert);
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating combo:', error);
+      res.status(500).json({ error: 'Failed to update combo', details: (error as any)?.message });
+    }
+  });
+
+  // Admin: Delete combo
+  app.delete('/api/admin/combos/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      // Delete images first
+      await db.delete(schema.comboImages).where(eq(schema.comboImages.comboId, id));
+      const [deleted] = await db.delete(schema.combos).where(eq(schema.combos.id, id)).returning();
+      if (!deleted) return res.status(404).json({ error: 'Combo not found' });
+      res.json({ message: 'Combo deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting combo:', error);
+      res.status(500).json({ error: 'Failed to delete combo', details: (error as any)?.message });
     }
   });
 

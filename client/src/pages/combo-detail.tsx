@@ -1152,14 +1152,6 @@ export default function ComboDetail() {
                 >
                   <Heart className={`w-6 h-6 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />
                 </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="border-2 border-purple-200 hover:border-purple-400 rounded-xl p-4 transform hover:scale-105 transition-all duration-200" 
-                  onClick={() => setShowShareDialog(true)}
-                >
-                  <Share2 className="w-6 h-6 text-purple-500" />
-                </Button>
               </div>
             </div>
           </div>

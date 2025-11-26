@@ -1654,21 +1654,26 @@ export default function ProductDetail() {
                   </CardTitle>
                 </CardHeader>
                   <CardContent className="pt-0">
-                    {product.ingredients ? (
-                      <ul className="space-y-2">
-                        {(Array.isArray(product.ingredients)
-                          ? product.ingredients
-                          : product.ingredients.split('\n').filter(ingredient => ingredient.trim())
-                        ).map((ingredient, index) => (
-                          <li key={index} className="flex items-start text-gray-700">
-                            <span className="mr-3 text-pink-500 font-bold">•</span>
-                            <span>{ingredient.trim()}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-gray-500 text-center py-8">Ingredient information not available.</p>
-                    )}
+                      {product.ingredients ? (
+                        // If ingredients contain HTML (saved from RichTextEditor), render it as HTML
+                        (typeof product.ingredients === 'string' && product.ingredients.includes('<')) ? (
+                          <div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: product.ingredients }} />
+                        ) : (
+                          <ul className="space-y-2">
+                            {(Array.isArray(product.ingredients)
+                              ? product.ingredients
+                              : product.ingredients.split('\n').filter(ingredient => ingredient.trim())
+                            ).map((ingredient, index) => (
+                              <li key={index} className="flex items-start text-gray-700">
+                                <span className="mr-3 text-pink-500 font-bold">•</span>
+                                <span>{ingredient.trim()}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )
+                      ) : (
+                        <p className="text-gray-500 text-center py-8">Ingredient information not available.</p>
+                      )}
                   </CardContent>
               </Card>
             </TabsContent>
