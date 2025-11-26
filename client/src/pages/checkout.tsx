@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award, ChevronDown, Tag } from "lucide-react";
+import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award, ChevronDown, Tag, Check } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/utils";
 
@@ -38,232 +38,230 @@ const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
   pimpri: { state: "maharashtra", pincodes: ["411017", "411018", "411019", "411020", "411021"] },
   patna: { state: "bihar", pincodes: ["800001", "800002", "800003", "800004", "800005"] },
   vadodara: { state: "gujarat", pincodes: ["390001", "390002", "390003", "390004", "390005"] },
-  ghaziabad: { state: "uttar_pradesh", pincode: "201001" },
-  ludhiana: { state: "punjab", pincode: "141001" },
-  agra: { state: "uttar_pradesh", pincode: "282001" },
-  nashik: { state: "maharashtra", pincode: "422001" },
-  faridabad: { state: "haryana", pincode: "121001" },
-  meerut: { state: "uttar_pradesh", pincode: "250001" },
-  rajkot: { state: "gujarat", pincode: "360001" },
-  kalyan: { state: "maharashtra", pincode: "421301" },
-  vasai: { state: "maharashtra", pincode: "401201" },
-  varanasi: { state: "uttar_pradesh", pincode: "221001" },
-  srinagar: { state: "jammu_and_kashmir", pincode: "190001" },
-  aurangabad: { state: "maharashtra", pincode: "431001" },
-  dhanbad: { state: "jharkhand", pincode: "826001" },
-  amritsar: { state: "punjab", pincode: "143001" },
-  navi_mumbai: { state: "maharashtra", pincode: "400614" },
-  allahabad: { state: "uttar_pradesh", pincode: "211001" },
-  ranchi: { state: "jharkhand", pincode: "834001" },
-  howrah: { state: "west_bengal", pincode: "711101" },
-  coimbatore: { state: "tamil_nadu", pincode: "641001" },
-  jabalpur: { state: "madhya_pradesh", pincode: "482001" },
-  gwalior: { state: "madhya_pradesh", pincode: "474001" },
-  vijayawada: { state: "andhra_pradesh", pincode: "520001" },
-  jodhpur: { state: "rajasthan", pincode: "342001" },
-  madurai: { state: "tamil_nadu", pincode: "625001" },
-  raipur: { state: "chhattisgarh", pincode: "492001" },
-  kota: { state: "rajasthan", pincode: "324001" },
-  guwahati: { state: "assam", pincode: "781001" },
-  chandigarh: { state: "chandigarh", pincode: "160001" },
-  solapur: { state: "maharashtra", pincode: "413001" },
-  hubli: { state: "karnataka", pincode: "580020" },
-  mysore: { state: "karnataka", pincode: "570001" },
-  tiruchirappalli: { state: "tamil_nadu", pincode: "620001" },
-  bareilly: { state: "uttar_pradesh", pincode: "243001" },
-  aligarh: { state: "uttar_pradesh", pincode: "202001" },
-  tiruppur: { state: "tamil_nadu", pincode: "641601" },
-  moradabad: { state: "uttar_pradesh", pincode: "244001" },
-  mysuru: { state: "karnataka", pincode: "570001" },
-  bhiwandi: { state: "maharashtra", pincode: "421302" },
-  saharanpur: { state: "uttar_pradesh", pincode: "247001" },
-  gorakhpur: { state: "uttar_pradesh", pincode: "273001" },
-  guntur: { state: "andhra_pradesh", pincode: "522001" },
-  bikaner: { state: "rajasthan", pincode: "334001" },
-  amravati: { state: "maharashtra", pincode: "444601" },
-  noida: { state: "uttar_pradesh", pincode: "201301" },
-  jamshedpur: { state: "jharkhand", pincode: "831001" },
-  bhilai: { state: "chhattisgarh", pincode: "490001" },
-  cuttack: { state: "odisha", pincode: "753001" },
-  firozabad: { state: "uttar_pradesh", pincode: "283203" },
-  kochi: { state: "kerala", pincode: "682001" },
-  nellore: { state: "andhra_pradesh", pincode: "524001" },
-  bhavnagar: { state: "gujarat", pincode: "364001" },
-  dehradun: { state: "uttarakhand", pincode: "248001" },
-  durgapur: { state: "west_bengal", pincode: "713201" },
-  asansol: { state: "west_bengal", pincode: "713301" },
-  rourkela: { state: "odisha", pincode: "769001" },
-  nanded: { state: "maharashtra", pincode: "431601" },
-  kolhapur: { state: "maharashtra", pincode: "416001" },
-  ajmer: { state: "rajasthan", pincode: "305001" },
-  akola: { state: "maharashtra", pincode: "444001" },
-  gulbarga: { state: "karnataka", pincode: "585101" },
-  jamnagar: { state: "gujarat", pincode: "361001" },
-  ujjain: { state: "madhya_pradesh", pincode: "456001" },
-  loni: { state: "uttar_pradesh", pincode: "201102" },
-  siliguri: { state: "west_bengal", pincode: "734001" },
-  jhansi: { state: "uttar_pradesh", pincode: "284001" },
-  ulhasnagar: { state: "maharashtra", pincode: "421001" },
-  jammu: { state: "jammu_and_kashmir", pincode: "180001" },
-  sangli: { state: "maharashtra", pincode: "416416" },
-  mangalore: { state: "karnataka", pincode: "575001" },
-  erode: { state: "tamil_nadu", pincode: "638001" },
-  belgaum: { state: "karnataka", pincode: "590001" },
-  ambattur: { state: "tamil_nadu", pincode: "600053" },
-  tirunelveli: { state: "tamil_nadu", pincode: "627001" },
-  malegaon: { state: "maharashtra", pincode: "423203" },
-  gaya: { state: "bihar", pincode: "823001" },
-  jalgaon: { state: "maharashtra", pincode: "425001" },
-  udaipur: { state: "rajasthan", pincode: "313001" },
-  maheshtala: { state: "west_bengal", pincode: "700141" },
-  davanagere: { state: "karnataka", pincode: "577001" },
-  kozhikode: { state: "kerala", pincode: "673001" },
-  kurnool: { state: "andhra_pradesh", pincode: "518001" },
-  rajpur_sonarpur: { state: "west_bengal", pincode: "700149" },
-  rajahmundry: { state: "andhra_pradesh", pincode: "533101" },
-  bokaro_steel_city: { state: "jharkhand", pincode: "827001" },
-  south_dumdum: { state: "west_bengal", pincode: "700074" },
-  bellary: { state: "karnataka", pincode: "583101" },
-  patiala: { state: "punjab", pincode: "147001" },
-  gopalpur: { state: "west_bengal", pincode: "743273" },
-  agartala: { state: "tripura", pincode: "799001" },
-  bhagalpur: { state: "bihar", pincode: "812001" },
-  muzaffarnagar: { state: "uttar_pradesh", pincode: "251001" },
-  bhatpara: { state: "west_bengal", pincode: "743123" },
-  panihati: { state: "west_bengal", pincode: "700110" },
-  latur: { state: "maharashtra", pincode: "413512" },
-  dhule: { state: "maharashtra", pincode: "424001" },
-  tirupati: { state: "andhra_pradesh", pincode: "517501" },
-  rohtak: { state: "haryana", pincode: "124001" },
-  korba: { state: "chhattisgarh", pincode: "495677" },
-  bhilwara: { state: "rajasthan", pincode: "311001" },
-  berhampur: { state: "odisha", pincode: "760001" },
-  muzaffarpur: { state: "bihar", pincode: "846001" },
-  ahmednagar: { state: "maharashtra", pincode: "414001" },
-  mathura: { state: "uttar_pradesh", pincode: "281001" },
-  kollam: { state: "kerala", pincode: "691001" },
-  avadi: { state: "tamil_nadu", pincode: "600054" },
-  kadapa: { state: "andhra_pradesh", pincode: "516001" },
-  kamarhati: { state: "west_bengal", pincode: "700058" },
-  sambalpur: { state: "odisha", pincode: "768001" },
-  bilaspur: { state: "chhattisgarh", pincode: "495001" },
-  shahjahanpur: { state: "uttar_pradesh", pincode: "242001" },
-  satara: { state: "maharashtra", pincode: "415001" },
-  bijapur: { state: "karnataka", pincode: "586101" },
-  rampur: { state: "uttar_pradesh", pincode: "244901" },
-  shivamogga: { state: "karnataka", pincode: "577201" },
-  chandrapur: { state: "maharashtra", pincode: "442401" },
-  junagadh: { state: "gujarat", pincode: "362001" },
-  thrissur: { state: "kerala", pincode: "680001" },
-  alwar: { state: "rajasthan", pincode: "301001" },
-  bardhaman: { state: "west_bengal", pincode: "713101" },
-  kulti: { state: "west_bengal", pincode: "713343" },
-  kakinada: { state: "andhra_pradesh", pincode: "533001" },
-  nizamabad: { state: "telangana", pincode: "503001" },
-  parbhani: { state: "maharashtra", pincode: "431401" },
-  tumkur: { state: "karnataka", pincode: "572101" },
-  khammam: { state: "telangana", pincode: "507001" },
-  ozhukarai: { state: "puducherry", pincode: "605013" },
-  bihar_sharif: { state: "bihar", pincode: "803101" },
-  panipat: { state: "haryana", pincode: "132103" },
-  darbhanga: { state: "bihar", pincode: "846004" },
-  bally: { state: "west_bengal", pincode: "711201" },
-  aizawl: { state: "mizoram", pincode: "796001" },
-  dewas: { state: "madhya_pradesh", pincode: "455001" },
-  ichalkaranji: { state: "maharashtra", pincode: "416115" },
-  karnal: { state: "haryana", pincode: "132001" },
-  bathinda: { state: "punjab", pincode: "151001" },
-  jalna: { state: "maharashtra", pincode: "431203" },
-  eluru: { state: "andhra_pradesh", pincode: "534001" },
-  kirari_suleman_nagar: { state: "delhi", pincode: "110086" },
-  barasat: { state: "west_bengal", pincode: "700124" },
-  purnia: { state: "bihar", pincode: "854301" },
-  satna: { state: "madhya_pradesh", pincode: "485001" },
-  mau: { state: "uttar_pradesh", pincode: "275101" },
-  sonipat: { state: "haryana", pincode: "131001" },
-  farrukhabad: { state: "uttar_pradesh", pincode: "209625" },
-  sagar: { state: "madhya_pradesh", pincode: "470001" },
-  rourkela: { state: "odisha", pincode: "769001" },
-  durg: { state: "chhattisgarh", pincode: "491001" },
-  imphal: { state: "manipur", pincode: "795001" },
-  ratlam: { state: "madhya_pradesh", pincode: "457001" },
-  hapur: { state: "uttar_pradesh", pincode: "245101" },
-  arrah: { state: "bihar", pincode: "802301" },
-  karimnagar: { state: "telangana", pincode: "505001" },
-  anantapur: { state: "andhra_pradesh", pincode: "515001" },
-  etawah: { state: "uttar_pradesh", pincode: "206001" },
-  ambernath: { state: "maharashtra", pincode: "421501" },
-  north_dumdum: { state: "west_bengal", pincode: "700074" },
-  bharatpur: { state: "rajasthan", pincode: "321001" },
-  begusarai: { state: "bihar", pincode: "851101" },
-  new_delhi: { state: "delhi", pincode: "110001" },
-  gandhidham: { state: "gujarat", pincode: "370201" },
-  baranagar: { state: "west_bengal", pincode: "700036" },
-  tiruvottiyur: { state: "tamil_nadu", pincode: "600019" },
-  puducherry: { state: "puducherry", pincode: "605001" },
-  sikar: { state: "rajasthan", pincode: "332001" },
-  thoothukudi: { state: "tamil_nadu", pincode: "628001" },
-  rewa: { state: "madhya_pradesh", pincode: "486001" },
-  mirzapur: { state: "uttar_pradesh", pincode: "231001" },
-  raichur: { state: "karnataka", pincode: "584101" },
-  pali: { state: "rajasthan", pincode: "306401" },
-  ramagundam: { state: "telangana", pincode: "505208" },
-  haridwar: { state: "uttarakhand", pincode: "249401" },
-  vijayanagaram: { state: "andhra_pradesh", pincode: "535001" },
-  katihar: { state: "bihar", pincode: "854105" },
-  naihati: { state: "west_bengal", pincode: "743165" },
-  sambhal: { state: "uttar_pradesh", pincode: "244302" },
-  nadiad: { state: "gujarat", pincode: "387001" },
-  yamunanagar: { state: "haryana", pincode: "135001" },
-  english_bazar: { state: "west_bengal", pincode: "732101" },
-  unnao: { state: "uttar_pradesh", pincode: "209801" },
-  morena: { state: "madhya_pradesh", pincode: "476001" },
-  bhiwani: { state: "haryana", pincode: "127021" },
-  purnea: { state: "bihar", pincode: "854301" },
-  kharagpur: { state: "west_bengal", pincode: "721301" },
-  dindigul: { state: "tamil_nadu", pincode: "624001" },
-  gandhinagar: { state: "gujarat", pincode: "382010" },
-  hospet: { state: "karnataka", pincode: "583201" },
-  nangloi_jat: { state: "delhi", pincode: "110041" },
-  malda: { state: "west_bengal", pincode: "732101" },
-  ongole: { state: "andhra_pradesh", pincode: "523001" },
-  deoghar: { state: "jharkhand", pincode: "814112" },
-  chapra: { state: "bihar", pincode: "841301" },
-  haldia: { state: "west_bengal", pincode: "721602" },
-  khandwa: { state: "madhya_pradesh", pincode: "450001" },
-  nandyal: { state: "andhra_pradesh", pincode: "518501" },
-  chittoor: { state: "andhra_pradesh", pincode: "517001" },
-  morbi: { state: "gujarat", pincode: "363641" },
-  amroha: { state: "uttar_pradesh", pincode: "244221" },
-  anand: { state: "gujarat", pincode: "388001" },
-  bhusawal: { state: "maharashtra", pincode: "425201" },
-  orai: { state: "uttar_pradesh", pincode: "285001" },
-  bahraich: { state: "uttar_pradesh", pincode: "271801" },
-  vellore: { state: "tamil_nadu", pincode: "632001" },
-  mahesana: { state: "gujarat", pincode: "384001" },
-  sambalpur: { state: "odisha", pincode: "768001" },
-  raiganj: { state: "west_bengal", pincode: "733134" },
-  sirsa: { state: "haryana", pincode: "125055" },
-  danapur: { state: "bihar", pincode: "801503" },
-  serampore: { state: "west_bengal", pincode: "712201" },
-  sultan_pur_majra: { state: "delhi", pincode: "110086" },
-  guna: { state: "madhya_pradesh", pincode: "473001" },
-  jaunpur: { state: "uttar_pradesh", pincode: "222001" },
-  panvel: { state: "maharashtra", pincode: "410206" },
-  shillong: { state: "meghalaya", pincode: "793001" },
-  tenali: { state: "andhra_pradesh", pincode: "522201" },
-  khora: { state: "uttar_pradesh", pincode: "201301" },
-  guntakal: { state: "andhra_pradesh", pincode: "515801" },
-  puri: { state: "odisha", pincode: "752001" },
-  compiegne: { state: "uttar_pradesh", pincode: "209801" },
-  kishanganj: { state: "bihar", pincode: "855107" },
-  supaul: { state: "bihar", pincode: "852131" },
-  godda: { state: "jharkhand", pincode: "814133" },
-  hazaribagh: { state: "jharkhand", pincode: "825301" },
-  pakur: { state: "jharkhand", pincode: "816107" },
-  paschim_bardhaman: { state: "west_bengal", pincode: "713101" },
-  dharwad: { state: "karnataka", pincode: "580001" },
-  medininagar: { state: "jharkhand", pincode: "822101" }
+  ghaziabad: { state: "uttar_pradesh", pincodes: ["201001"] },
+  ludhiana: { state: "punjab", pincodes: ["141001"] },
+  agra: { state: "uttar_pradesh", pincodes: ["282001"] },
+  nashik: { state: "maharashtra", pincodes: ["422001"] },
+  faridabad: { state: "haryana", pincodes: ["121001"] },
+  meerut: { state: "uttar_pradesh", pincodes: ["250001"] },
+  rajkot: { state: "gujarat", pincodes: ["360001"] },
+  kalyan: { state: "maharashtra", pincodes: ["421301"] },
+  vasai: { state: "maharashtra", pincodes: ["401201"] },
+  varanasi: { state: "uttar_pradesh", pincodes: ["221001"] },
+  srinagar: { state: "jammu_and_kashmir", pincodes: ["190001"] },
+  aurangabad: { state: "maharashtra", pincodes: ["431001"] },
+  dhanbad: { state: "jharkhand", pincodes: ["826001"] },
+  amritsar: { state: "punjab", pincodes: ["143001"] },
+  navi_mumbai: { state: "maharashtra", pincodes: ["400614"] },
+  allahabad: { state: "uttar_pradesh", pincodes: ["211001"] },
+  ranchi: { state: "jharkhand", pincodes: ["834001"] },
+  howrah: { state: "west_bengal", pincodes: ["711101"] },
+  coimbatore: { state: "tamil_nadu", pincodes: ["641001"] },
+  jabalpur: { state: "madhya_pradesh", pincodes: ["482001"] },
+  gwalior: { state: "madhya_pradesh", pincodes: ["474001"] },
+  vijayawada: { state: "andhra_pradesh", pincodes: ["520001"] },
+  jodhpur: { state: "rajasthan", pincodes: ["342001"] },
+  madurai: { state: "tamil_nadu", pincodes: ["625001"] },
+  raipur: { state: "chhattisgarh", pincodes: ["492001"] },
+  kota: { state: "rajasthan", pincodes: ["324001"] },
+  guwahati: { state: "assam", pincodes: ["781001"] },
+  chandigarh: { state: "chandigarh", pincodes: ["160001"] },
+  solapur: { state: "maharashtra", pincodes: ["413001"] },
+  hubli: { state: "karnataka", pincodes: ["580020"] },
+  mysore: { state: "karnataka", pincodes: ["570001"] },
+  tiruchirappalli: { state: "tamil_nadu", pincodes: ["620001"] },
+  bareilly: { state: "uttar_pradesh", pincodes: ["243001"] },
+  aligarh: { state: "uttar_pradesh", pincodes: ["202001"] },
+  tiruppur: { state: "tamil_nadu", pincodes: ["641601"] },
+  moradabad: { state: "uttar_pradesh", pincodes: ["244001"] },
+  mysuru: { state: "karnataka", pincodes: ["570001"] },
+  bhiwandi: { state: "maharashtra", pincodes: ["421302"] },
+  saharanpur: { state: "uttar_pradesh", pincodes: ["247001"] },
+  gorakhpur: { state: "uttar_pradesh", pincodes: ["273001"] },
+  guntur: { state: "andhra_pradesh", pincodes: ["522001"] },
+  bikaner: { state: "rajasthan", pincodes: ["334001"] },
+  amravati: { state: "maharashtra", pincodes: ["444601"] },
+  noida: { state: "uttar_pradesh", pincodes: ["201301"] },
+  jamshedpur: { state: "jharkhand", pincodes: ["831001"] },
+  bhilai: { state: "chhattisgarh", pincodes: ["490001"] },
+  cuttack: { state: "odisha", pincodes: ["753001"] },
+  firozabad: { state: "uttar_pradesh", pincodes: ["283203"] },
+  kochi: { state: "kerala", pincodes: ["682001"] },
+  nellore: { state: "andhra_pradesh", pincodes: ["524001"] },
+  bhavnagar: { state: "gujarat", pincodes: ["364001"] },
+  dehradun: { state: "uttarakhand", pincodes: ["248001"] },
+  durgapur: { state: "west_bengal", pincodes: ["713201"] },
+  asansol: { state: "west_bengal", pincodes: ["713301"] },
+  rourkela: { state: "odisha", pincodes: ["769001"] },
+  nanded: { state: "maharashtra", pincodes: ["431601"] },
+  kolhapur: { state: "maharashtra", pincodes: ["416001"] },
+  ajmer: { state: "rajasthan", pincodes: ["305001"] },
+  akola: { state: "maharashtra", pincodes: ["444001"] },
+  gulbarga: { state: "karnataka", pincodes: ["585101"] },
+  jamnagar: { state: "gujarat", pincodes: ["361001"] },
+  ujjain: { state: "madhya_pradesh", pincodes: ["456001"] },
+  loni: { state: "uttar_pradesh", pincodes: ["201102"] },
+  siliguri: { state: "west_bengal", pincodes: ["734001"] },
+  jhansi: { state: "uttar_pradesh", pincodes: ["284001"] },
+  ulhasnagar: { state: "maharashtra", pincodes: ["421001"] },
+  jammu: { state: "jammu_and_kashmir", pincodes: ["180001"] },
+  sangli: { state: "maharashtra", pincodes: ["416416"] },
+  mangalore: { state: "karnataka", pincodes: ["575001"] },
+  erode: { state: "tamil_nadu", pincodes: ["638001"] },
+  belgaum: { state: "karnataka", pincodes: ["590001"] },
+  ambattur: { state: "tamil_nadu", pincodes: ["600053"] },
+  tirunelveli: { state: "tamil_nadu", pincodes: ["627001"] },
+  malegaon: { state: "maharashtra", pincodes: ["423203"] },
+  gaya: { state: "bihar", pincodes: ["823001"] },
+  jalgaon: { state: "maharashtra", pincodes: ["425001"] },
+  udaipur: { state: "rajasthan", pincodes: ["313001"] },
+  maheshtala: { state: "west_bengal", pincodes: ["700141"] },
+  davanagere: { state: "karnataka", pincodes: ["577001"] },
+  kozhikode: { state: "kerala", pincodes: ["673001"] },
+  kurnool: { state: "andhra_pradesh", pincodes: ["518001"] },
+  rajpur_sonarpur: { state: "west_bengal", pincodes: ["700149"] },
+  rajahmundry: { state: "andhra_pradesh", pincodes: ["533101"] },
+  bokaro_steel_city: { state: "jharkhand", pincodes: ["827001"] },
+  south_dumdum: { state: "west_bengal", pincodes: ["700074"] },
+  bellary: { state: "karnataka", pincodes: ["583101"] },
+  patiala: { state: "punjab", pincodes: ["147001"] },
+  gopalpur: { state: "west_bengal", pincodes: ["743273"] },
+  agartala: { state: "tripura", pincodes: ["799001"] },
+  bhagalpur: { state: "bihar", pincodes: ["812001"] },
+  muzaffarnagar: { state: "uttar_pradesh", pincodes: ["251001"] },
+  bhatpara: { state: "west_bengal", pincodes: ["743123"] },
+  panihati: { state: "west_bengal", pincodes: ["700110"] },
+  latur: { state: "maharashtra", pincodes: ["413512"] },
+  dhule: { state: "maharashtra", pincodes: ["424001"] },
+  tirupati: { state: "andhra_pradesh", pincodes: ["517501"] },
+  rohtak: { state: "haryana", pincodes: ["124001"] },
+  korba: { state: "chhattisgarh", pincodes: ["495677"] },
+  bhilwara: { state: "rajasthan", pincodes: ["311001"] },
+  berhampur: { state: "odisha", pincodes: ["760001"] },
+  muzaffarpur: { state: "bihar", pincodes: ["846001"] },
+  ahmednagar: { state: "maharashtra", pincodes: ["414001"] },
+  mathura: { state: "uttar_pradesh", pincodes: ["281001"] },
+  kollam: { state: "kerala", pincodes: ["691001"] },
+  avadi: { state: "tamil_nadu", pincodes: ["600054"] },
+  kadapa: { state: "andhra_pradesh", pincodes: ["516001"] },
+  kamarhati: { state: "west_bengal", pincodes: ["700058"] },
+  sambalpur: { state: "odisha", pincodes: ["768001"] },
+  bilaspur: { state: "chhattisgarh", pincodes: ["495001"] },
+  shahjahanpur: { state: "uttar_pradesh", pincodes: ["242001"] },
+  satara: { state: "maharashtra", pincodes: ["415001"] },
+  bijapur: { state: "karnataka", pincodes: ["586101"] },
+  rampur: { state: "uttar_pradesh", pincodes: ["244901"] },
+  shivamogga: { state: "karnataka", pincodes: ["577201"] },
+  chandrapur: { state: "maharashtra", pincodes: ["442401"] },
+  junagadh: { state: "gujarat", pincodes: ["362001"] },
+  thrissur: { state: "kerala", pincodes: ["680001"] },
+  alwar: { state: "rajasthan", pincodes: ["301001"] },
+  bardhaman: { state: "west_bengal", pincodes: ["713101"] },
+  kulti: { state: "west_bengal", pincodes: ["713343"] },
+  kakinada: { state: "andhra_pradesh", pincodes: ["533001"] },
+  nizamabad: { state: "telangana", pincodes: ["503001"] },
+  parbhani: { state: "maharashtra", pincodes: ["431401"] },
+  tumkur: { state: "karnataka", pincodes: ["572101"] },
+  khammam: { state: "telangana", pincodes: ["507001"] },
+  ozhukarai: { state: "puducherry", pincodes: ["605013"] },
+  bihar_sharif: { state: "bihar", pincodes: ["803101"] },
+  panipat: { state: "haryana", pincodes: ["132103"] },
+  darbhanga: { state: "bihar", pincodes: ["846004"] },
+  bally: { state: "west_bengal", pincodes: ["711201"] },
+  aizawl: { state: "mizoram", pincodes: ["796001"] },
+  dewas: { state: "madhya_pradesh", pincodes: ["455001"] },
+  ichalkaranji: { state: "maharashtra", pincodes: ["416115"] },
+  karnal: { state: "haryana", pincodes: ["132001"] },
+  bathinda: { state: "punjab", pincodes: ["151001"] },
+  jalna: { state: "maharashtra", pincodes: ["431203"] },
+  eluru: { state: "andhra_pradesh", pincodes: ["534001"] },
+  kirari_suleman_nagar: { state: "delhi", pincodes: ["110086"] },
+  barasat: { state: "west_bengal", pincodes: ["700124"] },
+  purnia: { state: "bihar", pincodes: ["854301"] },
+  satna: { state: "madhya_pradesh", pincodes: ["485001"] },
+  mau: { state: "uttar_pradesh", pincodes: ["275101"] },
+  sonipat: { state: "haryana", pincodes: ["131001"] },
+  farrukhabad: { state: "uttar_pradesh", pincodes: ["209625"] },
+  sagar: { state: "madhya_pradesh", pincodes: ["470001"] },
+  durg: { state: "chhattisgarh", pincodes: ["491001"] },
+  imphal: { state: "manipur", pincodes: ["795001"] },
+  ratlam: { state: "madhya_pradesh", pincodes: ["457001"] },
+  hapur: { state: "uttar_pradesh", pincodes: ["245101"] },
+  arrah: { state: "bihar", pincodes: ["802301"] },
+  karimnagar: { state: "telangana", pincodes: ["505001"] },
+  anantapur: { state: "andhra_pradesh", pincodes: ["515001"] },
+  etawah: { state: "uttar_pradesh", pincodes: ["206001"] },
+  ambernath: { state: "maharashtra", pincodes: ["421501"] },
+  north_dumdum: { state: "west_bengal", pincodes: ["700074"] },
+  bharatpur: { state: "rajasthan", pincodes: ["321001"] },
+  begusarai: { state: "bihar", pincodes: ["851101"] },
+  new_delhi: { state: "delhi", pincodes: ["110001"] },
+  gandhidham: { state: "gujarat", pincodes: ["370201"] },
+  baranagar: { state: "west_bengal", pincodes: ["700036"] },
+  tiruvottiyur: { state: "tamil_nadu", pincodes: ["600019"] },
+  puducherry: { state: "puducherry", pincodes: ["605001"] },
+  sikar: { state: "rajasthan", pincodes: ["332001"] },
+  thoothukudi: { state: "tamil_nadu", pincodes: ["628001"] },
+  rewa: { state: "madhya_pradesh", pincodes: ["486001"] },
+  mirzapur: { state: "uttar_pradesh", pincodes: ["231001"] },
+  raichur: { state: "karnataka", pincodes: ["584101"] },
+  pali: { state: "rajasthan", pincodes: ["306401"] },
+  ramagundam: { state: "telangana", pincodes: ["505208"] },
+  haridwar: { state: "uttarakhand", pincodes: ["249401"] },
+  vijayanagaram: { state: "andhra_pradesh", pincodes: ["535001"] },
+  katihar: { state: "bihar", pincodes: ["854105"] },
+  naihati: { state: "west_bengal", pincodes: ["743165"] },
+  sambhal: { state: "uttar_pradesh", pincodes: ["244302"] },
+  nadiad: { state: "gujarat", pincodes: ["387001"] },
+  yamunanagar: { state: "haryana", pincodes: ["135001"] },
+  english_bazar: { state: "west_bengal", pincodes: ["732101"] },
+  unnao: { state: "uttar_pradesh", pincodes: ["209801"] },
+  morena: { state: "madhya_pradesh", pincodes: ["476001"] },
+  bhiwani: { state: "haryana", pincodes: ["127021"] },
+  purnea: { state: "bihar", pincodes: ["854301"] },
+  kharagpur: { state: "west_bengal", pincodes: ["721301"] },
+  dindigul: { state: "tamil_nadu", pincodes: ["624001"] },
+  gandhinagar: { state: "gujarat", pincodes: ["382010"] },
+  hospet: { state: "karnataka", pincodes: ["583201"] },
+  nangloi_jat: { state: "delhi", pincodes: ["110041"] },
+  malda: { state: "west_bengal", pincodes: ["732101"] },
+  ongole: { state: "andhra_pradesh", pincodes: ["523001"] },
+  deoghar: { state: "jharkhand", pincodes: ["814112"] },
+  chapra: { state: "bihar", pincodes: ["841301"] },
+  haldia: { state: "west_bengal", pincodes: ["721602"] },
+  khandwa: { state: "madhya_pradesh", pincodes: ["450001"] },
+  nandyal: { state: "andhra_pradesh", pincodes: ["518501"] },
+  chittoor: { state: "andhra_pradesh", pincodes: ["517001"] },
+  morbi: { state: "gujarat", pincodes: ["363641"] },
+  amroha: { state: "uttar_pradesh", pincodes: ["244221"] },
+  anand: { state: "gujarat", pincodes: ["388001"] },
+  bhusawal: { state: "maharashtra", pincodes: ["425201"] },
+  orai: { state: "uttar_pradesh", pincodes: ["285001"] },
+  bahraich: { state: "uttar_pradesh", pincodes: ["271801"] },
+  vellore: { state: "tamil_nadu", pincodes: ["632001"] },
+  mahesana: { state: "gujarat", pincodes: ["384001"] },
+  raiganj: { state: "west_bengal", pincodes: ["733134"] },
+  sirsa: { state: "haryana", pincodes: ["125055"] },
+  danapur: { state: "bihar", pincodes: ["801503"] },
+  serampore: { state: "west_bengal", pincodes: ["712201"] },
+  sultan_pur_majra: { state: "delhi", pincodes: ["110086"] },
+  guna: { state: "madhya_pradesh", pincodes: ["473001"] },
+  jaunpur: { state: "uttar_pradesh", pincodes: ["222001"] },
+  panvel: { state: "maharashtra", pincodes: ["410206"] },
+  shillong: { state: "meghalaya", pincodes: ["793001"] },
+  tenali: { state: "andhra_pradesh", pincodes: ["522201"] },
+  khora: { state: "uttar_pradesh", pincodes: ["201301"] },
+  guntakal: { state: "andhra_pradesh", pincodes: ["515801"] },
+  puri: { state: "odisha", pincodes: ["752001"] },
+  compiegne: { state: "uttar_pradesh", pincodes: ["209801"] },
+  kishanganj: { state: "bihar", pincodes: ["855107"] },
+  supaul: { state: "bihar", pincodes: ["852131"] },
+  godda: { state: "jharkhand", pincodes: ["814133"] },
+  hazaribagh: { state: "jharkhand", pincodes: ["825301"] },
+  pakur: { state: "jharkhand", pincodes: ["816107"] },
+  paschim_bardhaman: { state: "west_bengal", pincodes: ["713101"] },
+  dharwad: { state: "karnataka", pincodes: ["580001"] },
+  medininagar: { state: "jharkhand", pincodes: ["822101"] }
 };
 
 
@@ -302,6 +300,9 @@ export default function CheckoutPage() {
 
   // State for the instructions dialog
   const [showInstructionsDialog, setShowInstructionsDialog] = useState(false);
+
+  // Step form state
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // Initialize shipping cost state and loading indicator
   const [shippingCost, setShippingCost] = useState<number>(99);
@@ -1877,11 +1878,74 @@ export default function CheckoutPage() {
           <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
         </div>
 
+        {/* Step Progress Indicator */}
+        <div className="mb-12">
+          <div className="flex items-center justify-between">
+            {/* Step 1 */}
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${
+                  currentStep >= 1
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-200 text-gray-600'
+                }`}
+              >
+                {currentStep > 1 ? <Check className="h-5 w-5" /> : '1'}
+              </div>
+              <p className="text-sm font-medium mt-2 text-gray-700">Delivery</p>
+            </div>
+
+            {/* Connector Line */}
+            <div
+              className={`h-1 flex-1 mx-2 transition-all ${
+                currentStep >= 2 ? 'bg-red-600' : 'bg-gray-200'
+              }`}
+            />
+
+            {/* Step 2 */}
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${
+                  currentStep >= 2
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-200 text-gray-600'
+                }`}
+              >
+                {currentStep > 2 ? <Check className="h-5 w-5" /> : '2'}
+              </div>
+              <p className="text-sm font-medium mt-2 text-gray-700">Payment</p>
+            </div>
+
+            {/* Connector Line */}
+            <div
+              className={`h-1 flex-1 mx-2 transition-all ${
+                currentStep >= 3 ? 'bg-red-600' : 'bg-gray-200'
+              }`}
+            />
+
+            {/* Step 3 */}
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${
+                  currentStep >= 3
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-200 text-gray-600'
+                }`}
+              >
+                {currentStep > 3 ? <Check className="h-5 w-5" /> : '3'}
+              </div>
+              <p className="text-sm font-medium mt-2 text-gray-700">Review</p>
+            </div>
+          </div>
+        </div>
+
         <form onSubmit={handlePlaceOrder}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content Area - Steps */}
+          <div className="lg:col-span-2">
+            {/* Step 1: Delivery Address */}
+          {currentStep === 1 && (
             <div className="space-y-6">
-
-
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -1892,225 +1956,22 @@ export default function CheckoutPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* No Saved Addresses - Show Add New Address Button */}
-                  {savedAddresses.length === 0 && (
-                    <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                      <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Add delivery address</h3>
-                      <p className="text-sm text-gray-600 mb-6">Enter your address to see delivery options</p>
-                      <Dialog open={showAddAddressDialog} onOpenChange={(open) => {
-                        setShowAddAddressDialog(open);
-                        if (open) {
-                          setNewAddressData({
-                            fullName: "",
-                            mobile: "",
-                            pincode: "",
-                            flat: "",
-                            area: "",
-                            landmark: "",
-                            town: "",
-                            state: "",
-                            makeDefault: false,
-                            deliveryInstructions: '',
-                            saturdayDelivery: false,
-                            sundayDelivery: false,
-                          });
-                        }
-                      }}>
-                        <DialogTrigger asChild>
-                          <Button className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold px-8 py-6 text-base">
-                            Add a new delivery address
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>Enter a new delivery address</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-start gap-2">
-                              <MapPin className="h-4 w-4 text-blue-600 mt-0.5" />
-                              <div>
-                                <p className="text-sm font-medium text-blue-900">Save time. Autofill your current location.</p>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="mt-2"
-                                  type="button"
-                                  onClick={handleAutofillLocation}
-                                >
-                                  <MapPin className="h-3 w-3 mr-1" />
-                                  Autofill
-                                </Button>
-                              </div>
-                            </div>
-
-                            <div>
-                              <Label htmlFor="newCountry">Country/Region *</Label>
-                              <select
-                                id="newCountry"
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                defaultValue="India"
-                                disabled
-                              >
-                                <option value="India">India</option>
-                              </select>
-                            </div>
-
-                            <div>
-                              <Label htmlFor="newFullName">Full name (First and Last name) *</Label>
-                              <Input
-                                id="newFullName"
-                                value={newAddressData.fullName}
-                                onChange={(e) => setNewAddressData({...newAddressData, fullName: e.target.value})}
-                                required
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="newMobile">Mobile number *</Label>
-                              <Input
-                                id="newMobile"
-                                placeholder="May be used to assist delivery"
-                                value={newAddressData.mobile}
-                                onChange={(e) => setNewAddressData({...newAddressData, mobile: e.target.value})}
-                                maxLength={10}
-                                required
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="newPincode">Pincode *</Label>
-                              <Input
-                                id="newPincode"
-                                placeholder="6 digits [0-9] PIN code"
-                                value={newAddressData.pincode}
-                                onChange={(e) => setNewAddressData({...newAddressData, pincode: e.target.value})}
-                                maxLength={6}
-                                required
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="newFlat">Flat, House no., Building, Company, Apartment *</Label>
-                              <Input
-                                id="newFlat"
-                                value={newAddressData.flat}
-                                onChange={(e) => setNewAddressData({...newAddressData, flat: e.target.value})}
-                                required
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="newArea">Area, Street, Sector, Village *</Label>
-                              <Input
-                                id="newArea"
-                                placeholder="e.g., hawa, nandpuri colony"
-                                value={newAddressData.area}
-                                onChange={(e) => setNewAddressData({...newAddressData, area: e.target.value})}
-                                required
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="newLandmark">Landmark</Label>
-                              <Input
-                                id="newLandmark"
-                                placeholder="E.g. near apollo hospital"
-                                value={newAddressData.landmark}
-                                onChange={(e) => setNewAddressData({...newAddressData, landmark: e.target.value})}
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label htmlFor="newTown">Town/City *</Label>
-                                <Input
-                                  id="newTown"
-                                  value={newAddressData.town}
-                                  onChange={(e) => setNewAddressData({...newAddressData, town: e.target.value})}
-                                  required
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="newState">State *</Label>
-                                <select
-                                  id="newState"
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                  value={newAddressData.state}
-                                  onChange={(e) => setNewAddressData({...newAddressData, state: e.target.value})}
-                                >
-                                  <option value="">Select State</option>
-                                  <option value="andhra_pradesh">Andhra Pradesh</option>
-                                  <option value="arunachal_pradesh">Arunachal Pradesh</option>
-                                  <option value="assam">Assam</option>
-                                  <option value="bihar">Bihar</option>
-                                  <option value="chhattisgarh">Chhattisgarh</option>
-                                  <option value="goa">Goa</option>
-                                  <option value="gujarat">Gujarat</option>
-                                  <option value="haryana">Haryana</option>
-                                  <option value="himachal_pradesh">Himachal Pradesh</option>
-                                  <option value="jharkhand">Jharkhand</option>
-                                  <option value="karnataka">Karnataka</option>
-                                  <option value="kerala">Kerala</option>
-                                  <option value="madhya_pradesh">Madhya Pradesh</option>
-                                  <option value="maharashtra">Maharashtra</option>
-                                  <option value="manipur">Manipur</option>
-                                  <option value="meghalaya">Meghalaya</option>
-                                  <option value="mizoram">Mizoram</option>
-                                  <option value="nagaland">Nagaland</option>
-                                  <option value="odisha">Odisha</option>
-                                  <option value="punjab">Punjab</option>
-                                  <option value="rajasthan">Rajasthan</option>
-                                  <option value="sikkim">Sikkim</option>
-                                  <option value="tamil_nadu">Tamil Nadu</option>
-                                  <option value="telangana">Telangana</option>
-                                  <option value="tripura">Tripura</option>
-                                  <option value="uttar_pradesh">Uttar Pradesh</option>
-                                  <option value="uttarakhand">Uttarakhand</option>
-                                  <option value="west_bengal">West Bengal</option>
-                                  <option value="delhi">Delhi</option>
-                                </select>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                id="makeDefault"
-                                className="rounded"
-                                checked={newAddressData.makeDefault}
-                                onChange={(e) => setNewAddressData({...newAddressData, makeDefault: e.target.checked})}
-                              />
-                              <Label htmlFor="makeDefault" className="text-sm font-normal">
-                                Make this my default address
-                              </Label>
-                            </div>
-
-                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                              <p className="text-sm font-semibold mb-2">Add delivery instructions (optional)</p>
-                              <Textarea
-                                placeholder="E.g., Leave at door, Ring bell twice, Call before delivery..."
-                                rows={3}
-                                className="mt-2 resize-none"
-                                onChange={(e) => {
-                                  setNewAddressData({...newAddressData, deliveryInstructions: e.target.value});
-                                }}
-                              />
-                              <p className="text-xs text-gray-600 mt-2">Preferences are used to plan your delivery. However, shipments can sometimes arrive early or later than planned.</p>
-                            </div>
-
-                            <Button
-                              className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
-                              type="button"
-                              onClick={handleNewAddressSubmit}
-                            >
-                              Use this address
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Save time. Autofill your current location.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        type="button"
+                        onClick={handleAutofillLocation}
+                      >
+                        <MapPin className="h-3 w-3 mr-1" />
+                        Autofill
+                      </Button>
                     </div>
-                  )}
+                  </div>
 
                   {/* Saved Addresses Section */}
                   {savedAddresses.length > 0 && (
@@ -2437,6 +2298,232 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
+                  {/* For New Users - No Saved Addresses */}
+                  {savedAddresses.length === 0 && (
+                    <div className="space-y-4">
+                      <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                        <p className="text-sm text-amber-800 font-medium">
+                          No delivery addresses saved yet. Add a new address to proceed.
+                        </p>
+                      </div>
+
+                      <Dialog open={showAddAddressDialog} onOpenChange={(open) => {
+                        setShowAddAddressDialog(open);
+                        if (open) {
+                          setNewAddressData({
+                            fullName: "",
+                            mobile: "",
+                            pincode: "",
+                            flat: "",
+                            area: "",
+                            landmark: "",
+                            town: "",
+                            state: "",
+                            makeDefault: false,
+                            deliveryInstructions: '',
+                            saturdayDelivery: false,
+                            sundayDelivery: false,
+                          });
+                        }
+                      }}>
+                        <DialogTrigger asChild>
+                          <button
+                            type="button"
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg"
+                          >
+                            + Enter Delivery Address
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Enter a new delivery address</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-start gap-2">
+                              <MapPin className="h-4 w-4 text-blue-600 mt-0.5" />
+                              <div>
+                                <p className="text-sm font-medium text-blue-900">Save time. Autofill your current location.</p>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="mt-2"
+                                  type="button"
+                                  onClick={handleAutofillLocation}
+                                >
+                                  <MapPin className="h-3 w-3 mr-1" />
+                                  Autofill
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newCountry2">Country/Region *</Label>
+                              <select
+                                id="newCountry2"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                defaultValue="India"
+                                disabled
+                              >
+                                <option value="India">India</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newFullName2">Full name (First and Last name) *</Label>
+                              <Input
+                                id="newFullName2"
+                                value={newAddressData.fullName}
+                                onChange={(e) => setNewAddressData({...newAddressData, fullName: e.target.value})}
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newMobile2">Mobile number *</Label>
+                              <Input
+                                id="newMobile2"
+                                placeholder="May be used to assist delivery"
+                                value={newAddressData.mobile}
+                                onChange={(e) => setNewAddressData({...newAddressData, mobile: e.target.value})}
+                                maxLength={10}
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newPincode2">Pincode *</Label>
+                              <Input
+                                id="newPincode2"
+                                placeholder="6 digits [0-9] PIN code"
+                                value={newAddressData.pincode}
+                                onChange={(e) => setNewAddressData({...newAddressData, pincode: e.target.value})}
+                                maxLength={6}
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newFlat2">Flat, House no., Building, Company, Apartment *</Label>
+                              <Input
+                                id="newFlat2"
+                                value={newAddressData.flat}
+                                onChange={(e) => setNewAddressData({...newAddressData, flat: e.target.value})}
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newArea2">Area, Street, Sector, Village *</Label>
+                              <Input
+                                id="newArea2"
+                                placeholder="e.g., hawa, nandpuri colony"
+                                value={newAddressData.area}
+                                onChange={(e) => setNewAddressData({...newAddressData, area: e.target.value})}
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="newLandmark2">Landmark</Label>
+                              <Input
+                                id="newLandmark2"
+                                placeholder="E.g. near apollo hospital"
+                                value={newAddressData.landmark}
+                                onChange={(e) => setNewAddressData({...newAddressData, landmark: e.target.value})}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="newTown2">Town/City *</Label>
+                                <Input
+                                  id="newTown2"
+                                  value={newAddressData.town}
+                                  onChange={(e) => setNewAddressData({...newAddressData, town: e.target.value})}
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="newState2">State *</Label>
+                                <select
+                                  id="newState2"
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                  value={newAddressData.state}
+                                  onChange={(e) => setNewAddressData({...newAddressData, state: e.target.value})}
+                                >
+                                  <option value="">Select State</option>
+                                  <option value="andhra_pradesh">Andhra Pradesh</option>
+                                  <option value="arunachal_pradesh">Arunachal Pradesh</option>
+                                  <option value="assam">Assam</option>
+                                  <option value="bihar">Bihar</option>
+                                  <option value="chhattisgarh">Chhattisgarh</option>
+                                  <option value="goa">Goa</option>
+                                  <option value="gujarat">Gujarat</option>
+                                  <option value="haryana">Haryana</option>
+                                  <option value="himachal_pradesh">Himachal Pradesh</option>
+                                  <option value="jharkhand">Jharkhand</option>
+                                  <option value="karnataka">Karnataka</option>
+                                  <option value="kerala">Kerala</option>
+                                  <option value="madhya_pradesh">Madhya Pradesh</option>
+                                  <option value="maharashtra">Maharashtra</option>
+                                  <option value="manipur">Manipur</option>
+                                  <option value="meghalaya">Meghalaya</option>
+                                  <option value="mizoram">Mizoram</option>
+                                  <option value="nagaland">Nagaland</option>
+                                  <option value="odisha">Odisha</option>
+                                  <option value="punjab">Punjab</option>
+                                  <option value="rajasthan">Rajasthan</option>
+                                  <option value="sikkim">Sikkim</option>
+                                  <option value="tamil_nadu">Tamil Nadu</option>
+                                  <option value="telangana">Telangana</option>
+                                  <option value="tripura">Tripura</option>
+                                  <option value="uttar_pradesh">Uttar Pradesh</option>
+                                  <option value="uttarakhand">Uttarakhand</option>
+                                  <option value="west_bengal">West Bengal</option>
+                                  <option value="delhi">Delhi</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id="makeDefault2"
+                                className="rounded"
+                                checked={newAddressData.makeDefault}
+                                onChange={(e) => setNewAddressData({...newAddressData, makeDefault: e.target.checked})}
+                              />
+                              <Label htmlFor="makeDefault2" className="text-sm font-normal">
+                                Make this my default address
+                              </Label>
+                            </div>
+
+                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                              <p className="text-sm font-semibold mb-2">Add delivery instructions (optional)</p>
+                              <Textarea
+                                placeholder="E.g., Leave at door, Ring bell twice, Call before delivery..."
+                                rows={3}
+                                className="mt-2 resize-none"
+                                onChange={(e) => {
+                                  setNewAddressData({...newAddressData, deliveryInstructions: e.target.value});
+                                }}
+                              />
+                              <p className="text-xs text-gray-600 mt-2">Preferences are used to plan your delivery. However, shipments can sometimes arrive early or later than planned.</p>
+                            </div>
+
+                            <Button
+                              className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
+                              type="button"
+                              onClick={handleNewAddressSubmit}
+                            >
+                              Use this address
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  )}
+
                   {/* Manual Address Entry (fallback) */}
                   {/* {(!userProfile || !userProfile.address) && (
                     <div>
@@ -2733,6 +2820,31 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
 
+              {/* Next Button for Step 1 */}
+              <Button
+                type="button"
+                onClick={() => {
+                  if (selectedAddressId || (formData.address && formData.city && formData.state && formData.zipCode)) {
+                    setCurrentStep(2);
+                  } else {
+                    toast({
+                      title: "Address Required",
+                      description: "Please select or fill in a delivery address",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                className="w-full mt-6 bg-red-600 hover:bg-red-700"
+                size="lg"
+              >
+                Continue to Payment <ChevronDown className="h-4 w-4 ml-2 rotate-90" />
+              </Button>
+            </div>
+          )}
+
+          {/* Step 2: Payment Method */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -2785,9 +2897,141 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
 
+              {/* Navigation Buttons for Step 2 */}
+              <div className="flex gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCurrentStep(1)}
+                  className="flex-1"
+                  size="lg"
+                >
+                  <ChevronDown className="h-4 w-4 mr-2 rotate-180" />
+                  Back
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setCurrentStep(3)}
+                  className="flex-1 bg-red-600 hover:bg-red-700"
+                  size="lg"
+                >
+                  Review Order <ChevronDown className="h-4 w-4 ml-2 rotate-90" />
+                </Button>
+              </div>
             </div>
+          )}
 
+          {/* Step 3: Review Order */}
+          {currentStep === 3 && (
             <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Package className="h-5 w-5 mr-2" />
+                    Review Your Order
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Delivery Address Summary */}
+                  {selectedAddressId && savedAddresses.length > 0 && (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <MapPin className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-blue-900 mb-2">Delivery Address</h4>
+                          {(() => {
+                            const selectedAddress = savedAddresses.find(addr => addr.id === selectedAddressId);
+                            if (selectedAddress) {
+                              return (
+                                <div className="text-sm text-gray-700 space-y-1">
+                                  <p className="font-medium">{selectedAddress.recipientName}</p>
+                                  <p>{selectedAddress.addressLine1}</p>
+                                  {selectedAddress.addressLine2 && <p>{selectedAddress.addressLine2}</p>}
+                                  <p>{selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}</p>
+                                  <p className="text-gray-600">Phone: {selectedAddress.phoneNumber}</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment Method Summary */}
+                  <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <CreditCard className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-purple-900 mb-2">Payment Method</h4>
+                        <p className="text-sm text-gray-700 font-medium">
+                          {formData.paymentMethod === 'cashfree' ? 'Online Payment (Cashfree)' : 'Cash on Delivery'}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {formData.paymentMethod === 'cashfree' 
+                            ? 'Pay with UPI, Cards, Net Banking & Wallets' 
+                            : 'Pay when you receive your order'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items Summary */}
+                  <div>
+                    <h4 className="font-semibold text-gray-900 mb-3">Order Items ({cartItems.length})</h4>
+                    <div className="space-y-2 bg-gray-50 p-4 rounded-lg">
+                      {cartItems.map((item) => (
+                        <div key={item.id} className="flex justify-between items-center">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                            <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                          </div>
+                          <p className="text-sm font-semibold text-gray-900">₹{(parseInt(item.price.replace(/[₹,]/g, "")) * item.quantity).toLocaleString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Navigation Buttons for Step 3 */}
+              <div className="flex gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCurrentStep(2)}
+                  className="flex-1"
+                  size="lg"
+                >
+                  <ChevronDown className="h-4 w-4 mr-2 rotate-180" />
+                  Back
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 bg-red-600 hover:bg-red-700"
+                  size="lg"
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? "Processing..." : (
+                    <>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Place Order
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <p className="text-xs text-gray-500 text-center">
+                By placing your order, you agree to our Terms of Service and Privacy Policy.
+              </p>
+            </div>
+          )}
+
+          {/* Right Sidebar - Order Summary */}
+          </div>
+          <div className="lg:col-span-1">
+            <div className="sticky top-20">
 
 
               <Card>
@@ -3071,27 +3315,10 @@ export default function CheckoutPage() {
                       </div>
                     )}
                   </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full mt-6 bg-red-600 hover:bg-red-700"
-                    size="lg"
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? "Processing..." : (
-                      <>
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        Place Order - ₹{total.toLocaleString()}
-                      </>
-                    )}
-                  </Button>
-
-                  <p className="text-xs text-gray-500 mt-4 text-center">
-                    By placing your order, you agree to our Terms of Service and Privacy Policy.
-                  </p>
                 </CardContent>
               </Card>
             </div>
+          </div>
           </div>
         </form>
       </div>

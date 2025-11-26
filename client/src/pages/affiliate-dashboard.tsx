@@ -52,7 +52,8 @@ import {
   Calendar,
   TrendingDown,
   Tag,
-  Info, // Added Info icon
+  Info,
+  FileText, // Added Info icon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; // Added Popover imports
@@ -708,7 +709,7 @@ export default function AffiliateDashboard() {
               </Badge>
 
               {/* Affiliate Actions Dropdown */}
-              <DropdownMenu>
+           <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10">
                     <Users className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -733,6 +734,13 @@ export default function AffiliateDashboard() {
                     <div>
                       <p className="font-semibold">Copy Code</p>
                       <p className="text-xs text-gray-500">Copy affiliate code</p>
+                    </div>
+                  </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setLocation("/terms#affiliate")}>
+                    <FileText className="h-4 w-4 mr-3 text-blue-600" />
+                    <div>
+                      <p className="font-semibold">Terms & Conditions</p>
+                      <p className="text-xs text-gray-500">Terms & Conditions</p>
                     </div>
                   </DropdownMenuItem>
 

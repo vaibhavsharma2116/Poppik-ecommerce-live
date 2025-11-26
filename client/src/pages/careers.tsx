@@ -119,39 +119,18 @@ export default function Careers() {
 
   console.log(`✅ Total positions after filtering: ${filteredPositions.length}`);
 
-  const benefits = [
-    {
-      icon: <Heart className="h-6 w-6" />,
-      title: "Health & Wellness",
-      description: "Comprehensive health insurance and wellness programs"
-    },
-    {
-      icon: <TrendingUp className="h-6 w-6" />,
-      title: "Career Growth",
-      description: "Clear career paths and continuous learning opportunities"
-    },
-    {
-      icon: <Users className="h-6 w-6" />,
-      title: "Great Culture",
-      description: "Inclusive, collaborative, and fun work environment"
-    },
-    {
-      icon: <Briefcase className="h-6 w-6" />,
-      title: "Work-Life Balance",
-      description: "Flexible working hours and generous time-off policies"
-    }
-  ];
+  
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-3 xs:py-4 sm:py-6 md:py-8">
-      <div className="max-w-7xl mx-auto px-2 xs:px-3 sm:px-4 md:px-6 lg:px-8">
+    <div className="">
+      <div className="">
         {/* Header */}
-        <div className="mb-4 xs:mb-5 sm:mb-6 md:mb-8">
+        {/* <div className="mb-4 xs:mb-5 sm:mb-6 md:mb-8">
           <Link href="/" className="inline-flex items-center text-pink-600 hover:text-pink-700 mb-3 xs:mb-4 sm:mb-5 md:mb-6 transition-colors text-xs xs:text-sm sm:text-base">
             <ArrowLeft className="h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4 mr-1.5 xs:mr-2" />
             Back to Home
-          </Link>
-          <div className="text-center">
+          </Link> */}
+          {/* <div className="text-center">
             <Badge variant="outline" className="mb-2 xs:mb-3 sm:mb-4 bg-pink-50 text-pink-700 border-pink-200 text-[10px] xs:text-xs sm:text-sm px-2 xs:px-3 py-0.5 xs:py-1">
               Join Our Team
             </Badge>
@@ -159,6 +138,28 @@ export default function Careers() {
             <p className="text-gray-600 text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl mx-auto px-3 xs:px-4 leading-relaxed">
               Be part of a team that's transforming the beauty industry. We're looking for passionate individuals who want to make a difference.
             </p>
+          </div> */}
+        {/* </div> */}
+
+        {/* Career Image Section */}
+        <div className="mb-4 xs:mb-5 sm:mb-6 md:mb-8">
+          <div className="relative w-full overflow-hidden rounded-2xl shadow-2xl">
+            <img 
+              src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2000&auto=format&fit=crop"
+              alt="Join Our Team at Poppik" 
+              className="w-full h-auto object-cover"
+              style={{ maxHeight: '500px' }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end">
+              <div className="p-4 xs:p-6 sm:p-8 md:p-10 lg:p-12 w-full">
+                <h2 className="text-white text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 xs:mb-3 sm:mb-4">
+                  Join Our Team
+                </h2>
+                <p className="text-white/90 text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl">
+                  Be part of something amazing. Build your career with Poppik Lifestyle.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -277,22 +278,6 @@ export default function Careers() {
             </div>
           )}
         </div>
-  <Card className="mb-4 xs:mb-5 sm:mb-6 md:mb-8 shadow-lg xs:shadow-xl border-0 bg-gradient-to-r from-pink-500 to-purple-500 text-white">
-          <CardContent className="py-3 xs:py-4 sm:py-6 md:py-8 px-2 xs:px-3 sm:px-4 md:px-6">
-            <h2 className="text-base xs:text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-center mb-3 xs:mb-4 sm:mb-6 md:mb-8 px-1 xs:px-2 leading-tight">Why Work With Us?</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 xs:gap-3 sm:gap-4 md:gap-6">
-              {benefits.map((benefit, index) => (
-                <div key={index} className="text-center p-1.5 xs:p-2 sm:p-3 md:p-0">
-                  <div className="w-8 h-8 xs:w-10 xs:h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-1.5 xs:mb-2 sm:mb-3 md:mb-4">
-                    <div className="text-white [&>svg]:w-3 [&>svg]:h-3 xs:[&>svg]:w-4 xs:[&>svg]:h-4 sm:[&>svg]:w-5 sm:[&>svg]:h-5 md:[&>svg]:w-6 md:[&>svg]:h-6">{benefit.icon}</div>
-                  </div>
-                  <h3 className="font-bold text-[10px] xs:text-xs sm:text-sm md:text-base lg:text-lg mb-0.5 xs:mb-1 sm:mb-1.5 md:mb-2 px-0.5 xs:px-1 leading-tight">{benefit.title}</h3>
-                  <p className="text-pink-100 text-[9px] xs:text-[10px] sm:text-xs md:text-sm px-1 xs:px-2 leading-relaxed">{benefit.description}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
         
       </div>
       

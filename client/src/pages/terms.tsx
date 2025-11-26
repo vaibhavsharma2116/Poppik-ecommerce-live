@@ -1,6 +1,6 @@
-
-import { Link } from "wouter";
-import { ArrowLeft, Shield, Package, CreditCard, Truck, RotateCcw, User, AlertTriangle, Mail, Eye, FileText, Scale } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { useEffect } from "react";
+import { ArrowLeft, Shield, Package, CreditCard, Truck, RotateCcw, User, AlertTriangle, Mail, Eye, FileText, Scale, Gift } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -10,6 +10,18 @@ export default function Terms() {
       icon: FileText,
       title: "Introduction",
       content: "The website www.poppik.in (\"Website\") is an internet-based content and e-commerce portal operated by Poppik Lifestyle Private Limited, headquartered in India. By accessing the Website, you agree to be bound by these Terms and Conditions without modification. Poppik Lifestyle Pvt. Ltd. reserves the right to deny access or registration to any user without prior notice or reason. Unless otherwise stated, these Terms and Conditions override any previous understandings, agreements, or terms related to the use of this Website."
+    },
+    {
+      id: "cashback",
+      icon: Gift,
+      title: "Cashback, Rewards & Wallet",
+      content: "Cashback is a promotional reward provided by Poppik to eligible users as described below. Cashback is credited to your Poppik Wallet and is subject to these specific terms: \n\n1. Eligibility: Cashback is awarded only on qualifying purchases as communicated in the offer terms. Certain categories, products, coupons, or payment methods may be excluded. \n\n2. Crediting: Cashback may take up to 7 business days to reflect in your Wallet after order delivery/fulfilment and verification. \n\n3. Expiry: Cashback credited to your Wallet expires 180 days from the date it is credited unless a different period is stated in the offer. Expired cashback will be automatically removed and is non-recoverable. \n\n4. Redemption: Cashback can be used as part or full payment on future purchases only on www.poppik.in. Minimum and maximum redemption limits may apply as stated in the offer. Cashback cannot be redeemed for cash and cannot be transferred to other users. \n\n5. Stacking: Cashback usage may be subject to stacking rules with promo codes, discounts, or other offers. Poppik reserves the right to restrict stacking for specific offers. \n\n6. Reversals: If an order is returned, cancelled, or refunded, any cashback earned from that order may be reversed from your Wallet. If you used cashback towards payment and the order is refunded, refund amounts will be credited according to our refund policy and may exclude redeemed cashback. \n\n7. Abuse & Fraud: Any attempt to manipulate, game, or abuse cashback programs (including creating multiple accounts, using false information, or fraudulently triggering offers) will result in forfeiture of cashback, account suspension, and possible legal action. \n\n8. Limits & Changes: Poppik may impose limits on cashback per user, per transaction, or overall. Poppik reserves the right to modify, pause, or terminate cashback programs at any time without prior notice. \n\n9. Disputes: Any disputes related to cashback will be resolved at Poppik's sole discretion after investigation. For questions, contact info@poppik.in."
+    },
+    {
+      id: "affiliate",
+      icon: User,
+      title: "Affiliate, Commission & Wallet",
+      content: "Commission is a promotional earning provided to eligible affiliates for successful referrals and sales as described below. Commission is credited to your Affiliate Wallet and is subject to these specific terms: \n\n1. Eligibility: Commission is awarded only on qualifying sales made through your affiliate link/code as per the offer terms. Certain categories, products, coupons, or payment methods may be excluded. \n\n2. Crediting: Commission may take up to 7 business days to reflect in your Wallet after order delivery/fulfilment and verification. Cancelled or returned orders will not earn commission. \n\n3. Expiry: Commission credited to your Wallet is valid for withdrawal for 180 days from the date it is credited unless a different period is stated in the offer. Expired commission will be automatically removed and is non-recoverable. \n\n4. Withdrawal: Commission can be withdrawn to your bank account once minimum withdrawal threshold is met (e.g., ₹2500). Withdrawal requests are subject to verification and may take up to 7 business days to process. Poppik reserves the right to reject withdrawal requests if fraudulent activity is suspected. \n\n5. Stacking: Commission earnings may be subject to stacking rules with other offers, bonuses, or incentives. Poppik reserves the right to restrict stacking for specific campaigns. \n\n6. Reversals: If an order is returned, cancelled, or refunded, any commission earned from that order may be reversed from your Wallet. Refunds will be processed according to our refund policy and may exclude paid commission. \n\n7. Abuse & Fraud: Any attempt to manipulate, game, or abuse affiliate programs (including creating multiple accounts, using false information, or fraudulently triggering referrals) will result in forfeiture of commission, account suspension, and possible legal action. \n\n8. Limits & Changes: Poppik may impose limits on commission per user, per transaction, or overall. Poppik reserves the right to modify, pause, or terminate affiliate programs at any time without prior notice. \n\n9. Disputes: Any disputes related to commission will be resolved at Poppik's sole discretion after investigation. For questions, contact info@poppik.in."
     },
     {
       icon: User,
@@ -58,6 +70,19 @@ export default function Terms() {
     }
   ];
 
+  const [location] = useLocation();
+  useEffect(() => {
+    const hash = location && location.includes('#') ? location.split('#')[1] : (window.location.hash ? window.location.hash.replace('#','') : null);
+    if (!hash) return;
+    // small timeout to ensure the element is rendered
+    setTimeout(() => {
+      const el = document.getElementById(hash);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50);
+  }, [location]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-pink-50 py-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -94,7 +119,7 @@ export default function Terms() {
           {sections.map((section, index) => {
             const IconComponent = section.icon;
             return (
-              <Card key={index} className="shadow-lg border-0 hover:shadow-xl transition-all duration-300 group">
+              <Card id={section.id ?? undefined} key={index} className="shadow-lg border-0 hover:shadow-xl transition-all duration-300 group">
                 <CardHeader className="pb-4">
                   <div className="flex items-center space-x-4">
                     <div className="p-3 bg-red-100 rounded-full group-hover:bg-red-200 transition-colors">

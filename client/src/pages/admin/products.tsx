@@ -1295,12 +1295,23 @@ export default function AdminProducts() {
                   step="0.01"
                   value={editFormData.originalPrice}
                   onChange={(e) => {
-                    setEditFormData(prev => ({ ...prev, originalPrice: e.target.value }));
-                    // Auto-calculate discount
-                    if (editFormData.price && e.target.value) {
-                      const discount = ((parseFloat(e.target.value) - parseFloat(editFormData.price)) / parseFloat(e.target.value) * 100).toFixed(2);
-                      setEditFormData(prev => ({ ...prev, discount }));
-                    }
+                    const originalPrice = e.target.value;
+                    setEditFormData(prev => {
+                      const updated = { ...prev, originalPrice };
+                      
+                      // Case 1: Original Price + Sale Price → Calculate Discount
+                      if (updated.price && originalPrice) {
+                        const discount = ((parseFloat(originalPrice) - parseFloat(updated.price)) / parseFloat(originalPrice) * 100).toFixed(2);
+                        updated.discount = discount;
+                      }
+                      // Case 2: Original Price + Discount → Calculate Sale Price
+                      else if (updated.discount && originalPrice) {
+                        const salePrice = (parseFloat(originalPrice) * (1 - parseFloat(updated.discount) / 100)).toFixed(2);
+                        updated.price = salePrice;
+                      }
+                      
+                      return updated;
+                    });
                   }}
                   placeholder="599"
                 />
@@ -1314,12 +1325,23 @@ export default function AdminProducts() {
                   step="0.01"
                   value={editFormData.price}
                   onChange={(e) => {
-                    setEditFormData(prev => ({ ...prev, price: e.target.value }));
-                    // Auto-calculate discount
-                    if (editFormData.originalPrice && e.target.value) {
-                      const discount = ((parseFloat(editFormData.originalPrice) - parseFloat(e.target.value)) / parseFloat(editFormData.originalPrice) * 100).toFixed(2);
-                      setEditFormData(prev => ({ ...prev, discount }));
-                    }
+                    const salePrice = e.target.value;
+                    setEditFormData(prev => {
+                      const updated = { ...prev, price: salePrice };
+                      
+                      // Case 1: Original Price + Sale Price → Calculate Discount
+                      if (updated.originalPrice && salePrice) {
+                        const discount = ((parseFloat(updated.originalPrice) - parseFloat(salePrice)) / parseFloat(updated.originalPrice) * 100).toFixed(2);
+                        updated.discount = discount;
+                      }
+                      // Case 2: Sale Price + Discount → Calculate Original Price
+                      else if (updated.discount && salePrice) {
+                        const originalPrice = (parseFloat(salePrice) / (1 - parseFloat(updated.discount) / 100)).toFixed(2);
+                        updated.originalPrice = originalPrice;
+                      }
+                      
+                      return updated;
+                    });
                   }}
                   placeholder="479"
                   required
@@ -1333,11 +1355,28 @@ export default function AdminProducts() {
                   type="number"
                   step="0.01"
                   value={editFormData.discount}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, discount: e.target.value }))}
-                  placeholder="Auto-calculated"
-                  disabled
+                  onChange={(e) => {
+                    const discount = e.target.value;
+                    setEditFormData(prev => {
+                      const updated = { ...prev, discount };
+                      
+                      // Case 1: Original Price + Discount → Calculate Sale Price
+                      if (updated.originalPrice && discount) {
+                        const salePrice = (parseFloat(updated.originalPrice) * (1 - parseFloat(discount) / 100)).toFixed(2);
+                        updated.price = salePrice;
+                      }
+                      // Case 2: Sale Price + Discount → Calculate Original Price
+                      else if (updated.price && discount) {
+                        const originalPrice = (parseFloat(updated.price) / (1 - parseFloat(discount) / 100)).toFixed(2);
+                        updated.originalPrice = originalPrice;
+                      }
+                      
+                      return updated;
+                    });
+                  }}
+                  placeholder="Enter discount percentage"
                 />
-                <p className="text-xs text-gray-500">Auto-calculated from original price and sale price</p>
+                <p className="text-xs text-gray-500">Enter any 2 values (Original Price, Sale Price, or Discount) - the third will auto-calculate</p>
               </div>
 
               <div className="space-y-2">

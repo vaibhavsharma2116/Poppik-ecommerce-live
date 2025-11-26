@@ -4209,11 +4209,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/orders/:id", async (req, res) => {
     try {
       const orderId = req.params.id.replace('ORD-', '');
+      const parsedOrderId = Number(orderId);
+
+      // Validate that orderId is a valid number
+      if (isNaN(parsedOrderId) || parsedOrderId <= 0) {
+        return res.status(400).json({ error: "Invalid order ID format" });
+      }
 
       const order = await db
         .select()
         .from(schema.ordersTable)
-        .where(eq(schema.ordersTable.id, Number(orderId)))
+        .where(eq(schema.ordersTable.id, parsedOrderId))
         .limit(1);
 
       if (order.length === 0) {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -37,25 +36,46 @@ export default function StoreLocator() {
     }
   }, [stores]);
 
+  // Live filtering as user types (debounced)
+  useEffect(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const timer = setTimeout(() => {
+      if (!q) {
+        setFilteredStores(stores);
+        // keep currently selected if present otherwise pick first
+        if (!selectedStore && stores.length > 0) setSelectedStore(stores[0]);
+        return;
+      }
+
+      const filtered = stores.filter((store) => {
+        const fields = [
+          store.name,
+          store.address,
+          store.city,
+          store.state,
+          store.pincode,
+          store.phone || '',
+          store.email || '',
+          // website may be null/empty
+        ];
+
+        return fields.some((f) => f && f.toString().toLowerCase().includes(q));
+      });
+
+      setFilteredStores(filtered);
+      if (filtered.length > 0) {
+        setSelectedStore(filtered[0]);
+      } else {
+        setSelectedStore(null);
+      }
+    }, 250); // 250ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, stores]);
+
+  // keep existing submit handler but prevent full page reload if button clicked
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!searchQuery.trim()) {
-      setFilteredStores(stores);
-      return;
-    }
-
-    const filtered = stores.filter(store => 
-      store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      store.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      store.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      store.pincode.includes(searchQuery)
-    );
-
-    setFilteredStores(filtered);
-    if (filtered.length > 0) {
-      setSelectedStore(filtered[0]);
-    }
   };
 
   const getDirections = (store: Store) => {

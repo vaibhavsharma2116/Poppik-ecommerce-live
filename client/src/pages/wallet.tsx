@@ -1,20 +1,21 @@
-
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Gift, 
-  TrendingUp, 
-  History, 
-  ArrowUpRight, 
+import {
+  Gift,
+  TrendingUp,
+  History,
+  ArrowUpRight,
   ArrowDownRight,
   RefreshCw,
   Calendar,
   Filter,
   Search,
-  Wallet as WalletIcon
+  Wallet as WalletIcon,
+  FileText
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -158,7 +159,7 @@ export default function Wallet() {
                 <p className="text-sm text-gray-500">Manage your cashback and track earnings</p>
               </div>
             </div>
-            <Button 
+            <Button
               onClick={() => {
                 refetchWallet();
                 refetchTransactions();
@@ -191,6 +192,18 @@ export default function Wallet() {
               </p>
               <p className="text-pink-100 text-sm">Available for redemption on your next purchase</p>
             </div>
+            <div className="">
+                <div className="flex justify-start">
+                  <Link
+                    to="/terms#cashback"
+                    className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-3 py-1.5 rounded-md focus:outline-none focus:ring-2 focus:ring-white/40"
+                    aria-label="Open Terms and Conditions"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Terms & Conditions
+                  </Link>
+                </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/20">
               <div>
@@ -204,6 +217,7 @@ export default function Wallet() {
                 </p>
               </div>
             </div>
+
           </div>
 
           {/* Stats Grid */}
@@ -316,8 +330,8 @@ export default function Wallet() {
                 </div>
                 <p className="text-gray-500 text-lg font-semibold mb-2">No transactions found</p>
                 <p className="text-gray-400">
-                  {searchQuery || filterType !== "all" || dateRange !== "all" 
-                    ? "Try adjusting your filters" 
+                  {searchQuery || filterType !== "all" || dateRange !== "all"
+                    ? "Try adjusting your filters"
                     : "Start shopping to earn cashback!"}
                 </p>
               </div>
@@ -330,11 +344,10 @@ export default function Wallet() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 flex-1">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow ${
-                          transaction.type === 'credit' 
-                            ? 'bg-gradient-to-br from-green-400 to-green-500' 
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow ${transaction.type === 'credit'
+                            ? 'bg-gradient-to-br from-green-400 to-green-500'
                             : 'bg-gradient-to-br from-red-400 to-red-500'
-                        }`}>
+                          }`}>
                           {transaction.type === 'credit' ? (
                             <ArrowDownRight className="h-6 w-6 text-white" />
                           ) : (
@@ -365,9 +378,8 @@ export default function Wallet() {
                       </div>
 
                       <div className="text-right">
-                        <p className={`text-xl font-bold mb-1 ${
-                          transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
-                        }`}>
+                        <p className={`text-xl font-bold mb-1 ${transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                          }`}>
                           {transaction.type === 'credit' ? '+' : '-'}₹{parseFloat(transaction.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </p>
                         <p className="text-xs text-gray-500">
