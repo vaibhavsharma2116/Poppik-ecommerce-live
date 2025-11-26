@@ -22,28 +22,63 @@ export default function CareersDetail() {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
+  // Helper function to parse field content (HTML or JSON)
+  const parseFieldContent = (content: any): string | string[] => {
+    if (!content) return [];
+    
+    // If it's already an array, return it
+    if (Array.isArray(content)) {
+      return content;
+    }
+
+    // If it's a string, try to parse it
+    if (typeof content === 'string') {
+      // Try JSON parse first
+      try {
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch (e) {
+        // Not JSON, treat as HTML
+      }
+
+      // If it contains HTML tags, return as HTML string
+      if (content.includes('<') && content.includes('>')) {
+        return content;
+      }
+
+      // Otherwise return as single string in array
+      return [content];
+    }
+
+    return [];
+  };
+
   // Fetch position data from API
   const { data: position, isLoading, error } = useQuery({
-    queryKey: ['/api/job-positions', positionSlug],
+    queryKey: ['job-positions', positionSlug],
     queryFn: async () => {
+      console.log(`🔍 Fetching position: ${positionSlug}`);
       const response = await fetch(`/api/job-positions/${positionSlug}`);
-      if (!response.ok) throw new Error('Failed to fetch job position');
+      if (!response.ok) {
+        console.error('❌ Failed to fetch job position:', response.status);
+        throw new Error('Failed to fetch job position');
+      }
+      
       const data = await response.json();
+      console.log('📊 Position data received:', data);
 
-      // Parse JSONB fields if they are strings
       if (data) {
-        return {
+        const processedData = {
           ...data,
-          responsibilities: typeof data.responsibilities === 'string'
-            ? JSON.parse(data.responsibilities)
-            : data.responsibilities,
-          requirements: typeof data.requirements === 'string'
-            ? JSON.parse(data.requirements)
-            : data.requirements,
-          skills: typeof data.skills === 'string'
-            ? JSON.parse(data.skills)
-            : data.skills,
+          responsibilities: parseFieldContent(data.responsibilities),
+          requirements: parseFieldContent(data.requirements),
+          skills: parseFieldContent(data.skills) as string[],
         };
+        
+        console.log('✅ Processed position data:', processedData);
+        return processedData;
       }
 
       return data;
@@ -400,35 +435,56 @@ export default function CareersDetail() {
             {/* About the Role */}
             <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">About the Role</h2>
-              <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
-                {position.aboutRole}
-              </p>
+              {typeof position.aboutRole === 'string' && position.aboutRole.includes('<') ? (
+                <div 
+                  className="text-gray-700 leading-relaxed text-sm sm:text-base prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: position.aboutRole }}
+                />
+              ) : (
+                <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
+                  {position.aboutRole}
+                </p>
+              )}
             </div>
 
             {/* Key Responsibilities */}
             <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Key Responsibilities</h2>
-              <ul className="space-y-2 sm:space-y-3">
-                {position.responsibilities.map((item: string, index: number) => (
-                  <li key={index} className="flex items-start">
-                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700 text-sm sm:text-base">{item}</span>
-                  </li>
-                ))}
-              </ul>
+              {Array.isArray(position.responsibilities) ? (
+                <ul className="space-y-2 sm:space-y-3">
+                  {position.responsibilities.map((item: string, index: number) => (
+                    <li key={index} className="flex items-start">
+                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5" />
+                      <span className="text-gray-700 text-sm sm:text-base">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div 
+                  className="text-gray-700 leading-relaxed text-sm sm:text-base prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: position.responsibilities as string }}
+                />
+              )}
             </div>
 
             {/* What We're Looking For */}
             <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">What We're Looking For</h2>
-              <ul className="space-y-2 sm:space-y-3">
-                {position.requirements.map((item: string, index: number) => (
-                  <li key={index} className="flex items-start">
-                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700 text-sm sm:text-base">{item}</span>
-                  </li>
-                ))}
-              </ul>
+              {Array.isArray(position.requirements) ? (
+                <ul className="space-y-2 sm:space-y-3">
+                  {position.requirements.map((item: string, index: number) => (
+                    <li key={index} className="flex items-start">
+                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5" />
+                      <span className="text-gray-700 text-sm sm:text-base">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div 
+                  className="text-gray-700 leading-relaxed text-sm sm:text-base prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: position.requirements as string }}
+                />
+              )}
             </div>
 
             {/* Additional Note */}
@@ -490,21 +546,17 @@ export default function CareersDetail() {
                   <CardTitle className="text-base sm:text-lg font-semibold text-gray-900">Skills</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6">
-                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    {position.skills.map((skill: string, index: number) => (
-                      <Badge key={index} variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs sm:text-sm">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Share Job - Optional */}
-              <Card className="shadow-sm">
-                <CardContent className="p-4 sm:p-6 text-center">
-                  <h4 className="text-xs sm:text-sm font-semibold text-gray-900 mb-2 sm:mb-3">Share this job</h4>
-                  <p className="text-xs text-gray-500">Help us find the right candidate!</p>
+                  {position.skills && Array.isArray(position.skills) && position.skills.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      {position.skills.map((skill: string, index: number) => (
+                        <Badge key={index} variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs sm:text-sm">
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm">No skills specified</p>
+                  )}
                 </CardContent>
               </Card>
             </div>

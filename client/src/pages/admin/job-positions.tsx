@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import RichTextEditor from "@/components/admin/rich-text-editor";
 import {
   Dialog,
   DialogContent,
@@ -38,14 +39,37 @@ export default function AdminJobPositions() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState(null);
   const [selectedJobType, setSelectedJobType] = useState('Full-Time Job');
+  const [aboutRoleContent, setAboutRoleContent] = useState('');
+  const [responsibilitiesContent, setResponsibilitiesContent] = useState('');
+  const [requirementsContent, setRequirementsContent] = useState('');
+  const [isActive, setIsActive] = useState(true);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: positions = [], isLoading, error } = useQuery({
     queryKey: ['/api/admin/job-positions'],
     queryFn: async () => {
-      console.log('Fetching admin job positions...');
-      const response = await fetch('/api/admin/job-positions');
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      console.log('🔑 Fetching admin job positions with token:', token ? 'Present' : 'Missing');
+
+      if (!token) {
+        toast({ title: 'Authentication Required', description: 'Please login to continue', variant: 'destructive' });
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('No authentication token found');
+      }
+
+      const response = await fetch('/api/admin/job-positions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.status === 401) {
+        toast({ title: 'Session Expired', description: 'Please login again', variant: 'destructive' });
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminToken');
+        window.location.href = '/admin/auth/admin-login';
+        throw new Error('Authentication required');
+      }
+
       if (!response.ok) {
         console.error('Failed to fetch admin job positions:', response.status);
         throw new Error('Failed to fetch job positions');
@@ -54,6 +78,7 @@ export default function AdminJobPositions() {
       console.log('Admin job positions received:', data);
       return data;
     },
+    enabled: !!(localStorage.getItem('token') || localStorage.getItem('adminToken')),
     select: (data) => Array.isArray(data) ? data : [],
   });
 
@@ -63,9 +88,15 @@ export default function AdminJobPositions() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      if (!token) throw new Error('No authentication token');
+
       const response = await fetch('/api/admin/job-positions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to create job position');
@@ -80,9 +111,15 @@ export default function AdminJobPositions() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: any) => {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      if (!token) throw new Error('No authentication token');
+
       const response = await fetch(`/api/admin/job-positions/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to update job position');
@@ -98,8 +135,12 @@ export default function AdminJobPositions() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      if (!token) throw new Error('No authentication token');
+
       const response = await fetch(`/api/admin/job-positions/${id}`, {
         method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to delete job position');
       return response.json();
@@ -116,6 +157,7 @@ export default function AdminJobPositions() {
     
     const data = {
       title: formData.get('title'),
+      slug: editingPosition?.slug || (formData.get('title') as string).toLowerCase().replace(/\s+/g, '-'),
       department: formData.get('department'),
       location: formData.get('location'),
       type: formData.get('type'),
@@ -124,11 +166,11 @@ export default function AdminJobPositions() {
       workExperience: formData.get('workExperience'),
       education: formData.get('education'),
       description: formData.get('description'),
-      aboutRole: formData.get('aboutRole'),
-      responsibilities: (formData.get('responsibilities') as string).split('\n').filter(r => r.trim()),
-      requirements: (formData.get('requirements') as string).split('\n').filter(r => r.trim()),
-      skills: (formData.get('skills') as string).split(',').map(s => s.trim()).filter(s => s),
-      isActive: formData.get('isActive') === 'on',
+      aboutRole: aboutRoleContent,
+      responsibilities: responsibilitiesContent,
+      requirements: requirementsContent,
+      skills: [], // Empty array for skills
+      isActive: isActive, // Use state value instead of FormData
       sortOrder: parseInt(formData.get('sortOrder') as string) || 0,
     };
 
@@ -151,6 +193,10 @@ export default function AdminJobPositions() {
             <Button onClick={() => {
               setEditingPosition(null);
               setSelectedJobType('Full-Time Job');
+              setAboutRoleContent('');
+              setResponsibilitiesContent('');
+              setRequirementsContent('');
+              setIsActive(true);
             }}>
               <Plus className="h-4 w-4 mr-2" />
               Add Position
@@ -281,44 +327,25 @@ export default function AdminJobPositions() {
 
               <div>
                 <Label htmlFor="aboutRole">About the Role *</Label>
-                <Textarea
-                  id="aboutRole"
-                  name="aboutRole"
-                  defaultValue={editingPosition?.aboutRole}
-                  rows={4}
-                  required
+                <RichTextEditor
+                  content={aboutRoleContent || editingPosition?.aboutRole || ''}
+                  onChange={setAboutRoleContent}
                 />
               </div>
 
               <div>
-                <Label htmlFor="responsibilities">Responsibilities (one per line) *</Label>
-                <Textarea
-                  id="responsibilities"
-                  name="responsibilities"
-                  defaultValue={editingPosition?.responsibilities?.join('\n')}
-                  rows={4}
-                  required
+                <Label htmlFor="responsibilities">Responsibilities *</Label>
+                <RichTextEditor
+                  content={responsibilitiesContent || (typeof editingPosition?.responsibilities === 'string' ? editingPosition.responsibilities : '')}
+                  onChange={setResponsibilitiesContent}
                 />
               </div>
 
               <div>
-                <Label htmlFor="requirements">Requirements (one per line) *</Label>
-                <Textarea
-                  id="requirements"
-                  name="requirements"
-                  defaultValue={editingPosition?.requirements?.join('\n')}
-                  rows={4}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="skills">Skills (comma separated) *</Label>
-                <Input
-                  id="skills"
-                  name="skills"
-                  defaultValue={editingPosition?.skills?.join(', ')}
-                  required
+                <Label htmlFor="requirements">Requirements *</Label>
+                <RichTextEditor
+                  content={requirementsContent || (typeof editingPosition?.requirements === 'string' ? editingPosition.requirements : '')}
+                  onChange={setRequirementsContent}
                 />
               </div>
 
@@ -327,7 +354,8 @@ export default function AdminJobPositions() {
                   <Switch
                     id="isActive"
                     name="isActive"
-                    defaultChecked={editingPosition?.isActive ?? true}
+                    checked={isActive}
+                    onCheckedChange={setIsActive}
                   />
                   <Label htmlFor="isActive">Active</Label>
                 </div>
@@ -427,6 +455,10 @@ export default function AdminJobPositions() {
                       onClick={() => {
                         setEditingPosition(position);
                         setSelectedJobType(position.type || 'Full-Time Job');
+                        setAboutRoleContent(typeof position?.aboutRole === 'string' ? position.aboutRole : '');
+                        setResponsibilitiesContent(typeof position?.responsibilities === 'string' ? position.responsibilities : '');
+                        setRequirementsContent(typeof position?.requirements === 'string' ? position.requirements : '');
+                        setIsActive(position?.isActive ?? true);
                         setIsDialogOpen(true);
                       }}
                     >

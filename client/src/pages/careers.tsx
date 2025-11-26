@@ -1,4 +1,3 @@
-
 import { ArrowLeft, Briefcase, Users, TrendingUp, Heart, MapPin, Mail } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,45 +13,111 @@ export default function Careers() {
 
   // Fetch job positions from API
   const { data: openPositions = [], isLoading } = useQuery({
-    queryKey: ['/api/job-positions'],
+    queryKey: ['job-positions'],
     queryFn: async () => {
-      console.log('Fetching job positions...');
-      const response = await fetch('/api/job-positions');
-      if (!response.ok) {
-        console.error('Failed to fetch job positions:', response.status);
-        throw new Error('Failed to fetch job positions');
+      console.log('🔍 Fetching job positions from API...');
+      try {
+        const response = await fetch('/api/job-positions');
+        console.log('✅ API Response Status:', response.status);
+        
+        if (!response.ok) {
+          console.error('❌ Failed to fetch job positions:', response.status, response.statusText);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('📊 Raw API Data received:', data);
+        console.log('📝 Data type:', typeof data);
+        console.log('📋 Is Array?:', Array.isArray(data));
+        console.log('📈 Data length:', Array.isArray(data) ? data.length : 'N/A');
+        
+        // Ensure data is always an array
+        if (!Array.isArray(data)) {
+          console.warn('⚠️ Data is not an array, wrapping in array');
+          return Array.isArray(data) ? data : [];
+        }
+        
+        // Parse JSONB fields if they are strings
+        const parsedData = data.map((position: any) => {
+          console.log(`📌 Processing position: ${position.title}`);
+          return {
+            ...position,
+            responsibilities: typeof position.responsibilities === 'string' 
+              ? (() => {
+                  try {
+                    const parsed = JSON.parse(position.responsibilities);
+                    console.log(`✓ Parsed responsibilities for ${position.title}`);
+                    return parsed;
+                  } catch (e) {
+                    console.warn(`⚠️ Failed to parse responsibilities for ${position.title}:`, e);
+                    return [];
+                  }
+                })()
+              : Array.isArray(position.responsibilities) ? position.responsibilities : [],
+            requirements: typeof position.requirements === 'string' 
+              ? (() => {
+                  try {
+                    const parsed = JSON.parse(position.requirements);
+                    console.log(`✓ Parsed requirements for ${position.title}`);
+                    return parsed;
+                  } catch (e) {
+                    console.warn(`⚠️ Failed to parse requirements for ${position.title}:`, e);
+                    return [];
+                  }
+                })()
+              : Array.isArray(position.requirements) ? position.requirements : [],
+            skills: typeof position.skills === 'string' 
+              ? (() => {
+                  try {
+                    const parsed = JSON.parse(position.skills);
+                    console.log(`✓ Parsed skills for ${position.title}`);
+                    return parsed;
+                  } catch (e) {
+                    console.warn(`⚠️ Failed to parse skills for ${position.title}:`, e);
+                    return [];
+                  }
+                })()
+              : Array.isArray(position.skills) ? position.skills : [],
+          };
+        });
+        
+        console.log(`✅ Successfully processed ${parsedData.length} positions`);
+        console.log('🎯 Final formatted data:', JSON.stringify(parsedData.slice(0, 1), null, 2));
+        
+        return parsedData;
+      } catch (error) {
+        console.error('❌ Error in queryFn:', error);
+        throw error;
       }
-      const data = await response.json();
-      console.log('Job positions received:', data);
-      
-      // Parse JSONB fields if they are strings
-      if (Array.isArray(data)) {
-        return data.map(position => ({
-          ...position,
-          responsibilities: typeof position.responsibilities === 'string' 
-            ? JSON.parse(position.responsibilities) 
-            : position.responsibilities,
-          requirements: typeof position.requirements === 'string' 
-            ? JSON.parse(position.requirements) 
-            : position.requirements,
-          skills: typeof position.skills === 'string' 
-            ? JSON.parse(position.skills) 
-            : position.skills,
-        }));
-      }
-      
-      return data;
     },
-    select: (data) => Array.isArray(data) ? data : [],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (was cacheTime)
   });
 
   // Get unique departments and locations with safety check
   const validPositions = Array.isArray(openPositions) ? openPositions : [];
-  const departments = ["all", ...Array.from(new Set(validPositions.map(p => p.department)))];
-  const locations = ["all", ...Array.from(new Set(validPositions.map(p => p.location)))];
+  console.log('📊 Valid positions:', validPositions.length);
+  
+  const departments = ["all", ...Array.from(new Set(validPositions.map(p => p.department).filter(Boolean)))];
+  const locations = ["all", ...Array.from(new Set(validPositions.map(p => p.location).filter(Boolean)))];
 
-  // Positions are already filtered by the API
-  const filteredPositions = validPositions;
+  console.log('🏢 Available departments:', departments);
+  console.log('📍 Available locations:', locations);
+
+  // Apply filters
+  let filteredPositions = validPositions;
+  
+  if (selectedDepartment !== 'all') {
+    console.log(`🔍 Filtering by department: ${selectedDepartment}`);
+    filteredPositions = filteredPositions.filter(p => p.department === selectedDepartment);
+  }
+  
+  if (selectedLocation !== 'all') {
+    console.log(`🔍 Filtering by location: ${selectedLocation}`);
+    filteredPositions = filteredPositions.filter(p => p.location === selectedLocation);
+  }
+
+  console.log(`✅ Total positions after filtering: ${filteredPositions.length}`);
 
   const benefits = [
     {
@@ -146,18 +211,28 @@ export default function Careers() {
         {/* Open Positions */}
         <div className="mb-4 xs:mb-5 sm:mb-6 md:mb-8">
           <h2 className="text-lg xs:text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3 xs:mb-4 sm:mb-5 md:mb-6 text-center px-1 xs:px-2 leading-tight">
-            Open Positions {filteredPositions.length < openPositions.length && `(${filteredPositions.length} of ${openPositions.length})`}
+            Open Positions {filteredPositions.length > 0 && filteredPositions.length < validPositions.length ? `(${filteredPositions.length} of ${validPositions.length})` : filteredPositions.length > 0 ? `(${filteredPositions.length})` : ''}
           </h2>
-          {filteredPositions.length === 0 ? (
+          
+          {isLoading ? (
+            <Card className="shadow-md sm:shadow-lg">
+              <CardContent className="py-6 xs:py-8 sm:py-10 md:py-12 text-center px-3 xs:px-4">
+                <p className="text-gray-500 text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl px-2 xs:px-4">Loading job positions...</p>
+              </CardContent>
+            </Card>
+          ) : filteredPositions.length === 0 ? (
             <Card className="shadow-md sm:shadow-lg">
               <CardContent className="py-6 xs:py-8 sm:py-10 md:py-12 text-center px-3 xs:px-4">
                 <p className="text-gray-500 text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl px-2 xs:px-4">No positions found matching your criteria.</p>
+                {validPositions.length > 0 && (
+                  <p className="text-gray-400 text-[10px] xs:text-xs sm:text-sm mt-3">Total positions available: {validPositions.length}</p>
+                )}
               </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-1 gap-3 xs:gap-4 sm:gap-5 md:gap-6">
               {filteredPositions.map((position, index) => (
-              <Card key={index} className={`shadow-md sm:shadow-lg hover:shadow-xl transition-shadow ${!position.isActive ? 'opacity-90 bg-gray-50 border-2 border-gray-300' : ''}`}>
+              <Card key={`${position.id}-${index}`} className={`shadow-md sm:shadow-lg hover:shadow-xl transition-shadow ${!position.isActive ? 'opacity-90 bg-gray-50 border-2 border-gray-300' : ''}`}>
                 <CardHeader className="p-3 xs:p-4 sm:p-5 md:p-6">
                   <div className="flex flex-col lg:flex-row gap-2 xs:gap-3 sm:gap-4 lg:items-start lg:justify-between">
                     <div className="flex-1">

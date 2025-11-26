@@ -1075,17 +1075,17 @@ export default function ComboDetail() {
 
               {/* Cashback Badge */}
               {combo.cashbackPercentage && combo.cashbackPrice && (
-                <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-lg p-4">
+                <div className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-semibold text-orange-700">Get Cashback</span>
-                      <p className="text-xs text-orange-600 mt-1">Earn on this purchase</p>
+                      <span className="text-xs font-semibold text-orange-700">Get Cashback</span>
+                      <p className="text-xs text-orange-600 mt-0.5">Earn on this purchase</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl font-bold text-orange-600">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-orange-600">
                         ₹{Number(combo.cashbackPrice).toFixed(2)}
                       </span>
-                      <span className="text-sm bg-orange-200 text-orange-800 px-3 py-1 rounded-full font-semibold">
+                      <span className="text-xs bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full font-semibold">
                         {combo.cashbackPercentage}% Cashback
                       </span>
                     </div>
@@ -1104,23 +1104,7 @@ export default function ComboDetail() {
                   return !selectedShades[product.id] || selectedShades[product.id].trim() === '';
                 });
 
-                if (unselectedProducts.length > 0) {
-                  return (
-                    <div className="mb-4 bg-orange-50 border-2 border-orange-300 rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-white text-sm font-bold">!</span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-bold text-orange-800 mb-1">Shade Selection Required</p>
-                          <p className="text-xs text-orange-700">
-                            Please select shades for: {unselectedProducts.map((p: any) => p.name).join(', ')}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
+                // Removed shade selection alert box. Now handled in button label below.
                 return null;
               })()}
 
@@ -1142,7 +1126,18 @@ export default function ComboDetail() {
                   })()}
                 >
                   <ShoppingCart className="w-5 h-5 mr-2" />
-                  Add to Cart
+                  {(() => {
+                    const productsWithShades = products.filter((product: any) => {
+                      const productShades = productShadesData[product.id] || [];
+                      return productShades.length > 0;
+                    });
+                    const unselectedProducts = productsWithShades.filter((product: any) => {
+                      return !selectedShades[product.id] || selectedShades[product.id].trim() === '';
+                    });
+                    return unselectedProducts.length > 0
+                      ? 'Select All Shades First'
+                      : 'Add to Cart';
+                  })()}
                 </Button>
                 <Button 
                   size="lg" 

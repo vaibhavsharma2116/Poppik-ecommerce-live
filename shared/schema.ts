@@ -405,11 +405,11 @@ export const categorySliders = pgTable("category_sliders", {
 export type CategorySlider = typeof categorySliders.$inferSelect;
 export type InsertCategorySlider = typeof categorySliders.$inferInsert;
 
-// Testimonials Table
 export const testimonials = pgTable("testimonials", {
   id: serial("id").primaryKey(),
   customerName: varchar("customer_name", { length: 255 }).notNull(),
   customerImage: text("customer_image"),
+  instagramUrl: text("instagram_url"),
   rating: integer("rating").notNull().default(5),
   reviewText: text("review_text").notNull(),
   isActive: boolean("is_active").default(true),

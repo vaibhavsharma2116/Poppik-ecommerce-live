@@ -2509,44 +2509,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ canReview: false, message: "Please login to leave a review" });
       }
 
-      // Check if user has purchased this offer
-      const orders = await db
-        .select()
-        .from(schema.ordersTable)
-        .where(eq(schema.ordersTable.userId, parseInt(userId as string)));
-
-      // Check if any order contains this offer
-      let hasPurchased = false;
-      let purchaseOrderId: number | undefined;
-
-      for (const order of orders) {
-        const items = JSON.parse(order.items);
-        const hasOfferItem = items.some((item: any) => {
-          return item.offerId === offerId || item.isOfferItem && item.offerId === offerId;
-        });
-
-        if (hasOfferItem) {
-          hasPurchased = true;
-          purchaseOrderId = order.id;
-          break;
-        }
-      }
-
-      if (!hasPurchased) {
-        return res.json({ 
-          canReview: false, 
-          message: "You must purchase this offer to leave a review"
-        });
-      }
-
-      res.json({ 
-        canReview: true, 
-        orderId: purchaseOrderId,
-        message: "You can review this offer"
-      });
+      const canReview = await storage.checkUserCanReviewOffer(parseInt(userId as string), offerId);
+      res.json(canReview);
     } catch (error) {
       console.error("Error checking review eligibility:", error);
-      res.status(500).json({ error: "Failed to check review eligibility" });
+      res.status(500).json({ 
+        canReview: false,
+        message: "Error checking review eligibility"
+      });
     }
   });
 
@@ -7579,15 +7549,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(schema.comboImages.comboId, comboId))
         .orderBy(asc(schema.comboImages.sortOrder));
 
+      // Handle imageUrl - it's now stored as an array in the database
+      const imageUrls = images.length > 0 
+        ? images.map(img => img.imageUrl)
+        : (Array.isArray(combo.imageUrl) ? combo.imageUrl : (combo.imageUrl ? [combo.imageUrl] : []));
+
       // Parse products if it's a string
       const comboData = {
         ...combo,
         products: typeof combo.products === 'string'
           ? JSON.parse(combo.products)
           : combo.products,
-        imageUrls: images.length > 0 
-          ? images.map(img => img.imageUrl)
-          : [combo.imageUrl] // Fallback to the main imageUrl if no specific combo_images
+        productShades: combo.productShades ? (typeof combo.productShades === 'string' ? JSON.parse(combo.productShades) : combo.productShades) : {},
+        imageUrl: imageUrls[0] || null, // Primary image
+        imageUrls: imageUrls
       };
 
       res.json(comboData);
@@ -7879,36 +7854,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to update sort order" });
     }
   });
+
 app.get('/api/testimonials', async (req, res) => {
     try {
       const testimonials = await storage.getActiveTestimonials();
       // Map customer_image to customerImageUrl for frontend compatibility
       const formattedTestimonials = testimonials.map(t => ({
         id: t.id,
-        customerName: t.customerName,
-        customerImageUrl: t.customerImage,
+        customerName: t.customerName ?? t.customer_name ?? null,
+        customerImageUrl: t.customerImage ?? t.customer_image ?? null,
+        instagramUrl: t.instagramUrl ?? t.instagram_url ?? null,
         rating: t.rating,
-        content: t.reviewText,
-        isActive: t.isActive,
-        createdAt: t.createdAt,
-      }));
-      res.json(formattedTestimonials);
-    } catch (error) {
-      console.error('Error fetching testimonials:', error);
-      res.status(500).json({ error: 'Failed to fetch testimonials' });
-    }
-  });
-
-  app.get('/api/testimonials', async (req, res) => {
-    try {
-      const testimonials = await storage.getActiveTestimonials();
-      // Map customer_image to customerImageUrl for frontend compatibility
-      const formattedTestimonials = testimonials.map(t => ({
-        id: t.id,
-        customerName: t.customerName,
-        customerImageUrl: t.customerImage,
-        rating: t.rating,
-        content: t.reviewText,
+        content: t.reviewText ?? t.content ?? t.review_text ?? null,
         isActive: t.isActive,
         createdAt: t.createdAt,
       }));
@@ -7925,6 +7882,7 @@ app.get('/api/testimonials', async (req, res) => {
       const formattedTestimonials = testimonials.map(t => ({
         ...t,
         customerImage: t.customerImage || t.customer_image,
+        instagramUrl: t.instagramUrl || t.instagram_url || null,
       }));
       res.json(formattedTestimonials);
     } catch (error) {
@@ -7950,6 +7908,7 @@ app.get('/api/testimonials', async (req, res) => {
   app.post('/api/admin/testimonials', upload.single('image'), async (req, res) => {
     try {
       let customerImage = req.body.customerImage;
+      let instagramUrl = req.body.instagramUrl || req.body.instagram_url;
 
       // Handle image upload
       if (req.file) {
@@ -7959,6 +7918,7 @@ app.get('/api/testimonials', async (req, res) => {
       const testimonialData = {
         customerName: req.body.customerName,
         customerImage: customerImage || null,
+        instagramUrl: instagramUrl || null,
         rating: parseInt(req.body.rating) || 5,
         reviewText: req.body.reviewText,
         isActive: req.body.isActive !== 'false',
@@ -7978,6 +7938,7 @@ app.get('/api/testimonials', async (req, res) => {
       const id = parseInt(req.params.id);
       let updateData: any = {
         customerName: req.body.customerName,
+        instagramUrl: req.body.instagramUrl || req.body.instagram_url || null,
         rating: parseInt(req.body.rating) || 5,
         reviewText: req.body.reviewText,
         isActive: req.body.isActive !== 'false',
@@ -8015,7 +7976,6 @@ app.get('/api/testimonials', async (req, res) => {
       res.status(500).json({ error: 'Failed to delete testimonial' });
     }
   });
-
   app.get('/api/combos', async (req, res) => {
     try {
       console.log('Fetching combos from database...');
@@ -8043,15 +8003,26 @@ app.get('/api/testimonials', async (req, res) => {
               .where(eq(schema.comboImages.comboId, combo.id))
               .orderBy(asc(schema.comboImages.sortOrder));
 
+            // Handle imageUrl - it's now stored as an array in the database
+            const imageUrls = images.length > 0 
+              ? images.map(img => img.imageUrl)
+              : (Array.isArray(combo.imageUrl) ? combo.imageUrl : (combo.imageUrl ? [combo.imageUrl] : []));
+
             return {
               ...combo,
-              imageUrls: images.map(img => img.imageUrl)
+              imageUrl: imageUrls[0] || null, // Primary image
+              imageUrls: imageUrls,
+              products: typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products,
+              productShades: combo.productShades ? (typeof combo.productShades === 'string' ? JSON.parse(combo.productShades) : combo.productShades) : {}
             };
           } catch (imgError) {
             console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
             return {
               ...combo,
-              imageUrls: []
+              imageUrl: null,
+              imageUrls: [],
+              products: typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products,
+              productShades: combo.productShades ? (typeof combo.productShades === 'string' ? JSON.parse(combo.productShades) : combo.productShades) : {}
             };
           }
         })
@@ -8083,15 +8054,24 @@ app.get('/api/testimonials', async (req, res) => {
               .where(eq(schema.comboImages.comboId, combo.id))
               .orderBy(asc(schema.comboImages.sortOrder));
 
+            // Handle imageUrl - it's now stored as an array in the database
+            const imageUrls = images.length > 0 
+              ? images.map(img => img.imageUrl) 
+              : (Array.isArray(combo.imageUrl) ? combo.imageUrl : (combo.imageUrl ? [combo.imageUrl] : []));
+
             return {
               ...combo,
               products: typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products,
-              imageUrls: images.length > 0 ? images.map(img => img.imageUrl) : [combo.imageUrl]
+              productShades: combo.productShades ? (typeof combo.productShades === 'string' ? JSON.parse(combo.productShades) : combo.productShades) : {},
+              imageUrl: imageUrls[0] || null, // Primary image for backward compatibility
+              imageUrls: imageUrls
             };
           } catch (imgError) {
             console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
             return {
               ...combo,
+              products: typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products,
+              productShades: combo.productShades ? (typeof combo.productShades === 'string' ? JSON.parse(combo.productShades) : combo.productShades) : {},
               imageUrls: []
             };
           }
@@ -8114,35 +8094,68 @@ app.get('/api/testimonials', async (req, res) => {
       const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
       const body = req.body as any;
 
-      let imageUrl = body.imageUrl || null;
+      // Prepare primary image URL - store the first image if multiple images provided, or the single image
+      let primaryImageUrl = body.imageUrl || null;
       if (files?.image?.[0]) {
-        imageUrl = `/api/images/${files.image[0].filename}`;
+        primaryImageUrl = `/api/images/${files.image[0].filename}`;
+      } else if (files?.images?.[0]) {
+        primaryImageUrl = `/api/images/${files.images[0].filename}`;
       }
 
       const comboData: any = {
-        title: body.title,
+        name: body.name,
         slug: body.slug || null,
         description: body.description || null,
         products: body.products ? (typeof body.products === 'string' ? body.products : JSON.stringify(body.products)) : null,
+        productShades: body.productShades ? (typeof body.productShades === 'string' ? body.productShades : JSON.stringify(body.productShades)) : null,
         price: body.price !== undefined ? body.price : null,
         originalPrice: body.originalPrice !== undefined ? body.originalPrice : null,
-        imageUrl: imageUrl,
+        discount: body.discount || null,
+        cashbackPercentage: body.cashbackPercentage !== undefined ? body.cashbackPercentage : null,
+        cashbackPrice: body.cashbackPrice !== undefined ? body.cashbackPrice : null,
+        rating: body.rating !== undefined ? body.rating : '5.0',
+        reviewCount: body.reviewCount !== undefined ? parseInt(body.reviewCount, 10) : 0,
         isActive: body.isActive !== undefined ? (body.isActive === 'true' || body.isActive === true) : true,
         sortOrder: parseInt(body.sortOrder, 10) || 0,
+        detailedDescription: body.detailedDescription || null,
+        productsIncluded: body.productsIncluded || null,
+        benefits: body.benefits || null,
+        howToUse: body.howToUse || null,
+        videoUrl: body.videoUrl || null,
         createdAt: new Date(),
         updatedAt: new Date()
       };
 
+      // Note: imageUrl field is an array in schema but we store primary image in first element
+      // Additional images are managed via combo_images table
+      if (primaryImageUrl) {
+        comboData.imageUrl = [primaryImageUrl];
+      }
+
       const [newCombo] = await db.insert(schema.combos).values(comboData).returning();
 
       // Insert any additional images into combo_images
+      const allImagesToInsert = [];
       if (files?.images && files.images.length > 0) {
         const imagesToInsert = files.images.map((f, idx) => ({
           comboId: newCombo.id,
           imageUrl: `/api/images/${f.filename}`,
-          sortOrder: idx
+          sortOrder: idx,
+          isPrimary: idx === 0
         }));
-        await db.insert(schema.comboImages).values(imagesToInsert);
+        allImagesToInsert.push(...imagesToInsert);
+      } else if (primaryImageUrl) {
+        // If no images array but we have a primary image from single image field
+        allImagesToInsert.push({
+          comboId: newCombo.id,
+          imageUrl: primaryImageUrl,
+          sortOrder: 0,
+          isPrimary: true
+        });
+      }
+
+      if (allImagesToInsert.length > 0) {
+        await db.insert(schema.comboImages).values(allImagesToInsert);
       }
 
       res.status(201).json(newCombo);
@@ -8162,21 +8175,33 @@ app.get('/api/testimonials', async (req, res) => {
       const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
       const body = req.body as any;
 
+      // Get existing combo to preserve images if not updating
+      const existingCombo = await db.select().from(schema.combos).where(eq(schema.combos.id, id)).limit(1);
+      if (!existingCombo || existingCombo.length === 0) {
+        return res.status(404).json({ error: 'Combo not found' });
+      }
+
       const updateData: any = {};
+      if (body.name !== undefined) updateData.name = body.name;
       if (body.title !== undefined) updateData.title = body.title;
       if (body.slug !== undefined) updateData.slug = body.slug;
       if (body.description !== undefined) updateData.description = body.description;
+      if (body.discount !== undefined) updateData.discount = body.discount;
       if (body.products !== undefined) updateData.products = typeof body.products === 'string' ? body.products : JSON.stringify(body.products);
+      if (body.productShades !== undefined) updateData.productShades = typeof body.productShades === 'string' ? body.productShades : JSON.stringify(body.productShades);
       if (body.price !== undefined) updateData.price = body.price;
       if (body.originalPrice !== undefined) updateData.originalPrice = body.originalPrice;
+      if (body.cashbackPercentage !== undefined) updateData.cashbackPercentage = body.cashbackPercentage;
+      if (body.cashbackPrice !== undefined) updateData.cashbackPrice = body.cashbackPrice;
+      if (body.rating !== undefined) updateData.rating = body.rating;
+      if (body.reviewCount !== undefined) updateData.reviewCount = body.reviewCount;
       if (body.isActive !== undefined) updateData.isActive = body.isActive === 'true' || body.isActive === true;
       if (body.sortOrder !== undefined) updateData.sortOrder = parseInt(body.sortOrder, 10) || 0;
-
-      if (files?.image?.[0]) {
-        updateData.imageUrl = `/api/images/${files.image[0].filename}`;
-      } else if (body.imageUrl) {
-        updateData.imageUrl = body.imageUrl;
-      }
+      if (body.detailedDescription !== undefined) updateData.detailedDescription = body.detailedDescription;
+      if (body.productsIncluded !== undefined) updateData.productsIncluded = body.productsIncluded;
+      if (body.benefits !== undefined) updateData.benefits = body.benefits;
+      if (body.howToUse !== undefined) updateData.howToUse = body.howToUse;
+      if (body.videoUrl !== undefined) updateData.videoUrl = body.videoUrl;
 
       updateData.updatedAt = new Date();
 
@@ -8372,6 +8397,226 @@ app.get('/api/testimonials', async (req, res) => {
       res.status(500).json({ error: 'Failed to delete video testimonial' });
     }
   });
+
+  // Public Job Positions API
+  // Debug: return all job positions (including inactive) for local troubleshooting
+  app.get('/api/debug/job-positions', async (req: Request, res: Response) => {
+    try {
+      const jobs = await db
+        .select()
+        .from(jobPositions)
+        .orderBy(desc(jobPositions.createdAt));
+
+      console.log(`🛠️ DEBUG: Fetched ${jobs.length} total job positions (including inactive)`);
+      console.log('🛠️ DEBUG job positions data:', JSON.stringify(jobs, null, 2));
+
+      res.json(jobs || []);
+    } catch (error) {
+      console.error('Error fetching debug job positions:', error);
+      res.status(500).json({ error: 'Failed to fetch debug job positions', details: (error as any)?.message });
+    }
+  });
+
+  app.get('/api/job-positions', async (req: Request, res: Response) => {
+    try {
+      const jobs = await db
+        .select()
+        .from(jobPositions)
+        .where(eq(jobPositions.isActive, true))
+        .orderBy(asc(jobPositions.createdAt));
+
+      console.log(`✅ Fetched ${jobs.length} active job positions`);
+      console.log('Job positions data:', JSON.stringify(jobs, null, 2));
+      
+      res.json(jobs || []);
+    } catch (error) {
+      console.error('Error fetching job positions:', error);
+      res.status(500).json({ error: 'Failed to fetch job positions', details: (error as any)?.message });
+    }
+  });
+
+  // Get single job position by slug
+  app.get('/api/job-positions/:slug', async (req: Request, res: Response) => {
+    try {
+      const { slug } = req.params;
+      const job = await db
+        .select()
+        .from(jobPositions)
+        .where(eq(jobPositions.slug, slug))
+        .limit(1);
+
+      if (!job || job.length === 0) {
+        return res.status(404).json({ error: 'Job position not found' });
+      }
+
+      res.json(job[0]);
+    } catch (error) {
+      console.error('Error fetching job position:', error);
+      res.status(500).json({ error: 'Failed to fetch job position' });
+    }
+  });
+
+  // Admin: Get all job positions (including inactive)
+  app.get('/api/admin/job-positions', adminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const jobs = await db
+        .select()
+        .from(jobPositions)
+        .orderBy(desc(jobPositions.createdAt));
+
+      res.json(jobs || []);
+    } catch (error) {
+      console.error('Error fetching admin job positions:', error);
+      res.status(500).json({ error: 'Failed to fetch job positions', details: (error as any)?.message });
+    }
+  });
+
+  // Admin: Create job position
+  app.post('/api/admin/job-positions', adminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const {
+        title,
+        slug,
+        department,
+        location,
+        type,
+        jobId,
+        experienceLevel,
+        workExperience,
+        education,
+        description,
+        aboutRole,
+        responsibilities,
+        requirements,
+        skills,
+        isActive
+      } = req.body;
+
+      if (!title || !slug) {
+        return res.status(400).json({ error: 'Title and slug are required' });
+      }
+
+      const jobData: any = {
+        title,
+        slug,
+        department: department || '',
+        location: location || '',
+        type: type || '',
+        jobId: jobId || null,
+        experienceLevel: experienceLevel || '',
+        workExperience: workExperience || '',
+        education: education || '',
+        description: description || '',
+        aboutRole: aboutRole || '',
+        responsibilities: responsibilities || [],
+        requirements: requirements || [],
+        skills: skills || [],
+        isActive: isActive !== undefined ? isActive === true || isActive === 'true' : true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      console.log('📝 Creating job position:', {
+        title: jobData.title,
+        slug: jobData.slug,
+        isActive: jobData.isActive,
+        receivedIsActive: isActive,
+        type: typeof isActive
+      });
+
+      const [newJob] = await db.insert(jobPositions).values(jobData).returning();
+      
+      console.log('✅ Job position created:', {
+        id: newJob.id,
+        title: newJob.title,
+        isActive: newJob.isActive
+      });
+      
+      res.status(201).json(newJob);
+    } catch (error) {
+      console.error('Error creating job position:', error);
+      res.status(500).json({ error: 'Failed to create job position', details: (error as any)?.message });
+    }
+  });
+
+  // Admin: Update job position
+  app.put('/api/admin/job-positions/:id', adminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const {
+        title,
+        slug,
+        department,
+        location,
+        type,
+        jobId,
+        experienceLevel,
+        workExperience,
+        education,
+        description,
+        aboutRole,
+        responsibilities,
+        requirements,
+        skills,
+        isActive
+      } = req.body;
+
+      const updateData: any = {};
+      if (title !== undefined) updateData.title = title;
+      if (slug !== undefined) updateData.slug = slug;
+      if (department !== undefined) updateData.department = department;
+      if (location !== undefined) updateData.location = location;
+      if (type !== undefined) updateData.type = type;
+      if (jobId !== undefined) updateData.jobId = jobId;
+      if (experienceLevel !== undefined) updateData.experienceLevel = experienceLevel;
+      if (workExperience !== undefined) updateData.workExperience = workExperience;
+      if (education !== undefined) updateData.education = education;
+      if (description !== undefined) updateData.description = description;
+      if (aboutRole !== undefined) updateData.aboutRole = aboutRole;
+      if (responsibilities !== undefined) updateData.responsibilities = responsibilities;
+      if (requirements !== undefined) updateData.requirements = requirements;
+      if (skills !== undefined) updateData.skills = skills;
+      if (isActive !== undefined) updateData.isActive = isActive === true || isActive === 'true';
+
+      updateData.updatedAt = new Date();
+
+      const [updated] = await db
+        .update(jobPositions)
+        .set(updateData)
+        .where(eq(jobPositions.id, id))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ error: 'Job position not found' });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating job position:', error);
+      res.status(500).json({ error: 'Failed to update job position', details: (error as any)?.message });
+    }
+  });
+
+  // Admin: Delete job position
+  app.delete('/api/admin/job-positions/:id', adminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const [deleted] = await db
+        .delete(jobPositions)
+        .where(eq(jobPositions.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Job position not found' });
+      }
+
+      res.json({ message: 'Job position deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting job position:', error);
+      res.status(500).json({ error: 'Failed to delete job position', details: (error as any)?.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

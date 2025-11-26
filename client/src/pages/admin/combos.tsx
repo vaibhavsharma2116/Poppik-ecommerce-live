@@ -331,6 +331,11 @@ export default function AdminCombos() {
       };
     });
 
+    // Ensure selectedProductShades is always an object
+    const productShadesToSend = selectedProductShades && typeof selectedProductShades === 'object' 
+      ? selectedProductShades 
+      : {};
+
     // Append form fields directly instead of nested JSON
     formDataToSend.append("name", formData.name.substring(0, 200));
     formDataToSend.append("description", formData.description.substring(0, 500));
@@ -340,7 +345,7 @@ export default function AdminCombos() {
     formDataToSend.append("cashbackPercentage", formData.cashbackPercentage || "0");
     formDataToSend.append("cashbackPrice", formData.cashbackPrice || "0");
     formDataToSend.append("products", JSON.stringify(selectedProducts));
-    formDataToSend.append("productShades", JSON.stringify(selectedProductShades));
+    formDataToSend.append("productShades", JSON.stringify(productShadesToSend));
     formDataToSend.append("rating", formData.rating);
     formDataToSend.append("reviewCount", formData.reviewCount);
     formDataToSend.append("isActive", formData.isActive.toString());
@@ -452,9 +457,35 @@ export default function AdminCombos() {
       setSelectedVideo(null);
     }
 
-    // Load product shades if available
+    // Load product shades if available - handle both string and object formats
     if (combo.productShades) {
-      setSelectedProductShades(combo.productShades);
+      try {
+        let shades = {};
+        
+        if (typeof combo.productShades === 'string') {
+          // Try to parse JSON string
+          try {
+            shades = JSON.parse(combo.productShades);
+          } catch (parseError) {
+            console.warn('Could not parse productShades string:', parseError);
+            shades = {};
+          }
+        } else if (typeof combo.productShades === 'object' && combo.productShades !== null) {
+          // Already an object
+          shades = combo.productShades;
+        }
+        
+        // Ensure shades is a valid object (not an array or other type)
+        if (shades && typeof shades === 'object' && !Array.isArray(shades)) {
+          setSelectedProductShades(shades);
+        } else {
+          console.warn('productShades is not a valid object, resetting to empty');
+          setSelectedProductShades({});
+        }
+      } catch (error) {
+        console.error('Error processing productShades:', error);
+        setSelectedProductShades({});
+      }
     } else {
       setSelectedProductShades({});
     }

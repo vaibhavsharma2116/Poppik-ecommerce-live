@@ -16,6 +16,7 @@ import {
   Truck,
   ChevronLeft,
   ChevronRight,
+  Instagram,
   Calendar,
   User,
   Package,
@@ -37,6 +38,7 @@ interface Testimonial {
   id: number;
   customerName: string;
   customerImageUrl: string;
+  instagramUrl?: string | null;
   rating: number;
   content: string;
   isActive: boolean;
@@ -51,7 +53,17 @@ function TestimonialsCarousel() {
     queryKey: ['/api/testimonials'],
   });
 
-  const activeTestimonials = testimonials.filter(t => t.isActive);
+  // Normalize fields in case backend returns snake_case (instagram_url, customer_image, customer_name)
+  const normalizedTestimonials = Array.isArray(testimonials)
+    ? testimonials.map((t: any) => ({
+        ...t,
+        instagramUrl: t.instagramUrl ?? t.instagram_url ?? null,
+        customerImageUrl: t.customerImageUrl ?? t.customer_image ?? t.customerImageUrl ?? '',
+        customerName: t.customerName ?? t.customer_name ?? t.customerName ?? '',
+      }))
+    : [];
+
+  const activeTestimonials = normalizedTestimonials.filter((t: any) => t.isActive);
 
   const nextTestimonial = () => {
     setCurrentIndex((prev) => (prev + 1) % activeTestimonials.length);
@@ -135,10 +147,10 @@ function TestimonialsCarousel() {
           }
 
 
-            return (
+              return (
               <div
                 key={testimonial.id}
-                className={`${size} rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-300 flex-shrink-0 ${
+                className={`${size} rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-300 flex-shrink-0 relative ${
                   isCenter ? 'shadow-md sm:shadow-lg border-2 sm:border-4 border-white' : ''
                 } ${position === -1 || position === 1 ? 'blur-[2px]' : ''}`}
                 style={{ opacity }}
@@ -148,6 +160,16 @@ function TestimonialsCarousel() {
                   alt={testimonial.customerName}
                   className="w-full h-full"
                 />
+                {testimonial.instagramUrl ? (
+                  <a
+                    href={testimonial.instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Open Instagram"
+                    className={`absolute ${isCenter ? 'bottom-1 right-1 p-1 sm:p-1' : 'bottom-1 right-1 p-0.5'} bg-white rounded-full shadow-md text-pink-600 hover:text-pink-700 transition-opacity duration-200`}>
+                    <Instagram className={`${isCenter ? 'w-4 h-4' : 'w-3 h-3 sm:w-3 sm:h-3'}`} />
+                  </a>
+                ) : null}
               </div>
             );
           })}
@@ -183,8 +205,15 @@ function TestimonialsCarousel() {
           {currentTestimonial.content}
         </p>
 
-        {/* Customer Name */}
-        <p className="text-xs sm:text-sm text-gray-500 italic">— {currentTestimonial.customerName}</p>
+        {/* Customer Name with optional Instagram link */}
+        <p className="text-xs sm:text-sm text-gray-500 italic flex items-center justify-center gap-2">
+          — {currentTestimonial.customerName}
+          {currentTestimonial.instagramUrl ? (
+            <a href={currentTestimonial.instagramUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-pink-600 hover:text-pink-700">
+              <Instagram className="w-3 h-3 sm:w-4 sm:h-4" />
+            </a>
+          ) : null}
+        </p>
       </div>
     </div>
   );
@@ -952,7 +981,7 @@ function ComboSection() {
 
   if (isLoading) {
     return (
-      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
+      <section className="py-6  bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-10 md:mb-12">
             <Skeleton className="h-12 w-64 mx-auto mb-4" />
@@ -980,7 +1009,7 @@ function ComboSection() {
   }
 
   return (
-    <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
+    <section className="py-6 bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
       <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8 sm:mb-10 md:mb-12">
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium mb-2 sm:mb-4">

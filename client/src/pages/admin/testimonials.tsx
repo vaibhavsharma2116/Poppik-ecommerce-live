@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +15,7 @@ interface Testimonial {
   id: number;
   customerName: string;
   customerImage: string | null;
+  instagramUrl?: string | null;
   rating: number;
   reviewText: string;
   isActive: boolean;
@@ -37,6 +37,7 @@ export default function AdminTestimonials() {
   const [formData, setFormData] = useState({
     customerName: '',
     customerImage: '',
+    instagramUrl: '',
     rating: 5,
     reviewText: '',
     isActive: true,
@@ -49,23 +50,22 @@ export default function AdminTestimonials() {
       const response = await fetch('/api/admin/testimonials');
       if (response.ok) {
         const data = await response.json();
-        setTestimonials(data);
+        // Normalize testimonial fields to ensure `instagramUrl` exists
+        const normalized = data.map((t: any) => ({
+          ...t,
+          instagramUrl: t.instagramUrl || t.instagram_url || null,
+        }));
+        setTestimonials(normalized);
       }
     } catch (error) {
       console.error('Error fetching testimonials:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch testimonials",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to fetch testimonials", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
-  useEffect(() => {
-    fetchTestimonials();
-  }, [fetchTestimonials]);
+  useEffect(() => { fetchTestimonials(); }, [fetchTestimonials]);
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -90,16 +90,10 @@ export default function AdminTestimonials() {
     try {
       let imageUrl = formData.customerImage;
 
-      // Upload image if selected
       if (imageFile) {
         const imageFormData = new FormData();
         imageFormData.append('image', imageFile);
-
-        const imageResponse = await fetch('/api/upload/image', {
-          method: 'POST',
-          body: imageFormData,
-        });
-
+        const imageResponse = await fetch('/api/upload/image', { method: 'POST', body: imageFormData });
         if (imageResponse.ok) {
           const imageData = await imageResponse.json();
           imageUrl = imageData.imageUrl;
@@ -109,25 +103,17 @@ export default function AdminTestimonials() {
       const submitFormData = new FormData();
       submitFormData.append('customerName', formData.customerName);
       submitFormData.append('customerImage', imageUrl);
+      submitFormData.append('instagramUrl', formData.instagramUrl || '');
       submitFormData.append('rating', formData.rating.toString());
       submitFormData.append('reviewText', formData.reviewText);
       submitFormData.append('isActive', formData.isActive.toString());
       submitFormData.append('sortOrder', formData.sortOrder.toString());
 
-      const url = selectedTestimonial
-        ? `/api/admin/testimonials/${selectedTestimonial.id}`
-        : '/api/admin/testimonials';
-
-      const response = await fetch(url, {
-        method: selectedTestimonial ? 'PUT' : 'POST',
-        body: submitFormData,
-      });
+      const url = selectedTestimonial ? `/api/admin/testimonials/${selectedTestimonial.id}` : '/api/admin/testimonials';
+      const response = await fetch(url, { method: selectedTestimonial ? 'PUT' : 'POST', body: submitFormData });
 
       if (response.ok) {
-        toast({
-          title: "Success",
-          description: `Testimonial ${selectedTestimonial ? 'updated' : 'created'} successfully`,
-        });
+        toast({ title: "Success", description: `Testimonial ${selectedTestimonial ? 'updated' : 'created'} successfully` });
         await fetchTestimonials();
         resetForm();
         setIsAddModalOpen(false);
@@ -135,11 +121,7 @@ export default function AdminTestimonials() {
       }
     } catch (error) {
       console.error('Error saving testimonial:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save testimonial",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to save testimonial", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -150,6 +132,7 @@ export default function AdminTestimonials() {
     setFormData({
       customerName: testimonial.customerName,
       customerImage: testimonial.customerImage || '',
+      instagramUrl: (testimonial as any).instagramUrl || (testimonial as any).instagram_url || '',
       rating: testimonial.rating,
       reviewText: testimonial.reviewText,
       isActive: testimonial.isActive,
@@ -161,40 +144,22 @@ export default function AdminTestimonials() {
 
   const handleDelete = async () => {
     if (!selectedTestimonial) return;
-
     try {
-      const response = await fetch(`/api/admin/testimonials/${selectedTestimonial.id}`, {
-        method: 'DELETE',
-      });
-
+      const response = await fetch(`/api/admin/testimonials/${selectedTestimonial.id}`, { method: 'DELETE' });
       if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Testimonial deleted successfully",
-        });
+        toast({ title: "Success", description: "Testimonial deleted successfully" });
         await fetchTestimonials();
         setIsDeleteModalOpen(false);
         setSelectedTestimonial(null);
       }
     } catch (error) {
       console.error('Error deleting testimonial:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete testimonial",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to delete testimonial", variant: "destructive" });
     }
   };
 
   const resetForm = () => {
-    setFormData({
-      customerName: '',
-      customerImage: '',
-      rating: 5,
-      reviewText: '',
-      isActive: true,
-      sortOrder: 0,
-    });
+    setFormData({ customerName: '', customerImage: '', instagramUrl: '', rating: 5, reviewText: '', isActive: true, sortOrder: 0 });
     setImageFile(null);
     setImagePreview('');
     setSelectedTestimonial(null);
@@ -239,11 +204,7 @@ export default function AdminTestimonials() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {testimonial.customerImage && (
-                          <img
-                            src={testimonial.customerImage}
-                            alt={testimonial.customerName}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
+                          <img src={testimonial.customerImage} alt={testimonial.customerName} className="w-10 h-10 rounded-full object-cover" />
                         )}
                         <span className="font-medium">{testimonial.customerName}</span>
                       </div>
@@ -257,9 +218,7 @@ export default function AdminTestimonials() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={testimonial.isActive ? "default" : "secondary"}>
-                        {testimonial.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
+                      <Badge variant={testimonial.isActive ? "default" : "secondary"}>{testimonial.isActive ? 'Active' : 'Inactive'}</Badge>
                     </TableCell>
                     <TableCell>{testimonial.sortOrder}</TableCell>
                     <TableCell className="text-right">
@@ -267,11 +226,7 @@ export default function AdminTestimonials() {
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(testimonial)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => { setSelectedTestimonial(testimonial); setIsDeleteModalOpen(true); }}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => { setSelectedTestimonial(testimonial); setIsDeleteModalOpen(true); }}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -285,33 +240,18 @@ export default function AdminTestimonials() {
       </Card>
 
       {/* Add/Edit Modal */}
-      <Dialog open={isAddModalOpen || isEditModalOpen} onOpenChange={(open) => {
-        if (!open) { resetForm(); setIsAddModalOpen(false); setIsEditModalOpen(false); }
-      }}>
+      <Dialog open={isAddModalOpen || isEditModalOpen} onOpenChange={(open) => { if (!open) { resetForm(); setIsAddModalOpen(false); setIsEditModalOpen(false); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>{selectedTestimonial ? 'Edit' : 'Add'} Testimonial</DialogTitle>
-            <DialogDescription>
-              {selectedTestimonial ? 'Update' : 'Create a new'} customer testimonial
-            </DialogDescription>
+            <DialogDescription>{selectedTestimonial ? 'Update' : 'Create a new'} customer testimonial</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-2">
             <div className="space-y-2">
               <Label htmlFor="customerName">Customer Name * (Max 15 characters)</Label>
-              <Input
-                id="customerName"
-                value={formData.customerName}
-                onChange={(e) => {
-                  const value = e.target.value.slice(0, 15);
-                  setFormData(prev => ({ ...prev, customerName: value }));
-                }}
-                maxLength={15}
-                required
-              />
-              <p className="text-xs text-gray-500">
-                {formData.customerName.length}/15 characters
-              </p>
+              <Input id="customerName" value={formData.customerName} onChange={(e) => { const value = e.target.value.slice(0, 15); setFormData(prev => ({ ...prev, customerName: value })); }} maxLength={15} required />
+              <p className="text-xs text-gray-500">{formData.customerName.length}/15 characters</p>
             </div>
 
             <div className="space-y-2">
@@ -319,25 +259,11 @@ export default function AdminTestimonials() {
               {imagePreview && (
                 <div className="relative w-24 h-24">
                   <img src={imagePreview} alt="Preview" className="w-full h-full object-cover rounded-full" />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full"
-                    onClick={removeImage}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
+                  <Button type="button" variant="destructive" size="sm" className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full" onClick={removeImage}><X className="h-3 w-3" /></Button>
                 </div>
               )}
               <div className="border-2 border-dashed rounded-lg p-4">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageSelect}
-                  className="hidden"
-                  id="image-upload"
-                />
+                <input type="file" accept="image/*" onChange={handleImageSelect} className="hidden" id="image-upload" />
                 <Label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center">
                   <Upload className="h-8 w-8 text-gray-400 mb-2" />
                   <p className="text-sm text-gray-600">Click to upload image</p>
@@ -346,68 +272,35 @@ export default function AdminTestimonials() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="instagramUrl">Instagram Video URL</Label>
+              <Input id="instagramUrl" type="url" placeholder="https://www.instagram.com/p/..." value={formData.instagramUrl} onChange={(e) => setFormData(prev => ({ ...prev, instagramUrl: e.target.value }))} />
+              <p className="text-xs text-gray-500">Optional: paste Instagram post/video URL</p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="rating">Rating *</Label>
-              <Input
-                id="rating"
-                type="number"
-                min="1"
-                max="5"
-                value={formData.rating}
-                onChange={(e) => setFormData(prev => ({ ...prev, rating: parseInt(e.target.value) }))}
-                required
-              />
+              <Input id="rating" type="number" min="1" max="5" value={formData.rating} onChange={(e) => setFormData(prev => ({ ...prev, rating: parseInt(e.target.value) }))} required />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="reviewText">Review Text * (Max 80 words)</Label>
-              <Textarea
-                id="reviewText"
-                value={formData.reviewText}
-                onChange={(e) => {
-                  const text = e.target.value;
-                  const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
-                  if (wordCount <= 80) {
-                    setFormData(prev => ({ ...prev, reviewText: text }));
-                  }
-                }}
-                rows={4}
-                required
-              />
-              <p className="text-xs text-gray-500">
-                {formData.reviewText.trim().split(/\s+/).filter(word => word.length > 0).length} / 80 words
-              </p>
+              <Textarea id="reviewText" value={formData.reviewText} onChange={(e) => { const text = e.target.value; const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length; if (wordCount <= 80) { setFormData(prev => ({ ...prev, reviewText: text })); } }} rows={4} required />
+              <p className="text-xs text-gray-500">{formData.reviewText.trim().split(/\s+/).filter(word => word.length > 0).length} / 80 words</p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="sortOrder">Sort Order</Label>
-              <Input
-                id="sortOrder"
-                type="number"
-                value={formData.sortOrder}
-                onChange={(e) => setFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) }))}
-              />
+              <Input id="sortOrder" type="number" value={formData.sortOrder} onChange={(e) => setFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) }))} />
             </div>
 
             <div className="flex items-center space-x-2">
-              <Switch
-                id="isActive"
-                checked={formData.isActive}
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
-              />
+              <Switch id="isActive" checked={formData.isActive} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))} />
               <Label htmlFor="isActive">Active</Label>
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => {
-                resetForm();
-                setIsAddModalOpen(false);
-                setIsEditModalOpen(false);
-              }}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                {selectedTestimonial ? 'Update' : 'Create'} Testimonial
-              </Button>
+              <Button type="button" variant="outline" onClick={() => { resetForm(); setIsAddModalOpen(false); setIsEditModalOpen(false); }}>Cancel</Button>
+              <Button type="submit">{selectedTestimonial ? 'Update' : 'Create'} Testimonial</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -418,9 +311,7 @@ export default function AdminTestimonials() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Testimonial</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this testimonial? This action cannot be undone.
-            </DialogDescription>
+            <DialogDescription>Are you sure you want to delete this testimonial? This action cannot be undone.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>

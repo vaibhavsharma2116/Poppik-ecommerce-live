@@ -163,6 +163,9 @@ export interface IStorage {
   checkUserCanReview(userId: number, productId: number): Promise<{ canReview: boolean; orderId?: number; message: string }>;
   deleteReview(reviewId: number, userId: number): Promise<boolean>;
 
+  // Offer Review Management Functions
+  checkUserCanReviewOffer(userId: number, offerId: number): Promise<{ canReview: boolean; orderId?: number; message: string }>;
+
   // Combo Review Management Functions
   getComboReviews(comboId: number): Promise<any[]>;
   checkUserCanReviewCombo(userId: number, comboId: number): Promise<{ canReview: boolean; orderId?: number; message: string }>;
@@ -1152,6 +1155,85 @@ export class DatabaseStorage implements IStorage {
       return result.length > 0;
     } catch (error) {
       console.error("Error deleting review:", error);
+      throw error;
+    }
+  }
+
+  // Offer Review Management Functions
+  async checkUserCanReviewOffer(userId: number, offerId: number): Promise<{ canReview: boolean; orderId?: number; message: string }> {
+    try {
+      // Check if user has purchased this offer
+      const userOrders = await this.db
+        .select({
+          orderId: ordersTable.id,
+          orderStatus: ordersTable.status,
+        })
+        .from(ordersTable)
+        .where(eq(ordersTable.userId, userId));
+
+      let hasPurchased = false;
+      let purchaseOrderId: number | undefined;
+
+      for (const order of userOrders) {
+        try {
+          let items = [];
+          
+          // Handle items safely - could be string or array
+          if (typeof order.orderStatus === 'string' && order.orderStatus !== 'delivered') {
+            continue;
+          }
+
+          // For offers, we need to check the raw order data from database
+          // since offers might be stored in items JSON
+          const fullOrder = await this.db
+            .select()
+            .from(ordersTable)
+            .where(eq(ordersTable.id, order.orderId))
+            .limit(1);
+
+          if (fullOrder.length === 0) continue;
+
+          const orderData = fullOrder[0];
+          
+          if (typeof orderData.items === 'string') {
+            items = JSON.parse(orderData.items);
+          } else if (Array.isArray(orderData.items)) {
+            items = orderData.items;
+          }
+
+          if (!Array.isArray(items)) {
+            items = [];
+          }
+
+          const hasOfferItem = items.some((item: any) => {
+            return item.offerId === offerId || (item.isOfferItem && item.offerId === offerId) || (item.isOffer && item.offerId === offerId);
+          });
+
+          if (hasOfferItem) {
+            hasPurchased = true;
+            purchaseOrderId = order.orderId;
+            break;
+          }
+        } catch (parseError) {
+          console.warn(`Failed to parse items for order ${order.orderId}:`, parseError);
+          continue;
+        }
+      }
+
+      if (!hasPurchased) {
+        return {
+          canReview: false,
+          message: "You must purchase this offer to leave a review"
+        };
+      }
+
+      return {
+        canReview: true,
+        orderId: purchaseOrderId,
+        message: "You can review this offer"
+      };
+    } catch (error) {
+      console.error("Error checking offer review eligibility:", error);
       throw error;
     }
   }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
-import { ChevronRight, ShoppingCart, ArrowLeft, Share2, Tag, Clock, Check, Sparkles, Palette, Star } from "lucide-react";
+import { ChevronRight, ShoppingCart, ArrowLeft, Share2, Tag, Clock, Check, Sparkles, Palette, Star, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -488,6 +488,7 @@ export default function OfferDetail() {
     userName: "",
   });
   const [canReview, setCanReview] = useState<{ canReview: boolean; orderId?: number; message: string }>({ canReview: false, message: "" });
+  const [isInWishlist, setIsInWishlist] = useState(false);
   const { toast } = useToast();
 
   const { data: offer, isLoading, error } = useQuery<any>({
@@ -538,6 +539,69 @@ export default function OfferDetail() {
       setCanReview(reviewEligibility);
     }
   }, [reviewEligibility]);
+
+  // Check if offer is in wishlist on component mount
+  useEffect(() => {
+    if (offer?.id) {
+      const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
+      const isInWishlist = wishlist.some((item: any) => item.id === offer.id && item.isOffer);
+      setIsInWishlist(isInWishlist);
+    }
+  }, [offer?.id]);
+
+  const toggleWishlist = () => {
+    if (!offer) return;
+
+    const user = localStorage.getItem("user");
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to add items to your wishlist",
+        variant: "destructive",
+      });
+      window.location.href = "/auth/login";
+      return;
+    }
+
+    const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
+    const existingIndex = wishlist.findIndex((item: any) => item.id === offer.id && item.isOffer);
+
+    if (existingIndex >= 0) {
+      wishlist.splice(existingIndex, 1);
+      setIsInWishlist(false);
+    } else {
+      const wishlistItem = {
+        id: offer.id,
+        name: offer.title.substring(0, 100),
+        price: offer.price ? `₹${offer.price}` : undefined,
+        originalPrice: offer.originalPrice ? `₹${offer.originalPrice}` : undefined,
+        image: offer.imageUrl?.substring(0, 200) || '',
+        inStock: true,
+        category: 'offer',
+        isOffer: true,
+        rating: '5.0',
+      };
+      wishlist.push(wishlistItem);
+      setIsInWishlist(true);
+    }
+
+    try {
+      localStorage.setItem("wishlist", JSON.stringify(wishlist));
+    } catch (error) {
+      console.error("Wishlist storage error:", error);
+      toast({
+        title: "Storage Error",
+        description: "Your wishlist is full. Please remove some items to add new ones.",
+        variant: "destructive",
+      });
+      if (existingIndex < 0) {
+        wishlist.pop();
+        setIsInWishlist(false);
+      }
+      return;
+    }
+    window.dispatchEvent(new Event("wishlistUpdated"));
+  };
 
   useEffect(() => {
     if (offer?.productIds && offer.productIds.length > 0) {
@@ -1008,26 +1072,27 @@ export default function OfferDetail() {
             </div>
           </div>
 
+
           {/* Right Column - Details */}
           <div className="space-y-6">
-            {/* Title and Rating */}
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {offer.title}
-              </h1>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="flex items-center">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  ))}
-                </div>
-                <span className="text-sm text-gray-600">(0 reviews)</span>
-              </div>
+            {/* Title */}
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {offer.title}
+            </h1>
+
+            {/* Description (Short) */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-3">
+              <p className="text-gray-700">{offer.description}</p>
             </div>
 
-            {/* Description */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-gray-700">{offer.description}</p>
+            {/* Rating (Stars) */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                ))}
+              </div>
+              <span className="text-sm text-gray-600">(0 reviews)</span>
             </div>
 
             {/* Product Count - Show product previews */}
@@ -1182,38 +1247,23 @@ export default function OfferDetail() {
 
             {/* Cashback - Only show if cashback amount is greater than 0 */}
             {offer.cashbackPercentage && offer.cashbackPrice && Number(offer.cashbackPrice) > 0 && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-sm font-semibold text-orange-700">Get Cashback</span>
-                    <p className="text-xs text-orange-600 mt-1">Earn on this purchase</p>
+                    <span className="text-xs font-semibold text-orange-700">Get Cashback</span>
+                    <p className="text-xs text-orange-600 mt-0.5">Earn on this purchase</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-orange-600">
+                    <span className="text-lg font-bold text-orange-600">
                       ₹{Number(offer.cashbackPrice).toFixed(2)}
                     </span>
-                    <span className="text-xs bg-orange-200 text-orange-800 px-2 py-1 rounded-full font-semibold">
+                    <span className="text-xs bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full font-semibold">
                       {offer.cashbackPercentage}%
                     </span>
                   </div>
                 </div>
               </div>
             )}
-
-            {/* Validity */}
-            <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-              <Clock className="h-5 w-5 text-blue-600" />
-              <div>
-                <p className="text-sm font-semibold text-blue-900">Valid Until</p>
-                <p className="text-sm text-blue-700">
-                  {new Date(offer.validUntil).toLocaleDateString('en-IN', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}
-                </p>
-              </div>
-            </div>
 
             {/* Action Buttons */}
             <div className="flex gap-3">
@@ -1228,8 +1278,14 @@ export default function OfferDetail() {
                   ? 'Select All Shades First'
                   : 'Add All to Cart'}
               </Button>
-
-              {/* Share moved to image overlay; inline share removed */}
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-2 border-purple-200 hover:border-purple-400 rounded-xl p-4 transform hover:scale-105 transition-all duration-200"
+                onClick={toggleWishlist}
+              >
+                <Heart className={`w-6 h-6 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />
+              </Button>
             </div>
           </div>
         </div>
