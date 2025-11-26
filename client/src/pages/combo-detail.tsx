@@ -909,6 +909,18 @@ export default function ComboDetail() {
                           Click to zoom
                         </div>
                       )}
+
+                      {/* Share overlay button (top-right) */}
+                      <div className="absolute top-3 right-3 z-30">
+                        <button
+                          type="button"
+                          aria-label="Share combo"
+                          onClick={() => setShowShareDialog(true)}
+                          className="bg-white/80 backdrop-blur-sm hover:bg-white p-2 rounded-full shadow-lg border border-gray-100 text-purple-600 hover:text-purple-700 transition-colors"
+                        >
+                          <Share2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 

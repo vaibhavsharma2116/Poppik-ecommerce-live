@@ -992,6 +992,17 @@ export default function OfferDetail() {
                       </div>
                     )}
                   </div>
+                  {/* Share overlay button (below discount badge) */}
+                  <div className="absolute top-16 right-4 z-30">
+                    <button
+                      type="button"
+                      aria-label="Share offer"
+                      onClick={() => setShowShareDialog(true)}
+                      className="bg-white/90 backdrop-blur-sm hover:bg-white p-2 rounded-full shadow-lg border border-gray-100 text-purple-600 hover:text-purple-700 transition-colors"
+                    >
+                      <Share2 className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

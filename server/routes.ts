@@ -7785,7 +7785,349 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to update sort order" });
     }
   });
+app.get('/api/testimonials', async (req, res) => {
+    try {
+      const testimonials = await storage.getActiveTestimonials();
+      // Map customer_image to customerImageUrl for frontend compatibility
+      const formattedTestimonials = testimonials.map(t => ({
+        id: t.id,
+        customerName: t.customerName,
+        customerImageUrl: t.customerImage,
+        rating: t.rating,
+        content: t.reviewText,
+        isActive: t.isActive,
+        createdAt: t.createdAt,
+      }));
+      res.json(formattedTestimonials);
+    } catch (error) {
+      console.error('Error fetching testimonials:', error);
+      res.status(500).json({ error: 'Failed to fetch testimonials' });
+    }
+  });
 
+  app.get('/api/testimonials', async (req, res) => {
+    try {
+      const testimonials = await storage.getActiveTestimonials();
+      // Map customer_image to customerImageUrl for frontend compatibility
+      const formattedTestimonials = testimonials.map(t => ({
+        id: t.id,
+        customerName: t.customerName,
+        customerImageUrl: t.customerImage,
+        rating: t.rating,
+        content: t.reviewText,
+        isActive: t.isActive,
+        createdAt: t.createdAt,
+      }));
+      res.json(formattedTestimonials);
+    } catch (error) {
+      console.error('Error fetching testimonials:', error);
+      res.status(500).json({ error: 'Failed to fetch testimonials' });
+    }
+  });
+  app.get('/api/admin/testimonials', async (req, res) => {
+    try {
+      const testimonials = await storage.getTestimonials();
+      // Map customer_image to customerImage for admin panel
+      const formattedTestimonials = testimonials.map(t => ({
+        ...t,
+        customerImage: t.customerImage || t.customer_image,
+      }));
+      res.json(formattedTestimonials);
+    } catch (error) {
+      console.error('Error fetching testimonials:', error);
+      res.status(500).json({ error: 'Failed to fetch testimonials' });
+    }
+  });
+
+  app.get('/api/admin/testimonials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const testimonial = await storage.getTestimonial(id);
+      if (!testimonial) {
+        return res.status(404).json({ error: 'Testimonial not found' });
+      }
+      res.json(testimonial);
+    } catch (error) {
+      console.error('Error fetching testimonial:', error);
+      res.status(500).json({ error: 'Failed to fetch testimonial' });
+    }
+  });
+
+  app.post('/api/admin/testimonials', upload.single('image'), async (req, res) => {
+    try {
+      let customerImage = req.body.customerImage;
+
+      // Handle image upload
+      if (req.file) {
+        customerImage = `/api/images/${req.file.filename}`;
+      }
+
+      const testimonialData = {
+        customerName: req.body.customerName,
+        customerImage: customerImage || null,
+        rating: parseInt(req.body.rating) || 5,
+        reviewText: req.body.reviewText,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+      };
+
+      const testimonial = await storage.createTestimonial(testimonialData);
+      res.status(201).json(testimonial);
+    } catch (error) {
+      console.error('Error creating testimonial:', error);
+      res.status(500).json({ error: 'Failed to create testimonial' });
+    }
+  });
+
+  app.put('/api/admin/testimonials/:id', upload.single('image'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      let updateData: any = {
+        customerName: req.body.customerName,
+        rating: parseInt(req.body.rating) || 5,
+        reviewText: req.body.reviewText,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+      };
+
+      // Handle image upload
+      if (req.file) {
+        updateData.customerImage = `/api/images/${req.file.filename}`;
+      } else if (req.body.customerImage) {
+        updateData.customerImage = req.body.customerImage;
+      }
+
+      const testimonial = await storage.updateTestimonial(id, updateData);
+      if (!testimonial) {
+        return res.status(404).json({ error: 'Testimonial not found' });
+      }
+      res.json(testimonial);
+    } catch (error) {
+      console.error('Error updating testimonial:', error);
+      res.status(500).json({ error: 'Failed to update testimonial' });
+    }
+  });
+
+  app.delete('/api/admin/testimonials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteTestimonial(id);
+      if (!success) {
+        return res.status(404).json({ error: 'Testimonial not found' });
+      }
+      res.json({ message: 'Testimonial deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting testimonial:', error);
+      res.status(500).json({ error: 'Failed to delete testimonial' });
+    }
+  });
+
+  app.get('/api/combos', async (req, res) => {
+    try {
+      console.log('Fetching combos from database...');
+
+      const activeCombos = await db
+        .select()
+        .from(schema.combos)
+        .where(eq(schema.combos.isActive, true))
+        .orderBy(asc(schema.combos.sortOrder));
+
+      console.log('Active combos found:', activeCombos.length);
+
+      if (!activeCombos || activeCombos.length === 0) {
+        console.log('No active combos found, returning empty array');
+        return res.json([]);
+      }
+
+      // Get images for each combo
+      const combosWithImages = await Promise.all(
+        activeCombos.map(async (combo) => {
+          try {
+            const images = await db
+              .select()
+              .from(schema.comboImages)
+              .where(eq(schema.comboImages.comboId, combo.id))
+              .orderBy(asc(schema.comboImages.sortOrder));
+
+            return {
+              ...combo,
+              imageUrls: images.map(img => img.imageUrl)
+            };
+          } catch (imgError) {
+            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
+            return {
+              ...combo,
+              imageUrls: []
+            };
+          }
+        })
+      );
+
+      console.log('Returning combos with images:', combosWithImages.length);
+      res.json(combosWithImages);
+    } catch (error) {
+      console.error('Error fetching combos:', error);
+      console.error('Error details:', error.message);
+      res.status(500).json({ error: 'Failed to fetch combos', details: error.message });
+    }
+  });
+
+  // Debug endpoint to check combos table
+  app.get('/api/combos/debug', async (req, res) => {
+    try {
+      const allCombos = await db.select().from(schema.combos);
+      const activeCombos = await db.select().from(schema.combos).where(eq(schema.combos.isActive, true));
+
+      res.json({
+        totalCombos: allCombos.length,
+        activeCombos: activeCombos.length,
+        allCombosData: allCombos,
+        activeCombosData: activeCombos
+      });
+    } catch (error) {
+      console.error('Debug combos error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/video-testimonials', async (req, res) => {
+    try {
+      const testimonials = await db
+        .select()
+        .from(schema.videoTestimonials)
+        .where(eq(schema.videoTestimonials.isActive, true))
+        .orderBy(asc(schema.videoTestimonials.sortOrder));
+
+      res.json(testimonials);
+    } catch (error) {
+      console.error('Error fetching video testimonials:', error);
+      res.status(500).json({ error: 'Failed to fetch video testimonials' });
+    }
+  });
+
+  // Admin endpoints for video testimonials management
+  app.get('/api/admin/video-testimonials', async (req, res) => {
+    try {
+      const testimonials = await db
+        .select()
+        .from(schema.videoTestimonials)
+        .orderBy(desc(schema.videoTestimonials.createdAt));
+
+      res.json(testimonials);
+    } catch (error) {
+      console.error('Error fetching video testimonials:', error);
+      res.status(500).json({ error: 'Failed to fetch video testimonials' });
+    }
+  });
+
+  app.post('/api/admin/video-testimonials', upload.fields([
+    { name: 'video', maxCount: 1 },
+    { name: 'thumbnail', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      let videoUrl = req.body.videoUrl;
+      let thumbnailUrl = req.body.thumbnailUrl;
+
+      // Handle video upload
+      if (files?.video?.[0]) {
+        videoUrl = `/api/images/${files.video[0].filename}`;
+      }
+
+      // Handle thumbnail upload
+      if (files?.thumbnail?.[0]) {
+        thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
+      }
+
+      const testimonialData = {
+        customerImage: '', // Empty string for backward compatibility
+        videoUrl: videoUrl,
+        thumbnailUrl: thumbnailUrl,
+        productId: parseInt(req.body.productId),
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+      };
+
+      const [testimonial] = await db
+        .insert(schema.videoTestimonials)
+        .values(testimonialData)
+        .returning();
+
+      res.status(201).json(testimonial);
+    } catch (error) {
+      console.error('Error creating video testimonial:', error);
+      res.status(500).json({ error: 'Failed to create video testimonial' });
+    }
+  });
+
+  app.put('/api/admin/video-testimonials/:id', upload.fields([
+    { name: 'video', maxCount: 1 },
+    { name: 'thumbnail', maxCount: 1 }
+  ]), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      let updateData: any = {
+        customerName: req.body.customerName,
+        customerImage: '', // Empty string for backward compatibility
+        productId: parseInt(req.body.productId),
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+        updatedAt: new Date(),
+      };
+
+      // Handle video upload
+      if (files?.video?.[0]) {
+        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.videoUrl) {
+        updateData.videoUrl = req.body.videoUrl;
+      }
+
+      // Handle thumbnail upload
+      if (files?.thumbnail?.[0]) {
+        updateData.thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
+      } else if (req.body.thumbnailUrl) {
+        updateData.thumbnailUrl = req.body.thumbnailUrl;
+      }
+
+      const [testimonial] = await db
+        .update(schema.videoTestimonials)
+        .set(updateData)
+        .where(eq(schema.videoTestimonials.id, id))
+        .returning();
+
+      if (!testimonial) {
+        return res.status(404).json({ error: 'Video testimonial not found' });
+      }
+
+      res.json(testimonial);
+    } catch (error) {
+      console.error('Error updating video testimonial:', error);
+      res.status(500).json({ error: 'Failed to update video testimonial' });
+    }
+  });
+
+  app.delete('/api/admin/video-testimonials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deletedTestimonial] = await db
+        .delete(schema.videoTestimonials)
+        .where(eq(schema.videoTestimonials.id, id))
+        .returning();
+
+      if (!deletedTestimonial) {
+        return res.status(404).json({ error: 'Video testimonial not found' });
+      }
+
+      res.json({ message: 'Video testimonial deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting video testimonial:', error);
+      res.status(500).json({ error: 'Failed to delete video testimonial' });
+    }
+  });
   const httpServer = createServer(app);
   return httpServer;
 }
