@@ -4,16 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Upload, Edit, Trash2, Plus } from "lucide-react";
+import RichTextEditor from "@/components/admin/rich-text-editor";
 import { useToast } from "@/hooks/use-toast";
 
 interface Contest {
   id: number;
   title: string;
   slug: string;
-  description: string;
   content: string;
   imageUrl: string;
-  bannerImageUrl?: string;
   validFrom: string;
   validUntil: string;
   isActive: boolean;
@@ -25,10 +24,8 @@ interface Contest {
 interface FormData {
   title: string;
   slug: string;
-  description: string;
   content: string;
   imageUrl: string;
-  bannerImageUrl: string;
   validFrom: string;
   validUntil: string;
   isActive: boolean;
@@ -44,14 +41,11 @@ export default function AdminContests() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     title: "",
     slug: "",
-    description: "",
     content: "",
     imageUrl: "",
-    bannerImageUrl: "",
     validFrom: "",
     validUntil: "",
     isActive: true,
@@ -136,47 +130,7 @@ export default function AdminContests() {
     }
   };
 
-  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Error", description: "Please upload an image file", variant: "destructive" });
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setBannerPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-
-      const formDataToSend = new FormData();
-      formDataToSend.append("file", file);
-      formDataToSend.append("type", "image");
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formDataToSend,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setFormData(prev => ({
-          ...prev,
-          bannerImageUrl: data.url,
-        }));
-        toast({ title: "Success", description: "Banner uploaded successfully" });
-      }
-    } catch (error) {
-      console.error("Error uploading banner:", error);
-      toast({ title: "Error", description: "Failed to upload banner", variant: "destructive" });
-    } finally {
-      setUploading(false);
-    }
-  };
+  
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -208,10 +162,8 @@ export default function AdminContests() {
     setFormData({
       title: "",
       slug: "",
-      description: "",
       content: "",
       imageUrl: "",
-      bannerImageUrl: "",
       validFrom: "",
       validUntil: "",
       isActive: true,
@@ -219,7 +171,6 @@ export default function AdminContests() {
     });
     setEditingId(null);
     setImagePreview(null);
-    setBannerPreview(null);
   };
 
   const handleSaveContest = async () => {
@@ -276,17 +227,14 @@ export default function AdminContests() {
     setFormData({
       title: contest.title,
       slug: contest.slug,
-      description: contest.description,
       content: contest.content,
       imageUrl: contest.imageUrl,
-      bannerImageUrl: contest.bannerImageUrl || "",
       validFrom: contest.validFrom.split("T")[0],
       validUntil: contest.validUntil.split("T")[0],
       isActive: contest.isActive,
       featured: contest.featured,
     });
     setImagePreview(contest.imageUrl);
-    setBannerPreview(contest.bannerImageUrl || null);
     setEditingId(contest.id);
     setIsFormOpen(true);
   };
@@ -388,17 +336,7 @@ export default function AdminContests() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-700">Description</label>
-                    <textarea
-                      name="description"
-                      placeholder="Enter short description"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                      rows={2}
-                    />
-                  </div>
+                  {/* Short Description removed per request */}
 
                   <div>
                     <label className="block text-sm font-semibold mb-2 text-gray-700">Image URL *</label>
@@ -443,48 +381,7 @@ export default function AdminContests() {
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-700">Banner Image URL</label>
-                    <div className="flex gap-2 items-end">
-                      <div className="flex-1">
-                        <Input
-                          name="bannerImageUrl"
-                          placeholder="https://example.com/banner.jpg"
-                          value={formData.bannerImageUrl}
-                          onChange={handleInputChange}
-                          className="border-gray-300"
-                        />
-                      </div>
-                      <div>
-                        <input
-                          id="banner-upload-input"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleBannerUpload}
-                          disabled={uploading}
-                          className="hidden"
-                        />
-                        <label htmlFor="banner-upload-input">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={uploading}
-                            className="gap-2 cursor-pointer"
-                            onClick={() => document.getElementById('banner-upload-input')?.click()}
-                          >
-                            <Upload className="w-4 h-4" />
-                            {uploading ? 'Uploading...' : 'Upload'}
-                          </Button>
-                        </label>
-                      </div>
-                    </div>
-                    {bannerPreview && (
-                      <div className="mt-3">
-                        <img src={bannerPreview} alt="Banner Preview" className="w-full h-24 object-cover rounded-lg border-2 border-purple-300" />
-                      </div>
-                    )}
-                  </div>
+                  {/* Banner image field removed per request */}
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -510,14 +407,10 @@ export default function AdminContests() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-700">Content (HTML) *</label>
-                    <textarea
-                      name="content"
-                      placeholder="Enter contest details and rules (supports HTML)"
-                      value={formData.content}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm font-mono"
-                      rows={6}
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Detailed Content *</label>
+                    <RichTextEditor
+                      content={formData.content}
+                      onChange={(content) => setFormData(prev => ({ ...prev, content }))}
                     />
                   </div>
 
