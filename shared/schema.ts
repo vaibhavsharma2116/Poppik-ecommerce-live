@@ -822,3 +822,56 @@ export const deliveryAddresses = pgTable("delivery_addresses", {
 
 export type DeliveryAddress = typeof deliveryAddresses.$inferSelect;
 export type InsertDeliveryAddress = typeof deliveryAddresses.$inferInsert;
+
+// Media Links Table - For managing clickable media with redirect links
+export const mediaLinks = pgTable("media_links", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  imageUrl: text("image_url").notNull(),
+  videoUrl: text("video_url"), // Optional video URL
+  redirectUrl: text("redirect_url").notNull(), // URL where users will be redirected on click
+  category: varchar("category", { length: 100 }).notNull().default("media"), // e.g., 'media', 'press', 'featured'
+  type: varchar("type", { length: 50 }).notNull().default("image"), // 'image', 'video', 'carousel'
+  clickCount: integer("click_count").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  validFrom: timestamp("valid_from"),
+  validUntil: timestamp("valid_until"),
+  metadata: jsonb("metadata"), // Additional metadata like alt text, tags, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type MediaLink = typeof mediaLinks.$inferSelect;
+export type InsertMediaLink = typeof mediaLinks.$inferInsert;
+
+export const insertMediaLinkSchema = createInsertSchema(mediaLinks).omit({
+  id: true,
+});
+
+// Contests Table
+export const contests = pgTable("contests", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  description: text("description"),
+  content: text("content").notNull(), // Rich content with HTML
+  imageUrl: text("image_url").notNull(), // Banner image
+  bannerImageUrl: text("banner_image_url"), // Large banner for detail page
+  validFrom: timestamp("valid_from").notNull(),
+  validUntil: timestamp("valid_until").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  featured: boolean("featured").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Contest = typeof contests.$inferSelect;
+export type InsertContest = typeof contests.$inferInsert;
+
+export const insertContestSchema = createInsertSchema(contests).omit({
+  id: true,
+});
+export const selectContestSchema = createSelectSchema(contests);
+export const selectMediaLinkSchema = createSelectSchema(mediaLinks);

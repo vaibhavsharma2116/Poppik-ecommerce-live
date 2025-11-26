@@ -1481,6 +1481,11 @@ export default function Layout({ children }: LayoutProps) {
                     Store Location
                   </Link>
                 </li>
+                <li>
+                  <Link href="/media-links" className="text-gray-400 hover:text-white transition-colors text-sm">
+                    Media Rich
+                  </Link>
+                </li>
               </ul>
             </div>
 

@@ -1,62 +1,113 @@
-
-import { Sparkles, Trophy, GraduationCap } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { Zap } from "lucide-react";
+import { Link } from "wouter";
 
-export default function ContestPage() {
-  const { toast } = useToast();
-  const [email, setEmail] = useState("");
+interface Contest {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  imageUrl: string;
+  validFrom: string;
+  validUntil: string;
+  isActive: boolean;
+}
 
-  const handleNotifyMe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email) {
-      toast({
-        title: "Thank you!",
-        description: "We'll notify you when Contest launches.",
-      });
-      setEmail("");
-    }
-  };
+export default function ContestsPage() {
+  const { data: contests = [], isLoading } = useQuery<Contest[]>({
+    queryKey: ['/api/contests'],
+    queryFn: async () => {
+      const response = await fetch('/api/contests');
+      if (!response.ok) {
+        console.error('Failed to fetch contests:', response.status);
+        return [];
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
+    retry: 1,
+  });
+
+  const displayContests = contests || [];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-8 sm:py-12 md:py-16 flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-pink-600 mx-auto"></div>
+          <p className="mt-4 text-sm sm:text-base text-gray-600">Loading contests...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-8 sm:py-16 md:py-24">
-        <div className="text-center">
-          {/* Icon */}
-          <div className="flex justify-center mb-6 sm:mb-8">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full blur-xl opacity-50 animate-pulse"></div>
-              <div className="relative bg-white rounded-full p-4 sm:p-6 shadow-2xl">
-                <Trophy className="h-12 w-12 sm:h-16 sm:w-16 text-purple-600" />
-              </div>
-            </div>
-          </div>
+      {/* Contests Grid - Responsive Layout */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 md:py-12 lg:py-16">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:gap-8 lg:gap-10">
+          {displayContests.map((contest) => {
+            const isExpired = new Date(contest.validUntil) < new Date();
+            
+            return (
+              <Link href={`/contest/${contest.slug}`} key={contest.id}>
+                <Card 
+                  className="group overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-white cursor-pointer"
+                >
+                  <CardContent className="p-0">
+                    <div className="relative overflow-hidden">
+                      {/* Contest Badge */}
+                      <div className="absolute top-2 left-2 sm:top-3 sm:left-3 md:top-4 md:left-4 z-10">
+                        <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg flex items-center gap-1">
+                          <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
+                          CONTEST
+                        </Badge>
+                      </div>
 
-          {/* Main Heading */}
-          <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 px-2">
-            <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent">
-              Poppik Contest
-            </span>
-          </h1>
+                      {/* Expired Badge */}
+                      {isExpired && (
+                        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 md:top-4 md:right-4 z-10">
+                          <Badge className="bg-gray-600 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg">
+                            ENDED
+                          </Badge>
+                        </div>
+                      )}
 
-          <div className="flex items-center justify-center gap-2 mb-4 sm:mb-6">
-            <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-500 animate-pulse" />
-            <p className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-700">
-              Coming Soon
-            </p>
-            <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-500 animate-pulse" />
-          </div>
+                      {/* Image - Responsive Heights */}
+                      <div className="relative h-48 xs:h-56 sm:h-72 md:h-80 lg:h-96 xl:h-[400px] overflow-hidden bg-gradient-to-br from-yellow-100 to-orange-100">
+                        <img
+                          src={contest.imageUrl}
+                          alt={contest.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      </div>
 
-          <p className="text-sm sm:text-lg md:text-xl text-gray-600 mb-8 sm:mb-12 max-w-2xl mx-auto px-4">
-            Get ready to participate in exciting beauty contests and win amazing prizes! Show off your makeup skills, creativity, and style. Join our exclusive contests to compete with beauty enthusiasts and get a chance to win fabulous rewards.
-          </p>
-
-          
-          
+                      {/* Content Overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-3 sm:p-4 md:p-6 lg:p-8">
+                        <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold text-white mb-1 sm:mb-2 line-clamp-2">
+                          {contest.title}
+                        </h3>
+                        <p className="text-xs sm:text-sm text-gray-200 line-clamp-2">
+                          {contest.description}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
+
+        {displayContests.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-gray-500 text-lg">No contests available</p>
+          </div>
+        )}
       </div>
     </div>
   );

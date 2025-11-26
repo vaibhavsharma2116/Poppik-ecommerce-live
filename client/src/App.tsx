@@ -107,6 +107,8 @@ const MakeupStudio = lazy(() => import("./pages/makeup-studio"));
 const FashionShow = lazy(() => import("./pages/fashion-show"));
 const AdminBlog = lazy(() => import("./pages/admin/blog"));
 const AdminReports = lazy(() => import("./pages/admin/reports"));
+const AdminMedia = lazy(() => import("./pages/admin/media"));
+const MediaLinks = lazy(() => import("@/pages/media-links"));
 import OffersPage from "@/pages/offers";
 import OfferDetail from "@/pages/offer-detail";
 
@@ -171,6 +173,7 @@ function Router() {
             <Route path="/promo-codes" component={lazy(() => import("./pages/admin/promo-codes"))} />
             <Route path="/promo-code-usage" component={lazy(() => import("./pages/admin/promo-code-usage"))} />
             <Route path="/offers" component={lazy(() => import("@/pages/admin/offers"))} />
+            <Route path="/contests" component={lazy(() => import("./pages/admin/contests"))} />
             <Route path="/job-positions" component={() => <LazyRoute component={lazy(() => import("./pages/admin/job-positions"))} />} />
             <Route path="/stores" component={AdminStores} />
             <Route path="/settings" component={AdminSettings} />
@@ -186,6 +189,7 @@ function Router() {
             <Route path="/shades" component={AdminShades} />
             <Route path="/featured-sections" component={AdminFeaturedSections} />
             <Route path="/reports" component={() => <LazyRoute component={AdminReports} />} />
+            <Route path="/media" component={() => <LazyRoute component={AdminMedia} />} />
             <Route component={NotFound} />
           </Switch>
         </AdminLayout>
@@ -203,6 +207,7 @@ function Router() {
             <Route path="/academy" component={() => <LazyRoute component={AcademyPage} />} />
             <Route path="/drop-shipping" component={() => <LazyRoute component={DropShippingPage} />} />
             <Route path="/contest" component={() => <LazyRoute component={ContestPage} />} />
+            <Route path="/contest/:slug" component={() => <LazyRoute component={lazy(() => import("./pages/contest-detail"))} />} />
             <Route path="/channel-partner" component={ChannelPartnerPage} />
             <Route path="/beauty-kit/micro" component={() => <LazyRoute component={lazy(() => import("./pages/beauty-kit-micro"))} />} />
             <Route path="/beauty-kit/small" component={() => <LazyRoute component={lazy(() => import("./pages/beauty-kit-small"))} />} />
@@ -244,6 +249,7 @@ function Router() {
             <Route path="/affiliate-form" component={AffiliateForm} />
             <Route path="/affiliate-dashboard" component={() => <LazyRoute component={lazy(() => import("./pages/affiliate-dashboard"))} />} />
             <Route path="/affiliate-wallet" component={() => <LazyRoute component={lazy(() => import("./pages/affiliate-wallet"))} />} />
+            <Route path="/media-links" component={MediaLinks} />
             <Route component={NotFound} />
           </Switch>
         </Layout>

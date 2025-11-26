@@ -58,6 +58,15 @@ export default function AdminContactSubmissions() {
     },
   });
 
+  // Ensure we always work with an array in case the server returns an object
+  const submissionsList: ContactSubmission[] = Array.isArray(submissions)
+    ? submissions
+    : Array.isArray((submissions as any)?.data)
+    ? (submissions as any).data
+    : Array.isArray((submissions as any)?.submissions)
+    ? (submissions as any).submissions
+    : [];
+
   // Update submission status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
@@ -117,7 +126,7 @@ export default function AdminContactSubmissions() {
   });
 
   // Filter submissions
-  const filteredSubmissions = submissions.filter((submission) => {
+  const filteredSubmissions = submissionsList.filter((submission) => {
     const matchesSearch = 
       submission.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       submission.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -175,10 +184,10 @@ export default function AdminContactSubmissions() {
   };
 
   const stats = {
-    total: submissions.length,
-    unread: submissions.filter(s => s.status === 'unread').length,
-    read: submissions.filter(s => s.status === 'read').length,
-    responded: submissions.filter(s => s.status === 'responded').length,
+    total: submissionsList.length,
+    unread: submissionsList.filter(s => s.status === 'unread').length,
+    read: submissionsList.filter(s => s.status === 'read').length,
+    responded: submissionsList.filter(s => s.status === 'responded').length,
   };
 
   if (isLoading) {

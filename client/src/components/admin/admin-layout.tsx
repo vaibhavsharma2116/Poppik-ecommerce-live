@@ -193,6 +193,18 @@ const sidebarItems = [
     badge: null,
   },
   {
+    title: "Contests",
+    href: "/contests",
+    icon: Sparkles,
+    badge: null,
+  },
+  {
+    title: "Media",
+    href: "/media",
+    icon: Images,
+    badge: null,
+  },
+  {
     title: "Settings",
     href: "/settings",
     icon: Settings,

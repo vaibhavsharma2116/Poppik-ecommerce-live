@@ -68,7 +68,7 @@ import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
 import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage, InsertBlogPost } from "../shared/schema";
-import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema } from "../shared/schema"; // Import users table explicitly
+import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema, mediaLinks, contests } from "../shared/schema"; // Import users table explicitly
 import type { Request, Response } from 'express'; // Import Request and Response types for clarity
 
 // Initialize Shiprocket service
@@ -1451,6 +1451,306 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public announcements endpoint
+  app.get('/api/announcements', async (req: Request, res: Response) => {
+    try {
+      const announcementsList = await db
+        .select()
+        .from(schema.announcements)
+        .where(eq(schema.announcements.isActive, true))
+        .orderBy(asc(schema.announcements.sortOrder));
+
+      res.json(announcementsList || []);
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+      res.json([]);
+    }
+  });
+
+  // User wallet endpoint (cashback balance)
+  app.get('/api/wallet', async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+
+      const userIdNum = parseInt(userId as string);
+      if (isNaN(userIdNum)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+
+      // Get or create user wallet
+      let wallet = await db
+        .select()
+        .from(schema.userWallet)
+        .where(eq(schema.userWallet.userId, userIdNum))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        // Create new wallet if it doesn't exist
+        const [newWallet] = await db.insert(schema.userWallet).values({
+          userId: userIdNum,
+          cashbackBalance: '0.00',
+          totalEarned: '0.00',
+          totalRedeemed: '0.00',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }).returning();
+
+        wallet = [newWallet];
+      }
+
+      // Convert to proper format
+      const walletData = {
+        ...wallet[0],
+        cashbackBalance: parseFloat(wallet[0].cashbackBalance || '0').toFixed(2),
+        totalEarned: parseFloat(wallet[0].totalEarned || '0').toFixed(2),
+        totalRedeemed: parseFloat(wallet[0].totalRedeemed || '0').toFixed(2)
+      };
+
+      res.json(walletData);
+    } catch (error) {
+      console.error('Error fetching user wallet:', error);
+      res.status(500).json({ error: 'Failed to fetch wallet' });
+    }
+  });
+
+  // Get user's affiliate application
+  app.get('/api/affiliate/my-application', async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+
+      const userIdNum = parseInt(userId as string);
+      if (isNaN(userIdNum)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+
+      // Get user's affiliate application
+      const application = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.userId, userIdNum))
+        .limit(1);
+
+      if (!application || application.length === 0) {
+        return res.status(404).json({ error: 'No affiliate application found', status: 'not_applied' });
+      }
+
+      const appData = application[0];
+
+      res.json({
+        id: appData.id,
+        userId: appData.userId,
+        firstName: appData.firstName,
+        lastName: appData.lastName,
+        email: appData.email,
+        phone: appData.phone,
+        address: appData.address,
+        landmark: appData.landmark,
+        city: appData.city,
+        state: appData.state,
+        pincode: appData.pincode,
+        country: appData.country,
+        bankName: appData.bankName,
+        branchName: appData.branchName,
+        ifscCode: appData.ifscCode,
+        accountNumber: appData.accountNumber,
+        status: appData.status,
+        createdAt: appData.createdAt,
+        reviewedAt: appData.reviewedAt,
+        reviewNotes: appData.reviewNotes
+      });
+    } catch (error) {
+      console.error('Error fetching affiliate application:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate application', details: (error as any)?.message });
+    }
+  });
+
+  // Contests - Public listing
+  app.get('/api/contests', async (req: Request, res: Response) => {
+    try {
+      const onlyActive = req.query.active === 'true' || req.query.active === undefined;
+      const q = db.select().from(contests).orderBy(desc(contests.createdAt));
+
+      let rows = await q;
+
+      if (onlyActive) {
+        rows = rows.filter(r => r.isActive);
+      }
+
+      res.json(rows);
+    } catch (error) {
+      console.error('Error fetching contests:', error);
+      res.status(500).json({ error: 'Failed to fetch contests' });
+    }
+  });
+
+  // Contest detail
+  app.get('/api/contests/:slug', async (req: Request, res: Response) => {
+    try {
+      const slug = req.params.slug;
+      const result = await db.select().from(contests).where(eq(contests.slug, slug)).limit(1);
+      if (!result || result.length === 0) {
+        return res.status(404).json({ error: 'Contest not found' });
+      }
+      res.json(result[0]);
+    } catch (error) {
+      console.error('Error fetching contest detail:', error);
+      res.status(500).json({ error: 'Failed to fetch contest' });
+    }
+  });
+
+  // Admin - Get all contests (including inactive)
+  app.get('/api/admin/contests', adminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const rows = await db.select().from(contests).orderBy(desc(contests.createdAt));
+      res.json(rows || []);
+    } catch (error) {
+      console.error('Error fetching admin contests:', error);
+      res.status(500).json({ error: 'Failed to fetch contests', details: (error as any)?.message || null });
+    }
+  });
+
+  // Admin - Create contest (with optional image upload)
+  app.post('/api/admin/contests', adminMiddleware, upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'bannerImage', maxCount: 1 }
+  ]), async (req: Request, res: Response) => {
+    try {
+      const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
+      const body = req.body as any;
+
+      // Helper to create URL-friendly slugs
+      const makeSlug = (s: string) => s
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\- ]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+      let imageUrl = body.imageUrl || null;
+      let bannerImageUrl = body.bannerImageUrl || null;
+
+      if (files?.image?.[0]) {
+        imageUrl = `/api/images/${files.image[0].filename}`;
+      }
+      if (files?.bannerImage?.[0]) {
+        bannerImageUrl = `/api/images/${files.bannerImage[0].filename}`;
+      }
+
+      // Ensure slug is present; generate from title if missing and make unique
+      let slug = body.slug;
+      if (!slug || slug.trim() === '') {
+        const base = makeSlug(body.title || 'contest');
+        let candidate = base || `contest-${Date.now()}`;
+        let exists = true;
+        let suffix = 1;
+        while (exists) {
+          // Check if slug exists
+          // eslint-disable-next-line no-await-in-loop
+          const found = await db.select().from(contests).where(eq(contests.slug, candidate)).limit(1);
+          if (!found || found.length === 0) {
+            exists = false;
+          } else {
+            candidate = `${base}-${suffix++}`;
+          }
+        }
+        slug = candidate;
+      }
+
+      const contestData: any = {
+        title: body.title,
+        slug: slug,
+        description: body.description || null,
+        content: body.content || body.detailedDescription || '',
+        imageUrl: imageUrl,
+        bannerImageUrl: bannerImageUrl,
+        validFrom: body.validFrom ? new Date(body.validFrom) : new Date(),
+        validUntil: body.validUntil ? new Date(body.validUntil) : new Date(Date.now() + 7*24*60*60*1000),
+        isActive: body.isActive === 'true' || body.isActive === true || body.published === 'true' || body.published === true || body.published === 1,
+        featured: body.featured === 'true' || body.featured === true
+      };
+
+      const [newContest] = await db.insert(contests).values(contestData).returning();
+      res.status(201).json(newContest);
+    } catch (error) {
+      console.error('Error creating contest:', error);
+      // If the database table is missing, give a clearer hint for developers
+      const msg = (error as any)?.message || '';
+      if (msg.includes("relation \"contests\" does not exist") || msg.includes('does not exist')) {
+        return res.status(500).json({
+          error: 'Failed to create contest',
+          details: 'Database table "contests" does not exist. Apply migration: migrations/0003_create_contests.sql'
+        });
+      }
+
+      // Otherwise include the message to help debugging in development
+      res.status(500).json({ error: 'Failed to create contest', details: msg });
+    }
+  });
+
+  // Admin - Update contest
+  app.put('/api/admin/contests/:id', adminMiddleware, upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'bannerImage', maxCount: 1 }
+  ]), async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
+      const body = req.body as any;
+
+      const updateData: any = {};
+      if (body.title) updateData.title = body.title;
+      if (body.slug) updateData.slug = body.slug;
+      if (body.description !== undefined) updateData.description = body.description;
+      if (body.content !== undefined) updateData.content = body.content;
+      if (body.detailedDescription !== undefined) updateData.content = body.detailedDescription;
+      if (body.validFrom) updateData.validFrom = new Date(body.validFrom);
+      if (body.validUntil) updateData.validUntil = new Date(body.validUntil);
+      if (body.isActive !== undefined) updateData.isActive = body.isActive === 'true' || body.isActive === true;
+      if (body.published !== undefined) updateData.isActive = body.published === 'true' || body.published === true || body.published === 1;
+      if (body.featured !== undefined) updateData.featured = body.featured === 'true' || body.featured === true;
+
+      if (files?.image?.[0]) {
+        updateData.imageUrl = `/api/images/${files.image[0].filename}`;
+      } else if (body.imageUrl) {
+        updateData.imageUrl = body.imageUrl;
+      }
+
+      if (files?.bannerImage?.[0]) {
+        updateData.bannerImageUrl = `/api/images/${files.bannerImage[0].filename}`;
+      } else if (body.bannerImageUrl) {
+        updateData.bannerImageUrl = body.bannerImageUrl;
+      }
+
+      const [updated] = await db.update(contests).set({ ...updateData, updatedAt: new Date() }).where(eq(contests.id, id)).returning();
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating contest:', error);
+      res.status(500).json({ error: 'Failed to update contest' });
+    }
+  });
+
+  // Admin - Delete contest
+  app.delete('/api/admin/contests/:id', adminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      await db.delete(contests).where(eq(contests.id, id));
+      res.json({ success: true, message: 'Contest deleted' });
+    } catch (error) {
+      console.error('Error deleting contest:', error);
+      res.status(500).json({ error: 'Failed to delete contest' });
+    }
+  });
+
   // Get Affiliate Withdrawals
   app.get('/api/affiliate/wallet/withdrawals', async (req, res) => {
     try {
@@ -2687,7 +2987,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Unified upload API that handles both images and videos (BEFORE /api/images middleware)
+  app.post("/api/upload", upload.single("file"), async (req, res) => {
+    try {
+      console.log("✅ Upload request received at /api/upload");
+      console.log("Request method:", req.method);
+      console.log("Request path:", req.path);
+      console.log("File received:", !!req.file);
 
+      if (!req.file) {
+        console.error("❌ No file provided in request");
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      const fileType = req.body.type || "unknown";
+      console.log("✅ File uploaded successfully:", {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        type: fileType
+      });
+
+      // Return the file URL
+      const fileUrl = `/api/images/${req.file.filename}`;
+      console.log("✅ Upload successful, returning URL:", fileUrl);
+      res.json({
+        url: fileUrl,
+        message: "File uploaded successfully",
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size
+      });
+    } catch (error) {
+      console.error("❌ Upload error:", error);
+      res.status(500).json({
+        error: "Failed to upload file",
+        details: (error as any).message
+      });
+    }
+  });
 
   // Serve uploaded images with optimization
   app.use("/api/images", (req, res, next) => {
@@ -2801,6 +3140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Video upload successful, returning URL:", videoUrl);
       res.json({
         videoUrl,
+        url: videoUrl,
         message: "Video uploaded successfully",
         filename: req.file.filename,
         originalName: req.file.originalname,
@@ -2814,6 +3154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
   // Image upload API
   app.post("/api/upload/image", upload.single("image"), async (req, res) => {
     try {
@@ -2835,6 +3176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const imageUrl = `/api/images/${req.file.filename}`;
       res.json({
         imageUrl,
+        url: imageUrl,
         message: "Image uploaded successfully",
         filename: req.file.filename,
         originalName: req.file.originalname,
@@ -7231,6 +7573,216 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error creating combo review:", error);
       res.status(500).json({ error: "Failed to create combo review"
       });
+    }
+  });
+
+  // ==================== MEDIA LINKS ROUTES ====================
+
+  // Get all media links (public - for displaying)
+  app.get("/api/media", async (req, res) => {
+    try {
+      const { category, isActive } = req.query;
+      let query = db.select().from(schema.mediaLinks);
+      
+      if (isActive !== undefined) {
+        query = query.where(eq(schema.mediaLinks.isActive, isActive === 'true'));
+      }
+      
+      if (category) {
+        query = query.where(eq(schema.mediaLinks.category, category as string));
+      }
+      
+      query = query.orderBy(asc(schema.mediaLinks.sortOrder), desc(schema.mediaLinks.createdAt));
+      const mediaList = await query;
+      res.json(mediaList);
+    } catch (error) {
+      console.error("Error fetching media:", error);
+      res.status(500).json({ error: "Failed to fetch media" });
+    }
+  });
+
+  // Get single media by ID
+  app.get("/api/media/:id", async (req, res) => {
+    try {
+      const mediaId = parseInt(req.params.id);
+      const media = await db
+        .select()
+        .from(schema.mediaLinks)
+        .where(eq(schema.mediaLinks.id, mediaId));
+      
+      if (media.length === 0) {
+        return res.status(404).json({ error: "Media not found" });
+      }
+      
+      res.json(media[0]);
+    } catch (error) {
+      console.error("Error fetching media:", error);
+      res.status(500).json({ error: "Failed to fetch media" });
+    }
+  });
+
+  // Click tracking - increment click count and redirect
+  app.post("/api/media/:id/click", async (req, res) => {
+    try {
+      const mediaId = parseInt(req.params.id);
+      const media = await db
+        .select()
+        .from(schema.mediaLinks)
+        .where(eq(schema.mediaLinks.id, mediaId));
+      
+      if (media.length === 0) {
+        return res.status(404).json({ error: "Media not found" });
+      }
+
+      // Increment click count
+      await db
+        .update(schema.mediaLinks)
+        .set({ clickCount: (media[0].clickCount || 0) + 1 })
+        .where(eq(schema.mediaLinks.id, mediaId));
+
+      // Return redirect URL
+      res.json({ redirectUrl: media[0].redirectUrl });
+    } catch (error) {
+      console.error("Error tracking click:", error);
+      res.status(500).json({ error: "Failed to track click" });
+    }
+  });
+
+  // ==================== ADMIN MEDIA MANAGEMENT ROUTES ====================
+
+  // Get all media (admin)
+  app.get("/api/admin/media", adminMiddleware, async (req, res) => {
+    try {
+      const mediaList = await db
+        .select()
+        .from(schema.mediaLinks)
+        .orderBy(asc(schema.mediaLinks.sortOrder), desc(schema.mediaLinks.createdAt));
+      
+      res.json(mediaList);
+    } catch (error) {
+      console.error("Error fetching media:", error);
+      res.status(500).json({ error: "Failed to fetch media" });
+    }
+  });
+
+  // Create new media (admin)
+  app.post("/api/admin/media", adminMiddleware, async (req, res) => {
+    try {
+      console.log("📝 Creating media with data:", req.body);
+      
+      const mediaData = {
+        title: req.body.title,
+        description: req.body.description || null,
+        imageUrl: req.body.imageUrl,
+        videoUrl: req.body.videoUrl || null,
+        redirectUrl: req.body.redirectUrl,
+        category: req.body.category || "media",
+        type: req.body.type || "image",
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        sortOrder: req.body.sortOrder || 0,
+        validFrom: req.body.validFrom ? new Date(req.body.validFrom) : null,
+        validUntil: req.body.validUntil ? new Date(req.body.validUntil) : null,
+        metadata: req.body.metadata || null,
+      };
+
+      console.log("📝 Processed media data:", mediaData);
+      
+      const newMedia = await db.insert(schema.mediaLinks).values(mediaData).returning();
+      console.log("✅ Media created successfully:", newMedia[0]);
+      res.json(newMedia[0]);
+    } catch (error) {
+      console.error("❌ Error creating media:", error);
+      res.status(500).json({ 
+        error: "Failed to create media",
+        details: (error as any).message,
+        code: (error as any).code
+      });
+    }
+  });
+
+  // Update media (admin)
+  app.put("/api/admin/media/:id", adminMiddleware, async (req, res) => {
+    try {
+      const mediaId = parseInt(req.params.id);
+      const mediaData = {
+        title: req.body.title,
+        description: req.body.description || null,
+        imageUrl: req.body.imageUrl,
+        videoUrl: req.body.videoUrl || null,
+        redirectUrl: req.body.redirectUrl,
+        category: req.body.category,
+        type: req.body.type,
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        sortOrder: req.body.sortOrder || 0,
+        validFrom: req.body.validFrom ? new Date(req.body.validFrom) : null,
+        validUntil: req.body.validUntil ? new Date(req.body.validUntil) : null,
+        metadata: req.body.metadata || null,
+        updatedAt: new Date(),
+      };
+
+      const updatedMedia = await db
+        .update(schema.mediaLinks)
+        .set(mediaData)
+        .where(eq(schema.mediaLinks.id, mediaId))
+        .returning();
+
+      if (updatedMedia.length === 0) {
+        return res.status(404).json({ error: "Media not found" });
+      }
+
+      res.json(updatedMedia[0]);
+    } catch (error) {
+      console.error("❌ Error updating media:", error);
+      res.status(500).json({ 
+        error: "Failed to update media",
+        details: (error as any).message
+      });
+    }
+  });
+
+  // Delete media (admin)
+  app.delete("/api/admin/media/:id", adminMiddleware, async (req, res) => {
+    try {
+      const mediaId = parseInt(req.params.id);
+      console.log("🗑️ Deleting media with ID:", mediaId);
+      
+      const deletedMedia = await db
+        .delete(schema.mediaLinks)
+        .where(eq(schema.mediaLinks.id, mediaId))
+        .returning();
+      
+      console.log("✅ Media deleted:", deletedMedia);
+      
+      if (deletedMedia.length === 0) {
+        return res.status(404).json({ error: "Media not found" });
+      }
+      
+      res.json({ message: "Media deleted successfully", deletedMedia: deletedMedia[0] });
+    } catch (error) {
+      console.error("❌ Error deleting media:", error);
+      res.status(500).json({ 
+        error: "Failed to delete media",
+        details: (error as any).message
+      });
+    }
+  });
+
+  // Bulk update sort order (admin)
+  app.post("/api/admin/media/reorder", adminMiddleware, async (req, res) => {
+    try {
+      const items: Array<{ id: number; sortOrder: number }> = req.body.items;
+      
+      for (const item of items) {
+        await db
+          .update(schema.mediaLinks)
+          .set({ sortOrder: item.sortOrder, updatedAt: new Date() })
+          .where(eq(schema.mediaLinks.id, item.id));
+      }
+
+      res.json({ message: "Sort order updated successfully" });
+    } catch (error) {
+      console.error("Error updating sort order:", error);
+      res.status(500).json({ error: "Failed to update sort order" });
     }
   });
 
