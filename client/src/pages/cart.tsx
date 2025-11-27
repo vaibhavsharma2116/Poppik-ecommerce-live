@@ -448,9 +448,7 @@ export default function Cart() {
 
   // Calculate subtotal (before product discounts)
   const subtotal = cartItems.reduce((sum, item) => {
-    const price = item.originalPrice
-      ? parseInt(item.originalPrice.replace(/[₹,]/g, ""))
-      : parseInt(item.price.replace(/[₹,]/g, ""));
+    const price = parseInt(item.price.replace(/[₹,]/g, ""));
     return sum + (price * item.quantity);
   }, 0);
 

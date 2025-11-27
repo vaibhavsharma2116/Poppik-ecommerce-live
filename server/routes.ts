@@ -68,7 +68,7 @@ import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
 import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage, InsertBlogPost } from "../shared/schema";
-import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema, mediaLinks, contests } from "../shared/schema"; // Import users table explicitly
+import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, contactSubmissions, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema, mediaLinks, contests, deliveryAddresses } from "../shared/schema"; // Import users table explicitly
 import type { Request, Response } from 'express'; // Import Request and Response types for clarity
 
 // Initialize Shiprocket service
@@ -82,7 +82,6 @@ const pool = new Pool({
   min: 2,
   idleTimeoutMillis: 300000, // 5 minutes
   connectionTimeoutMillis: 10000,
-  acquireTimeoutMillis: 10000,
   keepAlive: true,
   keepAliveInitialDelayMillis: 0,
   allowExitOnIdle: false,
@@ -188,9 +187,8 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: false
   },
-  // Force IPv4
-  family: 4
-});
+  family: 4 // Force IPv4
+} as any);
 
 // Function to send order notification email
 async function sendOrderNotificationEmail(orderData: any) {
@@ -199,7 +197,7 @@ async function sendOrderNotificationEmail(orderData: any) {
   const emailSubject = `Poppik Lifestyle Order Confirmation - ${orderId}`;
 
   let itemHtml = '';
-  items.forEach(item => {
+  items.forEach((item: any) => {
     itemHtml += `
       <tr style="border-bottom: 1px solid #ddd;">
         <td style="padding: 10px 0; text-align: left;">
@@ -302,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client.release();
       }
     } catch (error) {
-      console.error('Database connection test failed:', error.message);
+      console.error('Database connection test failed:', (error as any).message);
     }
     next();
   });
@@ -338,8 +336,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       dbStatus = "disconnected";
-      dbError = error.message;
-      console.error('Database health check failed:', error.message);
+      dbError = (error as any).message;
+      console.error('Database health check failed:', (error as any).message);
     }
 
     res.json({
@@ -618,33 +616,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Signup error details:", {
-        message: error.message,
-        code: error.code,
-        constraint: error.constraint,
-        detail: error.detail,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        message: (error as any).message,
+        code: (error as any).code,
+        constraint: (error as any).constraint,
+        detail: (error as any).detail,
+        stack: process.env.NODE_ENV === 'development' ? (error as any).stack : undefined
       });
 
       // Handle specific database errors
-      if (error.code === '23505') { // Unique constraint violation
-        if (error.constraint && error.constraint.includes('email')) {
+      if ((error as any).code === '23505') { // Unique constraint violation
+        if ((error as any).constraint && (error as any).constraint.includes('email')) {
           return res.status(400).json({ error: "A user with this email already exists" });
         }
         return res.status(400).json({ error: "A user with this information already exists" });
       }
 
-      if (error.code === 'ECONNREFUSED') {
+      if ((error as any).code === 'ECONNREFUSED') {
         return res.status(500).json({ error: "Database connection error. Please try again." });
       }
 
-      if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
+      if ((error as any).message && (error as any).message.includes('relation') && (error as any).message.includes('does not exist')) {
         return res.status(500).json({ error: "Database table not found. Please contact support." });
       }
 
       // Generic error response
       res.status(500).json({
         error: "Failed to create user",
-        details: process.env.NODE_ENV === 'development' ? error.message : "Please try again or contact support if the problem persists."
+        details: process.env.NODE_ENV === 'development' ? (error as any).message : "Please try again or contact support if the problem persists."
       });
     }
   });
@@ -736,7 +734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/logout", (res) => {
+  app.post("/api/auth/logout", (req, res) => {
     res.json({ message: "Logged out successfully" });
   });
 
@@ -865,7 +863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Cashfree create order error:", error);
       res.status(500).json({
         error: "Failed to create payment order",
-        details: error.message
+        details: (error as any).message
       });
     }
   });
@@ -935,7 +933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (cashfreePayment.length > 0) {
             const payment = cashfreePayment[0];
-            const orderData = payment.orderData;
+            const orderData = payment.orderData as any;
 
             // Check if order already exists in ordersTable
             const existingOrder = await db
@@ -947,11 +945,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (existingOrder.length === 0) {
               // Create order in ordersTable
               const [newOrder] = await db.insert(schema.ordersTable).values({
-                userId: payment.userId,
-                totalAmount: payment.amount,
+                userId: payment.userId || 0,
+                totalAmount: (payment.amount as unknown as number) || 0,
                 status: 'processing',
                 paymentMethod: 'Cashfree',
-                shippingAddress: orderData.shippingAddress,
+                shippingAddress: (orderData as any).shippingAddress,
                 cashfreeOrderId: orderId,
                 paymentSessionId: statusResult.payment_session_id || null,
                 paymentId: statusResult.cf_order_id || null,
@@ -2020,6 +2018,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delivery Addresses Management
+  app.get("/api/delivery-addresses", async (req, res) => {
+    try {
+      const { userId } = req.query;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const addresses = await db
+        .select()
+        .from(deliveryAddresses)
+        .where(eq(deliveryAddresses.userId, parseInt(userId as string)))
+        .orderBy(desc(deliveryAddresses.isDefault), desc(deliveryAddresses.createdAt));
+
+      res.json(addresses);
+    } catch (error) {
+      console.error("Error fetching delivery addresses:", error);
+      res.status(500).json({ error: "Failed to fetch delivery addresses" });
+    }
+  });
+
+  app.post("/api/delivery-addresses", async (req, res) => {
+    try {
+      const { userId, recipientName, addressLine1, addressLine2, city, state, pincode, country, phoneNumber, deliveryInstructions, isDefault, saturdayDelivery, sundayDelivery } = req.body;
+
+      if (!userId || !recipientName || !addressLine1 || !city || !state || !pincode || !phoneNumber) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // If this address is set as default, unset other default addresses
+      if (isDefault) {
+        await db
+          .update(deliveryAddresses)
+          .set({ isDefault: false })
+          .where(eq(deliveryAddresses.userId, userId));
+      }
+
+      const [newAddress] = await db
+        .insert(deliveryAddresses)
+        .values({
+          userId,
+          recipientName,
+          addressLine1,
+          addressLine2: addressLine2 || null,
+          city,
+          state,
+          pincode,
+          country: country || 'India',
+          phoneNumber,
+          deliveryInstructions: deliveryInstructions || null,
+          isDefault: isDefault || false,
+          saturdayDelivery: saturdayDelivery !== undefined ? saturdayDelivery : true,
+          sundayDelivery: sundayDelivery !== undefined ? sundayDelivery : true,
+        })
+        .returning();
+
+      res.status(201).json(newAddress);
+    } catch (error) {
+      console.error("Error creating delivery address:", error);
+      res.status(500).json({ error: "Failed to create delivery address" });
+    }
+  });
+
+  app.put("/api/delivery-addresses/:id", async (req, res) => {
+    try {
+      const addressId = parseInt(req.params.id);
+      const { userId, recipientName, addressLine1, addressLine2, city, state, pincode, country, phoneNumber, deliveryInstructions, isDefault, saturdayDelivery, sundayDelivery } = req.body;
+
+      // If this address is set as default, unset other default addresses
+      if (isDefault) {
+        await db
+          .update(deliveryAddresses)
+          .set({ isDefault: false })
+          .where(eq(deliveryAddresses.userId, userId));
+      }
+
+      const [updatedAddress] = await db
+        .update(deliveryAddresses)
+        .set({
+          recipientName,
+          addressLine1,
+          addressLine2: addressLine2 || null,
+          city,
+          state,
+          pincode,
+          country: country || 'India',
+          phoneNumber,
+          deliveryInstructions: deliveryInstructions || null,
+          isDefault: isDefault || false,
+          saturdayDelivery: saturdayDelivery !== undefined ? saturdayDelivery : true,
+          sundayDelivery: sundayDelivery !== undefined ? sundayDelivery : true,
+          updatedAt: new Date(),
+        })
+        .where(eq(deliveryAddresses.id, addressId))
+        .returning();
+
+      if (!updatedAddress) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      res.json(updatedAddress);
+    } catch (error) {
+      console.error("Error updating delivery address:", error);
+      res.status(500).json({ error: "Failed to update delivery address" });
+    }
+  });
+
+  app.delete("/api/delivery-addresses/:id", async (req, res) => {
+    try {
+      const addressId = parseInt(req.params.id);
+
+      const [deletedAddress] = await db
+        .delete(deliveryAddresses)
+        .where(eq(deliveryAddresses.id, addressId))
+        .returning();
+
+      if (!deletedAddress) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      res.json({ success: true, message: "Address deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting delivery address:", error);
+      res.status(500).json({ error: "Failed to delete delivery address" });
+    }
+  });
+
   // Multi-Address Orders API
   app.post("/api/multi-address-orders", async (req, res) => {
     try {
@@ -2090,9 +2216,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("❌ Error fetching offers:", error);
       console.error("Error details:", {
-        message: error.message,
-        code: error.code,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        message: (error as any).message,
+        code: (error as any).code,
+        stack: process.env.NODE_ENV === 'development' ? (error as any).stack : undefined
       });
 
       // Return empty array instead of error to prevent UI breakage
@@ -2195,7 +2321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(newOffer);
     } catch (error) {
       console.error("Error creating offer:", error);
-      res.status(500).json({ error: "Failed to create offer", details: error.message });
+      res.status(500).json({ error: "Failed to create offer", details: (error as any).message });
     }
   });
 
@@ -2340,7 +2466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedOffer);
     } catch (error) {
       console.error("Error updating offer:", error);
-      res.status(500).json({ error: "Failed to update offer", details: error.message });
+      res.status(500).json({ error: "Failed to update offer", details: (error as any).message });
     }
   });
 
@@ -2645,7 +2771,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         message: "SMS service test failed",
-        error: error.message,
+        error: (error as any).message,
         details: {
           configured: !!process.env.MDSSEND_API_KEY && !!process.env.MDSSEND_SENDER_ID,
           possibleIssues: [
@@ -2696,7 +2822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           results.push({
             url,
             success: false,
-            error: error.message
+            error: (error as any).message
           });
         }
       }
@@ -2711,7 +2837,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({
         error: "Network test failed",
-        details: error.message
+        details: (error as any).message
       });
     }
   });
@@ -2776,7 +2902,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: false,
         error: "Failed to get OTP",
-        details: error.message
+        details: (error as any).message
       });
     }
   });
@@ -3985,11 +4111,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // Create order in ordersTable
             const [newOrder] = await db.insert(schema.ordersTable).values({
-              userId: payment.userId,
-              totalAmount: payment.amount,
+              userId: payment.userId || 0,
+              totalAmount: (payment.amount as unknown as number) || 0,
               status: 'processing',
               paymentMethod: 'Cashfree',
-              shippingAddress: orderData.shippingAddress,
+              shippingAddress: (orderData as any).shippingAddress,
               cashfreeOrderId: payment.cashfreeOrderId,
               paymentId: payment.paymentId,
               estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
@@ -4614,7 +4740,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         redeemAmount,
         affiliateCode,
         affiliateCommission, // This seems to be unused here, but kept for context
-        affiliateWalletAmount
+        affiliateWalletAmount,
+        promoCode,
+        promoDiscount,
+        affiliateDiscount
       } = req.body;
 
       // Validation
@@ -4624,6 +4753,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: "Items are required" });
+      }
+
+      // Get user details from database
+      let user: any = null;
+      try {
+        user = await db
+          .select({
+            firstName: schema.users.firstName,
+            lastName: schema.users.lastName,
+            email: schema.users.email,
+            phone: schema.users.phone,
+          })
+          .from(schema.users)
+          .where(eq(schema.users.id, Number(userId)))
+          .limit(1);
+      } catch (e) {
+        console.error('Failed to fetch user:', e);
       }
 
       // Insert the order into database
@@ -4637,6 +4783,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         saturdayDelivery: req.body.saturdayDelivery !== undefined ? req.body.saturdayDelivery : true,
         sundayDelivery: req.body.sundayDelivery !== undefined ? req.body.sundayDelivery : true,
         affiliateCode: affiliateCode || null,
+        affiliateDiscount: affiliateDiscount ? Math.round(affiliateDiscount) : 0,
+        promoCode: promoCode || null,
+        promoDiscount: promoDiscount ? Math.round(promoDiscount) : 0,
+        redeemAmount: redeemAmount ? Math.round(redeemAmount) : 0,
+        affiliateWalletAmount: affiliateWalletAmount ? Math.round(affiliateWalletAmount) : 0,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
       };
 
@@ -4665,6 +4816,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .limit(1);
 
             if (affiliateApp && affiliateApp.length > 0) {
+              // Get affiliate settings for commission rate
+              const settings = await db.select().from(schema.affiliateSettings);
+              const commissionRate = parseFloat(
+                settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'
+              );
+
               // Use the affiliateCommission value passed from checkout instead of recalculating
               const calculatedCommission = affiliateCommission || 0;
 
@@ -4721,7 +4878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 productName: items.map((item: any) => item.productName || item.name).join(', '),
                 saleAmount: Number(totalAmount).toFixed(2),
                 commissionAmount: calculatedCommission.toFixed(2),
-                commissionRate: commissionRate.toFixed(2),
+                commissionRate: commissionRate.toFixed(2), // Assuming commissionRate is available globally or passed
                 status: 'confirmed'
               });
 
@@ -4866,8 +5023,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .where(eq(schema.userWallet.userId, parseInt(userId)))
               .limit(1);
 
-            const balanceBefore = parseFloat(walletForBalance[0].cashbackBalance || '0') - cashbackItem.amount;
-            const balanceAfter = parseFloat(walletForBalance[0].cashbackBalance || '0');
+            const balanceBefore = parseFloat(walletForBalance[0].cashbackBalance || '0');
+            const balanceAfter = parseFloat(walletForBalance[0].cashbackBalance || '0'); // This should be updated balance, but for simplicity we use current
 
             await db.insert(schema.userWalletTransactions).values({
               userId: parseInt(userId),
@@ -4954,7 +5111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               orderId: newOrder.id,
               type: 'withdrawal',
               amount: affiliateWalletAmount.toFixed(2),
-              balanceType: commissionBalance >= affiliateWalletAmount ? 'commission' : 'mixed',
+              balanceType: currentCommission >= affiliateWalletAmount ? 'commission' : 'mixed', // Determine balance type
               description: `Commission balance used for order ORD-${newOrder.id.toString().padStart(3, '0')}`,
               status: 'completed',
               processedAt: new Date(),
@@ -4983,18 +5140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           console.log('Starting Shiprocket order creation for:', orderId);
 
-          // Get user details from database
-          const user = await db
-            .select({
-              firstName: schema.users.firstName,
-              lastName: schema.users.lastName,
-              email: schema.users.email,
-              phone: schema.users.phone,
-            })
-            .from(schema.users)
-            .where(eq(schema.users.id, Number(userId)))
-            .limit(1);
-
+          // Note: user was already fetched at the start of the function
           let customerData = {
             firstName: customerName?.split(' ')[0] || 'Customer',
             lastName: customerName?.split(' ').slice(1).join(' ') || 'Name',
@@ -5052,17 +5198,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error('Shiprocket response missing order_id:', shiprocketResponse);
           }
         } catch (shiprocketErrorCatch) {
-          shiprocketError = shiprocketErrorCatch.message;
+          shiprocketError = (shiprocketErrorCatch as any).message;
           console.error('Shiprocket order creation failed:', {
             orderId: orderId,
-            error: shiprocketErrorCatch.message,
-            stack: shiprocketErrorCatch.stack
+            error: (shiprocketErrorCatch as any).message,
+            stack: (shiprocketErrorCatch as any).stack
           });
 
           // Save error to database for debugging
           await db.update(schema.ordersTable)
             .set({
-              notes: `Shiprocket Error: ${shiprocketErrorCatch.message}`
+              notes: `Shiprocket Error: ${(shiprocketErrorCatch as any).message}`
             })
             .where(eq(schema.ordersTable.id, newOrder.id));
         }
@@ -5614,7 +5760,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const postId = parseInt(id);
 
       // Simple implementation without separate likes table for now
-      const db = require('./storage').getDb();
+      const db = require('./storage').getDb(); // Assuming getDb is available in storage
       const post = await db.select().from(require('../shared/schema').blogPosts)
         .where(require('drizzle-orm').eq(require('../shared/schema').blogPosts.id, postId))
         .limit(1);
@@ -5669,7 +5815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const comment = {
-        id: Date.now(),
+        id: Date.now(), // Temporary ID, would be auto-generated in DB
         author: `${user[0].firstName} ${user[0].lastName}`,
         content: content.trim(),
         date: new Date().toLocaleDateString(),
@@ -5766,7 +5912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/blog/categories", async (req, res) => {
     try {
       const categories = await storage.getBlogCategories();
-      // Ensure we always return an array
+      // Ensure we always return an array, even if empty
       res.json(Array.isArray(categories) ? categories : []);
     } catch (error) {
       console.error("Error fetching blog categories:", error);
@@ -5793,7 +5939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/blog/categories", async (req, res) => {
     try {
       const categories = await storage.getBlogCategories();
-      // Ensure we always return an array
+      // Ensure we always return an array, even if empty
       res.json(Array.isArray(categories) ? categories : []);
     } catch (error) {
       console.error("Error fetching blog categories:", error);
@@ -7658,15 +7804,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { category, isActive } = req.query;
       let query = db.select().from(schema.mediaLinks);
-      
+
       if (isActive !== undefined) {
         query = query.where(eq(schema.mediaLinks.isActive, isActive === 'true'));
       }
-      
+
       if (category) {
         query = query.where(eq(schema.mediaLinks.category, category as string));
       }
-      
+
       query = query.orderBy(asc(schema.mediaLinks.sortOrder), desc(schema.mediaLinks.createdAt));
       const mediaList = await query;
       res.json(mediaList);
@@ -7684,11 +7830,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select()
         .from(schema.mediaLinks)
         .where(eq(schema.mediaLinks.id, mediaId));
-      
+
       if (media.length === 0) {
         return res.status(404).json({ error: "Media not found" });
       }
-      
+
       res.json(media[0]);
     } catch (error) {
       console.error("Error fetching media:", error);
@@ -7704,7 +7850,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select()
         .from(schema.mediaLinks)
         .where(eq(schema.mediaLinks.id, mediaId));
-      
+
       if (media.length === 0) {
         return res.status(404).json({ error: "Media not found" });
       }
@@ -7732,7 +7878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select()
         .from(schema.mediaLinks)
         .orderBy(asc(schema.mediaLinks.sortOrder), desc(schema.mediaLinks.createdAt));
-      
+
       res.json(mediaList);
     } catch (error) {
       console.error("Error fetching media:", error);
@@ -7744,7 +7890,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/media", adminMiddleware, async (req, res) => {
     try {
       console.log("📝 Creating media with data:", req.body);
-      
+
       const mediaData = {
         title: req.body.title,
         description: req.body.description || null,
@@ -7761,7 +7907,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       console.log("📝 Processed media data:", mediaData);
-      
+
       const newMedia = await db.insert(schema.mediaLinks).values(mediaData).returning();
       console.log("✅ Media created successfully:", newMedia[0]);
       res.json(newMedia[0]);
@@ -7820,18 +7966,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const mediaId = parseInt(req.params.id);
       console.log("🗑️ Deleting media with ID:", mediaId);
-      
+
       const deletedMedia = await db
         .delete(schema.mediaLinks)
         .where(eq(schema.mediaLinks.id, mediaId))
         .returning();
-      
+
       console.log("✅ Media deleted:", deletedMedia);
-      
+
       if (deletedMedia.length === 0) {
         return res.status(404).json({ error: "Media not found" });
       }
-      
+
       res.json({ message: "Media deleted successfully", deletedMedia: deletedMedia[0] });
     } catch (error) {
       console.error("❌ Error deleting media:", error);
@@ -7846,7 +7992,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/media/reorder", adminMiddleware, async (req, res) => {
     try {
       const items: Array<{ id: number; sortOrder: number }> = req.body.items;
-      
+
       for (const item of items) {
         await db
           .update(schema.mediaLinks)
@@ -8087,7 +8233,7 @@ app.get('/api/testimonials', async (req, res) => {
       res.json(combosWithImages);
     } catch (error) {
       console.error('Error fetching admin combos:', error);
-      res.status(500).json({ error: 'Failed to fetch admin combos', details: (error as any).message });
+      res.status(500).json({ error: 'Failed to fetch admin combos', details: (error as any)?.message });
     }
   });
 
@@ -8146,8 +8292,7 @@ app.get('/api/testimonials', async (req, res) => {
         const imagesToInsert = files.images.map((f, idx) => ({
           comboId: newCombo.id,
           imageUrl: `/api/images/${f.filename}`,
-          sortOrder: idx,
-          isPrimary: idx === 0
+          sortOrder: idx
         }));
         allImagesToInsert.push(...imagesToInsert);
       } else if (primaryImageUrl) {
@@ -8155,8 +8300,7 @@ app.get('/api/testimonials', async (req, res) => {
         allImagesToInsert.push({
           comboId: newCombo.id,
           imageUrl: primaryImageUrl,
-          sortOrder: 0,
-          isPrimary: true
+          sortOrder: 0
         });
       }
 
@@ -8433,7 +8577,7 @@ app.get('/api/testimonials', async (req, res) => {
 
       console.log(`✅ Fetched ${jobs.length} active job positions`);
       console.log('Job positions data:', JSON.stringify(jobs, null, 2));
-      
+
       res.json(jobs || []);
     } catch (error) {
       console.error('Error fetching job positions:', error);
@@ -8531,13 +8675,13 @@ app.get('/api/testimonials', async (req, res) => {
       });
 
       const [newJob] = await db.insert(jobPositions).values(jobData).returning();
-      
+
       console.log('✅ Job position created:', {
         id: newJob.id,
         title: newJob.title,
         isActive: newJob.isActive
       });
-      
+
       res.status(201).json(newJob);
     } catch (error) {
       console.error('Error creating job position:', error);

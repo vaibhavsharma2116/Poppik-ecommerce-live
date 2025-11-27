@@ -385,10 +385,13 @@ export default function SelectDeliveryAddress() {
 
       toast({
         title: "Success",
-        description: "Delivery addresses saved for all items"
+        description: "Delivery addresses saved for all items. Proceeding to payment..."
       });
 
-      setLocation('/checkout');
+      // Navigate to checkout after a brief delay
+      setTimeout(() => {
+        setLocation('/checkout');
+      }, 500);
     } catch (error) {
       console.error('Error saving multi-address data:', error);
       toast({
