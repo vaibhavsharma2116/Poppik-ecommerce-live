@@ -49,7 +49,7 @@ interface CartItem {
 
 function CheckoutPage() {
   const [location, setLocation] = useLocation();
-  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0, affiliateCommission: passedAffiliateCommission = 0 } = (location as any).state || {};
+  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCommissionFromItems: passedAffiliateCommissionFromItems = 0, affiliateDiscountFromItems: passedAffiliateDiscountFromItems = 0 } = (location as any).state || {};
 
   const user = getCurrentUser();
   const [currentStep, setCurrentStep] = useState(1);
@@ -94,44 +94,16 @@ function CheckoutPage() {
   const [hasPromoCode, setHasPromoCode] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(passedPromoDiscount); // Initialize with passed value
 
-  // Affiliate discount state - load from localStorage
+  // Affiliate discount state - load from passed props (dynamic from items)
   const [affiliateDiscountAmount, setAffiliateDiscountAmount] = useState(() => {
-    // Try to get from passed props first
-    if (passedAffiliateDiscount > 0) {
-      return passedAffiliateDiscount;
-    }
-    // Then try localStorage
-    const savedAffiliateDiscount = localStorage.getItem('affiliateDiscount');
-    if (savedAffiliateDiscount) {
-      try {
-        const affiliateData = JSON.parse(savedAffiliateDiscount);
-        return affiliateData.discount || 0;
-      } catch (error) {
-        console.error('Error parsing affiliate discount:', error);
-        return 0;
-      }
-    }
-    return 0;
+    // Get from passed props - this is now dynamic from cart items
+    return passedAffiliateDiscountFromItems || 0;
   });
 
-  // Affiliate commission state - load from props or localStorage
+  // Affiliate commission state - load from props (dynamic from items)
   const [affiliateCommissionAmount, setAffiliateCommissionAmount] = useState(() => {
-    // Try to get from passed props first
-    if (passedAffiliateCommission > 0) {
-      return passedAffiliateCommission;
-    }
-    // Then try localStorage
-    const savedAffiliateDiscount = localStorage.getItem('affiliateDiscount');
-    if (savedAffiliateDiscount) {
-      try {
-        const affiliateData = JSON.parse(savedAffiliateDiscount);
-        return affiliateData.commission || 0;
-      } catch (error) {
-        console.error('Error parsing affiliate commission:', error);
-        return 0;
-      }
-    }
-    return 0;
+    // Get from passed props - this is now dynamic from cart items
+    return passedAffiliateCommissionFromItems || 0;
   });
 
 
@@ -145,8 +117,6 @@ function CheckoutPage() {
     zipCode: "",
     phone: "",
     paymentMethod: "cashfree",
-    affiliateCode: passedAffiliateCode || "",
-    affiliateDiscount: passedAffiliateDiscount || 0,
     deliveryInstructions: "", // Added state for delivery instructions
     saturdayDelivery: false, // Changed to boolean for easier handling
     sundayDelivery: false // Changed to boolean for easier handling
@@ -348,26 +318,9 @@ function CheckoutPage() {
       let loadedAffiliateDiscountAmount = 0;
       let loadedAffiliateCodeValue = '';
 
-      if (passedAffiliateDiscount > 0) {
-        loadedAffiliateDiscountAmount = passedAffiliateDiscount;
-        loadedAffiliateCodeValue = passedAffiliateCode;
-      } else if (savedAffiliateDiscount) {
-        try {
-          const affiliateData = JSON.parse(savedAffiliateDiscount);
-          loadedAffiliateDiscountAmount = affiliateData.discount;
-          loadedAffiliateCodeValue = affiliateData.code;
-        } catch (error) {
-          console.error('Error loading affiliate discount:', error);
-          localStorage.removeItem('affiliateDiscount');
-        }
-      }
+      // Affiliate discount is now handled dynamically from cart items
+      // No need to load from localStorage or props in this way
 
-      setFormData(prev => ({
-        ...prev,
-        affiliateCode: loadedAffiliateCodeValue,
-        affiliateDiscount: loadedAffiliateDiscountAmount,
-      }));
-      setAffiliateDiscountAmount(loadedAffiliateDiscountAmount);
     };
 
     loadAffiliateData();
@@ -1524,12 +1477,35 @@ function CheckoutPage() {
           setOrderId(data.orderId || 'ORD-001');
           setOrderPlaced(true);
 
+          // Save affiliate commission to affiliate wallet if applicable
+          if (affiliateCommissionAmount > 0) {
+            try {
+              await fetch('/api/affiliate/wallet/add-commission', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  userId: user.id,
+                  commission: affiliateCommissionAmount,
+                  orderId: data.orderId,
+                  discount: affiliateDiscountAmount,
+                  description: 'Commission earned from affiliate products'
+                }),
+              });
+              console.log('Affiliate commission saved:', affiliateCommissionAmount);
+            } catch (error) {
+              console.error('Error saving affiliate commission:', error);
+            }
+          }
+
           localStorage.removeItem("cart");
           localStorage.removeItem("appliedPromoCode");
           localStorage.removeItem("affiliateDiscount");
           localStorage.removeItem("promoDiscount");
           localStorage.removeItem("redeemAmount");
           localStorage.removeItem("affiliateWalletAmount");
+          localStorage.removeItem("affiliateCommissionEarned");
           localStorage.removeItem("isMultiAddressOrder");
           localStorage.removeItem("multiAddressMapping");
           localStorage.removeItem("multipleAddressMode");
@@ -2494,15 +2470,18 @@ function CheckoutPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-					<div className="flex justify-between text-sm">
-						<span className="text-gray-600">Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-						<span className="font-medium">₹{cartSubtotal.toLocaleString()}</span>
-					</div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
+            <span className="font-medium">₹{cartSubtotal.toLocaleString()}</span>
+          </div>
 
                     {affiliateDiscountAmount > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span>Affiliate Discount ({formData.affiliateCode || passedAffiliateCode})</span>
-                        <span className="font-semibold">-₹{Math.round(affiliateDiscountAmount).toLocaleString()}</span>
+                      <div className="flex justify-between text-sm bg-purple-50 p-2 rounded border-l-4 border-purple-500">
+                        <div>
+                          <span className="text-purple-700 font-medium">🎁 Affiliate Discount</span>
+                          <p className="text-xs text-purple-600">Applied from affiliate link</p>
+                        </div>
+                        <span className="font-semibold text-purple-600">-₹{Math.round(affiliateDiscountAmount).toLocaleString()}</span>
                       </div>
                     )}
 
@@ -2545,16 +2524,16 @@ function CheckoutPage() {
                       </div>
                     )}
 
-                    {affiliateCommission > 0 && (
+                    {affiliateCommissionAmount > 0 && (
                       <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
                             <Award className="h-5 w-5 text-purple-600" />
-                            <span className="text-sm font-bold text-purple-800">Affiliate Earns</span>
+                            <span className="text-sm font-bold text-purple-800">Affiliate Commission Earned</span>
                           </div>
-                          <span className="text-lg font-bold text-purple-600">₹{affiliateCommission.toLocaleString()}</span>
+                          <span className="text-lg font-bold text-purple-600">₹{affiliateCommissionAmount.toLocaleString()}</span>
                         </div>
-                        <p className="text-xs text-purple-700">{commissionRate}% commission on payable amount</p>
+                        <p className="text-xs text-purple-700">Commission on affiliate products will be credited to your wallet after delivery</p>
                       </div>
                     )}
                   </div>

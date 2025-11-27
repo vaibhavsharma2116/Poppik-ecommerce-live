@@ -58,7 +58,7 @@ export default function Cart() {
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [hasPromoCode, setHasPromoCode] = useState(false);
 
-  // Affiliate discount states
+  // Affiliate discount states - removed static values
   const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
   const [affiliateDiscount, setAffiliateDiscount] = useState<number>(0);
 
@@ -327,70 +327,11 @@ export default function Cart() {
 
   // Function to apply affiliate code
   const applyAffiliateCode = (code: string) => {
-    const trimmedCode = code.trim().toUpperCase();
-
-    if (!trimmedCode) {
-      toast({
-        title: "Invalid Code",
-        description: "Please enter a valid affiliate code",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check if promo code is already applied
-    if (appliedPromo) {
-      toast({
-        title: "Cannot Apply Affiliate Code",
-        description: "Please remove the promo code first. You can only use one discount at a time.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate affiliate code format (should start with POPPIKAP)
-    if (!trimmedCode.startsWith('POPPIKAP')) {
-      toast({
-        title: "Invalid Affiliate Code",
-        description: "Affiliate code must start with POPPIKAP",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Use hardcoded affiliate discount settings
-    const userDiscountPercentage = 40; // 40% discount
-    const minOrderAmount = 0;
-
-    if (cartSubtotal < minOrderAmount) {
-      toast({
-        title: "Minimum Order Value Not Met",
-        description: `Minimum order amount of ₹${minOrderAmount} required for affiliate discount`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    let discountAmount = (cartSubtotal * userDiscountPercentage) / 100;
-
-    setAppliedPromo(null);
-    setAffiliateCode(trimmedCode);
-    setAffiliateDiscount(discountAmount);
-    setPromoCode('');
-    setPromoDiscount(0);
-
-    // Store affiliate code and discount in localStorage for checkout
-    localStorage.setItem('affiliateCode', trimmedCode);
-    localStorage.setItem('referralCode', trimmedCode); // Also store in referralCode for consistency
-    localStorage.setItem('affiliateDiscount', JSON.stringify({ 
-      discount: discountAmount, 
-      code: trimmedCode,
-      discountPercentage: userDiscountPercentage
-    }));
-
+    // Removed static affiliate code logic
+    // All affiliate discounts are now dynamic from product data in cart items
     toast({
-      title: "Affiliate Discount Applied!",
-      description: `You saved ₹${Math.round(discountAmount).toLocaleString()} with affiliate code ${trimmedCode} (${userDiscountPercentage}%)`,
+      title: "Dynamic Affiliate Discount",
+      description: "Affiliate discount is automatically applied based on products in your cart",
     });
   };
 
@@ -490,19 +431,6 @@ export default function Cart() {
     });
   };
 
-  // Function to remove/clear affiliate code
-  const clearAffiliateCode = () => {
-    setAffiliateCode(null);
-    setAffiliateDiscount(0);
-    setPromoCode("");
-    localStorage.removeItem('affiliateCode');
-    localStorage.removeItem('affiliateDiscount');
-    toast({
-      title: "Affiliate Code Removed",
-      description: "Your affiliate code discount has been removed",
-    });
-  };
-
   
 
   // Calculate subtotal (before product discounts)
@@ -523,11 +451,27 @@ export default function Cart() {
     return total;
   }, 0);
 
-  // Calculate cart subtotal after product discounts
+  // Calculate total affiliate discount and commission from cart items
+  const totalAffiliateDiscountFromItems = cartItems.reduce((total, item) => {
+    if (item.affiliateUserDiscount) {
+      return total + (Number(item.affiliateUserDiscount) * item.quantity);
+    }
+    return total;
+  }, 0);
+
+  const totalAffiliateCommissionFromItems = cartItems.reduce((total, item) => {
+    if (item.affiliateCommission) {
+      return total + (Number(item.affiliateCommission) * item.quantity);
+    }
+    return total;
+  }, 0);
+
+  // Cart subtotal after product discounts
   const cartSubtotal = subtotal - productDiscount;
 
-  // Calculate affiliate discount if applicable
-  const subtotalAfterAffiliate = cartSubtotal - affiliateDiscount;
+  // Affiliate discount is NOT applied on the cart page totals anymore.
+  // The discount will be shown and deducted on the checkout page.
+  const subtotalAfterAffiliate = cartSubtotal;
 
   // Dynamic discount calculation based on announcements
   let dynamicDiscount = 0;
@@ -536,13 +480,13 @@ export default function Cart() {
   let freeShippingApplied = false;
 
   // Check for free shipping (only if subtotal after affiliate discount is above threshold and NO promo code is applied)
-  if (subtotalAfterAffiliate > freeShippingThreshold && !appliedPromo && affiliateDiscount === 0) {
+  if (subtotalAfterAffiliate > freeShippingThreshold && !appliedPromo) {
     freeShippingApplied = true;
     appliedOffers.push('Free Shipping on orders above ₹599');
   }
 
   // Apply dynamic benefits from announcements only if no promo code is applied
-  if (!appliedPromo && affiliateDiscount === 0 && announcements.length > 0) {
+  if (!appliedPromo && announcements.length > 0) {
     announcements.forEach((announcement: any) => {
       if (announcement.type === 'offer' && announcement.offerType === 'discount') {
         const offerDiscount = Math.round(cartSubtotal * 0.05);
@@ -553,10 +497,10 @@ export default function Cart() {
   }
 
   const generalPromoDiscount = appliedPromo?.discountAmount ? appliedPromo.discountAmount : 0;
-  const totalDiscount = productDiscount + dynamicDiscount + affiliateDiscount + generalPromoDiscount;
+  const totalDiscount = productDiscount + dynamicDiscount + generalPromoDiscount;
 
   // Use cartSubtotal for total calculation before considering redemption
-  const subtotalAfterDiscount = cartSubtotal - dynamicDiscount - generalPromoDiscount - affiliateDiscount;
+  const subtotalAfterDiscount = cartSubtotal - dynamicDiscount - generalPromoDiscount;
 
   // Calculate total before redemption
   const totalBeforeRedemption = subtotalAfterDiscount; // Shipping is calculated at checkout, so not included here for now
@@ -632,26 +576,21 @@ export default function Cart() {
       localStorage.removeItem('promoDiscount');
     }
 
-    // Calculate affiliate commission: 20% of the final payable amount
-    // Final payable amount = subtotal - discounts - cashback + shipping
-    // For this calculation, we use the amount after affiliate discount is applied
-    let affiliateCommission = 0;
-    if (affiliateDiscount > 0 && affiliateCode) {
-      // Commission is 20% of the payable amount (amount after all discounts)
-      const payableAmount = Math.max(0, subtotalAfterDiscount - walletAmount - affiliateWalletAmount);
-      affiliateCommission = payableAmount * 0.20; // 20% of payable amount
-    }
-
-    // Save affiliate discount and commission to localStorage if applied
-    if (affiliateDiscount > 0 && affiliateCode) {
-      localStorage.setItem('affiliateDiscount', JSON.stringify({
-        code: affiliateCode,
-        discount: affiliateDiscount,
-        commission: affiliateCommission
+    // Save affiliate commission from items to be credited to affiliate wallet after order
+    if (totalAffiliateCommissionFromItems > 0) {
+      localStorage.setItem('affiliateCommissionEarned', JSON.stringify({
+        commission: totalAffiliateCommissionFromItems,
+        discount: totalAffiliateDiscountFromItems,
+        fromProducts: true,
+        timestamp: new Date().toISOString()
       }));
     } else {
-      localStorage.removeItem('affiliateDiscount');
+      localStorage.removeItem('affiliateCommissionEarned');
     }
+
+    // Remove old static affiliate discount logic - everything is now dynamic
+    localStorage.removeItem('affiliateCode');
+    localStorage.removeItem('affiliateDiscount');
 
     setLocation("/checkout", {
       state: {
@@ -660,9 +599,8 @@ export default function Cart() {
         affiliateWalletAmount,
         promoCode: appliedPromo,
         promoDiscount: generalPromoDiscount,
-        affiliateCode: affiliateCode,
-        affiliateDiscount: affiliateDiscount,
-        affiliateCommission: affiliateCommission,
+        affiliateCommissionFromItems: totalAffiliateCommissionFromItems,
+        affiliateDiscountFromItems: totalAffiliateDiscountFromItems,
       }
     });
   };
@@ -949,32 +887,8 @@ export default function Cart() {
                           </div>
                         )}
 
-                        {/* Affiliate Commission and Discount Badge */}
-                        {(item.affiliateCommission || item.affiliateUserDiscount) && (
-                          <div className="mt-2 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg p-3 shadow-sm">
-                            <div className="space-y-2">
-                              {item.affiliateUserDiscount && parseFloat(String(item.affiliateUserDiscount)) > 0 && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-bold text-purple-700">Affiliate Discount</span>
-                                  <span className="text-lg font-bold text-purple-600">
-                                    ₹{(Number(item.affiliateUserDiscount) * item.quantity).toFixed(2)}
-                                  </span>
-                                </div>
-                              )}
-                              {item.affiliateCommission && parseFloat(String(item.affiliateCommission)) > 0 && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm font-bold text-pink-700">Affiliate Commission</span>
-                                  <span className="text-lg font-bold text-pink-600">
-                                    ₹{(Number(item.affiliateCommission) * item.quantity).toFixed(2)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            <p className="text-xs text-purple-600 mt-1.5 text-center sm:text-left">
-                              Commission earned on this offer
-                            </p>
-                          </div>
-                        )}
+                      
+                       
                       </div>
                       <div className="flex items-center space-x-1.5 mt-1">
                         <div className={`w-2 h-2 rounded-full ${
@@ -1155,20 +1069,7 @@ export default function Cart() {
                     </div>
                   )}
 
-                  {affiliateDiscount > 0 && affiliateCode && (
-                    <div className="flex items-center justify-between text-sm bg-green-50 p-2 rounded">
-                      <span className="text-green-700 font-medium">Affiliate Discount ({affiliateCode})</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-green-600">-₹{affiliateDiscount.toLocaleString()}</span>
-                        <button
-                          onClick={clearAffiliateCode}
-                          className="text-xs text-red-600 hover:text-red-800 font-medium underline"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  {/* Affiliate discount UI removed from cart. Discount is applied at checkout only. */}
 
                   {appliedPromo && generalPromoDiscount > 0 && (
                     <div className="flex items-center justify-between text-sm bg-green-50 p-2 rounded">

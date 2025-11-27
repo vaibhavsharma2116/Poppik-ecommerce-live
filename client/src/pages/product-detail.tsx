@@ -428,9 +428,14 @@ export default function ProductDetail() {
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
-    // Get affiliate fields from product data
-    const affiliateCommission = parseFloat((product as any)?.affiliateCommission || '0');
-    const affiliateUserDiscount = parseFloat((product as any)?.affiliateUserDiscount || '0');
+    // Get affiliate percentage from product data
+    const affiliateCommissionPercentage = parseFloat((product as any)?.affiliateCommission || '0');
+    const affiliateUserDiscountPercentage = parseFloat((product as any)?.affiliateUserDiscount || '0');
+
+    // Calculate actual values based on product price
+    const productPrice = parseFloat(product.price);
+    const affiliateCommissionAmount = (productPrice * affiliateCommissionPercentage) / 100;
+    const affiliateUserDiscountAmount = (productPrice * affiliateUserDiscountPercentage) / 100;
 
     // Add each selected shade to cart
     if (selectedShades.length > 0) {
@@ -456,8 +461,10 @@ export default function ProductDetail() {
               colorCode: shade.colorCode,
               imageUrl: shade.imageUrl
             },
-            affiliateCommission,
-            affiliateUserDiscount
+            affiliateCommission: affiliateCommissionAmount,
+            affiliateUserDiscount: affiliateUserDiscountAmount,
+            affiliateCommissionPercentage,
+            affiliateUserDiscountPercentage
           });
         }
       });
@@ -479,8 +486,10 @@ export default function ProductDetail() {
           quantity: quantity,
           inStock: true,
           selectedShade: null,
-          affiliateCommission,
-          affiliateUserDiscount
+          affiliateCommission: affiliateCommissionAmount,
+          affiliateUserDiscount: affiliateUserDiscountAmount,
+          affiliateCommissionPercentage,
+          affiliateUserDiscountPercentage
         });
       }
     }
