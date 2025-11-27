@@ -76,7 +76,7 @@ function rateLimit(req: any, res: any, next: any) {
   next();
 }
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, and, sql, or, like, isNull, asc, desc } from "drizzle-orm";
+import { eq, and, sql, or, like, isNull, asc, desc, inArray } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
@@ -3929,16 +3929,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("📦 GET /api/products - Fetching products...");
       const limit = parseInt(req.query.limit as string) || 100;
       const offset = parseInt(req.query.offset as string) || 0;
+      const ids = req.query.ids as string;
 
-      console.log("📦 Query params - limit:", limit, "offset:", offset);
+      console.log("📦 Query params - limit:", limit, "offset:", offset, "ids:", ids);
 
-      // Fetch all products directly from database
-      const allProducts = await db
-        .select()
-        .from(schema.products)
-        .orderBy(desc(schema.products.createdAt))
-        .limit(limit)
-        .offset(offset);
+      let allProducts: any[] = [];
+
+      // Filter by IDs if provided
+      if (ids) {
+        const idArray = ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+        if (idArray.length > 0) {
+          allProducts = await db
+            .select()
+            .from(schema.products)
+            .where(inArray(schema.products.id, idArray))
+            .orderBy(desc(schema.products.createdAt));
+        }
+      } else {
+        // Fetch all products directly from database
+        allProducts = await db
+          .select()
+          .from(schema.products)
+          .orderBy(desc(schema.products.createdAt))
+          .limit(limit)
+          .offset(offset);
+      }
 
       console.log("📦 Products fetched from DB:", allProducts?.length || 0);
 
@@ -3982,7 +3997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }))
             };
           } catch (imgError) {
-            console.warn(`Failed to get images for product ${product.id}:`, imgError.message);
+            console.warn(`Failed to get images for product ${product.id}:`, (imgError as any).message);
             return {
               ...product,
               images: []
@@ -3995,7 +4010,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(productsWithImages);
     } catch (error) {
       console.error("Products API error:", error);
-      res.status(500).json({ error: "Failed to fetch products", details: error.message });
+      res.status(500).json({ error: "Failed to fetch products", details: (error as any).message });
     }
   });
 
@@ -5312,33 +5327,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get affiliate settings for cart (public)
-  app.get("/api/affiliate-settings", async (req, res) => {
-    try {
-      const settings = await db.select().from(schema.affiliateSettings);
-
-      const settingsObj = {
-        commissionRate: parseFloat(settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'),
-        userDiscountPercentage: parseFloat(settings.find(s => s.settingKey === 'user_discount_percentage')?.settingValue || '5'),
-        maxDiscountAmount: settings.find(s => s.settingKey === 'max_discount_amount')?.settingValue 
-          ? parseFloat(settings.find(s => s.settingKey === 'max_discount_amount')!.settingValue) 
-          : null,
-        minOrderAmount: parseFloat(settings.find(s => s.settingKey === 'min_order_amount')?.settingValue || '0'),
-      };
-
-      res.json(settingsObj);
-    } catch (error) {
-      console.error("Error fetching affiliate settings:", error);
-      res.json({
-        commissionRate: 10,
-        userDiscountPercentage: 5,
-        maxDiscountAmount: null,
-        minOrderAmount: 0
-      });
-    }
-  });
-
-
-
   // Create new order (for checkout)
   app.post("/api/orders", async (req, res) => {
     try {

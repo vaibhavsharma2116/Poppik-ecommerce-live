@@ -144,6 +144,26 @@ function ScrollToTop() {
   return null;
 }
 
+function AffiliateHandler() {
+  useEffect(() => {
+    // Capture affiliate ref parameter from URL
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    
+    if (ref && ref.startsWith('POPPIKAP')) {
+      // Store affiliate ref in localStorage if not already stored
+      const existingRef = localStorage.getItem('affiliateRef');
+      if (!existingRef) {
+        localStorage.setItem('affiliateRef', ref);
+        // Log for tracking
+        console.log('Affiliate link captured:', ref);
+      }
+    }
+  }, []);
+
+  return null;
+}
+
 function Router() {
   const handleRouteChange = (callback: () => void) => {
     startTransition(() => {
@@ -153,6 +173,7 @@ function Router() {
 
   return (
     <>
+      <AffiliateHandler />
       <ScrollToTop />
       <Switch>
       {/* Admin Login Route (outside AdminLayout) */}

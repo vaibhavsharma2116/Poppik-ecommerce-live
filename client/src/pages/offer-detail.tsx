@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
@@ -752,25 +753,24 @@ export default function OfferDetail() {
   };
 
   const handleShadeChange = (productId: number, shade: string | null) => {
-    setSelectedShades(prev => ({
-      ...prev,
-      [productId]: shade
-    }));
+    setSelectedShades((prev) => ({ ...prev, [productId]: shade }));
   };
 
   const handleAddAllToCart = async () => {
-    if (!offer || isExpired) return;
+    if (!offer) return;
 
     const productIds = offer.productIds || [];
     const offerProducts = offer.products || [];
 
-    const productsWithShades = productIds.filter(id => productShadesData[id]?.length > 0);
-    const missingShades = productsWithShades.filter(id => !selectedShades[id]);
+    const productsWithShades = productIds.filter((id: number) => productShadesData[id]?.length > 0);
+    const unselectedProducts = productsWithShades.filter((id: number) => {
+      return !selectedShades[id] || selectedShades[id].trim() === '';
+    });
 
-    if (missingShades.length > 0) {
+    if (unselectedProducts.length > 0) {
       toast({
-        title: "Please Select Shades",
-        description: "Please select shades for all products before adding to cart.",
+        title: "Shade Selection Required",
+        description: `Please select shade(s) for all products`,
         variant: "destructive",
       });
       return;
@@ -782,6 +782,8 @@ export default function OfferDetail() {
       let totalOriginalPrice = 0;
       let totalOfferPrice = 0;
       let totalDiscountAmount = 0;
+      let totalAffiliateCommission = 0;
+      let totalAffiliateUserDiscount = 0;
       const productNames: string[] = [];
       const productImages: string[] = [];
       const selectedShadesInfo: any[] = [];
@@ -819,6 +821,8 @@ export default function OfferDetail() {
           totalOriginalPrice += originalPrice;
           totalOfferPrice += finalPrice;
           totalDiscountAmount += discountAmount;
+          totalAffiliateCommission += parseFloat(product.affiliateCommission || '0');
+          totalAffiliateUserDiscount += parseFloat(product.affiliateUserDiscount || '0');
         }
       }
 
@@ -847,7 +851,7 @@ export default function OfferDetail() {
 
       const offerItemKey = `offer-${offer.id}-${Object.entries(selectedShades).map(([id, shade]) => `${id}-${shade}`).join('-')}`;
       const existingOfferItem = cart.find((cartItem: any) => cartItem.itemKey === offerItemKey);
-
+ 
       if (existingOfferItem) {
         existingOfferItem.quantity += 1;
       } else {
@@ -873,6 +877,8 @@ export default function OfferDetail() {
           productImages: productImages,
           selectedShades: selectedShadesInfo,
           totalProducts: productIds.length,
+          affiliateCommission: totalAffiliateCommission,
+          affiliateUserDiscount: totalAffiliateUserDiscount,
         });
       }
 
@@ -935,8 +941,11 @@ export default function OfferDetail() {
 
   const isExpired = new Date(offer.validUntil) < new Date();
   const productIds = offer.productIds || [];
-  const productsWithShades = productIds.filter(id => productShadesData[id]?.length > 0);
-  const allShadesSelected = productsWithShades.length === 0 || productsWithShades.every(id => selectedShades[id]);
+  const productsWithShades = productIds.filter((id: number) => productShadesData[id]?.length > 0);
+  const allShadesSelected = productsWithShades.length === 0 || productsWithShades.every((id: number) => {
+    const shade = selectedShades[id];
+    return shade && typeof shade === 'string' && shade.trim() !== '';
+  });
 
   const bannerImage = offer.bannerImageUrl || offer.imageUrl;
 
@@ -1269,14 +1278,27 @@ export default function OfferDetail() {
             <div className="flex gap-3">
               {/* Add to Cart Button */}
               <Button
-                onClick={handleAddAllToCart}
-                disabled={isExpired || !allShadesSelected}
+                size="lg"
                 className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                onClick={handleAddAllToCart}
+                disabled={(() => {
+                  const productsWithShades = productIds.filter((id: number) => productShadesData[id]?.length > 0);
+                  const unselectedProducts = productsWithShades.filter((id: number) => {
+                    return !selectedShades[id] || selectedShades[id].trim() === '';
+                  });
+                  return unselectedProducts.length > 0 || isExpired;
+                })()}
               >
-                <ShoppingCart className="h-5 w-5 mr-2" />
-                {!allShadesSelected && productsWithShades.length > 0
-                  ? 'Select All Shades First'
-                  : 'Add All to Cart'}
+                <ShoppingCart className="w-5 h-5 mr-2" />
+                {(() => {
+                  const productsWithShades = productIds.filter((id: number) => productShadesData[id]?.length > 0);
+                  const unselectedProducts = productsWithShades.filter((id: number) => {
+                    return !selectedShades[id] || selectedShades[id].trim() === '';
+                  });
+                  return unselectedProducts.length > 0
+                    ? 'Select All Shades First'
+                    : 'Add All to Cart';
+                })()}
               </Button>
               <Button
                 size="lg"

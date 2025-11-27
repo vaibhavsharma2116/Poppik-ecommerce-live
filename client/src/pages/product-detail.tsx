@@ -428,6 +428,10 @@ export default function ProductDetail() {
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
+    // Get affiliate fields from product data
+    const affiliateCommission = parseFloat((product as any)?.affiliateCommission || '0');
+    const affiliateUserDiscount = parseFloat((product as any)?.affiliateUserDiscount || '0');
+
     // Add each selected shade to cart
     if (selectedShades.length > 0) {
       selectedShades.forEach(shade => {
@@ -451,7 +455,9 @@ export default function ProductDetail() {
               name: shade.name,
               colorCode: shade.colorCode,
               imageUrl: shade.imageUrl
-            }
+            },
+            affiliateCommission,
+            affiliateUserDiscount
           });
         }
       });
@@ -472,7 +478,9 @@ export default function ProductDetail() {
           image: product.imageUrl,
           quantity: quantity,
           inStock: true,
-          selectedShade: null
+          selectedShade: null,
+          affiliateCommission,
+          affiliateUserDiscount
         });
       }
     }

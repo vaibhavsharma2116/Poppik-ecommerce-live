@@ -49,7 +49,7 @@ interface CartItem {
 
 function CheckoutPage() {
   const [location, setLocation] = useLocation();
-  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0 } = (location as any).state || {};
+  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0, affiliateCommission: passedAffiliateCommission = 0 } = (location as any).state || {};
 
   const user = getCurrentUser();
   const [currentStep, setCurrentStep] = useState(1);
@@ -108,6 +108,26 @@ function CheckoutPage() {
         return affiliateData.discount || 0;
       } catch (error) {
         console.error('Error parsing affiliate discount:', error);
+        return 0;
+      }
+    }
+    return 0;
+  });
+
+  // Affiliate commission state - load from props or localStorage
+  const [affiliateCommissionAmount, setAffiliateCommissionAmount] = useState(() => {
+    // Try to get from passed props first
+    if (passedAffiliateCommission > 0) {
+      return passedAffiliateCommission;
+    }
+    // Then try localStorage
+    const savedAffiliateDiscount = localStorage.getItem('affiliateDiscount');
+    if (savedAffiliateDiscount) {
+      try {
+        const affiliateData = JSON.parse(savedAffiliateDiscount);
+        return affiliateData.commission || 0;
+      } catch (error) {
+        console.error('Error parsing affiliate commission:', error);
         return 0;
       }
     }
@@ -177,21 +197,54 @@ function CheckoutPage() {
     enabled: !!user?.id,
   });
 
-  // Fetch affiliate settings to get commission rate
-  const { data: affiliateSettings } = useQuery({
-    queryKey: ['/api/affiliate-settings'],
-    queryFn: async () => {
-      const res = await fetch('/api/affiliate-settings');
-      if (!res.ok) throw new Error('Failed to fetch affiliate settings');
-      return res.json();
-    },
-  });
-
-
   // Sync redeemAmount with walletAmount
   useEffect(() => {
     setRedeemAmount(walletAmount);
   }, [walletAmount]);
+
+  // Fetch product details from API
+  useEffect(() => {
+    const enrichCartItems = async () => {
+      if (cartItems.length === 0) return;
+
+      try {
+        const productIds = cartItems.map(item => item.id).join(',');
+        const response = await fetch(`/api/products?ids=${productIds}`);
+        
+        if (response.ok) {
+          const products = await response.json();
+          
+          // Create a map of product ID to product details
+          const productMap = new Map();
+          products.forEach((product: any) => {
+            productMap.set(product.id, product);
+          });
+
+          // Enrich cart items with product details
+          const enrichedItems = cartItems.map(item => {
+            const productDetails = productMap.get(item.id);
+            if (productDetails) {
+              return {
+                ...item,
+                name: productDetails.title || item.name,
+                price: item.price || `₹${productDetails.price}`,
+                image: item.image || productDetails.imageUrl || productDetails.images?.[0],
+                originalPrice: item.originalPrice || `₹${productDetails.originalPrice}`,
+                inStock: productDetails.inStock ?? item.inStock,
+              };
+            }
+            return item;
+          });
+
+          setCartItems(enrichedItems);
+        }
+      } catch (error) {
+        console.error("Error enriching cart items with product details:", error);
+      }
+    };
+
+    enrichCartItems();
+  }, []);
 
   useEffect(() => {
     // Check if user is logged in when accessing checkout
@@ -341,35 +394,6 @@ function CheckoutPage() {
       }
     } else {
       setHasPromoCode(false);
-    }
-
-    // Check for affiliate code in localStorage (fallback if not already set)
-    const savedAffiliateDiscountData = localStorage.getItem('affiliateDiscount');
-    if (!passedAffiliateCode && !savedAffiliateDiscountData) {
-      const affiliateRef = localStorage.getItem("affiliateRef");
-      if (affiliateRef && user) {
-        const userData = user;
-
-        // Get order count for this affiliate code
-        fetch(`/api/orders/count?userId=${userData.id}&affiliateCode=${affiliateRef}`)
-          .then(res => res.json())
-          .then(data => {
-            const orderCount = data.count || 0;
-            const discountPercentage = orderCount === 0 ? 15 : 10; // 15% for first order, 10% for subsequent
-
-            setFormData(prev => ({
-              ...prev,
-              affiliateCode: affiliateRef,
-              affiliateDiscount: discountPercentage,
-            }));
-
-            toast({
-              title: "Affiliate Discount Applied!",
-              description: `${discountPercentage}% OFF on your order`,
-            });
-          })
-          .catch(err => console.error("Error fetching order count:", err));
-      }
     }
 
     // Parse user data and set profile
@@ -587,21 +611,11 @@ function CheckoutPage() {
     }, 0);
   };
 
-  // Calculate product discounts
-  const productDiscount = cartItems.reduce((total, item) => {
-    if (item.originalPrice) {
-      const original = parseInt(item.originalPrice.replace(/[₹,]/g, ""));
-      const current = parseInt(item.price.replace(/[₹,]/g, ""));
-      return total + ((original - current) * item.quantity);
-    }
-    return total;
-  }, 0);
 
   const cartSubtotal = calculateSubtotal();
-  const cartSubtotalAfterProductDiscount = cartSubtotal - productDiscount;
 
   // Use affiliate discount state variable
-  const subtotalAfterAffiliate = cartSubtotalAfterProductDiscount - affiliateDiscountAmount;
+  const subtotalAfterAffiliate = cartSubtotal - affiliateDiscountAmount;
 
   const subtotalAfterDiscount = subtotalAfterAffiliate - promoDiscount;
 
@@ -616,11 +630,11 @@ function CheckoutPage() {
   // Apply wallet deductions at the end (same as cart page)
   const total = Math.max(0, totalBeforeRedemption - walletAmount - affiliateWalletAmount);
 
-
-  const commissionRate = affiliateSettings?.commissionRate || 10;
-  const affiliateCommission = formData.affiliateCode
-    ? Math.round(total * (commissionRate / 100))
-    : 0;
+  // Use affiliate commission from cart if available, otherwise calculate as 10% of total
+  const commissionRate = 10;
+  const affiliateCommission = affiliateCommissionAmount > 0 
+    ? affiliateCommissionAmount
+    : (formData.affiliateCode ? Math.round(total * (commissionRate / 100)) : 0);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -2302,10 +2316,10 @@ function CheckoutPage() {
                                       <p className="text-gray-600 mt-0.5 leading-relaxed">
                                         {address?.addressLine1}, {address?.city}, {address?.state.replace(/_/g, ' ').toUpperCase()} - {address?.pincode}
                                       </p>
-                                      {address?.phoneNumber && <p className="text-gray-500 mt-0.5"> {address.phoneNumber}</p>}
-                                      {/* {address?.deliveryInstructions && (
-                                        <p className="text-gray-600 mt-1 italic"> {address.deliveryInstructions}</p>
-                                      )} */}
+                                      {address?.phoneNumber && <p className="text-gray-500 mt-0.5">📱 {address.phoneNumber}</p>}
+                                      {address?.deliveryInstructions && (
+                                        <p className="text-gray-600 mt-1 italic">✎ {address.deliveryInstructions}</p>
+                                      )}
                                       {(address?.saturdayDelivery || address?.sundayDelivery) && (
                                         <div className="mt-1 flex gap-1">
                                           {address.saturdayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sat</span>}
@@ -2480,21 +2494,14 @@ function CheckoutPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-                      <span className="font-medium">₹{cartSubtotal.toLocaleString()}</span>
-                    </div>
-
-                    {productDiscount > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span>Product Discount</span>
-                        <span className="font-semibold">-₹{productDiscount.toLocaleString()}</span>
-                      </div>
-                    )}
+					<div className="flex justify-between text-sm">
+						<span className="text-gray-600">Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
+						<span className="font-medium">₹{cartSubtotal.toLocaleString()}</span>
+					</div>
 
                     {affiliateDiscountAmount > 0 && (
                       <div className="flex justify-between text-sm text-green-600">
-                        <span>Affiliate Discount</span>
+                        <span>Affiliate Discount ({formData.affiliateCode || passedAffiliateCode})</span>
                         <span className="font-semibold">-₹{Math.round(affiliateDiscountAmount).toLocaleString()}</span>
                       </div>
                     )}
@@ -2532,9 +2539,9 @@ function CheckoutPage() {
                       <span className="text-red-600">₹{total.toLocaleString()}</span>
                     </div>
 
-                    {(productDiscount > 0 || affiliateDiscountAmount > 0 || promoDiscount > 0 || walletAmount > 0) && (
+                    {(affiliateDiscountAmount > 0 || promoDiscount > 0 || walletAmount > 0 || affiliateWalletAmount > 0) && (
                       <div className="text-xs text-green-600 text-center bg-green-50 p-2 rounded">
-                        You saved ₹{(productDiscount + affiliateDiscountAmount + promoDiscount + walletAmount + affiliateWalletAmount).toLocaleString()}!
+                        You saved ₹{(affiliateDiscountAmount + promoDiscount + walletAmount + affiliateWalletAmount).toLocaleString()}!
                       </div>
                     )}
 
