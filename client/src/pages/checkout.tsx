@@ -208,7 +208,7 @@ function CheckoutPage() {
     // Check if this is a multi-address order FIRST
     const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
     const multiAddressMapping = localStorage.getItem('multiAddressMapping');
-    
+
     // Only redirect if multi-address order AND no addresses have been assigned yet
     if (isMultiAddress && !multiAddressMapping) {
       // Redirect back to delivery address page for multi-address orders that need address assignment
@@ -218,6 +218,15 @@ function CheckoutPage() {
       });
       setLocation('/select-delivery-address');
       return;
+    }
+
+    // If multi-address order with mapping, skip Step 1 and go to Step 2
+    if (isMultiAddress && multiAddressMapping) {
+      setCurrentStep(2);
+      toast({
+        title: "Multi-Address Order",
+        description: "Review your items and their delivery addresses",
+      });
     }
 
     // Fetch saved addresses
@@ -1695,33 +1704,40 @@ function CheckoutPage() {
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
-            {steps.map((step, index) => (
-              <div key={step.number} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                    currentStep >= step.number
-                      ? 'bg-red-600 text-white'
-                      : 'bg-gray-200 text-gray-600'
-                  }`}>
-                    {currentStep > step.number ? (
-                      <Check className="h-6 w-6" />
-                    ) : (
-                      <step.icon className="h-6 w-6" />
-                    )}
+            {steps.map((step, index) => {
+              const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
+              // For multi-address orders, show step 1 as completed
+              const stepCompleted = isMultiAddress && step.number === 1 ? true : currentStep > step.number;
+              const stepActive = isMultiAddress && step.number === 1 ? true : currentStep >= step.number;
+
+              return (
+                <div key={step.number} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center flex-1">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      stepActive
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {stepCompleted ? (
+                        <Check className="h-6 w-6" />
+                      ) : (
+                        <step.icon className="h-6 w-6" />
+                      )}
+                    </div>
+                    <span className={`mt-2 text-sm font-medium ${
+                      stepActive ? 'text-red-600' : 'text-gray-500'
+                    }`}>
+                      {isMultiAddress && step.number === 1 ? 'Multiple Addresses' : step.title}
+                    </span>
                   </div>
-                  <span className={`mt-2 text-sm font-medium ${
-                    currentStep >= step.number ? 'text-red-600' : 'text-gray-500'
-                  }`}>
-                    {step.title}
-                  </span>
+                  {index < steps.length - 1 && (
+                    <div className={`flex-1 h-1 mx-4 ${
+                      stepCompleted ? 'bg-red-600' : 'bg-gray-200'
+                    }`} />
+                  )}
                 </div>
-                {index < steps.length - 1 && (
-                  <div className={`flex-1 h-1 mx-4 ${
-                    currentStep > step.number ? 'bg-red-600' : 'bg-gray-200'
-                  }`} />
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -1729,8 +1745,8 @@ function CheckoutPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2">
-              {/* Step 1: Delivery Address */}
-              {currentStep === 1 && (
+              {/* Step 1: Delivery Address - Hide for multi-address orders */}
+              {currentStep === 1 && localStorage.getItem('isMultiAddressOrder') !== 'true' && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center">
@@ -2222,19 +2238,20 @@ function CheckoutPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {/* Multi-address order info - Compact */}
+                    {/* Multi-address order info - Enhanced */}
                     {localStorage.getItem('isMultiAddressOrder') === 'true' && (
-                      <div className="bg-blue-50 border border-blue-300 rounded-md px-3 py-2 flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-400 rounded-lg p-4 flex items-start gap-3 mb-4">
+                        <MapPin className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
-                          <p className="text-xs font-semibold text-blue-900">Multi-Address Order</p>
+                          <p className="text-sm font-bold text-blue-900">Multiple Delivery Addresses Selected</p>
+                          <p className="text-xs text-blue-800 mt-1">Each item will be delivered to its assigned address as shown below</p>
                         </div>
                         <button
                           type="button"
-                          onClick={handlePrevStep}
-                          className="text-xs text-blue-700 hover:text-blue-900 underline"
+                          onClick={() => setLocation('/select-delivery-address')}
+                          className="text-xs text-blue-700 hover:text-blue-900 font-semibold underline whitespace-nowrap"
                         >
-                          Change
+                          Edit Addresses
                         </button>
                       </div>
                     )}
@@ -2285,10 +2302,10 @@ function CheckoutPage() {
                                       <p className="text-gray-600 mt-0.5 leading-relaxed">
                                         {address?.addressLine1}, {address?.city}, {address?.state.replace(/_/g, ' ').toUpperCase()} - {address?.pincode}
                                       </p>
-                                      {address?.phoneNumber && <p className="text-gray-500 mt-0.5">📱 {address.phoneNumber}</p>}
-                                      {address?.deliveryInstructions && (
-                                        <p className="text-gray-600 mt-1 italic">✎ {address.deliveryInstructions}</p>
-                                      )}
+                                      {address?.phoneNumber && <p className="text-gray-500 mt-0.5"> {address.phoneNumber}</p>}
+                                      {/* {address?.deliveryInstructions && (
+                                        <p className="text-gray-600 mt-1 italic"> {address.deliveryInstructions}</p>
+                                      )} */}
                                       {(address?.saturdayDelivery || address?.sundayDelivery) && (
                                         <div className="mt-1 flex gap-1">
                                           {address.saturdayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sat</span>}
@@ -2360,8 +2377,29 @@ function CheckoutPage() {
                     })}
 
                     <div className="flex justify-between pt-3 mt-3 border-t">
-                      <Button type="button" variant="outline" onClick={handlePrevStep} size="sm">
-                        ← Back
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => {
+                          // Always go back to Step 1 to allow address changes
+                          setCurrentStep(1);
+                          // Clear selected address so nothing is pre-selected
+                          setSelectedAddressId(null);
+                          // Clear form data to reset
+                          setFormData(prev => ({
+                            ...prev,
+                            address: "",
+                            city: "",
+                            state: "",
+                            zipCode: "",
+                          }));
+                          // Clear multi-address flags so user can reconfigure
+                          localStorage.removeItem('isMultiAddressOrder');
+                          localStorage.removeItem('multiAddressMapping');
+                        }}
+                        size="sm"
+                      >
+                        ← Back to Address
                       </Button>
                       <Button type="button" onClick={handleNextStep} className="bg-red-600 hover:bg-red-700" size="sm">
                         Continue to Payment →

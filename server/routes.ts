@@ -192,23 +192,54 @@ const transporter = nodemailer.createTransport({
 
 // Function to send order notification email
 async function sendOrderNotificationEmail(orderData: any) {
-  const { orderId, customerName, customerEmail, customerPhone, shippingAddress, paymentMethod, totalAmount, items } = orderData;
+  const { orderId, customerName, customerEmail, customerPhone, shippingAddress, paymentMethod, totalAmount, items, isMultiAddress } = orderData;
 
   const emailSubject = `Poppik Lifestyle Order Confirmation - ${orderId}`;
 
   let itemHtml = '';
-  items.forEach((item: any) => {
-    itemHtml += `
-      <tr style="border-bottom: 1px solid #ddd;">
-        <td style="padding: 10px 0; text-align: left;">
-          <img src="${item.productImage}" alt="${item.productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">
-          ${item.productName}
-        </td>
-        <td style="padding: 10px 0; text-align: right;">${item.quantity}</td>
-        <td style="padding: 10px 0; text-align: right;">₹${(parseFloat(item.price.replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
-      </tr>
-    `;
-  });
+  
+  // If multi-address order, show address for each item
+  if (isMultiAddress && items.some((item: any) => item.deliveryAddress)) {
+    items.forEach((item: any) => {
+      itemHtml += `
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 15px 10px; text-align: left; vertical-align: top;">
+            <img src="${item.productImage}" alt="${item.productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">
+            <strong>${item.productName}</strong>
+            ${item.deliveryAddress ? `
+              <div style="margin-top: 8px; padding: 8px; background-color: #f0f9ff; border-left: 3px solid #3b82f6; font-size: 12px;">
+                <strong style="color: #1e40af;">Delivery To:</strong><br>
+                <span style="color: #374151;">${item.recipientName || customerName}</span><br>
+                <span style="color: #6b7280;">${item.deliveryAddress}</span><br>
+                ${item.recipientPhone ? `<span style="color: #6b7280;">📱 ${item.recipientPhone}</span><br>` : ''}
+                ${item.deliveryInstructions ? `
+                  <div style="margin-top: 5px; padding: 5px; background-color: #fffbeb; border-left: 2px solid #f59e0b;">
+                    <span style="color: #92400e; font-size: 11px;">✎ ${item.deliveryInstructions}</span>
+                  </div>
+                ` : ''}
+              </div>
+            ` : ''}
+          </td>
+          <td style="padding: 15px 10px; text-align: right; vertical-align: top;">${item.quantity}</td>
+          <td style="padding: 15px 10px; text-align: right; vertical-align: top;">₹${(parseFloat(item.price.replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
+        </tr>
+      `;
+    });
+  } else {
+    // Single address order - standard item list
+    items.forEach((item: any) => {
+      itemHtml += `
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 10px 0; text-align: left;">
+            <img src="${item.productImage}" alt="${item.productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">
+            ${item.productName}
+          </td>
+          <td style="padding: 10px 0; text-align: right;">${item.quantity}</td>
+          <td style="padding: 10px 0; text-align: right;">₹${(parseFloat(item.price.replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
+        </tr>
+      `;
+    });
+  }
 
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 30px; border-radius: 8px;">
@@ -220,6 +251,7 @@ async function sendOrderNotificationEmail(orderData: any) {
 
       <div style="margin-bottom: 30px;">
         <h3 style="color: #e74c3c; margin-bottom: 15px;">Order Summary</h3>
+        ${isMultiAddress ? '<p style="color: #3b82f6; font-size: 13px; margin-bottom: 10px;"><strong>📍 Multiple Delivery Addresses</strong></p>' : ''}
         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <thead>
             <tr style="background-color: #f8f8f8;">
@@ -237,12 +269,12 @@ async function sendOrderNotificationEmail(orderData: any) {
       <div style="background-color: #fff; padding: 25px; border-radius: 8px; margin-top: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
           <div>
-            <h4 style="color: #555; margin-bottom: 10px;">Shipping To:</h4>
+            <h4 style="color: #555; margin-bottom: 10px;">${isMultiAddress ? 'Customer Details:' : 'Shipping To:'}</h4>
             <p style="margin: 0; font-size: 14px;"><strong>${customerName}</strong></p>
             <p style="margin: 0; font-size: 14px;">${customerEmail}</p>
             <p style="margin: 0; font-size: 14px;">${customerPhone || 'N/A'}</p>
-            <p style="margin: 0; font-size: 14px;">${shippingAddress}</p>
-            ${orderData.deliveryInstructions ? `
+            ${!isMultiAddress ? `<p style="margin: 0; font-size: 14px;">${shippingAddress}</p>` : ''}
+            ${!isMultiAddress && orderData.deliveryInstructions ? `
             <div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-left: 3px solid #ffc107; border-radius: 4px;">
               <p style="margin: 0; font-size: 13px; font-weight: bold; color: #856404;">Delivery Instructions:</p>
               <p style="margin: 5px 0 0 0; font-size: 13px; color: #856404;">${orderData.deliveryInstructions}</p>
@@ -254,7 +286,7 @@ async function sendOrderNotificationEmail(orderData: any) {
             <p style="margin: 0; font-size: 14px;"><strong>Payment Method:</strong> ${paymentMethod}</p>
             <p style="margin: 0; font-size: 14px;"><strong>Total Amount:</strong> ₹${totalAmount.toFixed(2)}</p>
             <p style="margin: 0; font-size: 14px;"><strong>Order Status:</strong> Confirmed</p>
-            ${orderData.saturdayDelivery !== undefined || orderData.sundayDelivery !== undefined ? `
+            ${!isMultiAddress && (orderData.saturdayDelivery !== undefined || orderData.sundayDelivery !== undefined) ? `
             <div style="margin-top: 10px;">
               <p style="margin: 0; font-size: 13px;"><strong>Weekend Delivery:</strong></p>
               <p style="margin: 5px 0 0 0; font-size: 13px;">Saturday: ${orderData.saturdayDelivery ? 'Yes' : 'No'}</p>
