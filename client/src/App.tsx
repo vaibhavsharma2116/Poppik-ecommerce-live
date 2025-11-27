@@ -111,6 +111,8 @@ const AdminMedia = lazy(() => import("./pages/admin/media"));
 const MediaLinks = lazy(() => import("@/pages/media-links"));
 import OffersPage from "@/pages/offers";
 import OfferDetail from "@/pages/offer-detail";
+import AdminPromoCodeUsage from "./pages/admin/promo-code-usage";
+import AdminGiftSettings from "./pages/admin/gift-settings";
 
 // Loading component for better UX
 const LoadingSpinner = () => (
@@ -171,7 +173,8 @@ function Router() {
             <Route path="/affiliate-applications" component={AdminAffiliateApplications} />
             <Route path="/affiliate-withdrawals" component={AdminAffiliateWithdrawals} />
             <Route path="/promo-codes" component={lazy(() => import("./pages/admin/promo-codes"))} />
-            <Route path="/promo-code-usage" component={lazy(() => import("./pages/admin/promo-code-usage"))} />
+            <Route path="/promo-code-usage" component={AdminPromoCodeUsage} />
+            <Route path="/gift-settings" component={AdminGiftSettings} />
             <Route path="/offers" component={lazy(() => import("@/pages/admin/offers"))} />
             <Route path="/contests" component={lazy(() => import("./pages/admin/contests"))} />
             <Route path="/job-positions" component={() => <LazyRoute component={lazy(() => import("./pages/admin/job-positions"))} />} />

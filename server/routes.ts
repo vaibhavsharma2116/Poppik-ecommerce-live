@@ -11,8 +11,12 @@ import sharp from "sharp";
 import { adminAuthMiddleware as adminMiddleware } from "./admin-middleware";
 import nodemailer from 'nodemailer';
 
+// Create alias for consistency
+const adminAuthMiddleware = adminMiddleware;
+
 // Verify adminMiddleware is working
 console.log('✅ Admin middleware imported:', typeof adminMiddleware === 'function');
+console.log('✅ Admin auth middleware alias:', typeof adminAuthMiddleware === 'function');
 
 // Simple rate limiting
 const rateLimitMap = new Map();
@@ -2175,6 +2179,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting delivery address:", error);
       res.status(500).json({ error: "Failed to delete delivery address" });
+    }
+  });
+
+  // Gift Milestones API
+  
+  // Get active gift milestones (public)
+  app.get("/api/gift-milestones", async (req, res) => {
+    try {
+      const milestones = await db
+        .select()
+        .from(schema.giftMilestones)
+        .where(eq(schema.giftMilestones.isActive, true))
+        .orderBy(asc(schema.giftMilestones.sortOrder));
+
+      res.json(milestones);
+    } catch (error) {
+      console.error("Error fetching gift milestones:", error);
+      res.status(500).json({ error: "Failed to fetch gift milestones" });
+    }
+  });
+
+  // Check user gift eligibility
+  app.get("/api/user/gift-eligibility", async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const eligibility = await db
+        .select()
+        .from(schema.userGiftEligibility)
+        .where(eq(schema.userGiftEligibility.userId, parseInt(userId as string)))
+        .orderBy(desc(schema.userGiftEligibility.createdAt));
+
+      res.json(eligibility);
+    } catch (error) {
+      console.error("Error fetching gift eligibility:", error);
+      res.status(500).json({ error: "Failed to fetch gift eligibility" });
+    }
+  });
+
+  // Admin: Get all gift milestones
+  app.get("/api/admin/gift-milestones", adminMiddleware, async (req, res) => {
+    try {
+      const milestones = await db
+        .select()
+        .from(schema.giftMilestones)
+        .orderBy(asc(schema.giftMilestones.sortOrder));
+
+      res.json(milestones);
+    } catch (error) {
+      console.error("Error fetching admin gift milestones:", error);
+      res.status(500).json({ error: "Failed to fetch gift milestones" });
+    }
+  });
+
+  // Admin: Create gift milestone
+  app.post("/api/admin/gift-milestones", adminMiddleware, async (req, res) => {
+    try {
+      const { minAmount, maxAmount, giftCount, giftDescription, isActive, sortOrder } = req.body;
+
+      if (!minAmount || !giftCount) {
+        return res.status(400).json({ error: "Min amount and gift count are required" });
+      }
+
+      const [milestone] = await db.insert(schema.giftMilestones).values({
+        minAmount: minAmount.toString(),
+        maxAmount: maxAmount ? maxAmount.toString() : null,
+        giftCount: parseInt(giftCount),
+        giftDescription: giftDescription || null,
+        isActive: isActive !== false,
+        sortOrder: sortOrder || 0,
+      }).returning();
+
+      res.status(201).json(milestone);
+    } catch (error) {
+      console.error("Error creating gift milestone:", error);
+      res.status(500).json({ error: "Failed to create gift milestone" });
+    }
+  });
+
+  // Admin: Update gift milestone
+  app.put("/api/admin/gift-milestones/:id", adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { minAmount, maxAmount, giftCount, giftDescription, isActive, sortOrder } = req.body;
+
+      const updateData: any = { updatedAt: new Date() };
+      if (minAmount) updateData.minAmount = minAmount.toString();
+      if (maxAmount !== undefined) updateData.maxAmount = maxAmount ? maxAmount.toString() : null;
+      if (giftCount) updateData.giftCount = parseInt(giftCount);
+      if (giftDescription !== undefined) updateData.giftDescription = giftDescription;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+
+      const [updated] = await db
+        .update(schema.giftMilestones)
+        .set(updateData)
+        .where(eq(schema.giftMilestones.id, id))
+        .returning();
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating gift milestone:", error);
+      res.status(500).json({ error: "Failed to update gift milestone" });
+    }
+  });
+
+  // Admin: Delete gift milestone
+  app.delete("/api/admin/gift-milestones/:id", adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      await db
+        .delete(schema.giftMilestones)
+        .where(eq(schema.giftMilestones.id, id));
+
+      res.json({ success: true, message: "Gift milestone deleted" });
+    } catch (error) {
+      console.error("Error deleting gift milestone:", error);
+      res.status(500).json({ error: "Failed to delete gift milestone" });
     }
   });
 
@@ -8160,6 +8287,104 @@ app.get('/api/testimonials', async (req, res) => {
       res.status(500).json({ error: 'Failed to delete testimonial' });
     }
   });
+  // Gift Milestones Admin Routes
+  app.get('/api/admin/gift-milestones', adminAuthMiddleware, async (req, res) => {
+    try {
+      const milestones = await db
+        .select()
+        .from(schema.giftMilestones)
+        .orderBy(asc(schema.giftMilestones.sortOrder));
+      
+      res.json(milestones);
+    } catch (error) {
+      console.error('Error fetching gift milestones:', error);
+      res.status(500).json({ error: 'Failed to fetch gift milestones' });
+    }
+  });
+
+  app.post('/api/admin/gift-milestones', adminAuthMiddleware, async (req, res) => {
+    try {
+      const { minAmount, maxAmount, giftCount, giftDescription, isActive, sortOrder } = req.body;
+      
+      const [milestone] = await db
+        .insert(schema.giftMilestones)
+        .values({
+          minAmount,
+          maxAmount: maxAmount || null,
+          giftCount,
+          giftDescription: giftDescription || null,
+          isActive: isActive !== undefined ? isActive : true,
+          sortOrder: sortOrder || 0,
+        })
+        .returning();
+      
+      res.json(milestone);
+    } catch (error) {
+      console.error('Error creating gift milestone:', error);
+      res.status(500).json({ error: 'Failed to create gift milestone' });
+    }
+  });
+
+  app.put('/api/admin/gift-milestones/:id', adminAuthMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { minAmount, maxAmount, giftCount, giftDescription, isActive, sortOrder } = req.body;
+      
+      const [milestone] = await db
+        .update(schema.giftMilestones)
+        .set({
+          minAmount,
+          maxAmount: maxAmount || null,
+          giftCount,
+          giftDescription: giftDescription || null,
+          isActive,
+          sortOrder,
+        })
+        .where(eq(schema.giftMilestones.id, id))
+        .returning();
+      
+      if (!milestone) {
+        return res.status(404).json({ error: 'Gift milestone not found' });
+      }
+      
+      res.json(milestone);
+    } catch (error) {
+      console.error('Error updating gift milestone:', error);
+      res.status(500).json({ error: 'Failed to update gift milestone' });
+    }
+  });
+
+  app.delete('/api/admin/gift-milestones/:id', adminAuthMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      await db
+        .delete(schema.giftMilestones)
+        .where(eq(schema.giftMilestones.id, id));
+      
+      res.json({ message: 'Gift milestone deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting gift milestone:', error);
+      res.status(500).json({ error: 'Failed to delete gift milestone' });
+    }
+  });
+
+  // Public route for cart to check gift eligibility
+  app.get('/api/gift-milestones', async (req, res) => {
+    try {
+      const milestones = await db
+        .select()
+        .from(schema.giftMilestones)
+        .where(eq(schema.giftMilestones.isActive, true))
+        .orderBy(asc(schema.giftMilestones.sortOrder));
+      
+      res.json(milestones);
+    } catch (error) {
+      console.error('Error fetching active gift milestones:', error);
+      res.status(500).json({ error: 'Failed to fetch gift milestones' });
+    }
+  });
+
   app.get('/api/combos', async (req, res) => {
     try {
       console.log('Fetching combos from database...');

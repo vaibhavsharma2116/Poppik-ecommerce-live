@@ -82,6 +82,11 @@ export default function Cart() {
     queryKey: ['/api/products', { limit: 12 }],
   });
 
+  // Fetch gift milestones from backend
+  const { data: giftMilestones = [] } = useQuery({
+    queryKey: ['/api/gift-milestones'],
+  });
+
   // Fetch wallet data
   const { data: walletData } = useQuery({
     queryKey: ['/api/wallet', user?.id],
@@ -635,6 +640,106 @@ export default function Cart() {
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Gift Milestone Section - Dynamic from Backend */}
+        {cartItems.length > 0 && giftMilestones.length > 0 && (
+          <div className="mb-6 bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 border-2 border-pink-200 rounded-xl p-4 sm:p-6 shadow-lg">
+            <div className="text-center mb-4">
+              <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1">
+                Use code <span className="text-pink-600">FLAT15</span> to Get <span className="text-pink-600">FLAT 15% OFF</span>
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-600">
+                Shop for <span className="font-semibold text-pink-600">
+                  ₹{parseFloat(giftMilestones[0]?.minAmount || '0').toFixed(0)}+
+                </span> to get <span className="font-semibold text-pink-600">FREE gifts</span>
+              </p>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="relative mb-4">
+              <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-pink-400 to-pink-600 transition-all duration-500 ease-out"
+                  style={{ 
+                    width: `${Math.min((cartSubtotal / parseFloat(giftMilestones[giftMilestones.length - 1]?.minAmount || '2000')) * 100, 100)}%` 
+                  }}
+                ></div>
+              </div>
+              
+              {/* Dynamic Milestone Markers */}
+              <div className="absolute top-0 left-0 w-full h-3 flex justify-between items-center">
+                {giftMilestones.map((milestone, index) => {
+                  const milestoneAmount = parseFloat(milestone.minAmount);
+                  const maxAmount = parseFloat(giftMilestones[giftMilestones.length - 1]?.minAmount || '2000');
+                  const position = (milestoneAmount / maxAmount) * 100;
+                  
+                  return (
+                    <div 
+                      key={milestone.id}
+                      className="absolute flex flex-col items-center"
+                      style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
+                    >
+                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-3 ${
+                        cartSubtotal >= milestoneAmount
+                          ? 'bg-pink-500 border-pink-600' 
+                          : 'bg-white border-gray-300'
+                      } shadow-md -mt-2.5 sm:-mt-3.5`}>
+                        <span className="text-lg sm:text-xl">🎁</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Dynamic Milestone Labels */}
+            <div className="flex justify-between items-start text-xs sm:text-sm mt-6">
+              {giftMilestones.map((milestone) => {
+                const milestoneAmount = parseFloat(milestone.minAmount);
+                return (
+                  <div key={milestone.id} className="text-center flex-1">
+                    <div className={`font-bold ${cartSubtotal >= milestoneAmount ? 'text-pink-600' : 'text-gray-600'}`}>
+                      {milestone.giftCount} Gift{milestone.giftCount > 1 ? 's' : ''}
+                    </div>
+                    <div className="text-gray-500 text-xs">₹{milestoneAmount.toFixed(0)}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Dynamic Status Message */}
+            <div className="mt-4 text-center">
+              {(() => {
+                const highestMilestone = [...giftMilestones].reverse().find(m => cartSubtotal >= parseFloat(m.minAmount));
+                const nextMilestone = giftMilestones.find(m => cartSubtotal < parseFloat(m.minAmount));
+                
+                if (highestMilestone && !nextMilestone) {
+                  return (
+                    <p className="text-green-600 font-semibold text-sm sm:text-base">
+                      🎉 Congratulations! You've unlocked {highestMilestone.giftCount} FREE gift{highestMilestone.giftCount > 1 ? 's' : ''}!
+                    </p>
+                  );
+                } else if (highestMilestone && nextMilestone) {
+                  const remaining = parseFloat(nextMilestone.minAmount) - cartSubtotal;
+                  return (
+                    <p className="text-pink-600 font-semibold text-sm sm:text-base">
+                      ✨ Great! You've unlocked {highestMilestone.giftCount} FREE gift{highestMilestone.giftCount > 1 ? 's' : ''}! 
+                      Add ₹{remaining.toFixed(0)} more for {nextMilestone.giftCount} gift{nextMilestone.giftCount > 1 ? 's' : ''}!
+                    </p>
+                  );
+                } else if (nextMilestone) {
+                  const remaining = parseFloat(nextMilestone.minAmount) - cartSubtotal;
+                  return (
+                    <p className="text-gray-600 font-semibold text-sm sm:text-base">
+                      🛍️ Add ₹{remaining.toFixed(0)} more to unlock {nextMilestone.giftCount} FREE gift{nextMilestone.giftCount > 1 ? 's' : ''}!
+                    </p>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          </div>
+        )}
+
         <div className="mb-6 sm:mb-8">
           <Link href="/" className="inline-flex items-center text-red-600 hover:text-red-700 mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" />

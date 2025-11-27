@@ -827,6 +827,37 @@ export const deliveryAddresses = pgTable("delivery_addresses", {
 export type DeliveryAddress = typeof deliveryAddresses.$inferSelect;
 export type InsertDeliveryAddress = typeof deliveryAddresses.$inferInsert;
 
+// Gift Milestones Table - For dynamic gift settings
+export const giftMilestones = pgTable("gift_milestones", {
+  id: serial("id").primaryKey(),
+  minAmount: decimal("min_amount", { precision: 10, scale: 2 }).notNull(),
+  maxAmount: decimal("max_amount", { precision: 10, scale: 2 }),
+  giftCount: integer("gift_count").notNull(),
+  giftDescription: text("gift_description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type GiftMilestone = typeof giftMilestones.$inferSelect;
+export type InsertGiftMilestone = typeof giftMilestones.$inferInsert;
+
+// User Gift Eligibility - Track which users have received gifts
+export const userGiftEligibility = pgTable("user_gift_eligibility", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  orderId: integer("order_id").notNull().references(() => ordersTable.id, { onDelete: 'cascade' }),
+  orderAmount: decimal("order_amount", { precision: 10, scale: 2 }).notNull(),
+  giftsEarned: integer("gifts_earned").notNull(),
+  giftsClaimed: boolean("gifts_claimed").default(false).notNull(),
+  claimedAt: timestamp("claimed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type UserGiftEligibility = typeof userGiftEligibility.$inferSelect;
+export type InsertUserGiftEligibility = typeof userGiftEligibility.$inferInsert;
+
 // Media Links Table - For managing clickable media with redirect links
 export const mediaLinks = pgTable("media_links", {
   id: serial("id").primaryKey(),

@@ -28,7 +28,8 @@ import {
   Mail,
   Palette,
   Wallet,
-  Tag // Added Tag icon for promo codes
+  Tag, // Added Tag icon for promo codes
+  Gift // Added Gift icon for gift settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -184,6 +185,12 @@ const sidebarItems = [
     title: "Promo Usage",
     href: "/promo-code-usage",
     icon: Tag,
+    badge: null,
+  },
+  {
+    title: "Gift Settings",
+    href: "/gift-settings",
+    icon: Gift,
     badge: null,
   },
   {
