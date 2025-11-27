@@ -5,7 +5,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import React, { lazy, Suspense, useEffect, Component, ErrorInfo, ReactNode } from "react";
 import { Helmet } from "react-helmet";
-
+const AdminInfluencerVideos = lazy(() => import("@/pages/admin/influencer-videos"));
+const AdminAffiliateVideos = lazy(() => import("@/pages/admin/affiliate-videos"));
+const AdminChannelPartnerVideos = lazy(() => import("@/pages/admin/channel-partner-videos"));
 // Error Boundary Component
 class ErrorBoundary extends Component<
   { children: ReactNode },
@@ -165,7 +167,9 @@ function Router() {
             <Route path="/categories" component={AdminCategories} />
             <Route path="/orders" component={AdminOrders} />
             <Route path="/customers" component={AdminCustomers} />
-
+<Route path="/influencer-videos" component={() => <LazyRoute component={AdminInfluencerVideos} />} />
+            <Route path="/affiliate-videos" component={() => <LazyRoute component={AdminAffiliateVideos} />} />
+            <Route path="/channel-partner-videos" component={() => <LazyRoute component={AdminChannelPartnerVideos} />} />
             <Route path="/sliders" component={() => <LazyRoute component={lazy(() => import("@/pages/admin/sliders"))} />} />
             <Route path="/combo-sliders" component={() => <LazyRoute component={lazy(() => import("@/pages/admin/combo-sliders"))} />} />
             <Route path="/job-applications" component={JobApplications} />

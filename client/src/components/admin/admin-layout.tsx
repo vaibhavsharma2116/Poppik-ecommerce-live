@@ -120,6 +120,24 @@ const sidebarItems = [
     badge: null,
   },
   {
+    title: "Influencer Videos",
+    href: "/influencer-videos",
+    icon: FileText,
+    badge: null,
+  },
+  {
+    title: "Affiliate Videos",
+    href: "/affiliate-videos",
+    icon: FileText,
+    badge: null,
+  },
+  {
+    title: "Channel Partner Videos",
+    href: "/channel-partner-videos",
+    icon: FileText,
+    badge: null,
+  },
+  {
     title: "Blog",
     href: "/blog",
     icon: FileText,

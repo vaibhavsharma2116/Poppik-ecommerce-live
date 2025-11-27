@@ -11,6 +11,7 @@ interface Store {
   address: string;
   city: string;
   state: string;
+  country?: string;
   pincode: string;
   phone?: string;
   email?: string;
@@ -53,6 +54,7 @@ export default function StoreLocator() {
           store.address,
           store.city,
           store.state,
+          store.country || '',
           store.pincode,
           store.phone || '',
           store.email || '',
@@ -152,7 +154,7 @@ export default function StoreLocator() {
                           {store.address}
                         </p>
                         <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-1">
-                          {store.city}, {store.state} {store.pincode}
+                          {store.city}, {store.state} {store.pincode} {store.country ? `• ${store.country}` : ''}
                         </p>
                         {store.phone && (
                           <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-600 mt-1.5 sm:mt-2">
@@ -191,13 +193,13 @@ export default function StoreLocator() {
             <Card className="h-[400px] sm:h-[500px] lg:h-[600px] overflow-hidden">
               <CardContent className="p-0 h-full">
                 {selectedStore ? (
-                  <iframe
+                    <iframe
                     title="Store Location Map"
                     width="100%"
                     height="100%"
                     frameBorder="0"
                     style={{ border: 0 }}
-                    src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(selectedStore.address + ', ' + selectedStore.city)}&zoom=15`}
+                    src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(selectedStore.address + ', ' + selectedStore.city + (selectedStore.country ? ', ' + selectedStore.country : ''))}&zoom=15`}
                     allowFullScreen
                   />
                 ) : (

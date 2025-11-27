@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +18,7 @@ interface Store {
   city: string;
   state: string;
   pincode: string;
+  country?: string;
   phone?: string;
   email?: string;
   hours?: string;
@@ -40,6 +40,7 @@ export default function AdminStores() {
     address: "",
     city: "",
     state: "",
+    country: "India",
     pincode: "",
     phone: "",
     email: "",
@@ -80,8 +81,12 @@ export default function AdminStores() {
       if (!response.ok) throw new Error('Failed to create store');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores'] });
+    onSuccess: (createdStore: any) => {
+      // Update cache immediately so the new store appears without a refresh
+      queryClient.setQueryData<Store[] | undefined>(['/api/admin/stores'], (old) => {
+        if (!old) return [createdStore];
+        return [createdStore, ...old];
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
       toast({ title: "Store created successfully" });
       setIsAddDialogOpen(false);
@@ -102,8 +107,12 @@ export default function AdminStores() {
       if (!response.ok) throw new Error('Failed to update store');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores'] });
+    onSuccess: (updatedStore: any) => {
+      // Update the store in cache immediately so UI reflects changes without refresh
+      queryClient.setQueryData<Store[] | undefined>(['/api/admin/stores'], (old) => {
+        if (!old) return [updatedStore];
+        return old.map((s) => (s.id === updatedStore.id ? updatedStore : s));
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
       toast({ title: "Store updated successfully" });
       setIsEditDialogOpen(false);
@@ -135,6 +144,7 @@ export default function AdminStores() {
       address: "",
       city: "",
       state: "",
+      country: "India",
       pincode: "",
       phone: "",
       email: "",
@@ -155,6 +165,7 @@ export default function AdminStores() {
       address: store.address,
       city: store.city,
       state: store.state,
+      country: store.country || 'India',
       pincode: store.pincode,
       phone: store.phone || "",
       email: store.email || "",
@@ -200,6 +211,7 @@ export default function AdminStores() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>City</TableHead>
+                <TableHead>Country</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -210,6 +222,7 @@ export default function AdminStores() {
                 <TableRow key={store.id}>
                   <TableCell className="font-medium">{store.name}</TableCell>
                   <TableCell>{store.city}, {store.state}</TableCell>
+                  <TableCell>{store.country || 'India'}</TableCell>
                   <TableCell>{store.phone}</TableCell>
                   <TableCell>
                     {store.isActive ? (
@@ -281,6 +294,14 @@ export default function AdminStores() {
                 <Input
                   value={formData.state}
                   onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Country *</Label>
+                <Input
+                  value={formData.country}
+                  onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   required
                 />
               </div>

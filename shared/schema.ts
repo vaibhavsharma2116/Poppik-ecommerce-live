@@ -192,6 +192,7 @@ export const stores = pgTable("stores", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   address: text("address").notNull(),
+  country: varchar("country").notNull(),
   city: text("city").notNull(),
   state: text("state").notNull(),
   pincode: varchar("pincode", { length: 10 }).notNull(),
@@ -910,3 +911,73 @@ export const insertContestSchema = createInsertSchema(contests).omit({
 });
 export const selectContestSchema = createSelectSchema(contests);
 export const selectMediaLinkSchema = createSelectSchema(mediaLinks);
+export const influencerVideos = pgTable("influencer_videos", {
+  id: serial("id").primaryKey(),
+  influencerName: varchar("influencer_name", { length: 255 }),
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  videoUrl: text("video_url"),
+  redirectUrl: text("redirect_url"),
+  category: text("category").default("influencer"),
+  type: text("type").default("video"),
+  clickCount: integer("click_count").default(0),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  metadata: jsonb("metadata").$type<Record<string, any>>().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type InfluencerVideo = typeof influencerVideos.$inferSelect;
+export type InsertInfluencerVideo = typeof influencerVideos.$inferInsert;
+export const insertInfluencerVideoSchema = createInsertSchema(influencerVideos);
+export const selectInfluencerVideoSchema = createSelectSchema(influencerVideos);
+
+// Affiliate Videos Table (similar to influencer videos but for affiliate-driven content)
+export const affiliateVideos = pgTable("affiliate_videos", {
+  id: serial("id").primaryKey(),
+  affiliateName: varchar("affiliate_name", { length: 255 }),
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  videoUrl: text("video_url"),
+  redirectUrl: text("redirect_url"),
+  category: text("category").default("affiliate"),
+  type: text("type").default("video"),
+  clickCount: integer("click_count").default(0),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  metadata: jsonb("metadata").$type<Record<string, any>>().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type AffiliateVideo = typeof affiliateVideos.$inferSelect;
+export type InsertAffiliateVideo = typeof affiliateVideos.$inferInsert;
+export const insertAffiliateVideoSchema = createInsertSchema(affiliateVideos);
+export const selectAffiliateVideoSchema = createSelectSchema(affiliateVideos);
+
+// Channel Partner Videos Table (separate table for channel partner content)
+export const channelPartnerVideos = pgTable("channel_partner_videos", {
+  id: serial("id").primaryKey(),
+  partnerName: varchar("partner_name", { length: 255 }),
+  title: text("title").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  videoUrl: text("video_url"),
+  redirectUrl: text("redirect_url"),
+  category: text("category").default("channel-partner"),
+  type: text("type").default("video"),
+  clickCount: integer("click_count").default(0),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  metadata: jsonb("metadata").$type<Record<string, any>>().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type ChannelPartnerVideo = typeof channelPartnerVideos.$inferSelect;
+export type InsertChannelPartnerVideo = typeof channelPartnerVideos.$inferInsert;
+export const insertChannelPartnerVideoSchema = createInsertSchema(channelPartnerVideos);
+export const selectChannelPartnerVideoSchema = createSelectSchema(channelPartnerVideos);

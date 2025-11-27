@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Gift, TrendingUp, Users, Sparkles, Award, Target } from "lucide-react";
+import { Gift, TrendingUp, Users, Sparkles, Award, Target, ChevronDown } from "lucide-react";
 
 export default function AffiliatePage() {
   const [, setLocation] = useLocation();
@@ -60,6 +60,56 @@ export default function AffiliatePage() {
       }
     }
   }, [application, setLocation]);
+
+  // Featured Affiliate Videos (public)
+  const { data: affiliateVideos = [], isLoading: isVideosLoading } = useQuery({
+    queryKey: ['/api/affiliate-videos', 'affiliate'],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/affiliate-videos?isActive=true&category=affiliate');
+        if (!res.ok) return [];
+        return await res.json();
+      } catch (e) {
+        console.error('Failed to load affiliate videos', e);
+        return [];
+      }
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
+  const [showMore, setShowMore] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (selectedVideo && videoRef.current) {
+      try {
+        videoRef.current.play().catch(() => {});
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [selectedVideo]);
+
+  const handlePlay = async (media: any) => {
+    setSelectedVideo(media);
+    try {
+      await fetch(`/api/affiliate-videos/${media.id}/click`, { method: 'POST' });
+    } catch (e) {
+      // ignore click tracking failures
+    }
+  };
+
+  const handleShare = (media: any) => {
+    const shareUrl = `${window.location.origin}/share/affiliate-videos/${media.id}`;
+    if ((navigator as any).share) {
+      (navigator as any).share({ title: media.title || 'Affiliate Video', url: shareUrl }).catch(() => {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl).then(() => alert('Link copied to clipboard'));
+    } else {
+      prompt('Copy this link', shareUrl);
+    }
+  };
 
 
   // Show loading state
@@ -153,6 +203,94 @@ export default function AffiliatePage() {
           </div>
         </div>
       </section>
+
+      {/* Featured Affiliate Videos */}
+      <section className="py-12 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-8">Featured Affiliate Videos</h2>
+
+          {isVideosLoading ? (
+            <div className="text-center">Loading videos…</div>
+          ) : (
+            <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {(affiliateVideos || []).length ? ((affiliateVideos.slice(0, showMore ? 9 : 3)).map((v: any) => (
+                <div key={v.id} className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
+                  <div className="relative rounded-t-2xl overflow-hidden">
+                    <img src={v.imageUrl} alt={v.title} className="w-full h-72 md:h-80 object-cover" />
+                    <button onClick={() => handlePlay(v)} aria-label="Play video" className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-white p-5 rounded-full shadow-lg flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-pink-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-6.518-3.76A1 1 0 007 8.28v7.44a1 1 0 001.234.97l6.518-1.54A1 1 0 0016 14.84V9.16a1 1 0 00-1.248-.992z" />
+                        </svg>
+                      </div>
+                    </button>
+                    {/* share icon top-right */}
+                    <button onClick={() => handleShare(v)} aria-label="Share" className="absolute right-4 top-4 bg-white p-3 rounded-full shadow-md">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v.01M12 12v.01M20 12v.01M4 12a8 8 0 0116 0M4 12a8 8 0 0116 0" />
+                      </svg>
+                    </button>
+                    {/* duration badge bottom-left if available */}
+                    {v.metadata && typeof v.metadata === 'object' && v.metadata.duration && (
+                      <div className="absolute left-4 bottom-4 bg-black bg-opacity-70 text-white text-xs px-3 py-1 rounded">{v.metadata.duration}</div>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <p className="text-pink-600 text-sm font-medium uppercase mb-1">{v.affiliateName}</p>
+                    <h3 className="font-extrabold text-2xl leading-tight">{v.title}</h3>
+                    {v.description && <p className="text-gray-500 mt-3">{v.description}</p>}
+                     
+                  </div>
+                </div>
+              ))) : (
+                <p className="text-center text-gray-500">No affiliate videos available yet.</p>
+              )}
+            </div>
+
+            {/* Show more / less */}
+            {(affiliateVideos || []).length > 3 && (
+              <div className="mt-8 flex justify-center">
+                <button
+                  onClick={() => setShowMore(!showMore)}
+                  aria-expanded={showMore}
+                  className="bg-white border border-pink-100 rounded-full px-8 py-3 shadow-lg text-pink-600 inline-flex items-center gap-3 hover:shadow-2xl transition-shadow"
+                >
+                  <span className="font-medium">{showMore ? 'Show less' : 'Show more'}</span>
+                  <span className={`flex items-center justify-center bg-white rounded-full p-1 shadow-sm transition-transform ${showMore ? 'rotate-180' : ''}`}>
+                    <ChevronDown className="h-4 w-4 text-pink-600" />
+                  </span>
+                </button>
+              </div>
+            )}
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* Video Modal */}
+      {selectedVideo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-3 border-b">
+              <div>
+                <h4 className="font-semibold">{selectedVideo.title}</h4>
+                <p className="text-sm text-gray-600">{selectedVideo.affiliateName}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" onClick={() => setSelectedVideo(null)}>Close</Button>
+              </div>
+            </div>
+            <div className="p-2">
+              {selectedVideo.videoUrl && selectedVideo.videoUrl.includes('youtube') ? (
+                <iframe title={selectedVideo.title} src={selectedVideo.videoUrl} className="w-full h-[60vh]" />
+              ) : (
+                <video ref={videoRef} src={selectedVideo.videoUrl} controls controlsList="nodownload" autoPlay className="w-full max-h-[70vh]" onContextMenu={(e) => e.preventDefault()} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* What's in it for You Section */}
       <section className="py-16 bg-white">
