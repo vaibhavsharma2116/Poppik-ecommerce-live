@@ -45,7 +45,7 @@ export default function Privacy() {
     {
       icon: UserCheck,
       title: "Your Rights",
-      content: "You have the right to access, update, or delete your personal information. You can also opt out of promotional communications at any time. Contact our Grievance Officer Mr. Hanmant Dadas at hanmnt@poppik.in for any privacy concerns.",
+      content: "You have the right to access, update, or delete your personal information. You can also opt out of promotional communications at any time. Contact our Grievance Officer Mr. Hanmnt Dadas at hanmnt@poppik.in for any privacy concerns.",
       highlight: "User Control"
     },
     {
@@ -57,7 +57,7 @@ export default function Privacy() {
     {
       icon: Mail,
       title: "Contact & Grievances",
-      content: "In compliance with the Information Technology Act 2000, our Grievance Officer is Mr. Hanmant Dadas (hanmnt@poppik.in) with a response time within 48 hours. For general privacy questions, contact us at info@poppik.in.",
+      content: "In compliance with the Information Technology Act 2000, our Grievance Officer is Mr. Hanmnt Dadas (hanmnt@poppik.in) with a response time within 48 hours. For general privacy questions, contact us at info@poppik.in.",
       highlight: "Quick Response"
     }
   ];
@@ -190,7 +190,7 @@ export default function Privacy() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/contact">
                 <button className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-lg font-medium transition-colors">
-                  Contact Privacy Team
+                  Contact Us
                 </button>
               </Link>
               <a href="mailto:hanmnt@poppik.in" className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-3 rounded-lg font-medium transition-colors border border-blue-500">

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { ArrowLeft, Package, Truck, CheckCircle, Clock, Eye, Download, RefreshCw, Search, Filter } from "lucide-react";
@@ -478,23 +477,21 @@ export default function OrderHistory() {
                           </Button>
                         </Link>
                       )}
-                      {order.status === 'delivered' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            const link = document.createElement('a');
-                            link.href = `/api/orders/${order.id}/invoice`;
-                            link.download = `Invoice-${order.id}.html`;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                          }}
-                        >
-                          <Download className="h-4 w-4 mr-1" />
-                          Invoice
-                        </Button>
-                      )}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = `/api/orders/${order.id}/invoice`;
+                          link.download = `Invoice-${order.id}.html`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Invoice
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -625,22 +622,21 @@ export default function OrderHistory() {
                       </Button>
                     </Link>
                   )}
-                  {selectedOrder.status === 'delivered' && (
-                    <Button 
-                      variant="outline"
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = `/api/orders/${selectedOrder.id}/invoice`;
-                        link.download = `Invoice-${selectedOrder.id}.html`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Invoice
-                    </Button>
-                  )}
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      if (!selectedOrder) return;
+                      const link = document.createElement('a');
+                      link.href = `/api/orders/${selectedOrder.id}/invoice`;
+                      link.download = `Invoice-${selectedOrder.id}.html`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Invoice
+                  </Button>
                   <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
                     Close
                   </Button>

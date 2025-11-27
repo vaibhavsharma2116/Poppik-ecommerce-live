@@ -66,7 +66,7 @@ export default function Terms() {
     {
       icon: Mail,
       title: "Grievance Redressal & Contact",
-      content: "In compliance with the Information Technology Act 2000, our Grievance Officer is Mr. Hanmant Dadas (hanmnt@poppik.in) with a response time within 48 hours. For any questions regarding these Terms & Conditions, contact us at info@poppik.in."
+      content: "In compliance with the Information Technology Act 2000, our Grievance Officer is Mr. Hanmnt Dadas (hanmnt@poppik.in) with a response time within 48 hours. For any questions regarding these Terms & Conditions, contact us at info@poppik.in."
     }
   ];
 
@@ -166,7 +166,7 @@ export default function Terms() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/contact">
                 <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-medium transition-colors">
-                  Contact Support Team
+                  Contact Us
                 </button>
               </Link>
               <a href="mailto:info@poppik.in" className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-3 rounded-lg font-medium transition-colors">
