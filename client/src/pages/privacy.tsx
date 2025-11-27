@@ -104,7 +104,7 @@ export default function Privacy() {
           {sections.map((section, index) => {
             const IconComponent = section.icon;
             return (
-              <Card key={index} className="shadow-lg border-0 hover:shadow-xl transition-all duration-300 group">
+              <Card key={index} id={section.title === "Contact & Grievances" ? "grievance-section" : undefined} className="shadow-lg border-0 hover:shadow-xl transition-all duration-300 group">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
@@ -193,9 +193,17 @@ export default function Privacy() {
                   Contact Us
                 </button>
               </Link>
-              <a href="mailto:hanmnt@poppik.in" className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-3 rounded-lg font-medium transition-colors border border-blue-500">
+              <button
+                onClick={() => {
+                  const element = document.getElementById('grievance-section');
+                  if (element) {
+                    const elementPosition = element.getBoundingClientRect().top + window.scrollY - 100;
+                    window.scrollTo({ top: elementPosition, behavior: 'smooth' });
+                  }
+                }}
+                className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-3 rounded-lg font-medium transition-colors border border-blue-500">
                 Grievance Officer
-              </a>
+              </button>
             </div>
           </CardContent>
         </Card>
