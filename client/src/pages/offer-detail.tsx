@@ -936,7 +936,7 @@ export default function OfferDetail() {
   const isExpired = new Date(offer.validUntil) < new Date();
   const productIds = offer.productIds || [];
   const productsWithShades = productIds.filter(id => productShadesData[id]?.length > 0);
-  const allShadesSelected = productsWithShades.every(id => selectedShades[id]);
+  const allShadesSelected = productsWithShades.length === 0 || productsWithShades.every(id => selectedShades[id]);
 
   const bannerImage = offer.bannerImageUrl || offer.imageUrl;
 
@@ -1270,11 +1270,11 @@ export default function OfferDetail() {
               {/* Add to Cart Button */}
               <Button
                 onClick={handleAddAllToCart}
-                disabled={isExpired || productsWithShades.some(id => !selectedShades[id])}
+                disabled={isExpired || !allShadesSelected}
                 className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 <ShoppingCart className="h-5 w-5 mr-2" />
-                {productsWithShades.length > 0 && !allShadesSelected
+                {!allShadesSelected && productsWithShades.length > 0
                   ? 'Select All Shades First'
                   : 'Add All to Cart'}
               </Button>

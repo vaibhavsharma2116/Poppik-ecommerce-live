@@ -1560,7 +1560,445 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to fetch wallet' });
     }
   });
+ app.get('/api/wallet/transactions', async (req, res) => {
+    try {
+      const { userId } = req.query;
 
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      const transactions = await db
+        .select()
+        .from(schema.userWalletTransactions)
+        .where(eq(schema.userWalletTransactions.userId, parseInt(userId as string)))
+        .orderBy(desc(schema.userWalletTransactions.createdAt));
+
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error fetching wallet transactions:', error);
+      res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  });
+
+  // Credit cashback to wallet (when order is delivered)
+  app.post('/api/wallet/credit', async (req, res) => {
+    try {
+      const { userId, amount, orderId, description } = req.body;
+
+      if (!userId || !amount) {
+        return res.status(400).json({ error: 'User ID and amount required' });
+      }
+
+      // Get current wallet
+      let wallet = await db
+        .select()
+        .from(schema.userWallet)
+        .where(eq(schema.userWallet.userId, parseInt(userId)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        // Create wallet if doesn't exist
+        const [newWallet] = await db.insert(schema.userWallet).values({
+          userId: parseInt(userId),
+          cashbackBalance: "0.00",
+          totalEarned: "0.00",
+          totalRedeemed: "0.00"
+        }).returning();
+        wallet = [newWallet];
+      }
+
+      const currentBalance = parseFloat(wallet[0].cashbackBalance);
+      const creditAmount = parseFloat(amount);
+      const newBalance = currentBalance + creditAmount;
+
+      // Update wallet
+      await db
+        .update(schema.userWallet)
+        .set({
+          cashbackBalance: newBalance.toFixed(2),
+          totalEarned: (parseFloat(wallet[0].totalEarned) + creditAmount).toFixed(2),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.userWallet.userId, parseInt(userId)));
+
+      // Create transaction record
+      await db.insert(schema.userWalletTransactions).values({
+        userId: parseInt(userId),
+        type: 'credit',
+        amount: creditAmount.toFixed(2),
+        description: description || 'Cashback credited',
+        orderId: orderId ? parseInt(orderId) : null,
+        balanceBefore: currentBalance.toFixed(2),
+        balanceAfter: newBalance.toFixed(2),
+        status: 'completed'
+      });
+
+      res.json({
+        success: true,
+        message: 'Cashback credited successfully',
+        newBalance: newBalance.toFixed(2)
+      });
+    } catch (error) {
+      console.error('Error crediting wallet:', error);
+      res.status(500).json({ error: 'Failed to credit cashback' });
+    }
+  });
+
+  // Redeem cashback
+  app.post('/api/wallet/redeem', async (req, res) => {
+    try {
+      const { userId, amount, description } = req.body;
+
+      if (!userId || !amount) {
+        return res.status(400).json({ error: 'User ID and amount required' });
+      }
+
+      // Get current wallet
+      const wallet = await db
+        .select()
+        .from(schema.userWallet)
+        .where(eq(schema.userWallet.userId, parseInt(userId)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        return res.status(404).json({ error: 'Wallet not found' });
+      }
+
+      const currentBalance = parseFloat(wallet[0].cashbackBalance);
+      const redeemAmount = parseFloat(amount);
+
+      if (currentBalance < redeemAmount) {
+        return res.status(400).json({ error: 'Insufficient cashback balance' });
+      }
+
+      const newBalance = currentBalance - redeemAmount;
+
+      // Update wallet
+      await db
+        .update(schema.userWallet)
+        .set({
+          cashbackBalance: newBalance.toFixed(2),
+          totalRedeemed: (parseFloat(wallet[0].totalRedeemed) + redeemAmount).toFixed(2),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.userWallet.userId, parseInt(userId)));
+
+      // Create transaction record
+      await db.insert(schema.userWalletTransactions).values({
+        userId: parseInt(userId),
+        type: 'redeem',
+        amount: redeemAmount.toFixed(2),
+        description: description || 'Cashback redeemed',
+        orderId: null,
+        balanceBefore: currentBalance.toFixed(2),
+        balanceAfter: newBalance.toFixed(2),
+        status: 'completed'
+      });
+
+      res.json({
+        success: true,
+        message: 'Cashback redeemed successfully',
+        newBalance: newBalance.toFixed(2)
+      });
+    } catch (error) {
+      console.error('Error redeeming cashback:', error);
+      res.status(500).json({ error: 'Failed to redeem cashback' });
+    }
+  });
+
+  app.post('/api/affiliate/apply', async (req, res) => {
+    try {
+      const { 
+        userId,
+        firstName, 
+        lastName, 
+        email, 
+        phone,
+        address,
+        city,
+        state,
+        pincode,
+        landmark,
+        country,
+        bankName,
+        branchName,
+        ifscCode,
+        accountNumber
+      } = req.body;
+
+      // Validate required fields
+      if (!userId || !firstName || !lastName || !email || !phone || !address || !country) {
+        return res.status(400).json({ error: 'All required fields must be provided' });
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
+      }
+
+      // Check if user already has an application
+      const existingApplicationByUser = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(
+          or(
+            eq(schema.affiliateApplications.userId, parseInt(userId)),
+            eq(schema.affiliateApplications.email, email.toLowerCase())
+          )
+        )
+        .limit(1);
+
+      if (existingApplicationByUser && existingApplicationByUser.length > 0) {
+        const application = existingApplicationByUser[0];
+        const status = application.status || 'pending';
+
+        return res.status(400).json({ 
+          error: `You have already submitted an affiliate application. Status: ${status}`,
+          application: {
+            ...application,
+            status: status
+          }
+        });
+      }
+
+      // Save to database
+      const savedApplication = await db.insert(schema.affiliateApplications).values({
+        userId: parseInt(userId),
+        firstName,
+        lastName,
+        email,
+        phone,
+        address,
+        city: city || null,
+        state: state || null,
+        pincode: pincode || null,
+        landmark: landmark || null,
+        country,
+        bankName: bankName || null,
+        branchName: branchName || null,
+        ifscCode: ifscCode || null,
+        accountNumber: accountNumber || null,
+        status: 'pending'
+      }).returning();
+
+      console.log('Affiliate application saved:', savedApplication[0].id);
+
+      res.json({
+        success: true,
+        message: 'Application submitted successfully! Our team will review your application and get back to you within 5-7 business days.',
+        applicationId: savedApplication[0].id
+      });
+
+    } catch (error) {
+      console.error('Error submitting affiliate application:', error);
+      res.status(500).json({ 
+        error: 'Failed to submit application',
+        details: error.message 
+      });
+    }
+  });
+  app.get('/api/admin/affiliate-applications', async (req, res) => {
+    try {
+      const applications = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .orderBy(desc(schema.affiliateApplications.createdAt));
+
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching affiliate applications:', error);
+      res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  });
+
+  app.get('/api/admin/affiliate-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const application = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.id, id))
+        .limit(1);
+
+      if (!application || application.length === 0) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json(application[0]);
+    } catch (error) {
+      console.error('Error fetching affiliate application:', error);
+      res.status(500).json({ error: 'Failed to fetch application' });
+    }
+  });
+
+  app.put('/api/admin/affiliate-applications/:id/status', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['pending', 'approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const [updatedApplication] = await db
+        .update(schema.affiliateApplications)
+        .set({
+          status,
+          reviewNotes: notes,
+          reviewedAt: new Date()
+        })
+        .where(eq(schema.affiliateApplications.id, parseInt(id)))
+        .returning();
+
+      if (!updatedApplication) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      // If approved, create affiliate wallet
+      if (status === 'approved' && updatedApplication.userId) {
+        try {
+          const existingWallet = await db
+            .select()
+            .from(schema.affiliateWallet)
+            .where(eq(schema.affiliateWallet.userId, updatedApplication.userId))
+            .limit(1);
+
+          if (existingWallet.length === 0) {
+            await db.insert(schema.affiliateWallet).values({
+              userId: updatedApplication.userId,
+              cashbackBalance: "0.00",
+              commissionBalance: "0.00",
+              totalEarnings: "0.00",
+              totalWithdrawn: "0.00"
+            });
+            console.log(`✅ Affiliate wallet created for user ${updatedApplication.userId}`);
+          }
+        } catch (walletError) {
+          console.error('Error creating affiliate wallet:', walletError);
+        }
+      }
+
+      // Send email notification
+      try {
+        const formattedUserId = updatedApplication.userId.toString().padStart(2, '0');
+        const affiliateCode = `POPPIKAP${formattedUserId}`;
+        const dashboardUrl = process.env.REPL_SLUG 
+          ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate-dashboard`
+          : 'https://poppik.in/affiliate-dashboard';
+
+        const emailSubject = status === 'approved' 
+          ? 'Welcome to the Poppik Lifestyle Private Limited Affiliate Program'
+          : 'Update on Your Poppik Affiliate Application';
+
+        const emailHtml = status === 'approved'
+          ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 40px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to the Poppik Lifestyle Private Limited Affiliate Program</h1>
+            </div>
+            <div style="padding: 40px 30px;">
+              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName}</strong>,</p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 20px 0;">
+                We are delighted to welcome you as an official affiliate partner of Poppik Lifestyle Private Limited.
+              </p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 30px 0;">
+                Your skills and dedication align perfectly with our vision, and we are excited to collaborate with you. As a valued member of our affiliate program, you now have access to your unique referral link, marketing materials, and performance dashboard to help you start promoting our brand effectively.
+              </p>
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
+                <p style="color: #ffffff; margin: 0 0 10px 0; font-size: 14px;">Your Unique Affiliate Code</p>
+                <p style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 2px;">${affiliateCode}</p>
+              </div>
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="font-size: 16px; color: #555555; margin: 0 0 15px 0;">
+                  Please log in to your affiliate account here:
+                </p>
+                <a href="${dashboardUrl}" style="display: inline-block; background-color: #e74c3c; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">
+                  Access Dashboard
+                </a>
+              </div>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 30px 0 20px 0;">
+                If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
+              </p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0;">
+                Thank you for joining us. We look forward to a successful and rewarding partnership.
+              </p>
+            </div>
+            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
+              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">
+                © 2024 Poppik Lifestyle Private Limited. All rights reserved.
+              </p>
+              <p style="color: #999999; font-size: 12px; margin: 0;">
+                Office No.- 213, A- Wing, Skylark Building, Plot No.- 63, Sector No.- 11, C.B.D. Belapur, Navi Mumbai- 400614 INDIA
+              </p>
+            </div>
+          </div>`
+          : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #6c757d; padding: 40px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Poppik Affiliate Application Update</h1>
+            </div>
+            <div style="background: white; padding: 40px 30px;">
+              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName} ${updatedApplication.lastName}</strong>,</p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6;">
+                Thank you for your interest in the Poppik Affiliate Program. After careful review, we are unable to approve your application at this time.
+              </p>
+              ${notes ? `<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0; color: #856404;"><strong>Reason:</strong> ${notes}</p>
+              </div>` : ''}
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0 0 0;">
+                We encourage you to reapply in the future. Keep creating amazing content!
+              </p>
+              <p style="font-size: 14px; color: #999999; margin: 20px 0 0 0;">
+                Questions? Contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c;">info@poppik.in</a>
+              </p>
+            </div>
+            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
+              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">© 2024 Poppik Lifestyle Private Limited</p>
+            </div>
+          </div>`;
+
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'info@poppik.in',
+          to: updatedApplication.email,
+          subject: emailSubject,
+          html: emailHtml
+        });
+
+        console.log(`✅ Affiliate ${status} email sent to: ${updatedApplication.email}`);
+      } catch (emailError) {
+        console.error('❌ Failed to send email:', emailError);
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Application ${status} successfully`,
+        application: updatedApplication 
+      });
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      res.status(500).json({ error: 'Failed to update application status' });
+    }
+  });
+
+  app.delete('/api/admin/affiliate-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deleted] = await db
+        .delete(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json({ success: true, message: 'Application deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting affiliate application:', error);
+      res.status(500).json({ error: 'Failed to delete application' });
+    }
+  });
   // Get user's affiliate application
   app.get('/api/affiliate/my-application', async (req: Request, res: Response) => {
     try {
@@ -1575,6 +2013,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid user ID' });
       }
 
+      console.log(`Fetching affiliate application for user ID: ${userIdNum}`);
+
       // Get user's affiliate application
       const application = await db
         .select()
@@ -1582,8 +2022,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(schema.affiliateApplications.userId, userIdNum))
         .limit(1);
 
+      console.log(`Application query result:`, application);
+
       if (!application || application.length === 0) {
-        return res.status(404).json({ error: 'No affiliate application found', status: 'not_applied' });
+        console.log(`No affiliate application found for user ${userIdNum}`);
+        return res.status(200).json({ 
+          error: 'No affiliate application found', 
+          status: 'not_applied',
+          userId: userIdNum
+        });
       }
 
       const appData = application[0];
