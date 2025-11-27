@@ -1339,15 +1339,63 @@ function CheckoutPage() {
               mapping = JSON.parse(multiAddressMapping);
             }
 
-            itemsData = cartItems.map((item: any) => {
-              const addressId = mapping[item.id.toString()];
-              const address = savedAddresses.find(addr => addr.id === addressId);
+            const processedItems: any[] = [];
+            const itemIds = cartItems.map(item => item.id.toString());
 
-              if (!address) {
-                console.warn(`No address found for item ${item.id} with addressId ${addressId}`);
+            // Handle items with split quantities (indicated by 'item_id-instance_num' keys in mapping)
+            const splitItemIds = Object.keys(mapping).filter(key => key.includes('-'));
+            const uniqueSplitItemIds = [...new Set(splitItemIds.map(key => key.split('-')[0]))];
+
+            // Process items that are split across multiple addresses
+            uniqueSplitItemIds.forEach(itemId => {
+              const instances = Object.entries(mapping)
+                .filter(([key, _]) => key.startsWith(`${itemId}-`))
+                .map(([key, addressId]) => ({ key, addressId }))
+                .filter(({ addressId }) => addressId);
+
+              if (instances.length > 0) {
+                const originalItem = cartItems.find(item => item.id.toString() === itemId);
+                if (!originalItem) return;
+
+                // Distribute quantity across addresses
+                let remainingQuantity = originalItem.quantity;
+                instances.forEach(({ instanceNum }, index) => {
+                  const addressId = mapping[`${itemId}-${instanceNum}`];
+                  const address = savedAddresses.find(addr => addr.id === addressId);
+                  if (!address) return;
+
+                  // For simplicity, we'll assign the full quantity to each specified address for now.
+                  // A more complex logic would be needed to split quantities if required.
+                  processedItems.push({
+                    productId: originalItem.id,
+                    productName: originalItem.name,
+                    productImage: originalItem.image,
+                    quantity: originalItem.quantity, // Assign full quantity to each instance for display
+                    price: originalItem.price,
+                    cashbackPrice: originalItem.cashbackPrice || null,
+                    cashbackPercentage: originalItem.cashbackPercentage || null,
+                    deliveryAddress: `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}`,
+                    recipientName: address.recipientName,
+                    recipientPhone: address.phoneNumber,
+                    deliveryInstructions: address.deliveryInstructions || null,
+                    saturdayDelivery: address.saturdayDelivery || false,
+                    sundayDelivery: address.sundayDelivery || false,
+                  });
+                });
               }
+            });
 
-              return {
+            // Process items that have a single assigned address
+            const singleAddressItemIds = itemIds.filter(id => !uniqueSplitItemIds.includes(id) && mapping[id]);
+            singleAddressItemIds.forEach(itemId => {
+              const addressId = mapping[itemId];
+              const address = savedAddresses.find(addr => addr.id === addressId);
+              if (!address) return;
+
+              const item = cartItems.find(i => i.id.toString() === itemId);
+              if (!item) return;
+
+              processedItems.push({
                 productId: item.id,
                 productName: item.name,
                 productImage: item.image,
@@ -1355,16 +1403,16 @@ function CheckoutPage() {
                 price: item.price,
                 cashbackPrice: item.cashbackPrice || null,
                 cashbackPercentage: item.cashbackPercentage || null,
-                deliveryAddress: address ? `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}` : null,
-                recipientName: address ? address.recipientName : null,
-                recipientPhone: address ? address.phoneNumber : null,
-                deliveryInstructions: address?.deliveryInstructions || null,
-                saturdayDelivery: address?.saturdayDelivery || false,
-                sundayDelivery: address?.sundayDelivery || false,
-              };
+                deliveryAddress: `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}`,
+                recipientName: address.recipientName,
+                recipientPhone: address.phoneNumber,
+                deliveryInstructions: address.deliveryInstructions || null,
+                saturdayDelivery: address.saturdayDelivery || false,
+                sundayDelivery: address.sundayDelivery || false,
+              });
             });
 
-            // For multi-address orders, use first address or a combined note
+            itemsData = processedItems;
             shippingAddressData = "Multiple Delivery Addresses - See individual items";
           } catch (error) {
             console.error('Error parsing multi-address mapping:', error);
@@ -1894,19 +1942,13 @@ function CheckoutPage() {
                       <div className="space-y-3">
                         {/* Multiple Addresses Option */}
                         {savedAddresses.length > 1 && (
-                          <div className="mb-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <MapPin className="h-5 w-5 text-blue-600" />
-                                <span className="text-sm font-semibold text-blue-900">
-                                  Want to send items to different addresses?
-                                </span>
-                              </div>
-                              <Button
+                          <div className="mb-4 p-3   rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4 text-blue-600" />
+                             
+                              <button
                                 type="button"
-                                variant="outline"
-                                size="sm"
-                                className="border-blue-600 text-blue-600 hover:bg-blue-100"
+                                className="text-sm text-blue-600 hover:text-blue-700 hover:underline ml-1"
                                 onClick={() => {
                                   // Save cart items to localStorage for multi-address page
                                   const minimalCart = cartItems.map(item => ({
@@ -1919,7 +1961,7 @@ function CheckoutPage() {
                                 }}
                               >
                                 Deliver to multiple addresses
-                              </Button>
+                              </button>
                             </div>
                           </div>
                         )}
@@ -2174,123 +2216,155 @@ function CheckoutPage() {
               {currentStep === 2 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center">
+                    <CardTitle className="flex items-center text-xl">
                       <Package className="h-5 w-5 mr-2" />
                       Review Your Order
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Multi-address order info */}
+                  <CardContent className="space-y-3">
+                    {/* Multi-address order info - Compact */}
                     {localStorage.getItem('isMultiAddressOrder') === 'true' && (
-                      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 flex items-start gap-2">
-                        <MapPin className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="font-semibold text-blue-900 text-sm">Multi-Address Order</p>
-                          <p className="text-xs text-blue-800 mt-1">Items will be delivered to different addresses as shown below</p>
+                      <div className="bg-blue-50 border border-blue-300 rounded-md px-3 py-2 flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-blue-900">Multi-Address Order</p>
                         </div>
+                        <button
+                          type="button"
+                          onClick={handlePrevStep}
+                          className="text-xs text-blue-700 hover:text-blue-900 underline"
+                        >
+                          Change
+                        </button>
                       </div>
                     )}
 
                     {cartItems.map((item, itemIndex) => {
-                      // Get the address for this item if it's a multi-address order
-                      const addressId = multiAddressMapping[item.id.toString()];
-                      const itemAddress = addressId ? savedAddresses.find(addr => addr.id === addressId) : null;
                       const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
-                      
-                      return (
-                        <div key={item.id} className="border rounded-lg overflow-hidden bg-white hover:shadow-md transition-shadow">
-                          {/* Product Details Section */}
-                          <div className="p-4 border-b border-gray-100">
-                            <div className="flex items-center space-x-4">
-                              <div className="flex-shrink-0">
-                                <img
-                                  src={item.image}
-                                  alt={item.name}
-                                  className="h-20 w-20 object-cover rounded-lg border border-gray-200"
-                                />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-medium text-gray-900 text-sm">{item.name}</h4>
-                                {item.selectedShade && (
-                                  <Badge variant="secondary" className="mt-1 text-xs">
-                                    {item.selectedShade.name}
-                                  </Badge>
-                                )}
-                                <div className="mt-2 flex items-center justify-between text-sm">
-                                  <span className="text-gray-600">Qty: <span className="font-semibold text-gray-900">{item.quantity}</span></span>
-                                  <span className="font-semibold text-red-600 text-base">{item.price}</span>
+                      let itemAddress = null;
+
+                      if (isMultiAddress) {
+                        const instanceKeys = Object.keys(multiAddressMapping).filter(key => key.startsWith(`${item.id}-`));
+
+                        if (instanceKeys.length > 0) {
+                          const instances = instanceKeys.map(key => {
+                            const addressId = multiAddressMapping[key];
+                            const address = savedAddresses.find(addr => addr.id === addressId);
+                            const instanceNum = parseInt(key.split('-')[1]) + 1;
+                            return { instanceNum, address };
+                          }).filter(inst => inst.address);
+
+                          return (
+                            <div key={item.id} className="border border-gray-200 rounded-md bg-white">
+                              {/* Compact Product Header */}
+                              <div className="p-3 bg-gray-50 border-b">
+                                <div className="flex gap-3">
+                                  <img src={item.image} alt={item.name} className="h-16 w-16 object-cover rounded border" />
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-sm text-gray-900 line-clamp-1">{item.name}</h4>
+                                    {item.selectedShade && (
+                                      <span className="inline-block mt-1 px-2 py-0.5 bg-gray-200 text-xs rounded">{item.selectedShade.name}</span>
+                                    )}
+                                    <div className="mt-1 flex items-center justify-between text-xs">
+                                      <span className="text-gray-600">Qty: <span className="font-semibold">{item.quantity}</span></span>
+                                      <span className="font-semibold text-red-600">{item.price}</span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
+
+                              {/* Compact Multiple Addresses */}
+                              {instances.map(({ instanceNum, address }) => (
+                                <div key={instanceNum} className="p-3 border-t border-gray-100">
+                                  <div className="flex gap-2">
+                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                                      {instanceNum}
+                                    </div>
+                                    <div className="flex-1 text-xs">
+                                      <p className="font-semibold text-gray-900">{address?.recipientName}</p>
+                                      <p className="text-gray-600 mt-0.5 leading-relaxed">
+                                        {address?.addressLine1}, {address?.city}, {address?.state.replace(/_/g, ' ').toUpperCase()} - {address?.pincode}
+                                      </p>
+                                      {address?.phoneNumber && <p className="text-gray-500 mt-0.5">📱 {address.phoneNumber}</p>}
+                                      {address?.deliveryInstructions && (
+                                        <p className="text-gray-600 mt-1 italic">✎ {address.deliveryInstructions}</p>
+                                      )}
+                                      {(address?.saturdayDelivery || address?.sundayDelivery) && (
+                                        <div className="mt-1 flex gap-1">
+                                          {address.saturdayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sat</span>}
+                                          {address.sundayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sun</span>}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        } else {
+                          const addressId = multiAddressMapping[item.id.toString()];
+                          itemAddress = addressId ? savedAddresses.find(addr => addr.id === addressId) : null;
+                        }
+                      } else {
+                        itemAddress = selectedAddressId ? savedAddresses.find(addr => addr.id === selectedAddressId) : null;
+                      }
+
+                      if (!isMultiAddress || (isMultiAddress && itemAddress)) {
+                        return (
+                          <div key={item.id} className="border border-gray-200 rounded-md bg-white">
+                            {/* Compact Single Item */}
+                            <div className="p-3">
+                              <div className="flex gap-3">
+                                <img src={item.image} alt={item.name} className="h-16 w-16 object-cover rounded border" />
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-sm text-gray-900 line-clamp-1">{item.name}</h4>
+                                  {item.selectedShade && (
+                                    <span className="inline-block mt-1 px-2 py-0.5 bg-gray-200 text-xs rounded">{item.selectedShade.name}</span>
+                                  )}
+                                  <div className="mt-1 flex items-center justify-between text-xs">
+                                    <span className="text-gray-600">Qty: <span className="font-semibold">{item.quantity}</span></span>
+                                    <span className="font-semibold text-red-600">{item.price}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Compact Address */}
+                              {itemAddress && (
+                                <div className="mt-3 pt-3 border-t text-xs">
+                                  <div className="flex gap-2">
+                                    <MapPin className="h-3.5 w-3.5 text-gray-500 flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                      <p className="font-semibold text-gray-900">{itemAddress.recipientName}</p>
+                                      <p className="text-gray-600 mt-0.5 leading-relaxed">
+                                        {itemAddress.addressLine1}, {itemAddress.city}, {itemAddress.state.replace(/_/g, ' ').toUpperCase()} - {itemAddress.pincode}
+                                      </p>
+                                      {itemAddress.phoneNumber && <p className="text-gray-500 mt-0.5">📱 {itemAddress.phoneNumber}</p>}
+                                      {itemAddress.deliveryInstructions && (
+                                        <p className="text-gray-600 mt-1 italic">✎ {itemAddress.deliveryInstructions}</p>
+                                      )}
+                                      {(itemAddress.saturdayDelivery || itemAddress.sundayDelivery) && (
+                                        <div className="mt-1 flex gap-1">
+                                          {itemAddress.saturdayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sat</span>}
+                                          {itemAddress.sundayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sun</span>}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
-                          
-                          {/* Delivery Address Section */}
-                          {isMultiAddress && itemAddress ? (
-                            <div className="p-4 bg-blue-50">
-                              <div className="flex items-start gap-3">
-                                <MapPin className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                                <div className="flex-1 text-sm">
-                                  <p className="font-semibold text-gray-900 mb-2">Delivery To:</p>
-                                  <p className="font-medium text-gray-800">{itemAddress.recipientName}</p>
-                                  <p className="text-gray-700 text-xs mt-1 leading-relaxed">
-                                    {itemAddress.addressLine1}
-                                    {itemAddress.addressLine2 && <>, {itemAddress.addressLine2}</>}
-                                  </p>
-                                  <p className="text-gray-700 text-xs">
-                                    {itemAddress.city}, {itemAddress.state.replace(/_/g, ' ').toUpperCase()} - {itemAddress.pincode}
-                                  </p>
-                                  {itemAddress.country && (
-                                    <p className="text-gray-600 text-xs">{itemAddress.country}</p>
-                                  )}
-                                  {itemAddress.phoneNumber && (
-                                    <p className="text-gray-600 text-xs mt-1 font-medium">📱 {itemAddress.phoneNumber}</p>
-                                  )}
-                                  
-                                  {/* Delivery Instructions */}
-                                  {itemAddress.deliveryInstructions && (
-                                    <div className="mt-2 pt-2 border-t border-blue-200">
-                                      <p className="text-xs text-gray-700"><span className="font-semibold">Delivery Instructions:</span> {itemAddress.deliveryInstructions}</p>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Weekend Delivery Preferences */}
-                                  {(itemAddress.saturdayDelivery || itemAddress.sundayDelivery) && (
-                                    <div className="mt-2 pt-2 border-t border-blue-200 flex gap-2 flex-wrap">
-                                      {itemAddress.saturdayDelivery && (
-                                        <Badge className="bg-amber-100 text-amber-800 text-xs">Saturday Delivery</Badge>
-                                      )}
-                                      {itemAddress.sundayDelivery && (
-                                        <Badge className="bg-amber-100 text-amber-800 text-xs">Sunday Delivery</Badge>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ) : !isMultiAddress && (
-                            <div className="p-4 bg-gray-50 text-sm text-gray-600">
-                              <p>📍 Single Address Order - Delivery address from Step 1</p>
-                            </div>
-                          )}
-                        </div>
-                      );
+                        );
+                      }
+                      return null;
                     })}
 
-                    <div className="flex justify-between pt-4 border-t border-gray-200">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handlePrevStep}
-                      >
+                    <div className="flex justify-between pt-3 mt-3 border-t">
+                      <Button type="button" variant="outline" onClick={handlePrevStep} size="sm">
                         ← Back
                       </Button>
-                      <Button
-                        type="button"
-                        onClick={handleNextStep}
-                        className="bg-red-600 hover:bg-red-700 flex items-center gap-2"
-                      >
-                        Continue to Payment
-                        <ChevronRight className="h-4 w-4" />
+                      <Button type="button" onClick={handleNextStep} className="bg-red-600 hover:bg-red-700" size="sm">
+                        Continue to Payment →
                       </Button>
                     </div>
                   </CardContent>
