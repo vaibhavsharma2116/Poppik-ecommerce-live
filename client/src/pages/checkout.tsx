@@ -133,7 +133,7 @@ const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
   latur: { state: "maharashtra", pincodes: ["413512"] },
   dhule: { state: "maharashtra", pincodes: ["424001"] },
   tirupati: { state: "andhra_pradesh", pincodes: ["517501"] },
-  rohtak: { state: "haryana", pincodes: ["124001"] },
+  rohtak: { state: "haryana", pincodes: ["132001"] },
   korba: { state: "chhattisgarh", pincodes: ["495677"] },
   bhilwara: { state: "rajasthan", pincodes: ["311001"] },
   berhampur: { state: "odisha", pincodes: ["760001"] },
@@ -874,19 +874,38 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   const safeAffiliateWalletAmount = isNaN(affiliateWalletAmount) || !affiliateWalletAmount ? 0 : Number(affiliateWalletAmount);
   const total = Math.max(0, totalBeforeRedemption - safeWalletAmount - safeAffiliateWalletAmount);
 
-  // Calculate affiliate commission dynamically from product's affiliate_commission field
-  const affiliateCommission = formData.affiliateCode
-    ? Math.round(
+  // Calculate affiliate commission from localStorage or from cart items
+  const affiliateCommission = (() => {
+    try {
+      // First try to get from localStorage (set by cart page)
+      const saved = localStorage.getItem('affiliateCommissionEarned');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.commission === 'number' && parsed.commission > 0) {
+          console.log('✅ Using affiliate commission from localStorage:', parsed.commission);
+          return Math.round(parsed.commission);
+        }
+      }
+    } catch (e) {
+      console.error('Error reading affiliate commission from localStorage:', e);
+    }
+
+    // Fallback: Calculate from cart items if affiliate code is present
+    if (formData.affiliateCode || passedAffiliateCode) {
+      const calculated = Math.round(
         cartItems.reduce((sum, item) => {
-          // Get affiliate commission percentage from product (fallback to 0 if not set)
           const itemAffiliateCommission = item.affiliateCommission || 0;
           const itemPrice = parseInt(item.price?.replace(/[₹,]/g, "") || "0");
           const itemTotal = itemPrice * item.quantity;
-          // Calculate commission for this item: (itemTotal * affiliateCommission%) / 100
           return sum + (itemTotal * itemAffiliateCommission) / 100;
         }, 0)
-      )
-    : 0;
+      );
+      console.log('✅ Calculated affiliate commission from cart items:', calculated);
+      return calculated;
+    }
+
+    return 0;
+  })();
 
   // Whether the currently selected address has all required fields filled
   // Consider address complete if at least one name (firstName OR lastName) present
@@ -2861,18 +2880,18 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                       </div>
                     )}
 
-                    {/* {affiliateCommissionAmount > 0 && (
+                    {affiliateCommission > 0 && (
                       <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
                             <Award className="h-5 w-5 text-purple-600" />
                             <span className="text-sm font-bold text-purple-800">Affiliate Commission Earned</span>
                           </div>
-                          <span className="text-lg font-bold text-purple-600">₹{affiliateCommissionAmount.toLocaleString()}</span>
+                          <span className="text-lg font-bold text-purple-600">₹{affiliateCommission.toLocaleString()}</span>
                         </div>
-                        <p className="text-xs text-purple-700">Commission on affiliate products will be credited to your wallet after delivery</p>
+                        <p className="text-xs text-purple-700">Commission will be credited to your wallet after delivery</p>
                       </div>
-                    )} */}
+                    )}
                   </div>
                 </CardContent>
               </Card>
