@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiUrl } from '@/lib/api';
 import { Link, useLocation } from "wouter";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -97,7 +98,7 @@ export default function Cart() {
     queryKey: ['/api/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const res = await fetch(`/api/wallet?userId=${user.id}`);
+      const res = await fetch(apiUrl(`/api/wallet?userId=${user.id}`));
       if (!res.ok) return null;
       return res.json();
     },
@@ -109,7 +110,7 @@ export default function Cart() {
     queryKey: ['/api/affiliate/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`);
+      const res = await fetch(apiUrl(`/api/affiliate/wallet?userId=${user.id}`));
       if (!res.ok) return null;
       return res.json();
     },

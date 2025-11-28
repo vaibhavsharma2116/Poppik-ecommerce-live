@@ -11,6 +11,12 @@ import { MapPin, Plus, Pencil, Trash2, Package, Check, Minus } from "lucide-reac
 import { Checkbox } from "@/components/ui/checkbox";
 import Layout from "@/components/layout";
 
+// API URL helper - allows overriding backend during frontend-only dev (set VITE_API_BASE)
+const apiUrl = (path: string) => {
+  const base = (import.meta.env && (import.meta.env as any).VITE_API_BASE) || '';
+  return `${base}${path}`;
+};
+
 interface DeliveryAddress {
   id: number;
   recipientName: string;
@@ -147,7 +153,7 @@ export default function SelectDeliveryAddress() {
     }
 
     try {
-      const response = await fetch(`/api/delivery-addresses?userId=${user.id}`);
+      const response = await fetch(apiUrl(`/api/delivery-addresses?userId=${user.id}`));
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -177,7 +183,7 @@ export default function SelectDeliveryAddress() {
         ? `/api/delivery-addresses/${editingAddress.id}`
         : '/api/delivery-addresses';
 
-      const response = await fetch(url, {
+      const response = await fetch(apiUrl(url), {
         method: editingAddress ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, userId: user.id })
@@ -196,7 +202,7 @@ export default function SelectDeliveryAddress() {
 
         // If this was a new address in single mode, select it and go back to checkout
         if (!editingAddress && data.id && !isMultipleAddressMode) {
-          const newAddress = await fetch(`/api/delivery-addresses/${data.id}`).then(res => res.json());
+          const newAddress = await fetch(apiUrl(`/api/delivery-addresses/${data.id}`)).then(res => res.json());
           localStorage.setItem('selectedDeliveryAddress', JSON.stringify(newAddress));
           setTimeout(() => setLocation('/checkout'), 500);
         }
@@ -214,7 +220,7 @@ export default function SelectDeliveryAddress() {
     if (!confirm('Are you sure you want to delete this address?')) return;
 
     try {
-      const response = await fetch(`/api/delivery-addresses/${id}`, {
+      const response = await fetch(apiUrl(`/api/delivery-addresses/${id}`), {
         method: 'DELETE'
       });
 

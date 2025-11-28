@@ -186,12 +186,7 @@ const sidebarItems = [
     icon: Wallet,
     badge: null,
   },
-  {
-    title: "Affiliate Settings",
-    href: "/affiliate-settings",
-    icon: Settings,
-    badge: null,
-  },
+
   {
     title: "Promo Codes",
     href: "/promo-codes",

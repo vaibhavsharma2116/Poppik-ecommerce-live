@@ -69,7 +69,7 @@ import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
 import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage } from "../shared/schema";
-import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema } from "../shared/schema"; // Import users table explicitly
+import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, contactSubmissions, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema } from "../shared/schema"; // Import users table explicitly
 import type { Request, Response } from 'express'; // Import Request and Response types for clarity
 
 // Initialize Shiprocket service
@@ -83,7 +83,6 @@ const pool = new Pool({
   min: 2,
   idleTimeoutMillis: 300000, // 5 minutes
   connectionTimeoutMillis: 10000,
-  acquireTimeoutMillis: 10000,
   keepAlive: true,
   keepAliveInitialDelayMillis: 0,
   allowExitOnIdle: false,
@@ -997,14 +996,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       .limit(1);
 
                     if (affiliateApp && affiliateApp.length > 0) {
-                      // Get affiliate settings for commission rate
-                      const settings = await db.select().from(schema.affiliateSettings);
-                      const commissionRate = parseFloat(
-                        settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'
-                      );
-
-                      // Calculate commission
-                      const calculatedCommission = Math.round((Number(payment.amount) * commissionRate) / 100);
+                      // Calculate commission dynamically from order items
+                      let calculatedCommission = 0;
+                      
+                      if (orderData.items && Array.isArray(orderData.items)) {
+                        calculatedCommission = Math.round(
+                          orderData.items.reduce((sum: number, item: any) => {
+                            const itemAffiliateCommission = item.affiliateCommission || 0;
+                            const itemPrice = parseInt(item.price?.replace(/[₹,]/g, "") || "0");
+                            const itemTotal = itemPrice * (item.quantity || 1);
+                            return sum + (itemTotal * itemAffiliateCommission) / 100;
+                          }, 0)
+                        );
+                      }
+                      
+                      const commissionRate = calculatedCommission > 0 && Number(payment.amount) > 0 
+                        ? (calculatedCommission / Number(payment.amount)) * 100 
+                        : 0;
 
                       console.log(`💰 Calculated commission: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${payment.amount})`);
 
@@ -2879,6 +2887,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
+      res.json(allProducts);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      res.status(500).json({ error: "Failed to fetch products" });
+    }
+  });
 
   // Delivery Address Management Routes
   app.get("/api/delivery-addresses", async (req, res) => {
@@ -3069,47 +3083,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); 
-      res.setHeader('CDN-Cache-Control', 'public, max-age=300'); 
-
-      // Get images for each product
-      const productsWithImages = await Promise.all(
-        allProducts.map(async (product) => {
-          try {
-            const images = await db
-              .select()
-              .from(schema.productImages)
-              .where(eq(schema.productImages.productId, product.id))
-              .orderBy(asc(schema.productImages.sortOrder));
-
-            return {
-              ...product,
-              images: images.map(img => ({
-                id: img.id,
-                url: img.imageUrl,
-                isPrimary: img.isPrimary,
-                sortOrder: img.sortOrder
-              }))
-            };
-          } catch (imgError) {
-            console.warn(`Failed to get images for product ${product.id}:`, imgError.message);
-            return {
-              ...product,
-              images: []
-            };
-          }
-        })
-      );
-
-      console.log("Returning products with images:", productsWithImages.length);
-      res.json(productsWithImages);
-    } catch (error) {
-      console.error("Products API error:", error);
-      res.status(500).json({ error: "Failed to fetch products", details: error.message });
-    }
-  });
 
   app.post("/api/products", async (req, res) => {
     try {
@@ -4376,79 +4349,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Affiliate Settings Routes
-  app.get("/api/admin/affiliate-settings", adminMiddleware, async (req, res) => {
-    try {
-      const settings = await db.select().from(schema.affiliateSettings);
-
-      const settingsObj = {
-        commissionRate: settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10',
-        userDiscountPercentage: settings.find(s => s.settingKey === 'user_discount_percentage')?.settingValue || '5',
-        maxDiscountAmount: settings.find(s => s.settingKey === 'max_discount_amount')?.settingValue || '',
-        minOrderAmount: settings.find(s => s.settingKey === 'min_order_amount')?.settingValue || '0',
-      };
-
-      res.json(settingsObj);
-    } catch (error) {
-      console.error("Error fetching affiliate settings:", error);
-      res.status(500).json({ error: "Failed to fetch affiliate settings" });
-    }
-  });
-
-  app.put("/api/admin/affiliate-settings", adminMiddleware, async (req, res) => {
-    try {
-      const { commissionRate, userDiscountPercentage, maxDiscountAmount, minOrderAmount } = req.body;
-
-      // Upsert settings
-      const settings = [
-        { key: 'commission_rate', value: commissionRate, description: 'Commission percentage for affiliates' },
-        { key: 'user_discount_percentage', value: userDiscountPercentage, description: 'Discount percentage for users using affiliate links' },
-        { key: 'max_discount_amount', value: maxDiscountAmount || '', description: 'Maximum discount amount in rupees' },
-        { key: 'min_order_amount', value: minOrderAmount || '0', description: 'Minimum order amount to apply discount' },
-      ];
-
-      for (const setting of settings) {
-        await db.execute(sql`
-          INSERT INTO affiliate_settings (setting_key, setting_value, description, updated_at)
-          VALUES (${setting.key}, ${setting.value}, ${setting.description}, NOW())
-          ON CONFLICT (setting_key) 
-          DO UPDATE SET setting_value = ${setting.value}, updated_at = NOW()
-        `);
-      }
-
-      res.json({ success: true, message: "Settings updated successfully" });
-    } catch (error) {
-      console.error("Error updating affiliate settings:", error);
-      res.status(500).json({ error: "Failed to update affiliate settings" });
-    }
-  });
-
-  // Get affiliate settings for cart (public)
-  app.get("/api/affiliate-settings", async (req, res) => {
-    try {
-      const settings = await db.select().from(schema.affiliateSettings);
-
-      const settingsObj = {
-        commissionRate: parseFloat(settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'),
-        userDiscountPercentage: parseFloat(settings.find(s => s.settingKey === 'user_discount_percentage')?.settingValue || '5'),
-        maxDiscountAmount: settings.find(s => s.settingKey === 'max_discount_amount')?.settingValue 
-          ? parseFloat(settings.find(s => s.settingKey === 'max_discount_amount')!.settingValue) 
-          : null,
-        minOrderAmount: parseFloat(settings.find(s => s.settingKey === 'min_order_amount')?.settingValue || '0'),
-      };
-
-      res.json(settingsObj);
-    } catch (error) {
-      console.error("Error fetching affiliate settings:", error);
-      res.json({
-        commissionRate: 10,
-        userDiscountPercentage: 5,
-        maxDiscountAmount: null,
-        minOrderAmount: 0
-      });
-    }
-  });
-
 
 
   // Create new order (for checkout)
@@ -4467,7 +4367,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customerPhone,
         redeemAmount,
         affiliateCode,
-        affiliateCommission, // This seems to be unused here, but kept for context
+        affiliateCommission,
+        affiliateCommissionEarned,
         affiliateWalletAmount
       } = req.body;
 
@@ -4855,16 +4756,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.error(`❌ Affiliate application not found or not approved for user ${affiliateUserId}`);
               // Continue with order creation even if affiliate is invalid
             } else {
-              // Get affiliate settings for commission rate
-              const settings = await db.select().from(schema.affiliateSettings);
-              const commissionRate = parseFloat(
-                settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'
-              );
+              // Use affiliateCommission from request body if provided, otherwise calculate from items
+              let calculatedCommission = affiliateCommission ? Number(affiliateCommission) : 0;
+              
+              if (calculatedCommission === 0 && items && Array.isArray(items)) {
+                calculatedCommission = items.reduce((sum: number, item: any) => {
+                  const itemAffiliateCommission = item.affiliateCommission || 0;
+                  const itemPrice = parseInt(item.price?.replace(/[₹,]/g, "") || "0");
+                  const itemTotal = itemPrice * (item.quantity || 1);
+                  return sum + (itemTotal * itemAffiliateCommission) / 100;
+                }, 0);
+              }
+              
+              const commissionRate = calculatedCommission > 0 && Number(totalAmount) > 0 
+                ? (calculatedCommission / Number(totalAmount)) * 100 
+                : 0;
 
-              // Calculate commission - use total amount after all deductions
-              const calculatedCommission = (Number(totalAmount) * commissionRate) / 100;
-
-              console.log(`💰 Calculated commission: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${totalAmount})`);
+              console.log(`💰 Commission to credit: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${totalAmount})`);
 
               // Get or create affiliate wallet
               let wallet = await db
@@ -4960,6 +4868,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } else {
           console.error(`❌ Invalid affiliate user ID from code: ${affiliateCode}`);
+        }
+      }
+
+      // Credit affiliateCommissionEarned to affiliate wallet if provided
+      if (affiliateCommissionEarned && Number(affiliateCommissionEarned) > 0 && affiliateCode && affiliateCode.startsWith('POPPIKAP')) {
+        const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
+        const commissionAmount = Number(affiliateCommissionEarned);
+
+        console.log(`💳 Processing affiliateCommissionEarned: ₹${commissionAmount} for affiliate ${affiliateUserId}`);
+
+        if (!isNaN(affiliateUserId)) {
+          try {
+            // Get or create affiliate wallet
+            let wallet = await db
+              .select()
+              .from(schema.affiliateWallet)
+              .where(eq(schema.affiliateWallet.userId, affiliateUserId))
+              .limit(1);
+
+            if (wallet.length === 0) {
+              console.log(`📝 Creating new wallet for affiliate ${affiliateUserId}`);
+              // Create wallet
+              const [newWallet] = await db.insert(schema.affiliateWallet).values({
+                userId: affiliateUserId,
+                cashbackBalance: "0.00",
+                commissionBalance: commissionAmount.toFixed(2),
+                totalEarnings: commissionAmount.toFixed(2),
+                totalWithdrawn: "0.00"
+              }).returning();
+
+              console.log(`✅ Wallet created with commission:`, newWallet);
+            } else {
+              console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
+              // Update wallet
+              const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
+              const currentEarnings = parseFloat(wallet[0].totalEarnings || '0');
+
+              const [updatedWallet] = await db.update(schema.affiliateWallet)
+                .set({
+                  commissionBalance: (currentCommission + commissionAmount).toFixed(2),
+                  totalEarnings: (currentEarnings + commissionAmount).toFixed(2),
+                  updatedAt: new Date()
+                })
+                .where(eq(schema.affiliateWallet.userId, affiliateUserId))
+                .returning();
+
+              console.log(`✅ Wallet updated with commission:`, updatedWallet);
+            }
+
+            // Create transaction record for this commission
+            await db.insert(schema.affiliateTransactions).values({
+              userId: affiliateUserId,
+              orderId: newOrder.id,
+              type: 'commission',
+              amount: commissionAmount.toFixed(2),
+              balanceType: 'commission',
+              description: `Commission earned from order ${orderId}`,
+              status: 'completed',
+              processedAt: new Date(),
+              createdAt: new Date()
+            });
+
+            console.log(`✅ Affiliate commission earned credited: ₹${commissionAmount.toFixed(2)} to affiliate ${affiliateUserId}`);
+          } catch (error) {
+            console.error(`❌ Error crediting affiliateCommissionEarned:`, error);
+            // Continue with order creation even if this fails
+          }
         }
       }
 

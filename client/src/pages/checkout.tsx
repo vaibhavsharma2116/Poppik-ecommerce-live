@@ -263,17 +263,24 @@ const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
   medininagar: { state: "jharkhand", pincodes: ["822101"] }
 };
 
+// Helper to build API URLs that respect VITE_API_BASE when frontend runs separately
+const apiUrl = (path: string) => {
+  const base = (import.meta as any).env?.VITE_API_BASE || "";
+  if (!base) return path;
+  return `${base.replace(/\/$/, "")}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
 
 interface CartItem {
   id: number;
   name: string;
-  price: string;
   price?: string;
   image: string;
   quantity: number;
   inStock: boolean;
   cashbackPrice?: string;
   cashbackPercentage?: string;
+  affiliateCommission?: number; // Dynamic affiliate commission % from product
   selectedShade?: {
     id?: number;
     name: string;
@@ -291,7 +298,7 @@ const steps = [
 
 export default function CheckoutPage() {
   const [location, setLocation] = useLocation();
-  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0 } = (location as any).state || {};
+  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0, affiliateDiscountFromItems: passedAffiliateDiscountFromItems = 0, affiliateCommissionFromItems: passedAffiliateCommissionFromItems = 0 } = (location as any).state || {};
 
   // Step navigation
   const [currentStep, setCurrentStep] = useState(1);
@@ -320,7 +327,8 @@ export default function CheckoutPage() {
     phone: "",
     paymentMethod: "cashfree",
     affiliateCode: passedAffiliateCode || "",
-    affiliateDiscount: 0,
+    // Prefer explicit affiliateDiscount passed via location, otherwise fallback to discount from items
+    affiliateDiscount: passedAffiliateDiscount || passedAffiliateDiscountFromItems || 0,
     deliveryInstructions: "", // Added state for delivery instructions
     saturdayDelivery: false, // Changed to boolean for easier handling
     sundayDelivery: false // Changed to boolean for easier handling
@@ -363,14 +371,7 @@ export default function CheckoutPage() {
     const saved = localStorage.getItem('redeemAmount');
     return saved ? parseFloat(saved) : 0;
   });
-  const [affiliateWalletAmount, setAffiliateWalletAmount] = useState(() => {
-    // Try to get from props first, then localStorage
-    if (passedAffiliateWalletAmount > 0) {
-      return passedAffiliateWalletAmount;
-    }
-    const saved = localStorage.getItem('affiliateWalletAmount');
-    return saved ? parseFloat(saved) : 0;
-  });
+  const [affiliateWalletAmount, setAffiliateWalletAmount] = useState(0);
 
   // Promo code states
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
@@ -414,6 +415,16 @@ export default function CheckoutPage() {
     setRedeemAmount(walletAmount);
   }, [walletAmount]);
 
+  // Sync affiliateWalletAmount with database data (affiliateWalletData.commissionBalance)
+  useEffect(() => {
+    if (affiliateWalletData?.commissionBalance) {
+      const balance = parseFloat(affiliateWalletData.commissionBalance);
+      if (!isNaN(balance) && balance > 0) {
+        setAffiliateWalletAmount(balance);
+      }
+    }
+  }, [affiliateWalletData]);
+
   useEffect(() => {
     // Check if user is logged in when accessing checkout
     if (!user) {
@@ -450,7 +461,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
     // Fetch saved addresses
     const fetchAddresses = async () => {
       try {
-        const response = await fetch(`/api/delivery-addresses?userId=${user.id}`);
+        const response = await fetch(apiUrl(`/api/delivery-addresses?userId=${user.id}`));
         if (response.ok) {
           const addresses = await response.json();
           setSavedAddresses(addresses);
@@ -458,13 +469,13 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           // Check if address was selected from delivery address page
           const selectedAddressFromStorage = localStorage.getItem('selectedDeliveryAddress');
 
-          if (selectedAddressFromStorage) {
+              if (selectedAddressFromStorage) {
             try {
               const selectedAddr = JSON.parse(selectedAddressFromStorage);
-              const addressInList = addresses.find((addr: any) => addr.id === selectedAddr.id);
+                  const addressInList = addresses.find((addr: any) => Number(addr.id) === Number(selectedAddr.id));
 
               if (addressInList) {
-                setSelectedAddressId(addressInList.id);
+                    setSelectedAddressId(Number(addressInList.id));
                 populateFormWithAddress(addressInList);
 
                 toast({
@@ -482,10 +493,10 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
             // Select the default address or the first one if no address was selected
             const defaultAddress = addresses.find((addr: any) => addr.isDefault);
             if (defaultAddress) {
-              setSelectedAddressId(defaultAddress.id);
+              setSelectedAddressId(Number(defaultAddress.id));
               populateFormWithAddress(defaultAddress);
             } else if (addresses.length > 0) {
-              setSelectedAddressId(addresses[0].id);
+              setSelectedAddressId(Number(addresses[0].id));
               populateFormWithAddress(addresses[0]);
             }
           }
@@ -499,27 +510,31 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
    
 
-    // Load affiliate discount from localStorage first
-    const savedAffiliateDiscount = localStorage.getItem('affiliateDiscount');
+    // Load affiliate discount from localStorage first (set by Cart when items include affiliate discounts)
+    const savedAffiliateDiscount = localStorage.getItem('affiliateCommissionEarned');
     let affiliateDiscountAmount = 0;
     let affiliateCodeValue = '';
 
     if (savedAffiliateDiscount) {
       try {
         const affiliateData = JSON.parse(savedAffiliateDiscount);
-        affiliateDiscountAmount = affiliateData.discount;
-        affiliateCodeValue = affiliateData.code;
+        // saved shape from cart.tsx: { commission, discount, fromProducts, timestamp }
+        affiliateDiscountAmount = affiliateData.discount || 0;
+        // there may not be an affiliate code saved here; only set if present
+        affiliateCodeValue = affiliateData.code || '';
 
         setFormData(prev => ({
           ...prev,
-          affiliateCode: affiliateData.code,
-          affiliateDiscount: affiliateData.discount,
+          // do not overwrite affiliateCode if already provided by location state unless we have one here
+          affiliateCode: prev.affiliateCode || affiliateCodeValue,
+          affiliateDiscount: affiliateData.discount || prev.affiliateDiscount || 0,
         }));
 
         console.log('✅ Loaded affiliate discount from localStorage:', affiliateData);
       } catch (error) {
         console.error('Error loading affiliate discount:', error);
-        localStorage.removeItem('affiliateDiscount');
+        // remove the stored affiliate commission object if it's invalid
+        localStorage.removeItem('affiliateCommissionEarned');
       }
     }
 
@@ -580,71 +595,87 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       const userData = user;
       setUserProfile(userData);
 
-      // Auto-fill form data if profile has information and not already loaded
-      if (userData && !profileDataLoaded) {
-        // Parse address to extract city, state, zipCode from profile
-        let city = "";
-        let state = "";
-        let zipCode = "";
-        let streetAddress = userData.address || "";
+      // Auto-fill form data if profile has information (always load for multi-address orders)
+      if (userData) {
+        const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
+        
+        // For non-multi-address orders, only load once. For multi-address, always load to ensure form data is populated
+        if (!profileDataLoaded || isMultiAddress) {
+          // Parse address to extract city, state, zipCode from profile
+          let city = "";
+          let state = "";
+          let zipCode = "";
+          let streetAddress = userData.address || "";
 
-        // Try to extract city, state, zipCode from full address if they exist
-        if (streetAddress) {
-          const addressParts = streetAddress.split(',').map((part: string) => part.trim());
-          if (addressParts.length >= 3) {
-            // Last part might contain state and pin code
-            const lastPart = addressParts[addressParts.length - 1];
-            const pinCodeMatch = lastPart.match(/\d{6}$/);
-            if (pinCodeMatch) {
-              zipCode = pinCodeMatch[0];
-              state = lastPart.replace(/\d{6}$/, '').trim();
-            } else {
-              state = lastPart;
+          // Try to extract city, state, zipCode from full address if they exist
+          if (streetAddress) {
+            const addressParts = streetAddress.split(',').map((part: string) => part.trim());
+            if (addressParts.length >= 3) {
+              // Last part might contain state and pin code
+              const lastPart = addressParts[addressParts.length - 1];
+              const pinCodeMatch = lastPart.match(/\d{6}$/);
+              if (pinCodeMatch) {
+                zipCode = pinCodeMatch[0];
+                state = lastPart.replace(/\d{6}$/, '').trim();
+              } else {
+                state = lastPart;
+              }
+
+              // Second last part might be city
+              if (addressParts.length >= 2) {
+                city = addressParts[addressParts.length - 2];
+              }
+
+              // Remove city and state from full address to get street address
+              streetAddress = addressParts.slice(0, -2).join(', ');
+            } else if (addressParts.length === 2) {
+              // If only 2 parts, assume first is address and second is city
+              city = addressParts[1];
+              streetAddress = addressParts[0];
+            } else if (addressParts.length === 1) {
+              // If only 1 part, use it as street address
+              streetAddress = addressParts[0];
             }
-
-            // Second last part might be city
-            if (addressParts.length >= 2) {
-              city = addressParts[addressParts.length - 2];
-            }
-
-            // Remove city and state from full address to get street address
-            streetAddress = addressParts.slice(0, -2).join(', ');
-          } else if (addressParts.length === 2) {
-            // If only 2 parts, assume first is address and second is city
-            city = addressParts[1];
-            streetAddress = addressParts[0];
-          } else if (addressParts.length === 1) {
-            // If only 1 part, use it as street address
-            streetAddress = addressParts[0];
           }
-        }
 
-        // Auto-fill form data with profile information
-        setFormData({
-          email: userData.email || "",
-          firstName: userData.firstName || "",
-          lastName: userData.lastName || "",
-          address: streetAddress,
-          city: city,
-          state: state,
-          zipCode: zipCode,
-          phone: userData.phone || "",
-          paymentMethod: "cashfree",
-          affiliateCode: passedAffiliateCode,
-          affiliateDiscount: passedAffiliateDiscount,
-          deliveryInstructions: userData.deliveryInstructions || "",
-          saturdayDelivery: userData.saturdayDelivery === true, // Ensure boolean conversion
-          sundayDelivery: userData.sundayDelivery === true // Ensure boolean conversion
-        });
-
-        setProfileDataLoaded(true);
-
-        // Show notification that data was auto-filled
-        if (userData.firstName || userData.lastName || userData.email || userData.phone || userData.address) {
-          toast({
-            title: "Profile Data Loaded",
-            description: "Your contact information and shipping address have been filled automatically.",
+          // Auto-fill form data with profile information
+          setFormData(prev => {
+            const updatedForm = {
+              ...prev,
+              email: userData.email?.trim() || prev.email || "",
+              firstName: userData.firstName?.trim() || prev.firstName || "",
+              lastName: userData.lastName?.trim() || prev.lastName || "",
+              address: streetAddress?.trim() || prev.address || "",
+              city: city?.trim() || prev.city || "",
+              state: state?.trim() || prev.state || "",
+              zipCode: zipCode?.trim() || prev.zipCode || "",
+              phone: userData.phone?.trim() || prev.phone || "",
+              deliveryInstructions: userData.deliveryInstructions?.trim() || prev.deliveryInstructions || "",
+              saturdayDelivery: userData.saturdayDelivery === true ? true : prev.saturdayDelivery,
+              sundayDelivery: userData.sundayDelivery === true ? true : prev.sundayDelivery
+            };
+            
+            console.log('📝 Form data auto-populated:', {
+              email: updatedForm.email ? '✓' : '✗',
+              firstName: updatedForm.firstName ? '✓' : '✗',
+              lastName: updatedForm.lastName ? '✓' : '✗',
+              address: updatedForm.address ? '✓' : '✗'
+            });
+            
+            return updatedForm;
           });
+
+          if (!profileDataLoaded) {
+            setProfileDataLoaded(true);
+
+            // Show notification that data was auto-filled
+            if (userData.firstName || userData.lastName || userData.email || userData.phone || userData.address) {
+              toast({
+                title: "Profile Data Loaded",
+                description: "Your contact information and shipping address have been filled automatically.",
+              });
+            }
+          }
         }
       }
     } catch (error) {
@@ -662,7 +693,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       }
     }
     setLoading(false);
-  }, [profileDataLoaded]);
+  }, [user?.id, profileDataLoaded]);
 
   // Fetch shipping cost when zipCode or paymentMethod changes
   useEffect(() => {
@@ -728,7 +759,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
   const verifyPayment = async (orderIdParam: string) => {
     try {
-      const response = await fetch('/api/payments/cashfree/verify', {
+      const response = await fetch(apiUrl('/api/payments/cashfree/verify'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: orderIdParam }),
@@ -745,7 +776,9 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
           localStorage.removeItem("cart");
           localStorage.removeItem("appliedPromoCode");
+          // Clear affiliate discount/commission info saved by cart
           localStorage.removeItem("affiliateDiscount");
+          localStorage.removeItem("affiliateCommissionEarned");
           localStorage.removeItem("promoDiscount"); // Remove promo discount from local storage
           sessionStorage.removeItem('pendingOrder');
           localStorage.setItem("cartCount", "0");
@@ -785,7 +818,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
     return cartItems.reduce((total, item) => {
       const price = item.price
         ? parseInt(item.price.replace(/[₹,]/g, ""))
-        : parseInt(item.price.replace(/[₹,]/g, ""));
+        : 0;
       return total + (price * item.quantity);
     }, 0);
   };
@@ -803,8 +836,27 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   const cartSubtotal = calculateSubtotal();
   const cartSubtotalAfterProductDiscount = cartSubtotal - productDiscount;
 
-  // Use affiliate discount from formData (loaded from localStorage) or passed value
-  const affiliateDiscountAmount = formData.affiliateDiscount || passedAffiliateDiscount || 0;
+  // Read affiliate discount synchronously so it can be shown on initial render
+  const initialAffiliateDiscount = (() => {
+    try {
+      if (typeof window === 'undefined') return 0;
+
+      // Read previously saved value in localStorage
+      const raw = localStorage.getItem('affiliateCommissionEarned');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed.discount === 'number' && parsed.discount > 0) {
+          return parsed.discount;
+        }
+      }
+    } catch (e) {
+      // ignore and fallback to 0
+    }
+    return 0;
+  })();
+
+  // Use affiliate discount from formData (loaded from localStorage or passed value) or the initial value
+  const affiliateDiscountAmount = (formData.affiliateDiscount || passedAffiliateDiscount || initialAffiliateDiscount) || 0;
   const subtotalAfterAffiliate = cartSubtotalAfterProductDiscount - affiliateDiscountAmount;
 
   const subtotalAfterDiscount = subtotalAfterAffiliate - promoDiscount;
@@ -817,24 +869,36 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   // Calculate total before redemption (same as cart page)
   const totalBeforeRedemption = subtotalAfterDiscount + shipping;
 
-  // Apply wallet deductions at the end (same as cart page)
-  const total = Math.max(0, totalBeforeRedemption - walletAmount - affiliateWalletAmount);
+  // Apply wallet deductions at the end (same as cart page) - with NaN safety checks
+  const safeWalletAmount = isNaN(walletAmount) || !walletAmount ? 0 : Number(walletAmount);
+  const safeAffiliateWalletAmount = isNaN(affiliateWalletAmount) || !affiliateWalletAmount ? 0 : Number(affiliateWalletAmount);
+  const total = Math.max(0, totalBeforeRedemption - safeWalletAmount - safeAffiliateWalletAmount);
 
-
-  // Fetch affiliate settings to get commission rate
-  const { data: affiliateSettings } = useQuery({
-    queryKey: ['/api/affiliate-settings'],
-    queryFn: async () => {
-      const res = await fetch('/api/affiliate-settings');
-      if (!res.ok) throw new Error('Failed to fetch affiliate settings');
-      return res.json();
-    },
-  });
-
-  const commissionRate = affiliateSettings?.commissionRate || 10;
+  // Calculate affiliate commission dynamically from product's affiliate_commission field
   const affiliateCommission = formData.affiliateCode
-    ? Math.round(total * (commissionRate / 100))
+    ? Math.round(
+        cartItems.reduce((sum, item) => {
+          // Get affiliate commission percentage from product (fallback to 0 if not set)
+          const itemAffiliateCommission = item.affiliateCommission || 0;
+          const itemPrice = parseInt(item.price?.replace(/[₹,]/g, "") || "0");
+          const itemTotal = itemPrice * item.quantity;
+          // Calculate commission for this item: (itemTotal * affiliateCommission%) / 100
+          return sum + (itemTotal * itemAffiliateCommission) / 100;
+        }, 0)
+      )
     : 0;
+
+  // Whether the currently selected address has all required fields filled
+  // Consider address complete if at least one name (firstName OR lastName) present
+  // (some saved addresses may have a single recipient name), plus other required fields.
+  const isAddressComplete = Boolean(
+    ( (formData.firstName && formData.firstName.trim().length > 0) || (formData.lastName && formData.lastName.trim().length > 0) ) &&
+    formData.phone && formData.phone.trim().length > 0 &&
+    formData.address && formData.address.trim().length >= 10 &&
+    formData.city && formData.city.trim().length > 0 &&
+    formData.state && formData.state.trim().length > 0 &&
+    formData.zipCode && /^\d{6}$/.test(String(formData.zipCode))
+  );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -897,7 +961,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         streetAddress = addressParts[0];
       }
 
-      setFormData({
+        setFormData({
         email: (userProfile as any)?.email || "",
         firstName: (userProfile as any)?.firstName || "",
         lastName: (userProfile as any)?.lastName || "",
@@ -908,7 +972,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         phone: (userProfile as any)?.phone || "",
         paymentMethod: "cashfree",
         affiliateCode: passedAffiliateCode,
-        affiliateDiscount: passedAffiliateDiscount,
+        affiliateDiscount: passedAffiliateDiscount || passedAffiliateDiscountFromItems || 0,
         deliveryInstructions: (userProfile as any)?.deliveryInstructions || "",
         saturdayDelivery: (userProfile as any)?.saturdayDelivery === true, // Ensure boolean
         sundayDelivery: (userProfile as any)?.sundayDelivery === true // Ensure boolean
@@ -1023,10 +1087,10 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   };
 
   const populateFormWithAddress = (address: any) => {
-    setFormData({
-      ...formData,
-      firstName: address.recipientName.split(' ')[0] || "",
-      lastName: address.recipientName.split(' ').slice(1).join(' ') || "",
+    setFormData(prev => ({
+      ...prev,
+      firstName: address.recipientName?.split(' ')[0] || "",
+      lastName: address.recipientName?.split(' ').slice(1).join(' ') || "",
       phone: address.phoneNumber || "",
       address: address.addressLine1 || "",
       city: address.city || "",
@@ -1035,12 +1099,12 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       saturdayDelivery: address.saturdayDelivery === true, // Populate weekend delivery info as boolean
       sundayDelivery: address.sundayDelivery === true, // Populate weekend delivery info as boolean
       deliveryInstructions: address.deliveryInstructions || "", // Populate delivery instructions
-    });
+    }));
   };
 
   const handleAddressSelection = (addressId: number) => {
-    setSelectedAddressId(addressId);
-    const selectedAddress = savedAddresses.find(addr => addr.id === addressId);
+    setSelectedAddressId(Number(addressId));
+    const selectedAddress = savedAddresses.find(addr => Number(addr.id) === Number(addressId));
     if (selectedAddress) {
       populateFormWithAddress(selectedAddress);
     }
@@ -1089,7 +1153,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
     try {
       // Save to database
-      const response = await fetch('/api/delivery-addresses', {
+      const response = await fetch(apiUrl('/api/delivery-addresses'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1118,13 +1182,13 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       const savedAddress = await response.json();
 
       // Refresh addresses list
-      const addressesResponse = await fetch(`/api/delivery-addresses?userId=${user.id}`);
+      const addressesResponse = await fetch(apiUrl(`/api/delivery-addresses?userId=${user.id}`));
       if (addressesResponse.ok) {
         const updatedAddresses = await addressesResponse.json();
         setSavedAddresses(updatedAddresses);
 
-        // Select the newly added address
-        setSelectedAddressId(savedAddress.id);
+        // Select the newly added address (coerce id to number)
+        setSelectedAddressId(Number(savedAddress.id));
         populateFormWithAddress(savedAddress);
       }
 
@@ -1181,7 +1245,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
     setIsRedeeming(true);
     try {
-      const res = await fetch('/api/wallet/redeem', {
+      const res = await fetch(apiUrl('/api/wallet/redeem'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1268,7 +1332,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
       const orderId = `ORD-${Date.now()}-${user.id}`;
 
-      const response = await fetch('/api/payments/cashfree/create-order', {
+      const response = await fetch(apiUrl('/api/payments/cashfree/create-order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1438,10 +1502,10 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       return;
     }
 
-    if (!formData.email || !formData.firstName || !formData.lastName || !formData.address) {
+    if (!formData.email?.trim() || !formData.firstName?.trim() || !formData.lastName?.trim() || !formData.address?.trim()) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields: Email, First Name, Last Name, and Address",
         variant: "destructive",
       });
       setIsProcessing(false);
@@ -1599,6 +1663,18 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           isMultiAddress: isMultiAddress,
           affiliateCode: formData.affiliateCode || passedAffiliateCode || null,
           affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
+          affiliateCommissionEarned: (() => {
+            try {
+              const raw = localStorage.getItem('affiliateCommissionEarned');
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                return parsed.commission || 0;
+              }
+            } catch (e) {
+              // ignore
+            }
+            return 0;
+          })(),
           promoCode: appliedPromo?.code || null,
           promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
           redeemAmount: Math.round(redeemAmount) || 0,
@@ -1620,7 +1696,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
         if (redeemAmount > 0) {
           try {
-            const redeemResponse = await fetch('/api/wallet/redeem', {
+            const redeemResponse = await fetch(apiUrl('/api/wallet/redeem'), {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -1672,7 +1748,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           // Log affiliate wallet transaction if affiliate wallet was used
           if (affiliateWalletAmount > 0) {
             try {
-              await fetch('/api/affiliate/transactions', {
+              await fetch(apiUrl('/api/affiliate/transactions'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -2357,18 +2433,31 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                       </div>
                     )}
 
-                    {selectedAddressId && (
-                      <div className="flex justify-end pt-4">
+                    <div className="flex justify-between items-center pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setLocation('/cart')}
+                        size="sm"
+                      >
+                        ← Back
+                      </Button>
+
+                      <div className="flex flex-col items-end">
                         <Button
                           type="button"
                           onClick={handleNextStep}
-                          className="bg-red-600 hover:bg-red-700 flex items-center gap-2"
+                          className={`flex items-center gap-2 ${isAddressComplete ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
+                          disabled={!isAddressComplete}
                         >
                           Continue to Review
                           <ChevronRight className="h-4 w-4" />
                         </Button>
+                        {!isAddressComplete && (
+                          <p className="text-xs text-gray-500 mt-1">Please complete address details to continue</p>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -2526,21 +2615,9 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                         type="button" 
                         variant="outline" 
                         onClick={() => {
-                          // Always go back to Step 1 to allow address changes
+                          // Go back to Step 1 to allow address changes
                           setCurrentStep(1);
-                          // Clear selected address so nothing is pre-selected
-                          setSelectedAddressId(null);
-                          // Clear form data to reset
-                          setFormData(prev => ({
-                            ...prev,
-                            address: "",
-                            city: "",
-                            state: "",
-                            zipCode: "",
-                          }));
-                          // Clear multi-address flags so user can reconfigure
-                          localStorage.removeItem('isMultiAddressOrder');
-                          localStorage.removeItem('multiAddressMapping');
+                          // Keep selectedAddressId and formData so address stays selected
                         }}
                         size="sm"
                       >
@@ -2564,37 +2641,95 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <RadioGroup
-                      value={formData.paymentMethod}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
-                      className="space-y-3"
-                    >
+                    {/* Contact Information Section */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <h3 className="font-semibold text-blue-900 mb-3">Contact Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="email">Email *</Label>
+                          <Input
+                            id="email"
+                            name="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            placeholder="your@email.com"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="phone">Phone *</Label>
+                          <Input
+                            id="phone"
+                            name="phone"
+                            type="tel"
+                            value={formData.phone}
+                            onChange={handleInputChange}
+                            placeholder="10-digit number"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="firstName">First Name *</Label>
+                          <Input
+                            id="firstName"
+                            name="firstName"
+                            value={formData.firstName}
+                            onChange={handleInputChange}
+                            placeholder="First Name"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="lastName">Last Name *</Label>
+                          <Input
+                            id="lastName"
+                            name="lastName"
+                            value={formData.lastName}
+                            onChange={handleInputChange}
+                            placeholder="Last Name"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
 
-                      <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-gray-50">
-                        <RadioGroupItem value="cashfree" id="cashfree" />
-                        <Label htmlFor="cashfree" className="flex-1 cursor-pointer">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium">Online Payment</p>
-                              <p className="text-sm text-gray-500">Pay with UPI, Cards, Net Banking & Wallets</p>
+                    <Separator />
+
+                    {/* Payment Method Section */}
+                    <div className="mt-4">
+                      <h3 className="font-semibold text-gray-900 mb-3">Payment Method</h3>
+                      <RadioGroup
+                        value={formData.paymentMethod}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
+                        className="space-y-3"
+                      >
+                        <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-gray-50">
+                          <RadioGroupItem value="cashfree" id="cashfree" />
+                          <Label htmlFor="cashfree" className="flex-1 cursor-pointer">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium">Online Payment</p>
+                                <p className="text-sm text-gray-500">Pay with UPI, Cards, Net Banking & Wallets</p>
+                              </div>
+                              <Badge className="bg-purple-100 text-purple-800">Secure</Badge>
                             </div>
-                            <Badge className="bg-purple-100 text-purple-800">Secure</Badge>
-                          </div>
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-gray-50">
-                        <RadioGroupItem value="cod" id="cod" />
-                        <Label htmlFor="cod" className="flex-1 cursor-pointer">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium">Cash on Delivery</p>
-                              <p className="text-sm text-gray-500">Pay when you receive your order</p>
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-gray-50">
+                          <RadioGroupItem value="cod" id="cod" />
+                          <Label htmlFor="cod" className="flex-1 cursor-pointer">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium">Cash on Delivery</p>
+                                <p className="text-sm text-gray-500">Pay when you receive your order</p>
+                              </div>
+                              <Badge className="bg-amber-100 text-amber-800">No fees</Badge>
                             </div>
-                            <Badge className="bg-amber-100 text-amber-800">No fees</Badge>
-                          </div>
-                        </Label>
-                      </div>
-                    </RadioGroup>
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
 
                     <div className="flex justify-between pt-4">
                       <Button
@@ -2612,6 +2747,53 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                         {isProcessing ? "Processing..." : `Place Order - ₹${total.toLocaleString()}`}
                       </Button>
                     </div>
+
+                    {/* Affiliate Wallet Section - Show if user has affiliate wallet balance */}
+                    {affiliateWalletData?.commissionBalance && parseFloat(affiliateWalletData.commissionBalance) > 0 && (
+                      <div className="mt-6 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Award className="h-5 w-5 text-purple-600" />
+                            <div>
+                              <p className="font-semibold text-purple-900">Affiliate Wallet Balance</p>
+                              <p className="text-sm text-purple-700">Use your commission earned from referrals</p>
+                            </div>
+                          </div>
+                          <span className="text-lg font-bold text-purple-600">₹{parseFloat(affiliateWalletData.commissionBalance).toFixed(2)}</span>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              id="useAffiliateWallet"
+                              checked={affiliateWalletAmount > 0}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setAffiliateWalletAmount(parseFloat(affiliateWalletData.commissionBalance));
+                                } else {
+                                  setAffiliateWalletAmount(0);
+                                }
+                              }}
+                              className="w-4 h-4 rounded cursor-pointer"
+                            />
+                            <Label htmlFor="useAffiliateWallet" className="cursor-pointer text-purple-900 font-medium">
+                              Use affiliate wallet balance
+                            </Label>
+                          </div>
+
+                          {affiliateWalletAmount > 0 && (
+                            <div className="bg-purple-100 p-3 rounded border border-purple-300">
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-purple-800 font-medium">Amount to be deducted:</span>
+                                <span className="font-bold text-purple-900">₹{affiliateWalletAmount.toFixed(2)}</span>
+                              </div>
+                              <p className="text-xs text-purple-700 mt-2">This amount will be deducted from your total bill</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -2647,17 +2829,17 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                       </div>
                     )}
 
-                    {walletAmount > 0 && (
+                    {safeWalletAmount > 0 && (
                       <div className="flex justify-between text-sm text-green-600">
                         <span>Cashback Wallet</span>
-                        <span className="font-semibold">-₹{walletAmount.toFixed(2)}</span>
+                        <span className="font-semibold">-₹{safeWalletAmount.toFixed(2)}</span>
                       </div>
                     )}
 
-                    {affiliateWalletAmount > 0 && (
+                    {safeAffiliateWalletAmount > 0 && (
                       <div className="flex justify-between text-sm text-purple-600">
                         <span>Affiliate Wallet</span>
-                        <span className="font-semibold">-₹{affiliateWalletAmount.toFixed(2)}</span>
+                        <span className="font-semibold">-₹{safeAffiliateWalletAmount.toFixed(2)}</span>
                       </div>
                     )}
 
@@ -2670,12 +2852,12 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total</span>
-                      <span className="text-red-600">₹{total.toLocaleString()}</span>
+                      <span className="text-red-600">₹{(isNaN(total) ? 0 : total).toLocaleString()}</span>
                     </div>
 
-                    {(affiliateDiscountAmount > 0 || promoDiscount > 0 || walletAmount > 0 || affiliateWalletAmount > 0) && (
+                    {(affiliateDiscountAmount > 0 || promoDiscount > 0 || safeWalletAmount > 0 || safeAffiliateWalletAmount > 0) && (
                       <div className="text-xs text-green-600 text-center bg-green-50 p-2 rounded">
-                        You saved ₹{(affiliateDiscountAmount + promoDiscount + walletAmount + affiliateWalletAmount).toLocaleString()}!
+                        You saved ₹{((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0)).toLocaleString()}!
                       </div>
                     )}
 

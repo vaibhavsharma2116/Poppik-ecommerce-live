@@ -30,8 +30,7 @@ export const products = pgTable("products", {
   discount: numeric('discount', { precision: 10, scale: 2 }), // Discount percentage
   cashbackPercentage: numeric('cashback_percentage', { precision: 5, scale: 2 }), // Cashback percentage
   cashbackPrice: numeric('cashback_price', { precision: 10, scale: 2 }), // Auto-calculated cashback amount
-  // Per-product affiliate settings
-  affiliateCommission: numeric('affiliate_commission', { precision: 5, scale: 2 }).default(0), // commission % for affiliates on this product
+    affiliateCommission: numeric('affiliate_commission', { precision: 5, scale: 2 }).default(0), // commission % for affiliates on this product
   affiliateUserDiscount: numeric('affiliate_user_discount', { precision: 5, scale: 2 }).default(0), // discount % given to customer when affiliate code used
   category: text('category').notNull(),
   subcategory: text("subcategory"),
@@ -627,18 +626,8 @@ export const affiliateTransactions = pgTable("affiliate_transactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const affiliateSettings = pgTable("affiliate_settings", {
-  id: serial("id").primaryKey(),
-  settingKey: varchar("setting_key", { length: 100 }).notNull().unique(),
-  settingValue: text("setting_value").notNull(),
-  description: text("description"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
 export type AffiliateTransaction = typeof affiliateTransactions.$inferSelect;
 export type InsertAffiliateTransaction = typeof affiliateTransactions.$inferInsert;
-
 // Affiliate Clicks Table - Track all clicks on affiliate links
 export const affiliateClicks = pgTable("affiliate_clicks", {
   id: serial("id").primaryKey(),
