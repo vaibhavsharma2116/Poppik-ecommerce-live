@@ -11,22 +11,8 @@ import sharp from "sharp";
 import { adminAuthMiddleware as adminMiddleware } from "./admin-middleware";
 import nodemailer from 'nodemailer';
 
-// Create alias for consistency
-const adminAuthMiddleware = adminMiddleware;
-function escapeHtml(str: any) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-
 // Verify adminMiddleware is working
 console.log('✅ Admin middleware imported:', typeof adminMiddleware === 'function');
-console.log('✅ Admin auth middleware alias:', typeof adminAuthMiddleware === 'function');
 
 // Simple rate limiting
 const rateLimitMap = new Map();
@@ -76,13 +62,14 @@ function rateLimit(req: any, res: any, next: any) {
   next();
 }
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, and, sql, or, like, isNull, asc, desc, inArray } from "drizzle-orm";
+import { eq, and, sql, or, like, isNull, asc } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import ShiprocketService from "./shiprocket-service";
-import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage, InsertBlogPost } from "../shared/schema";
-import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, contactSubmissions, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema, mediaLinks, contests, deliveryAddresses } from "../shared/schema"; // Import users table explicitly
+import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage } from "../shared/schema";
+import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, featuredSections, contactSubmissions, invoiceHtml, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema } from "../shared/schema"; // Import users table explicitly
 import type { Request, Response } from 'express'; // Import Request and Response types for clarity
 
 // Initialize Shiprocket service
@@ -96,6 +83,7 @@ const pool = new Pool({
   min: 2,
   idleTimeoutMillis: 300000, // 5 minutes
   connectionTimeoutMillis: 10000,
+  acquireTimeoutMillis: 10000,
   keepAlive: true,
   keepAliveInitialDelayMillis: 0,
   allowExitOnIdle: false,
@@ -201,59 +189,30 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: false
   },
-  family: 4 // Force IPv4
-} as any);
+  // Force IPv4
+  family: 4
+});
 
 // Function to send order notification email
 async function sendOrderNotificationEmail(orderData: any) {
-  const { orderId, customerName, customerEmail, customerPhone, shippingAddress, paymentMethod, totalAmount, items, isMultiAddress } = orderData;
+  const { orderId, customerName, customerEmail, customerPhone, shippingAddress, paymentMethod, totalAmount, items } = orderData;
 
   const emailSubject = `Poppik Lifestyle Order Confirmation - ${orderId}`;
 
   let itemHtml = '';
-  
-  // If multi-address order, show address for each item
-  if (isMultiAddress && items.some((item: any) => item.deliveryAddress)) {
-    items.forEach((item: any) => {
-      itemHtml += `
-        <tr style="border-bottom: 1px solid #ddd;">
-          <td style="padding: 15px 10px; text-align: left; vertical-align: top;">
-            <img src="${item.productImage}" alt="${item.productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">
-            <strong>${item.productName}</strong>
-            ${item.deliveryAddress ? `
-              <div style="margin-top: 8px; padding: 8px; background-color: #f0f9ff; border-left: 3px solid #3b82f6; font-size: 12px;">
-                <strong style="color: #1e40af;">Delivery To:</strong><br>
-                <span style="color: #374151;">${item.recipientName || customerName}</span><br>
-                <span style="color: #6b7280;">${item.deliveryAddress}</span><br>
-                ${item.recipientPhone ? `<span style="color: #6b7280;">📱 ${item.recipientPhone}</span><br>` : ''}
-                ${item.deliveryInstructions ? `
-                  <div style="margin-top: 5px; padding: 5px; background-color: #fffbeb; border-left: 2px solid #f59e0b;">
-                    <span style="color: #92400e; font-size: 11px;">✎ ${item.deliveryInstructions}</span>
-                  </div>
-                ` : ''}
-              </div>
-            ` : ''}
-          </td>
-          <td style="padding: 15px 10px; text-align: right; vertical-align: top;">${item.quantity}</td>
-          <td style="padding: 15px 10px; text-align: right; vertical-align: top;">₹${(parseFloat(item.price.replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
-        </tr>
-      `;
-    });
-  } else {
-    // Single address order - standard item list
-    items.forEach((item: any) => {
-      itemHtml += `
-        <tr style="border-bottom: 1px solid #ddd;">
-          <td style="padding: 10px 0; text-align: left;">
-            <img src="${item.productImage}" alt="${item.productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">
-            ${item.productName}
-          </td>
-          <td style="padding: 10px 0; text-align: right;">${item.quantity}</td>
-          <td style="padding: 10px 0; text-align: right;">₹${(parseFloat(item.price.replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
-        </tr>
-      `;
-    });
-  }
+  items.forEach(item => {
+    itemHtml += `
+      <tr style="border-bottom: 1px solid #ddd;">
+        <td style="padding: 10px 0; text-align: left;">
+          <img src="${item.productImage}" alt="${item.productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">
+          ${item.productName}
+        </td>
+        <td style="padding: 10px 0; text-align: right;">${item.quantity}</td>
+        <td style="padding: 10px 0; text-align: right;">₹${item.price}</td>
+        <td style="padding: 10px 0; text-align: right;">₹${(parseFloat(item.price.replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
+      </tr>
+    `;
+  });
 
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 30px; border-radius: 8px;">
@@ -265,12 +224,12 @@ async function sendOrderNotificationEmail(orderData: any) {
 
       <div style="margin-bottom: 30px;">
         <h3 style="color: #e74c3c; margin-bottom: 15px;">Order Summary</h3>
-        ${isMultiAddress ? '<p style="color: #3b82f6; font-size: 13px; margin-bottom: 10px;"><strong>📍 Multiple Delivery Addresses</strong></p>' : ''}
         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <thead>
             <tr style="background-color: #f8f8f8;">
               <th style="padding: 12px 0; text-align: left;">Product</th>
               <th style="padding: 12px 0; text-align: right;">Qty</th>
+              <th style="padding: 12px 0; text-align: right;">Unit Price</th>
               <th style="padding: 12px 0; text-align: right;">Total</th>
             </tr>
           </thead>
@@ -283,12 +242,12 @@ async function sendOrderNotificationEmail(orderData: any) {
       <div style="background-color: #fff; padding: 25px; border-radius: 8px; margin-top: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
           <div>
-            <h4 style="color: #555; margin-bottom: 10px;">${isMultiAddress ? 'Customer Details:' : 'Shipping To:'}</h4>
+            <h4 style="color: #555; margin-bottom: 10px;">Shipping To:</h4>
             <p style="margin: 0; font-size: 14px;"><strong>${customerName}</strong></p>
             <p style="margin: 0; font-size: 14px;">${customerEmail}</p>
             <p style="margin: 0; font-size: 14px;">${customerPhone || 'N/A'}</p>
-            ${!isMultiAddress ? `<p style="margin: 0; font-size: 14px;">${shippingAddress}</p>` : ''}
-            ${!isMultiAddress && orderData.deliveryInstructions ? `
+            <p style="margin: 0; font-size: 14px;">${shippingAddress}</p>
+            ${orderData.deliveryInstructions ? `
             <div style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border-left: 3px solid #ffc107; border-radius: 4px;">
               <p style="margin: 0; font-size: 13px; font-weight: bold; color: #856404;">Delivery Instructions:</p>
               <p style="margin: 5px 0 0 0; font-size: 13px; color: #856404;">${orderData.deliveryInstructions}</p>
@@ -300,7 +259,7 @@ async function sendOrderNotificationEmail(orderData: any) {
             <p style="margin: 0; font-size: 14px;"><strong>Payment Method:</strong> ${paymentMethod}</p>
             <p style="margin: 0; font-size: 14px;"><strong>Total Amount:</strong> ₹${totalAmount.toFixed(2)}</p>
             <p style="margin: 0; font-size: 14px;"><strong>Order Status:</strong> Confirmed</p>
-            ${!isMultiAddress && (orderData.saturdayDelivery !== undefined || orderData.sundayDelivery !== undefined) ? `
+            ${orderData.saturdayDelivery !== undefined || orderData.sundayDelivery !== undefined ? `
             <div style="margin-top: 10px;">
               <p style="margin: 0; font-size: 13px;"><strong>Weekend Delivery:</strong></p>
               <p style="margin: 5px 0 0 0; font-size: 13px;">Saturday: ${orderData.saturdayDelivery ? 'Yes' : 'No'}</p>
@@ -346,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client.release();
       }
     } catch (error) {
-      console.error('Database connection test failed:', (error as any).message);
+      console.error('Database connection test failed:', error.message);
     }
     next();
   });
@@ -382,8 +341,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       dbStatus = "disconnected";
-      dbError = (error as any).message;
-      console.error('Database health check failed:', (error as any).message);
+      dbError = error.message;
+      console.error('Database health check failed:', error.message);
     }
 
     res.json({
@@ -662,33 +621,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Signup error details:", {
-        message: (error as any).message,
-        code: (error as any).code,
-        constraint: (error as any).constraint,
-        detail: (error as any).detail,
-        stack: process.env.NODE_ENV === 'development' ? (error as any).stack : undefined
+        message: error.message,
+        code: error.code,
+        constraint: error.constraint,
+        detail: error.detail,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
 
       // Handle specific database errors
-      if ((error as any).code === '23505') { // Unique constraint violation
-        if ((error as any).constraint && (error as any).constraint.includes('email')) {
+      if (error.code === '23505') { // Unique constraint violation
+        if (error.constraint && error.constraint.includes('email')) {
           return res.status(400).json({ error: "A user with this email already exists" });
         }
         return res.status(400).json({ error: "A user with this information already exists" });
       }
 
-      if ((error as any).code === 'ECONNREFUSED') {
+      if (error.code === 'ECONNREFUSED') {
         return res.status(500).json({ error: "Database connection error. Please try again." });
       }
 
-      if ((error as any).message && (error as any).message.includes('relation') && (error as any).message.includes('does not exist')) {
+      if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
         return res.status(500).json({ error: "Database table not found. Please contact support." });
       }
 
       // Generic error response
       res.status(500).json({
         error: "Failed to create user",
-        details: process.env.NODE_ENV === 'development' ? (error as any).message : "Please try again or contact support if the problem persists."
+        details: process.env.NODE_ENV === 'development' ? error.message : "Please try again or contact support if the problem persists."
       });
     }
   });
@@ -780,7 +739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", (res) => {
     res.json({ message: "Logged out successfully" });
   });
 
@@ -909,7 +868,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Cashfree create order error:", error);
       res.status(500).json({
         error: "Failed to create payment order",
-        details: (error as any).message
+        details: error.message
       });
     }
   });
@@ -979,7 +938,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (cashfreePayment.length > 0) {
             const payment = cashfreePayment[0];
-            const orderData = payment.orderData as any;
+            const orderData = payment.orderData;
 
             // Check if order already exists in ordersTable
             const existingOrder = await db
@@ -991,11 +950,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (existingOrder.length === 0) {
               // Create order in ordersTable
               const [newOrder] = await db.insert(schema.ordersTable).values({
-                userId: payment.userId || 0,
-                totalAmount: (payment.amount as unknown as number) || 0,
+                userId: payment.userId,
+                totalAmount: payment.amount,
                 status: 'processing',
                 paymentMethod: 'Cashfree',
-                shippingAddress: (orderData as any).shippingAddress,
+                shippingAddress: orderData.shippingAddress,
                 cashfreeOrderId: orderId,
                 paymentSessionId: statusResult.payment_session_id || null,
                 paymentId: statusResult.cf_order_id || null,
@@ -1495,753 +1454,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public announcements endpoint
-  app.get('/api/announcements', async (req: Request, res: Response) => {
-    try {
-      const announcementsList = await db
-        .select()
-        .from(schema.announcements)
-        .where(eq(schema.announcements.isActive, true))
-        .orderBy(asc(schema.announcements.sortOrder));
-
-      res.json(announcementsList || []);
-    } catch (error) {
-      console.error('Error fetching announcements:', error);
-      res.json([]);
-    }
-  });
-
-  // User wallet endpoint (cashback balance)
-  app.get('/api/wallet', async (req: Request, res: Response) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(400).json({ error: 'User ID is required' });
-      }
-
-      const userIdNum = parseInt(userId as string);
-      if (isNaN(userIdNum)) {
-        return res.status(400).json({ error: 'Invalid user ID' });
-      }
-
-      // Get or create user wallet
-      let wallet = await db
-        .select()
-        .from(schema.userWallet)
-        .where(eq(schema.userWallet.userId, userIdNum))
-        .limit(1);
-
-      if (!wallet || wallet.length === 0) {
-        // Create new wallet if it doesn't exist
-        const [newWallet] = await db.insert(schema.userWallet).values({
-          userId: userIdNum,
-          cashbackBalance: '0.00',
-          totalEarned: '0.00',
-          totalRedeemed: '0.00',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }).returning();
-
-        wallet = [newWallet];
-      }
-
-      // Convert to proper format
-      const walletData = {
-        ...wallet[0],
-        cashbackBalance: parseFloat(wallet[0].cashbackBalance || '0').toFixed(2),
-        totalEarned: parseFloat(wallet[0].totalEarned || '0').toFixed(2),
-        totalRedeemed: parseFloat(wallet[0].totalRedeemed || '0').toFixed(2)
-      };
-
-      res.json(walletData);
-    } catch (error) {
-      console.error('Error fetching user wallet:', error);
-      res.status(500).json({ error: 'Failed to fetch wallet' });
-    }
-  });
- app.get('/api/wallet/transactions', async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      const transactions = await db
-        .select()
-        .from(schema.userWalletTransactions)
-        .where(eq(schema.userWalletTransactions.userId, parseInt(userId as string)))
-        .orderBy(desc(schema.userWalletTransactions.createdAt));
-
-      res.json(transactions);
-    } catch (error) {
-      console.error('Error fetching wallet transactions:', error);
-      res.status(500).json({ error: 'Failed to fetch transactions' });
-    }
-  });
-
-  // Credit cashback to wallet (when order is delivered)
-  app.post('/api/wallet/credit', async (req, res) => {
-    try {
-      const { userId, amount, orderId, description } = req.body;
-
-      if (!userId || !amount) {
-        return res.status(400).json({ error: 'User ID and amount required' });
-      }
-
-      // Get current wallet
-      let wallet = await db
-        .select()
-        .from(schema.userWallet)
-        .where(eq(schema.userWallet.userId, parseInt(userId)))
-        .limit(1);
-
-      if (!wallet || wallet.length === 0) {
-        // Create wallet if doesn't exist
-        const [newWallet] = await db.insert(schema.userWallet).values({
-          userId: parseInt(userId),
-          cashbackBalance: "0.00",
-          totalEarned: "0.00",
-          totalRedeemed: "0.00"
-        }).returning();
-        wallet = [newWallet];
-      }
-
-      const currentBalance = parseFloat(wallet[0].cashbackBalance);
-      const creditAmount = parseFloat(amount);
-      const newBalance = currentBalance + creditAmount;
-
-      // Update wallet
-      await db
-        .update(schema.userWallet)
-        .set({
-          cashbackBalance: newBalance.toFixed(2),
-          totalEarned: (parseFloat(wallet[0].totalEarned) + creditAmount).toFixed(2),
-          updatedAt: new Date()
-        })
-        .where(eq(schema.userWallet.userId, parseInt(userId)));
-
-      // Create transaction record
-      await db.insert(schema.userWalletTransactions).values({
-        userId: parseInt(userId),
-        type: 'credit',
-        amount: creditAmount.toFixed(2),
-        description: description || 'Cashback credited',
-        orderId: orderId ? parseInt(orderId) : null,
-        balanceBefore: currentBalance.toFixed(2),
-        balanceAfter: newBalance.toFixed(2),
-        status: 'completed'
-      });
-
-      res.json({
-        success: true,
-        message: 'Cashback credited successfully',
-        newBalance: newBalance.toFixed(2)
-      });
-    } catch (error) {
-      console.error('Error crediting wallet:', error);
-      res.status(500).json({ error: 'Failed to credit cashback' });
-    }
-  });
-
-  // Redeem cashback
-  app.post('/api/wallet/redeem', async (req, res) => {
-    try {
-      const { userId, amount, description } = req.body;
-
-      if (!userId || !amount) {
-        return res.status(400).json({ error: 'User ID and amount required' });
-      }
-
-      // Get current wallet
-      const wallet = await db
-        .select()
-        .from(schema.userWallet)
-        .where(eq(schema.userWallet.userId, parseInt(userId)))
-        .limit(1);
-
-      if (!wallet || wallet.length === 0) {
-        return res.status(404).json({ error: 'Wallet not found' });
-      }
-
-      const currentBalance = parseFloat(wallet[0].cashbackBalance);
-      const redeemAmount = parseFloat(amount);
-
-      if (currentBalance < redeemAmount) {
-        return res.status(400).json({ error: 'Insufficient cashback balance' });
-      }
-
-      const newBalance = currentBalance - redeemAmount;
-
-      // Update wallet
-      await db
-        .update(schema.userWallet)
-        .set({
-          cashbackBalance: newBalance.toFixed(2),
-          totalRedeemed: (parseFloat(wallet[0].totalRedeemed) + redeemAmount).toFixed(2),
-          updatedAt: new Date()
-        })
-        .where(eq(schema.userWallet.userId, parseInt(userId)));
-
-      // Create transaction record
-      await db.insert(schema.userWalletTransactions).values({
-        userId: parseInt(userId),
-        type: 'redeem',
-        amount: redeemAmount.toFixed(2),
-        description: description || 'Cashback redeemed',
-        orderId: null,
-        balanceBefore: currentBalance.toFixed(2),
-        balanceAfter: newBalance.toFixed(2),
-        status: 'completed'
-      });
-
-      res.json({
-        success: true,
-        message: 'Cashback redeemed successfully',
-        newBalance: newBalance.toFixed(2)
-      });
-    } catch (error) {
-      console.error('Error redeeming cashback:', error);
-      res.status(500).json({ error: 'Failed to redeem cashback' });
-    }
-  });
-
-  app.post('/api/affiliate/apply', async (req, res) => {
-    try {
-      const { 
-        userId,
-        firstName, 
-        lastName, 
-        email, 
-        phone,
-        address,
-        city,
-        state,
-        pincode,
-        landmark,
-        country,
-        bankName,
-        branchName,
-        ifscCode,
-        accountNumber
-      } = req.body;
-
-      // Validate required fields
-      if (!userId || !firstName || !lastName || !email || !phone || !address || !country) {
-        return res.status(400).json({ error: 'All required fields must be provided' });
-      }
-
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: 'Please provide a valid email address' });
-      }
-
-      // Check if user already has an application
-      const existingApplicationByUser = await db
-        .select()
-        .from(schema.affiliateApplications)
-        .where(
-          or(
-            eq(schema.affiliateApplications.userId, parseInt(userId)),
-            eq(schema.affiliateApplications.email, email.toLowerCase())
-          )
-        )
-        .limit(1);
-
-      if (existingApplicationByUser && existingApplicationByUser.length > 0) {
-        const application = existingApplicationByUser[0];
-        const status = application.status || 'pending';
-
-        return res.status(400).json({ 
-          error: `You have already submitted an affiliate application. Status: ${status}`,
-          application: {
-            ...application,
-            status: status
-          }
-        });
-      }
-
-      // Save to database
-      const savedApplication = await db.insert(schema.affiliateApplications).values({
-        userId: parseInt(userId),
-        firstName,
-        lastName,
-        email,
-        phone,
-        address,
-        city: city || null,
-        state: state || null,
-        pincode: pincode || null,
-        landmark: landmark || null,
-        country,
-        bankName: bankName || null,
-        branchName: branchName || null,
-        ifscCode: ifscCode || null,
-        accountNumber: accountNumber || null,
-        status: 'pending'
-      }).returning();
-
-      console.log('Affiliate application saved:', savedApplication[0].id);
-
-      res.json({
-        success: true,
-        message: 'Application submitted successfully! Our team will review your application and get back to you within 5-7 business days.',
-        applicationId: savedApplication[0].id
-      });
-
-    } catch (error) {
-      console.error('Error submitting affiliate application:', error);
-      res.status(500).json({ 
-        error: 'Failed to submit application',
-        details: error.message 
-      });
-    }
-  });
-  app.get('/api/admin/affiliate-applications', async (req, res) => {
-    try {
-      const applications = await db
-        .select()
-        .from(schema.affiliateApplications)
-        .orderBy(desc(schema.affiliateApplications.createdAt));
-
-      res.json(applications);
-    } catch (error) {
-      console.error('Error fetching affiliate applications:', error);
-      res.status(500).json({ error: 'Failed to fetch applications' });
-    }
-  });
-
-  app.get('/api/admin/affiliate-applications/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const application = await db
-        .select()
-        .from(schema.affiliateApplications)
-        .where(eq(schema.affiliateApplications.id, id))
-        .limit(1);
-
-      if (!application || application.length === 0) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json(application[0]);
-    } catch (error) {
-      console.error('Error fetching affiliate application:', error);
-      res.status(500).json({ error: 'Failed to fetch application' });
-    }
-  });
-
-  app.put('/api/admin/affiliate-applications/:id/status', async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { status, notes } = req.body;
-
-      if (!['pending', 'approved', 'rejected'].includes(status)) {
-        return res.status(400).json({ error: 'Invalid status' });
-      }
-
-      const [updatedApplication] = await db
-        .update(schema.affiliateApplications)
-        .set({
-          status,
-          reviewNotes: notes,
-          reviewedAt: new Date()
-        })
-        .where(eq(schema.affiliateApplications.id, parseInt(id)))
-        .returning();
-
-      if (!updatedApplication) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      // If approved, create affiliate wallet
-      if (status === 'approved' && updatedApplication.userId) {
-        try {
-          const existingWallet = await db
-            .select()
-            .from(schema.affiliateWallet)
-            .where(eq(schema.affiliateWallet.userId, updatedApplication.userId))
-            .limit(1);
-
-          if (existingWallet.length === 0) {
-            await db.insert(schema.affiliateWallet).values({
-              userId: updatedApplication.userId,
-              cashbackBalance: "0.00",
-              commissionBalance: "0.00",
-              totalEarnings: "0.00",
-              totalWithdrawn: "0.00"
-            });
-            console.log(`✅ Affiliate wallet created for user ${updatedApplication.userId}`);
-          }
-        } catch (walletError) {
-          console.error('Error creating affiliate wallet:', walletError);
-        }
-      }
-
-      // Send email notification
-      try {
-        const formattedUserId = updatedApplication.userId.toString().padStart(2, '0');
-        const affiliateCode = `POPPIKAP${formattedUserId}`;
-        const dashboardUrl = process.env.REPL_SLUG 
-          ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate-dashboard`
-          : 'https://poppik.in/affiliate-dashboard';
-
-        const emailSubject = status === 'approved' 
-          ? 'Welcome to the Poppik Lifestyle Private Limited Affiliate Program'
-          : 'Update on Your Poppik Affiliate Application';
-
-        const emailHtml = status === 'approved'
-          ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-            <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 40px 20px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to the Poppik Lifestyle Private Limited Affiliate Program</h1>
-            </div>
-            <div style="padding: 40px 30px;">
-              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName}</strong>,</p>
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 20px 0;">
-                We are delighted to welcome you as an official affiliate partner of Poppik Lifestyle Private Limited.
-              </p>
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 30px 0;">
-                Your skills and dedication align perfectly with our vision, and we are excited to collaborate with you. As a valued member of our affiliate program, you now have access to your unique referral link, marketing materials, and performance dashboard to help you start promoting our brand effectively.
-              </p>
-              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
-                <p style="color: #ffffff; margin: 0 0 10px 0; font-size: 14px;">Your Unique Affiliate Code</p>
-                <p style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 2px;">${affiliateCode}</p>
-              </div>
-              <div style="text-align: center; margin: 30px 0;">
-                <p style="font-size: 16px; color: #555555; margin: 0 0 15px 0;">
-                  Please log in to your affiliate account here:
-                </p>
-                <a href="${dashboardUrl}" style="display: inline-block; background-color: #e74c3c; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">
-                  Access Dashboard
-                </a>
-              </div>
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 30px 0 20px 0;">
-                If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
-              </p>
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0;">
-                Thank you for joining us. We look forward to a successful and rewarding partnership.
-              </p>
-            </div>
-            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
-              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">
-                © 2024 Poppik Lifestyle Private Limited. All rights reserved.
-              </p>
-              <p style="color: #999999; font-size: 12px; margin: 0;">
-                Office No.- 213, A- Wing, Skylark Building, Plot No.- 63, Sector No.- 11, C.B.D. Belapur, Navi Mumbai- 400614 INDIA
-              </p>
-            </div>
-          </div>`
-          : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: #6c757d; padding: 40px 20px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Poppik Affiliate Application Update</h1>
-            </div>
-            <div style="background: white; padding: 40px 30px;">
-              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName} ${updatedApplication.lastName}</strong>,</p>
-              <p style="font-size: 16px; color: #555555; line-height: 1.6;">
-                Thank you for your interest in the Poppik Affiliate Program. After careful review, we are unable to approve your application at this time.
-              </p>
-              ${notes ? `<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
-                <p style="margin: 0; color: #856404;"><strong>Reason:</strong> ${notes}</p>
-              </div>` : ''}
-              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0 0 0;">
-                We encourage you to reapply in the future. Keep creating amazing content!
-              </p>
-              <p style="font-size: 14px; color: #999999; margin: 20px 0 0 0;">
-                Questions? Contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c;">info@poppik.in</a>
-              </p>
-            </div>
-            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
-              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">© 2024 Poppik Lifestyle Private Limited</p>
-            </div>
-          </div>`;
-
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'info@poppik.in',
-          to: updatedApplication.email,
-          subject: emailSubject,
-          html: emailHtml
-        });
-
-        console.log(`✅ Affiliate ${status} email sent to: ${updatedApplication.email}`);
-      } catch (emailError) {
-        console.error('❌ Failed to send email:', emailError);
-      }
-
-      res.json({ 
-        success: true, 
-        message: `Application ${status} successfully`,
-        application: updatedApplication 
-      });
-    } catch (error) {
-      console.error('Error updating application status:', error);
-      res.status(500).json({ error: 'Failed to update application status' });
-    }
-  });
-
-  app.delete('/api/admin/affiliate-applications/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-
-      const [deleted] = await db
-        .delete(schema.affiliateApplications)
-        .where(eq(schema.affiliateApplications.id, id))
-        .returning();
-
-      if (!deleted) {
-        return res.status(404).json({ error: 'Application not found' });
-      }
-
-      res.json({ success: true, message: 'Application deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting affiliate application:', error);
-      res.status(500).json({ error: 'Failed to delete application' });
-    }
-  });
-  // Get user's affiliate application
-  app.get('/api/affiliate/my-application', async (req: Request, res: Response) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(400).json({ error: 'User ID is required' });
-      }
-
-      const userIdNum = parseInt(userId as string);
-      if (isNaN(userIdNum)) {
-        return res.status(400).json({ error: 'Invalid user ID' });
-      }
-
-      console.log(`Fetching affiliate application for user ID: ${userIdNum}`);
-
-      // Get user's affiliate application
-      const application = await db
-        .select()
-        .from(schema.affiliateApplications)
-        .where(eq(schema.affiliateApplications.userId, userIdNum))
-        .limit(1);
-
-      console.log(`Application query result:`, application);
-
-      if (!application || application.length === 0) {
-        console.log(`No affiliate application found for user ${userIdNum}`);
-        return res.status(200).json({ 
-          error: 'No affiliate application found', 
-          status: 'not_applied',
-          userId: userIdNum
-        });
-      }
-
-      const appData = application[0];
-
-      res.json({
-        id: appData.id,
-        userId: appData.userId,
-        firstName: appData.firstName,
-        lastName: appData.lastName,
-        email: appData.email,
-        phone: appData.phone,
-        address: appData.address,
-        landmark: appData.landmark,
-        city: appData.city,
-        state: appData.state,
-        pincode: appData.pincode,
-        country: appData.country,
-        bankName: appData.bankName,
-        branchName: appData.branchName,
-        ifscCode: appData.ifscCode,
-        accountNumber: appData.accountNumber,
-        status: appData.status,
-        createdAt: appData.createdAt,
-        reviewedAt: appData.reviewedAt,
-        reviewNotes: appData.reviewNotes
-      });
-    } catch (error) {
-      console.error('Error fetching affiliate application:', error);
-      res.status(500).json({ error: 'Failed to fetch affiliate application', details: (error as any)?.message });
-    }
-  });
-
-  // Contests - Public listing
-  app.get('/api/contests', async (req: Request, res: Response) => {
-    try {
-      const onlyActive = req.query.active === 'true' || req.query.active === undefined;
-      const q = db.select().from(contests).orderBy(desc(contests.createdAt));
-
-      let rows = await q;
-
-      if (onlyActive) {
-        rows = rows.filter(r => r.isActive);
-      }
-
-      res.json(rows);
-    } catch (error) {
-      console.error('Error fetching contests:', error);
-      res.status(500).json({ error: 'Failed to fetch contests' });
-    }
-  });
-
-  // Contest detail
-  app.get('/api/contests/:slug', async (req: Request, res: Response) => {
-    try {
-      const slug = req.params.slug;
-      const result = await db.select().from(contests).where(eq(contests.slug, slug)).limit(1);
-      if (!result || result.length === 0) {
-        return res.status(404).json({ error: 'Contest not found' });
-      }
-      res.json(result[0]);
-    } catch (error) {
-      console.error('Error fetching contest detail:', error);
-      res.status(500).json({ error: 'Failed to fetch contest' });
-    }
-  });
-
-  // Admin - Get all contests (including inactive)
-  app.get('/api/admin/contests', adminMiddleware, async (req: Request, res: Response) => {
-    try {
-      const rows = await db.select().from(contests).orderBy(desc(contests.createdAt));
-      res.json(rows || []);
-    } catch (error) {
-      console.error('Error fetching admin contests:', error);
-      res.status(500).json({ error: 'Failed to fetch contests', details: (error as any)?.message || null });
-    }
-  });
-
-  // Admin - Create contest (with optional image upload)
-  app.post('/api/admin/contests', adminMiddleware, upload.fields([
-    { name: 'image', maxCount: 1 },
-    { name: 'bannerImage', maxCount: 1 }
-  ]), async (req: Request, res: Response) => {
-    try {
-      const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
-      const body = req.body as any;
-
-      // Helper to create URL-friendly slugs
-      const makeSlug = (s: string) => s
-        .toString()
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9\- ]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-+|-+$/g, '');
-
-      let imageUrl = body.imageUrl || null;
-      let bannerImageUrl = body.bannerImageUrl || null;
-
-      if (files?.image?.[0]) {
-        imageUrl = `/api/images/${files.image[0].filename}`;
-      }
-      if (files?.bannerImage?.[0]) {
-        bannerImageUrl = `/api/images/${files.bannerImage[0].filename}`;
-      }
-
-      // Ensure slug is present; generate from title if missing and make unique
-      let slug = body.slug;
-      if (!slug || slug.trim() === '') {
-        const base = makeSlug(body.title || 'contest');
-        let candidate = base || `contest-${Date.now()}`;
-        let exists = true;
-        let suffix = 1;
-        while (exists) {
-          // Check if slug exists
-          // eslint-disable-next-line no-await-in-loop
-          const found = await db.select().from(contests).where(eq(contests.slug, candidate)).limit(1);
-          if (!found || found.length === 0) {
-            exists = false;
-          } else {
-            candidate = `${base}-${suffix++}`;
-          }
-        }
-        slug = candidate;
-      }
-
-      const contestData: any = {
-        title: body.title,
-        slug: slug,
-        description: body.description || null,
-        content: body.content || body.detailedDescription || '',
-        imageUrl: imageUrl,
-        bannerImageUrl: bannerImageUrl,
-        validFrom: body.validFrom ? new Date(body.validFrom) : new Date(),
-        validUntil: body.validUntil ? new Date(body.validUntil) : new Date(Date.now() + 7*24*60*60*1000),
-        isActive: body.isActive === 'true' || body.isActive === true || body.published === 'true' || body.published === true || body.published === 1,
-        featured: body.featured === 'true' || body.featured === true
-      };
-
-      const [newContest] = await db.insert(contests).values(contestData).returning();
-      res.status(201).json(newContest);
-    } catch (error) {
-      console.error('Error creating contest:', error);
-      // If the database table is missing, give a clearer hint for developers
-      const msg = (error as any)?.message || '';
-      if (msg.includes("relation \"contests\" does not exist") || msg.includes('does not exist')) {
-        return res.status(500).json({
-          error: 'Failed to create contest',
-          details: 'Database table "contests" does not exist. Apply migration: migrations/0003_create_contests.sql'
-        });
-      }
-
-      // Otherwise include the message to help debugging in development
-      res.status(500).json({ error: 'Failed to create contest', details: msg });
-    }
-  });
-
-  // Admin - Update contest
-  app.put('/api/admin/contests/:id', adminMiddleware, upload.fields([
-    { name: 'image', maxCount: 1 },
-    { name: 'bannerImage', maxCount: 1 }
-  ]), async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
-      const body = req.body as any;
-
-      const updateData: any = {};
-      if (body.title) updateData.title = body.title;
-      if (body.slug) updateData.slug = body.slug;
-      if (body.description !== undefined) updateData.description = body.description;
-      if (body.content !== undefined) updateData.content = body.content;
-      if (body.detailedDescription !== undefined) updateData.content = body.detailedDescription;
-      if (body.validFrom) updateData.validFrom = new Date(body.validFrom);
-      if (body.validUntil) updateData.validUntil = new Date(body.validUntil);
-      if (body.isActive !== undefined) updateData.isActive = body.isActive === 'true' || body.isActive === true;
-      if (body.published !== undefined) updateData.isActive = body.published === 'true' || body.published === true || body.published === 1;
-      if (body.featured !== undefined) updateData.featured = body.featured === 'true' || body.featured === true;
-
-      if (files?.image?.[0]) {
-        updateData.imageUrl = `/api/images/${files.image[0].filename}`;
-      } else if (body.imageUrl) {
-        updateData.imageUrl = body.imageUrl;
-      }
-
-      if (files?.bannerImage?.[0]) {
-        updateData.bannerImageUrl = `/api/images/${files.bannerImage[0].filename}`;
-      } else if (body.bannerImageUrl) {
-        updateData.bannerImageUrl = body.bannerImageUrl;
-      }
-
-      const [updated] = await db.update(contests).set({ ...updateData, updatedAt: new Date() }).where(eq(contests.id, id)).returning();
-      res.json(updated);
-    } catch (error) {
-      console.error('Error updating contest:', error);
-      res.status(500).json({ error: 'Failed to update contest' });
-    }
-  });
-
-  // Admin - Delete contest
-  app.delete('/api/admin/contests/:id', adminMiddleware, async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      await db.delete(contests).where(eq(contests.id, id));
-      res.json({ success: true, message: 'Contest deleted' });
-    } catch (error) {
-      console.error('Error deleting contest:', error);
-      res.status(500).json({ error: 'Failed to delete contest' });
-    }
-  });
-
   // Get Affiliate Withdrawals
   app.get('/api/affiliate/wallet/withdrawals', async (req, res) => {
     try {
@@ -2447,7 +1659,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const wallet = await db
         .select()
         .from(schema.affiliateWallet)
-        .where(eq(schema.affiliateWallet.userId, parseInt(userId)));
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId)))
+        .limit(1);
 
       if (!wallet || wallet.length === 0) {
         return res.status(404).json({ error: 'Wallet not found' });
@@ -2511,257 +1724,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delivery Addresses Management
-  app.get("/api/delivery-addresses", async (req, res) => {
-    try {
-      const { userId } = req.query;
-      
-      if (!userId) {
-        return res.status(400).json({ error: "User ID is required" });
-      }
-
-      const addresses = await db
-        .select()
-        .from(deliveryAddresses)
-        .where(eq(deliveryAddresses.userId, parseInt(userId as string)))
-        .orderBy(desc(deliveryAddresses.isDefault), desc(deliveryAddresses.createdAt));
-
-      res.json(addresses);
-    } catch (error) {
-      console.error("Error fetching delivery addresses:", error);
-      res.status(500).json({ error: "Failed to fetch delivery addresses" });
-    }
-  });
-
-  app.post("/api/delivery-addresses", async (req, res) => {
-    try {
-      const { userId, recipientName, addressLine1, addressLine2, city, state, pincode, country, phoneNumber, deliveryInstructions, isDefault, saturdayDelivery, sundayDelivery } = req.body;
-
-      if (!userId || !recipientName || !addressLine1 || !city || !state || !pincode || !phoneNumber) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
-
-      // If this address is set as default, unset other default addresses
-      if (isDefault) {
-        await db
-          .update(deliveryAddresses)
-          .set({ isDefault: false })
-          .where(eq(deliveryAddresses.userId, userId));
-      }
-
-      const [newAddress] = await db
-        .insert(deliveryAddresses)
-        .values({
-          userId,
-          recipientName,
-          addressLine1,
-          addressLine2: addressLine2 || null,
-          city,
-          state,
-          pincode,
-          country: country || 'India',
-          phoneNumber,
-          deliveryInstructions: deliveryInstructions || null,
-          isDefault: isDefault || false,
-          saturdayDelivery: saturdayDelivery !== undefined ? saturdayDelivery : true,
-          sundayDelivery: sundayDelivery !== undefined ? sundayDelivery : true,
-        })
-        .returning();
-
-      res.status(201).json(newAddress);
-    } catch (error) {
-      console.error("Error creating delivery address:", error);
-      res.status(500).json({ error: "Failed to create delivery address" });
-    }
-  });
-
-  app.put("/api/delivery-addresses/:id", async (req, res) => {
-    try {
-      const addressId = parseInt(req.params.id);
-      const { userId, recipientName, addressLine1, addressLine2, city, state, pincode, country, phoneNumber, deliveryInstructions, isDefault, saturdayDelivery, sundayDelivery } = req.body;
-
-      // If this address is set as default, unset other default addresses
-      if (isDefault) {
-        await db
-          .update(deliveryAddresses)
-          .set({ isDefault: false })
-          .where(eq(deliveryAddresses.userId, userId));
-      }
-
-      const [updatedAddress] = await db
-        .update(deliveryAddresses)
-        .set({
-          recipientName,
-          addressLine1,
-          addressLine2: addressLine2 || null,
-          city,
-          state,
-          pincode,
-          country: country || 'India',
-          phoneNumber,
-          deliveryInstructions: deliveryInstructions || null,
-          isDefault: isDefault || false,
-          saturdayDelivery: saturdayDelivery !== undefined ? saturdayDelivery : true,
-          sundayDelivery: sundayDelivery !== undefined ? sundayDelivery : true,
-          updatedAt: new Date(),
-        })
-        .where(eq(deliveryAddresses.id, addressId))
-        .returning();
-
-      if (!updatedAddress) {
-        return res.status(404).json({ error: "Address not found" });
-      }
-
-      res.json(updatedAddress);
-    } catch (error) {
-      console.error("Error updating delivery address:", error);
-      res.status(500).json({ error: "Failed to update delivery address" });
-    }
-  });
-
-  app.delete("/api/delivery-addresses/:id", async (req, res) => {
-    try {
-      const addressId = parseInt(req.params.id);
-
-      const [deletedAddress] = await db
-        .delete(deliveryAddresses)
-        .where(eq(deliveryAddresses.id, addressId))
-        .returning();
-
-      if (!deletedAddress) {
-        return res.status(404).json({ error: "Address not found" });
-      }
-
-      res.json({ success: true, message: "Address deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting delivery address:", error);
-      res.status(500).json({ error: "Failed to delete delivery address" });
-    }
-  });
-
-  // Gift Milestones API
-  
-  // Get active gift milestones (public)
-  app.get("/api/gift-milestones", async (req, res) => {
-    try {
-      const milestones = await db
-        .select()
-        .from(schema.giftMilestones)
-        .where(eq(schema.giftMilestones.isActive, true))
-        .orderBy(asc(schema.giftMilestones.sortOrder));
-
-      res.json(milestones);
-    } catch (error) {
-      console.error("Error fetching gift milestones:", error);
-      res.status(500).json({ error: "Failed to fetch gift milestones" });
-    }
-  });
-
-  // Check user gift eligibility
-  app.get("/api/user/gift-eligibility", async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(400).json({ error: "User ID is required" });
-      }
-
-      const eligibility = await db
-        .select()
-        .from(schema.userGiftEligibility)
-        .where(eq(schema.userGiftEligibility.userId, parseInt(userId as string)))
-        .orderBy(desc(schema.userGiftEligibility.createdAt));
-
-      res.json(eligibility);
-    } catch (error) {
-      console.error("Error fetching gift eligibility:", error);
-      res.status(500).json({ error: "Failed to fetch gift eligibility" });
-    }
-  });
-
-  // Admin: Get all gift milestones
-  app.get("/api/admin/gift-milestones", adminMiddleware, async (req, res) => {
-    try {
-      const milestones = await db
-        .select()
-        .from(schema.giftMilestones)
-        .orderBy(asc(schema.giftMilestones.sortOrder));
-
-      res.json(milestones);
-    } catch (error) {
-      console.error("Error fetching admin gift milestones:", error);
-      res.status(500).json({ error: "Failed to fetch gift milestones" });
-    }
-  });
-
-  // Admin: Create gift milestone
-  app.post("/api/admin/gift-milestones", adminMiddleware, async (req, res) => {
-    try {
-      const { minAmount, maxAmount, giftCount, giftDescription, isActive, sortOrder } = req.body;
-
-      if (!minAmount || !giftCount) {
-        return res.status(400).json({ error: "Min amount and gift count are required" });
-      }
-
-      const [milestone] = await db.insert(schema.giftMilestones).values({
-        minAmount: minAmount.toString(),
-        maxAmount: maxAmount ? maxAmount.toString() : null,
-        giftCount: parseInt(giftCount),
-        giftDescription: giftDescription || null,
-        isActive: isActive !== false,
-        sortOrder: sortOrder || 0,
-      }).returning();
-
-      res.status(201).json(milestone);
-    } catch (error) {
-      console.error("Error creating gift milestone:", error);
-      res.status(500).json({ error: "Failed to create gift milestone" });
-    }
-  });
-
-  // Admin: Update gift milestone
-  app.put("/api/admin/gift-milestones/:id", adminMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { minAmount, maxAmount, giftCount, giftDescription, isActive, sortOrder } = req.body;
-
-      const updateData: any = { updatedAt: new Date() };
-      if (minAmount) updateData.minAmount = minAmount.toString();
-      if (maxAmount !== undefined) updateData.maxAmount = maxAmount ? maxAmount.toString() : null;
-      if (giftCount) updateData.giftCount = parseInt(giftCount);
-      if (giftDescription !== undefined) updateData.giftDescription = giftDescription;
-      if (isActive !== undefined) updateData.isActive = isActive;
-      if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
-
-      const [updated] = await db
-        .update(schema.giftMilestones)
-        .set(updateData)
-        .where(eq(schema.giftMilestones.id, id))
-        .returning();
-
-      res.json(updated);
-    } catch (error) {
-      console.error("Error updating gift milestone:", error);
-      res.status(500).json({ error: "Failed to update gift milestone" });
-    }
-  });
-
-  // Admin: Delete gift milestone
-  app.delete("/api/admin/gift-milestones/:id", adminMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-
-      await db
-        .delete(schema.giftMilestones)
-        .where(eq(schema.giftMilestones.id, id));
-
-      res.json({ success: true, message: "Gift milestone deleted" });
-    } catch (error) {
-      console.error("Error deleting gift milestone:", error);
-      res.status(500).json({ error: "Failed to delete gift milestone" });
-    }
-  });
-
   // Multi-Address Orders API
   app.post("/api/multi-address-orders", async (req, res) => {
     try {
@@ -2809,7 +1771,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error("Errorsaving multi-address order:", error);
+      console.error("Error saving multi-address order:", error);
       res.status(500).json({ error: "Failed to save multi-address order" });
     }
   });
@@ -2832,9 +1794,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("❌ Error fetching offers:", error);
       console.error("Error details:", {
-        message: (error as any).message,
-        code: (error as any).code,
-        stack: process.env.NODE_ENV === 'development' ? (error as any).stack : undefined
+        message: error.message,
+        code: error.code,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
 
       // Return empty array instead of error to prevent UI breakage
@@ -2937,7 +1899,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(newOffer);
     } catch (error) {
       console.error("Error creating offer:", error);
-      res.status(500).json({ error: "Failed to create offer", details: (error as any).message });
+      res.status(500).json({ error: "Failed to create offer", details: error.message });
     }
   });
 
@@ -2963,7 +1925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle banner images - save to bannerImages array
       let allBannerImages: string[] = [];
-
+      
       // Add existing banner images if provided
       if (req.body.existingBannerImages) {
         try {
@@ -2975,13 +1937,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('Error parsing existingBannerImages:', e);
         }
       }
-
+      
       // Add new uploaded banner images
       if (files?.bannerImages) {
         const newImages = files.bannerImages.map(file => `/api/images/${file.filename}`);
         allBannerImages = [...allBannerImages, ...newImages];
       }
-
+      
       // Only update bannerImages array if there are images
       if (allBannerImages.length > 0) {
         updateData.bannerImages = allBannerImages;
@@ -2992,7 +1954,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle additional images - these go in the images array, NOT the banner image
       let allAdditionalImages: string[] = [];
-
+      
       // Add existing additional images if provided
       if (req.body.existingAdditionalImages) {
         try {
@@ -3004,13 +1966,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('Error parsing existingAdditionalImages:', e);
         }
       }
-
+      
       // Add new uploaded additional images (NOT banner image)
       if (files?.additionalImages) {
         const newImages = files.additionalImages.map(file => `/api/images/${file.filename}`);
         allAdditionalImages = [...allAdditionalImages, ...newImages];
       }
-
+      
       // Only update images array with additional images
       if (allAdditionalImages.length > 0) {
         updateData.images = allAdditionalImages;
@@ -3082,7 +2044,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedOffer);
     } catch (error) {
       console.error("Error updating offer:", error);
-      res.status(500).json({ error: "Failed to update offer", details: (error as any).message });
+      res.status(500).json({ error: "Failed to update offer", details: error.message });
     }
   });
 
@@ -3248,17 +2210,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!userId) {
-        return res.json({ canReview: false, message: "Please login to leave a review" });
+        return res.json({ canReview: false, message: "Please login to review" });
       }
 
-      const canReview = await storage.checkUserCanReviewOffer(parseInt(userId as string), offerId);
-      res.json(canReview);
+      // Check if user has purchased this offer
+      // For now, allow all logged-in users to review
+      res.json({ 
+        canReview: true, 
+        message: "You can review this offer"
+      });
     } catch (error) {
       console.error("Error checking review eligibility:", error);
-      res.status(500).json({ 
-        canReview: false,
-        message: "Error checking review eligibility"
-      });
+      res.status(500).json({ error: "Failed to check review eligibility" });
     }
   });
 
@@ -3387,7 +2350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         message: "SMS service test failed",
-        error: (error as any).message,
+        error: error.message,
         details: {
           configured: !!process.env.MDSSEND_API_KEY && !!process.env.MDSSEND_SENDER_ID,
           possibleIssues: [
@@ -3438,7 +2401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           results.push({
             url,
             success: false,
-            error: (error as any).message
+            error: error.message
           });
         }
       }
@@ -3453,7 +2416,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({
         error: "Network test failed",
-        details: (error as any).message
+        details: error.message
       });
     }
   });
@@ -3518,7 +2481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: false,
         error: "Failed to get OTP",
-        details: (error as any).message
+        details: error.message
       });
     }
   });
@@ -3699,46 +2662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Unified upload API that handles both images and videos (BEFORE /api/images middleware)
-  app.post("/api/upload", upload.single("file"), async (req, res) => {
-    try {
-      console.log("✅ Upload request received at /api/upload");
-      console.log("Request method:", req.method);
-      console.log("Request path:", req.path);
-      console.log("File received:", !!req.file);
 
-      if (!req.file) {
-        console.error("❌ No file provided in request");
-        return res.status(400).json({ error: "No file provided" });
-      }
-
-      const fileType = req.body.type || "unknown";
-      console.log("✅ File uploaded successfully:", {
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-        type: fileType
-      });
-
-      // Return the file URL
-      const fileUrl = `/api/images/${req.file.filename}`;
-      console.log("✅ Upload successful, returning URL:", fileUrl);
-      res.json({
-        url: fileUrl,
-        message: "File uploaded successfully",
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        size: req.file.size
-      });
-    } catch (error) {
-      console.error("❌ Upload error:", error);
-      res.status(500).json({
-        error: "Failed to upload file",
-        details: (error as any).message
-      });
-    }
-  });
 
   // Serve uploaded images with optimization
   app.use("/api/images", (req, res, next) => {
@@ -3852,7 +2776,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Video upload successful, returning URL:", videoUrl);
       res.json({
         videoUrl,
-        url: videoUrl,
         message: "Video uploaded successfully",
         filename: req.file.filename,
         originalName: req.file.originalname,
@@ -3866,7 +2789,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-
   // Image upload API
   app.post("/api/upload/image", upload.single("image"), async (req, res) => {
     try {
@@ -3888,7 +2810,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const imageUrl = `/api/images/${req.file.filename}`;
       res.json({
         imageUrl,
-        url: imageUrl,
         message: "Image uploaded successfully",
         filename: req.file.filename,
         originalName: req.file.originalname,
@@ -3929,31 +2850,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("📦 GET /api/products - Fetching products...");
       const limit = parseInt(req.query.limit as string) || 100;
       const offset = parseInt(req.query.offset as string) || 0;
-      const ids = req.query.ids as string;
 
-      console.log("📦 Query params - limit:", limit, "offset:", offset, "ids:", ids);
+      console.log("📦 Query params - limit:", limit, "offset:", offset);
 
-      let allProducts: any[] = [];
-
-      // Filter by IDs if provided
-      if (ids) {
-        const idArray = ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-        if (idArray.length > 0) {
-          allProducts = await db
-            .select()
-            .from(schema.products)
-            .where(inArray(schema.products.id, idArray))
-            .orderBy(desc(schema.products.createdAt));
-        }
-      } else {
-        // Fetch all products directly from database
-        allProducts = await db
-          .select()
-          .from(schema.products)
-          .orderBy(desc(schema.products.createdAt))
-          .limit(limit)
-          .offset(offset);
-      }
+      // Fetch all products directly from database
+      const allProducts = await db
+        .select()
+        .from(schema.products)
+        .orderBy(desc(schema.products.createdAt))
+        .limit(limit)
+        .offset(offset);
 
       console.log("📦 Products fetched from DB:", allProducts?.length || 0);
 
@@ -3972,6 +2878,197 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn("Products data is not an array, returning empty array");
         return res.json([]);
       }
+
+
+  // Delivery Address Management Routes
+  app.get("/api/delivery-addresses", async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const addresses = await db
+        .select()
+        .from(schema.deliveryAddresses)
+        .where(eq(schema.deliveryAddresses.userId, parseInt(userId as string)))
+        .orderBy(desc(schema.deliveryAddresses.isDefault), desc(schema.deliveryAddresses.createdAt));
+
+      res.json(addresses);
+    } catch (error) {
+      console.error("Error fetching delivery addresses:", error);
+      res.status(500).json({ error: "Failed to fetch delivery addresses" });
+    }
+  });
+
+  app.post("/api/delivery-addresses", async (req, res) => {
+    try {
+      const {
+        userId,
+        recipientName,
+        addressLine1,
+        addressLine2,
+        city,
+        state,
+        pincode,
+        country,
+        phoneNumber,
+        deliveryInstructions,
+        isDefault
+      } = req.body;
+
+      if (!userId || !recipientName || !addressLine1 || !city || !state || !pincode || !phoneNumber) {
+        return res.status(400).json({ error: "Required fields are missing" });
+      }
+
+      // If this is set as default, unset other default addresses
+      if (isDefault) {
+        await db
+          .update(schema.deliveryAddresses)
+          .set({ isDefault: false })
+          .where(eq(schema.deliveryAddresses.userId, parseInt(userId)));
+      }
+
+      const [newAddress] = await db
+        .insert(schema.deliveryAddresses)
+        .values({
+          userId: parseInt(userId),
+          recipientName: recipientName.trim(),
+          addressLine1: addressLine1.trim(),
+          addressLine2: addressLine2 ? addressLine2.trim() : null,
+          city: city.trim(),
+          state: state.trim(),
+          pincode: pincode.trim(),
+          country: country || 'India',
+          phoneNumber: phoneNumber.trim(),
+          deliveryInstructions: deliveryInstructions ? deliveryInstructions.trim() : null,
+          isDefault: Boolean(isDefault)
+        })
+        .returning();
+
+      res.status(201).json(newAddress);
+    } catch (error) {
+      console.error("Error creating delivery address:", error);
+      res.status(500).json({ error: "Failed to create delivery address" });
+    }
+  });
+
+  app.put("/api/delivery-addresses/:id", async (req, res) => {
+    try {
+      const addressId = parseInt(req.params.id);
+      const {
+        recipientName,
+        addressLine1,
+        addressLine2,
+        city,
+        state,
+        pincode,
+        country,
+        phoneNumber,
+        deliveryInstructions,
+        isDefault
+      } = req.body;
+
+      // If setting as default, unset other defaults for this user
+      if (isDefault) {
+        const address = await db
+          .select()
+          .from(schema.deliveryAddresses)
+          .where(eq(schema.deliveryAddresses.id, addressId))
+          .limit(1);
+
+        if (address.length > 0) {
+          await db
+            .update(schema.deliveryAddresses)
+            .set({ isDefault: false })
+            .where(eq(schema.deliveryAddresses.userId, address[0].userId));
+        }
+      }
+
+      const [updatedAddress] = await db
+        .update(schema.deliveryAddresses)
+        .set({
+          recipientName: recipientName?.trim(),
+          addressLine1: addressLine1?.trim(),
+          addressLine2: addressLine2 ? addressLine2.trim() : null,
+          city: city?.trim(),
+          state: state?.trim(),
+          pincode: pincode?.trim(),
+          country: country || 'India',
+          phoneNumber: phoneNumber?.trim(),
+          deliveryInstructions: deliveryInstructions ? deliveryInstructions.trim() : null,
+          isDefault: Boolean(isDefault),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.deliveryAddresses.id, addressId))
+        .returning();
+
+      if (!updatedAddress) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      res.json(updatedAddress);
+    } catch (error) {
+      console.error("Error updating delivery address:", error);
+      res.status(500).json({ error: "Failed to update delivery address" });
+    }
+  });
+
+  app.delete("/api/delivery-addresses/:id", async (req, res) => {
+    try {
+      const addressId = parseInt(req.params.id);
+
+      const [deletedAddress] = await db
+        .delete(schema.deliveryAddresses)
+        .where(eq(schema.deliveryAddresses.id, addressId))
+        .returning();
+
+      if (!deletedAddress) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      res.json({ success: true, message: "Address deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting delivery address:", error);
+      res.status(500).json({ error: "Failed to delete delivery address" });
+    }
+  });
+
+  app.put("/api/delivery-addresses/:id/set-default", async (req, res) => {
+    try {
+      const addressId = parseInt(req.params.id);
+
+      const address = await db
+        .select()
+        .from(schema.deliveryAddresses)
+        .where(eq(schema.deliveryAddresses.id, addressId))
+        .limit(1);
+
+      if (address.length === 0) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      // Unset all default addresses for this user
+      await db
+        .update(schema.deliveryAddresses)
+        .set({ isDefault: false })
+        .where(eq(schema.deliveryAddresses.userId, address[0].userId));
+
+      // Set this address as default
+      const [updatedAddress] = await db
+        .update(schema.deliveryAddresses)
+        .set({ isDefault: true, updatedAt: new Date() })
+        .where(eq(schema.deliveryAddresses.id, addressId))
+        .returning();
+
+      res.json(updatedAddress);
+    } catch (error) {
+      console.error("Error setting default address:", error);
+      res.status(500).json({ error: "Failed to set default address" });
+    }
+  });
+
 
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600'); 
@@ -3997,7 +3094,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }))
             };
           } catch (imgError) {
-            console.warn(`Failed to get images for product ${product.id}:`, (imgError as any).message);
+            console.warn(`Failed to get images for product ${product.id}:`, imgError.message);
             return {
               ...product,
               images: []
@@ -4010,7 +3107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(productsWithImages);
     } catch (error) {
       console.error("Products API error:", error);
-      res.status(500).json({ error: "Failed to fetch products", details: (error as any).message });
+      res.status(500).json({ error: "Failed to fetch products", details: error.message });
     }
   });
 
@@ -4742,11 +3839,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             // Create order in ordersTable
             const [newOrder] = await db.insert(schema.ordersTable).values({
-              userId: payment.userId || 0,
-              totalAmount: (payment.amount as unknown as number) || 0,
+              userId: payment.userId,
+              totalAmount: payment.amount,
               status: 'processing',
               paymentMethod: 'Cashfree',
-              shippingAddress: (orderData as any).shippingAddress,
+              shippingAddress: orderData.shippingAddress,
               cashfreeOrderId: payment.cashfreeOrderId,
               paymentId: payment.paymentId,
               estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
@@ -4836,7 +3933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             customer: {
               name: `${userData.firstName} ${userData.lastName}`,
               email: userData.email,
-              phone: userData.phone,
+              phone: userData.phone || 'N/A',
               address: order.shippingAddress,
             },
             date: order.createdAt.toISOString().split('T')[0],
@@ -4966,17 +4063,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/orders/:id", async (req, res) => {
     try {
       const orderId = req.params.id.replace('ORD-', '');
-      const parsedOrderId = Number(orderId);
-
-      // Validate that orderId is a valid number
-      if (isNaN(parsedOrderId) || parsedOrderId <= 0) {
-        return res.status(400).json({ error: "Invalid order ID format" });
-      }
 
       const order = await db
         .select()
         .from(schema.ordersTable)
-        .where(eq(schema.ordersTable.id, parsedOrderId))
+        .where(eq(schema.ordersTable.id, Number(orderId)))
         .limit(1);
 
       if (order.length === 0) {
@@ -5266,7 +4357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           code: schema.promoCodes.code,
           userId: schema.promoCodeUsage.userId,
           orderId: schema.promoCodeUsage.orderId,
-          discountAmount: schema.promoCodeUsage.usage.discountAmount,
+          discountAmount: schema.promoCodeUsage.discountAmount,
           createdAt: schema.promoCodeUsage.createdAt
         })
         .from(schema.promoCodeUsage)
@@ -5275,7 +4366,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(usage);
     } catch (error) {
-      console.error("Error fetching promo code usage:", error);      res.status(500).json({ error: "Failed to fetch promo code usage" });
+      console.error("Error fetching promo code usage:", error);
+      res.status(500).json({ error: "Failed to fetch promo code usage" });
     }
   });
 
@@ -5327,6 +4419,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get affiliate settings for cart (public)
+  app.get("/api/affiliate-settings", async (req, res) => {
+    try {
+      const settings = await db.select().from(schema.affiliateSettings);
+
+      const settingsObj = {
+        commissionRate: parseFloat(settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'),
+        userDiscountPercentage: parseFloat(settings.find(s => s.settingKey === 'user_discount_percentage')?.settingValue || '5'),
+        maxDiscountAmount: settings.find(s => s.settingKey === 'max_discount_amount')?.settingValue 
+          ? parseFloat(settings.find(s => s.settingKey === 'max_discount_amount')!.settingValue) 
+          : null,
+        minOrderAmount: parseFloat(settings.find(s => s.settingKey === 'min_order_amount')?.settingValue || '0'),
+      };
+
+      res.json(settingsObj);
+    } catch (error) {
+      console.error("Error fetching affiliate settings:", error);
+      res.json({
+        commissionRate: 10,
+        userDiscountPercentage: 5,
+        maxDiscountAmount: null,
+        minOrderAmount: 0
+      });
+    }
+  });
+
+
+
   // Create new order (for checkout)
   app.post("/api/orders", async (req, res) => {
     try {
@@ -5344,10 +4463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         redeemAmount,
         affiliateCode,
         affiliateCommission, // This seems to be unused here, but kept for context
-        affiliateWalletAmount,
-        promoCode,
-        promoDiscount,
-        affiliateDiscount
+        affiliateWalletAmount
       } = req.body;
 
       // Validation
@@ -5357,23 +4473,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: "Items are required" });
-      }
-
-      // Get user details from database
-      let user: any = null;
-      try {
-        user = await db
-          .select({
-            firstName: schema.users.firstName,
-            lastName: schema.users.lastName,
-            email: schema.users.email,
-            phone: schema.users.phone,
-          })
-          .from(schema.users)
-          .where(eq(schema.users.id, Number(userId)))
-          .limit(1);
-      } catch (e) {
-        console.error('Failed to fetch user:', e);
       }
 
       // Insert the order into database
@@ -5387,11 +4486,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         saturdayDelivery: req.body.saturdayDelivery !== undefined ? req.body.saturdayDelivery : true,
         sundayDelivery: req.body.sundayDelivery !== undefined ? req.body.sundayDelivery : true,
         affiliateCode: affiliateCode || null,
-        affiliateDiscount: affiliateDiscount ? Math.round(affiliateDiscount) : 0,
-        promoCode: promoCode || null,
-        promoDiscount: promoDiscount ? Math.round(promoDiscount) : 0,
-        redeemAmount: redeemAmount ? Math.round(redeemAmount) : 0,
-        affiliateWalletAmount: affiliateWalletAmount ? Math.round(affiliateWalletAmount) : 0,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
       };
 
@@ -5420,12 +4514,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .limit(1);
 
             if (affiliateApp && affiliateApp.length > 0) {
-              // Get affiliate settings for commission rate
-              const settings = await db.select().from(schema.affiliateSettings);
-              const commissionRate = parseFloat(
-                settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'
-              );
-
               // Use the affiliateCommission value passed from checkout instead of recalculating
               const calculatedCommission = affiliateCommission || 0;
 
@@ -5482,7 +4570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 productName: items.map((item: any) => item.productName || item.name).join(', '),
                 saleAmount: Number(totalAmount).toFixed(2),
                 commissionAmount: calculatedCommission.toFixed(2),
-                commissionRate: commissionRate.toFixed(2), // Assuming commissionRate is available globally or passed
+                commissionRate: commissionRate.toFixed(2),
                 status: 'confirmed'
               });
 
@@ -5627,8 +4715,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .where(eq(schema.userWallet.userId, parseInt(userId)))
               .limit(1);
 
-            const balanceBefore = parseFloat(walletForBalance[0].cashbackBalance || '0');
-            const balanceAfter = parseFloat(walletForBalance[0].cashbackBalance || '0'); // This should be updated balance, but for simplicity we use current
+            const balanceBefore = parseFloat(walletForBalance[0].cashbackBalance || '0') - cashbackItem.amount;
+            const balanceAfter = parseFloat(walletForBalance[0].cashbackBalance || '0');
 
             await db.insert(schema.userWalletTransactions).values({
               userId: parseInt(userId),
@@ -5715,7 +4803,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               orderId: newOrder.id,
               type: 'withdrawal',
               amount: affiliateWalletAmount.toFixed(2),
-              balanceType: currentCommission >= affiliateWalletAmount ? 'commission' : 'mixed', // Determine balance type
+              balanceType: commissionBalance >= affiliateWalletAmount ? 'commission' : 'mixed',
               description: `Commission balance used for order ORD-${newOrder.id.toString().padStart(3, '0')}`,
               status: 'completed',
               processedAt: new Date(),
@@ -5732,6 +4820,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Credit affiliate commission to wallet if affiliate code was used
+      if (affiliateCode && affiliateCode.startsWith('POPPIKAP') && paymentMethod !== 'Cash on Delivery') {
+        const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
+
+        console.log(`🔍 Processing affiliate commission for code: ${affiliateCode}, userId: ${affiliateUserId}`);
+
+        if (!isNaN(affiliateUserId)) {
+          try {
+            // Verify affiliate exists and is approved
+            const affiliateApp = await db
+              .select()
+              .from(schema.affiliateApplications)
+              .where(and(
+                eq(schema.affiliateApplications.userId, affiliateUserId),
+                eq(schema.affiliateApplications.status, 'approved')
+              ))
+              .limit(1);
+
+            if (!affiliateApp || affiliateApp.length === 0) {
+              console.error(`❌ Affiliate application not found or not approved for user ${affiliateUserId}`);
+              // Continue with order creation even if affiliate is invalid
+            } else {
+              // Get affiliate settings for commission rate
+              const settings = await db.select().from(schema.affiliateSettings);
+              const commissionRate = parseFloat(
+                settings.find(s => s.settingKey === 'commission_rate')?.settingValue || '10'
+              );
+
+              // Calculate commission - use total amount after all deductions
+              const calculatedCommission = (Number(totalAmount) * commissionRate) / 100;
+
+              console.log(`💰 Calculated commission: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${totalAmount})`);
+
+              // Get or create affiliate wallet
+              let wallet = await db
+                .select()
+                .from(schema.affiliateWallet)
+                .where(eq(schema.affiliateWallet.userId, affiliateUserId))
+                .limit(1);
+
+              if (wallet.length === 0) {
+                console.log(`📝 Creating new wallet for affiliate ${affiliateUserId}`);
+                // Create wallet
+                const [newWallet] = await db.insert(schema.affiliateWallet).values({
+                  userId: affiliateUserId,
+                  cashbackBalance: "0.00",
+                  commissionBalance: calculatedCommission.toFixed(2),
+                  totalEarnings: calculatedCommission.toFixed(2),
+                  totalWithdrawn: "0.00"
+                }).returning();
+
+                console.log(`✅ Wallet created:`, newWallet);
+              } else {
+                console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
+                // Update wallet
+                const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
+                const currentEarnings = parseFloat(wallet[0].totalEarnings || '0');
+
+                const [updatedWallet] = await db.update(schema.affiliateWallet)
+                  .set({
+                    commissionBalance: (currentCommission + calculatedCommission).toFixed(2),
+                    totalEarnings: (currentEarnings + calculatedCommission).toFixed(2),
+                    updatedAt: new Date()
+                  })
+                  .where(eq(schema.affiliateWallet.userId, affiliateUserId))
+                  .returning();
+
+                console.log(`✅ Wallet updated:`, updatedWallet);
+              }
+
+              // Get user details for sale record
+              const orderUser = await db
+                .select({
+                  firstName: schema.users.firstName,
+                  lastName: schema.users.lastName,
+                  email: schema.users.email,
+                  phone: schema.users.phone,
+                })
+                .from(schema.users)
+                .where(eq(schema.users.id, Number(userId)))
+                .limit(1);
+
+              const userData = orderUser[0] || { firstName: 'Customer', lastName: '', email: 'customer@email.com', phone: null };
+
+              // Record affiliate sale in database
+              const [saleRecord] = await db.insert(schema.affiliateSales).values({
+                affiliateUserId,
+                affiliateCode,
+                orderId: newOrder.id,
+                customerId: Number(userId),
+                customerName: customerName || `${userData.firstName} ${userData.lastName}`,
+                customerEmail: customerEmail || userData.email,
+                customerPhone: customerPhone || userData.phone || null,
+                productName: items.map((item: any) => item.productName || item.name).join(', '),
+                saleAmount: Number(totalAmount).toFixed(2),
+                commissionAmount: calculatedCommission.toFixed(2),
+                commissionRate: commissionRate.toFixed(2),
+                status: 'confirmed'
+              }).returning();
+
+              console.log(`✅ Sale record created:`, saleRecord);
+
+              // Add transaction record
+              const [transactionRecord] = await db.insert(schema.affiliateTransactions).values({
+                userId: affiliateUserId,
+                orderId: newOrder.id,
+                type: 'commission',
+                amount: calculatedCommission.toFixed(2),
+                balanceType: 'commission',
+                description: `Commission (${commissionRate}%) from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+                status: 'completed',
+                transactionId: null,
+                notes: null,
+                processedAt: new Date(),
+                createdAt: new Date()
+              }).returning();
+
+              console.log(`✅ Transaction record created:`, transactionRecord);
+
+              console.log(`✅ Affiliate commission credited: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for order ${newOrder.id}`);
+            }
+          } catch (affiliateError) {
+            console.error(`❌ Error processing affiliate commission:`, affiliateError);
+            // Continue with order creation even if affiliate tracking fails
+          }
+        } else {
+          console.error(`❌ Invalid affiliate user ID from code: ${affiliateCode}`);
+        }
+      }
+
       const orderId = `ORD-${newOrder.id.toString().padStart(3, '0')}`;
 
       // Always try to create Shiprocket order for all new orders
@@ -5744,7 +4962,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           console.log('Starting Shiprocket order creation for:', orderId);
 
-          // Note: user was already fetched at the start of the function
+          // Get user details from database
+          const user = await db
+            .select({
+              firstName: schema.users.firstName,
+              lastName: schema.users.lastName,
+              email: schema.users.email,
+              phone: schema.users.phone,
+            })
+            .from(schema.users)
+            .where(eq(schema.users.id, Number(userId)))
+            .limit(1);
+
           let customerData = {
             firstName: customerName?.split(' ')[0] || 'Customer',
             lastName: customerName?.split(' ').slice(1).join(' ') || 'Name',
@@ -5802,17 +5031,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error('Shiprocket response missing order_id:', shiprocketResponse);
           }
         } catch (shiprocketErrorCatch) {
-          shiprocketError = (shiprocketErrorCatch as any).message;
+          shiprocketError = shiprocketErrorCatch.message;
           console.error('Shiprocket order creation failed:', {
             orderId: orderId,
-            error: (shiprocketErrorCatch as any).message,
-            stack: (shiprocketErrorCatch as any).stack
+            error: shiprocketErrorCatch.message,
+            stack: shiprocketErrorCatch.stack
           });
 
           // Save error to database for debugging
           await db.update(schema.ordersTable)
             .set({
-              notes: `Shiprocket Error: ${(shiprocketErrorCatch as any).message}`
+              notes: `Shiprocket Error: ${shiprocketErrorCatch.message}`
             })
             .where(eq(schema.ordersTable.id, newOrder.id));
         }
@@ -5895,24 +5124,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const orderId = req.params.id.replace('ORD-', '');
 
-      // Extract numeric ID from order ID (e.g., "ORD-001" -> 1)
-      const numericId = parseInt(orderId.replace(/\D/g, ''));
+      const order = await db
+        .select()
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.id, Number(orderId)))
+        .limit(1);
 
-      if (isNaN(numericId)) {
-        return res.status(400).json({ error: "Invalid order ID format" });
-      }
-
-      // Fetch order from database
-      const result = await pool.query(
-        'SELECT * FROM orders WHERE id = $1',
-        [numericId]
-      );
-
-      if (result.rows.length === 0) {
+      if (order.length === 0) {
         return res.status(404).json({ error: "Order not found" });
       }
 
-      const orderData = result.rows[0];
+      const orderData = order[0];
 
       // Generate tracking timeline based on order status
       const trackingTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.createdAt), orderData.estimatedDelivery);
@@ -6145,41 +5367,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orderData = result.rows[0];
 
       // Check if order has Shiprocket integration
-      if (!orderData.shiprocketOrderId) {
+      if (!orderData.shiprocket_order_id) {
         // Generate basic timeline for non-Shiprocket orders
-        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.createdAt), orderData.estimatedDelivery);
+        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
 
         return res.json({
           error: "This order is not shipped through Shiprocket",
           hasShiprocketTracking: false,
           orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
           status: orderData.status,
-          trackingNumber: orderData.trackingNumber,
-          estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
+          trackingNumber: orderData.tracking_number,
+          estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
           timeline: basicTimeline,
           realTimeTracking: false,
-          totalAmount: orderData.totalAmount,
-          shippingAddress: orderData.shippingAddress,
-          createdAt: orderData.createdAt.toISOString().split('T')[0]
+          totalAmount: orderData.total_amount,
+          shippingAddress: orderData.shipping_address,
+          createdAt: orderData.created_at.toISOString().split('T')[0]
         });
       }
 
       // Check if Shiprocket is configured
       if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD) {
         // Fallback to basic tracking if Shiprocket not configured
-        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.createdAt), orderData.estimatedDelivery);
+        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
 
         res.json({
           orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-          shiprocketOrderId: orderData.shiprocketOrderId,
+          shiprocketOrderId: orderData.shiprocket_order_id,
           status: orderData.status,
-          trackingNumber: orderData.trackingNumber,
-          estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
+          trackingNumber: orderData.tracking_number,
+          estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
           timeline: basicTimeline,
           realTimeTracking: false,
-          totalAmount: orderData.totalAmount,
-          shippingAddress: orderData.shippingAddress,
-          createdAt: orderData.createdAt.toISOString().split('T')[0],
+          totalAmount: orderData.total_amount,
+          shippingAddress: orderData.shipping_address,
+          createdAt: orderData.created_at.toISOString().split('T')[0],
           hasShiprocketTracking: true,
           configured: true,
           error: "Unable to fetch real-time tracking data from Shiprocket. Using standard tracking."
@@ -6187,7 +5409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Fetch real-time tracking from Shiprocket
         try {
-          const trackingDetails = await shiprocketService.getTrackingDetails(orderData.shiprocketOrderId);
+          const trackingDetails = await shiprocketService.getTrackingDetails(orderData.shiprocket_order_id);
           console.log("Shiprocket tracking details:", JSON.stringify(trackingDetails, null, 2));
 
           // Extract necessary information and format timeline
@@ -6204,8 +5426,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timeline.unshift({
               step: "Order Placed",
               status: "completed",
-              date: new Date(orderData.createdAt).toLocaleDateString('en-IN'),
-              time: new Date(orderData.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+              date: new Date(orderData.created_at).toLocaleDateString('en-IN'),
+              time: new Date(orderData.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
               description: "Your order has been placed successfully"
             });
           }
@@ -6222,15 +5444,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           res.json({
             orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-            shiprocketOrderId: orderData.shiprocketOrderId,
+            shiprocketOrderId: orderData.shiprocket_order_id,
             status: finalStatus,
-            trackingNumber: trackingDetails.tracking_number || orderData.trackingNumber,
-            estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
+            trackingNumber: trackingDetails.tracking_number || orderData.tracking_number,
+            estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
             timeline: timeline,
             currentStep: getCurrentStep(finalStatus),
-            totalAmount: orderData.totalAmount,
-            shippingAddress: orderData.shippingAddress,
-            createdAt: orderData.createdAt.toISOString().split('T')[0],
+            totalAmount: orderData.total_amount,
+            shippingAddress: orderData.shipping_address,
+            createdAt: orderData.created_at.toISOString().split('T')[0],
             hasShiprocketTracking: true,
             realTimeTracking: true
           });
@@ -6238,18 +5460,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (shiprocketTrackingError) {
           console.error("Error fetching Shiprocket tracking details:", shiprocketTrackingError);
           // Fallback to basic timeline if Shiprocket API fails
-          const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.createdAt), orderData.estimatedDelivery);
+          const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
           res.json({
             orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-            shiprocketOrderId: orderData.shiprocketOrderId,
+            shiprocketOrderId: orderData.shiprocket_order_id,
             status: orderData.status,
-            trackingNumber: orderData.trackingNumber,
-            estimatedDelivery: orderData.estimatedDelivery?.toISOString().split('T')[0],
+            trackingNumber: orderData.tracking_number,
+            estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
             timeline: basicTimeline,
             currentStep: getCurrentStep(orderData.status),
-            totalAmount: orderData.totalAmount,
-            shippingAddress: orderData.shippingAddress,
-            createdAt: orderData.createdAt.toISOString().split('T')[0],
+            totalAmount: orderData.total_amount,
+            shippingAddress: orderData.shipping_address,
+            createdAt: orderData.created_at.toISOString().split('T')[0],
             hasShiprocketTracking: true,
             realTimeTracking: false,
             error: "Failed to fetch real-time tracking from Shiprocket. Displaying standard tracking."
@@ -6364,7 +5586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const postId = parseInt(id);
 
       // Simple implementation without separate likes table for now
-      const db = require('./storage').getDb(); // Assuming getDb is available in storage
+      const db = require('./storage').getDb();
       const post = await db.select().from(require('../shared/schema').blogPosts)
         .where(require('drizzle-orm').eq(require('../shared/schema').blogPosts.id, postId))
         .limit(1);
@@ -6419,7 +5641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const comment = {
-        id: Date.now(), // Temporary ID, would be auto-generated in DB
+        id: Date.now(),
         author: `${user[0].firstName} ${user[0].lastName}`,
         content: content.trim(),
         date: new Date().toLocaleDateString(),
@@ -6512,111 +5734,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public blog categories endpoint (sorted by sortOrder)
   app.get("/api/blog/categories", async (req, res) => {
     try {
       const categories = await storage.getBlogCategories();
-      // Ensure we always return an array, even if empty
-      res.json(Array.isArray(categories) ? categories : []);
-    } catch (error) {
-      console.error("Error fetching blog categories:", error);
-      res.status(500).json({ error: "Failed to fetch blog categories", categories: [] });
-    }
-  });
-
-  // Admin blog categories
-  app.get("/api/admin/blog/categories", adminMiddleware, async (req, res) => {
-    try {
-      const categories = await db
-        .select()
-        .from(schema.blogCategories)
-        .orderBy(asc(schema.blogCategories.sortOrder), asc(schema.blogCategories.name));
-
       res.json(categories);
     } catch (error) {
       console.error("Error fetching blog categories:", error);
-      res.status(500).json({ error: "Failed to fetch blog categories" });
+      // Return default categories when database is unavailable
+      res.json([
+        { id: 1, name: "Skincare", slug: "skincare", description: "All about skincare", isActive: true, sortOrder: 1 },
+        { id: 2, name: "Makeup", slug: "makeup", description: "All about makeup", isActive        : true, sortOrder: 2 },
+        { id: 3, name: "Haircare", slug: "haircare", description: "All about haircare", isActive: true, sortOrder: 3 }
+      ]);
     }
   });
 
-  // Blog categories endpoint (admin)
-  app.get("/api/admin/blog/categories", async (req, res) => {
-    try {
-      const categories = await storage.getBlogCategories();
-      // Ensure we always return an array, even if empty
-      res.json(Array.isArray(categories) ? categories : []);
-    } catch (error) {
-      console.error("Error fetching blog categories:", error);
-      res.status(500).json({ error: "Failed to fetch blog categories", categories: [] });
-    }
-  });
-
-  // Blog posts endpoint (admin)
+  // Admin blog routes
   app.get("/api/admin/blog/posts", async (req, res) => {
     try {
       const posts = await storage.getBlogPosts();
-      res.json(posts);
+
+      // Parse tags for frontend
+      const postsWithParsedTags = posts.map(post => ({
+        ...post,
+        tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags
+      }));
+
+      res.json(postsWithParsedTags);
     } catch (error) {
-      console.error("Error fetching blog posts:", error);
+      console.error("Error fetching admin blog posts:", error);
       res.status(500).json({ error: "Failed to fetch blog posts" });
     }
   });
 
-  // Create blog post (admin)
-  app.post("/api/admin/blog/posts", adminMiddleware, async (req, res) => {
+  app.post("/api/admin/blog/posts", upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'video', maxCount: 1 },
+    { name: 'contentVideos', maxCount: 10 }
+  ]), async (req, res) => {
     try {
-      const { title, excerpt, content, author, category, imageUrl, videoUrl, featured, published, readTime } = req.body;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      let imageUrl = req.body.imageUrl;
+      let videoUrl = req.body.videoUrl;
+      const contentVideoUrls: string[] = [];
 
-      if (!title || !content || !author || !category) {
-        return res.status(400).json({ error: "Title, content, author, and category are required" });
+      // Handle image upload
+      if (files?.image?.[0]) {
+        imageUrl = `/api/images/${files.image[0].filename}`;
       }
 
-      const postData: InsertBlogPost = {
-        title: title.trim(),
-        excerpt: excerpt?.trim() || '',
-        content,
-        author: author.trim(),
-        category: category.trim(),
-        imageUrl: imageUrl || '',
-        videoUrl: videoUrl || '',
-        featured: featured !== false && featured !== 'false',
-        published: published !== false && published !== 'false',
-        readTime: readTime || '5 min read'
+      // Handle video upload
+      if (files?.video?.[0]) {
+        videoUrl = `/api/images/${files.video[0].filename}`;
+      }
+
+      // Handle content videos upload
+      if (files?.contentVideos && files.contentVideos.length > 0) {
+        for (const videoFile of files.contentVideos) {
+          contentVideoUrls.push(`/api/images/${videoFile.filename}`);
+        }
+      }
+
+      // If content videos were uploaded, add them to the content
+      let content = req.body.content;
+      if (contentVideoUrls.length > 0 && content) {
+        // Insert video tags into content at specified positions or append
+        const videoInsertPositions = req.body.videoPositions ? JSON.parse(req.body.videoPositions) : [];
+        contentVideoUrls.forEach((url, index) => {
+          const videoHtml = `<div class="video-container" style="margin: 20px 0; text-align: center;"><video controls preload="metadata" style="width: 100%; max-width: 800px; border-radius: 8px;"><source src="${url}" type="video/mp4" />Your browser does not support the video tag.</video></div>`;
+          if (videoInsertPositions[index]) {
+            content = content.slice(0, videoInsertPositions[index]) + videoHtml + content.slice(videoInsertPositions[index]);
+          } else {
+            content += videoHtml;
+          }
+        });
+      }
+
+      const postData = {
+        title: req.body.title,
+        excerpt: req.body.excerpt,
+        content: content,
+        author: req.body.author,
+        category: req.body.category,
+        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400',
+        videoUrl,
+        featured: req.body.featured === 'true',
+        published: req.body.published === 'true',
+        readTime: req.body.readTime || '5 min read'
       };
 
       const post = await storage.createBlogPost(postData);
       res.status(201).json(post);
     } catch (error) {
       console.error("Error creating blog post:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to create blog post";
-      res.status(500).json({
-        error: "Failed to create blog post",
-        details: errorMessage
-      });
+      res.status(500).json({ error: "Failed to create blog post" });
     }
   });
 
-  // Update blog post (admin)
-  app.put("/api/admin/blog/posts/:id", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/blog/posts/:id", upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'video', maxCount: 1 },
+    { name: 'contentVideos', maxCount: 10 }
+  ]), async (req, res) => {
     try {
       const { id } = req.params;
-      const { title, excerpt, content, author, category, imageUrl, videoUrl, featured, published, readTime } = req.body;
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      const updateData: Partial<InsertBlogPost> = {};
+      const updateData: any = {};
 
-      if (title !== undefined) updateData.title = title.trim();
-      if (excerpt !== undefined) updateData.excerpt = excerpt.trim();
-      if (content !== undefined) updateData.content = content;
-      if (author !== undefined) updateData.author = author.trim();
-      if (category !== undefined) updateData.category = category.trim();
-      if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
-      if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
-      if (featured !== undefined) updateData.featured = featured !== false && featured !== 'false';
-      if (published !== undefined) updateData.published = published !== false && published !== 'false';
-      if (readTime !== undefined) updateData.readTime = readTime;
+      // Only update fields that are provided
+      if (req.body.title) updateData.title = req.body.title;
+      if (req.body.excerpt) updateData.excerpt = req.body.excerpt;
+      if (req.body.author) updateData.author = req.body.author;
+      if (req.body.category) updateData.category = req.body.category;
+      if (req.body.readTime) updateData.readTime = req.body.readTime;
+
+      if (req.body.tags) {
+        updateData.tags = Array.isArray(req.body.tags) ? req.body.tags :
+                          typeof req.body.tags === 'string' ? req.body.tags.split(',').map(t => t.trim()) : [];
+      }
+
+      if (req.body.featured !== undefined) updateData.featured = req.body.featured === 'true';
+      if (req.body.published !== undefined) updateData.published = req.body.published === 'true';
+
+      // Handle content with new videos
+      let content = req.body.content;
+      if (files?.contentVideos && files.contentVideos.length > 0) {
+        const contentVideoUrls: string[] = [];
+        for (const videoFile of files.contentVideos) {
+          contentVideoUrls.push(`/api/images/${videoFile.filename}`);
+        }
+
+        const videoInsertPositions = req.body.videoPositions ? JSON.parse(req.body.videoPositions) : [];
+        contentVideoUrls.forEach((url, index) => {
+          const videoHtml = `<div class="video-container" style="margin: 20px 0;"><video controls style="width: 100%; max-width: 800px; border-radius: 8px;"><source src="${url}" type="video/mp4">Your browser does not support the video tag.</video></div>`;
+          if (videoInsertPositions[index]) {
+            content = content.slice(0, videoInsertPositions[index]) + videoHtml + content.slice(videoInsertPositions[index]);
+          } else {
+            content += videoHtml;
+          }
+        });
+      }
+
+      if (content) updateData.content = content;
+
+      // Handle image upload
+      if (files?.image?.[0]) {
+        updateData.imageUrl = `/api/images/${files.image[0].filename}`;
+      } else if (req.body.imageUrl) {
+        updateData.imageUrl = req.body.imageUrl;
+      }
+
+      // Handle video upload
+      if (files?.video?.[0]) {
+        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.videoUrl !== undefined) {
+        updateData.videoUrl = req.body.videoUrl || null;
+      }
 
       const post = await storage.updateBlogPost(parseInt(id), updateData);
-
       if (!post) {
         return res.status(404).json({ error: "Blog post not found" });
       }
@@ -6624,25 +5900,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(post);
     } catch (error) {
       console.error("Error updating blog post:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to update blog post";
-      res.status(500).json({
-        error: "Failed to update blog post",
-        details: errorMessage
-      });
+      res.status(500).json({ error: "Failed to update blog post" });
     }
   });
 
-  // Delete blog post (admin)
-  app.delete("/api/admin/blog/posts/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/blog/posts/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const postId = parseInt(id);
-
-      if (isNaN(postId)) {
-        return res.status(400).json({ error: "Invalid post ID" });
-      }
-
-      const success = await storage.deleteBlogPost(postId);
+      const success = await storage.deleteBlogPost(parseInt(id));
 
       if (!success) {
         return res.status(404).json({ error: "Blog post not found" });
@@ -6651,16 +5916,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, message: "Blog post deleted successfully" });
     } catch (error) {
       console.error("Error deleting blog post:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to delete blog post";
-      res.status(500).json({
-        error: "Failed to delete blog post",
-        details: errorMessage
-      });
+      res.status(500).json({ error: "Failed to delete blog post" });
     }
   });
 
-  // Create blog category (admin)
-  app.post("/api/admin/blog/categories", adminMiddleware, async (req, res) => {
+
+
+  app.post("/api/admin/featured-sections", async (req, res) => {
+    try {
+      const { title, subtitle, imageUrl, linkUrl, buttonText, displayOrder, isActive } = req.body;
+
+      if (!title || !imageUrl) {
+        return res.status(400).json({ error: "Title and image URL are required" });
+      }
+
+      const sectionData = {
+        title: title.trim(),
+        subtitle: subtitle ? subtitle.trim() : null,
+        imageUrl: imageUrl.trim(),
+        linkUrl: linkUrl ? linkUrl.trim() : null,
+        buttonText: buttonText ? buttonText.trim() : null,
+        displayOrder: parseInt(displayOrder) || 0,
+        isActive: Boolean(isActive ?? true)
+      };
+
+      const section = await storage.createFeaturedSection(sectionData);
+      res.status(201).json(section);
+    } catch (error) {
+      console.error("Error creating featured section:", error);
+      res.status(500).json({ error: "Failed to create featured section" });
+    }
+  });
+
+  app.put("/api/admin/featured-sections/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { title, subtitle, imageUrl, linkUrl, buttonText, displayOrder, isActive } = req.body;
+
+      if (!title || !imageUrl) {
+        return res.status(400).json({ error: "Title and image URL are required" });
+      }
+
+      const sectionData = {
+        title: title.trim(),
+        subtitle: subtitle ? subtitle.trim() : null,
+        imageUrl: imageUrl.trim(),
+        linkUrl: linkUrl ? linkUrl.trim() : null,
+        buttonText: buttonText ? buttonText.trim() : null,
+        displayOrder: parseInt(displayOrder) || 0,
+        isActive: Boolean(isActive ?? true)
+      };
+
+      const section = await storage.updateFeaturedSection(parseInt(id), sectionData);
+      if (!section) {
+        return res.status(404).json({ error: "Featured section not found" });
+      }
+
+      res.json(section);
+    } catch (error) {
+      console.error("Error updating featured section:", error);
+      res.status(500).json({ error: "Failed to update featured section" });
+    }
+  });
+
+  app.delete("/api/admin/featured-sections/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteFeaturedSection(parseInt(id));
+      res.json({ message: "Featured section deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting featured section:", error);
+      res.status(500).json({ error: "Failed to delete featured section" });
+    }
+  });
+
+
+
+  // Admin blog categories
+  app.get("/api/admin/blog/categories", async (req, res) => {
+    try {
+      const categories = await storage.getBlogCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching blog categories:", error);
+      res.status(500).json({ error: "Failed to fetch blog categories" });
+    }
+  });
+
+  // Admin blog subcategories
+  app.get("/api/admin/blog/subcategories", async (req, res) => {
+    try {
+      const subcategories = await storage.getBlogSubcategories();
+      res.json(subcategories);
+    } catch (error) {
+      console.error("Error fetching blog subcategories:", error);
+      res.status(500).json({ error: "Failed to fetch blog subcategories" });
+    }
+  });
+
+  app.get("/api/admin/blog/categories/:categoryId/subcategories", async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+      const subcategories = await storage.getBlogSubcategoriesByCategory(parseInt(categoryId));
+      res.json(subcategories);
+    } catch (error) {
+      console.error("Error fetching blog subcategories by category:", error);
+      res.status(500).json({ error: "Failed to fetch blog subcategories" });
+    }
+  });
+
+  app.post("/api/admin/blog/categories", async (req, res) => {
     try {
       const { name, description, isActive, sortOrder } = req.body;
 
@@ -6687,8 +6052,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update blog category (admin)
-  app.put("/api/admin/blog/categories/:id", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/blog/categories/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const { name, description, isActive, sortOrder } = req.body;
@@ -6710,15 +6074,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating blog category:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to update blog category";
-      res.status(500).json({
+      res.status.json({
         error: "Failed to update blog category",
         details: errorMessage
       });
     }
   });
 
-  // Delete blog category (admin)
-  app.delete("/api/admin/blog/categories/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/blog/categories/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const categoryId = parseInt(id);
@@ -6744,7 +6107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/blog/subcategories", adminMiddleware, async (req, res) => {
+  app.post("/api/admin/blog/subcategories", async (req, res) => {
     try {
       const { name, description, categoryId, isActive, sortOrder } = req.body;
 
@@ -6779,7 +6142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/blog/subcategories/:id", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/blog/subcategories/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const { name, description, categoryId, isActive, sortOrder } = req.body;
@@ -6813,7 +6176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/blog/subcategories/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/blog/subcategories/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const subcategoryId = parseInt(id);
@@ -6892,7 +6255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Contact submissions management endpoints (Admin)
-  app.get("/api/admin/contact-submissions", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/contact-submissions", async (req, res) => {
     try {
       const submissions = await storage.getContactSubmissions();
       res.json(submissions);
@@ -6902,7 +6265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/contact-submissions/:id", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/contact-submissions/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const submission = await storage.getContactSubmission(parseInt(id));
@@ -6916,7 +6279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/contact-submissions/:id/status", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/contact-submissions/:id/status", async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
@@ -6942,7 +6305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/contact-submissions/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/contact-submissions/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteContactSubmission(parseInt(id));
@@ -7335,7 +6698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify JWT token
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as any;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
         res.json({ valid: true, message: "Token is valid", user: decoded });
       } catch (jwtError) {
         return res.status(401).json({ error: "Invalid token" });
@@ -7347,7 +6710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all customers (admin)
-  app.get("/api/admin/customers", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/customers", async (req, res) => {
     try {
       // Get all users from database
       const allUsers = await db.select({
@@ -7370,7 +6733,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(eq(schema.ordersTable.userId, user.id));
 
           const totalOrders = userOrders.length;
-          const totalSpent = userOrders.reduce((sum, order) => order.totalAmount, 0);
+          const totalSpent = userOrders.reduce((sum, order) => sum + order.totalAmount, 0);
 
           // Determine status based on activity
           let status = 'New';
@@ -7407,7 +6770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get customer details by ID (admin)
-  app.get("/api/admin/customers/:id", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/customers/:id", async (req, res) => {
     try {
       const customerId = parseInt(req.params.id);
 
@@ -7437,7 +6800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(5);
 
       const totalOrders = userOrders.length;
-      const totalSpent = userOrders.reduce((sum, order) => order.totalAmount, 0);
+      const totalSpent = userOrders.reduce((sum, order) => sum + order.totalAmount, 0);
 
       // Determine status
       let status = 'New';
@@ -7481,7 +6844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin search endpoint
-  app.get("/api/admin/search", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/search", async (req, res) => {
     try {
       const query = req.query.q;
 
@@ -7623,7 +6986,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin shade management routes
-  app.get("/api/admin/shades", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/shades", async (req, res) => {
     try {
       const allShades = await storage.getShades();
       res.json(allShades);    } catch (error) {
@@ -7632,7 +6995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/shades", adminMiddleware, async (req, res) => {
+  app.post("/api/admin/shades", async (req, res) => {
     try {
       console.log("Creating shade with data:", req.body);
 
@@ -7692,9 +7055,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
-    });
+  });
 
-  app.put("/api/admin/shades/:id", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/shades/:id", async (req, res) => {
     try {
       const { id } = req.params;
       console.log("Updating shade with ID:", id);
@@ -7732,7 +7095,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/shades/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/shades/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteShade(parseInt(id));
@@ -7768,7 +7131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const categoryId = category[0].id;
       console.log('Found category ID:', categoryId);
 
-      // Get active sliders for this category
+      // Get sliders for this category
       try {
         const slidersResult = await db
           .select()
@@ -7794,110 +7157,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // General slider management routes
-  app.get('/api/admin/sliders', adminMiddleware, async (req, res) => {
+  // Category slider management routes
+  app.get('/api/admin/categories/:categoryId/sliders', async (req, res) => {
     try {
-      const allSliders = await db.select().from(schema.sliders).orderBy(desc(schema.sliders.sortOrder));
-      res.json(allSliders);
+      const categoryId = parseInt(req.params.categoryId);
+      console.log('Fetching sliders for category ID:', categoryId);
+
+      // Check if categorySliders table exists, if not return empty array
+      try {
+        const slidersResult = await db
+          .select()
+          .from(schema.categorySliders)
+          .where(eq(schema.categorySliders.categoryId, categoryId))
+          .orderBy(asc(schema.categorySliders.sortOrder));
+
+        console.log('Found sliders:', slidersResult);
+        res.json(slidersResult);
+      } catch (tableError) {
+        console.log('CategorySliders table may not exist, returning empty array');
+        res.json([]);
+      }
     } catch (error) {
-      console.error('Error fetchingsliders:', error);
-      res.status(500).json({ error: 'Failed to fetch sliders' });
+      console.error('Error fetching category sliders:', error);
+      res.status(500).json({ error: 'Failed to fetch category sliders', details: error.message });
     }
   });
 
-  app.post('/api/admin/sliders', adminMiddleware, upload.single("image"), async (req, res) => {
+  app.post('/api/admin/categories/:categoryId/sliders', async (req, res) => {
     try {
-      // Handle image URL - require uploaded file
-      if (!req.file) {
-        return res.status(400).json({
-          error: 'Image file is required'
-        });
+      const categoryId = parseInt(req.params.categoryId);
+      const { imageUrl, title, subtitle, isActive, sortOrder } = req.body;
+
+      console.log('Creating category slider for category:', categoryId);
+      console.log('Slider data:', { imageUrl, title, subtitle, isActive, sortOrder });
+
+      // Validation
+      if (!imageUrl) {
+        return res.status(400).json({ error: 'Image URL is required' });
       }
 
-      const imageUrl = `/api/images/${req.file.filename}`;
+      if (isNaN(categoryId)) {
+        return res.status(400).json({ error: 'Invalid category ID' });
+      }
 
-      const [newSlider] = await db.insert(schema.sliders).values({
-        title: 'Uploaded Image', // Default title
-        subtitle: '',
-        description: 'New slider image uploaded',
-        imageUrl: imageUrl,
-        badge: '',
-        primaryActionText: '',
-        primaryActionUrl: '',
-        isActive: true,
-        sortOrder: 0
-      }).returning();
+      // Check if category exists
+      const category = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.id, categoryId))
+        .limit(1);
 
+      if (category.length === 0) {
+        return res.status(404).json({ error: 'Category not found' });
+      }
+
+      const sliderData = {
+        categoryId,
+        imageUrl: imageUrl.trim(),
+        title: (title || '').trim(),
+        subtitle: (subtitle || '').trim(),
+        isActive: Boolean(isActive ?? true),
+        sortOrder: parseInt(sortOrder) || 0
+      };
+
+      console.log('Inserting slider data:', sliderData);
+
+      const [newSlider] = await db.insert(schema.categorySliders).values(sliderData).returning();
+
+      console.log('Created slider successfully:', newSlider);
       res.json(newSlider);
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error creating category slider:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        constraint: error.constraint,
+        detail: error.detail
+      });
+
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(400).json({ error: 'A slider with similar data already exists' });
+      }
+
+      if (error.code === '23503') { // Foreign key constraint violation
+        return res.status(400).json({ error: 'Invalid category reference' });
+      }
+
       res.status(500).json({
-        error: 'Failed to upload image',
-        details: error.message
+        error: 'Failed to create category slider',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   });
 
-  app.put('/api/admin/sliders/:id', adminMiddleware, upload.single("image"), async (req, res) => {
+  app.put('/api/admin/categories/:categoryId/sliders/:sliderId', async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const body = req.body;
+      const sliderId = parseInt(req.params.sliderId);
+      const { imageUrl, title, subtitle, isActive, sortOrder } = req.body;
 
-       // Return the file URL
-       let imageUrl = body.imageUrl;
-       if(req.file) {
-        imageUrl = `/api/images/${req.file?.filename}`;
-       }
-
-      const [updatedSlider] = await db.update(schema.sliders)
+      const [updatedSlider] = await db
+        .update(schema.categorySliders)
         .set({
-          title: body.title,
-          subtitle: body.subtitle,
-          description: body.description,
-          imageUrl: imageUrl,
-          badge: body.badge,
-          primaryActionText: body.primaryActionText,
-          primaryActionUrl: body.primaryActionUrl,
-          isActive: body.isActive === 'true',
-          sortOrder: parseInt(body.sortOrder, 10),
-          updatedAt: new Date().toISOString()
+          imageUrl,
+          title: title || '',
+          subtitle: subtitle || '',
+          isActive: isActive !== false,
+          sortOrder: sortOrder || 0,
+          updatedAt: new Date()
         })
-        .where(eq(schema.sliders.id, id))
+        .where(eq(schema.categorySliders.id, sliderId))
         .returning();
 
       if (!updatedSlider) {
-        return res.status(404).json({ error: 'Slider not found' });
+        return res.status(404).json({ error: 'Category slider not found' });
       }
 
       res.json(updatedSlider);
     } catch (error) {
-      console.error('Error updating slider:', error);
-      res.status(500).json({ error: 'Failed to update slider' });
+      console.error('Error updating category slider:', error);
+      res.status(500).json({ error: 'Failed to update category slider' });
     }
   });
 
-  app.delete('/api/admin/sliders/:id', adminMiddleware, async (req, res) => {
-    try{
-      const id = parseInt(req.params.id);
+  app.delete('/api/admin/categories/:categoryId/sliders/:sliderId', async (req, res) => {
+    try {
+      const sliderId = parseInt(req.params.sliderId);
 
-      const [deletedSlider] = await db.delete(schema.sliders)
-        .where(eq(schema.sliders.id, id))
+      const [deletedSlider] = await db
+        .delete(schema.categorySliders)
+        .where(eq(schema.categorySliders.id, sliderId))
         .returning();
 
       if (!deletedSlider) {
-        return res.status(404).json({ error: 'Slider not found' });
+        return res.status(404).json({ error: 'Category slider not found' });
       }
 
-      res.json({ message: 'Slider deleted successfully' });
+      res.json({ message: 'Category slider deleted successfully' });
     } catch (error) {
-      console.error('Error deleting slider:', error);
-      res.status(500).json({ error: 'Failed to delete slider' });
+      console.error('Error deleting category slider:', error);
+      res.status(500).json({ error: 'Failed to delete category slider' });
     }
   });
 
-  // ==================== COMBO SLIDERS ROUTES ====================
+  // Combo Sliders Management Routes
 
-  // Public: Get active combo sliders
+  // Public endpoints for combo sliders
   app.get('/api/combo-sliders', async (req, res) => {
     try {
       const sliders = await db
@@ -7906,82 +7310,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(schema.comboSliders.isActive, true))
         .orderBy(asc(schema.comboSliders.sortOrder));
 
-      res.json(sliders || []);
+      res.json(sliders);
     } catch (error) {
       console.error('Error fetching combo sliders:', error);
       res.status(500).json({ error: 'Failed to fetch combo sliders' });
     }
   });
 
-  // Admin: Get all combo sliders
-  app.get('/api/admin/combo-sliders', adminMiddleware, async (req, res) => {
+  // Admin endpoints for combo sliders
+  app.get('/api/admin/combo-sliders', async (req, res) => {
     try {
-      const sliders = await db.select().from(schema.comboSliders).orderBy(asc(schema.comboSliders.sortOrder));
+      const sliders = await db
+        .select()
+        .from(schema.comboSliders)
+        .orderBy(asc(schema.comboSliders.sortOrder));
+
       res.json(sliders);
     } catch (error) {
-      console.error('Error fetching admin combo sliders:', error);
-      res.status(500).json({ error: 'Failed to fetch admin combo sliders' });
+      console.error('Error fetching combo sliders:', error);
+      res.status(500).json({ error: 'Failed to fetch combo sliders' });
     }
   });
 
-  // Admin: Create combo slider
-  app.post('/api/admin/combo-sliders', adminMiddleware, upload.single('image'), async (req, res) => {
+  app.post('/api/admin/combo-sliders', upload.single('image'), async (req, res) => {
     try {
-      let imageUrl = req.body.imageUrl;
+      const { title, subtitle, isActive, sortOrder } = req.body;
+
+      let imageUrl = '';
       if (req.file) {
         imageUrl = `/api/images/${req.file.filename}`;
+      } else if (req.body.imageUrl) {
+        imageUrl = req.body.imageUrl;
+      } else {
+        return res.status(400).json({ error: 'Image is required' });
       }
 
-      const sliderData = {
-        imageUrl: imageUrl,
-        title: req.body.title || null,
-        subtitle: req.body.subtitle || null,
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder, 10) || 0,
-      };
+      const [slider] = await db
+        .insert(schema.comboSliders)
+        .values({
+          imageUrl: imageUrl.trim(),
+          title: title?.trim() || null,
+          subtitle: subtitle?.trim() || null,
+          isActive: isActive === 'true' || isActive === true,
+          sortOrder: parseInt(sortOrder) || 0,
+        })
+        .returning();
 
-      const [newSlider] = await db.insert(schema.comboSliders).values(sliderData).returning();
-      res.status(201).json(newSlider);
+      res.json(slider);
     } catch (error) {
       console.error('Error creating combo slider:', error);
       res.status(500).json({ error: 'Failed to create combo slider' });
     }
   });
 
-  // Admin: Update combo slider
-  app.put('/api/admin/combo-sliders/:id', adminMiddleware, upload.single('image'), async (req, res) => {
+  app.put('/api/admin/combo-sliders/:id', upload.single('image'), async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const sliderId = parseInt(req.params.id);
+      const { title, subtitle, isActive, sortOrder } = req.body;
+
       let imageUrl = req.body.imageUrl;
       if (req.file) {
         imageUrl = `/api/images/${req.file.filename}`;
       }
 
-      const updateData: any = {
-        title: req.body.title || null,
-        subtitle: req.body.subtitle || null,
-        isActive: req.body.isActive !== undefined ? req.body.isActive === 'true' : true,
-        sortOrder: req.body.sortOrder !== undefined ? parseInt(req.body.sortOrder, 10) : 0,
-        updatedAt: new Date(),
-      };
+      const [updatedSlider] = await db
+        .update(schema.comboSliders)
+        .set({
+          ...(imageUrl && { imageUrl: imageUrl.trim() }),
+          title: title?.trim() || null,
+          subtitle: subtitle?.trim() || null,
+          isActive: isActive === 'true' || isActive === true,
+          sortOrder: parseInt(sortOrder) || 0,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.comboSliders.id, sliderId))
+        .returning();
 
-      if (imageUrl) updateData.imageUrl = imageUrl;
+      if (!updatedSlider) {
+        return res.status(404).json({ error: 'Combo slider not found' });
+      }
 
-      const [updatedSlider] = await db.update(schema.comboSliders).set(updateData).where(eq(schema.comboSliders.id, id)).returning();
-      if (!updatedSlider) return res.status(404).json({ error: 'Combo slider not found' });
       res.json(updatedSlider);
-    } catch (error) {
+    }catch (error) {
       console.error('Error updating combo slider:', error);
       res.status(500).json({ error: 'Failed to update combo slider' });
     }
   });
 
-  // Admin: Delete combo slider
-  app.delete('/api/admin/combo-sliders/:id', adminMiddleware, async (req, res) => {
+  app.delete('/api/admin/combo-sliders/:id', async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const [deleted] = await db.delete(schema.comboSliders).where(eq(schema.comboSliders.id, id)).returning();
-      if (!deleted) return res.status(404).json({ error: 'Combo slider not found' });
+      const sliderId = parseInt(req.params.id);
+
+      const [deletedSlider] = await db
+        .delete(schema.comboSliders)
+        .where(eq(schema.comboSliders.id, sliderId))
+        .returning();
+
+      if (!deletedSlider) {
+        return res.status(404).json({ error: 'Combo slider not found' });
+      }
+
       res.json({ message: 'Combo slider deleted successfully' });
     } catch (error) {
       console.error('Error deleting combo slider:', error);
@@ -7989,1128 +7417,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get product images
-  app.get("/api/products/:productId/images", async (req, res) => {
-    try {
-      const { productId } = req.params;
-      const images = await storage.getProductImages(parseInt(productId));
-      res.json(images);
-    } catch (error) {
-      console.error("Error fetching product images:", error);
-      res.status(500).json({ error: "Failed to fetch product images" });
-    }
-  });
+  // Video Testimonials Management Routes
 
-  // Get product shades
-  app.get("/api/products/:productId/shades", async (req, res) => {
-    try {
-      const { productId } = req.params;
-      console.log("Fetching shades for product:", productId);
-
-      // Fetch all active shades with associations
-      const allShades = await storage.getActiveShadesWithAssociations();
-      console.log("Total active shades found:", allShades.length);
-
-      // Filter shades to only include those specifically assigned to this product
-      const applicableShades = allShades.filter(shade => {
-        // If the shade has specific productIds and this product is in it, include it
-        if (shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(parseInt(productId))) {
-          return true;
-        }
-        return false;
-      });
-
-      console.log(`Found ${applicableShades.length} shades for product ${productId}`);
-      res.json(applicableShades);
-    } catch (error) {
-      console.error("Error fetching product shades:", error);
-      res.status(500).json({ error: "Failed to fetch product shades" });
-    }
-  });
-
-  // Review Management APIs
-
-  // Get reviews for a product
-  app.get("/api/products/:productId/reviews", async (req, res) => {
-    try {
-      const { productId } = req.params;
-      const productReviews = await storage.getProductReviews(parseInt(productId));
-      res.json(productReviews);
-    } catch (error) {
-      console.error("Error fetching product reviews:", error);
-      res.status(500).json({ error: "Failed to fetch reviews" });
-    }
-  });
-
-  // Check if user can review a product
-  app.get("/api/products/:productId/can-review", async (req, res) => {
-    try {
-      const { productId } = req.params;
-      const userId = req.query.userId;
-
-      if (!userId) {
-        return res.status(401).json({ error: "User authentication required" });
-      }
-
-      const canReview = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
-      res.json(canReview);
-    } catch (error) {
-      console.error("Error checking review eligibility:", error);
-      res.status(500).json({ error: "Failed to check review eligibility" });
-    }
-  });
-
-  // Create a new review
-  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
-    try {
-      const { productId } = req.params;
-      const { userId, rating, reviewText, orderId } = req.body;
-
-      // Authentication check
-      if (!userId) {
-        return res.status(401).json({ error: "User authentication required" });
-      }
-
-      // Validation
-      if (!rating || rating < 1 || rating > 5) {
-        return res.status(400).json({ error: "Rating must be between 1 and 5" });
-      }
-
-      // Check if user can review this product
-      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
-      if (!canReviewCheck.canReview) {
-        return res.status(403).json({ error: canReviewCheck.message });
-      }
-
-      // Handle image upload
-      let imageUrl = null;
-      if (req.file) {
-        imageUrl = `/api/images/${req.file.filename}`;
-      }
-
-      // Create review
-      const reviewData = {
-        userId: parseInt(userId),
-        productId: parseInt(productId),
-        orderId: parseInt(orderId) || canReviewCheck.orderId!,
-        rating: parseInt(rating),
-        reviewText: reviewText || null,
-        imageUrl,
-        isVerified: true
-      };
-
-      const review = await storage.createReview(reviewData);
-
-      res.status(201).json({
-        message: "Review submitted successfully",
-        review
-      });
-    } catch (error) {
-      console.error("Error creating review:", error);
-      res.status(500).json({ error: "Failed to submit review" });
-    }
-  });
-
-  // Delete a review
-  app.delete("/api/reviews/:reviewId", async (req, res) => {
-    try {
-      const { reviewId } = req.params;
-      const { userId } = req.body;
-
-      if (!userId) {
-        return res.status(401).json({ error: "User authentication required" });
-      }
-
-      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
-      if (!success) {
-        return res.status(404).json({ error: "Review not found or unauthorized" });
-      }
-
-      res.json({ message: "Review deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting review:", error);
-      res.status(500).json({ error: "Failed to delete review" });
-    }
-  });
-
-  app.put("/api/products/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const productId = parseInt(id);
-
-      console.log("Updating product:", productId, "with data:", req.body);
-
-      // Process cashback fields
-      const updateData = {
-        ...req.body,
-        cashbackPercentage: req.body.cashbackPercentage ? Number(req.body.cashbackPercentage) : null,
-        cashbackPrice: req.body.cashbackPrice ? Number(req.body.cashbackPrice) : null
-        ,affiliateCommission: req.body.affiliateCommission !== undefined ? Number(req.body.affiliateCommission) : undefined
-        ,affiliateUserDiscount: req.body.affiliateUserDiscount !== undefined ? Number(req.body.affiliateUserDiscount) : undefined
-      };
-
-      const product = await storage.updateProduct(productId, updateData);
-      if (!product) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-
-      // Handle product images update if provided
-      if (req.body.images && Array.isArray(req.body.images)) {
-        // Delete existing images
-        await db.delete(schema.productImages).where(eq(schema.productImages.productId, parseInt(id)));
-
-        // Remove duplicates and insert new images
-        const uniqueImages = Array.from(new Set(req.body.images.filter(url => url && url.trim() !== '')));
-        console.log("Updating product with unique images:", uniqueImages.length);
-
-        if (uniqueImages.length > 0) {
-          await Promise.all(
-            uniqueImages.map(async (imageUrl: string, index: number) => {
-              await db.insert(schema.productImages).values({
-                productId: parseInt(id),
-                imageUrl: imageUrl,
-                altText: `${req.body.name || 'Product'} - Image ${index + 1}`,
-                isPrimary: index === 0, // First image is primary
-                sortOrder: index
-              });
-            })
-          );
-        }
-      }
-
-      res.json(product);
-    } catch (error) {
-      console.error("Product update error:", error);
-      res.status(500).json({ error: "Failed to update product" });
-    }
-  });
-
-  app.delete("/api/products/:id", adminMiddleware, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const productId = parseInt(id);
-
-      console.log(`DELETE /api/products/${id} - Request received`);
-
-      if (isNaN(productId)) {
-        console.log(`Invalid product ID: ${id}`);
-        return res.status(400).json({
-          error: "Invalid product ID",
-          success: false
-        });
-      }
-
-      console.log(`Attempting to delete product with ID: ${productId}`);
-
-      // Check if product exists before deletion
-      let existingProduct;
-      try {
-        existingProduct = await storage.getProduct(productId);
-      } catch (error) {
-        console.error(`Error checking if product exists: ${error.message}`);
-        return res.status(500).json({
-          error: "Database error while checking product",
-          success: false
-        });
-      }
-
-      if (!existingProduct) {
-        console.log(`Product with ID ${productId} not found`);
-        return res.status(404).json({
-          error: "Product not found",
-          success: false,
-          productId
-        });
-      }
-
-      console.log(`Found product to delete: ${existingProduct.name}`);
-
-      // Perform deletion
-      let success;
-      try {
-        success = await storage.deleteProduct(productId);
-      } catch (error) {
-        console.error(`Error during product deletion: ${error.message}`);
-        return res.status(500).json({
-          error: "Database error during deletion",
-          success: false,
-          details: error.message
-        });
-      }
-
-      if (!success) {
-        console.log(`Failed to delete product ${productId} from database`);
-        return res.status(500).json({
-          error: "Failed to delete product from database",
-          success: false,
-          productId
-        });
-      }
-
-      console.log(`Successfully deleted product ${productId} from database`);
-
-      // Verify deletion by trying to fetch the product again
-      try {
-        const verifyDelete = await storage.getProduct(productId);
-        if (verifyDelete) {
-          console.log(`WARNING: Product ${productId} still exists after delete operation`);
-          return res.status(500).json({
-            error: "Product deletion verification failed - product still exists",
-            success: false,
-            productId
-          });
-        }
-      } catch (error) {
-        // This is expected - the product should not exist anymore
-        console.log(`Verification confirmed: Product ${productId} no longer exists`);
-      }
-
-      res.status(200).json({
-        success: true,
-        message: "Product deleted successfully",
-        productId: productId
-      });
-
-    } catch (error) {
-      console.error("Unexpected product deletion error:", error);
-      res.status(500).json({
-        error: "Failed to delete product",
-        details: error instanceof Error ? error.message : "Unknown error",
-        success: false
-      });
-    }
-  });
-
-  // Get single combo by ID
-  app.get("/api/combos/:id", async (req, res) => {
-    try {
-      const comboId = parseInt(req.params.id);
-
-      if (isNaN(comboId)) {
-        return res.status(400).json({ message: "Invalid combo ID" });
-      }
-
-      const combo = await db.query.combos.findFirst({
-        where: eq(schema.combos.id, comboId),
-      });
-
-      if (!combo) {
-        return res.status(404).json({ message: "Combo not found" });
-      }
-
-      // Fetch images from combo_images table
-      const images = await db
-        .select()
-        .from(schema.comboImages)
-        .where(eq(schema.comboImages.comboId, comboId))
-        .orderBy(asc(schema.comboImages.sortOrder));
-
-      // Handle imageUrl - it's now stored as an array in the database
-      const imageUrls = images.length > 0 
-        ? images.map(img => img.imageUrl)
-        : (Array.isArray(combo.imageUrl) ? combo.imageUrl : (combo.imageUrl ? [combo.imageUrl] : []));
-
-      // Parse products if it's a string
-      const comboData = {
-        ...combo,
-        products: typeof combo.products === 'string'
-          ? JSON.parse(combo.products)
-          : combo.products,
-        productShades: combo.productShades ? (typeof combo.productShades === 'string' ? JSON.parse(combo.productShades) : combo.productShades) : {},
-        imageUrl: imageUrls[0] || null, // Primary image
-        imageUrls: imageUrls
-      };
-
-      res.json(comboData);
-    } catch (error: any) {
-      console.error("Error fetching combo:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Get combo reviews
-  app.get("/api/combos/:comboId/reviews", async (req, res) => {
-    try {
-      const { comboId } = req.params;
-      const reviews = await storage.getComboReviews(parseInt(comboId));
-      res.json(reviews);
-    } catch (error) {
-      console.error("Error fetching combo reviews:", error);
-      res.status(500).json({ error: "Failed to fetch combo reviews" });
-    }
-  });
-
-  // Check if user can review combo
-  app.get("/api/combos/:comboId/can-review", async (req, res) => {
-    try {
-      const { comboId } = req.params;
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.json({
-          canReview: false,
-          message: "Please login to submit a review"
-        });
-      }
-
-      const canReview = await storage.checkUserCanReviewCombo(parseInt(userId as string), parseInt(comboId));
-      res.json(canReview);
-    } catch (error) {
-      console.error("Error checking combo review eligibility:", error);
-      res.status(500).json({ 
-        canReview: false,
-        message: "Error checking review eligibility"
-      });
-    }
-  });
-
-  // Create combo review
-  app.post("/api/combos/:comboId/reviews", async (req, res) => {
-    try {
-      const { comboId } = req.params;
-      const { rating, title, comment, userName, orderId } = req.body;
-      const user = req.user; // Assuming user is attached to req after auth middleware
-
-      if (!user) {
-        return res.status(401).json({ error: "Please login to submit a review" });
-      }
-
-      // Check if user can review this combo
-      const canReview = await storage.checkUserCanReviewCombo(user.id, parseInt(comboId));
-      if (!canReview.canReview) {
-        return res.status(403).json({ error: canReview.message });
-      }
-
-      const reviewData = {
-        userId: user.id,
-        comboId: parseInt(comboId),
-        orderId: orderId || canReview.orderId, // Use orderId from body or from checkUserCanReviewCombo
-        rating: parseInt(rating),
-        title: title || null,
-        comment: comment || null,
-        userName: userName || `${user.firstName} ${user.lastName}`,
-        isVerified: true, // Assuming verified if they can review
-      };
-
-      const review = await db.insert(schema.comboReviews).values(reviewData).returning();
-      res.json(review[0]);
-    } catch (error) {
-      console.error("Error creating combo review:", error);
-      res.status(500).json({ error: "Failed to create combo review"
-      });
-    }
-  });
-
-  // ==================== MEDIA LINKS ROUTES ====================
-
-  // Get all media links (public - for displaying)
-  app.get("/api/media", async (req, res) => {
-    try {
-      const { category, isActive } = req.query;
-      let query = db.select().from(schema.mediaLinks);
-
-      if (isActive !== undefined) {
-        query = query.where(eq(schema.mediaLinks.isActive, isActive === 'true'));
-      }
-
-      if (category) {
-        query = query.where(eq(schema.mediaLinks.category, category as string));
-      }
-
-      query = query.orderBy(asc(schema.mediaLinks.sortOrder), desc(schema.mediaLinks.createdAt));
-      const mediaList = await query;
-      res.json(mediaList);
-    } catch (error) {
-      console.error("Error fetching media:", error);
-      res.status(500).json({ error: "Failed to fetch media" });
-    }
-  });
-
-  // Get single media by ID
-  app.get("/api/media/:id", async (req, res) => {
-    try {
-      const mediaId = parseInt(req.params.id);
-      const media = await db
-        .select()
-        .from(schema.mediaLinks)
-        .where(eq(schema.mediaLinks.id, mediaId));
-
-      if (media.length === 0) {
-        return res.status(404).json({ error: "Media not found" });
-      }
-
-      res.json(media[0]);
-    } catch (error) {
-      console.error("Error fetching media:", error);
-      res.status(500).json({ error: "Failed to fetch media" });
-    }
-  });
-
-  // Click tracking - increment click count and redirect
-  app.post("/api/media/:id/click", async (req, res) => {
-    try {
-      const mediaId = parseInt(req.params.id);
-      const media = await db
-        .select()
-        .from(schema.mediaLinks)
-        .where(eq(schema.mediaLinks.id, mediaId));
-
-      if (media.length === 0) {
-        return res.status(404).json({ error: "Media not found" });
-      }
-
-      // Increment click count
-      await db
-        .update(schema.mediaLinks)
-        .set({ clickCount: (media[0].clickCount || 0) + 1 })
-        .where(eq(schema.mediaLinks.id, mediaId));
-
-      // Return redirect URL
-      res.json({ redirectUrl: media[0].redirectUrl });
-    } catch (error) {
-      console.error("Error tracking click:", error);
-      res.status(500).json({ error: "Failed to track click" });
-    }
-  });
-
-  // ==================== ADMIN MEDIA MANAGEMENT ROUTES ====================
-
-  // Get all media (admin)
-  app.get("/api/admin/media", adminMiddleware, async (req, res) => {
-    try {
-      const mediaList = await db
-        .select()
-        .from(schema.mediaLinks)
-        .orderBy(asc(schema.mediaLinks.sortOrder), desc(schema.mediaLinks.createdAt));
-
-      res.json(mediaList);
-    } catch (error) {
-      console.error("Error fetching media:", error);
-      res.status(500).json({ error: "Failed to fetch media" });
-    }
-  });
-
-  // Create new media (admin)
-  app.post("/api/admin/media", adminMiddleware, async (req, res) => {
-    try {
-      console.log("📝 Creating media with data:", req.body);
-
-      const mediaData = {
-        title: req.body.title,
-        description: req.body.description || null,
-        imageUrl: req.body.imageUrl,
-        videoUrl: req.body.videoUrl || null,
-        redirectUrl: req.body.redirectUrl,
-        category: req.body.category || "media",
-        type: req.body.type || "image",
-        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
-        sortOrder: req.body.sortOrder || 0,
-        validFrom: req.body.validFrom ? new Date(req.body.validFrom) : null,
-        validUntil: req.body.validUntil ? new Date(req.body.validUntil) : null,
-        metadata: req.body.metadata || null,
-      };
-
-      console.log("📝 Processed media data:", mediaData);
-
-      const newMedia = await db.insert(schema.mediaLinks).values(mediaData).returning();
-      console.log("✅ Media created successfully:", newMedia[0]);
-      res.json(newMedia[0]);
-    } catch (error) {
-      console.error("❌ Error creating media:", error);
-      res.status(500).json({ 
-        error: "Failed to create media",
-        details: (error as any).message,
-        code: (error as any).code
-      });
-    }
-  });
-
-  // Update media (admin)
-  app.put("/api/admin/media/:id", adminMiddleware, async (req, res) => {
-    try {
-      const mediaId = parseInt(req.params.id);
-      const mediaData = {
-        title: req.body.title,
-        description: req.body.description || null,
-        imageUrl: req.body.imageUrl,
-        videoUrl: req.body.videoUrl || null,
-        redirectUrl: req.body.redirectUrl,
-        category: req.body.category,
-        type: req.body.type,
-        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
-        sortOrder: req.body.sortOrder || 0,
-        validFrom: req.body.validFrom ? new Date(req.body.validFrom) : null,
-        validUntil: req.body.validUntil ? new Date(req.body.validUntil) : null,
-        metadata: req.body.metadata || null,
-        updatedAt: new Date(),
-      };
-
-      const updatedMedia = await db
-        .update(schema.mediaLinks)
-        .set(mediaData)
-        .where(eq(schema.mediaLinks.id, mediaId))
-        .returning();
-
-      if (updatedMedia.length === 0) {
-        return res.status(404).json({ error: "Media not found" });
-      }
-
-      res.json(updatedMedia[0]);
-    } catch (error) {
-      console.error("❌ Error updating media:", error);
-      res.status(500).json({ 
-        error: "Failed to update media",
-        details: (error as any).message
-      });
-    }
-  });
-
-  // Delete media (admin)
-  app.delete("/api/admin/media/:id", adminMiddleware, async (req, res) => {
-    try {
-      const mediaId = parseInt(req.params.id);
-      console.log("🗑️ Deleting media with ID:", mediaId);
-
-      const deletedMedia = await db
-        .delete(schema.mediaLinks)
-        .where(eq(schema.mediaLinks.id, mediaId))
-        .returning();
-
-      console.log("✅ Media deleted:", deletedMedia);
-
-      if (deletedMedia.length === 0) {
-        return res.status(404).json({ error: "Media not found" });
-      }
-
-      res.json({ message: "Media deleted successfully", deletedMedia: deletedMedia[0] });
-    } catch (error) {
-      console.error("❌ Error deleting media:", error);
-      res.status(500).json({ 
-        error: "Failed to delete media",
-        details: (error as any).message
-      });
-    }
-  });
-
-  // Bulk update sort order (admin)
-  app.post("/api/admin/media/reorder", adminMiddleware, async (req, res) => {
-    try {
-      const items: Array<{ id: number; sortOrder: number }> = req.body.items;
-
-      for (const item of items) {
-        await db
-          .update(schema.mediaLinks)
-          .set({ sortOrder: item.sortOrder, updatedAt: new Date() })
-          .where(eq(schema.mediaLinks.id, item.id));
-      }
-
-      res.json({ message: "Sort order updated successfully" });
-    } catch (error) {
-      console.error("Error updating sort order:", error);
-      res.status(500).json({ error: "Failed to update sort order" });
-    }
-  });
-
-app.get('/api/testimonials', async (req, res) => {
-    try {
-      const testimonials = await storage.getActiveTestimonials();
-      // Map customer_image to customerImageUrl for frontend compatibility
-      const formattedTestimonials = testimonials.map(t => ({
-        id: t.id,
-        customerName: t.customerName ?? t.customer_name ?? null,
-        customerImageUrl: t.customerImage ?? t.customer_image ?? null,
-        instagramUrl: t.instagramUrl ?? t.instagram_url ?? null,
-        rating: t.rating,
-        content: t.reviewText ?? t.content ?? t.review_text ?? null,
-        isActive: t.isActive,
-        createdAt: t.createdAt,
-      }));
-      res.json(formattedTestimonials);
-    } catch (error) {
-      console.error('Error fetching testimonials:', error);
-      res.status(500).json({ error: 'Failed to fetch testimonials' });
-    }
-  });
-  app.get('/api/admin/testimonials', async (req, res) => {
-    try {
-      const testimonials = await storage.getTestimonials();
-      // Map customer_image to customerImage for admin panel
-      const formattedTestimonials = testimonials.map(t => ({
-        ...t,
-        customerImage: t.customerImage || t.customer_image,
-        instagramUrl: t.instagramUrl || t.instagram_url || null,
-      }));
-      res.json(formattedTestimonials);
-    } catch (error) {
-      console.error('Error fetching testimonials:', error);
-      res.status(500).json({ error: 'Failed to fetch testimonials' });
-    }
-  });
-
-  app.get('/api/admin/testimonials/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const testimonial = await storage.getTestimonial(id);
-      if (!testimonial) {
-        return res.status(404).json({ error: 'Testimonial not found' });
-      }
-      res.json(testimonial);
-    } catch (error) {
-      console.error('Error fetching testimonial:', error);
-      res.status(500).json({ error: 'Failed to fetch testimonial' });
-    }
-  });
-
-  app.post('/api/admin/testimonials', upload.single('image'), async (req, res) => {
-    try {
-      let customerImage = req.body.customerImage;
-      let instagramUrl = req.body.instagramUrl || req.body.instagram_url;
-
-      // Handle image upload
-      if (req.file) {
-        customerImage = `/api/images/${req.file.filename}`;
-      }
-
-      const testimonialData = {
-        customerName: req.body.customerName,
-        customerImage: customerImage || null,
-        instagramUrl: instagramUrl || null,
-        rating: parseInt(req.body.rating) || 5,
-        reviewText: req.body.reviewText,
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-      };
-
-      const testimonial = await storage.createTestimonial(testimonialData);
-      res.status(201).json(testimonial);
-    } catch (error) {
-      console.error('Error creating testimonial:', error);
-      res.status(500).json({ error: 'Failed to create testimonial' });
-    }
-  });
-
-  app.put('/api/admin/testimonials/:id', upload.single('image'), async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      let updateData: any = {
-        customerName: req.body.customerName,
-        instagramUrl: req.body.instagramUrl || req.body.instagram_url || null,
-        rating: parseInt(req.body.rating) || 5,
-        reviewText: req.body.reviewText,
-        isActive: req.body.isActive !== 'false',
-        sortOrder: parseInt(req.body.sortOrder) || 0,
-      };
-
-      // Handle image upload
-      if (req.file) {
-        updateData.customerImage = `/api/images/${req.file.filename}`;
-      } else if (req.body.customerImage) {
-        updateData.customerImage = req.body.customerImage;
-      }
-
-      const testimonial = await storage.updateTestimonial(id, updateData);
-      if (!testimonial) {
-        return res.status(404).json({ error: 'Testimonial not found' });
-      }
-      res.json(testimonial);
-    } catch (error) {
-      console.error('Error updating testimonial:', error);
-      res.status(500).json({ error: 'Failed to update testimonial' });
-    }
-  });
-
-  app.delete('/api/admin/testimonials/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteTestimonial(id);
-      if (!success) {
-        return res.status(404).json({ error: 'Testimonial not found' });
-      }
-      res.json({ message: 'Testimonial deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting testimonial:', error);
-      res.status(500).json({ error: 'Failed to delete testimonial' });
-    }
-  });
-  // Gift Milestones Admin Routes
-  app.get('/api/admin/gift-milestones', adminAuthMiddleware, async (req, res) => {
-    try {
-      const milestones = await db
-        .select()
-        .from(schema.giftMilestones)
-        .orderBy(asc(schema.giftMilestones.sortOrder));
-      
-      res.json(milestones);
-    } catch (error) {
-      console.error('Error fetching gift milestones:', error);
-      res.status(500).json({ error: 'Failed to fetch gift milestones' });
-    }
-  });
-
-  app.post('/api/admin/gift-milestones', adminAuthMiddleware, async (req, res) => {
-    try {
-      const { minAmount, maxAmount, giftCount, giftDescription, isActive, sortOrder } = req.body;
-      
-      const [milestone] = await db
-        .insert(schema.giftMilestones)
-        .values({
-          minAmount,
-          maxAmount: maxAmount || null,
-          giftCount,
-          giftDescription: giftDescription || null,
-          isActive: isActive !== undefined ? isActive : true,
-          sortOrder: sortOrder || 0,
-        })
-        .returning();
-      
-      res.json(milestone);
-    } catch (error) {
-      console.error('Error creating gift milestone:', error);
-      res.status(500).json({ error: 'Failed to create gift milestone' });
-    }
-  });
-
-  app.put('/api/admin/gift-milestones/:id', adminAuthMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { minAmount, maxAmount, giftCount, giftDescription, isActive, sortOrder } = req.body;
-      
-      const [milestone] = await db
-        .update(schema.giftMilestones)
-        .set({
-          minAmount,
-          maxAmount: maxAmount || null,
-          giftCount,
-          giftDescription: giftDescription || null,
-          isActive,
-          sortOrder,
-        })
-        .where(eq(schema.giftMilestones.id, id))
-        .returning();
-      
-      if (!milestone) {
-        return res.status(404).json({ error: 'Gift milestone not found' });
-      }
-      
-      res.json(milestone);
-    } catch (error) {
-      console.error('Error updating gift milestone:', error);
-      res.status(500).json({ error: 'Failed to update gift milestone' });
-    }
-  });
-
-  app.delete('/api/admin/gift-milestones/:id', adminAuthMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      
-      await db
-        .delete(schema.giftMilestones)
-        .where(eq(schema.giftMilestones.id, id));
-      
-      res.json({ message: 'Gift milestone deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting gift milestone:', error);
-      res.status(500).json({ error: 'Failed to delete gift milestone' });
-    }
-  });
-
-  // Public route for cart to check gift eligibility
-  app.get('/api/gift-milestones', async (req, res) => {
-    try {
-      const milestones = await db
-        .select()
-        .from(schema.giftMilestones)
-        .where(eq(schema.giftMilestones.isActive, true))
-        .orderBy(asc(schema.giftMilestones.sortOrder));
-      
-      res.json(milestones);
-    } catch (error) {
-      console.error('Error fetching active gift milestones:', error);
-      res.status(500).json({ error: 'Failed to fetch gift milestones' });
-    }
-  });
-
-  app.get('/api/combos', async (req, res) => {
-    try {
-      console.log('Fetching combos from database...');
-
-      const activeCombos = await db
-        .select()
-        .from(schema.combos)
-        .where(eq(schema.combos.isActive, true))
-        .orderBy(asc(schema.combos.sortOrder));
-
-      console.log('Active combos found:', activeCombos.length);
-
-      if (!activeCombos || activeCombos.length === 0) {
-        console.log('No active combos found, returning empty array');
-        return res.json([]);
-      }
-
-      // Get images for each combo
-      const combosWithImages = await Promise.all(
-        activeCombos.map(async (combo) => {
-          try {
-            const images = await db
-              .select()
-              .from(schema.comboImages)
-              .where(eq(schema.comboImages.comboId, combo.id))
-              .orderBy(asc(schema.comboImages.sortOrder));
-
-            // Handle imageUrl - it's now stored as an array in the database
-            const imageUrls = images.length > 0 
-              ? images.map(img => img.imageUrl)
-              : (Array.isArray(combo.imageUrl) ? combo.imageUrl : (combo.imageUrl ? [combo.imageUrl] : []));
-
-            return {
-              ...combo,
-              imageUrl: imageUrls[0] || null, // Primary image
-              imageUrls: imageUrls,
-              products: typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products,
-              productShades: combo.productShades ? (typeof combo.productShades === 'string' ? JSON.parse(combo.productShades) : combo.productShades) : {}
-            };
-          } catch (imgError) {
-            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
-            return {
-              ...combo,
-              imageUrl: null,
-              imageUrls: [],
-              products: typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products,
-              productShades: combo.productShades ? (typeof combo.productShades === 'string' ? JSON.parse(combo.productShades) : combo.productShades) : {}
-            };
-          }
-        })
-      );
-
-      console.log('Returning combos with images:', combosWithImages.length);
-      res.json(combosWithImages);
-    } catch (error) {
-      console.error('Error fetching combos:', error);
-      console.error('Error details:', error.message);
-      res.status(500).json({ error: 'Failed to fetch combos', details: error.message });
-    }
-  });
-
-  // Admin: Get all combos (includes inactive)
-  app.get('/api/admin/combos', adminMiddleware, async (req, res) => {
-    try {
-      const combos = await db
-        .select()
-        .from(schema.combos)
-        .orderBy(asc(schema.combos.sortOrder));
-
-      const combosWithImages = await Promise.all(
-        combos.map(async (combo) => {
-          try {
-            const images = await db
-              .select()
-              .from(schema.comboImages)
-              .where(eq(schema.comboImages.comboId, combo.id))
-              .orderBy(asc(schema.comboImages.sortOrder));
-
-            // Handle imageUrl - it's now stored as an array in the database
-            const imageUrls = images.length > 0 
-              ? images.map(img => img.imageUrl) 
-              : (Array.isArray(combo.imageUrl) ? combo.imageUrl : (combo.imageUrl ? [combo.imageUrl] : []));
-
-            return {
-              ...combo,
-              products: typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products,
-              productShades: combo.productShades ? (typeof combo.productShades === 'string' ? JSON.parse(combo.productShades) : combo.productShades) : {},
-              imageUrl: imageUrls[0] || null, // Primary image for backward compatibility
-              imageUrls: imageUrls
-            };
-          } catch (imgError) {
-            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
-            return {
-              ...combo,
-              products: typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products,
-              productShades: combo.productShades ? (typeof combo.productShades === 'string' ? JSON.parse(combo.productShades) : combo.productShades) : {},
-              imageUrls: []
-            };
-          }
-        })
-      );
-
-      res.json(combosWithImages);
-    } catch (error) {
-      console.error('Error fetching admin combos:', error);
-      res.status(500).json({ error: 'Failed to fetch admin combos', details: (error as any)?.message });
-    }
-  });
-
-  // Admin: Create combo
-  app.post('/api/admin/combos', adminMiddleware, upload.fields([
-    { name: 'image', maxCount: 1 },
-    { name: 'images', maxCount: 10 }
-  ]), async (req, res) => {
-    try {
-      const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
-      const body = req.body as any;
-
-      // Prepare primary image URL - store the first image if multiple images provided, or the single image
-      let primaryImageUrl = body.imageUrl || null;
-      if (files?.image?.[0]) {
-        primaryImageUrl = `/api/images/${files.image[0].filename}`;
-      } else if (files?.images?.[0]) {
-        primaryImageUrl = `/api/images/${files.images[0].filename}`;
-      }
-
-      const comboData: any = {
-        name: body.name,
-        slug: body.slug || null,
-        description: body.description || null,
-        products: body.products ? (typeof body.products === 'string' ? body.products : JSON.stringify(body.products)) : null,
-        productShades: body.productShades ? (typeof body.productShades === 'string' ? body.productShades : JSON.stringify(body.productShades)) : null,
-        price: body.price !== undefined ? body.price : null,
-        originalPrice: body.originalPrice !== undefined ? body.originalPrice : null,
-        discount: body.discount || null,
-        cashbackPercentage: body.cashbackPercentage !== undefined ? body.cashbackPercentage : null,
-        cashbackPrice: body.cashbackPrice !== undefined ? body.cashbackPrice : null,
-        rating: body.rating !== undefined ? body.rating : '5.0',
-        reviewCount: body.reviewCount !== undefined ? parseInt(body.reviewCount, 10) : 0,
-        isActive: body.isActive !== undefined ? (body.isActive === 'true' || body.isActive === true) : true,
-        sortOrder: parseInt(body.sortOrder, 10) || 0,
-        detailedDescription: body.detailedDescription || null,
-        productsIncluded: body.productsIncluded || null,
-        benefits: body.benefits || null,
-        howToUse: body.howToUse || null,
-        videoUrl: body.videoUrl || null,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      // Note: imageUrl field is an array in schema but we store primary image in first element
-      // Additional images are managed via combo_images table
-      if (primaryImageUrl) {
-        comboData.imageUrl = [primaryImageUrl];
-      }
-
-      const [newCombo] = await db.insert(schema.combos).values(comboData).returning();
-
-      // Insert any additional images into combo_images
-      const allImagesToInsert = [];
-      if (files?.images && files.images.length > 0) {
-        const imagesToInsert = files.images.map((f, idx) => ({
-          comboId: newCombo.id,
-          imageUrl: `/api/images/${f.filename}`,
-          sortOrder: idx
-        }));
-        allImagesToInsert.push(...imagesToInsert);
-      } else if (primaryImageUrl) {
-        // If no images array but we have a primary image from single image field
-        allImagesToInsert.push({
-          comboId: newCombo.id,
-          imageUrl: primaryImageUrl,
-          sortOrder: 0
-        });
-      }
-
-      if (allImagesToInsert.length > 0) {
-        await db.insert(schema.comboImages).values(allImagesToInsert);
-      }
-
-      res.status(201).json(newCombo);
-    } catch (error) {
-      console.error('Error creating combo:', error);
-      res.status(500).json({ error: 'Failed to create combo', details: (error as any)?.message });
-    }
-  });
-
-  // Admin: Update combo
-  app.put('/api/admin/combos/:id', adminMiddleware, upload.fields([
-    { name: 'image', maxCount: 1 },
-    { name: 'images', maxCount: 10 }
-  ]), async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
-      const body = req.body as any;
-
-      // Get existing combo to preserve images if not updating
-      const existingCombo = await db.select().from(schema.combos).where(eq(schema.combos.id, id)).limit(1);
-      if (!existingCombo || existingCombo.length === 0) {
-        return res.status(404).json({ error: 'Combo not found' });
-      }
-
-      const updateData: any = {};
-      if (body.name !== undefined) updateData.name = body.name;
-      if (body.title !== undefined) updateData.title = body.title;
-      if (body.slug !== undefined) updateData.slug = body.slug;
-      if (body.description !== undefined) updateData.description = body.description;
-      if (body.discount !== undefined) updateData.discount = body.discount;
-      if (body.products !== undefined) updateData.products = typeof body.products === 'string' ? body.products : JSON.stringify(body.products);
-      if (body.productShades !== undefined) updateData.productShades = typeof body.productShades === 'string' ? body.productShades : JSON.stringify(body.productShades);
-      if (body.price !== undefined) updateData.price = body.price;
-      if (body.originalPrice !== undefined) updateData.originalPrice = body.originalPrice;
-      if (body.cashbackPercentage !== undefined) updateData.cashbackPercentage = body.cashbackPercentage;
-      if (body.cashbackPrice !== undefined) updateData.cashbackPrice = body.cashbackPrice;
-      if (body.rating !== undefined) updateData.rating = body.rating;
-      if (body.reviewCount !== undefined) updateData.reviewCount = body.reviewCount;
-      if (body.isActive !== undefined) updateData.isActive = body.isActive === 'true' || body.isActive === true;
-      if (body.sortOrder !== undefined) updateData.sortOrder = parseInt(body.sortOrder, 10) || 0;
-      if (body.detailedDescription !== undefined) updateData.detailedDescription = body.detailedDescription;
-      if (body.productsIncluded !== undefined) updateData.productsIncluded = body.productsIncluded;
-      if (body.benefits !== undefined) updateData.benefits = body.benefits;
-      if (body.howToUse !== undefined) updateData.howToUse = body.howToUse;
-      if (body.videoUrl !== undefined) updateData.videoUrl = body.videoUrl;
-
-      updateData.updatedAt = new Date();
-
-      const [updated] = await db.update(schema.combos).set(updateData).where(eq(schema.combos.id, id)).returning();
-      if (!updated) return res.status(404).json({ error: 'Combo not found' });
-
-      // If new images uploaded, replace existing combo_images for this combo
-      if (files?.images && files.images.length > 0) {
-        await db.delete(schema.comboImages).where(eq(schema.comboImages.comboId, id));
-        const imagesToInsert = files.images.map((f, idx) => ({
-          comboId: id,
-          imageUrl: `/api/images/${f.filename}`,
-          sortOrder: idx
-        }));
-        await db.insert(schema.comboImages).values(imagesToInsert);
-      }
-
-      res.json(updated);
-    } catch (error) {
-      console.error('Error updating combo:', error);
-      res.status(500).json({ error: 'Failed to update combo', details: (error as any)?.message });
-    }
-  });
-
-  // Admin: Delete combo
-  app.delete('/api/admin/combos/:id', adminMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      // Delete images first
-      await db.delete(schema.comboImages).where(eq(schema.comboImages.comboId, id));
-      const [deleted] = await db.delete(schema.combos).where(eq(schema.combos.id, id)).returning();
-      if (!deleted) return res.status(404).json({ error: 'Combo not found' });
-      res.json({ message: 'Combo deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting combo:', error);
-      res.status(500).json({ error: 'Failed to delete combo', details: (error as any)?.message });
-    }
-  });
-
-  // Debug endpoint to check combos table
-  app.get('/api/combos/debug', async (req, res) => {
-    try {
-      const allCombos = await db.select().from(schema.combos);
-      const activeCombos = await db.select().from(schema.combos).where(eq(schema.combos.isActive, true));
-
-      res.json({
-        totalCombos: allCombos.length,
-        activeCombos: activeCombos.length,
-        allCombosData: allCombos,
-        activeCombosData: activeCombos
-      });
-    } catch (error) {
-      console.error('Debug combos error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
+  // Public endpoints for video testimonials
   app.get('/api/video-testimonials', async (req, res) => {
     try {
       const testimonials = await db
@@ -9250,797 +7559,2807 @@ app.get('/api/testimonials', async (req, res) => {
     }
   });
 
-  // Public Job Positions API
-  // Debug: return all job positions (including inactive) for local troubleshooting
-  app.get('/api/debug/job-positions', async (req: Request, res: Response) => {
+  // Offers Management Routes
+
+  // Public endpoint for active offers
+  app.get('/api/offers', async (req, res) => {
     try {
-      const jobs = await db
+      const offers = await db
         .select()
-        .from(jobPositions)
-        .orderBy(desc(jobPositions.createdAt));
+        .from(schema.offers)
+        .where(eq(schema.offers.isActive, true))
+        .orderBy(asc(schema.offers.sortOrder));
 
-      console.log(`🛠️ DEBUG: Fetched ${jobs.length} total job positions (including inactive)`);
-      console.log('🛠️ DEBUG job positions data:', JSON.stringify(jobs, null, 2));
-
-      res.json(jobs || []);
+      res.json(offers);
     } catch (error) {
-      console.error('Error fetching debug job positions:', error);
-      res.status(500).json({ error: 'Failed to fetch debug job positions', details: (error as any)?.message });
+      console.error('Error fetching offers:', error);
+      // Return empty array instead of error to prevent UI breaking
+      res.json([]);
     }
   });
 
-  app.get('/api/job-positions', async (req: Request, res: Response) => {
+  // Public endpoint for single offer by ID
+  app.get('/api/offers/:id', async (req, res) => {
     try {
-      const jobs = await db
+      const offerId = parseInt(req.params.id);
+
+      const offer = await db
         .select()
-        .from(jobPositions)
-        .where(eq(jobPositions.isActive, true))
-        .orderBy(asc(jobPositions.createdAt));
-
-      console.log(`✅ Fetched ${jobs.length} active job positions`);
-      console.log('Job positions data:', JSON.stringify(jobs, null, 2));
-
-      res.json(jobs || []);
-    } catch (error) {
-      console.error('Error fetching job positions:', error);
-      res.status(500).json({ error: 'Failed to fetch job positions', details: (error as any)?.message });
-    }
-  });
-
-  // Get single job position by slug
-  app.get('/api/job-positions/:slug', async (req: Request, res: Response) => {
-    try {
-      const { slug } = req.params;
-      const job = await db
-        .select()
-        .from(jobPositions)
-        .where(eq(jobPositions.slug, slug))
+        .from(schema.offers)
+        .where(and(
+          eq(schema.offers.id, offerId),
+          eq(schema.offers.isActive, true) // Only return active offers publicly
+        ))
         .limit(1);
 
-      if (!job || job.length === 0) {
+      if (!offer || offer.length === 0) {
+        return res.status(404).json({ error: 'Offer not found' });
+      }
+
+      res.json(offer[0]);
+    } catch (error) {
+      console.error('Error fetching offer:', error);
+      res.status(500).json({ error: 'Failed to fetch offer' });
+    }
+  });
+
+  // Announcements Management Routes
+
+  // Public endpoint for active announcements
+  app.get('/api/announcements', async (req, res) => {
+    try {
+      const announcements = await storage.getActiveAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+      res.status(500).json({ error: 'Failed to fetch announcements' });
+        }
+  });
+
+  // Admin endpoints for offers management
+  app.get('/api/admin/offers', adminMiddleware, async (req, res) => {
+    try {
+      console.log('📊 GET /api/admin/offers - Admin user authenticated');
+
+      const offers = await db
+        .select()
+        .from(schema.offers)
+        .orderBy(desc(schema.offers.createdAt));
+
+      console.log(`✅ Fetched ${offers.length} offers successfully`);
+      res.json(offers);
+    } catch (error) {
+      console.error('❌ Error fetching admin offers:', error);
+      res.status(500).json({ error: 'Failed to fetch offers' });
+    }
+  });
+
+  app.post('/api/admin/offers', adminMiddleware, upload.single('image'), async (req, res) => {
+    try {
+      let imageUrl = req.body.imageUrl;
+
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Parse productIds and ensure it's an array of integers
+      let productIds = [];
+      if (req.body.productIds) {
+        try {
+          const parsed = typeof req.body.productIds === 'string' 
+            ? JSON.parse(req.body.productIds) 
+            : req.body.productIds;
+          productIds = Array.isArray(parsed) ? parsed.map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+        } catch (e) {
+          console.error('Error parsing productIds:', e);
+          productIds = [];
+        }
+      }
+
+      const offerData = {
+        title: req.body.title,
+        description: req.body.description,
+        imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800&h=500&fit=crop',
+        productIds: productIds.length > 0 ? productIds : null,
+        discountPercentage: req.body.discountPercentage ? parseFloat(req.body.discountPercentage) : null,
+        discountText: req.body.discountText || null,
+        validFrom: new Date(req.body.validFrom),
+        validUntil: new Date(req.body.validUntil),
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+        linkUrl: req.body.linkUrl || null,
+        buttonText: req.body.buttonText || 'Shop Now'
+      };
+
+      console.log('Creating offer with data:', offerData);
+
+      const [offer] = await db.insert(schema.offers).values(offerData).returning();
+
+      console.log('Offer created successfully:', offer);
+      res.json(offer);
+    } catch (error) {
+      console.error('Error creating offer:', error);
+      console.error('Error details:', error.message);
+      res.status(500).json({ 
+        error: 'Failed to create offer',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
+  app.put('/api/admin/offers/:id', adminMiddleware, upload.single('image'), async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+      let updateData: any = {
+        title: req.body.title,
+        description: req.body.description,
+        discountType: req.body.discountType || 'none',
+        discountValue: req.body.discountValue ? parseFloat(req.body.discountValue) : null,
+        discountText: req.body.discountText || null,
+        validFrom: new Date(req.body.validFrom),
+        validUntil: new Date(req.body.validUntil),
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+        linkUrl: req.body.linkUrl || null,
+        buttonText: req.body.buttonText || 'Shop Now',
+        updatedAt: new Date()
+      };
+
+      // Parse productIds and ensure it's an array of integers
+      let productIds = [];
+      if (req.body.productIds) {
+        try {
+          const parsed = typeof req.body.productIds === 'string' 
+            ? JSON.parse(req.body.productIds) 
+            : req.body.productIds;
+          productIds = Array.isArray(parsed) ? parsed.map(id => parseInt(id)).filter(id => !isNaN(id)) : [];
+        } catch (e) {
+          console.error('Error parsing productIds:', e);
+          productIds = [];
+        }
+      }
+      updateData.productIds = productIds.length > 0 ? productIds : null;
+
+
+      if (req.file) {
+        updateData.imageUrl = `/api/images/${req.file.filename}`;
+      } else if (req.body.imageUrl) {
+        updateData.imageUrl = req.body.imageUrl;
+      }
+
+      console.log('Updating offer with data:', updateData);
+
+      const [offer] = await db
+        .update(schema.offers)
+        .set(updateData)
+        .where(eq(schema.offers.id, offerId))
+        .returning();
+
+      if (!offer) {
+        return res.status(404).json({ error: 'Offer not found' });
+      }
+
+      console.log('Offer updated successfully:', offer);
+      res.json(offer);
+    } catch (error) {
+      console.error('Error updating offer:', error);
+      console.error('Error details:', error.message);
+      res.status(500).json({ 
+        error: 'Failed to update offer',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
+  app.delete('/api/admin/offers/:id', adminMiddleware, async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.id);
+
+      const [deletedOffer] = await db
+        .delete(schema.offers)
+        .where(eq(schema.offers.id, offerId))
+        .returning();
+
+      if (!deletedOffer) {
+        return res.status(404).json({ error: 'Offer not found' });
+      }
+
+      res.json({ message: 'Offer deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting offer:', error);
+      res.status(500).json({ error: 'Failed to delete offer' });
+    }
+  });
+
+  // Admin endpoints for announcements
+  app.get('/api/admin/announcements', async (req, res) => {
+    try {
+      const announcements = await storage.getAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+      res.status(500).json({ error: 'Failed to fetch announcements' });
+        }
+  });
+
+  app.get('/api/admin/announcements/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const announcement = await storage.getAnnouncement(id);
+      if (!announcement) {
+        return res.status(404).json({ error: 'Announcement not found' });
+      }
+      res.json(announcement);
+    } catch (error) {
+      console.error('Error fetching announcement:', error);
+      res.status(500).json({ error: 'Failed to fetch announcement' });
+    }
+  });
+
+  app.post('/api/admin/announcements', async (req, res) => {
+    try {
+      const announcement = await storage.createAnnouncement(req.body);
+      res.json(announcement);
+    } catch (error) {
+      console.error('Error creating announcement:', error);
+      res.status(500).json({ error: 'Failed to create announcement' });
+    }
+  });
+
+  app.put('/api/admin/announcements/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { text, isActive, sortOrder } = req.body;
+
+      console.log('Updating announcement ID:', id);
+      console.log('Request body:', req.body);
+
+      // Validate required fields
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({ error: 'Announcement text is required' });
+      }
+
+      const updateData = {
+        text: text.trim(),
+        isActive: isActive === true || isActive === 'true' || isActive === true,
+        sortOrder: sortOrder !== undefined ? parseInt(sortOrder) : 0,
+        updatedAt: new Date()
+      };
+
+      console.log('Update data prepared:', updateData);
+
+      const [updatedAnnouncement] = await db
+        .update(schema.announcements)
+        .set(updateData)
+        .where(eq(schema.announcements.id, id))
+        .returning();
+
+      if (!updatedAnnouncement) {
+        return res.status(404).json({ error: 'Announcement not found' });
+      }
+
+      console.log('Announcement updated successfully:', updatedAnnouncement);
+      res.json(updatedAnnouncement);
+    } catch (error) {
+      console.error('Error updating announcement:', error);
+      console.error('Error details:', error.message, error.stack);
+      res.status(500).json({ 
+        error: 'Failed to update announcement',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
+  app.delete('/api/admin/announcements/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteAnnouncement(id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Announcement not found' });
+      }
+      res.json({ message: 'Announcement deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting announcement:', error);
+      res.status(500).json({ error: 'Failed to delete announcement' });
+    }
+  });
+
+  // Combos Management Routes
+
+  // Public endpoint for active combos
+  app.get('/api/combos', async (req, res) => {
+    try {
+      console.log('Fetching combos from database...');
+
+      const activeCombos = await db
+        .select()
+        .from(schema.combos)
+        .where(eq(schema.combos.isActive, true))
+        .orderBy(asc(schema.combos.sortOrder));
+
+      console.log('Active combos found:', activeCombos.length);
+
+      if (!activeCombos || activeCombos.length === 0) {
+        console.log('No active combos found, returning empty array');
+        return res.json([]);
+      }
+
+      // Get images for each combo
+      const combosWithImages = await Promise.all(
+        activeCombos.map(async (combo) => {
+          try {
+            const images = await db
+              .select()
+              .from(schema.comboImages)
+              .where(eq(schema.comboImages.comboId, combo.id))
+              .orderBy(asc(schema.comboImages.sortOrder));
+
+            return {
+              ...combo,
+              imageUrls: images.map(img => img.imageUrl)
+            };
+          } catch (imgError) {
+            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
+            return {
+              ...combo,
+              imageUrls: []
+            };
+          }
+        })
+      );
+
+      console.log('Returning combos with images:', combosWithImages.length);
+      res.json(combosWithImages);
+    } catch (error) {
+      console.error('Error fetching combos:', error);
+      console.error('Error details:', error.message);
+      res.status(500).json({ error: 'Failed to fetch combos', details: error.message });
+    }
+  });
+
+  // Debug endpoint to check combos table
+  app.get('/api/combos/debug', async (req, res) => {
+    try {
+      const allCombos = await db.select().from(schema.combos);
+      const activeCombos = await db.select().from(schema.combos).where(eq(schema.combos.isActive, true));
+
+      res.json({
+        totalCombos: allCombos.length,
+        activeCombos: activeCombos.length,
+        allCombosData: allCombos,
+        activeCombosData: activeCombos
+      });
+    } catch (error) {
+      console.error('Debug combos error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin endpoints for combos management
+  app.get('/api/admin/combos', async (req, res) => {
+    try {
+      const allCombos = await db
+        .select()
+        .from(schema.combos)
+        .orderBy(desc(schema.combos.createdAt));
+
+      // Get images for each combo
+      const combosWithImages = await Promise.all(
+        allCombos.map(async (combo) => {
+          try {
+            const images = await db
+              .select()
+              .from(schema.comboImages)
+              .where(eq(schema.comboImages.comboId, combo.id))
+              .orderBy(asc(schema.comboImages.sortOrder));
+
+            return {
+              ...combo,
+              imageUrls: images.map(img => img.imageUrl)
+            };
+          } catch (imgError) {
+            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
+            return {
+              ...combo,
+              imageUrls: []
+            };
+          }
+        })
+      );
+
+      res.json(combosWithImages);
+    } catch (error) {
+      console.error('Error fetching combos:', error);
+      res.status(500).json({ error: 'Failed to fetch combos' });
+    }
+  });
+
+  app.post('/api/admin/combos', upload.fields([{ name: 'images', maxCount: 10 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      const name = (req.body.name || '').substring(0, 200);
+      const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 200);
+
+      // Get products array - ensure it's properly parsed and limited
+      let products = req.body.products || [];
+      if (typeof products === 'string') {
+        try {
+          products = JSON.parse(products);
+        } catch (e) {
+          console.error('Error parsing products:', e);
+          products = [];
+        }
+      }
+
+      // Ensure products is an array and limit to 20 items
+      if (!Array.isArray(products)) {
+        products = [];
+      }
+      products = products.slice(0, 20);
+
+      // Get productShades from request body
+      let productShades = req.body.productShades || {};
+      if (typeof productShades === 'string') {
+        try {
+          productShades = JSON.parse(productShades);
+        } catch (e) {
+          console.error('Error parsing productShades:', e);
+          productShades = {};
+        }
+      }
+
+      // Collect all image URLs into an array
+      let imageUrls: string[] = [];
+
+      if (files?.images && files.images.length > 0) {
+        imageUrls = files.images.map(file => `/api/images/${file.filename}`);
+      } else if (req.body.imageUrl) {
+        // If imageUrl is provided in body, ensure it's an array
+        imageUrls = Array.isArray(req.body.imageUrl) ? req.body.imageUrl : [req.body.imageUrl];
+      } else {
+        // Default fallback image
+        imageUrls = ['https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop'];
+      }
+
+      // Handle video upload
+      let videoUrl = null;
+      if (files?.video?.[0]) {
+        videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.videoUrl) {
+        videoUrl = req.body.videoUrl;
+      }
+
+      const comboData = {
+        name: name,
+        slug,
+        description: (req.body.description || '').substring(0, 500),
+        detailedDescription: req.body.detailedDescription || null,
+        productsIncluded: req.body.productsIncluded || null,
+        benefits: req.body.benefits || null,
+        howToUse: req.body.howToUse || null,
+        price: parseFloat(req.body.price) || 0,
+        originalPrice: parseFloat(req.body.originalPrice) || 0,
+        discount: (req.body.discount || '').substring(0, 50),
+        cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
+        cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
+        imageUrl: imageUrls,
+        videoUrl: videoUrl,
+        products: JSON.stringify(products),
+        productShades: JSON.stringify(productShades || {}),
+        rating: parseFloat(req.body.rating) || 5.0,
+        reviewCount: parseInt(req.body.reviewCount) || 0,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+      };
+
+      console.log("Final combo data to insert:", comboData);
+
+      // Insert combo into database
+      const [combo] = await db
+        .insert(schema.combos)
+        .values(comboData)
+        .returning();
+
+      console.log("Combo created successfully:", combo);
+      res.json(combo);
+    } catch (error) {
+      console.error("Error creating combo:", error);
+      console.error('Error details:', error.message);
+      res.status(500).json({
+        error: "Failed to create combo",
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
+  app.put('/api/admin/combos/:id', upload.fields([{ name: 'images', maxCount: 10 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      // Get products array - ensure it's properly parsed and limited
+      let products = req.body.products || [];
+      if (typeof products === 'string') {
+        try {
+          products = JSON.parse(products);
+        } catch (e) {
+          console.error('Error parsing products:', e);
+          products = [];
+        }
+      }
+
+      // Ensure products is an array and limit to 20 items
+      if (!Array.isArray(products)) {
+        products = [];
+      }
+      products = products.slice(0, 20);
+
+      let updateData: any = {
+        name: (req.body.name || '').substring(0, 200),
+        description: (req.body.description || '').substring(0, 500),
+        detailedDescription: req.body.detailedDescription || null,
+        productsIncluded: req.body.productsIncluded || null,
+        benefits: req.body.benefits || null,
+        howToUse: req.body.howToUse || null,
+        price: parseFloat(req.body.price) || 0,
+        originalPrice: parseFloat(req.body.originalPrice) || 0,
+        discount: (req.body.discount || '').substring(0, 50),
+        cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
+        cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
+        products: JSON.stringify(products),
+        rating: parseFloat(req.body.rating) || 5.0,
+        reviewCount: parseInt(req.body.reviewCount) || 0,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+        updatedAt: new Date()
+      };
+
+      // Handle image updates
+      if (files?.images && files.images.length > 0) {
+        updateData.imageUrl = `/api/images/${files.images[0].filename}`;
+
+        // Delete existing images from combo_images table
+        await db.delete(schema.comboImages).where(eq(schema.comboImages.comboId, id));
+
+        // Insert new combo images into combo_images table
+        await Promise.all(
+          files.images.map(async (file, index) => {
+            await db.insert(schema.comboImages).values({
+              comboId: id,
+              imageUrl: `/api/images/${file.filename}`,
+              altText: `${updateData.name} - Image ${index + 1}`,
+              isPrimary: index === 0,
+              sortOrder: index
+            });
+          })
+        );
+      } else if (req.body.imageUrl) {
+        updateData.imageUrl = req.body.imageUrl;
+      }
+
+      // Handle video upload
+      if (files?.video?.[0]) {
+        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.videoUrl) {
+        updateData.videoUrl = req.body.videoUrl;
+      }
+
+      const [combo] = await db
+        .update(schema.combos)
+        .set(updateData)
+        .where(eq(schema.combos.id, id))
+        .returning();
+
+      if (!combo) {
+        return res.status(404).json({ error: 'Combo not found' });
+      }
+
+      res.json(combo);
+    } catch (error) {
+      console.error('Error updating combo:', error);
+      console.error('Error details:', error.message);
+      res.status(500).json({
+        error: 'Failed to update combo',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
+  app.delete('/api/admin/combos/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deletedCombo] = await db
+        .delete(schema.combos)
+        .where(eq(schema.combos.id, id))
+        .returning();
+
+      if (!deletedCombo) {
+        return res.status(404).json({ error: 'Combo not found' });
+      }
+
+      res.json({ message: 'Combo deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting combo:', error);
+      res.status(500).json({ error: 'Failed to delete combo' });
+    }
+  });
+
+  // Job application submission endpoint
+  app.post('/api/job-applications', upload.single('resume'), async (req, res) => {
+    try {
+      const { fullName, email, phone, position, location, isFresher, experienceYears, experienceMonths, coverLetter } = req.body;
+
+      // Validation
+      if (!fullName || !email || !phone || !position || !location || !coverLetter) {
+        return res.status(400).json({ error: 'All required fields must be provided' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'Resume file is required' });
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
+      }
+
+      const resumeUrl = `/api/images/${req.file.filename}`;
+
+      // Save application to database
+      const [savedApplication] = await db.insert(schema.jobApplications).values({
+        fullName,
+        email,
+        phone,
+        position,
+        location,
+        isFresher: isFresher === 'true',
+        experienceYears: experienceYears || null,
+        experienceMonths: experienceMonths || null,
+        coverLetter,
+        resumeUrl,
+        status: 'pending'
+      }).returning();
+
+      // HR Manager's email
+      const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
+
+      // Prepare email content
+      const experienceInfo = isFresher === 'true' 
+        ? 'Fresher' 
+        : `${experienceYears || 0} years ${experienceMonths || 0} months`;
+
+      const emailSubject = `New Job Application - ${position}`;
+      const emailBody = `
+Dear HR Manager,
+
+A new job application has been received.
+
+APPLICATION DETAILS:
+------------------
+Full Name: ${fullName}
+Email: ${email}
+Phone: ${phone}
+Position: ${position}
+Location: ${location}
+Experience: ${experienceInfo}
+
+COVER LETTER:
+-------------
+${coverLetter}
+
+Please find the resume attached to this email.
+
+Best regards,
+Poppik Career Portal
+      `;
+
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #e74c3c;">New Job Application</h2>
+
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #333;">Application Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Full Name:</td>
+                <td style="padding: 8px;">${fullName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Email:</td>
+                <td style="padding: 8px;">${email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Phone:</td>
+                <td style="padding: 8px;">${phone}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Position:</td>
+                <td style="padding: 8px;">${position}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Location:</td>
+                <td style="padding: 8px;">${location}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Experience:</td>
+                <td style="padding: 8px;">${experienceInfo}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #333;">Cover Letter</h3>
+            <p style="white-space: pre-wrap;">${coverLetter}</p>
+          </div>
+
+          <p style="color: #666; font-size: 12px; margin-top: 30px;">
+            Resume is attached to this email.
+          </p>
+        </div>
+      `;
+
+      console.log('Sending job application email to HR:', {
+        to: HR_EMAIL,
+        from: email,
+        position: position,
+        applicant: fullName
+      });
+
+      try {
+        // Send email to HR manager using the existing transporter
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'careers@poppik.in',
+          to: HR_EMAIL,
+          subject: emailSubject,
+          text: emailBody,
+          html: emailHtml
+        });
+
+        console.log('✅ Job application email sent successfully to:', HR_EMAIL);
+
+        res.json({
+          success: true,
+          message: 'Application submitted successfully! Our HR team will review your application and get back to you soon.',
+          applicationId: savedApplication.id
+        });
+
+      } catch (emailError) {
+        console.error('❌ Failed to send job application email:', emailError);
+
+        // Still return success to the user, but log the email failure
+        res.json({
+          success: true,
+          message: 'Application submitted successfully! Our HR team will review your application and get back to you soon.',
+          applicationId: savedApplication.id,
+          emailSent: false
+        });
+      }
+
+    } catch (error) {
+      console.error('Job application submission error:', error);
+      res.status(500).json({ 
+        error: 'Failed to submit application',
+        details: error.message 
+      });
+    }
+  });
+
+  // Admin job applications endpoints
+  app.get('/api/admin/job-applications', adminMiddleware, async (req, res) => {
+    try {
+      const applications = await db
+        .select()
+        .from(schema.jobApplications)
+        .orderBy(desc(schema.jobApplications.appliedAt));
+
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching job applications:', error);
+      res.status(500).json({ error: 'Failed to fetch job applications' });
+    }
+  });
+
+  app.get('/api/admin/job-applications/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const application = await db
+        .select()
+        .from(schema.jobApplications)
+        .where(eq(schema.jobApplications.id, id))
+        .limit(1);
+
+      if (!application || application.length === 0) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json(application[0]);
+    } catch (error) {
+      console.error('Error fetching job application:', error);
+      res.status(500).json({ error: 'Failed to fetch job application' });
+    }
+  });
+
+  app.put('/api/admin/job-applications/:id/status', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (!['pending', 'reviewing', 'shortlisted', 'accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const [updatedApplication] = await db
+        .update(schema.jobApplications)
+        .set({
+          status,
+          reviewedAt: new Date()
+        })
+        .where(eq(schema.jobApplications.id, id))
+        .returning();
+
+      if (!updatedApplication) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Application status updated to ${status}`,
+        application: updatedApplication 
+      });
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      res.status(500).json({ error: 'Failed to update application status' });
+    }
+  });
+
+  app.delete('/api/admin/job-applications/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deleted] = await db
+        .delete(schema.jobApplications)
+        .where(eq(schema.jobApplications.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json({ success: true, message: 'Application deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting job application:', error);
+      res.status(500).json({ error: 'Failed to delete job application' });
+    }
+  });
+
+  // User Wallet endpoint - get wallet balance
+  app.get('/api/wallet', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      // Get or create wallet
+      let wallet = await db
+        .select()
+        .from(schema.userWallet)
+        .where(eq(schema.userWallet.userId, parseInt(userId as string)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        // Create new wallet if it doesn't exist
+        const [newWallet] = await db.insert(schema.userWallet).values({
+          userId: parseInt(userId as string),
+          cashbackBalance: "0.00",
+          totalEarned: "0.00",
+          totalRedeemed: "0.00"
+        }).returning();
+
+        wallet = [newWallet];
+      }
+
+      res.json({
+        userId: parseInt(userId as string),
+        cashbackBalance: parseFloat(wallet[0].cashbackBalance),
+        totalEarned: parseFloat(wallet[0].totalEarned),
+        totalRedeemed: parseFloat(wallet[0].totalRedeemed),
+        createdAt: wallet[0].createdAt,
+        updatedAt: wallet[0].updatedAt
+      });
+    } catch (error) {
+      console.error('Error fetching wallet:', error);
+      res.status(500).json({ error: 'Failed to fetch wallet' });
+    }
+  });
+
+  // Get wallet transactions
+  app.get('/api/wallet/transactions', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      const transactions = await db
+        .select()
+        .from(schema.userWalletTransactions)
+        .where(eq(schema.userWalletTransactions.userId, parseInt(userId as string)))
+        .orderBy(desc(schema.userWalletTransactions.createdAt));
+
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error fetching wallet transactions:', error);
+      res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  });
+
+  // Credit cashback to wallet (when order is delivered)
+  app.post('/api/wallet/credit', async (req, res) => {
+    try {
+      const { userId, amount, orderId, description } = req.body;
+
+      if (!userId || !amount) {
+        return res.status(400).json({ error: 'User ID and amount required' });
+      }
+
+      // Get current wallet
+      let wallet = await db
+        .select()
+        .from(schema.userWallet)
+        .where(eq(schema.userWallet.userId, parseInt(userId)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        // Create wallet if doesn't exist
+        const [newWallet] = await db.insert(schema.userWallet).values({
+          userId: parseInt(userId),
+          cashbackBalance: "0.00",
+          totalEarned: "0.00",
+          totalRedeemed: "0.00"
+        }).returning();
+        wallet = [newWallet];
+      }
+
+      const currentBalance = parseFloat(wallet[0].cashbackBalance);
+      const creditAmount = parseFloat(amount);
+      const newBalance = currentBalance + creditAmount;
+
+      // Update wallet
+      await db
+        .update(schema.userWallet)
+        .set({
+          cashbackBalance: newBalance.toFixed(2),
+          totalEarned: (parseFloat(wallet[0].totalEarned) + creditAmount).toFixed(2),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.userWallet.userId, parseInt(userId)));
+
+      // Create transaction record
+      await db.insert(schema.userWalletTransactions).values({
+        userId: parseInt(userId),
+        type: 'credit',
+        amount: creditAmount.toFixed(2),
+        description: description || 'Cashback credited',
+        orderId: orderId ? parseInt(orderId) : null,
+        balanceBefore: currentBalance.toFixed(2),
+        balanceAfter: newBalance.toFixed(2),
+        status: 'completed'
+      });
+
+      res.json({
+        success: true,
+        message: 'Cashback credited successfully',
+        newBalance: newBalance.toFixed(2)
+      });
+    } catch (error) {
+      console.error('Error crediting wallet:', error);
+      res.status(500).json({ error: 'Failed to credit cashback' });
+    }
+  });
+
+  // Redeem cashback
+  app.post('/api/wallet/redeem', async (req, res) => {
+    try {
+      const { userId, amount, description } = req.body;
+
+      if (!userId || !amount) {
+        return res.status(400).json({ error: 'User ID and amount required' });
+      }
+
+      // Get current wallet
+      const wallet = await db
+        .select()
+        .from(schema.userWallet)
+        .where(eq(schema.userWallet.userId, parseInt(userId)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        return res.status(404).json({ error: 'Wallet not found' });
+      }
+
+      const currentBalance = parseFloat(wallet[0].cashbackBalance);
+      const redeemAmount = parseFloat(amount);
+
+      if (currentBalance < redeemAmount) {
+        return res.status(400).json({ error: 'Insufficient cashback balance' });
+      }
+
+      const newBalance = currentBalance - redeemAmount;
+
+      // Update wallet
+      await db
+        .update(schema.userWallet)
+        .set({
+          cashbackBalance: newBalance.toFixed(2),
+          totalRedeemed: (parseFloat(wallet[0].totalRedeemed) + redeemAmount).toFixed(2),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.userWallet.userId, parseInt(userId)));
+
+      // Create transaction record
+      await db.insert(schema.userWalletTransactions).values({
+        userId: parseInt(userId),
+        type: 'redeem',
+        amount: redeemAmount.toFixed(2),
+        description: description || 'Cashback redeemed',
+        orderId: null,
+        balanceBefore: currentBalance.toFixed(2),
+        balanceAfter: newBalance.toFixed(2),
+        status: 'completed'
+      });
+
+      res.json({
+        success: true,
+        message: 'Cashback redeemed successfully',
+        newBalance: newBalance.toFixed(2)
+      });
+    } catch (error) {
+      console.error('Error redeeming cashback:', error);
+      res.status(500).json({ error: 'Failed to redeem cashback' });
+    }
+  });
+
+  // Affiliate Applications Routes
+
+  // Submit affiliate application (public) - alternative endpoint
+  app.post('/api/affiliate/apply', async (req, res) => {
+    try {
+      const { 
+        userId,
+        firstName, 
+        lastName, 
+        email, 
+        phone,
+        address,
+        city,
+        state,
+        pincode,
+        landmark,
+        country,
+        bankName,
+        branchName,
+        ifscCode,
+        accountNumber
+      } = req.body;
+
+      // Validate required fields
+      if (!userId || !firstName || !lastName || !email || !phone || !address || !country) {
+        return res.status(400).json({ error: 'All required fields must be provided' });
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
+      }
+
+      // Check if user already has an application
+      const existingApplicationByUser = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(
+          or(
+            eq(schema.affiliateApplications.userId, parseInt(userId)),
+            eq(schema.affiliateApplications.email, email.toLowerCase())
+          )
+        )
+        .limit(1);
+
+      if (existingApplicationByUser && existingApplicationByUser.length > 0) {
+        const application = existingApplicationByUser[0];
+        const status = application.status || 'pending';
+
+        return res.status(400).json({ 
+          error: `You have already submitted an affiliate application. Status: ${status}`,
+          application: {
+            ...application,
+            status: status
+          }
+        });
+      }
+
+      // Save to database
+      const savedApplication = await db.insert(schema.affiliateApplications).values({
+        userId: parseInt(userId),
+        firstName,
+        lastName,
+        email,
+        phone,
+        address,
+        city: city || null,
+        state: state || null,
+        pincode: pincode || null,
+        landmark: landmark || null,
+        country,
+        bankName: bankName || null,
+        branchName: branchName || null,
+        ifscCode: ifscCode || null,
+        accountNumber: accountNumber || null,
+        status: 'pending'
+      }).returning();
+
+      console.log('Affiliate application saved:', savedApplication[0].id);
+
+      res.json({
+        success: true,
+        message: 'Application submitted successfully! Our team will review your application and get back to you within 5-7 business days.',
+        applicationId: savedApplication[0].id
+      });
+
+    } catch (error) {
+      console.error('Error submitting affiliate application:', error);
+      res.status(500).json({ 
+        error: 'Failed to submit application',
+        details: error.message 
+      });
+    }
+  });
+
+  // Submit affiliate application (public)
+  app.post('/api/affiliate-applications', async (req, res) => {
+    try {
+      const { 
+        userId,
+        firstName, 
+        lastName, 
+        email, 
+        phone,
+        address,
+        city,
+        state,
+        pincode,
+        landmark,
+        country,
+        bankName,
+        branchName,
+        ifscCode,
+        accountNumber
+      } = req.body;
+
+      // Validate required fields
+      if (!userId || !firstName || !lastName || !email || !phone || !address || !country) {
+        return res.status(400).json({ error: 'All required fields must be provided' });
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
+      }
+
+      // Check if user already has an application (by userId or email)
+      const existingApplicationByUser = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(
+          or(
+            eq(schema.affiliateApplications.userId, parseInt(userId)),
+            eq(schema.affiliateApplications.email, email.toLowerCase())
+          )
+        )
+        .limit(1);
+
+      if (existingApplicationByUser && existingApplicationByUser.length > 0) {
+        const application = existingApplicationByUser[0];
+        const status = application.status || 'pending';
+
+        return res.status(400).json({ 
+          error: `You have already submitted an affiliate application. Status: ${status}`,
+          application: {
+            ...application,
+            status: status
+          }
+        });
+      }
+
+      // Save to database
+      const savedApplication = await db.insert(schema.affiliateApplications).values({
+        userId: parseInt(userId),
+        firstName,
+        lastName,
+        email,
+        phone,
+        address,
+        city: city || null,
+        state: state || null,
+        pincode: pincode || null,
+        landmark: landmark || null,
+        country,
+        bankName: bankName || null,
+        branchName: branchName || null,
+        ifscCode: ifscCode || null,
+        accountNumber: accountNumber || null,
+        status: 'pending' // Default status
+      }).returning();
+
+      console.log('Affiliate application saved to DB:', savedApplication[0].id);
+
+      // TODO: Send email notification to applicant
+      // For now, just send email notification to admin
+      const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
+
+      const emailSubject = `New Affiliate Application - ${firstName} ${lastName}`;
+      const emailBody = `
+Dear Admin,
+
+A new affiliate application has been received.
+
+APPLICANT DETAILS:
+------------------
+Application ID: #${savedApplication.id}
+Name: ${firstName} ${lastName}
+Email: ${email}
+Phone: ${phone}
+Address: ${address}, ${city}, ${state} - ${pincode}
+
+BANKING DETAILS:
+----------------
+Bank Name: ${bankName || 'Not provided'}
+Branch Name: ${branchName || 'Not provided'}
+IFSC Code: ${ifscCode || 'Not provided'}
+Account Number: ${accountNumber ? '****' + accountNumber.slice(-4) : 'Not provided'}
+
+Please review this application in the admin panel at:
+${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/admin/affiliate-applications` : 'Admin Panel'}
+
+Best regards,
+Poppik Affiliate Portal
+      `;
+
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #e74c3c;">New Affiliate Application #${savedApplication.id}</h2>
+
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #333;">Application Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Application ID:</td>
+                <td style="padding: 8px;">#${savedApplication.id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Name:</td>
+                <td style="padding: 8px;">${firstName} ${lastName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Email:</td>
+                <td style="padding: 8px;">${email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Phone:</td>
+                <td style="padding: 8px;">${phone}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Address:</td>
+                <td style="padding: 8px;">${address}, ${city}, ${state} - ${pincode}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #333;">Banking Details</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Bank Name:</td>
+                <td style="padding: 8px;">${bankName || 'Not provided'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Branch Name:</td>
+                <td style="padding: 8px;">${branchName || 'Not provided'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">IFSC Code:</td>
+                <td style="padding: 8px;">${ifscCode || 'Not provided'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; font-weight: bold;">Account Number:</td>
+                <td style="padding: 8px;">${accountNumber ? '****' + accountNumber.slice(-4) : 'Not provided'}</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      `;
+
+      console.log('Sending affiliate application email to:', HR_EMAIL);
+
+      try {
+        // Send email notification
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'affiliates@poppik.in',
+          to: HR_EMAIL,
+          subject: emailSubject,
+          text: emailBody,
+          html: emailHtml
+        });
+
+        console.log('✅ Affiliate application email sent successfully');
+
+        res.json({
+          success: true,
+          message: 'Application submitted successfully! Our team will review your application and get back to you within 5-7 business days.',
+          applicationId: savedApplication.id
+        });
+
+      } catch (emailError) {
+        console.error('❌ Failed to send affiliate application email:', emailError);
+
+        // Still return success to user since application was saved to database
+        res.json({
+          success: true,
+          message: 'Application submitted successfully! Our team will review your application and get back to you within 5-7 business days.',
+          applicationId: savedApplication.id,
+          emailSent: false
+        });
+      }
+
+    } catch (error) {
+      console.error('Error submitting affiliate application:', error);
+      res.status(500).json({ 
+        error: 'Failed to submit application',
+        details: error.message 
+      });
+    }
+  });
+
+  // Get user's affiliate application
+  app.get('/api/affiliate/my-application', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      console.log('Fetching affiliate application for userId:', userId);
+
+      // Find application by userId using proper eq operator
+      const application = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.userId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateApplications.createdAt))
+        .limit(1);
+
+      console.log('Application found:', application.length > 0 ? 'Yes' : 'No');
+
+      if (!application || application.length === 0) {
+        // Check localStorage fallback
+        return res.status(404).json({ error: 'No application found' });
+      }
+
+      // Ensure status field exists - default to 'pending' if not set
+      const appData = {
+        ...application[0],
+        status: application[0].status || 'pending'
+      };
+
+      console.log('Application data:', {
+        id: appData.id,
+        userId: appData.userId,
+        status: appData.status,
+        email: appData.email
+      });
+
+      res.json(appData);
+    } catch (error) {
+      console.error('Error fetching affiliate application:', error);
+      res.status(500).json({ error: 'Failed to fetch application' });
+    }
+  });
+
+  // Get affiliate stats with wallet details
+  app.get('/api/affiliate/stats', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      // Generate affiliate code for tracking
+      const user = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, parseInt(userId as string)))
+        .limit(1);
+
+      if (!user || user.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Format user ID as 2-digit number (01, 02, 03, etc.)
+      const formattedUserId = userId.toString().padStart(2, '0');
+      const affiliateCode = `POPPIKAP${formattedUserId}`;
+
+      // Get wallet data
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
+        .limit(1);
+
+      // Get sales data
+      const sales = await db
+        .select()
+        .from(schema.affiliateSales)
+        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)));
+
+      // Get clicks data
+      const clicks = await db
+        .select()
+        .from(schema.affiliateClicks)
+        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)));
+
+      const totalClicks = clicks.length;
+      const totalConversions = sales.length;
+      const totalEarnings = wallet && wallet[0] ? parseFloat(wallet[0].totalEarnings || '0') : 0;
+      const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
+      const avgCommission = totalConversions > 0 ? totalEarnings / totalConversions : 0;
+
+      res.json({
+        affiliateCode,
+        totalClicks,
+        totalConversions,
+        totalEarnings,
+        conversionRate,
+        avgCommission,
+        pendingAmount: wallet && wallet.length > 0 ? parseFloat(wallet[0].pendingBalance?.toString() || '0') : 0,
+      });
+    } catch (error) {
+      console.error('Error fetching affiliate stats:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate stats' });
+    }
+  });
+
+  // Get affiliate sales history
+  app.get('/api/affiliate/sales', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      // Check if user is an approved affiliate
+      const application = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.userId, parseInt(userId as string)))
+        .limit(1);
+
+      if (!application || application.length === 0 || application[0].status !== 'approved') {
+        return res.status(403).json({ error: 'Not an approved affiliate' });
+      }
+
+      // Fetch affiliate sales with detailed information
+      const sales = await db
+        .select({
+          id: schema.affiliateSales.id,
+          orderId: schema.affiliateSales.orderId,
+          productName: schema.affiliateSales.productName,
+          productId: schema.affiliateSales.productId,
+          comboId: schema.affiliateSales.comboId,
+          customerName: schema.affiliateSales.customerName,
+          customerEmail: schema.affiliateSales.customerEmail,
+          customerPhone: schema.affiliateSales.customerPhone,
+          saleAmount: schema.affiliateSales.saleAmount,
+          commissionRate: schema.affiliateSales.commissionRate,
+          commissionAmount: schema.affiliateSales.commissionAmount,
+          status: schema.affiliateSales.status,
+          createdAt: schema.affiliateSales.createdAt,
+          paidAt: schema.affiliateSales.paidAt,
+        })
+        .from(schema.affiliateSales)
+        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateSales.createdAt))
+        .limit(100);
+
+      res.json(sales);
+    } catch (error) {
+      console.error('Error fetching affiliate sales:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate sales' });
+    }
+  });
+
+  // Get affiliate clicks
+  app.get('/api/affiliate/clicks', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      // Fetch total clicks and recent clicks
+      const clicks = await db
+        .select()
+        .from(schema.affiliateClicks)
+        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateClicks.createdAt))
+        .limit(50);
+
+      const totalClicks = clicks.length;
+
+      res.json({
+        total: totalClicks,
+        recent: clicks.slice(0, 10)
+      });
+    } catch (error) {
+      console.error('Error fetching affiliate clicks:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate clicks' });
+    }
+  });
+
+  // Get affiliate wallet stats for dashboard
+  app.get('/api/affiliate/wallet/stats', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      // Get wallet
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
+        .limit(1);
+
+      // Get this month's sales
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const thisMonthSales = await db
+        .select()
+        .from(schema.affiliateSales)
+        .where(and(
+          eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)),
+          sql`${schema.affiliateSales.createdAt} >= ${firstDayOfMonth}`
+        ));
+
+      const thisMonthEarnings = thisMonthSales.reduce((sum, sale) => 
+        sum + parseFloat(sale.commissionAmount || '0'), 0
+      );
+
+      // Get pending commission
+      const allSales = await db
+        .select()
+        .from(schema.affiliateSales)
+        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)));
+
+      const pendingCommission = allSales
+        .filter(s => s.status === 'confirmed')
+        .reduce((sum, sale) => sum + parseFloat(sale.commissionAmount || '0'), 0);
+
+      res.json({
+        totalEarnings: wallet && wallet.length > 0 ? wallet[0].totalEarnings : '0.00',
+        availableBalance: wallet && wallet.length > 0 ? wallet[0].commissionBalance : '0.00',
+        pendingCommission: pendingCommission.toFixed(2),
+        totalWithdrawn: wallet && wallet.length > 0 ? wallet[0].totalWithdrawn : '0.00',
+        thisMonthEarnings: thisMonthEarnings.toFixed(2)
+      });
+    } catch (error) {
+      console.error("Error fetching wallet stats:", error);
+      res.status(500).json({ error: "Failed to fetch wallet stats" });
+    }
+  });
+
+  // Admin endpoints for affiliate applications
+  app.get('/api/admin/affiliate-applications', async (req, res) => {
+    try {
+      const applications = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .orderBy(desc(schema.affiliateApplications.createdAt));
+
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching affiliate applications:', error);
+      res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  });
+
+  app.get('/api/admin/affiliate-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const application = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.id, id))
+        .limit(1);
+
+      if (!application || application.length === 0) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json(application[0]);
+    } catch (error) {
+      console.error('Error fetching affiliate application:', error);
+      res.status(500).json({ error: 'Failed to fetch application' });
+    }
+  });
+
+  app.put('/api/admin/affiliate-applications/:id/status', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['pending', 'approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const [updatedApplication] = await db
+        .update(schema.affiliateApplications)
+        .set({
+          status,
+          reviewNotes: notes,
+          reviewedAt: new Date()
+        })
+        .where(eq(schema.affiliateApplications.id, parseInt(id)))
+        .returning();
+
+      if (!updatedApplication) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      // If approved, create affiliate wallet
+      if (status === 'approved' && updatedApplication.userId) {
+        try {
+          const existingWallet = await db
+            .select()
+            .from(schema.affiliateWallet)
+            .where(eq(schema.affiliateWallet.userId, updatedApplication.userId))
+            .limit(1);
+
+          if (existingWallet.length === 0) {
+            await db.insert(schema.affiliateWallet).values({
+              userId: updatedApplication.userId,
+              cashbackBalance: "0.00",
+              commissionBalance: "0.00",
+              totalEarnings: "0.00",
+              totalWithdrawn: "0.00"
+            });
+            console.log(`✅ Affiliate wallet created for user ${updatedApplication.userId}`);
+          }
+        } catch (walletError) {
+          console.error('Error creating affiliate wallet:', walletError);
+        }
+      }
+
+      // Send email notification
+      try {
+        const formattedUserId = updatedApplication.userId.toString().padStart(2, '0');
+        const affiliateCode = `POPPIKAP${formattedUserId}`;
+        const dashboardUrl = process.env.REPL_SLUG 
+          ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate-dashboard`
+          : 'https://poppik.in/affiliate-dashboard';
+
+        const emailSubject = status === 'approved' 
+          ? 'Welcome to the Poppik Lifestyle Private Limited Affiliate Program'
+          : 'Update on Your Poppik Affiliate Application';
+
+        const emailHtml = status === 'approved'
+          ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 40px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to the Poppik Lifestyle Private Limited Affiliate Program</h1>
+            </div>
+            <div style="padding: 40px 30px;">
+              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName}</strong>,</p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 20px 0;">
+                We are delighted to welcome you as an official affiliate partner of Poppik Lifestyle Private Limited.
+              </p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 30px 0;">
+                Your skills and dedication align perfectly with our vision, and we are excited to collaborate with you. As a valued member of our affiliate program, you now have access to your unique referral link, marketing materials, and performance dashboard to help you start promoting our brand effectively.
+              </p>
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
+                <p style="color: #ffffff; margin: 0 0 10px 0; font-size: 14px;">Your Unique Affiliate Code</p>
+                <p style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 2px;">${affiliateCode}</p>
+              </div>
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="font-size: 16px; color: #555555; margin: 0 0 15px 0;">
+                  Please log in to your affiliate account here:
+                </p>
+                <a href="${dashboardUrl}" style="display: inline-block; background-color: #e74c3c; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">
+                  Access Dashboard
+                </a>
+              </div>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 30px 0 20px 0;">
+                If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
+              </p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0;">
+                Thank you for joining us. We look forward to a successful and rewarding partnership.
+              </p>
+            </div>
+            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
+              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">
+                © 2024 Poppik Lifestyle Private Limited. All rights reserved.
+              </p>
+              <p style="color: #999999; font-size: 12px; margin: 0;">
+                Office No.- 213, A- Wing, Skylark Building, Plot No.- 63, Sector No.- 11, C.B.D. Belapur, Navi Mumbai- 400614 INDIA
+              </p>
+            </div>
+          </div>`
+          : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #6c757d; padding: 40px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Poppik Affiliate Application Update</h1>
+            </div>
+            <div style="background: white; padding: 40px 30px;">
+              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName} ${updatedApplication.lastName}</strong>,</p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6;">
+                Thank you for your interest in the Poppik Affiliate Program. After careful review, we are unable to approve your application at this time.
+              </p>
+              ${notes ? `<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0; color: #856404;"><strong>Reason:</strong> ${notes}</p>
+              </div>` : ''}
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0 0 0;">
+                We encourage you to reapply in the future. Keep creating amazing content!
+              </p>
+              <p style="font-size: 14px; color: #999999; margin: 20px 0 0 0;">
+                Questions? Contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c;">info@poppik.in</a>
+              </p>
+            </div>
+            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
+              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">© 2024 Poppik Lifestyle Private Limited</p>
+            </div>
+          </div>`;
+
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'info@poppik.in',
+          to: updatedApplication.email,
+          subject: emailSubject,
+          html: emailHtml
+        });
+
+        console.log(`✅ Affiliate ${status} email sent to: ${updatedApplication.email}`);
+      } catch (emailError) {
+        console.error('❌ Failed to send email:', emailError);
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Application ${status} successfully`,
+        application: updatedApplication 
+      });
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      res.status(500).json({ error: 'Failed to update application status' });
+    }
+  });
+
+  app.delete('/api/admin/affiliate-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deleted] = await db
+        .delete(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json({ success: true, message: 'Application deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting affiliate application:', error);
+      res.status(500).json({ error: 'Failed to delete application' });
+    }
+  });
+
+  // Influencer Applications Routes
+
+  // Submit influencer application (public)
+  app.post('/api/influencer-applications', async (req, res) => {
+    try {
+      const { 
+        firstName, 
+        lastName, 
+        email, 
+        contactNumber, 
+        fullAddress, 
+        landmark, 
+        city, 
+        pinCode, 
+        state, 
+        country,
+        instagramProfile,
+        youtubeChannel,
+        facebookProfile
+      } = req.body;
+
+      // Validate required fields
+      if (!firstName || !lastName || !email || !contactNumber || !fullAddress || !city || !pinCode || !state || !country) {
+        return res.status(400).json({ error: 'All required fields must be provided' });
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Please provide a valid email address' });
+      }
+
+      // Save to database
+      const [savedApplication] = await db.insert(schema.influencerApplications).values({
+        firstName,
+        lastName,
+        email,
+        contactNumber,
+        fullAddress,
+        landmark: landmark || null,
+        city,
+        pinCode,
+        state,
+        country,
+        instagramProfile: instagramProfile || null,
+        youtubeChannel: youtubeChannel || null,
+        facebookProfile: facebookProfile || null,
+        status: 'pending'
+      }).returning();
+
+      console.log('Influencer application created:', savedApplication.id);
+
+      res.json({
+        success: true,
+        message: 'Application submitted successfully! We will review your application and get back to you soon.',
+        applicationId: savedApplication.id
+      });
+    } catch (error) {
+      console.error('Error submitting influencer application:', error);
+      res.status(500).json({ error: 'Failed to submit application' });
+    }
+  });
+
+  // Admin endpoints for influencer applications
+  app.get('/api/admin/influencer-applications', async (req, res) => {
+    try {
+      const applications = await storage.getInfluencerApplications();
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching influencer applications:', error);
+      res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  });
+
+  app.get('/api/admin/influencer-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const application = await storage.getInfluencerApplication(id);
+
+      if (!application) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json(application);
+    } catch (error) {
+      console.error('Error fetching influencer application:', error);
+      res.status(500).json({ error: 'Failed to fetch application' });
+    }
+  });
+
+  app.put('/api/admin/influencer-applications/:id/status', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (!['pending', 'accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const application = await storage.updateInfluencerApplicationStatus(id, status);
+
+      if (!application) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Application ${status} successfully`,
+        application 
+      });
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      res.status(500).json({ error: 'Failed to update application status' });
+    }
+  });
+
+  app.delete('/api/admin/influencer-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteInfluencerApplication(id);
+      res.json({ success: true, message: 'Application deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting influencer application:', error);
+      res.status(500).json({ error: 'Failed to delete application' });
+    }
+  });
+
+  // Job Positions Management Routes
+
+  // Get all job positions (public)
+  app.get('/api/job-positions', async (req, res) => {
+    try {
+      console.log('GET /api/job-positions - Fetching all job positions');
+
+      // Auto-expire old job positions
+      try {
+        await storage.autoExpireJobPositions();
+      } catch (expireError) {
+        console.log('Auto-expire error (continuing):', expireError.message);
+      }
+
+      // Get all positions (both active and inactive)
+      const positions = await storage.getAllJobPositions();
+      console.log('Total positions found:', positions.length);
+      console.log('Positions data:', JSON.stringify(positions, null, 2));
+
+      // Parse JSONB fields for all positions
+      const parsedPositions = positions.map(position => ({
+        ...position,
+        responsibilities: typeof position.responsibilities === 'string' 
+          ? JSON.parse(position.responsibilities) 
+          : position.responsibilities,
+        requirements: typeof position.requirements === 'string' 
+          ? JSON.parse(position.requirements) 
+          : position.requirements,
+        skills: typeof position.skills === 'string' 
+          ? JSON.parse(position.skills) 
+          : position.skills,
+      }));
+
+      res.json(parsedPositions);
+    } catch (error) {
+      console.error('Error fetching job positions:', error);
+      res.status(500).json({ error: 'Failed to fetch job positions' });
+    }
+  });
+
+  app.get("/api/job-positions/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      console.log(`GET /api/job-positions/${slug} - Fetching job position`);
+
+      // Auto-expire positions
+      await storage.autoExpireJobPositions();
+
+      const position = await storage.getJobPositionBySlug(slug);
+
+      if (!position) {
         return res.status(404).json({ error: 'Job position not found' });
       }
 
-      res.json(job[0]);
+      // Parse JSONB fields if they are strings
+      const parsedPosition = {
+        ...position,
+        responsibilities: typeof position.responsibilities === 'string' 
+          ? JSON.parse(position.responsibilities) 
+          : position.responsibilities,
+        requirements: typeof position.requirements === 'string' 
+          ? JSON.parse(position.requirements) 
+          : position.requirements,
+        skills: typeof position.skills === 'string' 
+          ? JSON.parse(position.skills) 
+          : position.skills,
+      };
+
+      res.json(parsedPosition);
     } catch (error) {
       console.error('Error fetching job position:', error);
       res.status(500).json({ error: 'Failed to fetch job position' });
     }
   });
 
-  // Admin: Get all job positions (including inactive)
-  app.get('/api/admin/job-positions', adminMiddleware, async (req: Request, res: Response) => {
+  // Admin endpoints for job positions management
+  app.get('/api/admin/job-positions', async (req, res) => {
     try {
-      const jobs = await db
-        .select()
-        .from(jobPositions)
-        .orderBy(desc(jobPositions.createdAt));
+      console.log('GET /api/admin/job-positions - Fetching all job positions for admin');
 
-      res.json(jobs || []);
+      const positions = await storage.getJobPositions();
+      console.log('Total positions found for admin:', positions.length);
+
+      res.json(positions);
     } catch (error) {
-      console.error('Error fetching admin job positions:', error);
-      res.status(500).json({ error: 'Failed to fetch job positions', details: (error as any)?.message });
+      console.error('Error fetching job positions:', error);
+      res.status(500).json({ error: 'Failed to fetch job positions' });
     }
   });
 
-  // Admin: Create job position
-  app.post('/api/admin/job-positions', adminMiddleware, async (req: Request, res: Response) => {
+  app.post('/api/admin/job-positions', async (req, res) => {
     try {
-      const {
-        title,
-        slug,
-        department,
-        location,
-        type,
-        jobId,
-        experienceLevel,
-        workExperience,
-        education,
-        description,
-        aboutRole,
-        responsibilities,
-        requirements,
-        skills,
-        isActive
-      } = req.body;
+      console.log('Creating job position with data:', req.body);
 
-      if (!title || !slug) {
-        return res.status(400).json({ error: 'Title and slug are required' });
+      // Validate required fields
+      if (!req.body.title || !req.body.department || !req.body.location || !req.body.type) {
+        return res.status(400).json({ 
+          error: 'Missing required fields: title, department, location, and type are required' 
+        });
       }
 
-      const jobData: any = {
-        title,
+      const slug = req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+      // Set expiry date to 15 days from now if not provided
+      const expiresAt = req.body.expiresAt 
+        ? new Date(req.body.expiresAt) 
+        : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+
+      const positionData = {
+        title: req.body.title,
         slug,
-        department: department || '',
-        location: location || '',
-        type: type || '',
-        jobId: jobId || null,
-        experienceLevel: experienceLevel || '',
-        workExperience: workExperience || '',
-        education: education || '',
-        description: description || '',
-        aboutRole: aboutRole || '',
-        responsibilities: responsibilities || [],
-        requirements: requirements || [],
-        skills: skills || [],
-        isActive: isActive !== undefined ? isActive === true || isActive === 'true' : true,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        department: req.body.department,
+        location: req.body.location,
+        type: req.body.type,
+        jobId: req.body.jobId || null,
+        experienceLevel: req.body.experienceLevel || 'Entry Level',
+        workExperience: req.body.workExperience || '0-1 years',
+        education: req.body.education || 'Bachelor\'s Degree',
+        description: req.body.description || '',
+        aboutRole: req.body.aboutRole || '',
+        responsibilities: Array.isArray(req.body.responsibilities) 
+          ? req.body.responsibilities 
+          : (typeof req.body.responsibilities === 'string' ? JSON.parse(req.body.responsibilities || '[]') : []),
+        requirements: Array.isArray(req.body.requirements) 
+          ? req.body.requirements 
+          : (typeof req.body.requirements === 'string' ? JSON.parse(req.body.requirements || '[]') : []),
+        skills: Array.isArray(req.body.skills) 
+          ? req.body.skills 
+          : (typeof req.body.skills === 'string' ? JSON.parse(req.body.skills || '[]') : []),
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        expiresAt,
+        sortOrder: parseInt(req.body.sortOrder) || 0,
       };
 
-      console.log('📝 Creating job position:', {
-        title: jobData.title,
-        slug: jobData.slug,
-        isActive: jobData.isActive,
-        receivedIsActive: isActive,
-        type: typeof isActive
-      });
+      console.log('Processed position data:', positionData);
 
-      const [newJob] = await db.insert(jobPositions).values(jobData).returning();
+      const position = await storage.createJobPosition(positionData);
+      console.log('Job position created successfully:', position);
 
-      console.log('✅ Job position created:', {
-        id: newJob.id,
-        title: newJob.title,
-        isActive: newJob.isActive
-      });
-
-      res.status(201).json(newJob);
+      res.status(201).json(position);
     } catch (error) {
       console.error('Error creating job position:', error);
-      res.status(500).json({ error: 'Failed to create job position', details: (error as any)?.message });
+      console.error('Error details:', error.message, error.stack);
+      res.status(500).json({ 
+        error: 'Failed to create job position',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
-  // Admin: Update job position
-  app.put('/api/admin/job-positions/:id', adminMiddleware, async (req: Request, res: Response) => {
+  app.put('/api/admin/job-positions/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const {
-        title,
-        slug,
-        department,
-        location,
-        type,
-        jobId,
-        experienceLevel,
-        workExperience,
-        education,
-        description,
-        aboutRole,
-        responsibilities,
-        requirements,
-        skills,
-        isActive
-      } = req.body;
+      const updateData = {
+        ...req.body,
+        slug: req.body.title ? req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : undefined,
+        responsibilities: req.body.responsibilities ? (Array.isArray(req.body.responsibilities) ? req.body.responsibilities : JSON.parse(req.body.responsibilities)) : undefined,
+        requirements: req.body.requirements ? (Array.isArray(req.body.requirements) ? req.body.requirements : JSON.parse(req.body.requirements)) : undefined,
+        skills: req.body.skills ? (Array.isArray(req.body.skills) ? req.body.skills : JSON.parse(req.body.skills)) : undefined,
+        expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : undefined,
+      };
 
-      const updateData: any = {};
-      if (title !== undefined) updateData.title = title;
-      if (slug !== undefined) updateData.slug = slug;
-      if (department !== undefined) updateData.department = department;
-      if (location !== undefined) updateData.location = location;
-      if (type !== undefined) updateData.type = type;
-      if (jobId !== undefined) updateData.jobId = jobId;
-      if (experienceLevel !== undefined) updateData.experienceLevel = experienceLevel;
-      if (workExperience !== undefined) updateData.workExperience = workExperience;
-      if (education !== undefined) updateData.education = education;
-      if (description !== undefined) updateData.description = description;
-      if (aboutRole !== undefined) updateData.aboutRole = aboutRole;
-      if (responsibilities !== undefined) updateData.responsibilities = responsibilities;
-      if (requirements !== undefined) updateData.requirements = requirements;
-      if (skills !== undefined) updateData.skills = skills;
-      if (isActive !== undefined) updateData.isActive = isActive === true || isActive === 'true';
-
-      updateData.updatedAt = new Date();
-
-      const [updated] = await db
-        .update(jobPositions)
-        .set(updateData)
-        .where(eq(jobPositions.id, id))
-        .returning();
-
-      if (!updated) {
+      const position = await storage.updateJobPosition(id, updateData);
+      if (!position) {
         return res.status(404).json({ error: 'Job position not found' });
       }
-
-      res.json(updated);
+      res.json(position);
     } catch (error) {
       console.error('Error updating job position:', error);
-      res.status(500).json({ error: 'Failed to update job position', details: (error as any)?.message });
+      res.status(500).json({ error: 'Failed to update job position' });
     }
   });
 
-  // Admin: Delete job position
-  app.delete('/api/admin/job-positions/:id', adminMiddleware, async (req: Request, res: Response) => {
+  app.delete('/api/admin/job-positions/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const [deleted] = await db
-        .delete(jobPositions)
-        .where(eq(jobPositions.id, id))
-        .returning();
-
-      if (!deleted) {
+      const success = await storage.deleteJobPosition(id);
+      if (!success) {
         return res.status(404).json({ error: 'Job position not found' });
       }
-
       res.json({ message: 'Job position deleted successfully' });
     } catch (error) {
       console.error('Error deleting job position:', error);
-      res.status(500).json({ error: 'Failed to delete job position', details: (error as any)?.message });
+      res.status(500).json({ error: 'Failed to delete job position' });
     }
   });
-  app.get('/api/influencer-videos', async (req, res) => {
+
+  // Testimonials Management Routes
+
+  // Public endpoints for testimonials
+  app.get('/api/testimonials', async (req, res) => {
     try {
-      const { isActive, category } = req.query;
-      let query = db.select().from(schema.influencerVideos);
-      if (isActive !== undefined) {
-        query = query.where(eq(schema.influencerVideos.isActive, isActive === 'true'));
+      const testimonials = await storage.getActiveTestimonials();
+      // Map customer_image to customerImageUrl for frontend compatibility
+      const formattedTestimonials = testimonials.map(t => ({
+        id: t.id,
+        customerName: t.customerName,
+        customerImageUrl: t.customerImage,
+        rating: t.rating,
+        content: t.reviewText,
+        isActive: t.isActive,
+        createdAt: t.createdAt,
+      }));
+      res.json(formattedTestimonials);
+    } catch (error) {
+      console.error('Error fetching testimonials:', error);
+      res.status(500).json({ error: 'Failed to fetch testimonials' });
+    }
+  });
+
+  // Admin endpoints for testimonials management
+  app.get('/api/admin/testimonials', async (req, res) => {
+    try {
+      const testimonials = await storage.getTestimonials();
+      // Map customer_image to customerImage for admin panel
+      const formattedTestimonials = testimonials.map(t => ({
+        ...t,
+        customerImage: t.customerImage || t.customer_image,
+      }));
+      res.json(formattedTestimonials);
+    } catch (error) {
+      console.error('Error fetching testimonials:', error);
+      res.status(500).json({ error: 'Failed to fetch testimonials' });
+    }
+  });
+
+  app.get('/api/admin/testimonials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const testimonial = await storage.getTestimonial(id);
+      if (!testimonial) {
+        return res.status(404).json({ error: 'Testimonial not found' });
       }
-      if (category) {
-        query = query.where(eq(schema.influencerVideos.category, category as string));
+      res.json(testimonial);
+    } catch (error) {
+      console.error('Error fetching testimonial:', error);
+      res.status(500).json({ error: 'Failed to fetch testimonial' });
+    }
+  });
+
+  app.post('/api/admin/testimonials', upload.single('image'), async (req, res) => {
+    try {
+      let customerImage = req.body.customerImage;
+
+      // Handle image upload
+      if (req.file) {
+        customerImage = `/api/images/${req.file.filename}`;
       }
-      query = query.orderBy(asc(schema.influencerVideos.sortOrder), desc(schema.influencerVideos.createdAt));
-      const list = await query;
-      res.json(list);
-    } catch (error) {
-      console.error('Error fetching influencer videos:', error);
-      res.status(500).json({ error: 'Failed to fetch influencer videos' });
-    }
-  });
 
-  // Get single influencer video
-  app.get('/api/influencer-videos/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const rows = await db.select().from(schema.influencerVideos).where(eq(schema.influencerVideos.id, id));
-      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
-      res.json(rows[0]);
-    } catch (error) {
-      console.error('Error fetching influencer video:', error);
-      res.status(500).json({ error: 'Failed to fetch influencer video' });
-    }
-  });
-
-  // Click tracking for influencer video
-  app.post('/api/influencer-videos/:id/click', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const rows = await db.select().from(schema.influencerVideos).where(eq(schema.influencerVideos.id, id));
-      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
-      await db.update(schema.influencerVideos).set({ clickCount: (rows[0].clickCount || 0) + 1 }).where(eq(schema.influencerVideos.id, id));
-      res.json({ redirectUrl: rows[0].redirectUrl || rows[0].videoUrl });
-    } catch (error) {
-      console.error('Error tracking influencer video click:', error);
-      res.status(500).json({ error: 'Failed to track click' });
-    }
-  });
-
-  // Share page for influencer video (returns HTML with Open Graph tags)
-  app.get('/share/influencer-videos/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const rows = await db.select().from(schema.influencerVideos).where(eq(schema.influencerVideos.id, id));
-      if (!rows || rows.length === 0) return res.status(404).send('Not found');
-
-      const video = rows[0];
-
-      const host = req.get('host') || 'localhost';
-      const forwarded = (req.headers['x-forwarded-proto'] as string) || '';
-      const protocol = forwarded.split(',')[0] || req.protocol || 'https';
-
-      const makeAbsolute = (url: string | null) => {
-        if (!url) return '';
-        if (url.startsWith('http://') || url.startsWith('https://')) return url;
-        // ensure leading slash
-        const path = url.startsWith('/') ? url : `/${url}`;
-        return `${protocol}://${host}${path}`;
+      const testimonialData = {
+        customerName: req.body.customerName,
+        customerImage: customerImage || null,
+        rating: parseInt(req.body.rating) || 5,
+        reviewText: req.body.reviewText,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
       };
 
-      const ogImage = makeAbsolute(video.imageUrl || '');
-      const pageUrl = `${protocol}://${host}${req.originalUrl}`;
-      const title = (video.title || video.influencerName || 'Influencer Video').toString();
-      const description = (video.description || '').toString();
-
-      const html = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${escapeHtml(title)}</title>
-  <meta property="og:type" content="video.other" />
-  <meta property="og:title" content="${escapeHtml(title)}" />
-  <meta property="og:description" content="${escapeHtml(description)}" />
-  <meta property="og:image" content="${escapeHtml(ogImage)}" />
-  <meta property="og:url" content="${escapeHtml(pageUrl)}" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${escapeHtml(title)}" />
-  <meta name="twitter:description" content="${escapeHtml(description)}" />
-  <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
-</head>
-<body>
-  <main style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,Helvetica,sans-serif;">
-    <div style="text-align:center;max-width:680px;margin:0 16px;">
-      <h1 style="font-size:20px;margin-bottom:8px;">${escapeHtml(title)}</h1>
-      <p style="color:#666;margin-bottom:16px;">${escapeHtml(description)}</p>
-      <p><a href="${escapeHtml(video.redirectUrl || video.videoUrl || '#')}" style="background:#e74c3c;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">Open Video</a></p>
-      <p style="margin-top:18px;color:#999;font-size:13px;">If the video doesn't open automatically, click the button above.</p>
-    </div>
-  </main>
-  <script>
-    // Attempt to redirect to the video URL after a short delay
-    (function(){
-      try{
-        var target = ${JSON.stringify(video.redirectUrl || video.videoUrl || '')};
-        if(target) setTimeout(function(){ window.location.href = target; }, 1200);
-      }catch(e){}
-    })();
-  </script>
-</body>
-</html>`;
-
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(html);
+      const testimonial = await storage.createTestimonial(testimonialData);
+      res.status(201).json(testimonial);
     } catch (error) {
-      console.error('Error rendering share page for influencer video:', error);
-      res.status(500).send('Failed to render share page');
+      console.error('Error creating testimonial:', error);
+      res.status(500).json({ error: 'Failed to create testimonial' });
     }
   });
 
-  // Admin: get all influencer videos
-  app.get('/api/admin/influencer-videos', adminMiddleware, async (req, res) => {
-    try {
-      const list = await db.select().from(schema.influencerVideos).orderBy(desc(schema.influencerVideos.createdAt));
-      res.json(list);
-    } catch (error) {
-      console.error('Error fetching admin influencer videos:', error);
-      res.status(500).json({ error: 'Failed to fetch influencer videos' });
-    }
-  });
-
-  // Admin: create influencer video
-  app.post('/api/admin/influencer-videos', adminMiddleware, async (req, res) => {
-    try {
-      const data = {
-        influencerName: req.body.influencerName,
-        title: req.body.title,
-        description: req.body.description || null,
-        imageUrl: req.body.imageUrl,
-        videoUrl: req.body.videoUrl || null,
-        redirectUrl: req.body.redirectUrl || null,
-        category: req.body.category || 'influencer',
-        type: req.body.type || 'video',
-        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
-        sortOrder: req.body.sortOrder || 0,
-        metadata: req.body.metadata || null,
-      };
-      const inserted = await db.insert(schema.influencerVideos).values(data).returning();
-      res.json(inserted[0]);
-    } catch (error) {
-      console.error('Error creating influencer video:', error);
-      res.status(500).json({ error: 'Failed to create influencer video', details: (error as any).message });
-    }
-  });
-
-  // Admin: update influencer video
-  app.put('/api/admin/influencer-videos/:id', adminMiddleware, async (req, res) => {
+  app.put('/api/admin/testimonials/:id', upload.single('image'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const data = {
-        influencerName: req.body.influencerName,
-        title: req.body.title,
-        description: req.body.description || null,
-        imageUrl: req.body.imageUrl,
-        videoUrl: req.body.videoUrl || null,
-        redirectUrl: req.body.redirectUrl || null,
-        category: req.body.category,
-        type: req.body.type,
-        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
-        sortOrder: req.body.sortOrder || 0,
-        metadata: req.body.metadata || null,
-        updatedAt: new Date(),
+      let updateData: any = {
+        customerName: req.body.customerName,
+        rating: parseInt(req.body.rating) || 5,
+        reviewText: req.body.reviewText,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
       };
-      const updated = await db.update(schema.influencerVideos).set(data).where(eq(schema.influencerVideos.id, id)).returning();
-      if (!updated || updated.length === 0) return res.status(404).json({ error: 'Not found' });
-      res.json(updated[0]);
-    } catch (error) {
-      console.error('Error updating influencer video:', error);
-      res.status(500).json({ error: 'Failed to update influencer video', details: (error as any).message });
-    }
-  });
 
-  // Admin: delete influencer video
-  app.delete('/api/admin/influencer-videos/:id', adminMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const deleted = await db.delete(schema.influencerVideos).where(eq(schema.influencerVideos.id, id)).returning();
-      if (!deleted || deleted.length === 0) return res.status(404).json({ error: 'Not found' });
-      res.json({ message: 'Deleted', deleted: deleted[0] });
-    } catch (error) {
-      console.error('Error deleting influencer video:', error);
-      res.status(500).json({ error: 'Failed to delete influencer video', details: (error as any).message });
-    }
-  });
-
-  // ==================== AFFILIATE VIDEOS ROUTES ====================
-
-  // Public: get affiliate videos
-  app.get('/api/affiliate-videos', async (req, res) => {
-    try {
-      const { isActive, category } = req.query;
-      let query = db.select().from(schema.affiliateVideos);
-      if (isActive !== undefined) {
-        query = query.where(eq(schema.affiliateVideos.isActive, isActive === 'true'));
+      // Handle image upload
+      if (req.file) {
+        updateData.customerImage = `/api/images/${req.file.filename}`;
+      } else if (req.body.customerImage) {
+        updateData.customerImage = req.body.customerImage;
       }
-      if (category) {
-        query = query.where(eq(schema.affiliateVideos.category, category as string));
+
+      const testimonial = await storage.updateTestimonial(id, updateData);
+      if (!testimonial) {
+        return res.status(404).json({ error: 'Testimonial not found' });
       }
-      query = query.orderBy(asc(schema.affiliateVideos.sortOrder), desc(schema.affiliateVideos.createdAt));
-      const list = await query;
-      res.json(list);
+      res.json(testimonial);
     } catch (error) {
-      console.error('Error fetching affiliate videos:', error);
-      res.status(500).json({ error: 'Failed to fetch affiliate videos' });
+      console.error('Error updating testimonial:', error);
+      res.status(500).json({ error: 'Failed to update testimonial' });
     }
   });
 
-  // Get single affiliate video
-  app.get('/api/affiliate-videos/:id', async (req, res) => {
+  app.delete('/api/admin/testimonials/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const rows = await db.select().from(schema.affiliateVideos).where(eq(schema.affiliateVideos.id, id));
-      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
-      res.json(rows[0]);
-    } catch (error) {
-      console.error('Error fetching affiliate video:', error);
-      res.status(500).json({ error: 'Failed to fetch affiliate video' });
-    }
-  });
-
-  // Click tracking for affiliate video
-  app.post('/api/affiliate-videos/:id/click', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const rows = await db.select().from(schema.affiliateVideos).where(eq(schema.affiliateVideos.id, id));
-      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
-      await db.update(schema.affiliateVideos).set({ clickCount: (rows[0].clickCount || 0) + 1 }).where(eq(schema.affiliateVideos.id, id));
-      res.json({ redirectUrl: rows[0].redirectUrl || rows[0].videoUrl });
-    } catch (error) {
-      console.error('Error tracking affiliate video click:', error);
-      res.status(500).json({ error: 'Failed to track click' });
-    }
-  });
-
-  // Share page for affiliate video (returns HTML with Open Graph tags)
-  app.get('/share/affiliate-videos/:id', async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const rows = await db.select().from(schema.affiliateVideos).where(eq(schema.affiliateVideos.id, id));
-      if (!rows || rows.length === 0) return res.status(404).send('Not found');
-
-      const video = rows[0];
-      const host = req.get('host') || 'localhost';
-      const forwarded = (req.headers['x-forwarded-proto'] as string) || '';
-      const protocol = forwarded.split(',')[0] || req.protocol || 'https';
-
-      const makeAbsolute = (url: string | null) => {
-        if (!url) return '';
-        if (url.startsWith('http://') || url.startsWith('https://')) return url;
-        const path = url.startsWith('/') ? url : `/${url}`;
-        return `${protocol}://${host}${path}`;
-      };
-
-      const ogImage = makeAbsolute(video.imageUrl || '');
-      const pageUrl = `${protocol}://${host}${req.originalUrl}`;
-      const title = (video.title || video.affiliateName || 'Affiliate Video').toString();
-      const description = (video.description || '').toString();
-
-      const html = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${escapeHtml(title)}</title>
-  <meta property="og:type" content="video.other" />
-  <meta property="og:title" content="${escapeHtml(title)}" />
-  <meta property="og:description" content="${escapeHtml(description)}" />
-  <meta property="og:image" content="${escapeHtml(ogImage)}" />
-  <meta property="og:url" content="${escapeHtml(pageUrl)}" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${escapeHtml(title)}" />
-  <meta name="twitter:description" content="${escapeHtml(description)}" />
-  <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
-</head>
-<body>
-  <main style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,Helvetica,sans-serif;">
-    <div style="text-align:center;max-width:680px;margin:0 16px;">
-      <h1 style="font-size:20px;margin-bottom:8px;">${escapeHtml(title)}</h1>
-      <p style="color:#666;margin-bottom:16px;">${escapeHtml(description)}</p>
-      <p><a href="${escapeHtml(video.redirectUrl || video.videoUrl || '#')}" style="background:#e74c3c;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">Open Video</a></p>
-      <p style="margin-top:18px;color:#999;font-size:13px;">If the video doesn't open automatically, click the button above.</p>
-    </div>
-  </main>
-  <script>
-    (function(){
-      try{
-        var target = ${JSON.stringify(video.redirectUrl || video.videoUrl || '')};
-        if(target) setTimeout(function(){ window.location.href = target; }, 1200);
-      }catch(e){}
-    })();
-  </script>
-</body>
-</html>`;
-
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(html);
-    } catch (error) {
-      console.error('Error rendering share page for affiliate video:', error);
-      res.status(500).send('Failed to render share page');
-    }
-  });
-
-  // Admin: get all affiliate videos
-  app.get('/api/admin/affiliate-videos', adminMiddleware, async (req, res) => {
-    try {
-      const list = await db.select().from(schema.affiliateVideos).orderBy(desc(schema.affiliateVideos.createdAt));
-      res.json(list);
-    } catch (error) {
-      console.error('Error fetching admin affiliate videos:', error);
-      res.status(500).json({ error: 'Failed to fetch affiliate videos' });
-    }
-  });
-
-  // Admin: create affiliate video
-  app.post('/api/admin/affiliate-videos', adminMiddleware, async (req, res) => {
-    try {
-      const data = {
-        affiliateName: req.body.affiliateName,
-        title: req.body.title,
-        description: req.body.description || null,
-        imageUrl: req.body.imageUrl,
-        videoUrl: req.body.videoUrl || null,
-        redirectUrl: req.body.redirectUrl || null,
-        category: req.body.category || 'affiliate',
-        type: req.body.type || 'video',
-        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
-        sortOrder: req.body.sortOrder || 0,
-        metadata: req.body.metadata || null,
-      };
-      const inserted = await db.insert(schema.affiliateVideos).values(data).returning();
-      res.json(inserted[0]);
-    } catch (error) {
-      console.error('Error creating affiliate video:', error);
-      res.status(500).json({ error: 'Failed to create affiliate video', details: (error as any).message });
-    }
-  });
-
-  // Admin: update affiliate video
-  app.put('/api/admin/affiliate-videos/:id', adminMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const data = {
-        affiliateName: req.body.affiliateName,
-        title: req.body.title,
-        description: req.body.description || null,
-        imageUrl: req.body.imageUrl,
-        videoUrl: req.body.videoUrl || null,
-        redirectUrl: req.body.redirectUrl || null,
-        category: req.body.category,
-        type: req.body.type,
-        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
-        sortOrder: req.body.sortOrder || 0,
-        metadata: req.body.metadata || null,
-        updatedAt: new Date(),
-      };
-      const updated = await db.update(schema.affiliateVideos).set(data).where(eq(schema.affiliateVideos.id, id)).returning();
-      if (!updated || updated.length === 0) return res.status(404).json({ error: 'Not found' });
-      res.json(updated[0]);
-    } catch (error) {
-      console.error('Error updating affiliate video:', error);
-      res.status(500).json({ error: 'Failed to update affiliate video', details: (error as any).message });
-    }
-  });
-
-  // Admin: delete affiliate video
-  app.delete('/api/admin/affiliate-videos/:id', adminMiddleware, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const deleted = await db.delete(schema.affiliateVideos).where(eq(schema.affiliateVideos.id, id)).returning();
-      if (!deleted || deleted.length === 0) return res.status(404).json({ error: 'Not found' });
-      res.json({ message: 'Deleted', deleted: deleted[0] });
-    } catch (error) {
-      console.error('Error deleting affiliate video:', error);
-      res.status(500).json({ error: 'Failed to delete affiliate video', details: (error as any).message });
-    }
-  });
-
-  // ==================== CHANNEL PARTNER VIDEOS ROUTES ====================
-
-  // Public: get channel partner videos
-  app.get('/api/channel-partner-videos', async (req, res) => {
-    try {
-      const { isActive, category } = req.query;
-      let query = db.select().from(schema.channelPartnerVideos);
-      if (isActive !== undefined) {
-        query = query.where(eq(schema.channelPartnerVideos.isActive, isActive === 'true'));
+      const success = await storage.deleteTestimonial(id);
+      if (!success) {
+        return res.status(404).json({ error: 'Testimonial not found' });
       }
-      if (category) {
-        query = query.where(eq(schema.channelPartnerVideos.category, category as string));
+      res.json({ message: 'Testimonial deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting testimonial:', error);
+      res.status(500).json({ error: 'Failed to delete testimonial' });
+    }
+  });
+
+  // Public category sliders endpoint (for frontend display)
+  app.get('/api/categories/slug/:slug/sliders', async (req, res) => {
+    try {
+      const { slug } = req.params;
+      console.log('Fetching sliders for category slug:', slug);
+
+      // First get the category by slug
+      const category = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.slug, slug))
+        .limit(1);
+
+      if (!category || category.length === 0) {
+        console.log('Category not found for slug:', slug);
+        // Return empty array instead of error to prevent UI issues
+        return res.json([]);
       }
-      query = query.orderBy(asc(schema.channelPartnerVideos.sortOrder), desc(schema.channelPartnerVideos.createdAt));
-      const list = await query;
-      res.json(list);
+
+      const categoryId = category[0].id;
+      console.log('Found category ID:', categoryId);
+
+      // Get active sliders for this category
+      try {
+        const slidersResult = await db
+          .select()
+          .from(schema.categorySliders)
+          .where(and(
+            eq(schema.categorySliders.categoryId, categoryId),
+            eq(schema.categorySliders.isActive, true)
+          ))
+          .orderBy(asc(schema.categorySliders.sortOrder));
+
+        console.log('Found sliders count:', slidersResult.length);
+        // Always return an array, even if empty
+        res.json(slidersResult || []);
+      } catch (tableError) {
+        console.log('Error querying category sliders, returning empty array:', tableError.message);
+        // Return empty array on any database error
+        res.json([]);
+      }
     } catch (error) {
-      console.error('Error fetching channel partner videos:', error);
-      res.status(500).json({ error: 'Failed to fetch channel partner videos' });
+      console.error('Error fetching category sliders by slug:', error);
+      // Return empty array instead of error to prevent UI breakage
+      res.json([]);
     }
   });
 
-  // Get single channel partner video
-  app.get('/api/channel-partner-videos/:id', async (req, res) => {
+  // General slider management routes
+  app.get('/api/admin/sliders', async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const rows = await db.select().from(schema.channelPartnerVideos).where(eq(schema.channelPartnerVideos.id, id));
-      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
-      res.json(rows[0]);
+      const allSliders = await db.select().from(schema.sliders).orderBy(desc(schema.sliders.sortOrder));
+      res.json(allSliders);
     } catch (error) {
-      console.error('Error fetching channel partner video:', error);
-      res.status(500).json({ error: 'Failed to fetch channel partner video' });
+      console.error('Error fetchingsliders:', error);
+      res.status(500).json({ error: 'Failed to fetch sliders' });
     }
   });
 
-  // Click tracking for channel partner video
-  app.post('/api/channel-partner-videos/:id/click', async (req, res) => {
+  app.post('/api/admin/sliders', upload.single("image"), async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const rows = await db.select().from(schema.channelPartnerVideos).where(eq(schema.channelPartnerVideos.id, id));
-      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
-      await db.update(schema.channelPartnerVideos).set({ clickCount: (rows[0].clickCount || 0) + 1 }).where(eq(schema.channelPartnerVideos.id, id));
-      res.json({ redirectUrl: rows[0].redirectUrl || rows[0].videoUrl });
+      // Handle image URL - require uploaded file
+      if (!req.file) {
+        return res.status(400).json({
+          error: 'Image file is required'
+        });
+      }
+
+      const imageUrl = `/api/images/${req.file.filename}`;
+
+      const [newSlider] = await db.insert(schema.sliders).values({
+        title: 'Uploaded Image', // Default title
+        subtitle: '',
+        description: 'New slider image uploaded',
+        imageUrl: imageUrl,
+        badge: '',
+        primaryActionText: '',
+        primaryActionUrl: '',
+        isActive: true,
+        sortOrder: 0
+      }).returning();
+
+      res.json(newSlider);
     } catch (error) {
-      console.error('Error tracking channel partner video click:', error);
-      res.status(500).json({ error: 'Failed to track click' });
+      console.error('Error uploading image:', error);
+      res.status(500).json({
+        error: 'Failed to upload image',
+        details: error.message
+      });
     }
   });
 
-  // Share page for channel partner video (returns HTML with Open Graph tags)
-  app.get('/share/channel-partner-videos/:id', async (req, res) => {
+  app.put('/api/admin/sliders/:id', upload.single("image"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const rows = await db.select().from(schema.channelPartnerVideos).where(eq(schema.channelPartnerVideos.id, id));
-      if (!rows || rows.length === 0) return res.status(404).send('Not found');
+      const body = req.body;
 
-      const video = rows[0];
-      const host = req.get('host') || 'localhost';
-      const forwarded = (req.headers['x-forwarded-proto'] as string) || '';
-      const protocol = forwarded.split(',')[0] || req.protocol || 'https';
+       // Return the file URL
+       let imageUrl = body.imageUrl;
+       if(req.file) {
+        imageUrl = `/api/images/${req.file?.filename}`;
+       }
 
-      const makeAbsolute = (url: string | null) => {
-        if (!url) return '';
-        if (url.startsWith('http://') || url.startsWith('https://')) return url;
-        const path = url.startsWith('/') ? url : `/${url}`;
-        return `${protocol}://${host}${path}`;
+      const [updatedSlider] = await db.update(schema.sliders)
+        .set({
+          title: body.title,
+          subtitle: body.subtitle,
+          description: body.description,
+          imageUrl: imageUrl,
+          badge: body.badge,
+          primaryActionText: body.primaryActionText,
+          primaryActionUrl: body.primaryActionUrl,
+          isActive: body.isActive === 'true',
+          sortOrder: parseInt(body.sortOrder, 10),
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(schema.sliders.id, id))
+        .returning();
+
+      if (!updatedSlider) {
+        return res.status(404).json({ error: 'Slider not found' });
+      }
+
+      res.json(updatedSlider);
+    } catch (error) {
+      console.error('Error updating slider:', error);
+      res.status(500).json({ error: 'Failed to update slider' });
+    }
+  });
+
+  app.delete('/api/admin/sliders/:id', async (req, res) => {
+    try{
+      const id = parseInt(req.params.id);
+
+      const [deletedSlider] = await db.delete(schema.sliders)
+        .where(eq(schema.sliders.id, id))
+        .returning();
+
+      if (!deletedSlider) {
+        return res.status(404).json({ error: 'Slider not found' });
+      }
+
+      res.json({ message: 'Slider deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting slider:', error);
+      res.status(500).json({ error: 'Failed to delete slider' });
+    }
+  });
+
+  // Get product images
+  app.get("/api/products/:productId/images", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const images = await storage.getProductImages(parseInt(productId));
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching product images:", error);
+      res.status(500).json({ error: "Failed to fetch product images" });
+    }
+  });
+
+  // Get product shades
+  app.get("/api/products/:productId/shades", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      console.log("Fetching shades for product:", productId);
+
+      // Fetch all active shades with associations
+      const allShades = await storage.getActiveShadesWithAssociations();
+      console.log("Total active shades found:", allShades.length);
+
+      // Filter shades to only include those specifically assigned to this product
+      const applicableShades = allShades.filter(shade => {
+        // If the shade has specific productIds and this product is in it, include it
+        if (shade.productIds && Array.isArray(shade.productIds) && shade.productIds.includes(parseInt(productId))) {
+          return true;
+        }
+        return false;
+      });
+
+      console.log(`Found ${applicableShades.length} shades for product ${productId}`);
+      res.json(applicableShades);
+    } catch (error) {
+      console.error("Error fetching product shades:", error);
+      res.status(500).json({ error: "Failed to fetch product shades" });
+    }
+  });
+
+  // Review Management APIs
+
+  // Get reviews for a product
+  app.get("/api/products/:productId/reviews", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const productReviews = await storage.getProductReviews(parseInt(productId));
+      res.json(productReviews);
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      res.status(500).json({ error: "Failed to fetch reviews" });
+    }
+  });
+
+  // Check if user can review a product
+  app.get("/api/products/:productId/can-review", async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const result = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      res.json(result);
+    } catch (error) {
+      console.error("Error checking review eligibility:", error);
+      res.status(500).json({ error: "Failed to check review eligibility" });
+    }
+  });
+
+  // Create a new review
+  app.post("/api/products/:productId/reviews", upload.single("image"), async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { userId, rating, reviewText, orderId } = req.body;
+
+      // Authentication check
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      // Validation
+      if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      }
+
+      // Check if user can review this product
+      const canReviewCheck = await storage.checkUserCanReview(parseInt(userId), parseInt(productId));
+      if (!canReviewCheck.canReview) {
+        return res.status(403).json({ error: canReviewCheck.message });
+      }
+
+      // Handle image upload
+      let imageUrl = null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      // Create review
+      const reviewData = {
+        userId: parseInt(userId),
+        productId: parseInt(productId),
+        orderId: parseInt(orderId) || canReviewCheck.orderId!,
+        rating: parseInt(rating),
+        reviewText: reviewText || null,
+        imageUrl,
+        isVerified: true
       };
 
-      const ogImage = makeAbsolute(video.imageUrl || '');
-      const pageUrl = `${protocol}://${host}${req.originalUrl}`;
-      const title = (video.title || video.partnerName || 'Channel Partner Video').toString();
-      const description = (video.description || '').toString();
+      const review = await storage.createReview(reviewData);
 
-      const html = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${escapeHtml(title)}</title>
-  <meta property="og:type" content="video.other" />
-  <meta property="og:title" content="${escapeHtml(title)}" />
-  <meta property="og:description" content="${escapeHtml(description)}" />
-  <meta property="og:image" content="${escapeHtml(ogImage)}" />
-  <meta property="og:url" content="${escapeHtml(pageUrl)}" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${escapeHtml(title)}" />
-  <meta name="twitter:description" content="${escapeHtml(description)}" />
-  <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
-</head>
-<body>
-  <main style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,Helvetica,sans-serif;">
-    <div style="text-align:center;max-width:680px;margin:0 16px;">
-      <h1 style="font-size:20px;margin-bottom:8px;">${escapeHtml(title)}</h1>
-      <p style="color:#666;margin-bottom:16px;">${escapeHtml(description)}</p>
-      <p><a href="${escapeHtml(video.redirectUrl || video.videoUrl || '#')}" style="background:#e74c3c;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">Open Video</a></p>
-      <p style="margin-top:18px;color:#999;font-size:13px;">If the video doesn't open automatically, click the button above.</p>
-    </div>
-  </main>
-  <script>
-    (function(){
-      try{
-        var target = ${JSON.stringify(video.redirectUrl || video.videoUrl || '')};
-        if(target) setTimeout(function(){ window.location.href = target; }, 1200);
-      }catch(e){}
-    })();
-  </script>
-</body>
-</html>`;
-
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(html);
+      res.status(201).json({
+        message: "Review submitted successfully",
+        review
+      });
     } catch (error) {
-      console.error('Error rendering share page for channel partner video:', error);
-      res.status(500).send('Failed to render share page');
+      console.error("Error creating review:", error);
+      res.status(500).json({ error: "Failed to submit review" });
     }
   });
 
-  // Admin: get all channel partner videos
-  app.get('/api/admin/channel-partner-videos', adminMiddleware, async (req, res) => {
+  // Delete a review
+  app.delete("/api/reviews/:reviewId", async (req, res) => {
     try {
-      const list = await db.select().from(schema.channelPartnerVideos).orderBy(desc(schema.channelPartnerVideos.createdAt));
-      res.json(list);
+      const { reviewId } = req.params;
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "User authentication required" });
+      }
+
+      const success = await storage.deleteReview(parseInt(reviewId), parseInt(userId));
+      if (!success) {
+        return res.status(404).json({ error: "Review not found or unauthorized" });
+      }
+
+      res.json({ message: "Review deleted successfully" });
     } catch (error) {
-      console.error('Error fetching admin channel partner videos:', error);
-      res.status(500).json({ error: 'Failed to fetch channel partner videos' });
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
     }
   });
 
-  // Admin: create channel partner video
-  app.post('/api/admin/channel-partner-videos', adminMiddleware, async (req, res) => {
+  app.put("/api/products/:id", async (req, res) => {
     try {
-      const data = {
-        partnerName: req.body.partnerName,
-        title: req.body.title,
-        description: req.body.description || null,
-        imageUrl: req.body.imageUrl,
-        videoUrl: req.body.videoUrl || null,
-        redirectUrl: req.body.redirectUrl || null,
-        category: req.body.category || 'channel-partner',
-        type: req.body.type || 'video',
-        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
-        sortOrder: req.body.sortOrder || 0,
-        metadata: req.body.metadata || null,
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log("Updating product:", productId, "with data:", req.body);
+
+      // Process cashback fields
+      const updateData = {
+        ...req.body,
+        cashbackPercentage: req.body.cashbackPercentage ? Number(req.body.cashbackPercentage) : null,
+        cashbackPrice: req.body.cashbackPrice ? Number(req.body.cashbackPrice) : null
       };
-      const inserted = await db.insert(schema.channelPartnerVideos).values(data).returning();
-      res.json(inserted[0]);
+
+      const product = await storage.updateProduct(productId, updateData);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Handle product images update if provided
+      if (req.body.images && Array.isArray(req.body.images)) {
+        // Delete existing images
+        await db.delete(schema.productImages).where(eq(schema.productImages.productId, parseInt(id)));
+
+        // Remove duplicates and insert new images
+        const uniqueImages = Array.from(new Set(req.body.images.filter(url => url && url.trim() !== '')));
+        console.log("Updating product with unique images:", uniqueImages.length);
+
+        if (uniqueImages.length > 0) {
+          await Promise.all(
+            uniqueImages.map(async (imageUrl: string, index: number) => {
+              await db.insert(schema.productImages).values({
+                productId: parseInt(id),
+                imageUrl: imageUrl,
+                altText: `${req.body.name || 'Product'} - Image ${index + 1}`,
+                isPrimary: index === 0,
+                sortOrder: index
+              });
+            })
+          );
+        }
+      }
+
+      res.json(product);
     } catch (error) {
-      console.error('Error creating channel partner video:', error);
-      res.status(500).json({ error: 'Failed to create channel partner video', details: (error as any).message });
+      console.error("Product update error:", error);
+      res.status(500).json({ error: "Failed to update product" });
     }
   });
 
-  // Admin: update channel partner video
-  app.put('/api/admin/channel-partner-videos/:id', adminMiddleware, async (req, res) => {
+  app.delete("/api/products/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const data = {
-        partnerName: req.body.partnerName,
-        title: req.body.title,
-        description: req.body.description || null,
-        imageUrl: req.body.imageUrl,
-        videoUrl: req.body.videoUrl || null,
-        redirectUrl: req.body.redirectUrl || null,
-        category: req.body.category,
-        type: req.body.type,
-        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
-        sortOrder: req.body.sortOrder || 0,
-        metadata: req.body.metadata || null,
-        updatedAt: new Date(),
+      const { id } = req.params;
+      const productId = parseInt(id);
+
+      console.log(`DELETE /api/products/${id} - Request received`);
+
+      if (isNaN(productId)) {
+        console.log(`Invalid product ID: ${id}`);
+        return res.status(400).json({
+          error: "Invalid product ID",
+          success: false
+        });
+      }
+
+      console.log(`Attempting to delete product with ID: ${productId}`);
+
+      // Check if product exists before deletion
+      let existingProduct;
+      try {
+        existingProduct = await storage.getProduct(productId);
+      } catch (error) {
+        console.error(`Error checking if product exists: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error while checking product",
+          success: false
+        });
+      }
+
+      if (!existingProduct) {
+        console.log(`Product with ID ${productId} not found`);
+        return res.status(404).json({
+          error: "Product not found",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Found product to delete: ${existingProduct.name}`);
+
+      // Perform deletion
+      let success;
+      try {
+        success = await storage.deleteProduct(productId);
+      } catch (error) {
+        console.error(`Error during product deletion: ${error.message}`);
+        return res.status(500).json({
+          error: "Database error during deletion",
+          success: false,
+          details: error.message
+        });
+      }
+
+      if (!success) {
+        console.log(`Failed to delete product ${productId} from database`);
+        return res.status(500).json({
+          error: "Failed to delete product from database",
+          success: false,
+          productId
+        });
+      }
+
+      console.log(`Successfully deleted product ${productId} from database`);
+
+      // Verify deletion by trying to fetch the product again
+      try {
+        const verifyDelete = await storage.getProduct(productId);
+        if (verifyDelete) {
+          console.log(`WARNING: Product ${productId} still exists after delete operation`);
+          return res.status(500).json({
+            error: "Product deletion verification failed - product still exists",
+            success: false,
+            productId
+          });
+        }
+      } catch (error) {
+        // This is expected - the product should not exist anymore
+        console.log(`Verification confirmed: Product ${productId} no longer exists`);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Product deleted successfully",
+        productId: productId
+      });
+
+    } catch (error) {
+      console.error("Unexpected product deletion error:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      });
+    }
+  });
+
+  // Get single combo by ID
+  app.get("/api/combos/:id", async (req, res) => {
+    try {
+      const comboId = parseInt(req.params.id);
+
+      if (isNaN(comboId)) {
+        return res.status(400).json({ message: "Invalid combo ID" });
+      }
+
+      const combo = await db.query.combos.findFirst({
+        where: eq(schema.combos.id, comboId),
+      });
+
+      if (!combo) {
+        return res.status(404).json({ message: "Combo not found" });
+      }
+
+      // Fetch images from combo_images table
+      const images = await db
+        .select()
+        .from(schema.comboImages)
+        .where(eq(schema.comboImages.comboId, comboId))
+        .orderBy(asc(schema.comboImages.sortOrder));
+
+      // Parse products if it's a string
+      const comboData = {
+        ...combo,
+        products: typeof combo.products === 'string'
+          ? JSON.parse(combo.products)
+          : combo.products,
+        imageUrls: images.length > 0 
+          ? images.map(img => img.imageUrl)
+          : [combo.imageUrl] // Fallback to the main imageUrl if no specific combo_images
       };
-      const updated = await db.update(schema.channelPartnerVideos).set(data).where(eq(schema.channelPartnerVideos.id, id)).returning();
-      if (!updated || updated.length === 0) return res.status(404).json({ error: 'Not found' });
-      res.json(updated[0]);
-    } catch (error) {
-      console.error('Error updating channel partner video:', error);
-      res.status(500).json({ error: 'Failed to update channel partner video', details: (error as any).message });
+
+      res.json(comboData);
+    } catch (error: any) {
+      console.error("Error fetching combo:", error);
+      res.status(500).json({ message: error.message });
     }
   });
 
-  // Admin: delete channel partner video
-  app.delete('/api/admin/channel-partner-videos/:id', adminMiddleware, async (req, res) => {
+  // Get combo reviews
+  app.get("/api/combos/:comboId/reviews", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const deleted = await db.delete(schema.channelPartnerVideos).where(eq(schema.channelPartnerVideos.id, id)).returning();
-      if (!deleted || deleted.length === 0) return res.status(404).json({ error: 'Not found' });
-      res.json({ message: 'Deleted', deleted: deleted[0] });
+      const { comboId } = req.params;
+      const reviews = await storage.getComboReviews(parseInt(comboId));
+      res.json(reviews);
     } catch (error) {
-      console.error('Error deleting channel partner video:', error);
-      res.status(500).json({ error: 'Failed to delete channel partner video', details: (error as any).message });
+      console.error("Error fetching combo reviews:", error);
+      res.status(500).json({ error: "Failed to fetch combo reviews" });
+    }
+  });
+
+  // Check if user can review combo
+  app.get("/api/combos/:comboId/can-review", async (req, res) => {
+    try {
+      const { comboId } = req.params;
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.json({
+          canReview: false,
+          message: "Please login to submit a review"
+        });
+      }
+
+      const canReview = await storage.checkUserCanReviewCombo(parseInt(userId as string), parseInt(comboId));
+      res.json(canReview);
+    } catch (error) {
+      console.error("Error checking combo review eligibility:", error);
+      res.status(500).json({ 
+        canReview: false,
+        message: "Error checking review eligibility"
+      });
+    }
+  });
+
+  // Create combo review
+  app.post("/api/combos/:comboId/reviews", async (req, res) => {
+    try {
+      const { comboId } = req.params;
+      const { rating, title, comment, userName, orderId } = req.body;
+      const user = req.user; // Assuming user is attached to req after auth middleware
+
+      if (!user) {
+        return res.status(401).json({ error: "Please login to submit a review" });
+      }
+
+      // Check if user can review this combo
+      const canReview = await storage.checkUserCanReviewCombo(user.id, parseInt(comboId));
+      if (!canReview.canReview) {
+        return res.status(403).json({ error: canReview.message });
+      }
+
+      const reviewData = {
+        userId: user.id,
+        comboId: parseInt(comboId),
+        orderId: orderId || canReview.orderId, // Use orderId from body or from checkUserCanReviewCombo
+        rating: parseInt(rating),
+        title: title || null,
+        comment: comment || null,
+        userName: userName || `${user.firstName} ${user.lastName}`,
+        isVerified: true, // Assuming verified if they can review
+      };
+
+      const review = await db.insert(schema.comboReviews).values(reviewData).returning();
+      res.json(review[0]);
+    } catch (error) {
+      console.error("Error creating combo review:", error);
+      res.status(500).json({ error: "Failed to create combo review"
+      });
     }
   });
 

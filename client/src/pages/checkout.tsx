@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award, ChevronDown, Tag, ChevronRight, Check, Plus } from "lucide-react";
+import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award, ChevronDown, Tag, Check, Plus, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { getCurrentUser } from "@/lib/utils";
+
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +27,242 @@ const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
   pune: { state: "maharashtra", pincodes: ["411001", "411002", "411003", "411004", "411005", "411006", "411007", "411008", "411009", "411010"] },
   jaipur: { state: "rajasthan", pincodes: ["302001", "302002", "302003", "302004", "302005", "302006", "302007", "302008", "302009", "302010"] },
   surat: { state: "gujarat", pincodes: ["395001", "395002", "395003", "395004", "395005", "395006", "395007", "395008", "395009", "395010"] },
+  lucknow: { state: "uttar_pradesh", pincodes: ["226001", "226002", "226003", "226004", "226005"] },
+  kanpur: { state: "uttar_pradesh", pincodes: ["208001", "208002", "208003", "208004", "208005"] },
+  nagpur: { state: "maharashtra", pincodes: ["440001", "440002", "440003", "440004", "440005"] },
+  indore: { state: "madhya_pradesh", pincodes: ["452001", "452002", "452003", "452004", "452005"] },
+  thane: { state: "maharashtra", pincodes: ["400601", "400602", "400603", "400604", "400605"] },
+  bhopal: { state: "madhya_pradesh", pincodes: ["462001", "462002", "462003", "462004", "462005"] },
+  visakhapatnam: { state: "andhra_pradesh", pincodes: ["530001", "530002", "530003", "530004", "530005"] },
+  pimpri: { state: "maharashtra", pincodes: ["411017", "411018", "411019", "411020", "411021"] },
+  patna: { state: "bihar", pincodes: ["800001", "800002", "800003", "800004", "800005"] },
+  vadodara: { state: "gujarat", pincodes: ["390001", "390002", "390003", "390004", "390005"] },
+  ghaziabad: { state: "uttar_pradesh", pincodes: ["201001"] },
+  ludhiana: { state: "punjab", pincodes: ["141001"] },
+  agra: { state: "uttar_pradesh", pincodes: ["282001"] },
+  nashik: { state: "maharashtra", pincodes: ["422001"] },
+  faridabad: { state: "haryana", pincodes: ["121001"] },
+  meerut: { state: "uttar_pradesh", pincodes: ["250001"] },
+  rajkot: { state: "gujarat", pincodes: ["360001"] },
+  kalyan: { state: "maharashtra", pincodes: ["421301"] },
+  vasai: { state: "maharashtra", pincodes: ["401201"] },
+  varanasi: { state: "uttar_pradesh", pincodes: ["221001"] },
+  srinagar: { state: "jammu_and_kashmir", pincodes: ["190001"] },
+  aurangabad: { state: "maharashtra", pincodes: ["431001"] },
+  dhanbad: { state: "jharkhand", pincodes: ["826001"] },
+  amritsar: { state: "punjab", pincodes: ["143001"] },
+  navi_mumbai: { state: "maharashtra", pincodes: ["400614"] },
+  allahabad: { state: "uttar_pradesh", pincodes: ["211001"] },
+  ranchi: { state: "jharkhand", pincodes: ["834001"] },
+  howrah: { state: "west_bengal", pincodes: ["711101"] },
+  coimbatore: { state: "tamil_nadu", pincodes: ["641001"] },
+  jabalpur: { state: "madhya_pradesh", pincodes: ["482001"] },
+  gwalior: { state: "madhya_pradesh", pincodes: ["474001"] },
+  vijayawada: { state: "andhra_pradesh", pincodes: ["520001"] },
+  jodhpur: { state: "rajasthan", pincodes: ["342001"] },
+  madurai: { state: "tamil_nadu", pincodes: ["625001"] },
+  raipur: { state: "chhattisgarh", pincodes: ["492001"] },
+  kota: { state: "rajasthan", pincodes: ["324001"] },
+  guwahati: { state: "assam", pincodes: ["781001"] },
+  chandigarh: { state: "chandigarh", pincodes: ["160001"] },
+  solapur: { state: "maharashtra", pincodes: ["413001"] },
+  hubli: { state: "karnataka", pincodes: ["580020"] },
+  mysore: { state: "karnataka", pincodes: ["570001"] },
+  tiruchirappalli: { state: "tamil_nadu", pincodes: ["620001"] },
+  bareilly: { state: "uttar_pradesh", pincodes: ["243001"] },
+  aligarh: { state: "uttar_pradesh", pincodes: ["202001"] },
+  tiruppur: { state: "tamil_nadu", pincodes: ["641601"] },
+  moradabad: { state: "uttar_pradesh", pincodes: ["244001"] },
+  mysuru: { state: "karnataka", pincodes: ["570001"] },
+  bhiwandi: { state: "maharashtra", pincodes: ["421302"] },
+  saharanpur: { state: "uttar_pradesh", pincodes: ["247001"] },
+  gorakhpur: { state: "uttar_pradesh", pincodes: ["273001"] },
+  guntur: { state: "andhra_pradesh", pincodes: ["522001"] },
+  bikaner: { state: "rajasthan", pincodes: ["334001"] },
+  amravati: { state: "maharashtra", pincodes: ["444601"] },
+  noida: { state: "uttar_pradesh", pincodes: ["201301"] },
+  jamshedpur: { state: "jharkhand", pincodes: ["831001"] },
+  bhilai: { state: "chhattisgarh", pincodes: ["490001"] },
+  cuttack: { state: "odisha", pincodes: ["753001"] },
+  firozabad: { state: "uttar_pradesh", pincodes: ["283203"] },
+  kochi: { state: "kerala", pincodes: ["682001"] },
+  nellore: { state: "andhra_pradesh", pincodes: ["524001"] },
+  bhavnagar: { state: "gujarat", pincodes: ["364001"] },
+  dehradun: { state: "uttarakhand", pincodes: ["248001"] },
+  durgapur: { state: "west_bengal", pincodes: ["713201"] },
+  asansol: { state: "west_bengal", pincodes: ["713301"] },
+  rourkela: { state: "odisha", pincodes: ["769001"] },
+  nanded: { state: "maharashtra", pincodes: ["431601"] },
+  kolhapur: { state: "maharashtra", pincodes: ["416001"] },
+  ajmer: { state: "rajasthan", pincodes: ["305001"] },
+  akola: { state: "maharashtra", pincodes: ["444001"] },
+  gulbarga: { state: "karnataka", pincodes: ["585101"] },
+  jamnagar: { state: "gujarat", pincodes: ["361001"] },
+  ujjain: { state: "madhya_pradesh", pincodes: ["456001"] },
+  loni: { state: "uttar_pradesh", pincodes: ["201102"] },
+  siliguri: { state: "west_bengal", pincodes: ["734001"] },
+  jhansi: { state: "uttar_pradesh", pincodes: ["284001"] },
+  ulhasnagar: { state: "maharashtra", pincodes: ["421001"] },
+  jammu: { state: "jammu_and_kashmir", pincodes: ["180001"] },
+  sangli: { state: "maharashtra", pincodes: ["416416"] },
+  mangalore: { state: "karnataka", pincodes: ["575001"] },
+  erode: { state: "tamil_nadu", pincodes: ["638001"] },
+  belgaum: { state: "karnataka", pincodes: ["590001"] },
+  ambattur: { state: "tamil_nadu", pincodes: ["600053"] },
+  tirunelveli: { state: "tamil_nadu", pincodes: ["627001"] },
+  malegaon: { state: "maharashtra", pincodes: ["423203"] },
+  gaya: { state: "bihar", pincodes: ["823001"] },
+  jalgaon: { state: "maharashtra", pincodes: ["425001"] },
+  udaipur: { state: "rajasthan", pincodes: ["313001"] },
+  maheshtala: { state: "west_bengal", pincodes: ["700141"] },
+  davanagere: { state: "karnataka", pincodes: ["577001"] },
+  kozhikode: { state: "kerala", pincodes: ["673001"] },
+  kurnool: { state: "andhra_pradesh", pincodes: ["518001"] },
+  rajpur_sonarpur: { state: "west_bengal", pincodes: ["700149"] },
+  rajahmundry: { state: "andhra_pradesh", pincodes: ["533101"] },
+  bokaro_steel_city: { state: "jharkhand", pincodes: ["827001"] },
+  south_dumdum: { state: "west_bengal", pincodes: ["700074"] },
+  bellary: { state: "karnataka", pincodes: ["583101"] },
+  patiala: { state: "punjab", pincodes: ["147001"] },
+  gopalpur: { state: "west_bengal", pincodes: ["743273"] },
+  agartala: { state: "tripura", pincodes: ["799001"] },
+  bhagalpur: { state: "bihar", pincodes: ["812001"] },
+  muzaffarnagar: { state: "uttar_pradesh", pincodes: ["251001"] },
+  bhatpara: { state: "west_bengal", pincodes: ["743123"] },
+  panihati: { state: "west_bengal", pincodes: ["700110"] },
+  latur: { state: "maharashtra", pincodes: ["413512"] },
+  dhule: { state: "maharashtra", pincodes: ["424001"] },
+  tirupati: { state: "andhra_pradesh", pincodes: ["517501"] },
+  rohtak: { state: "haryana", pincodes: ["124001"] },
+  korba: { state: "chhattisgarh", pincodes: ["495677"] },
+  bhilwara: { state: "rajasthan", pincodes: ["311001"] },
+  berhampur: { state: "odisha", pincodes: ["760001"] },
+  muzaffarpur: { state: "bihar", pincodes: ["846001"] },
+  ahmednagar: { state: "maharashtra", pincodes: ["414001"] },
+  mathura: { state: "uttar_pradesh", pincodes: ["281001"] },
+  kollam: { state: "kerala", pincodes: ["691001"] },
+  avadi: { state: "tamil_nadu", pincodes: ["600054"] },
+  kadapa: { state: "andhra_pradesh", pincodes: ["516001"] },
+  kamarhati: { state: "west_bengal", pincodes: ["700058"] },
+  sambalpur: { state: "odisha", pincodes: ["768001"] },
+  bilaspur: { state: "chhattisgarh", pincodes: ["495001"] },
+  shahjahanpur: { state: "uttar_pradesh", pincodes: ["242001"] },
+  satara: { state: "maharashtra", pincodes: ["415001"] },
+  bijapur: { state: "karnataka", pincodes: ["586101"] },
+  rampur: { state: "uttar_pradesh", pincodes: ["244901"] },
+  shivamogga: { state: "karnataka", pincodes: ["577201"] },
+  chandrapur: { state: "maharashtra", pincodes: ["442401"] },
+  junagadh: { state: "gujarat", pincodes: ["362001"] },
+  thrissur: { state: "kerala", pincodes: ["680001"] },
+  alwar: { state: "rajasthan", pincodes: ["301001"] },
+  bardhaman: { state: "west_bengal", pincodes: ["713101"] },
+  kulti: { state: "west_bengal", pincodes: ["713343"] },
+  kakinada: { state: "andhra_pradesh", pincodes: ["533001"] },
+  nizamabad: { state: "telangana", pincodes: ["503001"] },
+  parbhani: { state: "maharashtra", pincodes: ["431401"] },
+  tumkur: { state: "karnataka", pincodes: ["572101"] },
+  khammam: { state: "telangana", pincodes: ["507001"] },
+  ozhukarai: { state: "puducherry", pincodes: ["605013"] },
+  bihar_sharif: { state: "bihar", pincodes: ["803101"] },
+  panipat: { state: "haryana", pincodes: ["132103"] },
+  darbhanga: { state: "bihar", pincodes: ["846004"] },
+  bally: { state: "west_bengal", pincodes: ["711201"] },
+  aizawl: { state: "mizoram", pincodes: ["796001"] },
+  dewas: { state: "madhya_pradesh", pincodes: ["455001"] },
+  ichalkaranji: { state: "maharashtra", pincodes: ["416115"] },
+  karnal: { state: "haryana", pincodes: ["132001"] },
+  bathinda: { state: "punjab", pincodes: ["151001"] },
+  jalna: { state: "maharashtra", pincodes: ["431203"] },
+  eluru: { state: "andhra_pradesh", pincodes: ["534001"] },
+  kirari_suleman_nagar: { state: "delhi", pincodes: ["110086"] },
+  barasat: { state: "west_bengal", pincodes: ["700124"] },
+  purnia: { state: "bihar", pincodes: ["854301"] },
+  satna: { state: "madhya_pradesh", pincodes: ["485001"] },
+  mau: { state: "uttar_pradesh", pincodes: ["275101"] },
+  sonipat: { state: "haryana", pincodes: ["131001"] },
+  farrukhabad: { state: "uttar_pradesh", pincodes: ["209625"] },
+  sagar: { state: "madhya_pradesh", pincodes: ["470001"] },
+  durg: { state: "chhattisgarh", pincodes: ["491001"] },
+  imphal: { state: "manipur", pincodes: ["795001"] },
+  ratlam: { state: "madhya_pradesh", pincodes: ["457001"] },
+  hapur: { state: "uttar_pradesh", pincodes: ["245101"] },
+  arrah: { state: "bihar", pincodes: ["802301"] },
+  karimnagar: { state: "telangana", pincodes: ["505001"] },
+  anantapur: { state: "andhra_pradesh", pincodes: ["515001"] },
+  etawah: { state: "uttar_pradesh", pincodes: ["206001"] },
+  ambernath: { state: "maharashtra", pincodes: ["421501"] },
+  north_dumdum: { state: "west_bengal", pincodes: ["700074"] },
+  bharatpur: { state: "rajasthan", pincodes: ["321001"] },
+  begusarai: { state: "bihar", pincodes: ["851101"] },
+  new_delhi: { state: "delhi", pincodes: ["110001"] },
+  gandhidham: { state: "gujarat", pincodes: ["370201"] },
+  baranagar: { state: "west_bengal", pincodes: ["700036"] },
+  tiruvottiyur: { state: "tamil_nadu", pincodes: ["600019"] },
+  puducherry: { state: "puducherry", pincodes: ["605001"] },
+  sikar: { state: "rajasthan", pincodes: ["332001"] },
+  thoothukudi: { state: "tamil_nadu", pincodes: ["628001"] },
+  rewa: { state: "madhya_pradesh", pincodes: ["486001"] },
+  mirzapur: { state: "uttar_pradesh", pincodes: ["231001"] },
+  raichur: { state: "karnataka", pincodes: ["584101"] },
+  pali: { state: "rajasthan", pincodes: ["306401"] },
+  ramagundam: { state: "telangana", pincodes: ["505208"] },
+  haridwar: { state: "uttarakhand", pincodes: ["249401"] },
+  vijayanagaram: { state: "andhra_pradesh", pincodes: ["535001"] },
+  katihar: { state: "bihar", pincodes: ["854105"] },
+  naihati: { state: "west_bengal", pincodes: ["743165"] },
+  sambhal: { state: "uttar_pradesh", pincodes: ["244302"] },
+  nadiad: { state: "gujarat", pincodes: ["387001"] },
+  yamunanagar: { state: "haryana", pincodes: ["135001"] },
+  english_bazar: { state: "west_bengal", pincodes: ["732101"] },
+  unnao: { state: "uttar_pradesh", pincodes: ["209801"] },
+  morena: { state: "madhya_pradesh", pincodes: ["476001"] },
+  bhiwani: { state: "haryana", pincodes: ["127021"] },
+  purnea: { state: "bihar", pincodes: ["854301"] },
+  kharagpur: { state: "west_bengal", pincodes: ["721301"] },
+  dindigul: { state: "tamil_nadu", pincodes: ["624001"] },
+  gandhinagar: { state: "gujarat", pincodes: ["382010"] },
+  hospet: { state: "karnataka", pincodes: ["583201"] },
+  nangloi_jat: { state: "delhi", pincodes: ["110041"] },
+  malda: { state: "west_bengal", pincodes: ["732101"] },
+  ongole: { state: "andhra_pradesh", pincodes: ["523001"] },
+  deoghar: { state: "jharkhand", pincodes: ["814112"] },
+  chapra: { state: "bihar", pincodes: ["841301"] },
+  haldia: { state: "west_bengal", pincodes: ["721602"] },
+  khandwa: { state: "madhya_pradesh", pincodes: ["450001"] },
+  nandyal: { state: "andhra_pradesh", pincodes: ["518501"] },
+  chittoor: { state: "andhra_pradesh", pincodes: ["517001"] },
+  morbi: { state: "gujarat", pincodes: ["363641"] },
+  amroha: { state: "uttar_pradesh", pincodes: ["244221"] },
+  anand: { state: "gujarat", pincodes: ["388001"] },
+  bhusawal: { state: "maharashtra", pincodes: ["425201"] },
+  orai: { state: "uttar_pradesh", pincodes: ["285001"] },
+  bahraich: { state: "uttar_pradesh", pincodes: ["271801"] },
+  vellore: { state: "tamil_nadu", pincodes: ["632001"] },
+  mahesana: { state: "gujarat", pincodes: ["384001"] },
+  raiganj: { state: "west_bengal", pincodes: ["733134"] },
+  sirsa: { state: "haryana", pincodes: ["125055"] },
+  danapur: { state: "bihar", pincodes: ["801503"] },
+  serampore: { state: "west_bengal", pincodes: ["712201"] },
+  sultan_pur_majra: { state: "delhi", pincodes: ["110086"] },
+  guna: { state: "madhya_pradesh", pincodes: ["473001"] },
+  jaunpur: { state: "uttar_pradesh", pincodes: ["222001"] },
+  panvel: { state: "maharashtra", pincodes: ["410206"] },
+  shillong: { state: "meghalaya", pincodes: ["793001"] },
+  tenali: { state: "andhra_pradesh", pincodes: ["522201"] },
+  khora: { state: "uttar_pradesh", pincodes: ["201301"] },
+  guntakal: { state: "andhra_pradesh", pincodes: ["515801"] },
+  puri: { state: "odisha", pincodes: ["752001"] },
+  compiegne: { state: "uttar_pradesh", pincodes: ["209801"] },
+  kishanganj: { state: "bihar", pincodes: ["855107"] },
+  supaul: { state: "bihar", pincodes: ["852131"] },
+  godda: { state: "jharkhand", pincodes: ["814133"] },
+  hazaribagh: { state: "jharkhand", pincodes: ["825301"] },
+  pakur: { state: "jharkhand", pincodes: ["816107"] },
+  paschim_bardhaman: { state: "west_bengal", pincodes: ["713101"] },
+  dharwad: { state: "karnataka", pincodes: ["580001"] },
+  medininagar: { state: "jharkhand", pincodes: ["822101"] }
 };
+
 
 interface CartItem {
   id: number;
@@ -47,12 +282,21 @@ interface CartItem {
   };
 }
 
-function CheckoutPage() {
-  const [location, setLocation] = useLocation();
-  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCommissionFromItems: passedAffiliateCommissionFromItems = 0, affiliateDiscountFromItems: passedAffiliateDiscountFromItems = 0 } = (location as any).state || {};
+// Step definitions for progress
+const steps = [
+  { number: 1, title: "Address", icon: MapPin },
+  { number: 2, title: "Review", icon: Package },
+  { number: 3, title: "Payment", icon: CreditCard },
+];
 
-  const user = getCurrentUser();
+export default function CheckoutPage() {
+  const [location, setLocation] = useLocation();
+  const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0 } = (location as any).state || {};
+
+  // Step navigation
   const [currentStep, setCurrentStep] = useState(1);
+  const [multiAddressMapping, setMultiAddressMapping] = useState<Record<string, number>>({});
+
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [orderPlaced, setOrderPlaced] = useState(false);
@@ -61,7 +305,46 @@ function CheckoutPage() {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false); // Added state for processing
   const [isRedeeming, setIsRedeeming] = useState(false); // State for cashback redemption
+
+  // State for the instructions dialog
   const [showInstructionsDialog, setShowInstructionsDialog] = useState(false);
+
+  const [formData, setFormData] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    phone: "",
+    paymentMethod: "cashfree",
+    affiliateCode: passedAffiliateCode || "",
+    affiliateDiscount: 0,
+    deliveryInstructions: "", // Added state for delivery instructions
+    saturdayDelivery: false, // Changed to boolean for easier handling
+    sundayDelivery: false // Changed to boolean for easier handling
+  });
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+  const [profileDataLoaded, setProfileDataLoaded] = useState(false);
+  const [showAddAddressDialog, setShowAddAddressDialog] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
+  const [newAddressData, setNewAddressData] = useState({
+    fullName: "",
+    mobile: "",
+    pincode: "",
+    flat: "",
+    area: "",
+    landmark: "",
+    town: "",
+    state: "",
+    makeDefault: false,
+    deliveryInstructions: '', // For new address dialog
+    saturdayDelivery: false, // For new address dialog
+    sundayDelivery: false, // For new address dialog
+  });
 
   // Initialize shipping cost state and loading indicator
   const [shippingCost, setShippingCost] = useState<number>(99);
@@ -94,54 +377,13 @@ function CheckoutPage() {
   const [hasPromoCode, setHasPromoCode] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(passedPromoDiscount); // Initialize with passed value
 
-  // Affiliate discount state - load from passed props (dynamic from items)
-  const [affiliateDiscountAmount, setAffiliateDiscountAmount] = useState(() => {
-    // Get from passed props - this is now dynamic from cart items
-    return passedAffiliateDiscountFromItems || 0;
-  });
+  // Get user from localStorage - must be before any hooks that use it
+  const getCurrentUser = () => {
+    const userStr = localStorage.getItem("user");
+    return userStr ? JSON.parse(userStr) : null;
+  };
 
-  // Affiliate commission state - load from props (dynamic from items)
-  const [affiliateCommissionAmount, setAffiliateCommissionAmount] = useState(() => {
-    // Get from passed props - this is now dynamic from cart items
-    return passedAffiliateCommissionFromItems || 0;
-  });
-
-
-  const [formData, setFormData] = useState({
-    email: "",
-    firstName: "",
-    lastName: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    phone: "",
-    paymentMethod: "cashfree",
-    deliveryInstructions: "", // Added state for delivery instructions
-    saturdayDelivery: false, // Changed to boolean for easier handling
-    sundayDelivery: false // Changed to boolean for easier handling
-  });
-  const [showProfileDialog, setShowProfileDialog] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [profileDataLoaded, setProfileDataLoaded] = useState(false);
-  const [showAddAddressDialog, setShowAddAddressDialog] = useState(false);
-  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
-  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
-  const [multiAddressMapping, setMultiAddressMapping] = useState<{[itemId: string]: number}>({});
-  const [newAddressData, setNewAddressData] = useState({
-    fullName: "",
-    mobile: "",
-    pincode: "",
-    flat: "",
-    area: "",
-    landmark: "",
-    town: "",
-    state: "",
-    makeDefault: false,
-    deliveryInstructions: '', // For new address dialog
-    saturdayDelivery: false, // For new address dialog
-    sundayDelivery: false, // For new address dialog
-  });
+  const user = getCurrentUser();
 
   // Fetch wallet data
   const { data: walletData, refetch: refetchWalletData } = useQuery({
@@ -172,50 +414,6 @@ function CheckoutPage() {
     setRedeemAmount(walletAmount);
   }, [walletAmount]);
 
-  // Fetch product details from API
-  useEffect(() => {
-    const enrichCartItems = async () => {
-      if (cartItems.length === 0) return;
-
-      try {
-        const productIds = cartItems.map(item => item.id).join(',');
-        const response = await fetch(`/api/products?ids=${productIds}`);
-        
-        if (response.ok) {
-          const products = await response.json();
-          
-          // Create a map of product ID to product details
-          const productMap = new Map();
-          products.forEach((product: any) => {
-            productMap.set(product.id, product);
-          });
-
-          // Enrich cart items with product details
-          const enrichedItems = cartItems.map(item => {
-            const productDetails = productMap.get(item.id);
-            if (productDetails) {
-              return {
-                ...item,
-                name: productDetails.title || item.name,
-                price: item.price || `₹${productDetails.price}`,
-                image: item.image || productDetails.imageUrl || productDetails.images?.[0],
-                originalPrice: item.originalPrice || `₹${productDetails.originalPrice}`,
-                inStock: productDetails.inStock ?? item.inStock,
-              };
-            }
-            return item;
-          });
-
-          setCartItems(enrichedItems);
-        }
-      } catch (error) {
-        console.error("Error enriching cart items with product details:", error);
-      }
-    };
-
-    enrichCartItems();
-  }, []);
-
   useEffect(() => {
     // Check if user is logged in when accessing checkout
     if (!user) {
@@ -227,9 +425,7 @@ function CheckoutPage() {
       window.location.href = "/auth/login";
       return;
     }
-
-    // Check if this is a multi-address order FIRST
-    const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
+const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
     const multiAddressMapping = localStorage.getItem('multiAddressMapping');
 
     // Only redirect if multi-address order AND no addresses have been assigned yet
@@ -251,7 +447,6 @@ function CheckoutPage() {
         description: "Review your items and their delivery addresses",
       });
     }
-
     // Fetch saved addresses
     const fetchAddresses = async () => {
       try {
@@ -302,28 +497,31 @@ function CheckoutPage() {
 
     fetchAddresses();
 
-    // Load multi-address mapping if this is a multi-address order
-    if (isMultiAddress && multiAddressMapping) {
+   
+
+    // Load affiliate discount from localStorage first
+    const savedAffiliateDiscount = localStorage.getItem('affiliateDiscount');
+    let affiliateDiscountAmount = 0;
+    let affiliateCodeValue = '';
+
+    if (savedAffiliateDiscount) {
       try {
-        const mapping = JSON.parse(multiAddressMapping);
-        setMultiAddressMapping(mapping);
+        const affiliateData = JSON.parse(savedAffiliateDiscount);
+        affiliateDiscountAmount = affiliateData.discount;
+        affiliateCodeValue = affiliateData.code;
+
+        setFormData(prev => ({
+          ...prev,
+          affiliateCode: affiliateData.code,
+          affiliateDiscount: affiliateData.discount,
+        }));
+
+        console.log('✅ Loaded affiliate discount from localStorage:', affiliateData);
       } catch (error) {
-        console.error('Error loading multi-address mapping:', error);
+        console.error('Error loading affiliate discount:', error);
+        localStorage.removeItem('affiliateDiscount');
       }
     }
-
-    // Load affiliate code and discount from props or localStorage
-    const loadAffiliateData = () => {
-      const savedAffiliateDiscount = localStorage.getItem('affiliateDiscount');
-      let loadedAffiliateDiscountAmount = 0;
-      let loadedAffiliateCodeValue = '';
-
-      // Affiliate discount is now handled dynamically from cart items
-      // No need to load from localStorage or props in this way
-
-    };
-
-    loadAffiliateData();
 
     // Load promo code from localStorage
     const savedPromo = localStorage.getItem('appliedPromoCode');
@@ -347,6 +545,34 @@ function CheckoutPage() {
       }
     } else {
       setHasPromoCode(false);
+    }
+
+    // Check for affiliate code in localStorage (fallback if not already set)
+    if (!savedAffiliateDiscount) {
+      const affiliateRef = localStorage.getItem("affiliateRef");
+      if (affiliateRef && user) {
+        const userData = user;
+
+        // Get order count for this affiliate code
+        fetch(`/api/orders/count?userId=${userData.id}&affiliateCode=${affiliateRef}`)
+          .then(res => res.json())
+          .then(data => {
+            const orderCount = data.count || 0;
+            const discountPercentage = orderCount === 0 ? 15 : 10; // 15% for first order, 10% for subsequent
+
+            setFormData(prev => ({
+              ...prev,
+              affiliateCode: affiliateRef,
+              affiliateDiscount: discountPercentage,
+            }));
+
+            toast({
+              title: "Affiliate Discount Applied!",
+              description: `${discountPercentage}% OFF on your order`,
+            });
+          })
+          .catch(err => console.error("Error fetching order count:", err));
+      }
     }
 
     // Parse user data and set profile
@@ -404,11 +630,11 @@ function CheckoutPage() {
           zipCode: zipCode,
           phone: userData.phone || "",
           paymentMethod: "cashfree",
+          affiliateCode: passedAffiliateCode,
+          affiliateDiscount: passedAffiliateDiscount,
           deliveryInstructions: userData.deliveryInstructions || "",
           saturdayDelivery: userData.saturdayDelivery === true, // Ensure boolean conversion
-          sundayDelivery: userData.sundayDelivery === true, // Ensure boolean conversion
-          affiliateCode: passedAffiliateCode || "", // Ensure affiliate code is set
-          affiliateDiscount: passedAffiliateDiscount || 0, // Ensure affiliate discount is set
+          sundayDelivery: userData.sundayDelivery === true // Ensure boolean conversion
         });
 
         setProfileDataLoaded(true);
@@ -437,7 +663,6 @@ function CheckoutPage() {
     }
     setLoading(false);
   }, [profileDataLoaded]);
-
 
   // Fetch shipping cost when zipCode or paymentMethod changes
   useEffect(() => {
@@ -521,7 +746,7 @@ function CheckoutPage() {
           localStorage.removeItem("cart");
           localStorage.removeItem("appliedPromoCode");
           localStorage.removeItem("affiliateDiscount");
-          localStorage.removeItem("promoDiscount");
+          localStorage.removeItem("promoDiscount"); // Remove promo discount from local storage
           sessionStorage.removeItem('pendingOrder');
           localStorage.setItem("cartCount", "0");
           window.dispatchEvent(new Event("cartUpdated"));
@@ -552,23 +777,35 @@ function CheckoutPage() {
         description: "Could not verify payment status. Please contact support.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const calculateSubtotal = () => {
     return cartItems.reduce((total, item) => {
-      const price = parseInt(item.price.replace(/[₹,]/g, ""));
+      const price = item.originalPrice
+        ? parseInt(item.originalPrice.replace(/[₹,]/g, ""))
+        : parseInt(item.price.replace(/[₹,]/g, ""));
       return total + (price * item.quantity);
     }, 0);
   };
 
+  // Calculate product discounts
+  const productDiscount = cartItems.reduce((total, item) => {
+    if (item.originalPrice) {
+      const original = parseInt(item.originalPrice.replace(/[₹,]/g, ""));
+      const current = parseInt(item.price.replace(/[₹,]/g, ""));
+      return total + ((original - current) * item.quantity);
+    }
+    return total;
+  }, 0);
 
   const cartSubtotal = calculateSubtotal();
+  const cartSubtotalAfterProductDiscount = cartSubtotal - productDiscount;
 
-  // Use affiliate discount state variable
-  const subtotalAfterAffiliate = cartSubtotal - affiliateDiscountAmount;
+  // Use affiliate discount from formData (loaded from localStorage) or passed value
+  const affiliateDiscountAmount = formData.affiliateDiscount || passedAffiliateDiscount || 0;
+  const subtotalAfterAffiliate = cartSubtotalAfterProductDiscount - affiliateDiscountAmount;
 
   const subtotalAfterDiscount = subtotalAfterAffiliate - promoDiscount;
 
@@ -583,11 +820,21 @@ function CheckoutPage() {
   // Apply wallet deductions at the end (same as cart page)
   const total = Math.max(0, totalBeforeRedemption - walletAmount - affiliateWalletAmount);
 
-  // Use affiliate commission from cart if available, otherwise calculate as 10% of total
-  const commissionRate = 10;
-  const affiliateCommission = affiliateCommissionAmount > 0 
-    ? affiliateCommissionAmount
-    : (formData.affiliateCode ? Math.round(total * (commissionRate / 100)) : 0);
+
+  // Fetch affiliate settings to get commission rate
+  const { data: affiliateSettings } = useQuery({
+    queryKey: ['/api/affiliate-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/affiliate-settings');
+      if (!res.ok) throw new Error('Failed to fetch affiliate settings');
+      return res.json();
+    },
+  });
+
+  const commissionRate = affiliateSettings?.commissionRate || 10;
+  const affiliateCommission = formData.affiliateCode
+    ? Math.round(total * (commissionRate / 100))
+    : 0;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -625,7 +872,7 @@ function CheckoutPage() {
       let city = "";
       let state = "";
       let zipCode = "";
-      let streetAddress = userProfile.address || "";
+      let streetAddress = (userProfile as any)?.address || "";
 
       const addressParts = streetAddress.split(',').map((part: string) => part.trim());
       if (addressParts.length >= 3) {
@@ -651,20 +898,20 @@ function CheckoutPage() {
       }
 
       setFormData({
-        email: userProfile.email || "",
-        firstName: userProfile.firstName || "",
-        lastName: userProfile.lastName || "",
+        email: (userProfile as any)?.email || "",
+        firstName: (userProfile as any)?.firstName || "",
+        lastName: (userProfile as any)?.lastName || "",
         address: streetAddress,
         city: city,
         state: state,
         zipCode: zipCode,
-        phone: userProfile.phone || "",
+        phone: (userProfile as any)?.phone || "",
         paymentMethod: "cashfree",
-        deliveryInstructions: userProfile.deliveryInstructions || "",
-        saturdayDelivery: userProfile.saturdayDelivery === true, // Ensure boolean
-        sundayDelivery: userProfile.sundayDelivery === true, // Ensure boolean
-        affiliateCode: passedAffiliateCode || userProfile.affiliateCode || "", // Ensure affiliate code is set
-        affiliateDiscount: passedAffiliateDiscount || userProfile.affiliateDiscount || 0, // Ensure affiliate discount is set
+        affiliateCode: passedAffiliateCode,
+        affiliateDiscount: passedAffiliateDiscount,
+        deliveryInstructions: (userProfile as any)?.deliveryInstructions || "",
+        saturdayDelivery: (userProfile as any)?.saturdayDelivery === true, // Ensure boolean
+        sundayDelivery: (userProfile as any)?.sundayDelivery === true // Ensure boolean
       });
 
       toast({
@@ -730,7 +977,7 @@ function CheckoutPage() {
           setNewAddressData(prev => ({
             ...prev,
             town: city,
-            state: state.toLowerCase().replace(/ /g, '_'), // Normalize state name
+            state: state.toLowerCase().replace(/ /g, '_'),
             pincode: pincode,
             area: area,
             landmark: landmark,
@@ -851,7 +1098,7 @@ function CheckoutPage() {
           userId: user.id,
           recipientName: newAddressData.fullName,
           addressLine1: fullAddress,
-          addressLine2: null, // Assuming addressLine2 is not used for now
+          addressLine2: null,
           city: newAddressData.town,
           state: newAddressData.state,
           pincode: newAddressData.pincode,
@@ -974,7 +1221,6 @@ function CheckoutPage() {
       setIsRedeeming(false);
     }
   };
-
 
   const processCashfreePayment = async () => {
     try {
@@ -1116,7 +1362,7 @@ function CheckoutPage() {
         script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
         script.onload = () => {
           try {
-            const cashfree = window.Cashfree({
+            const cashfree = (window as any).Cashfree({
               mode: orderData.environment || 'sandbox'
             });
 
@@ -1161,6 +1407,22 @@ function CheckoutPage() {
     }
   };
 
+  const handleNextStep = () => {
+    if (currentStep === 1 && !selectedAddressId && localStorage.getItem('isMultiAddressOrder') !== 'true') {
+      toast({
+        title: "Address Required",
+        description: "Please select or add a delivery address",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCurrentStep(prev => Math.min(prev + 1, 3));
+  };
+
+  const handlePrevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
@@ -1176,7 +1438,6 @@ function CheckoutPage() {
       return;
     }
 
-    // Basic validation before proceeding
     if (!formData.email || !formData.firstName || !formData.lastName || !formData.address) {
       toast({
         title: "Missing Information",
@@ -1187,7 +1448,6 @@ function CheckoutPage() {
       return;
     }
 
-    // Phone number validation
     if (formData.phone && formData.phone.trim()) {
       const phoneRegex = /^(\+91|91)?[6-9]\d{9}$/;
       const cleanPhone = formData.phone.replace(/[\s-()]/g, '');
@@ -1202,7 +1462,6 @@ function CheckoutPage() {
       }
     }
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email.trim())) {
       toast({
@@ -1214,7 +1473,6 @@ function CheckoutPage() {
       return false;
     }
 
-    // Address validation
     if (!formData.address || formData.address.trim().length < 10) {
       toast({
         title: "Invalid Address",
@@ -1225,7 +1483,6 @@ function CheckoutPage() {
       return false;
     }
 
-    // City validation
     if (!formData.city || formData.city.trim().length < 3) {
       toast({
         title: "Invalid City",
@@ -1236,7 +1493,6 @@ function CheckoutPage() {
       return false;
     }
 
-    // State validation
     if (!formData.state || formData.state.trim().length < 3) {
       toast({
         title: "Invalid State",
@@ -1247,7 +1503,6 @@ function CheckoutPage() {
       return false;
     }
 
-    // ZIP code validation
     if (!formData.zipCode || !/^\d{6}$/.test(formData.zipCode.trim())) {
       toast({
         title: "Invalid PIN Code",
@@ -1258,7 +1513,6 @@ function CheckoutPage() {
       return false;
     }
 
-    // City and state check (redundant with above but kept for safety)
     if (!formData.city || !formData.state) {
       toast({
         title: "Address Incomplete",
@@ -1283,9 +1537,7 @@ function CheckoutPage() {
           description: "Redirecting to Cashfree...",
         });
         paymentSuccessful = (await processCashfreePayment()) as boolean;
-        // If payment is successful, processCashfreePayment will handle navigation or further steps.
-        // If it returns false, it means an error occurred and was handled by toast.
-        return; // Exit here if cashfree payment is initiated
+        return;
       } else {
         paymentSuccessful = true;
         paymentMethod = 'Cash on Delivery';
@@ -1303,75 +1555,19 @@ function CheckoutPage() {
           price: item.price,
           cashbackPrice: item.cashbackPrice || null,
           cashbackPercentage: item.cashbackPercentage || null,
-          deliveryInstructions: (item as any).deliveryInstructions || null,
+          deliveryInstructions: formData.deliveryInstructions || null,
         }));
 
         // If multi-address order, include delivery addresses for each item
         if (isMultiAddress && multiAddressMapping && savedAddresses.length > 0) {
           try {
-            // Parse mapping if it's a string
-            let mapping = multiAddressMapping;
-            if (typeof multiAddressMapping === 'string') {
-              mapping = JSON.parse(multiAddressMapping);
-            }
-
-            const processedItems: any[] = [];
-            const itemIds = cartItems.map(item => item.id.toString());
-
-            // Handle items with split quantities (indicated by 'item_id-instance_num' keys in mapping)
-            const splitItemIds = Object.keys(mapping).filter(key => key.includes('-'));
-            const uniqueSplitItemIds = [...new Set(splitItemIds.map(key => key.split('-')[0]))];
-
-            // Process items that are split across multiple addresses
-            uniqueSplitItemIds.forEach(itemId => {
-              const instances = Object.entries(mapping)
-                .filter(([key, _]) => key.startsWith(`${itemId}-`))
-                .map(([key, addressId]) => ({ key, addressId }))
-                .filter(({ addressId }) => addressId);
-
-              if (instances.length > 0) {
-                const originalItem = cartItems.find(item => item.id.toString() === itemId);
-                if (!originalItem) return;
-
-                // Distribute quantity across addresses
-                let remainingQuantity = originalItem.quantity;
-                instances.forEach(({ instanceNum }, index) => {
-                  const addressId = mapping[`${itemId}-${instanceNum}`];
-                  const address = savedAddresses.find(addr => addr.id === addressId);
-                  if (!address) return;
-
-                  // For simplicity, we'll assign the full quantity to each specified address for now.
-                  // A more complex logic would be needed to split quantities if required.
-                  processedItems.push({
-                    productId: originalItem.id,
-                    productName: originalItem.name,
-                    productImage: originalItem.image,
-                    quantity: originalItem.quantity, // Assign full quantity to each instance for display
-                    price: originalItem.price,
-                    cashbackPrice: originalItem.cashbackPrice || null,
-                    cashbackPercentage: originalItem.cashbackPercentage || null,
-                    deliveryAddress: `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}`,
-                    recipientName: address.recipientName,
-                    recipientPhone: address.phoneNumber,
-                    deliveryInstructions: address.deliveryInstructions || null,
-                    saturdayDelivery: address.saturdayDelivery || false,
-                    sundayDelivery: address.sundayDelivery || false,
-                  });
-                });
-              }
-            });
-
-            // Process items that have a single assigned address
-            const singleAddressItemIds = itemIds.filter(id => !uniqueSplitItemIds.includes(id) && mapping[id]);
-            singleAddressItemIds.forEach(itemId => {
-              const addressId = mapping[itemId];
+            const mapping = JSON.parse(multiAddressMapping);
+            
+            itemsData = cartItems.map((item: any) => {
+              const addressId = mapping[item.id];
               const address = savedAddresses.find(addr => addr.id === addressId);
-              if (!address) return;
-
-              const item = cartItems.find(i => i.id.toString() === itemId);
-              if (!item) return;
-
-              processedItems.push({
+              
+              return {
                 productId: item.id,
                 productName: item.name,
                 productImage: item.image,
@@ -1379,21 +1575,19 @@ function CheckoutPage() {
                 price: item.price,
                 cashbackPrice: item.cashbackPrice || null,
                 cashbackPercentage: item.cashbackPercentage || null,
-                deliveryAddress: `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}`,
-                recipientName: address.recipientName,
-                recipientPhone: address.phoneNumber,
-                deliveryInstructions: address.deliveryInstructions || null,
-                saturdayDelivery: address.saturdayDelivery || false,
-                sundayDelivery: address.sundayDelivery || false,
-              });
+                deliveryAddress: address ? `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}` : null,
+                recipientName: address ? address.recipientName : null,
+                recipientPhone: address ? address.phoneNumber : null,
+                deliveryInstructions: address?.deliveryInstructions || null,
+                saturdayDelivery: address?.saturdayDelivery,
+                sundayDelivery: address?.sundayDelivery,
+              };
             });
 
-            itemsData = processedItems;
+            // For multi-address orders, use first address or a combined note
             shippingAddressData = "Multiple Delivery Addresses - See individual items";
           } catch (error) {
             console.error('Error parsing multi-address mapping:', error);
-            // Fallback to single address if parsing fails
-            shippingAddressData = fullAddress;
           }
         }
 
@@ -1405,7 +1599,6 @@ function CheckoutPage() {
           isMultiAddress: isMultiAddress,
           affiliateCode: formData.affiliateCode || passedAffiliateCode || null,
           affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
-          affiliateDiscount: affiliateDiscountAmount > 0 ? Math.round(affiliateDiscountAmount) : null,
           promoCode: appliedPromo?.code || null,
           promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
           redeemAmount: Math.round(redeemAmount) || 0,
@@ -1425,7 +1618,6 @@ function CheckoutPage() {
           totalAmount: orderData.totalAmount
         });
 
-        // Redeem cashback if applicable
         if (redeemAmount > 0) {
           try {
             const redeemResponse = await fetch('/api/wallet/redeem', {
@@ -1451,11 +1643,11 @@ function CheckoutPage() {
             console.error('Error redeeming cashback:', redeemError);
             toast({
               title: "Cashback Redemption Failed",
-              description: (redeemError as any).message || "Failed to redeem cashback. Please try again.",
+              description: (redeemError as any)?.message || "Failed to redeem cashback. Please try again.",
               variant: "destructive",
             });
             setIsProcessing(false);
-            return; // Stop order placement if cashback redemption fails
+            return;
           }
         }
 
@@ -1468,7 +1660,7 @@ function CheckoutPage() {
           });
 
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({})); // Handle cases where response is not JSON
+            const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.message || errorData.error || "Failed to create order");
           }
 
@@ -1477,25 +1669,23 @@ function CheckoutPage() {
           setOrderId(data.orderId || 'ORD-001');
           setOrderPlaced(true);
 
-          // Save affiliate commission to affiliate wallet if applicable
-          if (affiliateCommissionAmount > 0) {
+          // Log affiliate wallet transaction if affiliate wallet was used
+          if (affiliateWalletAmount > 0) {
             try {
-              await fetch('/api/affiliate/wallet/add-commission', {
+              await fetch('/api/affiliate/transactions', {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   userId: user.id,
-                  commission: affiliateCommissionAmount,
+                  type: 'redemption',
+                  amount: Math.round(affiliateWalletAmount),
+                  description: `Affiliate wallet redeemed during checkout for order ${data.orderId || 'ORD-001'}`,
                   orderId: data.orderId,
-                  discount: affiliateDiscountAmount,
-                  description: 'Commission earned from affiliate products'
+                  status: 'completed'
                 }),
               });
-              console.log('Affiliate commission saved:', affiliateCommissionAmount);
-            } catch (error) {
-              console.error('Error saving affiliate commission:', error);
+            } catch (txError) {
+              console.error('Error logging affiliate transaction:', txError);
             }
           }
 
@@ -1505,7 +1695,6 @@ function CheckoutPage() {
           localStorage.removeItem("promoDiscount");
           localStorage.removeItem("redeemAmount");
           localStorage.removeItem("affiliateWalletAmount");
-          localStorage.removeItem("affiliateCommissionEarned");
           localStorage.removeItem("isMultiAddressOrder");
           localStorage.removeItem("multiAddressMapping");
           localStorage.removeItem("multipleAddressMode");
@@ -1528,7 +1717,7 @@ function CheckoutPage() {
             variant: "destructive",
           });
           setIsProcessing(false);
-          return; // Stop order placement if creation fails
+          return;
         }
       }
     } catch (error) {
@@ -1540,44 +1729,10 @@ function CheckoutPage() {
       });
       setIsProcessing(false);
     } finally {
-      // Only set isProcessing to false if it wasn't cashfree payment (which handles its own loading state)
       if (formData.paymentMethod !== 'cashfree') {
         setIsProcessing(false);
       }
     }
-  };
-
-  const steps = [
-    { number: 1, title: "Delivery Address", icon: MapPin },
-    { number: 2, title: "Order Review", icon: Package },
-    { number: 3, title: "Payment", icon: CreditCard },
-  ];
-
-  const handleNextStep = () => {
-    // Validation for Step 1: Delivery Address
-    if (currentStep === 1) {
-      if (!user) { // Ensure user is logged in
-        toast({ title: "Authentication Required", description: "Please log in to continue.", variant: "destructive" });
-        return;
-      }
-      if (savedAddresses.length === 0 && !newAddressData.fullName) { // If no saved addresses and no new address entered yet
-        toast({ title: "Address Required", description: "Please add a delivery address to continue.", variant: "destructive" });
-        return;
-      }
-      if (savedAddresses.length > 0 && !selectedAddressId) { // If saved addresses exist but none selected
-        toast({ title: "Select Address", description: "Please select a delivery address to continue.", variant: "destructive" });
-        return;
-      }
-      // If adding a new address, ensure its fields are valid before proceeding
-      if (showAddAddressDialog || (!savedAddresses.length && newAddressData.fullName)) {
-         // Add validation for newAddressData here if needed, or rely on handleNewAddressSubmit's validation
-      }
-    }
-    setCurrentStep(prev => Math.min(prev + 1, 3));
-  };
-
-  const handlePrevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
   if (loading) {
@@ -1680,6 +1835,7 @@ function CheckoutPage() {
     );
   }
 
+  // Main checkout UI with multi-step flow
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1696,7 +1852,6 @@ function CheckoutPage() {
           <div className="flex items-center justify-between">
             {steps.map((step, index) => {
               const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
-              // For multi-address orders, show step 1 as completed
               const stepCompleted = isMultiAddress && step.number === 1 ? true : currentStep > step.number;
               const stepActive = isMultiAddress && step.number === 1 ? true : currentStep >= step.number;
 
@@ -1731,7 +1886,7 @@ function CheckoutPage() {
           </div>
         </div>
 
-        <form onSubmit={handlePlaceOrder}>
+       <form onSubmit={handlePlaceOrder}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2">
@@ -2524,7 +2679,7 @@ function CheckoutPage() {
                       </div>
                     )}
 
-                    {affiliateCommissionAmount > 0 && (
+                    {/* {affiliateCommissionAmount > 0 && (
                       <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
@@ -2535,7 +2690,7 @@ function CheckoutPage() {
                         </div>
                         <p className="text-xs text-purple-700">Commission on affiliate products will be credited to your wallet after delivery</p>
                       </div>
-                    )}
+                    )} */}
                   </div>
                 </CardContent>
               </Card>
@@ -2546,5 +2701,3 @@ function CheckoutPage() {
     </div>
   );
 }
-
-export default CheckoutPage;
