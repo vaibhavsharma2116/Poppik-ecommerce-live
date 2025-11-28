@@ -4261,7 +4261,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Promo code validation endpoint (public)
   app.post("/api/promo-codes/validate", async (req, res) => {
     try {
-      const { code, cartTotal, userId } = req.body;
+      const { code, cartTotal, userId, affiliateCode, affiliateWalletAmount } = req.body;
+
+      // Prevent promo validation when affiliate code/link or affiliate wallet redemption is present
+      if (affiliateCode || (affiliateWalletAmount && Number(affiliateWalletAmount) > 0)) {
+        return res.status(400).json({ error: "Cannot apply a promo code when an affiliate code/link or affiliate wallet redemption is used. Remove affiliate or wallet redemption to use a promo code." });
+      }
 
       if (!code) {
         return res.status(400).json({ error: "Promo code is required" });
@@ -4473,6 +4478,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: "Items are required" });
+      }
+
+      // Mutual exclusion: do not allow both promo code and affiliate code/wallet redemption together
+      const hasPromo = !!(req.body.promoCode || req.body.promoDiscount);
+      const hasAffiliateUsage = !!(affiliateCode || (affiliateWalletAmount && Number(affiliateWalletAmount) > 0));
+
+      if (hasPromo && hasAffiliateUsage) {
+        return res.status(400).json({ error: "Cannot use a promo code together with an affiliate code/link or affiliate wallet redemption. Remove one before placing the order." });
       }
 
       // Insert the order into database

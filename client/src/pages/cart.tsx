@@ -154,19 +154,19 @@ export default function Cart() {
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
     if (refCode && refCode.toUpperCase().startsWith('POPPIKAP')) {
-      // Store affiliate code in localStorage for later use
-      localStorage.setItem('referralCode', refCode.toUpperCase());
-      
+      // Store affiliate code in localStorage for later use (use existing key 'affiliateRef')
+      localStorage.setItem('affiliateRef', refCode.toUpperCase());
+
       // Also set it in state so it can be applied
       setAffiliateCode(refCode.toUpperCase());
-      
+
       toast({
         title: "Affiliate Code Found",
         description: `Affiliate code ${refCode.toUpperCase()} has been saved. Apply it in your cart to get the discount!`,
       });
-    } else if (localStorage.getItem('referralCode')) {
+    } else if (localStorage.getItem('affiliateRef')) {
       // Load saved affiliate code from previous visit
-      const savedRefCode = localStorage.getItem('referralCode');
+      const savedRefCode = localStorage.getItem('affiliateRef');
       if (savedRefCode) {
         setAffiliateCode(savedRefCode);
       }
@@ -327,12 +327,33 @@ export default function Cart() {
 
   // Function to apply affiliate code
   const applyAffiliateCode = (code: string) => {
-    // Removed static affiliate code logic
-    // All affiliate discounts are now dynamic from product data in cart items
-    toast({
-      title: "Dynamic Affiliate Discount",
-      description: "Affiliate discount is automatically applied based on products in your cart",
-    });
+    // Prevent applying affiliate when a promo is already applied
+    if (appliedPromo) {
+      toast({
+        title: "Cannot Apply Affiliate Code",
+        description: `A promo code is already applied (${appliedPromo.code}). Remove the promo code first to use an affiliate code.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Save affiliate code for checkout
+    try {
+      const normalized = code.toUpperCase();
+      setAffiliateCode(normalized);
+      localStorage.setItem('referralCode', normalized);
+      toast({
+        title: "Affiliate Code Saved",
+        description: `Affiliate code ${normalized} will be applied at checkout.`,
+      });
+    } catch (e) {
+      console.error('Error applying affiliate code:', e);
+      toast({
+        title: "Error",
+        description: "Failed to apply affiliate code. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Function to apply promo code
@@ -372,7 +393,9 @@ export default function Cart() {
         body: JSON.stringify({
           code: code.toUpperCase(),
           cartTotal: cartSubtotal,
-          userId: user?.id // Use user?.id for safety
+          userId: user?.id, // Use user?.id for safety
+          affiliateCode: affiliateCode || localStorage.getItem('referralCode') || null,
+          affiliateWalletAmount: affiliateWalletAmount || 0
         })
       });
 
@@ -390,7 +413,8 @@ export default function Cart() {
         setPromoDiscount(result.promoCode.discountAmount); // Set the promo discount state
         // Store promo code in localStorage for checkout
         localStorage.setItem('appliedPromoCode', JSON.stringify(result.promoCode));
-        // Clear affiliate code from localStorage
+        // Clear affiliate code from localStorage (use 'affiliateRef')
+        localStorage.removeItem('affiliateRef');
         localStorage.removeItem('affiliateCode');
         localStorage.removeItem('affiliateDiscount');
         toast({

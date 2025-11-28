@@ -268,7 +268,7 @@ interface CartItem {
   id: number;
   name: string;
   price: string;
-  originalPrice?: string;
+  price?: string;
   image: string;
   quantity: number;
   inStock: boolean;
@@ -783,8 +783,8 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
   const calculateSubtotal = () => {
     return cartItems.reduce((total, item) => {
-      const price = item.originalPrice
-        ? parseInt(item.originalPrice.replace(/[₹,]/g, ""))
+      const price = item.price
+        ? parseInt(item.price.replace(/[₹,]/g, ""))
         : parseInt(item.price.replace(/[₹,]/g, ""));
       return total + (price * item.quantity);
     }, 0);
@@ -792,8 +792,8 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
   // Calculate product discounts
   const productDiscount = cartItems.reduce((total, item) => {
-    if (item.originalPrice) {
-      const original = parseInt(item.originalPrice.replace(/[₹,]/g, ""));
+    if (item.price) {
+      const original = parseInt(item.price.replace(/[₹,]/g, ""));
       const current = parseInt(item.price.replace(/[₹,]/g, ""));
       return total + ((original - current) * item.quantity);
     }
