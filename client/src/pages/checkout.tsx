@@ -1753,6 +1753,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         console.log('📦 Order Data being sent:', {
           affiliateCode: orderData.affiliateCode,
           affiliateCommission: orderData.affiliateCommission,
+          affiliateCommissionEarned: orderData.affiliateCommissionEarned,
           totalAmount: orderData.totalAmount
         });
 

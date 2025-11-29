@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { OTPService } from "./otp-service";
 import path from "path";
 import fs from "fs";
+import cookieParser from 'cookie-parser';
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import sharp from "sharp";
@@ -318,6 +319,47 @@ async function sendOrderNotificationEmail(orderData: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Enable cookie parsing so we can read/write affiliate cookies
+  try {
+    app.use(cookieParser());
+  } catch (e) {
+    console.warn('cookieParser not available:', e);
+  }
+
+  // Middleware: capture affiliate query params (aff_id, ref, affiliate, affiliateCode, aff)
+  app.use((req: any, res: any, next: any) => {
+    try {
+      const q = req.query || {};
+      const raw = q.aff_id || q.ref || q.affiliate || q.affiliateCode || q.affcode || q.aff;
+
+      if (raw) {
+        let val = String(raw);
+        let normalized = val;
+
+        // If only numeric, convert to affiliate code format used elsewhere (POPPIKAP{ID})
+        if (/^\d+$/.test(val)) {
+          normalized = `POPPIKAP${val}`;
+        }
+
+        const existing = req.cookies && (req.cookies.affiliate_id || req.cookies.affiliate_code);
+        if (!existing || existing !== normalized) {
+          const cookieOpts: any = {
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+            httpOnly: false,
+            sameSite: 'lax'
+          };
+          if (process.env.NODE_ENV === 'production') cookieOpts.secure = true;
+          res.cookie('affiliate_id', normalized, cookieOpts);
+          // Also set legacy name used in some places
+          res.cookie('affiliate_code', normalized, cookieOpts);
+          console.log('📥 Affiliate cookie set:', normalized, 'from query param');
+        }
+      }
+    } catch (err) {
+      console.warn('Error in affiliate cookie middleware:', err);
+    }
+    next();
+  });
   // Register Master Admin Routes
   const masterAdminRouter = createMasterAdminRoutes(pool);
   app.use(masterAdminRouter);
@@ -4784,6 +4826,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         affiliateWalletAmount
       } = req.body;
 
+      // If affiliate code not provided in the body, try to read from cookie set by affiliate links
+      const cookieAffiliate = (req as any).cookies?.affiliate_id || (req as any).cookies?.affiliate_code || null;
+      const effectiveAffiliateCode = affiliateCode || cookieAffiliate || null;
+
       // Validation
       if (!userId || !totalAmount || !paymentMethod || !shippingAddress || !items) {
         return res.status(400).json({ error: "Missing required fields: userId, totalAmount, paymentMethod, shippingAddress, and items are required" });
@@ -4795,7 +4841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Mutual exclusion: do not allow both promo code and affiliate code/wallet redemption together
       const hasPromo = !!(req.body.promoCode || req.body.promoDiscount);
-      const hasAffiliateUsage = !!(affiliateCode || (affiliateWalletAmount && Number(affiliateWalletAmount) > 0));
+      const hasAffiliateUsage = !!(effectiveAffiliateCode || (affiliateWalletAmount && Number(affiliateWalletAmount) > 0));
 
       if (hasPromo && hasAffiliateUsage) {
         return res.status(400).json({ error: "Cannot use a promo code together with an affiliate code/link or affiliate wallet redemption. Remove one before placing the order." });
@@ -4811,7 +4857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         deliveryInstructions: req.body.deliveryInstructions || null,
         saturdayDelivery: req.body.saturdayDelivery !== undefined ? req.body.saturdayDelivery : true,
         sundayDelivery: req.body.sundayDelivery !== undefined ? req.body.sundayDelivery : true,
-        affiliateCode: affiliateCode || null,
+        affiliateCode: effectiveAffiliateCode || null,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
       };
 
@@ -4821,9 +4867,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('✅ Order created successfully:', newOrder.id);
 
+      // Credit commission earned by current user (if they have affiliate commission)
+      // No need to check if user is an affiliate - just credit the commission if they earned it
+      if (affiliateCommissionEarned && affiliateCommissionEarned > 0) {
+        try {
+          console.log(`🔍 Processing affiliate commission earned by current user (${userId}): ₹${affiliateCommissionEarned}`);
+
+          // Get or create affiliate wallet for current user
+          let userWallet = await db
+            .select()
+            .from(schema.affiliateWallet)
+            .where(eq(schema.affiliateWallet.userId, Number(userId)))
+            .limit(1);
+
+          if (userWallet.length === 0) {
+            console.log(`📝 Creating new affiliate wallet for user ${userId}`);
+            const [newWallet] = await db.insert(schema.affiliateWallet).values({
+              userId: Number(userId),
+              cashbackBalance: "0.00",
+              commissionBalance: affiliateCommissionEarned.toFixed(2),
+              totalEarnings: affiliateCommissionEarned.toFixed(2),
+              totalWithdrawn: "0.00",
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }).returning();
+            console.log(`✅ Affiliate wallet created for user ${userId} with commission: ₹${affiliateCommissionEarned.toFixed(2)}`, newWallet);
+          } else {
+            console.log(`📝 Updating existing affiliate wallet for user ${userId}`);
+            const currentCommission = parseFloat(userWallet[0].commissionBalance || '0');
+            const currentEarnings = parseFloat(userWallet[0].totalEarnings || '0');
+            const newCommission = currentCommission + Number(affiliateCommissionEarned);
+            const newEarnings = currentEarnings + Number(affiliateCommissionEarned);
+
+            console.log(`Current commission: ₹${currentCommission}, Adding: ₹${affiliateCommissionEarned}, New total: ₹${newCommission}`);
+
+            const [updatedWallet] = await db.update(schema.affiliateWallet)
+              .set({
+                commissionBalance: newCommission.toFixed(2),
+                totalEarnings: newEarnings.toFixed(2),
+                updatedAt: new Date()
+              })
+              .where(eq(schema.affiliateWallet.userId, Number(userId)))
+              .returning();
+
+            console.log(`✅ Affiliate wallet updated for user ${userId}: Commission ₹${newCommission.toFixed(2)}, Total Earnings ₹${newEarnings.toFixed(2)}`, updatedWallet);
+          }
+
+          // Add transaction record for earned commission
+          const [txRecord] = await db.insert(schema.affiliateTransactions).values({
+            userId: Number(userId),
+            orderId: newOrder.id,
+            type: 'commission',
+            amount: affiliateCommissionEarned.toFixed(2),
+            balanceType: 'commission',
+            description: `Commission earned from own purchase - Order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+            status: 'completed',
+            transactionId: null,
+            notes: null,
+            processedAt: new Date(),
+            createdAt: new Date()
+          }).returning();
+
+          console.log(`✅ Commission earned credit: ₹${affiliateCommissionEarned.toFixed(2)} credited to user ${userId} for order ${newOrder.id}`, txRecord);
+        } catch (commissionError) {
+          console.error(`❌ Error processing affiliate commission earned:`, commissionError);
+          // Continue with order creation even if commission credit fails
+        }
+      } else {
+        console.log(`⏭️ No affiliate commission earned to process (affiliateCommissionEarned: ${affiliateCommissionEarned})`);
+      }
+
       // Process affiliate commission for COD orders
-      if (affiliateCode && affiliateCode.startsWith('POPPIKAP') && paymentMethod === 'Cash on Delivery') {
-        const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
+      if (effectiveAffiliateCode && effectiveAffiliateCode.startsWith('POPPIKAP') && paymentMethod === 'Cash on Delivery') {
+        const affiliateUserId = parseInt(effectiveAffiliateCode.replace('POPPIKAP', ''));
 
         console.log(`🔍 Processing affiliate commission for COD order: ${affiliateCode}, userId: ${affiliateUserId}`);
 
@@ -4842,8 +4958,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (affiliateApp && affiliateApp.length > 0) {
               // Use the affiliateCommission value passed from checkout instead of recalculating
               const calculatedCommission = affiliateCommission || 0;
+              const commissionRate = calculatedCommission > 0 && Number(totalAmount) > 0 
+                ? ((calculatedCommission / Number(totalAmount)) * 100).toFixed(2)
+                : '0.00';
 
-              console.log(`💰 Using commission from checkout: ₹${calculatedCommission.toFixed(2)}`);
+              console.log(`💰 Using commission from checkout: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%)`);
 
               if (calculatedCommission > 0) {
                 // Get or create affiliate wallet
@@ -4887,7 +5006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Record affiliate sale
               await db.insert(schema.affiliateSales).values({
                 affiliateUserId,
-                affiliateCode: affiliateCode,
+                affiliateCode: effectiveAffiliateCode,
                 orderId: newOrder.id,
                 customerId: Number(userId),
                 customerName: customerName,
@@ -4896,7 +5015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 productName: items.map((item: any) => item.productName || item.name).join(', '),
                 saleAmount: Number(totalAmount).toFixed(2),
                 commissionAmount: calculatedCommission.toFixed(2),
-                commissionRate: commissionRate.toFixed(2),
+                commissionRate: commissionRate,
                 status: 'confirmed'
               });
 
