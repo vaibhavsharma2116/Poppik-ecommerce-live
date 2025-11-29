@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Gift, DollarSign } from "lucide-react";
+import { NotificationPopup } from "./notification-popup";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 
 
 interface LayoutProps {
@@ -66,6 +68,7 @@ function WhatsAppButton() {
 
 export default function Layout({ children }: LayoutProps) {
   const [isSearchCommandOpen, setIsSearchCommandOpen] = useState(false);
+  const [showNotificationPopup, setShowNotificationPopup] = useState(true); // State to control notification popup visibility
 
   // Helper function to get user initials
   const getInitials = (firstName: string, lastName: string) => {
@@ -312,7 +315,9 @@ export default function Layout({ children }: LayoutProps) {
   const isApprovedAffiliate = affiliateApplication?.status === 'approved';
 
   return (
-    <div className="min-h-screen bg-white">
+    <TooltipProvider>
+      {showNotificationPopup && <NotificationPopup onClose={() => setShowNotificationPopup(false)} />}
+      <div className="min-h-screen bg-white">
       {/* Announcement Bar */}
       <AnnouncementBar />
 
@@ -1585,5 +1590,6 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </footer>
     </div>
+    </TooltipProvider>
   );
 }

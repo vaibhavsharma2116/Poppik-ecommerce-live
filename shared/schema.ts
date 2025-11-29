@@ -970,3 +970,24 @@ export type ChannelPartnerVideo = typeof channelPartnerVideos.$inferSelect;
 export type InsertChannelPartnerVideo = typeof channelPartnerVideos.$inferInsert;
 export const insertChannelPartnerVideoSchema = createInsertSchema(channelPartnerVideos);
 export const selectChannelPartnerVideoSchema = createSelectSchema(channelPartnerVideos);
+
+// Push Subscriptions Table for Web Push Notifications
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  auth: text("auth").notNull(),
+  p256dh: text("p256dh").notNull(),
+  email: varchar("email", { length: 255 }),
+  userAgent: text("user_agent"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  lastUsedAt: timestamp("last_used_at"),
+});
+
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true });
+export const selectPushSubscriptionSchema = createSelectSchema(pushSubscriptions);

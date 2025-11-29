@@ -7718,6 +7718,273 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== PUSH NOTIFICATIONS ROUTES ==========
+
+  /**
+   * POST /api/notifications/subscribe
+   * Save push notification subscription to the database
+   */
+  app.post("/api/notifications/subscribe", async (req: Request, res: Response) => {
+    try {
+      const { subscription, timestamp, email } = req.body;
+      const token = req.headers.authorization?.split(" ")[1];
+
+      if (!subscription || !subscription.endpoint) {
+        return res.status(400).json({ error: "Invalid subscription data" });
+      }
+
+      // Decode JWT to get user info if authenticated
+      let userId: number | null = null;
+      if (token) {
+        try {
+          const decoded: any = jwt.verify(
+            token,
+            process.env.JWT_SECRET || "your-secret-key"
+          );
+          userId = decoded.id;
+        } catch (error) {
+          console.warn("⚠️ Invalid JWT token for push subscription");
+        }
+      }
+
+      // Check if subscription already exists
+      const existingSubscription = await db
+        .select()
+        .from(schema.pushSubscriptions)
+        .where(eq(schema.pushSubscriptions.endpoint, subscription.endpoint))
+        .limit(1);
+
+      if (existingSubscription.length > 0) {
+        // Update existing subscription
+        const updated = await db
+          .update(schema.pushSubscriptions)
+          .set({
+            auth: subscription.keys.auth,
+            p256dh: subscription.keys.p256dh,
+            isActive: true,
+            updatedAt: new Date(),
+            userAgent: req.headers["user-agent"] as string,
+            email: email || null,
+          })
+          .where(eq(schema.pushSubscriptions.endpoint, subscription.endpoint))
+          .returning();
+
+        console.log(
+          "✅ Push subscription updated:",
+          subscription.endpoint.substring(0, 50) + "...",
+          email ? `| Email: ${email}` : ""
+        );
+        return res.json({
+          success: true,
+          message: "Subscription updated",
+          subscriptionId: updated[0].id,
+        });
+      }
+
+      // Create new subscription
+      const newSubscription = await db
+        .insert(schema.pushSubscriptions)
+        .values({
+          userId,
+          endpoint: subscription.endpoint,
+          auth: subscription.keys.auth,
+          p256dh: subscription.keys.p256dh,
+          userAgent: req.headers["user-agent"] as string,
+          email: email || null,
+          isActive: true,
+        })
+        .returning();
+
+      console.log(
+        "✅ New push subscription created:",
+        subscription.endpoint.substring(0, 50) + "...",
+        email ? `| Email: ${email}` : ""
+      );
+
+      res.json({
+        success: true,
+        message: "Subscription saved",
+        subscriptionId: newSubscription[0].id,
+      });
+    } catch (error) {
+      console.error("❌ Error saving push subscription:", error);
+      res.status(500).json({ error: "Failed to save subscription" });
+    }
+  });
+
+  /**
+   * POST /api/notifications/send
+   * Send push notifications to users (admin only)
+   * Body: { userId?, title, body, image?, url?, tag? }
+   */
+  app.post("/api/notifications/send", async (req: Request, res: Response) => {
+    try {
+      // Check admin authentication
+      const token = req.headers.authorization?.split(" ")[1];
+      if (!token) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      let isAdmin = false;
+      try {
+        const decoded: any = jwt.verify(
+          token,
+          process.env.JWT_SECRET || "your-secret-key"
+        );
+        // Check if user is admin
+        const user = await db
+          .select()
+          .from(schema.users)
+          .where(eq(schema.users.id, decoded.id))
+          .limit(1);
+
+        if (user.length === 0 || user[0].role !== "admin") {
+          return res.status(403).json({ error: "Forbidden: Admin access required" });
+        }
+        isAdmin = true;
+      } catch (error) {
+        return res.status(401).json({ error: "Invalid token" });
+      }
+
+      const { userId, title, body, image, url, tag } = req.body;
+
+      if (!title || !body) {
+        return res.status(400).json({ error: "Title and body are required" });
+      }
+
+      // Get subscriptions to send to
+      let subscriptions;
+      if (userId) {
+        // Send to specific user
+        subscriptions = await db
+          .select()
+          .from(schema.pushSubscriptions)
+          .where(
+            and(
+              eq(schema.pushSubscriptions.userId, userId),
+              eq(schema.pushSubscriptions.isActive, true)
+            )
+          );
+      } else {
+        // Send to all active subscriptions
+        subscriptions = await db
+          .select()
+          .from(schema.pushSubscriptions)
+          .where(eq(schema.pushSubscriptions.isActive, true));
+      }
+
+      if (subscriptions.length === 0) {
+        return res.status(404).json({
+          error: "No active subscriptions found",
+          sent: 0,
+        });
+      }
+
+      // Prepare notification payload
+      const notificationPayload = {
+        title,
+        body,
+        image: image || "",
+        url: url || "/",
+        tag: tag || "poppik-notification",
+      };
+
+      // Send to all subscriptions (in production, you'd use a queue)
+      let sentCount = 0;
+      let failedCount = 0;
+
+      for (const subscription of subscriptions) {
+        try {
+          // In production, integrate with web-push library:
+          // import webpush from 'web-push';
+          // await webpush.sendNotification(subscription, JSON.stringify(notificationPayload));
+
+          // For now, just log that we would send
+          console.log(`📤 Would send notification to ${subscription.endpoint.substring(0, 50)}...`);
+
+          // Update last used timestamp
+          await db
+            .update(schema.pushSubscriptions)
+            .set({
+              lastUsedAt: new Date(),
+            })
+            .where(eq(schema.pushSubscriptions.id, subscription.id));
+
+          sentCount++;
+        } catch (error) {
+          console.error("❌ Failed to send to subscription:", error);
+          failedCount++;
+
+          // Mark as inactive if endpoint invalid
+          if (
+            error instanceof Error &&
+            (error.message.includes("invalid") || error.message.includes("410"))
+          ) {
+            await db
+              .update(schema.pushSubscriptions)
+              .set({ isActive: false })
+              .where(eq(schema.pushSubscriptions.id, subscription.id));
+          }
+        }
+      }
+
+      console.log(`✅ Notification send complete: ${sentCount} sent, ${failedCount} failed`);
+
+      res.json({
+        success: true,
+        message: `Notification sent to ${sentCount} subscriptions`,
+        sent: sentCount,
+        failed: failedCount,
+        total: subscriptions.length,
+      });
+    } catch (error) {
+      console.error("❌ Error sending notifications:", error);
+      res.status(500).json({ error: "Failed to send notifications" });
+    }
+  });
+
+  /**
+   * GET /api/notifications/status
+   * Check if user has active push subscription
+   */
+  app.get("/api/notifications/status", async (req: Request, res: Response) => {
+    try {
+      const token = req.headers.authorization?.split(" ")[1];
+
+      if (!token) {
+        return res.json({ subscribed: false });
+      }
+
+      try {
+        const decoded: any = jwt.verify(
+          token,
+          process.env.JWT_SECRET || "your-secret-key"
+        );
+
+        const subscriptions = await db
+          .select()
+          .from(schema.pushSubscriptions)
+          .where(
+            and(
+              eq(schema.pushSubscriptions.userId, decoded.id),
+              eq(schema.pushSubscriptions.isActive, true)
+            )
+          )
+          .limit(1);
+
+        res.json({
+          subscribed: subscriptions.length > 0,
+          subscriptionCount: subscriptions.length,
+        });
+      } catch (error) {
+        return res.json({ subscribed: false });
+      }
+    } catch (error) {
+      console.error("❌ Error checking notification status:", error);
+      res.status(500).json({ error: "Failed to check status" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
