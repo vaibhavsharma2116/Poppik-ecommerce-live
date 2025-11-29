@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { initializePushNotifications } from "@/lib/pushNotificationService";
 import poppikLogo from "@/assets/POPPIK LOGO.jpg";
+import { Mail } from "lucide-react";
 
 interface NotificationPopupProps {
   onClose: () => void;
@@ -12,11 +13,28 @@ interface NotificationPopupProps {
 export function NotificationPopup({ onClose }: NotificationPopupProps) {
   const [isClosing, setIsClosing] = useState(false);
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
+  const [emailInput, setEmailInput] = useState<string>("");
 
   // Get email from localStorage safely on client side only
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setUserEmail('vaibhavsharma2116@gmail.com'); // Replace with actual email if available
+      try {
+        // Try to get email from localStorage
+        const storedEmail = localStorage.getItem('userEmail');
+        if (storedEmail) {
+          setUserEmail(storedEmail);
+          setEmailInput(storedEmail);
+        } else {
+          // Try to get from sessionStorage or other sources
+          const sessionEmail = sessionStorage.getItem('userEmail');
+          if (sessionEmail) {
+            setUserEmail(sessionEmail);
+            setEmailInput(sessionEmail);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not access storage:', e);
+      }
     }
   }, []);
 
@@ -38,9 +56,8 @@ export function NotificationPopup({ onClose }: NotificationPopupProps) {
       
       setIsClosing(true);
       
-      // Get user email from input if available
-      const emailInput = (document.querySelector('[data-email-input]') as HTMLInputElement)?.value;
-      let finalEmail = emailInput || userEmail;
+      // Determine the final email to use
+      let finalEmail = emailInput.trim() || userEmail;
       
       // Try to get from localStorage as fallback
       if (!finalEmail && typeof window !== 'undefined') {
@@ -60,33 +77,32 @@ export function NotificationPopup({ onClose }: NotificationPopupProps) {
         }
       }
       
-      const success = await initializePushNotifications();
+      const success = await initializePushNotifications(finalEmail);
       if (success) {
         console.log("✅ Push notifications enabled successfully!");
         
-        // Call API to save email to database
-        if (finalEmail) {
-          try {
-            const response = await fetch("/api/notifications/subscribe", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                email: finalEmail,
-                timestamp: new Date().toISOString(),
-              }),
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              console.log("✅ Email saved to database:", data);
-            } else {
-              console.error("❌ Failed to save email to database:", response.statusText);
-            }
-          } catch (apiError) {
-            console.error("❌ Error calling subscribe API:", apiError);
+        // Send offer notification to the user
+        try {
+          const offerResponse = await fetch("/api/notifications/send-offer", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: finalEmail,
+              timestamp: new Date().toISOString(),
+            }),
+          });
+          
+          if (offerResponse.ok) {
+            const offerData = await offerResponse.json();
+            console.log("✅ Offer notification sent:", offerData);
+          } else {
+            console.warn("⚠️ Failed to send offer notification:", offerResponse.statusText);
           }
+        } catch (offerError) {
+          console.warn("⚠️ Error sending offer notification:", offerError);
+          // Don't block the notification popup close on error
         }
       } else {
         console.error("❌ Failed to enable push notifications");
@@ -158,6 +174,26 @@ export function NotificationPopup({ onClose }: NotificationPopupProps) {
           <p className="text-gray-700 text-sm mt-4 leading-relaxed">
             Notifications can be turned off anytime from browser settings.
           </p>
+
+          {/* Email Input Section */}
+          <div className="mt-4">
+            <label className="block text-xs font-semibold text-gray-700 mb-2">
+              Email Address (Optional)
+            </label>
+            <div className="relative">
+              <Mail size={16} className="absolute left-3 top-3 text-gray-400" />
+              <input
+                type="email"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="your.email@example.com"
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Help us send you personalized offers
+            </p>
+          </div>
         </div>
 
         {/* Button Section */}

@@ -26,36 +26,52 @@ self.addEventListener('push', (event) => {
   }
 
   const title = data.title || 'Poppik Lifestyle';
+
+  // Prefer icons/images sent in payload, fall back to site favicon
+  const icon = data.icon || '/favicon.png';
+  const badge = data.badge || '/favicon.png';
+  const image = data.image || '';
+
   const options = {
     body: data.body || 'New offer available!',
-    icon: '/favicon.png',
-    badge: '/favicon.png',
-    image: data.image || '',
+    icon,
+    badge,
+    image,
     data: {
       url: data.url || '/',
       timestamp: new Date().toISOString(),
       ...data
     },
-    vibrate: [200, 100, 200],
+    vibrate: data.vibrate || [200, 100, 200],
     tag: data.tag || 'poppik-notification',
-    requireInteraction: false,
+    requireInteraction: data.requireInteraction ?? false,
+    renotify: data.renotify ?? true,
     actions: [
       {
         action: 'open',
         title: 'View Offer',
-        icon: '/favicon.png'
+        icon: data.actionIcon || icon
       },
       {
         action: 'close',
         title: 'Close',
-        icon: '/favicon.png'
+        icon: data.actionIcon || icon
       }
     ],
-    // Additional options for better UX
-    badge: 'https://poppiklifestyle.com/favicon.png',
+    // timestamps and sound/visual cues
     timestamp: Date.now(),
-    silent: false,
+    silent: data.silent ?? false,
   };
+
+  // If this is an offer notification, make it persistent and more visible
+  const isOffer = (data.tag && data.tag.toString().toLowerCase().includes('offer')) || data.type === 'offer' || (data.url && data.url.toString().toLowerCase().includes('/offer'));
+  if (isOffer) {
+    options.requireInteraction = true;
+    options.renotify = true;
+    options.vibrate = data.vibrate || [300, 100, 400];
+    // prefer large image and non-silent for offers
+    options.silent = false;
+  }
 
   event.waitUntil(
     self.registration.showNotification(title, options)
@@ -66,6 +82,7 @@ self.addEventListener('notificationclick', (event) => {
   console.log('Notification clicked:', event);
   event.notification.close();
 
+  // If user explicitly clicked 'close' action, just close
   if (event.action === 'close') {
     return;
   }
@@ -75,14 +92,24 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
-        // Check if there's already a window open with this URL
+        // Try to focus an existing tab with the same origin + path
         for (let i = 0; i < clientList.length; i++) {
           const client = clientList[i];
-          if (client.url === urlToOpen && 'focus' in client) {
-            return client.focus();
+          try {
+            const clientUrl = new URL(client.url);
+            const targetUrl = new URL(urlToOpen, self.location.origin);
+            if (clientUrl.origin === targetUrl.origin && clientUrl.pathname === targetUrl.pathname && 'focus' in client) {
+              return client.focus();
+            }
+          } catch (e) {
+            // fallback simple compare
+            if (client.url === urlToOpen && 'focus' in client) {
+              return client.focus();
+            }
           }
         }
-        // If not, open a new window
+
+        // If no matching client found, open a new window/tab
         if (clients.openWindow) {
           return clients.openWindow(urlToOpen);
         }

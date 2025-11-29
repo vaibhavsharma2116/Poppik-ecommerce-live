@@ -123,11 +123,12 @@ async function subscribeToPush(
  * Send subscription to backend
  */
 async function saveSubscriptionToBackend(
-  subscription: PushSubscription
+  subscription: PushSubscription,
+  email?: string
 ): Promise<void> {
   try {
-    // Get email from localStorage if available (only on client)
-    const email = typeof window !== 'undefined' ? localStorage.getItem('notificationEmail') : null;
+    // Use provided email or get from localStorage
+    const finalEmail = email || (typeof window !== 'undefined' ? localStorage.getItem('notificationEmail') : null);
     
     const response = await fetch("/api/notifications/subscribe", {
       method: "POST",
@@ -136,7 +137,7 @@ async function saveSubscriptionToBackend(
       },
       body: JSON.stringify({
         subscription,
-        email,
+        email: finalEmail,
         timestamp: new Date().toISOString(),
       }),
     });
@@ -183,7 +184,7 @@ async function getExistingSubscription(
 /**
  * Main initialization function
  */
-export async function initializePushNotifications(): Promise<boolean> {
+export async function initializePushNotifications(email?: string): Promise<boolean> {
   try {
     console.log("🚀 Initializing push notifications...");
 
@@ -212,8 +213,8 @@ export async function initializePushNotifications(): Promise<boolean> {
       subscription = await subscribeToPush(swRegistration);
     }
 
-    // Save/update subscription on backend
-    await saveSubscriptionToBackend(subscription);
+    // Save/update subscription on backend with email
+    await saveSubscriptionToBackend(subscription, email);
 
     console.log("✅ Push notifications fully initialized!");
 
@@ -256,6 +257,10 @@ export async function showTestNotification(): Promise<void> {
           icon: "/favicon.png",
         },
       ],
+      // Include a URL so clicking the notification opens the offer page
+      data: {
+        url: "/offer",
+      },
     };
 
     await swRegistration.showNotification("Welcome to Poppik!", options);

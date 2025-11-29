@@ -79,6 +79,12 @@ const sidebarItems = [
     icon: Users,
   },
   {
+    title: "Notifications",
+    href: "/notifications",
+    icon: MessageSquare,
+    badge: null,
+  },
+  {
     title: "Announcements",
     href: "/announcements",
     icon: Bell,

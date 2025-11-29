@@ -87,6 +87,7 @@ const AdminTestimonials = lazy(() => import("@/pages/admin/testimonials"));
 const AdminVideoTestimonials = lazy(() => import("@/pages/admin/video-testimonials"));
 const AdminAnnouncements = lazy(() => import("@/pages/admin/announcements"));
 const AdminCombos = lazy(() => import("@/pages/admin/combos"));
+const AdminNotifications = lazy(() => import("@/pages/admin/notifications"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const AdminShades = lazy(() => import("./pages/admin/shades"));
 const AdminFeaturedSections = lazy(() => import("@/pages/admin/featured-sections"));
@@ -205,6 +206,7 @@ function Router() {
             <Route path="/contests" component={lazy(() => import("./pages/admin/contests"))} />
             <Route path="/job-positions" component={() => <LazyRoute component={lazy(() => import("./pages/admin/job-positions"))} />} />
             <Route path="/stores" component={AdminStores} />
+              <Route path="/notifications" component={AdminNotifications} />
             <Route path="/settings" component={AdminSettings} />
             <Route path="/affiliate-settings" component={() => <LazyRoute component={lazy(() => import("./pages/admin/affiliate-settings"))} />} />
             <Route path="/profile" component={AdminProfile} />
