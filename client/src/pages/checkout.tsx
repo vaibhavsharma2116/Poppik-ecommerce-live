@@ -372,7 +372,13 @@ export default function CheckoutPage() {
     const saved = localStorage.getItem('redeemAmount');
     return saved ? parseFloat(saved) : 0;
   });
-  const [affiliateWalletAmount, setAffiliateWalletAmount] = useState(0);
+  const [affiliateWalletAmount, setAffiliateWalletAmount] = useState(() => {
+    if (passedAffiliateWalletAmount > 0) {
+      return passedAffiliateWalletAmount;
+    }
+    const saved = localStorage.getItem('affiliateWalletAmount');
+    return saved ? parseFloat(saved) : 0;
+  });
 
   // Promo code states
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
@@ -425,15 +431,6 @@ export default function CheckoutPage() {
     setRedeemAmount(walletAmount);
   }, [walletAmount]);
 
-  // Sync affiliateWalletAmount with database data (affiliateWalletData.commissionBalance)
-  useEffect(() => {
-    if (affiliateWalletData?.commissionBalance) {
-      const balance = parseFloat(affiliateWalletData.commissionBalance);
-      if (!isNaN(balance) && balance > 0) {
-        setAffiliateWalletAmount(balance);
-      }
-    }
-  }, [affiliateWalletData]);
 
   useEffect(() => {
     // Check if user is logged in when accessing checkout

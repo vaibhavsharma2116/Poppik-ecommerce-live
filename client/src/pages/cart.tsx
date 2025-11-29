@@ -845,7 +845,7 @@ export default function Cart() {
 
                 if (highestMilestone && !nextMilestone) {
                   return (
-                    <p className="text-green-600 font-semibold text-sm sm:text-base">
+                    <p className="text-green-600 font-semibold text-sm sm:text-base mt-12">
                       🎉 Congratulations! You've unlocked {highestMilestone.giftCount} FREE gift{highestMilestone.giftCount > 1 ? 's' : ''}!
                       {highestMilestone.discountType !== 'none' && highestMilestone.discountValue && (
                         <span className="block text-pink-600 text-base font-bold mt-1 animate-fadeInUp">
