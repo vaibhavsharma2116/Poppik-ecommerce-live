@@ -484,7 +484,9 @@ export default function AffiliateDashboard() {
   const { data: application, isLoading } = useQuery({
     queryKey: ["/api/affiliate/my-application", user.id],
     queryFn: async () => {
-      const res = await fetch(`/api/affiliate/my-application?userId=${user.id}`);
+      const res = await fetch(`/api/affiliate/my-application?userId=${user.id}`, {
+        credentials: 'include',
+      });
       if (!res.ok) throw new Error("Failed to fetch application");
       return res.json();
     },
@@ -495,7 +497,9 @@ export default function AffiliateDashboard() {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['/api/affiliate/stats', user?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/affiliate/stats?userId=${user?.id}`);
+      const response = await fetch(`/api/affiliate/stats?userId=${user?.id}`, {
+        credentials: 'include',
+      });
       if (!response.ok) throw new Error('Failed to fetch stats');
       return response.json();
     },
@@ -516,7 +520,9 @@ export default function AffiliateDashboard() {
   const { data: wallet, isLoading: walletLoading } = useQuery({
     queryKey: ["/api/affiliate/wallet", user.id],
     queryFn: async () => {
-      const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`);
+      const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`, {
+        credentials: 'include',
+      });
       if (!res.ok) throw new Error("Failed to fetch wallet");
       return res.json();
     },
@@ -533,7 +539,9 @@ export default function AffiliateDashboard() {
   const { data: clicksData, isLoading: clicksLoading } = useQuery({
     queryKey: ["/api/affiliate/clicks", user.id],
     queryFn: async () => {
-      const res = await fetch(`/api/affiliate/clicks?userId=${user.id}`);
+      const res = await fetch(`/api/affiliate/clicks?userId=${user.id}`, {
+        credentials: 'include',
+      });
       if (!res.ok) throw new Error("Failed to fetch clicks");
       return res.json();
     },
@@ -560,7 +568,9 @@ export default function AffiliateDashboard() {
       }
 
       // Fetch clicks data
-      const clicksRes = await fetch(`/api/affiliate/clicks?userId=${user.id}`);
+      const clicksRes = await fetch(`/api/affiliate/clicks?userId=${user.id}`, {
+        credentials: 'include',
+      });
       if (clicksRes.ok) {
         const clicksData = await clicksRes.json();
         setClicks(clicksData);
@@ -568,7 +578,9 @@ export default function AffiliateDashboard() {
 
       // Fetch sales data
       setLoadingSales(true);
-      const salesRes = await fetch(`/api/affiliate/sales?userId=${user.id}`);
+      const salesRes = await fetch(`/api/affiliate/sales?userId=${user.id}`, {
+        credentials: 'include',
+      });;
       if (salesRes.ok) {
         const salesData = await salesRes.json();
         setSales(salesData);

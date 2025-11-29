@@ -541,6 +541,37 @@ export default function OfferDetail() {
     }
   }, [reviewEligibility]);
 
+  // Track affiliate click if ref parameter exists
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    // Support multiple affiliate parameter formats: ref=CODE, CODE (first param as value), or direct parameter
+    let affiliateRef = urlParams.get('ref');
+    
+    // If no 'ref' parameter, check for direct affiliate code (e.g., ?POPPIKAP12)
+    if (!affiliateRef) {
+      const searchString = window.location.search.substring(1); // Remove the ?
+      if (searchString && /^[A-Z0-9]+/.test(searchString)) {
+        affiliateRef = searchString.split('&')[0]; // Get first query param value
+      }
+    }
+
+    if (affiliateRef && offer?.id) {
+      // Track the click
+      fetch('/api/affiliate/track-click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          affiliateCode: affiliateRef,
+          offerId: offer.id,
+        }),
+      }).catch(err => console.error('Error tracking affiliate click:', err));
+
+      // Store in localStorage for checkout
+      localStorage.setItem('affiliateRef', affiliateRef);
+    }
+  }, [offer?.id]);
+
   // Check if offer is in wishlist on component mount
   useEffect(() => {
     if (offer?.id) {

@@ -75,7 +75,9 @@ export default function TrackOrderPage() {
 
     try {
       // Try Shiprocket tracking first
-      let response = await fetch(`/api/orders/${trackingOrderId}/track-shiprocket`);
+      let response = await fetch(`/api/orders/${trackingOrderId}/track-shiprocket`, {
+        credentials: 'include',
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -83,7 +85,9 @@ export default function TrackOrderPage() {
         // Check if there's an error (like "not shipped through Shiprocket")
         if (data.error && data.hasShiprocketTracking === false) {
           // Fall back to regular tracking
-          response = await fetch(`/api/orders/${trackingOrderId}/tracking`);
+          response = await fetch(`/api/orders/${trackingOrderId}/tracking`, {
+            credentials: 'include',
+          });
           
           if (response.ok) {
             const regularData = await response.json();

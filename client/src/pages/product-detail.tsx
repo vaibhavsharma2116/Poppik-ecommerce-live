@@ -299,13 +299,23 @@ export default function ProductDetail() {
   useEffect(() => {
     // Track affiliate click if ref parameter exists
     const urlParams = new URLSearchParams(window.location.search);
-    const affiliateRef = urlParams.get('ref');
+    // Support multiple affiliate parameter formats: ref=CODE, CODE (first param as value), or direct parameter
+    let affiliateRef = urlParams.get('ref');
+    
+    // If no 'ref' parameter, check for direct affiliate code (e.g., ?POPPIKAP12)
+    if (!affiliateRef) {
+      const searchString = window.location.search.substring(1); // Remove the ?
+      if (searchString && /^[A-Z0-9]+/.test(searchString)) {
+        affiliateRef = searchString.split('&')[0]; // Get first query param value
+      }
+    }
 
     if (affiliateRef && product?.id) {
       // Track the click
       fetch('/api/affiliate/track-click', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           affiliateCode: affiliateRef,
           productId: product.id,
@@ -586,6 +596,7 @@ export default function ProductDetail() {
 
       const response = await fetch(`/api/products/${product.id}/reviews`, {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       });
 

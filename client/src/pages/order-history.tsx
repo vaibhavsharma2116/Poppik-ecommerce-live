@@ -69,6 +69,7 @@ export default function OrderHistory() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -116,6 +117,7 @@ export default function OrderHistory() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ userId }),
       });
 

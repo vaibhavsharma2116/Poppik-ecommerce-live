@@ -1272,7 +1272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Affiliate Click Tracking - Track when someone clicks an affiliate link
   app.post("/api/affiliate/track-click", async (req, res) => {
     try {
-      const { affiliateCode, productId, comboId, ipAddress, userAgent, referrer } = req.body;
+      const { affiliateCode, productId, comboId, offerId, ipAddress, userAgent, referrer } = req.body;
 
       if (!affiliateCode) {
         return res.status(400).json({ error: "Affiliate code is required" });
@@ -1311,7 +1311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         converted: false
       }).returning();
 
-      console.log(`✅ Affiliate click tracked: Code ${affiliateCode}, Product ${productId || 'N/A'}, Combo ${comboId || 'N/A'}`);
+      console.log(`✅ Affiliate click tracked: Code ${affiliateCode}, Product ${productId || 'N/A'}, Combo ${comboId || 'N/A'}, Offer ${offerId || 'N/A'}`);
 
       res.json({
         success: true,
@@ -4809,6 +4809,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/orders", async (req, res) => {
     try {
       console.log("Creating new order:", req.body);
+      console.log("📍 Cookies received in order request:", (req as any).cookies);
 
       const { 
         userId, 
@@ -4828,6 +4829,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If affiliate code not provided in the body, try to read from cookie set by affiliate links
       const cookieAffiliate = (req as any).cookies?.affiliate_id || (req as any).cookies?.affiliate_code || null;
+      console.log("🔗 Affiliate from cookie:", cookieAffiliate, "| From body:", affiliateCode);
       const effectiveAffiliateCode = affiliateCode || cookieAffiliate || null;
 
       // Validation
@@ -4867,23 +4869,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('✅ Order created successfully:', newOrder.id);
 
-      // Credit commission earned by current user (if they have affiliate commission)
-      // No need to check if user is an affiliate - just credit the commission if they earned it
+      // Credit commission earned — prefer affiliate from link (cookie) instead of current user
       if (affiliateCommissionEarned && affiliateCommissionEarned > 0) {
         try {
-          console.log(`🔍 Processing affiliate commission earned by current user (${userId}): ₹${affiliateCommissionEarned}`);
+          // Decide recipient: prefer affiliate from effectiveAffiliateCode (if present), otherwise current user
+          let recipientUserId: number | null = null;
+          if (effectiveAffiliateCode && typeof effectiveAffiliateCode === 'string' && effectiveAffiliateCode.startsWith('POPPIKAP')) {
+            const parsed = parseInt(effectiveAffiliateCode.replace('POPPIKAP', ''));
+            if (!isNaN(parsed)) recipientUserId = parsed;
+          }
+          if (recipientUserId === null) recipientUserId = Number(userId);
 
-          // Get or create affiliate wallet for current user
+          console.log(`🔍 Crediting affiliate commission ₹${affiliateCommissionEarned} to user ${recipientUserId} (source order by user ${userId})`);
+
+          // Get or create affiliate wallet for recipient
           let userWallet = await db
             .select()
             .from(schema.affiliateWallet)
-            .where(eq(schema.affiliateWallet.userId, Number(userId)))
+            .where(eq(schema.affiliateWallet.userId, Number(recipientUserId)))
             .limit(1);
 
           if (userWallet.length === 0) {
-            console.log(`📝 Creating new affiliate wallet for user ${userId}`);
+            console.log(`📝 Creating new affiliate wallet for user ${recipientUserId}`);
             const [newWallet] = await db.insert(schema.affiliateWallet).values({
-              userId: Number(userId),
+              userId: Number(recipientUserId),
               cashbackBalance: "0.00",
               commissionBalance: affiliateCommissionEarned.toFixed(2),
               totalEarnings: affiliateCommissionEarned.toFixed(2),
@@ -4891,9 +4900,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               createdAt: new Date(),
               updatedAt: new Date()
             }).returning();
-            console.log(`✅ Affiliate wallet created for user ${userId} with commission: ₹${affiliateCommissionEarned.toFixed(2)}`, newWallet);
+            console.log(`✅ Affiliate wallet created for user ${recipientUserId} with commission: ₹${affiliateCommissionEarned.toFixed(2)}`, newWallet);
           } else {
-            console.log(`📝 Updating existing affiliate wallet for user ${userId}`);
+            console.log(`📝 Updating existing affiliate wallet for user ${recipientUserId}`);
             const currentCommission = parseFloat(userWallet[0].commissionBalance || '0');
             const currentEarnings = parseFloat(userWallet[0].totalEarnings || '0');
             const newCommission = currentCommission + Number(affiliateCommissionEarned);
@@ -4907,20 +4916,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 totalEarnings: newEarnings.toFixed(2),
                 updatedAt: new Date()
               })
-              .where(eq(schema.affiliateWallet.userId, Number(userId)))
+              .where(eq(schema.affiliateWallet.userId, Number(recipientUserId)))
               .returning();
 
-            console.log(`✅ Affiliate wallet updated for user ${userId}: Commission ₹${newCommission.toFixed(2)}, Total Earnings ₹${newEarnings.toFixed(2)}`, updatedWallet);
+            console.log(`✅ Affiliate wallet updated for user ${recipientUserId}: Commission ₹${newCommission.toFixed(2)}, Total Earnings ₹${newEarnings.toFixed(2)}`, updatedWallet);
           }
 
           // Add transaction record for earned commission
           const [txRecord] = await db.insert(schema.affiliateTransactions).values({
-            userId: Number(userId),
+            userId: Number(recipientUserId),
             orderId: newOrder.id,
             type: 'commission',
             amount: affiliateCommissionEarned.toFixed(2),
             balanceType: 'commission',
-            description: `Commission earned from own purchase - Order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+            description: `Commission credited from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
             status: 'completed',
             transactionId: null,
             notes: null,
@@ -4928,7 +4937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             createdAt: new Date()
           }).returning();
 
-          console.log(`✅ Commission earned credit: ₹${affiliateCommissionEarned.toFixed(2)} credited to user ${userId} for order ${newOrder.id}`, txRecord);
+          console.log(`✅ Commission credit recorded: ₹${affiliateCommissionEarned.toFixed(2)} to user ${recipientUserId} for order ${newOrder.id}`, txRecord);
         } catch (commissionError) {
           console.error(`❌ Error processing affiliate commission earned:`, commissionError);
           // Continue with order creation even if commission credit fails

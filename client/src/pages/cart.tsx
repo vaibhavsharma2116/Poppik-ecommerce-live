@@ -98,7 +98,9 @@ export default function Cart() {
     queryKey: ['/api/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const res = await fetch(apiUrl(`/api/wallet?userId=${user.id}`));
+      const res = await fetch(apiUrl(`/api/wallet?userId=${user.id}`), {
+        credentials: 'include',
+      });
       if (!res.ok) return null;
       return res.json();
     },
@@ -110,7 +112,9 @@ export default function Cart() {
     queryKey: ['/api/affiliate/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const res = await fetch(apiUrl(`/api/affiliate/wallet?userId=${user.id}`));
+      const res = await fetch(apiUrl(`/api/affiliate/wallet?userId=${user.id}`), {
+        credentials: 'include',
+      });
       if (!res.ok) return null;
       return res.json();
     },
@@ -122,7 +126,9 @@ export default function Cart() {
     queryKey: ['/api/affiliate/my-application', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const res = await fetch(`/api/affiliate/my-application?userId=${user.id}`);
+      const res = await fetch(`/api/affiliate/my-application?userId=${user.id}`, {
+        credentials: 'include',
+      });
       if (!res.ok) return null;
       return res.json();
     },
@@ -391,6 +397,7 @@ export default function Cart() {
       const response = await fetch('/api/promo-codes/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           code: code.toUpperCase(),
           cartTotal: cartSubtotal,
@@ -664,6 +671,9 @@ export default function Cart() {
       localStorage.removeItem('affiliateCommissionEarned');
     }
 
+    // Get affiliate code from localStorage if it exists (set when visiting product page with affiliate link)
+    const affiliateRef = localStorage.getItem('affiliateRef');
+
     // Remove old static affiliate discount logic - everything is now dynamic
     localStorage.removeItem('affiliateCode');
     localStorage.removeItem('affiliateDiscount');
@@ -675,6 +685,7 @@ export default function Cart() {
         affiliateWalletAmount,
         promoCode: appliedPromo,
         promoDiscount: generalPromoDiscount,
+        affiliateCode: affiliateRef || "", // Pass affiliate code from localStorage
         affiliateCommissionFromItems: totalAffiliateCommissionFromItems,
         affiliateDiscountFromItems: totalAffiliateDiscountFromItems,
       }

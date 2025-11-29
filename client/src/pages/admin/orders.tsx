@@ -237,6 +237,7 @@ export default function AdminOrders() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ status: newStatus }),
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -275,6 +276,7 @@ export default function AdminOrders() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ trackingNumber }),
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -313,6 +315,7 @@ export default function AdminOrders() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ status }),
+        credentials: 'include',
       });
 
       if (response.ok) {

@@ -326,7 +326,8 @@ export default function CheckoutPage() {
     zipCode: "",
     phone: "",
     paymentMethod: "cashfree",
-    affiliateCode: passedAffiliateCode || "",
+    // Priority: passed affiliate code > localStorage affiliateRef
+    affiliateCode: passedAffiliateCode || localStorage.getItem('affiliateRef') || "",
     // Prefer explicit affiliateDiscount passed via location, otherwise fallback to discount from items
     affiliateDiscount: passedAffiliateDiscount || passedAffiliateDiscountFromItems || 0,
     deliveryInstructions: "", // Added state for delivery instructions
@@ -396,7 +397,9 @@ export default function CheckoutPage() {
     queryKey: ['/api/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const res = await fetch(`/api/wallet?userId=${user.id}`);
+      const res = await fetch(`/api/wallet?userId=${user.id}`, {
+        credentials: 'include',
+      });
       if (!res.ok) throw new Error('Failed to fetch wallet');
       return res.json();
     },
@@ -408,7 +411,9 @@ export default function CheckoutPage() {
     queryKey: ['/api/affiliate/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`);
+      const res = await fetch(`/api/affiliate/wallet?userId=${user.id}`, {
+        credentials: 'include',
+      });
       if (!res.ok) return null;
       return res.json();
     },
@@ -466,7 +471,9 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
     // Fetch saved addresses
     const fetchAddresses = async () => {
       try {
-        const response = await fetch(apiUrl(`/api/delivery-addresses?userId=${user.id}`));
+        const response = await fetch(apiUrl(`/api/delivery-addresses?userId=${user.id}`), {
+          credentials: 'include',
+        });
         if (response.ok) {
           const addresses = await response.json();
           setSavedAddresses(addresses);
@@ -589,7 +596,9 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         const userData = user;
 
         // Get order count for this affiliate code
-        fetch(`/api/orders/count?userId=${userData.id}&affiliateCode=${affiliateRef}`)
+        fetch(`/api/orders/count?userId=${userData.id}&affiliateCode=${affiliateRef}`, {
+          credentials: 'include',
+        })
           .then(res => res.json())
           .then(data => {
             const orderCount = data.count || 0;
@@ -782,6 +791,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       const response = await fetch(apiUrl('/api/payments/cashfree/verify'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ orderId: orderIdParam }),
       });
 
@@ -1220,6 +1230,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           userId: user.id,
           recipientName: newAddressData.fullName,
@@ -1310,6 +1321,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       const res = await fetch(apiUrl('/api/wallet/redeem'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           userId: user.id,
           amount: redeemAmount,
@@ -1397,6 +1409,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       const response = await fetch(apiUrl('/api/payments/cashfree/create-order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           amount: Math.round(total),
           orderId: orderId,
@@ -1764,6 +1777,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
               headers: {
                 'Content-Type': 'application/json',
               },
+              credentials: 'include',
               body: JSON.stringify({
                 userId: user.id,
                 amount: redeemAmount,
@@ -1795,7 +1809,12 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           response = await fetch("/api/orders", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(orderData),
+            body: JSON.stringify({
+              ...orderData,
+              // Ensure affiliate code is included in the request
+              affiliateCode: formData.affiliateCode || null,
+            }),
+            credentials: 'include',
           });
 
           if (!response.ok) {
@@ -1814,6 +1833,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
               await fetch(apiUrl('/api/affiliate/transactions'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
                   userId: user.id,
                   type: 'redemption',
@@ -2811,52 +2831,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                       </Button>
                     </div>
 
-                    {/* Affiliate Wallet Section - Show if user has affiliate wallet balance */}
-                    {affiliateWalletData?.commissionBalance && parseFloat(affiliateWalletData.commissionBalance) > 0 && (
-                      <div className="mt-6 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <Award className="h-5 w-5 text-purple-600" />
-                            <div>
-                              <p className="font-semibold text-purple-900">Affiliate Wallet Balance</p>
-                              <p className="text-sm text-purple-700">Use your commission earned from referrals</p>
-                            </div>
-                          </div>
-                          <span className="text-lg font-bold text-purple-600">₹{parseFloat(affiliateWalletData.commissionBalance).toFixed(2)}</span>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              id="useAffiliateWallet"
-                              checked={affiliateWalletAmount > 0}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setAffiliateWalletAmount(parseFloat(affiliateWalletData.commissionBalance));
-                                } else {
-                                  setAffiliateWalletAmount(0);
-                                }
-                              }}
-                              className="w-4 h-4 rounded cursor-pointer"
-                            />
-                            <Label htmlFor="useAffiliateWallet" className="cursor-pointer text-purple-900 font-medium">
-                              Use affiliate wallet balance
-                            </Label>
-                          </div>
-
-                          {affiliateWalletAmount > 0 && (
-                            <div className="bg-purple-100 p-3 rounded border border-purple-300">
-                              <div className="flex justify-between items-center text-sm">
-                                <span className="text-purple-800 font-medium">Amount to be deducted:</span>
-                                <span className="font-bold text-purple-900">₹{affiliateWalletAmount.toFixed(2)}</span>
-                              </div>
-                              <p className="text-xs text-purple-700 mt-2">This amount will be deducted from your total bill</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                 
                   </CardContent>
                 </Card>
               )}

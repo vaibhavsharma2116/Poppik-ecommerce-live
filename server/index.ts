@@ -45,7 +45,10 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-app.use(cors());
+app.use(cors({
+  credentials: true,
+  origin: process.env.CLIENT_URL || 'http://localhost:5173'
+}));
 
 // Aggressive compression
 app.use(compression({
