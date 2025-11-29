@@ -65,47 +65,27 @@ export default function ChannelPartnerPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section */}
-      <section className="relative py-8 xs:py-10 sm:py-12 md:py-16 lg:py-20 xl:py-24 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00eiIvPjwvZz48L2c+PC9zdmc+')] bg-repeat"></div>
-        </div>
-        
-        <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center">
-            <div className="inline-flex items-center gap-1 xs:gap-1.5 sm:gap-2 bg-white/20 backdrop-blur-sm px-2 xs:px-3 sm:px-4 py-1 xs:py-1.5 sm:py-2 rounded-full mb-3 xs:mb-4 sm:mb-5 md:mb-6">
-              <Handshake className="w-3 h-3 xs:w-3.5 xs:h-3.5 sm:w-4 sm:h-4 text-white" />
-              <span className="text-white text-[10px] xs:text-xs sm:text-sm font-medium">Exclusive Partnership Opportunity</span>
+    
+        <div className="mb-4 xs:mb-5 sm:mb-6 md:mb-8">
+          <a href="https://docs.google.com/forms/d/e/1FAIpQLScXcgR5MUHnlCHsV56rTrLwxvRDYv4bjU96tgxyu5qg-On2bw/viewform?usp=send_form" target="_blank" rel="noopener noreferrer" className="relative w-full overflow-hidden rounded-2xl shadow-2xl block">
+            <img 
+              src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2000&auto=format&fit=crop"
+              alt="Join Our Team at Poppik" 
+              className="w-full h-auto object-cover"
+              style={{ maxHeight: '500px' }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end">
+              <div className="p-4 xs:p-6 sm:p-8 md:p-10 lg:p-12 w-full">
+                <h2 className="text-white text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 xs:mb-3 sm:mb-4">
+                  Join Our Channel Partner Team At Poppik
+                </h2>
+                <p className="text-white/90 text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl">
+                  Be part of something amazing. Build your career with Poppik Lifestyle.
+                </p>
+              </div>
             </div>
-            
-            <h1 className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-3 xs:mb-4 sm:mb-5 md:mb-6 px-2 leading-tight">
-              Join as a Channel Partner
-            </h1>
-            
-            <p className="text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl text-white/90 mb-4 xs:mb-5 sm:mb-6 md:mb-8 max-w-2xl mx-auto px-3 xs:px-4 leading-relaxed">
-              Build your business empire with Poppik. Become our authorized channel partner and unlock unlimited earning potential
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-2 xs:gap-3 sm:gap-4 justify-center px-2 xs:px-3">
-              <Button 
-                onClick={() => window.open('https://forms.gle/FBpJH1oZ1aKaNGhE6', '_blank')}
-                size="lg"
-                className="bg-white text-purple-600 hover:bg-pink-50 font-semibold text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
-              >
-                Apply for Partnership
-              </Button>
-              <Button 
-                onClick={() => document.getElementById('benefits')?.scrollIntoView({ behavior: 'smooth' })}
-                size="lg"
-                variant="outline" 
-                className="border-2 border-white text-purple-600 font-semibold hover:bg-white/10 text-xs xs:text-sm sm:text-base px-4 xs:px-5 sm:px-6 py-2 xs:py-2.5 sm:py-3 min-h-[36px] xs:min-h-[40px]"
-              >
-                Explore Benefits
-              </Button>
-            </div>
-          </div>
+          </a>
         </div>
-      </section>
 
       {/* Stats Section */}
       {/* <section className="py-12 bg-gray-50 border-y">

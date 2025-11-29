@@ -13,7 +13,6 @@ import { Gift, TrendingUp, Users, Sparkles, Award, Target, Star, Zap, Heart, Glo
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { ArrowRight } from "lucide-react";
-import { Link } from "wouter";
 import INFLUENCER_Image from "@/assets/INFLUENCER BANNER-02.jpg";
 import INFLUENCER_Image1 from "@/assets/INFLUENCER BANNER-03.jpg";
 
@@ -235,7 +234,7 @@ export default function InfluencerCollabPage() {
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="relative w-full">
+        <div className="relative w-full cursor-pointer" onClick={() => window.open('https://forms.gle/yLGN34wRPc8hKsd29', '_blank')}>
           <img
             src={INFLUENCER_Image}
             alt="Become a Poppik Influencer"
@@ -460,7 +459,7 @@ export default function InfluencerCollabPage() {
       {/* CTA Section - Removed as it's redundant with the new Apply Button Section */}
       <section className=" bg-white">
         <div className="max-w-12xl ">
-          <div className="relative overflow-hidden rounded-lg sm:rounded-xl">
+          <div className="relative overflow-hidden rounded-lg sm:rounded-xl cursor-pointer" onClick={() => window.open('https://forms.gle/yLGN34wRPc8hKsd29', '_blank')}>
             <img
               src={INFLUENCER_Image1}
               alt="Poppik makeup products showcase"
