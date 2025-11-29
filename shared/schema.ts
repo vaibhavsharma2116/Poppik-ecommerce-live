@@ -991,3 +991,105 @@ export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;
 export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true });
 export const selectPushSubscriptionSchema = createSelectSchema(pushSubscriptions);
+
+
+export const adminActivityLogs = pgTable("admin_activity_logs", {
+  id: serial("id").primaryKey(),
+  adminId: integer("admin_id").notNull().references(() => users.id),
+  action: varchar("action", { length: 100 }).notNull(),
+  module: varchar("module", { length: 50 }).notNull(),
+  description: text("description").notNull(),
+  targetType: varchar("target_type", { length: 50 }),
+  targetId: integer("target_id"),
+  oldValue: jsonb("old_value"),
+  newValue: jsonb("new_value"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  status: varchar("status", { length: 20 }).default("success"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AdminActivityLog = typeof adminActivityLogs.$inferSelect;
+export type InsertAdminActivityLog = typeof adminActivityLogs.$inferInsert;
+
+// System Settings - Master Admin can control all system settings
+export const systemSettings = pgTable("system_settings", {
+  id: serial("id").primaryKey(),
+  settingKey: varchar("setting_key", { length: 100 }).notNull().unique(),
+  settingValue: text("setting_value"),
+  settingType: varchar("setting_type", { length: 20 }).default("string"),
+  category: varchar("category", { length: 50 }).notNull(),
+  description: text("description"),
+  isEditable: boolean("is_editable").default(true),
+  lastModifiedBy: integer("last_modified_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type SystemSetting = typeof systemSettings.$inferSelect;
+export type InsertSystemSetting = typeof systemSettings.$inferInsert;
+
+// Admin Permissions - Role-based access control
+export const adminPermissions = pgTable("admin_permissions", {
+  id: serial("id").primaryKey(),
+  role: varchar("role", { length: 30 }).notNull(),
+  module: varchar("module", { length: 50 }).notNull(),
+  canCreate: boolean("can_create").default(false),
+  canRead: boolean("can_read").default(true),
+  canUpdate: boolean("can_update").default(false),
+  canDelete: boolean("can_delete").default(false),
+  canExport: boolean("can_export").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type AdminPermission = typeof adminPermissions.$inferSelect;
+export type InsertAdminPermission = typeof adminPermissions.$inferInsert;
+
+// Login History - Track all login attempts
+export const loginHistory = pgTable("login_history", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  email: varchar("email", { length: 255 }).notNull(),
+  loginStatus: varchar("login_status", { length: 20 }).notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  location: varchar("location", { length: 100 }),
+  failureReason: text("failure_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type LoginHistory = typeof loginHistory.$inferSelect;
+export type InsertLoginHistory = typeof loginHistory.$inferInsert;
+
+// Feature Toggles - Master Admin can enable/disable features
+export const featureToggles = pgTable("feature_toggles", {
+  id: serial("id").primaryKey(),
+  featureKey: varchar("feature_key", { length: 100 }).notNull().unique(),
+  featureName: varchar("feature_name", { length: 100 }).notNull(),
+  description: text("description"),
+  isEnabled: boolean("is_enabled").default(true),
+  enabledForRoles: jsonb("enabled_for_roles").$type<string[]>().default([]),
+  lastModifiedBy: integer("last_modified_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type FeatureToggle = typeof featureToggles.$inferSelect;
+export type InsertFeatureToggle = typeof featureToggles.$inferInsert;
+
+// Backup Logs - Track system backups
+export const backupLogs = pgTable("backup_logs", {
+  id: serial("id").primaryKey(),
+  backupType: varchar("backup_type", { length: 50 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull(),
+  fileSize: integer("file_size"),
+  filePath: text("file_path"),
+  initiatedBy: integer("initiated_by").references(() => users.id),
+  completedAt: timestamp("completed_at"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type BackupLog = typeof backupLogs.$inferSelect;
+export type InsertBackupLog = typeof backupLogs.$inferInsert;

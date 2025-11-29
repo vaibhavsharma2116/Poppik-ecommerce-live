@@ -184,6 +184,7 @@ function Router() {
         <AdminLayout>
           <Switch>
             <Route path="/" component={AdminDashboard} />
+            <Route path="/" component={AdminDashboard} />
             <Route path="/products" component={AdminProducts} />
             <Route path="/categories" component={AdminCategories} />
             <Route path="/orders" component={AdminOrders} />
@@ -216,6 +217,12 @@ function Router() {
             <Route path="/announcements" component={AdminAnnouncements} />
             <Route path="/shades" component={AdminShades} />
             <Route path="/featured-sections" component={AdminFeaturedSections} />
+            
+            {/* Master Admin Routes */}
+            <Route path="/master" component={() => <LazyRoute component={lazy(() => import("./pages/admin/master-admin-dashboard"))} />} />
+            <Route path="/master/users" component={() => <LazyRoute component={lazy(() => import("./pages/admin/master-admin-users"))} />} />
+            <Route path="/master/settings" component={() => <LazyRoute component={lazy(() => import("./pages/admin/master-admin-settings"))} />} />
+            <Route path="/master/logs" component={() => <LazyRoute component={lazy(() => import("./pages/admin/master-admin-activity-logs"))} />} />
             <Route path="/reports" component={() => <LazyRoute component={AdminReports} />} />
             <Route path="/media" component={() => <LazyRoute component={AdminMedia} />} />
             <Route component={NotFound} />

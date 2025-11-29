@@ -42,8 +42,8 @@ export const adminAuthMiddleware = (req: AuthenticatedRequest, res: Response, ne
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as any;
 
-      // Check if user has admin role
-      if (decoded.role !== 'admin') {
+      // Check if user has admin or master_admin role
+      if (decoded.role !== 'admin' && decoded.role !== 'master_admin') {
         return res.status(403).json({ error: "Access denied. Admin privileges required." });
       }
 

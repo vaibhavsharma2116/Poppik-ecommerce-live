@@ -29,7 +29,8 @@ import {
   Palette,
   Wallet,
   Tag, // Added Tag icon for promo codes
-  Gift // Added Gift icon for gift settings
+  Gift, // Added Gift icon for gift settings
+  Shield // Added Shield icon for master admin
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -232,6 +233,34 @@ const sidebarItems = [
   },
 ];
 
+// Master Admin only items
+const masterAdminItems = [
+  {
+    title: "Master Dashboard",
+    href: "/master",
+    icon: Shield,
+    badge: null,
+  },
+  {
+    title: "User Management",
+    href: "/master/users",
+    icon: Users,
+    badge: null,
+  },
+  {
+    title: "System Settings",
+    href: "/master/settings",
+    icon: Settings,
+    badge: null,
+  },
+  {
+    title: "Activity Logs",
+    href: "/master/logs",
+    icon: Activity,
+    badge: null,
+  },
+];
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -261,9 +290,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       try {
         const user = JSON.parse(userStr);
 
-        // Check if user is admin
-        if (user.role !== 'admin') {
-          console.log('User is not admin, redirecting to home page');
+        // Check if user is admin or master_admin
+        if (user.role !== 'admin' && user.role !== 'master_admin') {
+          console.log('User is not admin or master_admin, redirecting to home page');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           setLocation('/');
@@ -288,8 +317,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         const validationResult = await response.json();
 
         // Double check role from server response
-        if (validationResult.user.role !== 'admin') {
-          console.log('User role is not admin, redirecting to home page');
+        if (validationResult.user.role !== 'admin' && validationResult.user.role !== 'master_admin') {
+          console.log('User role is not admin or master_admin, redirecting to home page');
           setLocation('/');
           return;
         }
@@ -311,7 +340,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
-    setLocation('/auth/admin-login');
+    setLocation('/admin/auth/admin-login');
   };
 
   // Global keyboard shortcut for search
@@ -446,6 +475,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto scrollbar-custom">
+          {/* Regular Admin Items */}
           {sidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = location === item.href;
@@ -475,6 +505,62 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </Link>
             );
           })}
+
+          {/* Master Admin Section */}
+          {(() => {
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+              try {
+                const user = JSON.parse(userStr);
+                if (user.role === 'master_admin') {
+                  return (
+                    <>
+                      <div className="px-3 py-2 mt-4">
+                        {!sidebarCollapsed && (
+                          <div className="flex items-center gap-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
+                            <Shield className="h-4 w-4" />
+                            <span>Master Admin</span>
+                          </div>
+                        )}
+                      </div>
+                      {masterAdminItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location === item.href;
+
+                        return (
+                          <Link
+                            key={item.href}
+                            to={item.href}
+                            className={cn(
+                              "group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200",
+                              isActive
+                                ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-white border border-purple-500/30 shadow-lg"
+                                : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
+                            )}
+                          >
+                            <Icon className={cn("flex-shrink-0 transition-colors", sidebarCollapsed ? "w-6 h-6" : "w-5 h-5 mr-4")} />
+                            {!sidebarCollapsed && (
+                              <>
+                                <span className="flex-1">{item.title}</span>
+                                {item.badge && (
+                                  <Badge variant="secondary" className="ml-auto bg-slate-700 text-slate-300 text-xs">
+                                    {item.badge}
+                                  </Badge>
+                                )}
+                              </>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </>
+                  );
+                }
+              } catch (error) {
+                console.error('Error parsing user data:', error);
+              }
+            }
+            return null;
+          })()}
         </nav>
 
         {/* Footer */}
