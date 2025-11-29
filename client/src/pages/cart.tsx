@@ -1188,11 +1188,7 @@ export default function Cart() {
                     </div>
                   )}
 
-                  {appliedMilestone && (
-                    <div className="text-xs text-pink-600 bg-pink-50 p-2 rounded">
-                      🎁 You've unlocked {appliedMilestone.giftCount} gift{appliedMilestone.giftCount > 1 ? 's' : ''} with this order!
-                    </div>
-                  )}
+                
 
                   {walletAmount > 0 && (
                     <div className="flex items-center justify-between text-sm">
