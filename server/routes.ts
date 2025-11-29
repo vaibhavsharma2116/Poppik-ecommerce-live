@@ -4640,6 +4640,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== GIFT MILESTONES ROUTES ====================
+
+  // Get all gift milestones
+  app.get("/api/admin/gift-milestones", adminMiddleware, async (req, res) => {
+    try {
+      const milestones = await db
+        .select()
+        .from(schema.giftMilestones)
+        .orderBy(asc(schema.giftMilestones.sortOrder));
+      res.json(milestones);
+    } catch (error) {
+      console.error("Error fetching gift milestones:", error);
+      res.status(500).json({ error: "Failed to fetch gift milestones" });
+    }
+  });
+
+  // Get active gift milestones (public)
+  app.get("/api/gift-milestones", async (req, res) => {
+    try {
+      const milestones = await db
+        .select()
+        .from(schema.giftMilestones)
+        .where(eq(schema.giftMilestones.isActive, true))
+        .orderBy(asc(schema.giftMilestones.sortOrder));
+      res.json(milestones);
+    } catch (error) {
+      console.error("Error fetching active gift milestones:", error);
+      res.status(500).json({ error: "Failed to fetch gift milestones" });
+    }
+  });
+
+  // Create new gift milestone
+  app.post("/api/admin/gift-milestones", adminMiddleware, async (req, res) => {
+    try {
+      const { minAmount, maxAmount, giftCount, giftDescription, discountType, discountValue, cashbackPercentage, isActive, sortOrder } = req.body;
+
+      if (!minAmount || !giftCount) {
+        return res.status(400).json({ error: "Minimum amount and gift count are required" });
+      }
+
+      const [milestone] = await db
+        .insert(schema.giftMilestones)
+        .values({
+          minAmount: minAmount.toString(),
+          maxAmount: maxAmount ? maxAmount.toString() : null,
+          giftCount: parseInt(giftCount),
+          giftDescription: giftDescription || null,
+          discountType: discountType || "none",
+          discountValue: discountValue ? discountValue.toString() : null,
+          cashbackPercentage: cashbackPercentage ? cashbackPercentage.toString() : null,
+          isActive: isActive !== false && isActive !== "false",
+          sortOrder: sortOrder ? parseInt(sortOrder) : 0,
+        })
+        .returning();
+
+      res.status(201).json(milestone);
+    } catch (error) {
+      console.error("Error creating gift milestone:", error);
+      res.status(500).json({ error: "Failed to create gift milestone" });
+    }
+  });
+
+  // Update gift milestone
+  app.put("/api/admin/gift-milestones/:id", adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { minAmount, maxAmount, giftCount, giftDescription, discountType, discountValue, cashbackPercentage, isActive, sortOrder } = req.body;
+
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
+
+      if (minAmount) updateData.minAmount = minAmount.toString();
+      if (maxAmount !== undefined) updateData.maxAmount = maxAmount ? maxAmount.toString() : null;
+      if (giftCount) updateData.giftCount = parseInt(giftCount);
+      if (giftDescription !== undefined) updateData.giftDescription = giftDescription || null;
+      if (discountType) updateData.discountType = discountType;
+      if (discountValue !== undefined) updateData.discountValue = discountValue ? discountValue.toString() : null;
+      if (cashbackPercentage !== undefined) updateData.cashbackPercentage = cashbackPercentage ? cashbackPercentage.toString() : null;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      if (sortOrder !== undefined) updateData.sortOrder = parseInt(sortOrder);
+
+      const [updated] = await db
+        .update(schema.giftMilestones)
+        .set(updateData)
+        .where(eq(schema.giftMilestones.id, id))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ error: "Gift milestone not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating gift milestone:", error);
+      res.status(500).json({ error: "Failed to update gift milestone" });
+    }
+  });
+
+  // Delete gift milestone
+  app.delete("/api/admin/gift-milestones/:id", adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deleted] = await db
+        .delete(schema.giftMilestones)
+        .where(eq(schema.giftMilestones.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: "Gift milestone not found" });
+      }
+
+      res.json({ success: true, message: "Gift milestone deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting gift milestone:", error);
+      res.status(500).json({ error: "Failed to delete gift milestone" });
+    }
+  });
+
+  // ==================== END GIFT MILESTONES ROUTES ====================
 
 
   // Create new order (for checkout)

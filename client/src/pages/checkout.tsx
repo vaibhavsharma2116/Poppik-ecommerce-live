@@ -378,6 +378,11 @@ export default function CheckoutPage() {
   const [hasPromoCode, setHasPromoCode] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(passedPromoDiscount); // Initialize with passed value
 
+  // Gift milestone states
+  const [appliedGiftMilestone, setAppliedGiftMilestone] = useState<any>(null);
+  const [giftMilestoneDiscount, setGiftMilestoneDiscount] = useState(0);
+  const [giftMilestoneCashback, setGiftMilestoneCashback] = useState(0);
+
   // Get user from localStorage - must be before any hooks that use it
   const getCurrentUser = () => {
     const userStr = localStorage.getItem("user");
@@ -560,6 +565,21 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       }
     } else {
       setHasPromoCode(false);
+    }
+
+    // Load gift milestone from localStorage
+    const savedGiftMilestone = localStorage.getItem('appliedGiftMilestone');
+    if (savedGiftMilestone) {
+      try {
+        const giftMilestoneData = JSON.parse(savedGiftMilestone);
+        setAppliedGiftMilestone(giftMilestoneData);
+        setGiftMilestoneDiscount(giftMilestoneData.discountValue || 0);
+        setGiftMilestoneCashback(giftMilestoneData.cashbackAmount || 0);
+        console.log('✅ Loaded gift milestone from localStorage:', giftMilestoneData);
+      } catch (error) {
+        console.error('Error loading gift milestone:', error);
+        localStorage.removeItem('appliedGiftMilestone');
+      }
     }
 
     // Check for affiliate code in localStorage (fallback if not already set)
@@ -816,17 +836,16 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
   const calculateSubtotal = () => {
     return cartItems.reduce((total, item) => {
-      const price = item.price
-        ? parseInt(item.price.replace(/[₹,]/g, ""))
-        : 0;
+      const priceStr = item.originalPrice || item.price;
+      const price = parseFloat(String(priceStr).replace(/[₹,]/g, "")) || 0;
       return total + (price * item.quantity);
     }, 0);
   };
 
-  // Calculate product discounts
+  // Calculate product discounts - Same as cart
   const productDiscount = cartItems.reduce((total, item) => {
-    if (item.price) {
-      const original = parseInt(item.price.replace(/[₹,]/g, ""));
+    if (item.originalPrice) {
+      const original = parseInt(item.originalPrice.replace(/[₹,]/g, ""));
       const current = parseInt(item.price.replace(/[₹,]/g, ""));
       return total + ((original - current) * item.quantity);
     }
@@ -835,6 +854,25 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
   const cartSubtotal = calculateSubtotal();
   const cartSubtotalAfterProductDiscount = cartSubtotal - productDiscount;
+
+  // Calculate total affiliate discount and commission from cart items - Same as cart
+  const totalAffiliateDiscountFromItems = cartItems.reduce((total, item) => {
+    if (item.affiliateUserDiscount) {
+      return total + (Number(item.affiliateUserDiscount) * item.quantity);
+    }
+    return total;
+  }, 0);
+
+  const totalAffiliateCommissionFromItems = cartItems.reduce((total, item) => {
+    if (item.affiliateCommission) {
+      return total + (Number(item.affiliateCommission) * item.quantity);
+    }
+    return total;
+  }, 0);
+
+  // Affiliate discount is NOT applied on the cart page totals.
+  // The discount will be shown and deducted on the checkout page.
+  const subtotalAfterAffiliate = cartSubtotalAfterProductDiscount;
 
   // Read affiliate discount synchronously so it can be shown on initial render
   const initialAffiliateDiscount = (() => {
@@ -856,15 +894,20 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   })();
 
   // Use affiliate discount from formData (loaded from localStorage or passed value) or the initial value
-  const affiliateDiscountAmount = (formData.affiliateDiscount || passedAffiliateDiscount || initialAffiliateDiscount) || 0;
-  const subtotalAfterAffiliate = cartSubtotalAfterProductDiscount - affiliateDiscountAmount;
+  const affiliateDiscountAmount = (formData.affiliateDiscount || passedAffiliateDiscount || initialAffiliateDiscount || totalAffiliateDiscountFromItems) || 0;
 
-  const subtotalAfterDiscount = subtotalAfterAffiliate - promoDiscount;
+  // Calculate subtotal after product discount (before affiliate) - Same as cart
+  const subtotalAfterProductDiscount = cartSubtotalAfterProductDiscount;
+
+  // Subtotal for calculating gift milestone (after product discount, before affiliate)
+  const subtotalForGiftMilestone = subtotalAfterProductDiscount;
+
+  const subtotalAfterDiscount = subtotalAfterProductDiscount - affiliateDiscountAmount - promoDiscount - giftMilestoneDiscount;
 
   // Free shipping only if no promo code, no affiliate discount, and subtotal > 599
-  const shipping = (promoDiscount > 0 || affiliateDiscountAmount > 0)
+  const shipping = (promoDiscount > 0 || affiliateDiscountAmount > 0 || giftMilestoneDiscount > 0)
     ? shippingCost
-    : (subtotalAfterAffiliate > 599 ? 0 : shippingCost);
+    : (subtotalAfterProductDiscount > 599 ? 0 : shippingCost);
 
   // Calculate total before redemption (same as cart page)
   const totalBeforeRedemption = subtotalAfterDiscount + shipping;
@@ -2826,39 +2869,63 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-            <span className="font-medium">₹{cartSubtotal.toLocaleString()}</span>
-          </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Subtotal (Original Price) ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
+                      <span className="font-medium">₹{cartSubtotal.toLocaleString()}</span>
+                    </div>
+
+                    {productDiscount > 0 && (
+                      <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                        <span className="text-green-700 font-medium">Product Discount</span>
+                        <span className="font-bold text-green-600">-₹{productDiscount.toLocaleString()}</span>
+                      </div>
+                    )}
 
                     {affiliateDiscountAmount > 0 && (
-                      <div className="flex justify-between text-sm bg-purple-50 p-2 rounded border-l-4 border-purple-500">
-                        <div>
-                          <span className="text-purple-700 font-medium">🎁 Affiliate Discount</span>
-                          <p className="text-xs text-purple-600">Applied from affiliate link</p>
-                        </div>
-                        <span className="font-semibold text-purple-600">-₹{Math.round(affiliateDiscountAmount).toLocaleString()}</span>
+                      <div className="flex justify-between text-sm bg-purple-50 p-2 rounded">
+                        <span className="text-purple-700 font-medium">Affiliate Discount</span>
+                        <span className="font-bold text-purple-600">-₹{Math.round(affiliateDiscountAmount).toLocaleString()}</span>
                       </div>
                     )}
 
                     {promoDiscount > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span>Promo Discount</span>
-                        <span className="font-semibold">-₹{promoDiscount.toLocaleString()}</span>
+                      <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                        <span className="text-green-700 font-medium">Promo Discount</span>
+                        <span className="font-bold text-green-600">-₹{promoDiscount.toLocaleString()}</span>
+                      </div>
+                    )}
+
+                    {giftMilestoneDiscount > 0 && (
+                      <div className="flex justify-between text-sm bg-pink-50 p-2 rounded">
+                        <span className="text-pink-700 font-medium">Gift Milestone Discount</span>
+                        <span className="font-bold text-pink-600">-₹{giftMilestoneDiscount.toLocaleString()}</span>
+                      </div>
+                    )}
+
+                    {giftMilestoneCashback > 0 && (
+                      <div className="flex justify-between text-sm bg-pink-50 p-2 rounded">
+                        <span className="text-pink-700 font-medium">Gift Milestone Cashback</span>
+                        <span className="font-bold text-pink-600">+₹{giftMilestoneCashback.toLocaleString()}</span>
+                      </div>
+                    )}
+
+                    {appliedGiftMilestone && (
+                      <div className="text-xs text-pink-600 bg-pink-50 p-2 rounded">
+                        🎁 You've unlocked {appliedGiftMilestone.giftCount} gift{appliedGiftMilestone.giftCount > 1 ? 's' : ''} with this order!
                       </div>
                     )}
 
                     {safeWalletAmount > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span>Cashback Wallet</span>
-                        <span className="font-semibold">-₹{safeWalletAmount.toFixed(2)}</span>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Cashback Wallet</span>
+                        <span className="text-green-600 font-semibold">-₹{safeWalletAmount.toFixed(2)}</span>
                       </div>
                     )}
 
                     {safeAffiliateWalletAmount > 0 && (
-                      <div className="flex justify-between text-sm text-purple-600">
-                        <span>Affiliate Wallet</span>
-                        <span className="font-semibold">-₹{safeAffiliateWalletAmount.toFixed(2)}</span>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-purple-600">Affiliate Wallet</span>
+                        <span className="text-purple-600 font-semibold">-₹{safeAffiliateWalletAmount.toFixed(2)}</span>
                       </div>
                     )}
 
@@ -2869,14 +2936,14 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
                     <Separator />
 
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Total</span>
-                      <span className="text-red-600">₹{(isNaN(total) ? 0 : total).toLocaleString()}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-bold text-gray-900">Total</span>
+                      <span className="text-2xl font-bold text-pink-600">₹{(isNaN(total) ? 0 : total).toLocaleString()}</span>
                     </div>
 
-                    {(affiliateDiscountAmount > 0 || promoDiscount > 0 || safeWalletAmount > 0 || safeAffiliateWalletAmount > 0) && (
-                      <div className="text-xs text-green-600 text-center bg-green-50 p-2 rounded">
-                        You saved ₹{((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0)).toLocaleString()}!
+                    {((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0) + (giftMilestoneDiscount || 0) > 0) && (
+                      <div className="text-xs text-green-600 text-right">
+                        You saved ₹{((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0) + (giftMilestoneDiscount || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}!
                       </div>
                     )}
 

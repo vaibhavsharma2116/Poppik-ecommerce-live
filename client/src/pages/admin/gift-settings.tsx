@@ -22,6 +22,9 @@ interface GiftMilestone {
   maxAmount: string | null;
   giftCount: number;
   giftDescription: string | null;
+  discountType?: string;
+  discountValue?: string | null;
+  cashbackPercentage?: string | null;
   isActive: boolean;
   sortOrder: number;
 }
@@ -36,6 +39,9 @@ export default function GiftSettings() {
     maxAmount: "",
     giftCount: 1,
     giftDescription: "",
+    discountType: "none",
+    discountValue: "",
+    cashbackPercentage: "",
     isActive: true,
     sortOrder: 0,
   });
@@ -155,6 +161,9 @@ export default function GiftSettings() {
       maxAmount: "",
       giftCount: 1,
       giftDescription: "",
+      discountType: "none",
+      discountValue: "",
+      cashbackPercentage: "",
       isActive: true,
       sortOrder: 0,
     });
@@ -168,6 +177,9 @@ export default function GiftSettings() {
       maxAmount: milestone.maxAmount || "",
       giftCount: milestone.giftCount,
       giftDescription: milestone.giftDescription || "",
+      discountType: milestone.discountType || "none",
+      discountValue: milestone.discountValue || "",
+      cashbackPercentage: milestone.cashbackPercentage || "",
       isActive: milestone.isActive,
       sortOrder: milestone.sortOrder,
     });
@@ -195,13 +207,13 @@ export default function GiftSettings() {
               Add Milestone
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>
                 {editingMilestone ? "Edit" : "Create"} Gift Milestone
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4 overflow-y-auto flex-1 px-1">
               <div>
                 <Label htmlFor="minAmount">Minimum Amount (₹) *</Label>
                 <Input
@@ -252,6 +264,54 @@ export default function GiftSettings() {
                   value={formData.giftDescription}
                   onChange={(e) =>
                     setFormData({ ...formData, giftDescription: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="discountType">Discount Type</Label>
+                <select
+                  id="discountType"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  value={formData.discountType}
+                  onChange={(e) =>
+                    setFormData({ ...formData, discountType: e.target.value })
+                  }
+                >
+                  <option value="none">None</option>
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="flat">Flat Amount (₹)</option>
+                </select>
+              </div>
+
+              {formData.discountType !== "none" && (
+                <div>
+                  <Label htmlFor="discountValue">
+                    Discount Value {formData.discountType === "percentage" ? "(%)" : "(₹)"}
+                  </Label>
+                  <Input
+                    id="discountValue"
+                    type="number"
+                    step="0.01"
+                    placeholder="E.g., 10 or 100"
+                    value={formData.discountValue}
+                    onChange={(e) =>
+                      setFormData({ ...formData, discountValue: e.target.value })
+                    }
+                  />
+                </div>
+              )}
+
+              <div>
+                <Label htmlFor="cashbackPercentage">Cashback Percentage (%)</Label>
+                <Input
+                  id="cashbackPercentage"
+                  type="number"
+                  step="0.01"
+                  placeholder="E.g., 5.5"
+                  value={formData.cashbackPercentage}
+                  onChange={(e) =>
+                    setFormData({ ...formData, cashbackPercentage: e.target.value })
                   }
                 />
               </div>
@@ -337,6 +397,19 @@ export default function GiftSettings() {
                   </p>
                   {milestone.giftDescription && (
                     <p className="text-sm text-gray-600">{milestone.giftDescription}</p>
+                  )}
+                  {milestone.discountType && milestone.discountType !== "none" && (
+                    <p className="text-sm text-blue-600">
+                      <strong>Discount:</strong>{" "}
+                      {milestone.discountType === "percentage"
+                        ? `${milestone.discountValue}%`
+                        : `₹${milestone.discountValue}`}
+                    </p>
+                  )}
+                  {milestone.cashbackPercentage && (
+                    <p className="text-sm text-green-600">
+                      <strong>Cashback:</strong> {milestone.cashbackPercentage}%
+                    </p>
                   )}
                   <div className="flex items-center gap-2">
                     <span

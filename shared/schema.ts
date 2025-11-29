@@ -824,6 +824,9 @@ export const giftMilestones = pgTable("gift_milestones", {
   maxAmount: decimal("max_amount", { precision: 10, scale: 2 }),
   giftCount: integer("gift_count").notNull(),
   giftDescription: text("gift_description"),
+  discountType: varchar("discount_type", { length: 20 }).default("none"), // 'percentage' | 'flat' | 'none'
+  discountValue: decimal("discount_value", { precision: 10, scale: 2 }), // Discount amount or percentage
+  cashbackPercentage: decimal("cashback_percentage", { precision: 5, scale: 2 }), // Cashback percentage
   isActive: boolean("is_active").default(true).notNull(),
   sortOrder: integer("sort_order").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

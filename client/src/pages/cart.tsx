@@ -456,7 +456,7 @@ export default function Cart() {
     });
   };
 
-  
+
 
   // Calculate subtotal (before product discounts)
   // Subtotal should reflect the original / MRP totals when available
@@ -498,6 +498,43 @@ export default function Cart() {
   // The discount will be shown and deducted on the checkout page.
   const subtotalAfterAffiliate = cartSubtotal;
 
+  // Calculate gift milestone benefits based on cart total
+  let giftMilestoneDiscount = 0;
+  let giftMilestoneCashback = 0;
+  let appliedMilestone: any = null;
+
+  if (giftMilestones && giftMilestones.length > 0) {
+    // Find the applicable milestone based on cart total
+    const applicableMilestone = giftMilestones.find((milestone: any) => {
+      const minAmount = parseFloat(String(milestone.minAmount));
+      const maxAmount = milestone.maxAmount ? parseFloat(String(milestone.maxAmount)) : null;
+
+      if (maxAmount) {
+        return subtotalAfterAffiliate >= minAmount && subtotalAfterAffiliate <= maxAmount;
+      } else {
+        return subtotalAfterAffiliate >= minAmount;
+      }
+    });
+
+    if (applicableMilestone) {
+      appliedMilestone = applicableMilestone;
+
+      // Apply discount if applicable
+      if (applicableMilestone.discountType && applicableMilestone.discountType !== "none") {
+        if (applicableMilestone.discountType === "percentage") {
+          giftMilestoneDiscount = Math.round((subtotalAfterAffiliate * parseFloat(applicableMilestone.discountValue)) / 100);
+        } else if (applicableMilestone.discountType === "flat") {
+          giftMilestoneDiscount = Math.round(parseFloat(applicableMilestone.discountValue));
+        }
+      }
+
+      // Apply cashback percentage if applicable
+      if (applicableMilestone.cashbackPercentage) {
+        giftMilestoneCashback = Math.round((subtotalAfterAffiliate * parseFloat(applicableMilestone.cashbackPercentage)) / 100);
+      }
+    }
+  }
+
   // Dynamic discount calculation based on announcements
   let dynamicDiscount = 0;
   let appliedOffers: string[] = [];
@@ -522,10 +559,10 @@ export default function Cart() {
   }
 
   const generalPromoDiscount = appliedPromo?.discountAmount ? appliedPromo.discountAmount : 0;
-  const totalDiscount = productDiscount + dynamicDiscount + generalPromoDiscount;
+  const totalDiscount = productDiscount + dynamicDiscount + generalPromoDiscount + giftMilestoneDiscount;
 
   // Use cartSubtotal for total calculation before considering redemption
-  const subtotalAfterDiscount = cartSubtotal - dynamicDiscount - generalPromoDiscount;
+  const subtotalAfterDiscount = cartSubtotal - dynamicDiscount - generalPromoDiscount - giftMilestoneDiscount;
 
   // Calculate total before redemption
   const totalBeforeRedemption = subtotalAfterDiscount; // Shipping is calculated at checkout, so not included here for now
@@ -591,6 +628,20 @@ export default function Cart() {
     // Save wallet amounts to localStorage before navigation
     localStorage.setItem('redeemAmount', walletAmount.toString());
     localStorage.setItem('affiliateWalletAmount', affiliateWalletAmount.toString());
+
+    // Save gift milestone benefits to localStorage
+    if (appliedMilestone) {
+      localStorage.setItem('appliedGiftMilestone', JSON.stringify({
+        id: appliedMilestone.id,
+        discountType: appliedMilestone.discountType,
+        discountValue: giftMilestoneDiscount,
+        cashbackPercentage: appliedMilestone.cashbackPercentage,
+        cashbackAmount: giftMilestoneCashback,
+        giftCount: appliedMilestone.giftCount
+      }));
+    } else {
+      localStorage.removeItem('appliedGiftMilestone');
+    }
 
     // Save promo code to localStorage if applied
     if (appliedPromo) {
@@ -672,104 +723,7 @@ export default function Cart() {
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Gift Milestone Section - Dynamic from Backend */}
-        {cartItems.length > 0 && giftMilestones.length > 0 && (
-          <div className="mb-6 bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 border-2 border-pink-200 rounded-xl p-4 sm:p-6 shadow-lg">
-            <div className="text-center mb-4">
-              <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1">
-                Use code <span className="text-pink-600">FLAT15</span> to Get <span className="text-pink-600">FLAT 15% OFF</span>
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-600">
-                Shop for <span className="font-semibold text-pink-600">
-                  ₹{parseFloat(giftMilestones[0]?.minAmount || '0').toFixed(0)}+
-                </span> to get <span className="font-semibold text-pink-600">FREE gifts</span>
-              </p>
-            </div>
 
-            {/* Progress Bar */}
-            <div className="relative mb-4">
-              <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-pink-400 to-pink-600 transition-all duration-500 ease-out"
-                  style={{ 
-                    width: `${Math.min((cartSubtotal / parseFloat(giftMilestones[giftMilestones.length - 1]?.minAmount || '2000')) * 100, 100)}%` 
-                  }}
-                ></div>
-              </div>
-              
-              {/* Dynamic Milestone Markers */}
-              <div className="absolute top-0 left-0 w-full h-3 flex justify-between items-center">
-                {giftMilestones.map((milestone, index) => {
-                  const milestoneAmount = parseFloat(milestone.minAmount);
-                  const maxAmount = parseFloat(giftMilestones[giftMilestones.length - 1]?.minAmount || '2000');
-                  const position = (milestoneAmount / maxAmount) * 100;
-                  
-                  return (
-                    <div 
-                      key={milestone.id}
-                      className="absolute flex flex-col items-center"
-                      style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
-                    >
-                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-3 ${
-                        cartSubtotal >= milestoneAmount
-                          ? 'bg-pink-500 border-pink-600' 
-                          : 'bg-white border-gray-300'
-                      } shadow-md -mt-2.5 sm:-mt-3.5`}>
-                        <span className="text-lg sm:text-xl">🎁</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Dynamic Milestone Labels */}
-            <div className="flex justify-between items-start text-xs sm:text-sm mt-6">
-              {giftMilestones.map((milestone) => {
-                const milestoneAmount = parseFloat(milestone.minAmount);
-                return (
-                  <div key={milestone.id} className="text-center flex-1">
-                    <div className={`font-bold ${cartSubtotal >= milestoneAmount ? 'text-pink-600' : 'text-gray-600'}`}>
-                      {milestone.giftCount} Gift{milestone.giftCount > 1 ? 's' : ''}
-                    </div>
-                    <div className="text-gray-500 text-xs">₹{milestoneAmount.toFixed(0)}</div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Dynamic Status Message */}
-            <div className="mt-4 text-center">
-              {(() => {
-                const highestMilestone = [...giftMilestones].reverse().find(m => cartSubtotal >= parseFloat(m.minAmount));
-                const nextMilestone = giftMilestones.find(m => cartSubtotal < parseFloat(m.minAmount));
-                
-                if (highestMilestone && !nextMilestone) {
-                  return (
-                    <p className="text-green-600 font-semibold text-sm sm:text-base">
-                      🎉 Congratulations! You've unlocked {highestMilestone.giftCount} FREE gift{highestMilestone.giftCount > 1 ? 's' : ''}!
-                    </p>
-                  );
-                } else if (highestMilestone && nextMilestone) {
-                  const remaining = parseFloat(nextMilestone.minAmount) - cartSubtotal;
-                  return (
-                    <p className="text-pink-600 font-semibold text-sm sm:text-base">
-                      ✨ Great! You've unlocked {highestMilestone.giftCount} FREE gift{highestMilestone.giftCount > 1 ? 's' : ''}! 
-                      Add ₹{remaining.toFixed(0)} more for {nextMilestone.giftCount} gift{nextMilestone.giftCount > 1 ? 's' : ''}!
-                    </p>
-                  );
-                } else if (nextMilestone) {
-                  const remaining = parseFloat(nextMilestone.minAmount) - cartSubtotal;
-                  return (
-                    <p className="text-gray-600 font-semibold text-sm sm:text-base">
-                      🛍️ Add ₹{remaining.toFixed(0)} more to unlock {nextMilestone.giftCount} FREE gift{nextMilestone.giftCount > 1 ? 's' : ''}!
-                    </p>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-          </div>
-        )}
 
         <div className="mb-6 sm:mb-8">
           <Link href="/" className="inline-flex items-center text-red-600 hover:text-red-700 mb-4">
@@ -794,8 +748,118 @@ export default function Cart() {
             </div>
           </div>
         </div>
+        {cartItems.length > 0 && giftMilestones.length > 0 && (
+          <div className="mb-6 bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 border-2 border-pink-200 rounded-xl p-4 sm:p-8 shadow-lg">
+            <div className="text-center mb-10">
+              {(() => {
+                const nextMilestoneLocal = giftMilestones.find((m: any) => cartSubtotal < parseFloat(m.minAmount));
+                if (nextMilestoneLocal) {
+                  const remainingLocal = parseFloat(nextMilestoneLocal.minAmount) - cartSubtotal;
+                  return (
+                    <p className="text-lg font-semibold text-gray-800 mb-1 flex items-center justify-center gap-2">
+                      <span className="text-xl">🛍️</span>
+                      Add ₹{Math.max(0, remainingLocal).toFixed(0)} more to unlock {nextMilestoneLocal.giftCount} FREE gift{nextMilestoneLocal.giftCount > 1 ? 's' : ''}!
+                    </p>
+                  );
+                }
 
+                return (
+                  <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1">
+                    Use code <span className="text-pink-600">FLAT15</span> to Get <span className="text-pink-600">FLAT 15% OFF</span>
+                  </h3>
+                );
+              })()}
+
+              <p className="text-xs sm:text-sm text-gray-600">
+                Shop for <span className="font-semibold text-pink-600">
+                  ₹{parseFloat(giftMilestones[0]?.minAmount || '0').toFixed(0)}+
+                </span> to get <span className="font-semibold text-pink-600">FREE gifts</span>
+              </p>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="relative mb-4">
+              <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-pink-400 to-pink-600 transition-all duration-500 ease-out"
+                  style={{
+                    width: `${Math.min((cartSubtotal / parseFloat(giftMilestones[giftMilestones.length - 1]?.minAmount || '2000')) * 100, 100)}%`
+                  }}
+                ></div>
+              </div>
+
+              {/* Dynamic Milestone Markers (icon + labels placed together so value appears beneath the gift) */}
+              <div className="absolute left-0 w-full h-3">
+                {giftMilestones.map((milestone, index) => {
+                  const milestoneAmount = parseFloat(milestone.minAmount);
+                  const maxAmount = parseFloat(giftMilestones[giftMilestones.length - 1]?.minAmount || '2000');
+                  const position = (milestoneAmount / maxAmount) * 100;
+
+                  // Check if milestone is unlocked
+                  const unlocked = cartSubtotal >= milestoneAmount;
+                  // Animation class for unlocked milestone
+                  const animationClass = unlocked ? 'animate-bounce scale-110' : '';
+                  // Render icon and labels stacked so the amount appears under the gift; position vertically centered on bar
+                  return (
+                    <div
+                      key={milestone.id}
+                      className="absolute flex flex-col items-center"
+                      style={{ left: `${position}%`, top: '50%', transform: 'translate(-50%, -50%)' }}
+                    >
+                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-3 ${
+                        unlocked ? 'bg-pink-500 border-pink-600 ' + animationClass : 'bg-white border-gray-300'
+                      } shadow-md transition-transform duration-300`}>
+                        <span className="text-lg sm:text-xl">🎁</span>
+                      </div>
+
+                      <div className="mt-3 text-center w-20">
+                        <div className={`text-xs font-bold ${unlocked ? 'text-pink-600' : 'text-gray-600'}`}>
+                          {milestone.giftCount} Gift{milestone.giftCount > 1 ? 's' : ''}
+                        </div>
+                        <div className="text-gray-500 text-xs">₹{milestoneAmount.toFixed(0)}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Labels are now rendered under each icon above to keep them aligned with markers */}
+
+            {/* Dynamic Status Message */}
+            <div className="mt-4 text-center">
+              {(() => {
+                const highestMilestone = [...giftMilestones].reverse().find(m => cartSubtotal >= parseFloat(m.minAmount));
+                const nextMilestone = giftMilestones.find(m => cartSubtotal < parseFloat(m.minAmount));
+
+                if (highestMilestone && !nextMilestone) {
+                  return (
+                    <p className="text-green-600 font-semibold text-sm sm:text-base">
+                      🎉 Congratulations! You've unlocked {highestMilestone.giftCount} FREE gift{highestMilestone.giftCount > 1 ? 's' : ''}!
+                      {highestMilestone.discountType !== 'none' && highestMilestone.discountValue && (
+                        <span className="block text-pink-600 text-base font-bold mt-1 animate-fadeInUp">
+                          {highestMilestone.discountType === 'percentage'
+                            ? `${highestMilestone.discountValue}% OFF`
+                            : `₹${parseFloat(highestMilestone.discountValue).toLocaleString()} OFF`}
+                        </span>
+                      )}
+                    </p>
+                  );
+                } else if (nextMilestone) {
+                  const remaining = parseFloat(nextMilestone.minAmount) - cartSubtotal;
+                  return (
+                    <>
+
+                    </>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+
           <div className="lg:col-span-2 space-y-4">
             {cartItems.map((item, index) => (
               <Card key={`${item.id}-${index}`} className="overflow-hidden hover:shadow-md transition-shadow">
@@ -813,7 +877,7 @@ export default function Cart() {
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
                         {item.name}
                       </h3>
-                      
+
                       {/* Show included products for offers */}
                       {item.isOfferItem && item.productNames && (
                         <div className="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
@@ -834,14 +898,14 @@ export default function Cart() {
                             ))}
                           </div>
                           <div className="text-xs text-green-600 font-medium mt-2">
-                            {item.discountType === 'percentage' 
-                              ? `${item.discountValue}% discount applied` 
+                            {item.discountType === 'percentage'
+                              ? `${item.discountValue}% discount applied`
                               : `₹${item.discountAmount?.toFixed(2)} off applied`
                             }
                           </div>
                         </div>
                       )}
-                      
+
                       {item.selectedShade && !item.isOfferItem && (
                         <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
                           <Badge variant="secondary" className="flex items-center gap-1.5">
@@ -912,15 +976,14 @@ export default function Cart() {
                           </div>
                         )}
 
-                      
-                       
+
+
                       </div>
                       <div className="flex items-center space-x-1.5 mt-1">
-                        <div className={`w-2 h-2 rounded-full ${
-                          item.inStock
+                        <div className={`w-2 h-2 rounded-full ${item.inStock
                             ? 'bg-green-500'
                             : 'bg-red-500'
-                        }`}></div>
+                          }`}></div>
                         <p className={`text-xs sm:text-sm font-medium ${item.inStock ? 'text-green-600' : 'text-red-600'}`}>
                           {item.inStock ? 'In Stock' : 'Out of Stock'}
                         </p>
@@ -1111,6 +1174,26 @@ export default function Cart() {
                     </div>
                   )}
 
+                  {giftMilestoneDiscount > 0 && (
+                    <div className="flex justify-between text-sm bg-pink-50 p-2 rounded">
+                      <span className="text-pink-700 font-medium">Gift Milestone Discount</span>
+                      <span className="font-bold text-pink-600">-₹{giftMilestoneDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {giftMilestoneCashback > 0 && (
+                    <div className="flex justify-between text-sm bg-pink-50 p-2 rounded">
+                      <span className="text-pink-700 font-medium">Gift Milestone Cashback</span>
+                      <span className="font-bold text-pink-600">+₹{giftMilestoneCashback.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {appliedMilestone && (
+                    <div className="text-xs text-pink-600 bg-pink-50 p-2 rounded">
+                      🎁 You've unlocked {appliedMilestone.giftCount} gift{appliedMilestone.giftCount > 1 ? 's' : ''} with this order!
+                    </div>
+                  )}
+
                   {walletAmount > 0 && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Cashback Wallet</span>
@@ -1182,41 +1265,24 @@ export default function Cart() {
           </div>
         </div>
       </div>
-       <section className="mt-12 sm:mt-16">
-          <div className="mb-6 sm:mb-8">
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-              You May Also Like
-            </h2>
-            <p className="text-sm sm:text-base text-gray-600">
-              Complete your beauty routine with these products
-            </p>
-          </div>
+      <section className="mt-12 sm:mt-16">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+            You May Also Like
+          </h2>
+          <p className="text-sm sm:text-base text-gray-600">
+            Complete your beauty routine with these products
+          </p>
+        </div>
 
-          {recommendedProducts.length === 0 ? (
-            <>
-              {/* Mobile: Loading Skeleton */}
-              <div className="block md:hidden">
-                <div className="overflow-x-auto scrollbar-hide pb-4">
-                  <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ width: '160px', flexShrink: 0 }}>
-                        <Skeleton className="aspect-square w-full" />
-                        <div className="p-3 space-y-2">
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-3/4" />
-                          <Skeleton className="h-6 w-1/2" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Desktop: Loading Skeleton */}
-              <div className="hidden md:block">
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-8">
+        {recommendedProducts.length === 0 ? (
+          <>
+            {/* Mobile: Loading Skeleton */}
+            <div className="block md:hidden">
+              <div className="overflow-x-auto scrollbar-hide pb-4">
+                <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ width: '160px', flexShrink: 0 }}>
                       <Skeleton className="aspect-square w-full" />
                       <div className="p-3 space-y-2">
                         <Skeleton className="h-4 w-full" />
@@ -1227,47 +1293,64 @@ export default function Cart() {
                   ))}
                 </div>
               </div>
-            </>
-          ) : (
-            <>
-              {/* Mobile: 2 Column Grid with Horizontal Scroll */}
-              <div className="block md:hidden">
-                <div className="overflow-x-auto scrollbar-hide pb-4">
-                  <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
-                    {recommendedProducts.map((product: any) => (
-                      <div key={product.id} style={{ width: '160px', flexShrink: 0 }}>
-                        <ProductCard product={product} className="h-full" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+            </div>
 
-              {/* Desktop: Carousel */}
-              <div className="hidden md:block">
-                <div className="relative px-4 sm:px-8">
-                  <Carousel
-                    opts={{
-                      align: "start",
-                      loop: true,
-                    }}
-                    className="w-full"
-                  >
-                    <CarouselContent className="-ml-2 md:-ml-4">
-                      {recommendedProducts.map((product: any) => (
-                        <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
-                          <ProductCard product={product} />
-                        </CarouselItem>
-                      ))}
-                    </CarouselContent>
-                    <CarouselPrevious className="hidden sm:flex -left-4" />
-                    <CarouselNext className="hidden sm:flex -right-4" />
-                  </Carousel>
+            {/* Desktop: Loading Skeleton */}
+            <div className="hidden md:block">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-8">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                    <Skeleton className="aspect-square w-full" />
+                    <div className="p-3 space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-6 w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Mobile: 2 Column Grid with Horizontal Scroll */}
+            <div className="block md:hidden">
+              <div className="overflow-x-auto scrollbar-hide pb-4">
+                <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
+                  {recommendedProducts.map((product: any) => (
+                    <div key={product.id} style={{ width: '160px', flexShrink: 0 }}>
+                      <ProductCard product={product} className="h-full" />
+                    </div>
+                  ))}
                 </div>
               </div>
-            </>
-          )}
-        </section>
+            </div>
+
+            {/* Desktop: Carousel */}
+            <div className="hidden md:block">
+              <div className="relative px-4 sm:px-8">
+                <Carousel
+                  opts={{
+                    align: "start",
+                    loop: true,
+                  }}
+                  className="w-full"
+                >
+                  <CarouselContent className="-ml-2 md:-ml-4">
+                    {recommendedProducts.map((product: any) => (
+                      <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+                        <ProductCard product={product} />
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="hidden sm:flex -left-4" />
+                  <CarouselNext className="hidden sm:flex -right-4" />
+                </Carousel>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }
