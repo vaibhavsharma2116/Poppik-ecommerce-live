@@ -41,13 +41,17 @@ export default function HeroBanner({
       if (!response.ok) {
         throw new Error('Failed to fetch sliders');
       }
-      return response.json();
+      const data = await response.json();
+      // Ensure data is an array
+      return Array.isArray(data) ? data : [];
     },
   });
 
   // Filter only active sliders and sort by sortOrder
-  const slides = slidersData.filter(slider => slider.isActive)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const slides = Array.isArray(slidersData) ? 
+    slidersData.filter(slider => slider.isActive)
+      .sort((a, b) => a.sortOrder - b.sortOrder) : 
+    [];
 
   useEffect(() => {
     if (!api) return;

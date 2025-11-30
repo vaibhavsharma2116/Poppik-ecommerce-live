@@ -58,7 +58,9 @@ import {
   // Import affiliateApplications schema
   affiliateApplications,
   type AffiliateApplication,
-  type InsertAffiliateApplication
+  type InsertAffiliateApplication,
+  // Import affiliateClicks schema
+  affiliateClicks
 } from "@shared/schema";
 import dotenv from "dotenv";
 
@@ -347,39 +349,18 @@ export class DatabaseStorage implements IStorage {
 
   async getProducts(): Promise<Product[]> {
     try {
-      // Select only essential columns for better performance
+      // Force fresh query - no caching
       const result = await this.db
-        .select({
-          id: products.id,
-          name: products.name,
-          slug: products.slug,
-          price: products.price,
-          originalPrice: products.originalPrice,
-          discount: products.discount,
-          cashbackPercentage: products.cashbackPercentage,
-          cashbackPrice: products.cashbackPrice,
-          affiliateCommission: products.affiliateCommission,
-          affiliateUserDiscount: products.affiliateUserDiscount,
-          category: products.category,
-          subcategory: products.subcategory,
-          imageUrl: products.imageUrl,
-          videoUrl: products.videoUrl,
-          rating: products.rating,
-          reviewCount: products.reviewCount,
-          inStock: products.inStock,
-          featured: products.featured,
-          bestseller: products.bestseller,
-          newLaunch: products.newLaunch,
-          shortDescription: products.shortDescription,
-          description: products.description,
-          tags: products.tags,
-        })
-        .from(products);
+        .select()
+        .from(products)
+        .orderBy(desc(products.createdAt));
 
+      console.log(`📦 Storage: Fetched ${result.length} products from database`);
+      
       return result as Product[];
     } catch (error) {
-      console.error("Error fetching products from database:", error);
-      console.error("Error details:", error.message);
+      console.error("❌ Error fetching products from database:", error);
+      console.error("Error details:", error?.message);
       return [];
     }
   }
@@ -420,16 +401,79 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getFeaturedProducts(): Promise<Product[]> {
-    return await this.db.select().from(products).where(eq(products.featured, true));
+  async getFeaturedProducts() {
+    try {
+      // Force fresh query without any caching
+      const featuredProducts = await this.db
+        .select()
+        .from(products)
+        .where(eq(products.featured, true))
+        .orderBy(desc(products.createdAt))
+        .limit(10);
+
+      console.log(`✅ Featured products query returned ${featuredProducts.length} products`);
+      
+      // If no featured products, log the total count for debugging
+      if (featuredProducts.length === 0) {
+        const totalProducts = await this.db.select().from(products);
+        console.log(`⚠️ No featured products found. Total products in DB: ${totalProducts.length}`);
+      }
+      
+      return featuredProducts;
+    } catch (error) {
+      console.error('❌ Error fetching featured products:', error);
+      return [];
+    }
   }
 
-  async getBestsellerProducts(): Promise<Product[]> {
-    return await this.db.select().from(products).where(eq(products.bestseller, true));
+  async getBestsellerProducts() {
+    try {
+      // Force fresh query without any caching
+      const bestsellerProducts = await this.db
+        .select()
+        .from(products)
+        .where(eq(products.bestseller, true))
+        .orderBy(desc(products.createdAt))
+        .limit(10);
+
+      console.log(`✅ Bestseller products query returned ${bestsellerProducts.length} products`);
+      
+      // If no bestseller products, log the total count for debugging
+      if (bestsellerProducts.length === 0) {
+        const totalProducts = await this.db.select().from(products);
+        console.log(`⚠️ No bestseller products found. Total products in DB: ${totalProducts.length}`);
+      }
+      
+      return bestsellerProducts;
+    } catch (error) {
+      console.error('❌ Error fetching bestseller products:', error);
+      return [];
+    }
   }
 
-  async getNewLaunchProducts(): Promise<Product[]> {
-    return await this.db.select().from(products).where(eq(products.newLaunch, true));
+  async getNewLaunchProducts() {
+    try {
+      // Force fresh query without any caching
+      const newLaunchProducts = await this.db
+        .select()
+        .from(products)
+        .where(eq(products.newLaunch, true))
+        .orderBy(desc(products.createdAt))
+        .limit(10);
+
+      console.log(`✅ New launch products query returned ${newLaunchProducts.length} products`);
+      
+      // If no new launch products, log the total count for debugging
+      if (newLaunchProducts.length === 0) {
+        const totalProducts = await this.db.select().from(products);
+        console.log(`⚠️ No new launch products found. Total products in DB: ${totalProducts.length}`);
+      }
+      
+      return newLaunchProducts;
+    } catch (error) {
+      console.error('❌ Error fetching new launch products:', error);
+      return [];
+    }
   }
 
   async createProduct(productData: InsertProduct): Promise<Product> {
@@ -599,17 +643,30 @@ export class DatabaseStorage implements IStorage {
 
       console.log(`Found product to delete: ${existingProduct[0].name}`);
 
-      // Delete related data first (reviews, order items, etc.)
+      // Delete related data first (reviews, affiliate clicks, product images, etc.)
       try {
+        // Delete affiliate clicks for this product
+        await this.db.delete(affiliateClicks).where(eq(affiliateClicks.productId, id));
+        console.log(`Deleted affiliate clicks for product ${id}`);
+
+        // Delete product images
+        await this.db.delete(productImages).where(eq(productImages.productId, id));
+        console.log(`Deleted product images for product ${id}`);
+
         // Delete reviews for this product
         await this.db.delete(reviews).where(eq(reviews.productId, id));
         console.log(`Deleted reviews for product ${id}`);
 
-        // Note: We don't delete order items as they are historical records
-        // Just the product itself will be deleted
+        // Set product_id to NULL in order_items (preserve historical data)
+        await this.db
+          .update(orderItemsTable)
+          .set({ productId: null })
+          .where(eq(orderItemsTable.productId, id));
+        console.log(`Updated order items to remove product reference ${id}`);
+
       } catch (relatedError) {
-        console.warn(`Warning: Failed to delete related data for product ${id}:`, relatedError);
-        // Continue with product deletion even if related data deletion fails
+        console.warn(`Warning: Failed to delete some related data for product ${id}:`, relatedError);
+        // Continue with product deletion even if some related data deletion fails
       }
 
       // Delete the product
@@ -834,30 +891,46 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
-  // Shades - Consolidated methods (removed duplicates)
+  // Shades - Optimized methods
   async getShade(id: number): Promise<Shade | undefined> {
-    const result = await this.db.select().from(shades).where(eq(shades.id, id)).limit(1);
-    return result[0];
+    try {
+      const result = await this.db
+        .select()
+        .from(shades)
+        .where(eq(shades.id, id))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error fetching shade:", error);
+      throw error;
+    }
   }
 
   async getShades(): Promise<Shade[]> {
     try {
-      const result = await this.db.select().from(shades).orderBy(asc(shades.sortOrder));
+      const result = await this.db
+        .select()
+        .from(shades)
+        .orderBy(asc(shades.sortOrder), desc(shades.createdAt));
+      
       return result;
     } catch (error) {
-      console.error("Database connection failed:", error);
+      console.error("Error fetching shades:", error);
       throw error;
     }
   }
 
   async getActiveShades(): Promise<Shade[]> {
     try {
-      const result = await this.db.select().from(shades)
+      const result = await this.db
+        .select()
+        .from(shades)
         .where(eq(shades.isActive, true))
-        .orderBy(asc(shades.sortOrder));
+        .orderBy(asc(shades.sortOrder), desc(shades.createdAt));
+      
       return result;
     } catch (error) {
-      console.error("Database connection failed:", error);
+      console.error("Error fetching active shades:", error);
       throw error;
     }
   }
@@ -882,6 +955,13 @@ export class DatabaseStorage implements IStorage {
 
   async createShade(shadeData: InsertShade): Promise<Shade> {
     try {
+      console.log("Creating shade with data:", shadeData);
+
+      // Validate required fields
+      if (!shadeData.name || !shadeData.colorCode) {
+        throw new Error("Missing required fields: name and colorCode are required");
+      }
+
       // Ensure value is unique by checking existing values and appending number if needed
       let value = shadeData.value;
       if (!value) {
@@ -909,21 +989,50 @@ export class DatabaseStorage implements IStorage {
 
       // Create shade with unique value
       const shadeToInsert = {
-        ...shadeData,
-        value: finalValue
+        name: shadeData.name,
+        colorCode: shadeData.colorCode,
+        value: finalValue,
+        imageUrl: shadeData.imageUrl || null,
+        categoryIds: shadeData.categoryIds || null,
+        subcategoryIds: shadeData.subcategoryIds || null,
+        isActive: shadeData.isActive !== undefined ? shadeData.isActive : true,
+        inStock: shadeData.inStock !== undefined ? shadeData.inStock : true,
+        sortOrder: shadeData.sortOrder || 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
+      console.log("Inserting shade:", shadeToInsert);
+
       const [shade] = await this.db.insert(shades).values(shadeToInsert).returning();
+      
+      console.log("✅ Shade created successfully:", shade.id);
+      
       return shade;
     } catch (error) {
-      console.error("Database error creating shade:", error);
+      console.error("Error creating shade:", error);
+      if (error.message.includes('unique constraint')) {
+        throw new Error("A shade with this name or value already exists");
+      }
       throw error;
     }
   }
 
   async updateShade(id: number, shadeData: Partial<InsertShade>): Promise<Shade | undefined> {
     try {
-      // Add updatedAt timestamp as Date object
+      // Check if shade exists first
+      const existingShade = await this.db
+        .select()
+        .from(shades)
+        .where(eq(shades.id, id))
+        .limit(1);
+
+      if (existingShade.length === 0) {
+        console.log("No shade found with ID:", id);
+        return undefined;
+      }
+
+      // Prepare update data
       const updateData: any = {
         ...shadeData,
         updatedAt: new Date()
@@ -937,32 +1046,70 @@ export class DatabaseStorage implements IStorage {
         updateData.inStock = Boolean(updateData.inStock);
       }
 
+      // Ensure numeric fields are properly typed
+      if (updateData.sortOrder !== undefined) {
+        updateData.sortOrder = Number(updateData.sortOrder);
+      }
+
       console.log("Updating shade in database:", { id, updateData });
 
-      const result = await this.db.update(shades)
+      const [updatedShade] = await this.db
+        .update(shades)
         .set(updateData)
         .where(eq(shades.id, id))
         .returning();
 
-      if (!result || result.length === 0) {
-        console.log("No shade found with ID:", id);
-        return undefined;
-      }
-
-      console.log("Shade updated successfully in database:", result[0]);
-      return result[0];
+      console.log("✅ Shade updated successfully:", updatedShade);
+      
+      return updatedShade;
     } catch (error) {
-      console.error("Database error updating shade:", error);
+      console.error("Error updating shade:", error);
       throw error;
     }
   }
 
   async deleteShade(id: number): Promise<boolean> {
     try {
-      const result = await this.db.delete(shades).where(eq(shades.id, id));
-      return result.rowCount > 0;
+      console.log(`Attempting to delete shade with ID: ${id}`);
+
+      // Check if shade exists
+      const existingShade = await this.db
+        .select()
+        .from(shades)
+        .where(eq(shades.id, id))
+        .limit(1);
+
+      if (existingShade.length === 0) {
+        console.log(`Shade with ID ${id} not found`);
+        return false;
+      }
+
+      // Check if shade is referenced in product_shades
+      const productReferences = await this.db
+        .select()
+        .from(productShades)
+        .where(eq(productShades.shadeId, id))
+        .limit(1);
+
+      if (productReferences.length > 0) {
+        throw new Error("Cannot delete shade - it is being used by products");
+      }
+
+      // Delete the shade
+      const result = await this.db
+        .delete(shades)
+        .where(eq(shades.id, id))
+        .returning();
+
+      const success = result.length > 0;
+      
+      if (success) {
+        console.log(`✅ Successfully deleted shade ${id}`);
+      }
+
+      return success;
     } catch (error) {
-      console.error("Database connection failed:", error);
+      console.error("Error deleting shade:", error);
       throw error;
     }
   }
@@ -1184,7 +1331,7 @@ export class DatabaseStorage implements IStorage {
       for (const order of userOrders) {
         try {
           let items = [];
-          
+
           // Handle items safely - could be string or array
           if (typeof order.orderStatus === 'string' && order.orderStatus !== 'delivered') {
             continue;
@@ -1201,7 +1348,7 @@ export class DatabaseStorage implements IStorage {
           if (fullOrder.length === 0) continue;
 
           const orderData = fullOrder[0];
-          
+
           if (typeof orderData.items === 'string') {
             items = JSON.parse(orderData.items);
           } else if (Array.isArray(orderData.items)) {
@@ -1783,6 +1930,122 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error fetching testimonials:", error);
       return [];
+    }
+  }
+
+  // Video Testimonials Management
+  async getVideoTestimonials(): Promise<any[]> {
+    try {
+      const result = await this.db
+        .select()
+        .from(videoTestimonials)
+        .orderBy(desc(videoTestimonials.createdAt));
+      console.log(`✅ Fetched ${result.length} video testimonials from database`);
+      return result;
+    } catch (error) {
+      console.error("❌ Error fetching video testimonials:", error);
+      return [];
+    }
+  }
+
+  async getActiveVideoTestimonials(): Promise<any[]> {
+    try {
+      const result = await this.db
+        .select()
+        .from(videoTestimonials)
+        .where(eq(videoTestimonials.isActive, true))
+        .orderBy(asc(videoTestimonials.sortOrder));
+      console.log(`✅ Fetched ${result.length} active video testimonials`);
+      return result;
+    } catch (error) {
+      console.error("❌ Error fetching active video testimonials:", error);
+      return [];
+    }
+  }
+
+  async createVideoTestimonial(data: any): Promise<any> {
+    try {
+      console.log("Creating video testimonial with data:", data);
+      
+      const testimonialData = {
+        customerImage: data.customerImage || '',
+        videoUrl: data.videoUrl || '',
+        thumbnailUrl: data.thumbnailUrl || '',
+        productId: parseInt(data.productId),
+        isActive: data.isActive !== undefined ? data.isActive : true,
+        sortOrder: data.sortOrder || 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const [result] = await this.db
+        .insert(videoTestimonials)
+        .values(testimonialData)
+        .returning();
+      
+      console.log("✅ Video testimonial created successfully:", result.id);
+      return result;
+    } catch (error) {
+      console.error("❌ Error creating video testimonial:", error);
+      throw error;
+    }
+  }
+
+  async updateVideoTestimonial(id: number, data: any): Promise<any> {
+    try {
+      console.log(`Updating video testimonial ${id} with data:`, data);
+      
+      const updateData: any = {
+        updatedAt: new Date()
+      };
+
+      if (data.customerImage !== undefined) updateData.customerImage = data.customerImage;
+      if (data.videoUrl !== undefined) updateData.videoUrl = data.videoUrl;
+      if (data.thumbnailUrl !== undefined) updateData.thumbnailUrl = data.thumbnailUrl;
+      if (data.productId !== undefined) updateData.productId = parseInt(data.productId);
+      if (data.isActive !== undefined) updateData.isActive = data.isActive;
+      if (data.sortOrder !== undefined) updateData.sortOrder = parseInt(data.sortOrder);
+
+      const [result] = await this.db
+        .update(videoTestimonials)
+        .set(updateData)
+        .where(eq(videoTestimonials.id, id))
+        .returning();
+      
+      if (!result) {
+        console.log(`⚠️ Video testimonial ${id} not found`);
+        return undefined;
+      }
+
+      console.log("✅ Video testimonial updated successfully:", result.id);
+      return result;
+    } catch (error) {
+      console.error("❌ Error updating video testimonial:", error);
+      throw error;
+    }
+  }
+
+  async deleteVideoTestimonial(id: number): Promise<boolean> {
+    try {
+      console.log(`Attempting to delete video testimonial ${id}`);
+      
+      const result = await this.db
+        .delete(videoTestimonials)
+        .where(eq(videoTestimonials.id, id))
+        .returning();
+      
+      const success = result.length > 0;
+      
+      if (success) {
+        console.log(`✅ Video testimonial ${id} deleted successfully`);
+      } else {
+        console.log(`⚠️ Video testimonial ${id} not found`);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error("❌ Error deleting video testimonial:", error);
+      throw error;
     }
   }
 

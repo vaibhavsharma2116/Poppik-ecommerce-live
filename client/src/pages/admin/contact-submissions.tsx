@@ -50,22 +50,29 @@ export default function AdminContactSubmissions() {
   const { data: submissions = [], isLoading, error } = useQuery<ContactSubmission[]>({
     queryKey: ['contactSubmissions'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/contact-submissions');
+      const response = await fetch('/api/admin/contact-submissions', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch contact submissions');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('📧 Contact submissions fetched:', data.length);
+      // Ensure we always return an array
+      return Array.isArray(data) ? data : [];
     },
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache
+    refetchOnMount: 'always', // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window gains focus
   });
 
-  // Ensure we always work with an array in case the server returns an object
-  const submissionsList: ContactSubmission[] = Array.isArray(submissions)
-    ? submissions
-    : Array.isArray((submissions as any)?.data)
-    ? (submissions as any).data
-    : Array.isArray((submissions as any)?.submissions)
-    ? (submissions as any).submissions
-    : [];
+  // Ensure we always work with an array
+  const submissionsList: ContactSubmission[] = Array.isArray(submissions) ? submissions : [];
 
   // Update submission status mutation
   const updateStatusMutation = useMutation({
@@ -82,19 +89,45 @@ export default function AdminContactSubmissions() {
       }
       return response.json();
     },
+    onMutate: async ({ id, status }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['contactSubmissions'] });
+
+      // Snapshot previous value
+      const previousSubmissions = queryClient.getQueryData<ContactSubmission[]>(['contactSubmissions']);
+
+      // Optimistically update
+      queryClient.setQueryData<ContactSubmission[]>(['contactSubmissions'], (old) => {
+        if (!old) return old;
+        return old.map(submission =>
+          submission.id === id
+            ? { ...submission, status: status as 'unread' | 'read' | 'responded' }
+            : submission
+        );
+      });
+
+      return { previousSubmissions };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contactSubmissions'] });
       toast({
         title: "Status Updated",
         description: "Contact submission status has been updated successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // Rollback on error
+      if (context?.previousSubmissions) {
+        queryClient.setQueryData(['contactSubmissions'], context.previousSubmissions);
+      }
       toast({
         title: "Error",
         description: "Failed to update submission status. Please try again.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['contactSubmissions'] });
     },
   });
 
@@ -109,19 +142,41 @@ export default function AdminContactSubmissions() {
       }
       return response.json();
     },
+    onMutate: async (id) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['contactSubmissions'] });
+
+      // Snapshot previous value
+      const previousSubmissions = queryClient.getQueryData<ContactSubmission[]>(['contactSubmissions']);
+
+      // Optimistically remove from list
+      queryClient.setQueryData<ContactSubmission[]>(['contactSubmissions'], (old) => {
+        if (!old) return old;
+        return old.filter(submission => submission.id !== id);
+      });
+
+      return { previousSubmissions };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contactSubmissions'] });
       toast({
         title: "Submission Deleted",
         description: "Contact submission has been deleted successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // Rollback on error
+      if (context?.previousSubmissions) {
+        queryClient.setQueryData(['contactSubmissions'], context.previousSubmissions);
+      }
       toast({
         title: "Error",
         description: "Failed to delete submission. Please try again.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['contactSubmissions'] });
     },
   });
 

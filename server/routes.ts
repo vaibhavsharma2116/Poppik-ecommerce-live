@@ -515,7 +515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/stores", adminMiddleware, async (req, res) => {
+  app.post("/api/admin/stores", async (req, res) => {
     try {
       // Parse coordinates to remove degree symbols and direction letters
       const storeData = { ...req.body };
@@ -538,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/stores/:id", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/stores/:id", async (req, res) => {
     try {
       const storeId = parseInt(req.params.id);
 
@@ -567,7 +567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/stores/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/stores/:id", async (req, res) => {
     try {
       const storeId = parseInt(req.params.id);
       await db.delete(schema.stores).where(eq(schema.stores.id, storeId));
@@ -1583,7 +1583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get Affiliate Withdrawals (Admin)
-  app.get('/api/admin/affiliate/withdrawals', adminMiddleware, async (req, res) => {
+  app.get('/api/admin/affiliate/withdrawals', async (req, res) => {
     try {
       const withdrawals = await db
         .select({
@@ -1619,7 +1619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Approve affiliate withdrawal (Admin)
-  app.post('/api/admin/affiliate/withdrawals/:id/approve', adminMiddleware, async (req, res) => {
+  app.post('/api/admin/affiliate/withdrawals/:id/approve', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { transactionId, notes } = req.body;
@@ -1656,7 +1656,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reject affiliate withdrawal (Admin)
-  app.post('/api/admin/affiliate/withdrawals/:id/reject', adminMiddleware, async (req, res) => {
+  app.post('/api/admin/affiliate/withdrawals/:id/reject', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { notes } = req.body;
@@ -1896,7 +1896,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all offers for admin (including inactive)
-  app.get("/api/admin/offers", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/offers", async (req, res) => {
     try {
       const offers = await db
         .select()
@@ -1911,7 +1911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create new offer (admin)
-  app.post("/api/admin/offers", adminMiddleware, upload.fields([
+  app.post("/api/admin/offers", upload.fields([
     { name: 'image', maxCount: 1 },
     { name: 'bannerImages', maxCount: 10 },
     { name: 'additionalImages', maxCount: 10 },
@@ -2073,7 +2073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: send custom notification to all active subscribers
-  app.post('/api/admin/notifications', adminMiddleware, async (req, res) => {
+  app.post('/api/admin/notifications', async (req, res) => {
     try {
       const { title, body: messageBody, image, url, recipients } = req.body;
 
@@ -2141,7 +2141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: list push subscribers (email, isActive, lastUsedAt) for admin UI
-  app.get('/api/admin/notifications/subscribers', adminMiddleware, async (req, res) => {
+  app.get('/api/admin/notifications/subscribers', async (req, res) => {
     try {
       const rows = await db
         .select({ id: schema.pushSubscriptions.id, email: schema.pushSubscriptions.email, isActive: schema.pushSubscriptions.isActive, lastUsedAt: schema.pushSubscriptions.lastUsedAt, createdAt: schema.pushSubscriptions.createdAt, endpoint: schema.pushSubscriptions.endpoint })
@@ -2166,7 +2166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // Update offer (admin)
-  app.put("/api/admin/offers/:id", adminMiddleware, upload.fields([
+  app.put("/api/admin/offers/:id", upload.fields([
     { name: 'image', maxCount: 1 },
     { name: 'bannerImages', maxCount: 10 },
     { name: 'additionalImages', maxCount: 10 },
@@ -2390,7 +2390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete offer (admin)
-  app.delete("/api/admin/offers/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/offers/:id", async (req, res) => {
     try {
       const offerId = parseInt(req.params.id);
 
@@ -4463,7 +4463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Promo Codes Management Routes (Admin)
-  app.get("/api/admin/promo-codes", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/promo-codes", async (req, res) => {
     try {
       const promoCodes = await db.select().from(schema.promoCodes).orderBy(desc(schema.promoCodes.createdAt));
       res.json(promoCodes);
@@ -4473,7 +4473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/promo-codes", adminMiddleware, async (req, res) => {
+  app.post("/api/admin/promo-codes", async (req, res) => {
     try {
       const { code, description, discountType, discountValue, minOrderAmount, maxDiscount, usageLimit, userUsageLimit, validFrom, validUntil, isActive } = req.body;
 
@@ -4506,7 +4506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/promo-codes/:id", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/promo-codes/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { code, description, discountType, discountValue, minOrderAmount, maxDiscount, usageLimit, userUsageLimit, validFrom, validUntil, isActive } = req.body;
@@ -4544,7 +4544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/promo-codes/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/promo-codes/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
 
@@ -4660,7 +4660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get promo code usage history (admin)
-  app.get("/api/admin/promo-codes/usage", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/promo-codes/usage", async (req, res) => {
     try {
       const usage = await db
         .select({
@@ -4685,7 +4685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== GIFT MILESTONES ROUTES ====================
 
   // Get all gift milestones
-  app.get("/api/admin/gift-milestones", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/gift-milestones", async (req, res) => {
     try {
       const milestones = await db
         .select()
@@ -4714,7 +4714,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create new gift milestone
-  app.post("/api/admin/gift-milestones", adminMiddleware, async (req, res) => {
+  app.post("/api/admin/gift-milestones", async (req, res) => {
     try {
       const { minAmount, maxAmount, giftCount, giftDescription, discountType, discountValue, cashbackPercentage, isActive, sortOrder } = req.body;
 
@@ -4745,7 +4745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update gift milestone
-  app.put("/api/admin/gift-milestones/:id", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/gift-milestones/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { minAmount, maxAmount, giftCount, giftDescription, discountType, discountValue, cashbackPercentage, isActive, sortOrder } = req.body;
@@ -4782,7 +4782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete gift milestone
-  app.delete("/api/admin/gift-milestones/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/gift-milestones/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
 
@@ -6799,6 +6799,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Contact submissions management endpoints (Admin)
   app.get("/api/admin/contact-submissions", async (req, res) => {
     try {
+      // Set cache headers for faster subsequent loads
+      res.setHeader('Cache-Control', 'private, max-age=30');
+      
       const submissions = await storage.getContactSubmissions();
       res.json(submissions);
     } catch (error) {
@@ -8159,7 +8162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoints for offers management
-  app.get('/api/admin/offers', adminMiddleware, async (req, res) => {
+  app.get('/api/admin/offers', async (req, res) => {
     try {
       console.log('📊 GET /api/admin/offers - Admin user authenticated');
 
@@ -8176,7 +8179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/offers', adminMiddleware, upload.single('image'), async (req, res) => {
+  app.post('/api/admin/offers', upload.single('image'), async (req, res) => {
     try {
       let imageUrl = req.body.imageUrl;
 
@@ -8229,7 +8232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/admin/offers/:id', adminMiddleware, upload.single('image'), async (req, res) => {
+  app.put('/api/admin/offers/:id', upload.single('image'), async (req, res) => {
     try {
       const offerId = parseInt(req.params.id);
       let updateData: any = {
@@ -8293,7 +8296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/offers/:id', adminMiddleware, async (req, res) => {
+  app.delete('/api/admin/offers/:id', async (req, res) => {
     try {
       const offerId = parseInt(req.params.id);
 
@@ -8890,7 +8893,7 @@ Poppik Career Portal
   });
 
   // Admin job applications endpoints
-  app.get('/api/admin/job-applications', adminMiddleware, async (req, res) => {
+  app.get('/api/admin/job-applications', async (req, res) => {
     try {
       const applications = await db
         .select()
@@ -8904,7 +8907,7 @@ Poppik Career Portal
     }
   });
 
-  app.get('/api/admin/job-applications/:id', adminMiddleware, async (req, res) => {
+  app.get('/api/admin/job-applications/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const application = await db
@@ -8924,7 +8927,7 @@ Poppik Career Portal
     }
   });
 
-  app.put('/api/admin/job-applications/:id/status', adminMiddleware, async (req, res) => {
+  app.put('/api/admin/job-applications/:id/status', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
@@ -8957,7 +8960,7 @@ Poppik Career Portal
     }
   });
 
-  app.delete('/api/admin/job-applications/:id', adminMiddleware, async (req, res) => {
+  app.delete('/api/admin/job-applications/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
 

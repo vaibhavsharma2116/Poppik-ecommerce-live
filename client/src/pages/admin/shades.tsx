@@ -110,66 +110,124 @@ export default function AdminShades() {
     },
   });
 
-  // Fetch shades
-  const { data: shades = [], isLoading } = useQuery<Shade[]>({
+  // Fetch shades with optimized caching
+  const { data: shades = [], isLoading, refetch } = useQuery<Shade[]>({
     queryKey: ['admin-shades'],
     queryFn: async () => {
       const response = await fetch('/api/admin/shades');
       if (!response.ok) throw new Error('Failed to fetch shades');
       return response.json();
     },
+    staleTime: 1000 * 60, // 1 minute
+    gcTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
-  // Create shade mutation
+  // Create shade mutation with optimistic update
   const createShadeMutation = useMutation({
     mutationFn: async (shadeData: any) => {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch('/api/admin/shades', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify(shadeData),
       });
-      if (!response.ok) throw new Error('Failed to create shade');
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create shade');
+      }
+
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
-      queryClient.invalidateQueries({ queryKey: ['shades'] });
+    onMutate: async (newShade) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['admin-shades'] });
+      
+      // Snapshot previous value
+      const previousShades = queryClient.getQueryData<Shade[]>(['admin-shades']);
+      
+      // Optimistically update
+      const optimisticShade = {
+        ...newShade,
+        id: Date.now(), // Temporary ID
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      queryClient.setQueryData<Shade[]>(['admin-shades'], (old = []) => [...old, optimisticShade]);
+      
+      return { previousShades };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: "Shade created successfully",
+      });
       setIsAddModalOpen(false);
       resetForm();
-      toast({ title: "Success", description: "Shade created successfully" });
+      queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
+      queryClient.invalidateQueries({ queryKey: ['shades'] });
     },
-    onError: (error) => {
+    onError: (error, newShade, context) => {
+      // Rollback on error
+      if (context?.previousShades) {
+        queryClient.setQueryData(['admin-shades'], context.previousShades);
+      }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   });
 
-  // Update shade mutation
+  // Update shade mutation with optimistic update
   const updateShadeMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      console.log("Updating shade:", data);
+    mutationFn: async ({ id, shadeData }: { id: number; shadeData: any }) => {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/shades/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(shadeData),
       });
 
-      const result = await response.json();
-      console.log("Update response:", result);
-
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to update shade');
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update shade');
       }
-      return result;
+
+      return response.json();
     },
-    onSuccess: () => {
+    onMutate: async ({ id, shadeData }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-shades'] });
+      
+      const previousShades = queryClient.getQueryData<Shade[]>(['admin-shades']);
+      
+      queryClient.setQueryData<Shade[]>(['admin-shades'], (old = []) =>
+        old.map(shade => shade.id === id ? { ...shade, ...shadeData, updatedAt: new Date().toISOString() } : shade)
+      );
+      
+      return { previousShades };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Success",
+        description: "Shade updated successfully",
+      });
+      setIsEditModalOpen(false);
+      setSelectedShade(null);
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
       queryClient.invalidateQueries({ queryKey: ['shades'] });
-      setIsEditModalOpen(false);
-      resetForm();
-      toast({ title: "Success", description: "Shade updated successfully" });
     },
-    onError: (error) => {
-      console.error("Update error:", error);
+    onError: (error, variables, context) => {
+      if (context?.previousShades) {
+        queryClient.setQueryData(['admin-shades'], context.previousShades);
+      }
       toast({ 
         title: "Error", 
         description: error.message || "Failed to update shade", 
@@ -178,23 +236,49 @@ export default function AdminShades() {
     },
   });
 
-  // Delete shade mutation
+  // Delete shade mutation with optimistic update
   const deleteShadeMutation = useMutation({
     mutationFn: async (id: number) => {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/shades/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
-      if (!response.ok) throw new Error('Failed to delete shade');
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete shade');
+      }
+
       return response.json();
     },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-shades'] });
+      
+      const previousShades = queryClient.getQueryData<Shade[]>(['admin-shades']);
+      
+      queryClient.setQueryData<Shade[]>(['admin-shades'], (old = []) =>
+        old.filter(shade => shade.id !== id)
+      );
+      
+      return { previousShades };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
-      queryClient.invalidateQueries({ queryKey: ['shades'] });
+      toast({
+        title: "Success",
+        description: "Shade deleted successfully",
+      });
       setIsDeleteModalOpen(false);
       setSelectedShade(null);
-      toast({ title: "Success", description: "Shade deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
+      queryClient.invalidateQueries({ queryKey: ['shades'] });
     },
-    onError: (error) => {
+    onError: (error, id, context) => {
+      if (context?.previousShades) {
+        queryClient.setQueryData(['admin-shades'], context.previousShades);
+      }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   });
@@ -283,7 +367,7 @@ export default function AdminShades() {
     if (isEdit && selectedShade) {
       updateShadeMutation.mutate({ 
         id: selectedShade.id, 
-        data: shadeData
+        shadeData: shadeData
       });
     } else {
       createShadeMutation.mutate(shadeData);
@@ -291,9 +375,20 @@ export default function AdminShades() {
   };
 
   const handleToggleActive = async (id: number, currentStatus: boolean) => {
+      const previousShades = queryClient.getQueryData<Shade[]>(['admin-shades']);
+      
+      // Optimistically update
+      queryClient.setQueryData<Shade[]>(['admin-shades'], (old = []) =>
+        old.map(shade => shade.id === id ? { ...shade, isActive: !currentStatus } : shade)
+      );
+
       try {
         const token = localStorage.getItem('token');
         if (!token) {
+          // Rollback
+          if (previousShades) {
+            queryClient.setQueryData(['admin-shades'], previousShades);
+          }
           toast({
             title: "Error",
             description: "Authentication required. Please log in again.",
@@ -314,23 +409,31 @@ export default function AdminShades() {
         });
 
         if (!response.ok) {
+          // Rollback
+          if (previousShades) {
+            queryClient.setQueryData(['admin-shades'], previousShades);
+          }
           const errorData = await response.json();
           throw new Error(errorData.error || 'Failed to update shade status');
         }
 
         const updatedShade = await response.json();
-        console.log('Shade updated successfully:', updatedShade);
-
-        // Refresh the shades list
-        queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
-        queryClient.invalidateQueries({ queryKey: ['shades'] });
         
+        // Update with server response
+        queryClient.setQueryData<Shade[]>(['admin-shades'], (old = []) =>
+          old.map(shade => shade.id === id ? updatedShade : shade)
+        );
+        queryClient.invalidateQueries({ queryKey: ['shades'] });
+
         toast({
           title: "Success",
           description: `Shade ${updatedShade.isActive ? 'activated' : 'deactivated'} successfully`,
         });
       } catch (error) {
-        console.error('Error updating shade:', error);
+        // Rollback on error
+        if (previousShades) {
+          queryClient.setQueryData(['admin-shades'], previousShades);
+        }
         toast({
           title: "Error",
           description: error instanceof Error ? error.message : "Failed to update shade status",
@@ -628,10 +731,10 @@ export default function AdminShades() {
 
                             const updatedShade = await response.json();
 
-                            // Refresh the shades list
+                            // Invalidate and refetch automatically
                             queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
                             queryClient.invalidateQueries({ queryKey: ['shades'] });
-                            
+
                             toast({
                               title: "Success",
                               description: `Shade ${updatedShade.inStock ? 'marked as in stock' : 'marked as out of stock'} successfully`,

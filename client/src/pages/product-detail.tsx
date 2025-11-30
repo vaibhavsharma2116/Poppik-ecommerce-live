@@ -19,6 +19,7 @@ import {
 import ProductCard from "@/components/product-card";
 import type { Product } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { Label } from "@radix-ui/react-label";
 
 interface Review {
   id: number;
@@ -81,8 +82,10 @@ export default function ProductDetail() {
     queryKey: [`/api/products/${productSlug}`],
     enabled: !!productSlug,
     retry: false,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Fetch product images from database
@@ -99,6 +102,9 @@ export default function ProductDetail() {
       return response.json();
     },
     enabled: !!product?.id,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
   });
 
   // Get image URLs sorted by sortOrder
@@ -220,8 +226,9 @@ export default function ProductDetail() {
         .slice(0, 4);
     },
     enabled: !!product?.categoryId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
   });
 
   // Mock category and subcategory data (replace with actual data fetching)
@@ -252,6 +259,9 @@ export default function ProductDetail() {
       });
     },
     enabled: !!product?.id,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
   });
 
   // Fetch product reviews
@@ -267,6 +277,9 @@ export default function ProductDetail() {
       return response.json();
     },
     enabled: !!product?.id,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
   });
 
   // Check if user can review this product
@@ -286,6 +299,9 @@ export default function ProductDetail() {
       return response.json();
     },
     enabled: !!product?.id,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
   });
 
   // Consolidate all useEffect hooks to ensure consistent ordering
@@ -1363,6 +1379,60 @@ export default function ProductDetail() {
                     <span className="text-sm sm:text-base text-gray-600 font-medium">({product.reviewCount.toLocaleString()} reviews)</span>
                   </div>
 
+                  {/* Shade Selection - Only show if product has shades */}
+                  {shades.length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <Label className="text-base font-bold text-gray-900">
+                          Select Shades: {selectedShades.length > 0 ? `${selectedShades.length} selected` : 'No shades selected'}
+                        </Label>
+                      </div>
+                      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
+                        {(showAllShades ? shades : shades.slice(0, 6)).map((shade) => {
+                          const isSelected = selectedShades.some(s => s.id === shade.id);
+                          return (
+                            <div
+                              key={shade.id}
+                              onClick={() => toggleShade(shade)}
+                              className={`cursor-pointer rounded-xl p-3 transition-all duration-200 ${
+                                isSelected
+                                  ? 'ring-2 ring-purple-500 ring-offset-2 shadow-lg scale-105'
+                                  : 'hover:ring-2 hover:ring-gray-300 hover:shadow-md'
+                              }`}
+                            >
+                              <div
+                                className="w-full aspect-square rounded-lg mb-2 border-2"
+                                style={{
+                                  backgroundColor: shade.colorCode,
+                                  borderColor: isSelected ? '#a855f7' : '#e5e7eb'
+                                }}
+                              />
+                              <p className="text-xs text-center font-medium text-gray-700 line-clamp-2">
+                                {shade.name}
+                              </p>
+                              {isSelected && (
+                                <div className="text-center mt-1">
+                                  <Badge className="bg-purple-500 text-white text-xs px-2 py-0.5">
+                                    ✓
+                                  </Badge>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {shades.length > 6 && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setShowAllShades(!showAllShades)}
+                          className="mt-3 text-purple-600 hover:text-purple-700"
+                        >
+                          {showAllShades ? 'Show Less' : `Show All ${shades.length} Shades`}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Size */}
                   {product.size && (
                     <div className="mb-6">
@@ -1575,7 +1645,9 @@ export default function ProductDetail() {
                           disabled={shades.length > 0 && selectedShades.length === 0}
                         >
                           <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                          {selectedShades.length > 0 ? `Add ${selectedShades.length} Shade${selectedShades.length > 1 ? 's' : ''} to Cart` : 'Add to Cart'}
+                          {shades.length > 0 && selectedShades.length > 0 
+                            ? `Add ${selectedShades.length} Shade${selectedShades.length > 1 ? 's' : ''} to Cart` 
+                            : 'Add to Cart'}
                         </Button>
                         <Button size="lg" variant="outline" className="border-2 border-purple-200 hover:border-purple-400 rounded-lg sm:rounded-xl p-3 sm:p-4 transform hover:scale-105 transition-all duration-200" onClick={toggleWishlist}>
                           <Heart className={`w-5 h-5 sm:w-6 sm:h-5 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />

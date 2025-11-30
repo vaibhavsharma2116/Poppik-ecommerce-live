@@ -21,16 +21,15 @@ interface VideoTestimonial {
 
 export default function VideoTestimonials() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState<number | null>(null);
-  const [autoplayEnabled, setAutoplayEnabled] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<VideoTestimonial | null>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const { toast } = useToast();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // Fetch UGC Video from API
+  // Fetch UGC Video from API with real-time updates
   const { data: videoTestimonials = [], isLoading: testimonialsLoading } = useQuery<VideoTestimonial[]>({
     queryKey: ["/api/video-testimonials"],
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
   });
 
   // Fetch all products to match with testimonials
@@ -38,13 +37,10 @@ export default function VideoTestimonials() {
     queryKey: ["/api/products"],
   });
 
-  // Filter active testimonials and sort by sortOrder
-  // Ensure videoTestimonials is an array
-  const activeTestimonials = Array.isArray(videoTestimonials)
-    ? videoTestimonials
-        .filter(t => t.isActive)
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-    : [];
+  // Filter active testimonials (assuming API returns only active or filtering is done server-side)
+  // If filtering is needed client-side, uncomment and adjust the line below
+  // const activeTestimonials = Array.isArray(videoTestimonials) ? videoTestimonials.filter(t => t.isActive).sort((a, b) => a.sortOrder - b.sortOrder) : [];
+  const activeTestimonials = Array.isArray(videoTestimonials) ? videoTestimonials : [];
 
   // Auto-slide effect - pause when modal is open
   useEffect(() => {
@@ -64,18 +60,11 @@ export default function VideoTestimonials() {
       
       // Smooth scroll to the next video
       if (scrollContainerRef.current) {
-        const cardWidth = 280; // lg:w-[280px]
-        const gap = 24; // md:gap-6
+        // Assuming card width + gap is roughly 304px (280px card + 24px gap)
         scrollContainerRef.current.scrollTo({
-          left: newIndex * (cardWidth + gap),
+          left: newIndex * 304, 
           behavior: 'smooth'
         });
-      }
-      
-      if (autoplayEnabled) {
-        setIsPlaying(activeTestimonials[newIndex].id);
-      } else {
-        setIsPlaying(null);
       }
     }
   };
@@ -87,18 +76,11 @@ export default function VideoTestimonials() {
       
       // Smooth scroll to the previous video
       if (scrollContainerRef.current) {
-        const cardWidth = 280;
-        const gap = 24;
+        // Assuming card width + gap is roughly 304px
         scrollContainerRef.current.scrollTo({
-          left: newIndex * (cardWidth + gap),
+          left: newIndex * 304,
           behavior: 'smooth'
         });
-      }
-      
-      if (autoplayEnabled) {
-        setIsPlaying(activeTestimonials[newIndex].id);
-      } else {
-        setIsPlaying(null);
       }
     }
   };
@@ -138,31 +120,6 @@ export default function VideoTestimonials() {
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
   };
-
-  const getVisibleTestimonials = () => {
-    const visible = [];
-    const displayCount = Math.min(4, activeTestimonials.length);
-
-    for (let i = 0; i < displayCount; i++) {
-      const index = (currentIndex + i) % activeTestimonials.length;
-      const testimonial = activeTestimonials[index];
-      const product = allProducts?.find(p => p.id === testimonial.productId);
-      visible.push({ ...testimonial, product });
-    }
-    return visible;
-  };
-
-  const visibleTestimonials = getVisibleTestimonials();
-
-  // Autoplay all visible videos when component mounts or slides change
-  useState(() => {
-    if (autoplayEnabled && visibleTestimonials.length > 0) {
-      // Set all visible video IDs to play
-      visibleTestimonials.forEach((testimonial) => {
-        setIsPlaying(testimonial.id);
-      });
-    }
-  });
 
   if (testimonialsLoading || productsLoading) {
     return (

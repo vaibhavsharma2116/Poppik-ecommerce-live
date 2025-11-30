@@ -144,7 +144,6 @@ export default function AdminProducts() {
 
   // Fetch data from API
   useEffect(() => {
-  
     fetchData();
   }, []);
 
@@ -155,11 +154,15 @@ export default function AdminProducts() {
 
       console.log("🔄 Fetching data from APIs...");
 
-      // Fetch products first with better error handling
-      const productsRes = await fetch('/api/products', {
+      // Force fresh data by adding timestamp and no-cache headers
+      const timestamp = Date.now();
+      const productsRes = await fetch(`/api/products?_t=${timestamp}`, {
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
 
@@ -193,12 +196,31 @@ export default function AdminProducts() {
       setProducts(validProductsData);
       setFilteredProducts(validProductsData);
 
-      // Fetch categories, subcategories, and shades in parallel
+      // Fetch categories, subcategories, and shades in parallel with cache-busting
       try {
+        const timestamp = Date.now();
         const [categoriesRes, subcategoriesRes, shadesRes] = await Promise.all([
-          fetch('/api/categories'),
-          fetch('/api/subcategories'),
-          fetch('/api/shades') // Fetch shades
+          fetch(`/api/categories?_t=${timestamp}`, {
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          }),
+          fetch(`/api/subcategories?_t=${timestamp}`, {
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          }),
+          fetch(`/api/shades?_t=${timestamp}`, {
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          })
         ]);
 
         console.log("Categories API response:", categoriesRes.status);
