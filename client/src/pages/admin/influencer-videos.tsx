@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface MediaItem {
   id?: number;
@@ -25,8 +26,8 @@ interface MediaItem {
 
 export default function AdminInfluencerVideos() {
   const { toast } = useToast();
-  const [items, setItems] = useState<MediaItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const [loading, setLoading] = useState(false); // keep for fallback while mutating
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<MediaItem | null>(null);
   const [form, setForm] = useState<MediaItem>({ influencerName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'influencer', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' });
@@ -37,29 +38,25 @@ export default function AdminInfluencerVideos() {
   const thumbInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
 
-  const fetchList = async () => {
-    setLoading(true);
-    try {
+  // React Query - auto polling and cache-busting
+  const { data: items = [], isLoading } = useQuery<MediaItem[]>({
+    queryKey: ['/api/admin/influencer-videos'],
+    queryFn: async () => {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/admin/influencer-videos', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`/api/admin/influencer-videos?t=${Date.now()}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
-      // filter for influencer videos
       const filtered = (data || []).filter((m: any) => (m.type === 'video' || m.videoUrl) && (m.category === 'influencer' || m.category === 'media'));
-      setItems(filtered);
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Error', description: 'Failed to load influencer videos', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchList(); }, []);
+      return filtered;
+    },
+    refetchInterval: 2000,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ influencerName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'influencer', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' });
+    setForm({ influencerName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'influencer', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' } as MediaItem);
     // revoke any created object URLs
     if (imageBlobRef.current && imageBlobRef.current.startsWith('blob:')) {
       try { URL.revokeObjectURL(imageBlobRef.current); } catch (e) { /* ignore */ }
@@ -72,6 +69,102 @@ export default function AdminInfluencerVideos() {
     setImageFile(null);
     setVideoFile(null);
   };
+
+  // Helper: upload file to /api/upload and return url
+  const uploadFile = async (file: File, type: 'image' | 'video') => {
+    const fd = new FormData(); fd.append('file', file); fd.append('type', type);
+    const r = await fetch('/api/upload', { method: 'POST', body: fd });
+    if (r.ok) { const j = await r.json(); return j.url; }
+    throw new Error('Upload failed');
+  };
+
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: async ({ form, imageFile, videoFile }: any) => {
+      // Create copy of form
+      const payload: any = { ...form };
+      if (imageFile) payload.imageUrl = await uploadFile(imageFile, 'image');
+      if (videoFile) payload.videoUrl = await uploadFile(videoFile, 'video');
+      // parse metadata
+      try { payload.metadata = typeof payload.metadata === 'string' ? JSON.parse(payload.metadata || '{}') : payload.metadata || {}; } catch (err) { payload.metadata = {}; }
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/admin/influencer-videos', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) }, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error('Create failed');
+      return res.json();
+    },
+    onMutate: async (vars) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/influencer-videos'] });
+      const previous = queryClient.getQueryData<MediaItem[]>(['/api/admin/influencer-videos']) || [];
+      const temp: MediaItem = { ...vars.form, id: `temp-${Date.now()}` } as any;
+      queryClient.setQueryData(['/api/admin/influencer-videos'], (old: any[] = []) => [temp, ...old]);
+      return { previous };
+    },
+    onError: (_err, _vars, context: any) => {
+      if (context?.previous) queryClient.setQueryData(['/api/admin/influencer-videos'], context.previous);
+      toast({ title: 'Error', description: 'Failed to create', variant: 'destructive' });
+    },
+    onSuccess: (newItem) => {
+      // Replace temp items and ensure fresh data
+      queryClient.setQueryData(['/api/admin/influencer-videos'], (old: any[] = []) => [newItem, ...old.filter(i => String(i.id).indexOf('temp-') === -1)]);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/influencer-videos'] });
+      toast({ title: 'Success', description: 'Created' });
+      setIsModalOpen(false); resetForm();
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, payload }: any) => {
+      const { form, imageFile, videoFile } = payload;
+      const payloadCopy: any = { ...form };
+      if (imageFile) payloadCopy.imageUrl = await uploadFile(imageFile, 'image');
+      if (videoFile) payloadCopy.videoUrl = await uploadFile(videoFile, 'video');
+      try { payloadCopy.metadata = typeof payloadCopy.metadata === 'string' ? JSON.parse(payloadCopy.metadata || '{}') : payloadCopy.metadata || {}; } catch (err) { payloadCopy.metadata = {}; }
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/admin/influencer-videos/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) }, body: JSON.stringify(payloadCopy) });
+      if (!res.ok) throw new Error('Update failed');
+      return res.json();
+    },
+    onMutate: async ({ id, payload }: any) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/influencer-videos'] });
+      const previous = queryClient.getQueryData<MediaItem[]>(['/api/admin/influencer-videos']) || [];
+      queryClient.setQueryData(['/api/admin/influencer-videos'], (old: any[] = []) => old.map(i => i.id === id ? { ...i, ...payload.form } : i));
+      return { previous };
+    },
+    onError: (_err, _vars, context: any) => {
+      if (context?.previous) queryClient.setQueryData(['/api/admin/influencer-videos'], context.previous);
+      toast({ title: 'Error', description: 'Failed to update', variant: 'destructive' });
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['/api/admin/influencer-videos'], (old: any[] = []) => old.map(i => i.id === updated.id ? updated : i));
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/influencer-videos'] });
+      toast({ title: 'Success', description: 'Updated' });
+      setIsModalOpen(false); resetForm();
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/admin/influencer-videos/${id}`, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) throw new Error('Delete failed');
+      return id;
+    },
+    onMutate: async (id: number) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/influencer-videos'] });
+      const previous = queryClient.getQueryData<MediaItem[]>(['/api/admin/influencer-videos']) || [];
+      queryClient.setQueryData(['/api/admin/influencer-videos'], (old: any[] = []) => old.filter(i => i.id !== id));
+      return { previous };
+    },
+    onError: (_err, _vars, context: any) => {
+      if (context?.previous) queryClient.setQueryData(['/api/admin/influencer-videos'], context.previous);
+      toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' });
+    },
+    onSuccess: (id) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/influencer-videos'] });
+      toast({ title: 'Deleted' });
+      resetForm();
+    }
+  });
 
   useEffect(() => {
     return () => {
@@ -127,53 +220,18 @@ export default function AdminInfluencerVideos() {
 
   const handleSave = async () => {
     if (!form.title || !form.title.trim()) { toast({ title: 'Error', description: 'Title required', variant: 'destructive' }); return; }
-    try {
-      const token = localStorage.getItem('token');
-      const url = editing ? `/api/admin/influencer-videos/${editing.id}` : '/api/admin/influencer-videos';
-      const method = editing ? 'PUT' : 'POST';
-
-      // If files selected, upload them first to /api/upload
-      if (imageFile) {
-        const fd = new FormData(); fd.append('file', imageFile); fd.append('type', 'image');
-        const r = await fetch('/api/upload', { method: 'POST', body: fd });
-        if (r.ok) { const j = await r.json(); form.imageUrl = j.url; }
-      }
-      if (videoFile) {
-        const fd = new FormData(); fd.append('file', videoFile); fd.append('type', 'video');
-        const r = await fetch('/api/upload', { method: 'POST', body: fd });
-        if (r.ok) { const j = await r.json(); form.videoUrl = j.url; }
-      }
-
-      // Ensure metadata is sent as JSON object
-      let metadataToSend: any = null;
-      try {
-        if (typeof form.metadata === 'string') metadataToSend = JSON.parse(form.metadata || '{}');
-        else metadataToSend = form.metadata || {};
-      } catch (err) {
-        toast({ title: 'Error', description: 'Metadata must be valid JSON', variant: 'destructive' });
-        return;
-      }
-
-      const payload = { ...form, metadata: metadataToSend } as any;
-
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) }, body: JSON.stringify(payload) });
-      if (!res.ok) throw new Error('Save failed');
-      toast({ title: 'Success', description: editing ? 'Updated' : 'Created' });
-      setIsModalOpen(false); resetForm(); fetchList();
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Error', description: 'Failed to save influencer video', variant: 'destructive' });
+    // Call mutation with form and files
+    const payload = { form, imageFile, videoFile };
+    if (editing) {
+      updateMutation.mutate({ id: editing.id, payload });
+    } else {
+      createMutation.mutate(payload);
     }
   };
 
-  const handleDelete = async (id?: number) => {
+  const handleDelete = (id?: number) => {
     if (!id) return; if (!confirm('Delete this item?')) return;
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/admin/influencer-videos/${id}`, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      if (!res.ok) throw new Error('Delete failed');
-      toast({ title: 'Deleted' }); fetchList();
-    } catch (err) { console.error(err); toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' }); }
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -193,7 +251,7 @@ export default function AdminInfluencerVideos() {
           <CardTitle>All Influencer Videos</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? <p>Loading...</p> : (
+          {isLoading ? <p>Loading...</p> : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -215,7 +273,12 @@ export default function AdminInfluencerVideos() {
                     <TableCell>{it.isActive ? 'Active' : 'Inactive'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => { setEditing(it); setForm(it); setIsModalOpen(true); }}>
+                        <Button variant="ghost" size="sm" onClick={() => { 
+                          const formData = { ...it };
+                          setEditing(it); 
+                          setForm(formData); 
+                          setIsModalOpen(true); 
+                        }}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(it.id)}>
@@ -239,7 +302,11 @@ export default function AdminInfluencerVideos() {
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-semibold">Influencer Name</label>
-              <Input value={form.influencerName} onChange={(e) => setForm({ ...form, influencerName: e.target.value })} />
+              <Input 
+                value={form.influencerName || ''} 
+                onChange={(e) => setForm({ ...form, influencerName: e.target.value })}
+                placeholder="Enter influencer name (e.g., bb, aaa)"
+              />
             </div>
 
             <div>

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,6 +53,11 @@ export default function AdminVideoTestimonials() {
 
   const { data: testimonials = [], isLoading } = useQuery<VideoTestimonial[]>({
     queryKey: ['/api/admin/video-testimonials'],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/video-testimonials?t=${Date.now()}`);
+      if (!response.ok) throw new Error('Failed to fetch');
+      return response.json();
+    },
     refetchInterval: 2000, // Auto-refresh every 2 seconds
     refetchOnWindowFocus: true,
     staleTime: 0, // Always consider data stale

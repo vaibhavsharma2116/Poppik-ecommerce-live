@@ -11661,6 +11661,493 @@ Poppik Affiliate Portal
       res.status(500).json({ error: "Failed to update sort order" });
     }
   });
+  app.get('/api/admin/influencer-videos', adminMiddleware, async (req, res) => {
+    try {
+      const list = await db.select().from(schema.influencerVideos).orderBy(desc(schema.influencerVideos.createdAt));
+      res.json(list);
+    } catch (error) {
+      console.error('Error fetching admin influencer videos:', error);
+      res.status(500).json({ error: 'Failed to fetch influencer videos' });
+    }
+  });
+
+  // Admin: create influencer video
+  app.post('/api/admin/influencer-videos', adminMiddleware, async (req, res) => {
+    try {
+      const data = {
+        influencerName: req.body.influencerName,
+        title: req.body.title,
+        description: req.body.description || null,
+        imageUrl: req.body.imageUrl,
+        videoUrl: req.body.videoUrl || null,
+        redirectUrl: req.body.redirectUrl || null,
+        category: req.body.category || 'influencer',
+        type: req.body.type || 'video',
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        sortOrder: req.body.sortOrder || 0,
+        metadata: req.body.metadata || null,
+      };
+      const inserted = await db.insert(schema.influencerVideos).values(data).returning();
+      res.json(inserted[0]);
+    } catch (error) {
+      console.error('Error creating influencer video:', error);
+      res.status(500).json({ error: 'Failed to create influencer video', details: (error as any).message });
+    }
+  });
+
+  // Admin: update influencer video
+  app.put('/api/admin/influencer-videos/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = {
+        influencerName: req.body.influencerName,
+        title: req.body.title,
+        description: req.body.description || null,
+        imageUrl: req.body.imageUrl,
+        videoUrl: req.body.videoUrl || null,
+        redirectUrl: req.body.redirectUrl || null,
+        category: req.body.category,
+        type: req.body.type,
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        sortOrder: req.body.sortOrder || 0,
+        metadata: req.body.metadata || null,
+        updatedAt: new Date(),
+      };
+      const updated = await db.update(schema.influencerVideos).set(data).where(eq(schema.influencerVideos.id, id)).returning();
+      if (!updated || updated.length === 0) return res.status(404).json({ error: 'Not found' });
+      res.json(updated[0]);
+    } catch (error) {
+      console.error('Error updating influencer video:', error);
+      res.status(500).json({ error: 'Failed to update influencer video', details: (error as any).message });
+    }
+  });
+
+  // Admin: delete influencer video
+  app.delete('/api/admin/influencer-videos/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await db.delete(schema.influencerVideos).where(eq(schema.influencerVideos.id, id)).returning();
+      if (!deleted || deleted.length === 0) return res.status(404).json({ error: 'Not found' });
+      res.json({ message: 'Deleted', deleted: deleted[0] });
+    } catch (error) {
+      console.error('Error deleting influencer video:', error);
+      res.status(500).json({ error: 'Failed to delete influencer video', details: (error as any).message });
+    }
+  });
+
+  // ==================== AFFILIATE VIDEOS ROUTES ====================
+
+  // Public: get affiliate videos
+  app.get('/api/affiliate-videos', async (req, res) => {
+    try {
+      // No cache - always fresh data
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
+      const { isActive, category } = req.query;
+      let query = db.select().from(schema.affiliateVideos);
+      if (isActive !== undefined) {
+        query = query.where(eq(schema.affiliateVideos.isActive, isActive === 'true'));
+      }
+      if (category) {
+        query = query.where(eq(schema.affiliateVideos.category, category as string));
+      }
+      query = query.orderBy(asc(schema.affiliateVideos.sortOrder), desc(schema.affiliateVideos.createdAt));
+      const list = await query;
+      res.json(list);
+    } catch (error) {
+      console.error('Error fetching affiliate videos:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate videos' });
+    }
+  });
+
+  // Get single affiliate video
+  app.get('/api/affiliate-videos/:id', async (req, res) => {
+    try {
+      // No cache - always fresh data
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
+      const id = parseInt(req.params.id);
+      const rows = await db.select().from(schema.affiliateVideos).where(eq(schema.affiliateVideos.id, id));
+      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
+      res.json(rows[0]);
+    } catch (error) {
+      console.error('Error fetching affiliate video:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate video' });
+    }
+  });
+
+  // Click tracking for affiliate video
+  app.post('/api/affiliate-videos/:id/click', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const rows = await db.select().from(schema.affiliateVideos).where(eq(schema.affiliateVideos.id, id));
+      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
+      await db.update(schema.affiliateVideos).set({ clickCount: (rows[0].clickCount || 0) + 1 }).where(eq(schema.affiliateVideos.id, id));
+      res.json({ redirectUrl: rows[0].redirectUrl || rows[0].videoUrl });
+    } catch (error) {
+      console.error('Error tracking affiliate video click:', error);
+      res.status(500).json({ error: 'Failed to track click' });
+    }
+  });
+
+  // Share page for affiliate video (returns HTML with Open Graph tags)
+  app.get('/share/affiliate-videos/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const rows = await db.select().from(schema.affiliateVideos).where(eq(schema.affiliateVideos.id, id));
+      if (!rows || rows.length === 0) return res.status(404).send('Not found');
+
+      const video = rows[0];
+      const host = req.get('host') || 'localhost';
+      const forwarded = (req.headers['x-forwarded-proto'] as string) || '';
+      const protocol = forwarded.split(',')[0] || req.protocol || 'https';
+
+      const makeAbsolute = (url: string | null) => {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        const path = url.startsWith('/') ? url : `/${url}`;
+        return `${protocol}://${host}${path}`;
+      };
+
+      const ogImage = makeAbsolute(video.imageUrl || '');
+      const pageUrl = `${protocol}://${host}${req.originalUrl}`;
+      const title = (video.title || video.affiliateName || 'Affiliate Video').toString();
+      const description = (video.description || '').toString();
+
+      const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${escapeHtml(title)}</title>
+  <meta property="og:type" content="video.other" />
+  <meta property="og:title" content="${escapeHtml(title)}" />
+  <meta property="og:description" content="${escapeHtml(description)}" />
+  <meta property="og:image" content="${escapeHtml(ogImage)}" />
+  <meta property="og:url" content="${escapeHtml(pageUrl)}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${escapeHtml(title)}" />
+  <meta name="twitter:description" content="${escapeHtml(description)}" />
+  <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
+</head>
+<body>
+  <main style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,Helvetica,sans-serif;">
+    <div style="text-align:center;max-width:680px;margin:0 16px;">
+      <h1 style="font-size:20px;margin-bottom:8px;">${escapeHtml(title)}</h1>
+      <p style="color:#666;margin-bottom:16px;">${escapeHtml(description)}</p>
+      <p><a href="${escapeHtml(video.redirectUrl || video.videoUrl || '#')}" style="background:#e74c3c;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">Open Video</a></p>
+      <p style="margin-top:18px;color:#999;font-size:13px;">If the video doesn't open automatically, click the button above.</p>
+    </div>
+  </main>
+  <script>
+    (function(){
+      try{
+        var target = ${JSON.stringify(video.redirectUrl || video.videoUrl || '')};
+        if(target) setTimeout(function(){ window.location.href = target; }, 1200);
+      }catch(e){}
+    })();
+  </script>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (error) {
+      console.error('Error rendering share page for affiliate video:', error);
+      res.status(500).send('Failed to render share page');
+    }
+  });
+
+  // Admin: get all affiliate videos
+  app.get('/api/admin/affiliate-videos', adminMiddleware, async (req, res) => {
+    try {
+      // No cache - always fresh data
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
+      const list = await db.select().from(schema.affiliateVideos).orderBy(desc(schema.affiliateVideos.createdAt));
+      res.json(list);
+    } catch (error) {
+      console.error('Error fetching admin affiliate videos:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate videos' });
+    }
+  });
+
+  // Admin: create affiliate video
+  app.post('/api/admin/affiliate-videos', adminMiddleware, async (req, res) => {
+    try {
+      const data = {
+        affiliateName: req.body.affiliateName,
+        title: req.body.title,
+        description: req.body.description || null,
+        imageUrl: req.body.imageUrl,
+        videoUrl: req.body.videoUrl || null,
+        redirectUrl: req.body.redirectUrl || null,
+        category: req.body.category || 'affiliate',
+        type: req.body.type || 'video',
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        sortOrder: req.body.sortOrder || 0,
+        metadata: req.body.metadata || null,
+      };
+      const inserted = await db.insert(schema.affiliateVideos).values(data).returning();
+      res.json(inserted[0]);
+    } catch (error) {
+      console.error('Error creating affiliate video:', error);
+      res.status(500).json({ error: 'Failed to create affiliate video', details: (error as any).message });
+    }
+  });
+
+  // Admin: update affiliate video
+  app.put('/api/admin/affiliate-videos/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = {
+        affiliateName: req.body.affiliateName,
+        title: req.body.title,
+        description: req.body.description || null,
+        imageUrl: req.body.imageUrl,
+        videoUrl: req.body.videoUrl || null,
+        redirectUrl: req.body.redirectUrl || null,
+        category: req.body.category,
+        type: req.body.type,
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        sortOrder: req.body.sortOrder || 0,
+        metadata: req.body.metadata || null,
+        updatedAt: new Date(),
+      };
+      const updated = await db.update(schema.affiliateVideos).set(data).where(eq(schema.affiliateVideos.id, id)).returning();
+      if (!updated || updated.length === 0) return res.status(404).json({ error: 'Not found' });
+      res.json(updated[0]);
+    } catch (error) {
+      console.error('Error updating affiliate video:', error);
+      res.status(500).json({ error: 'Failed to update affiliate video', details: (error as any).message });
+    }
+  });
+
+  // Admin: delete affiliate video
+  app.delete('/api/admin/affiliate-videos/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await db.delete(schema.affiliateVideos).where(eq(schema.affiliateVideos.id, id)).returning();
+      if (!deleted || deleted.length === 0) return res.status(404).json({ error: 'Not found' });
+      res.json({ message: 'Deleted', deleted: deleted[0] });
+    } catch (error) {
+      console.error('Error deleting affiliate video:', error);
+      res.status(500).json({ error: 'Failed to delete affiliate video', details: (error as any).message });
+    }
+  });
+
+  // ==================== CHANNEL PARTNER VIDEOS ROUTES ====================
+
+  // Public: get channel partner videos
+  app.get('/api/channel-partner-videos', async (req, res) => {
+    try {
+      // No cache - always fresh data
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
+      const { isActive, category } = req.query;
+      let query = db.select().from(schema.channelPartnerVideos);
+      if (isActive !== undefined) {
+        query = query.where(eq(schema.channelPartnerVideos.isActive, isActive === 'true'));
+      }
+      if (category) {
+        query = query.where(eq(schema.channelPartnerVideos.category, category as string));
+      }
+      query = query.orderBy(asc(schema.channelPartnerVideos.sortOrder), desc(schema.channelPartnerVideos.createdAt));
+      const list = await query;
+      res.json(list);
+    } catch (error) {
+      console.error('Error fetching channel partner videos:', error);
+      res.status(500).json({ error: 'Failed to fetch channel partner videos' });
+    }
+  });
+
+  // Get single channel partner video
+  app.get('/api/channel-partner-videos/:id', async (req, res) => {
+    try {
+      // No cache - always fresh data
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
+      const id = parseInt(req.params.id);
+      const rows = await db.select().from(schema.channelPartnerVideos).where(eq(schema.channelPartnerVideos.id, id));
+      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
+      res.json(rows[0]);
+    } catch (error) {
+      console.error('Error fetching channel partner video:', error);
+      res.status(500).json({ error: 'Failed to fetch channel partner video' });
+    }
+  });
+
+  // Click tracking for channel partner video
+  app.post('/api/channel-partner-videos/:id/click', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const rows = await db.select().from(schema.channelPartnerVideos).where(eq(schema.channelPartnerVideos.id, id));
+      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
+      await db.update(schema.channelPartnerVideos).set({ clickCount: (rows[0].clickCount || 0) + 1 }).where(eq(schema.channelPartnerVideos.id, id));
+      res.json({ redirectUrl: rows[0].redirectUrl || rows[0].videoUrl });
+    } catch (error) {
+      console.error('Error tracking channel partner video click:', error);
+      res.status(500).json({ error: 'Failed to track click' });
+    }
+  });
+
+  // Share page for channel partner video (returns HTML with Open Graph tags)
+  app.get('/share/channel-partner-videos/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const rows = await db.select().from(schema.channelPartnerVideos).where(eq(schema.channelPartnerVideos.id, id));
+      if (!rows || rows.length === 0) return res.status(404).send('Not found');
+
+      const video = rows[0];
+      const host = req.get('host') || 'localhost';
+      const forwarded = (req.headers['x-forwarded-proto'] as string) || '';
+      const protocol = forwarded.split(',')[0] || req.protocol || 'https';
+
+      const makeAbsolute = (url: string | null) => {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        const path = url.startsWith('/') ? url : `/${url}`;
+        return `${protocol}://${host}${path}`;
+      };
+
+      const ogImage = makeAbsolute(video.imageUrl || '');
+      const pageUrl = `${protocol}://${host}${req.originalUrl}`;
+      const title = (video.title || video.partnerName || 'Channel Partner Video').toString();
+      const description = (video.description || '').toString();
+
+      const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${escapeHtml(title)}</title>
+  <meta property="og:type" content="video.other" />
+  <meta property="og:title" content="${escapeHtml(title)}" />
+  <meta property="og:description" content="${escapeHtml(description)}" />
+  <meta property="og:image" content="${escapeHtml(ogImage)}" />
+  <meta property="og:url" content="${escapeHtml(pageUrl)}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${escapeHtml(title)}" />
+  <meta name="twitter:description" content="${escapeHtml(description)}" />
+  <meta name="twitter:image" content="${escapeHtml(ogImage)}" />
+</head>
+<body>
+  <main style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Arial,Helvetica,sans-serif;">
+    <div style="text-align:center;max-width:680px;margin:0 16px;">
+      <h1 style="font-size:20px;margin-bottom:8px;">${escapeHtml(title)}</h1>
+      <p style="color:#666;margin-bottom:16px;">${escapeHtml(description)}</p>
+      <p><a href="${escapeHtml(video.redirectUrl || video.videoUrl || '#')}" style="background:#e74c3c;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">Open Video</a></p>
+      <p style="margin-top:18px;color:#999;font-size:13px;">If the video doesn't open automatically, click the button above.</p>
+    </div>
+  </main>
+  <script>
+    (function(){
+      try{
+        var target = ${JSON.stringify(video.redirectUrl || video.videoUrl || '')};
+        if(target) setTimeout(function(){ window.location.href = target; }, 1200);
+      }catch(e){}
+    })();
+  </script>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (error) {
+      console.error('Error rendering share page for channel partner video:', error);
+      res.status(500).send('Failed to render share page');
+    }
+  });
+
+  // Admin: get all channel partner videos
+  app.get('/api/admin/channel-partner-videos', adminMiddleware, async (req, res) => {
+    try {
+      // No cache - always fresh data
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
+      const list = await db.select().from(schema.channelPartnerVideos).orderBy(desc(schema.channelPartnerVideos.createdAt));
+      res.json(list);
+    } catch (error) {
+      console.error('Error fetching admin channel partner videos:', error);
+      res.status(500).json({ error: 'Failed to fetch channel partner videos' });
+    }
+  });
+
+  // Admin: create channel partner video
+  app.post('/api/admin/channel-partner-videos', adminMiddleware, async (req, res) => {
+    try {
+      const data = {
+        partnerName: req.body.partnerName,
+        title: req.body.title,
+        description: req.body.description || null,
+        imageUrl: req.body.imageUrl,
+        videoUrl: req.body.videoUrl || null,
+        redirectUrl: req.body.redirectUrl || null,
+        category: req.body.category || 'channel-partner',
+        type: req.body.type || 'video',
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        sortOrder: req.body.sortOrder || 0,
+        metadata: req.body.metadata || null,
+      };
+      const inserted = await db.insert(schema.channelPartnerVideos).values(data).returning();
+      res.json(inserted[0]);
+    } catch (error) {
+      console.error('Error creating channel partner video:', error);
+      res.status(500).json({ error: 'Failed to create channel partner video', details: (error as any).message });
+    }
+  });
+
+  // Admin: update channel partner video
+  app.put('/api/admin/channel-partner-videos/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = {
+        partnerName: req.body.partnerName,
+        title: req.body.title,
+        description: req.body.description || null,
+        imageUrl: req.body.imageUrl,
+        videoUrl: req.body.videoUrl || null,
+        redirectUrl: req.body.redirectUrl || null,
+        category: req.body.category,
+        type: req.body.type,
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        sortOrder: req.body.sortOrder || 0,
+        metadata: req.body.metadata || null,
+        updatedAt: new Date(),
+      };
+      const updated = await db.update(schema.channelPartnerVideos).set(data).where(eq(schema.channelPartnerVideos.id, id)).returning();
+      if (!updated || updated.length === 0) return res.status(404).json({ error: 'Not found' });
+      res.json(updated[0]);
+    } catch (error) {
+      console.error('Error updating channel partner video:', error);
+      res.status(500).json({ error: 'Failed to update channel partner video', details: (error as any).message });
+    }
+  });
+
+  // Admin: delete channel partner video
+  app.delete('/api/admin/channel-partner-videos/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await db.delete(schema.channelPartnerVideos).where(eq(schema.channelPartnerVideos.id, id)).returning();
+      if (!deleted || deleted.length === 0) return res.status(404).json({ error: 'Not found' });
+      res.json({ message: 'Deleted', deleted: deleted[0] });
+    } catch (error) {
+      console.error('Error deleting channel partner video:', error);
+      res.status(500).json({ error: 'Failed to delete channel partner video', details: (error as any).message });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

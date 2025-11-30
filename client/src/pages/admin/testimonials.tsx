@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Edit, Trash2, Star, Upload, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Testimonial {
   id: number;
@@ -24,15 +25,14 @@ interface Testimonial {
 }
 
 export default function AdminTestimonials() {
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedTestimonial, setSelectedTestimonial] = useState<Testimonial | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
-  const { toast } = useToast();
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -44,28 +44,22 @@ export default function AdminTestimonials() {
     sortOrder: 0,
   });
 
-  const fetchTestimonials = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/admin/testimonials');
-      if (response.ok) {
-        const data = await response.json();
-        // Normalize testimonial fields to ensure `instagramUrl` exists
-        const normalized = data.map((t: any) => ({
-          ...t,
-          instagramUrl: t.instagramUrl || t.instagram_url || null,
-        }));
-        setTestimonials(normalized);
-      }
-    } catch (error) {
-      console.error('Error fetching testimonials:', error);
-      toast({ title: "Error", description: "Failed to fetch testimonials", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => { fetchTestimonials(); }, [fetchTestimonials]);
+  // React Query for real-time updates
+  const { data: testimonials = [], isLoading } = useQuery<Testimonial[]>({
+    queryKey: ['/api/admin/testimonials'],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/testimonials?t=${Date.now()}`);
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      return data.map((t: any) => ({
+        ...t,
+        instagramUrl: t.instagramUrl || t.instagram_url || null,
+      }));
+    },
+    refetchInterval: 2000, // Auto-refresh every 2 seconds
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Always consider data stale
+  });
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -83,9 +77,83 @@ export default function AdminTestimonials() {
     setFormData(prev => ({ ...prev, customerImage: '' }));
   };
 
+  // Create mutation with optimistic updates
+  const createMutation = useMutation({
+    mutationFn: async (submitFormData: FormData) => {
+      const response = await fetch('/api/admin/testimonials', {
+        method: 'POST',
+        body: submitFormData,
+      });
+      if (!response.ok) throw new Error('Failed to create');
+      return response.json();
+    },
+    onSuccess: (newTestimonial) => {
+      // Optimistic UI update
+      queryClient.setQueryData(['/api/admin/testimonials'], (old: Testimonial[] = []) => [...old, newTestimonial]);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/testimonials'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/testimonials'] });
+      toast({ title: "Success", description: "Testimonial created successfully" });
+      resetForm();
+      setIsAddModalOpen(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create testimonial", variant: "destructive" });
+    },
+  });
+
+  // Update mutation with optimistic updates
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, submitFormData }: { id: number; submitFormData: FormData }) => {
+      const response = await fetch(`/api/admin/testimonials/${id}`, {
+        method: 'PUT',
+        body: submitFormData,
+      });
+      if (!response.ok) throw new Error('Failed to update');
+      return response.json();
+    },
+    onSuccess: (updatedTestimonial) => {
+      // Optimistic UI update
+      queryClient.setQueryData(['/api/admin/testimonials'], (old: Testimonial[] = []) =>
+        old.map(t => t.id === updatedTestimonial.id ? updatedTestimonial : t)
+      );
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/testimonials'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/testimonials'] });
+      toast({ title: "Success", description: "Testimonial updated successfully" });
+      resetForm();
+      setIsEditModalOpen(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update testimonial", variant: "destructive" });
+    },
+  });
+
+  // Delete mutation with optimistic updates
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/admin/testimonials/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete');
+      return response.json();
+    },
+    onSuccess: (_, id) => {
+      // Optimistic UI update
+      queryClient.setQueryData(['/api/admin/testimonials'], (old: Testimonial[] = []) =>
+        old.filter(t => t.id !== id)
+      );
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/testimonials'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/testimonials'] });
+      toast({ title: "Success", description: "Testimonial deleted successfully" });
+      setIsDeleteModalOpen(false);
+      setSelectedTestimonial(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete testimonial", variant: "destructive" });
+    },
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
     try {
       let imageUrl = formData.customerImage;
@@ -109,21 +177,14 @@ export default function AdminTestimonials() {
       submitFormData.append('isActive', formData.isActive.toString());
       submitFormData.append('sortOrder', formData.sortOrder.toString());
 
-      const url = selectedTestimonial ? `/api/admin/testimonials/${selectedTestimonial.id}` : '/api/admin/testimonials';
-      const response = await fetch(url, { method: selectedTestimonial ? 'PUT' : 'POST', body: submitFormData });
-
-      if (response.ok) {
-        toast({ title: "Success", description: `Testimonial ${selectedTestimonial ? 'updated' : 'created'} successfully` });
-        await fetchTestimonials();
-        resetForm();
-        setIsAddModalOpen(false);
-        setIsEditModalOpen(false);
+      if (selectedTestimonial) {
+        updateMutation.mutate({ id: selectedTestimonial.id, submitFormData });
+      } else {
+        createMutation.mutate(submitFormData);
       }
     } catch (error) {
       console.error('Error saving testimonial:', error);
       toast({ title: "Error", description: "Failed to save testimonial", variant: "destructive" });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -144,18 +205,7 @@ export default function AdminTestimonials() {
 
   const handleDelete = async () => {
     if (!selectedTestimonial) return;
-    try {
-      const response = await fetch(`/api/admin/testimonials/${selectedTestimonial.id}`, { method: 'DELETE' });
-      if (response.ok) {
-        toast({ title: "Success", description: "Testimonial deleted successfully" });
-        await fetchTestimonials();
-        setIsDeleteModalOpen(false);
-        setSelectedTestimonial(null);
-      }
-    } catch (error) {
-      console.error('Error deleting testimonial:', error);
-      toast({ title: "Error", description: "Failed to delete testimonial", variant: "destructive" });
-    }
+    deleteMutation.mutate(selectedTestimonial.id);
   };
 
   const resetForm = () => {
@@ -184,7 +234,7 @@ export default function AdminTestimonials() {
           <CardDescription>View and manage customer testimonials</CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <p>Loading...</p>
           ) : (
             <Table>

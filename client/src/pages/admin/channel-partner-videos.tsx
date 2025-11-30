@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface MediaItem {
@@ -27,33 +27,46 @@ export default function AdminChannelPartnerVideos() {
   const { toast } = useToast();
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<MediaItem | null>(null);
   const [form, setForm] = useState<MediaItem>({ partnerName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'channel-partner', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<number | null>(null);
   const imageBlobRef = useRef<string | null>(null);
   const videoBlobRef = useRef<string | null>(null);
   const thumbInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
 
-  const fetchList = async () => {
+  // Cache-busting fetch with no-cache headers
+  const fetchList = useCallback(async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/admin/channel-partner-videos', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`/api/admin/channel-partner-videos?t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          ...(token && { Authorization: `Bearer ${token}` })
+        }
+      });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
-      setItems(data || []);
+      setItems(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
       toast({ title: 'Error', description: 'Failed to load channel partner videos', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  useEffect(() => { fetchList(); }, []);
+  useEffect(() => { fetchList(); }, [fetchList]);
 
   const resetForm = () => {
     setEditing(null);
@@ -121,9 +134,10 @@ export default function AdminChannelPartnerVideos() {
 
   const handleSave = async () => {
     if (!form.title || !form.title.trim()) { toast({ title: 'Error', description: 'Title required', variant: 'destructive' }); return; }
+    setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const url = editing ? `/api/admin/channel-partner-videos/${editing.id}` : '/api/admin/channel-partner-videos';
+      const url = editing ? `/api/admin/channel-partner-videos/${editing.id}?t=${Date.now()}` : `/api/admin/channel-partner-videos?t=${Date.now()}`;
       const method = editing ? 'PUT' : 'POST';
 
       if (imageFile) {
@@ -143,29 +157,74 @@ export default function AdminChannelPartnerVideos() {
         else metadataToSend = form.metadata || {};
       } catch (err) {
         toast({ title: 'Error', description: 'Metadata must be valid JSON', variant: 'destructive' });
+        setSaving(false);
         return;
       }
 
       const payload = { ...form, metadata: metadataToSend } as any;
 
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) }, body: JSON.stringify(payload) });
+      const res = await fetch(url, {
+        method,
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
+        body: JSON.stringify(payload)
+      });
       if (!res.ok) throw new Error('Save failed');
       toast({ title: 'Success', description: editing ? 'Updated' : 'Created' });
-      setIsModalOpen(false); resetForm(); fetchList();
+      setIsModalOpen(false);
+      resetForm();
+      // Fetch fresh data immediately
+      await fetchList();
     } catch (err) {
       console.error(err);
       toast({ title: 'Error', description: 'Failed to save channel partner video', variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (id?: number) => {
-    if (!id) return; if (!confirm('Delete this item?')) return;
+    if (!id) return;
+    if (!confirm('Delete this item?')) return;
+    setDeleting(id);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/admin/channel-partner-videos/${id}`, { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const res = await fetch(`/api/admin/channel-partner-videos/${id}?t=${Date.now()}`, {
+        method: 'DELETE',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          ...(token && { Authorization: `Bearer ${token}` })
+        }
+      });
       if (!res.ok) throw new Error('Delete failed');
-      toast({ title: 'Deleted' }); fetchList();
-    } catch (err) { console.error(err); toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' }); }
+      toast({ title: 'Deleted' });
+      // Fetch fresh data immediately
+      await fetchList();
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' });
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchList();
+      toast({ title: 'Refreshed', description: 'Data updated successfully' });
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -175,17 +234,35 @@ export default function AdminChannelPartnerVideos() {
           <h2 className="text-3xl font-bold tracking-tight">Channel Partner Videos</h2>
           <p className="text-muted-foreground mt-1">Manage channel partner videos and thumbnails</p>
         </div>
-        <Button onClick={() => { resetForm(); setIsModalOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" /> Add Channel Partner Video
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+          <Button onClick={() => { resetForm(); setIsModalOpen(true); }}>
+            <Plus className="mr-2 h-4 w-4" /> Add Channel Partner Video
+          </Button>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Channel Partner Videos</CardTitle>
+          <CardTitle>All Channel Partner Videos ({items.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? <p>Loading...</p> : (
+          {loading ? (
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+            </div>
+          ) : items.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No channel partner videos yet. Create one to get started.</p>
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -200,18 +277,45 @@ export default function AdminChannelPartnerVideos() {
                 {items.map((it) => (
                   <TableRow key={it.id}>
                     <TableCell>
-                      <img src={it.imageUrl} alt={it.title} className="w-12 h-12 rounded object-cover" />
+                      {it.imageUrl && (
+                        <img src={it.imageUrl} alt={it.title} className="w-12 h-12 rounded object-cover" />
+                      )}
                     </TableCell>
                     <TableCell>{it.title}</TableCell>
                     <TableCell>{it.category}</TableCell>
-                    <TableCell>{it.isActive ? 'Active' : 'Inactive'}</TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${it.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {it.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => { setEditing(it); setForm(it); setIsModalOpen(true); }}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditing(it);
+                            setForm(it);
+                            setImageFile(null);
+                            setVideoFile(null);
+                            setIsModalOpen(true);
+                          }}
+                          disabled={deleting === it.id}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(it.id)}>
-                          <Trash2 className="h-4 w-4" />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(it.id)}
+                          disabled={deleting === it.id}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          {deleting === it.id ? (
+                            <div className="h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </TableCell>
@@ -304,10 +408,28 @@ export default function AdminChannelPartnerVideos() {
               <textarea value={typeof form.metadata === 'string' ? form.metadata : JSON.stringify(form.metadata || {}, null, 2)} onChange={(e) => setForm({ ...form, metadata: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded" rows={4} />
             </div>
 
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => { setIsModalOpen(false); resetForm(); }}>Cancel</Button>
-              <Button onClick={handleSave}>{editing ? 'Update' : 'Create'}</Button>
-            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  resetForm();
+                }}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    {editing ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  editing ? 'Update' : 'Create'
+                )}
+              </Button>
+            </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>

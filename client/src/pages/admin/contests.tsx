@@ -40,6 +40,7 @@ export default function AdminContests() {
       return res.json();
     }
   });
+  
 
   // RichTextEditor will manage its own TipTap editor instance.
 
