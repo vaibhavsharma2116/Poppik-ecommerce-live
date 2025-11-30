@@ -197,13 +197,20 @@ export default function AdminContests() {
       const method = editingId ? "PUT" : "POST";
       const token = localStorage.getItem("token");
 
+      // Ensure validFrom/validUntil are full ISO datetimes to avoid timezone/day-boundary issues
+      const payload = {
+        ...formData,
+        validFrom: formData.validFrom ? new Date(formData.validFrom + 'T00:00:00').toISOString() : null,
+        validUntil: formData.validUntil ? new Date(formData.validUntil + 'T23:59:59').toISOString() : null,
+      };
+
       const response = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
           ...(token && { Authorization: `Bearer ${token}` }),
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {

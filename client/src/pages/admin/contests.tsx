@@ -19,7 +19,7 @@ interface Contest {
   imageUrl?: string;
   bannerImageUrl?: string;
   detailedDescription?: string;
-  published?: boolean;
+  isActive?: boolean;
   createdAt?: string;
 }
 
@@ -28,7 +28,7 @@ export default function AdminContests() {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Contest | null>(null);
-  const [form, setForm] = useState({ title: '', imageUrl: '', published: true });
+  const [form, setForm] = useState({ title: '', imageUrl: '', isActive: true });
   const [files, setFiles] = useState<{ image?: File }>({});
 
   const { data: contests = [], isLoading } = useQuery({
@@ -63,7 +63,7 @@ export default function AdminContests() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/contests'] });
       setShowModal(false);
       setEditing(null);
-      setForm({ title: '', imageUrl: '', published: true, // @ts-ignore
+      setForm({ title: '', imageUrl: '', isActive: true, // @ts-ignore
         detailedDescription: '' });
       setFiles({});
       toast({ title: 'Saved', description: 'Contest saved successfully' });
@@ -85,14 +85,15 @@ export default function AdminContests() {
 
   const openEdit = (c: Contest) => {
     setEditing(c);
-    setForm({ title: c.title || '', imageUrl: c.imageUrl || '', published: !!c.published, // @ts-ignore
+    setForm({ title: c.title || '', imageUrl: c.imageUrl || '', isActive: !!c.isActive, // @ts-ignore
       detailedDescription: c.detailedDescription || '' });
     setShowModal(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const payload: any = { ...form, detailedDescription: (form as any).detailedDescription || '' };
+    // backend expects `isActive` boolean; ensure it's present
+    const payload: any = { ...form, detailedDescription: (form as any).detailedDescription || '', isActive: !!(form as any).isActive };
     saveMutation.mutate(payload);
   };
 
@@ -103,7 +104,7 @@ export default function AdminContests() {
           <h1 className="text-2xl font-bold">Contest Management</h1>
           <p className="text-sm text-muted-foreground">Create and manage contests and banners</p>
         </div>
-        <Button onClick={() => { setEditing(null); setForm({ title: '', imageUrl: '', published: true, // @ts-ignore
+        <Button onClick={() => { setEditing(null); setForm({ title: '', imageUrl: '', isActive: true, // @ts-ignore
           detailedDescription: '' }); setShowModal(true); }}>Add Contest</Button>
       </div>
 
@@ -122,7 +123,7 @@ export default function AdminContests() {
               {Array.isArray(contests) && contests.map((c: Contest) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.title}</TableCell>
-                  <TableCell>{c.published ? 'Published' : 'Draft'}</TableCell>
+                  <TableCell>{c.isActive ? 'Published' : 'Draft'}</TableCell>
                   <TableCell>{c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '-'}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
@@ -170,8 +171,8 @@ export default function AdminContests() {
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Input type="checkbox" checked={form.published} onChange={(e) => setForm({ ...form, published: e.target.checked })} />
+                <div className="flex items-center gap-3">
+                <Input type="checkbox" checked={(form as any).isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
                 <Label>Published</Label>
               </div>
               <div className="flex gap-2">
