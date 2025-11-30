@@ -8462,6 +8462,187 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Contests - Public and Admin endpoints
+  app.get('/api/contests', async (req, res) => {
+    try {
+      // Allow admins to preview all contests (including drafts) when they send a valid admin JWT
+      let isAdminPreview = false;
+      const authHeader = req.headers.authorization || '';
+      if (authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+          if (decoded && (decoded.role === 'admin' || decoded.role === 'master_admin')) {
+            isAdminPreview = true;
+          }
+        } catch (e) {
+          // Invalid token - ignore preview
+        }
+      }
+
+      const rows = await db.select().from(schema.contests).orderBy(desc(schema.contests.createdAt));
+
+      if (isAdminPreview) {
+        console.log('📣 Admin preview requested for /api/contests - returning all contests');
+        return res.json(rows || []);
+      }
+
+      // Normal public behavior: only active contests within valid date window
+      const now = new Date();
+      const safeRows = (rows || []).filter(r => {
+        try {
+          if (!r.isActive) return false;
+          const from = r.validFrom ? new Date(r.validFrom) : null;
+          const until = r.validUntil ? new Date(r.validUntil) : null;
+          if (from && until) {
+            return from <= now && now <= until;
+          }
+          return !!r.isActive;
+        } catch (e) {
+          return !!r.isActive;
+        }
+      });
+
+      res.json(safeRows);
+    } catch (error) {
+      console.error('Error fetching public contests:', error);
+      res.status(500).json({ error: 'Failed to fetch contests' });
+    }
+  });
+
+  app.get('/api/contests/:slug', async (req, res) => {
+    try {
+      const slug = req.params.slug;
+      const rows = await db.select().from(schema.contests).where(eq(schema.contests.slug, slug)).limit(1);
+      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Contest not found' });
+      const c = rows[0];
+      const now = new Date();
+      try {
+        const from = c.validFrom ? new Date(c.validFrom) : null;
+        const until = c.validUntil ? new Date(c.validUntil) : null;
+        if (from && until && !(from <= now && now <= until)) {
+          return res.status(404).json({ error: 'Contest not active' });
+        }
+      } catch (e) {
+        // ignore parse errors and return the contest if it's marked active
+        if (!c.isActive) return res.status(404).json({ error: 'Contest not active' });
+      }
+      res.json(c);
+    } catch (error) {
+      console.error('Error fetching contest by slug:', error);
+      res.status(500).json({ error: 'Failed to fetch contest' });
+    }
+  });
+
+  // Admin: list all contests
+  app.get('/api/admin/contests', adminMiddleware, async (req, res) => {
+    try {
+      const contests = await db.select().from(schema.contests).orderBy(desc(schema.contests.createdAt));
+      res.json(contests);
+    } catch (error) {
+      console.error('Error fetching admin contests:', error);
+      res.status(500).json({ error: 'Failed to fetch contests' });
+    }
+  });
+
+  // Admin: create contest (accepts multipart/form-data with optional image)
+  app.post('/api/admin/contests', adminMiddleware, upload.single('image'), async (req, res) => {
+    try {
+      const body = req.body || {};
+
+      // Support both JSON and multipart/form-data (when using FormData in client)
+      const title = (body.title || '').toString().trim();
+      if (!title) {
+        return res.status(400).json({ error: 'Title is required' });
+      }
+
+      const slugFromBody = body.slug && body.slug.toString().trim();
+      const slug = slugFromBody || title.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+
+      let imageUrl = body.imageUrl || null;
+      if (req.file) {
+        imageUrl = `/api/images/${req.file.filename}`;
+      }
+
+      const validFrom = body.validFrom ? new Date(body.validFrom.toString()) : new Date();
+      const validUntil = body.validUntil ? new Date(body.validUntil.toString()) : new Date(Date.now() + 7 * 24 * 3600 * 1000);
+
+      const contestData: any = {
+        title,
+        slug,
+        description: body.description ? body.description.toString() : null,
+        content: body.content ? body.content.toString() : '',
+        imageUrl,
+        bannerImageUrl: body.bannerImageUrl ? body.bannerImageUrl.toString() : null,
+        validFrom,
+        validUntil,
+        isActive: body.isActive === 'true' || body.isActive === true,
+        featured: body.featured === 'true' || body.featured === true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const [newContest] = await db.insert(schema.contests).values(contestData).returning();
+      res.json(newContest);
+    } catch (error) {
+      console.error('Error creating contest:', error);
+      res.status(500).json({ error: 'Failed to create contest', details: error.message });
+    }
+  });
+
+  // Admin: update contest (accepts multipart/form-data with optional image)
+  app.put('/api/admin/contests/:id', adminMiddleware, upload.single('image'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const body = req.body || {};
+
+      const updateData: any = {};
+
+      if (body.title !== undefined) updateData.title = body.title.toString();
+      if (body.slug !== undefined) updateData.slug = body.slug.toString();
+      if (body.description !== undefined) updateData.description = body.description ? body.description.toString() : null;
+      if (body.content !== undefined) updateData.content = body.content ? body.content.toString() : '';
+
+      if (req.file) {
+        updateData.imageUrl = `/api/images/${req.file.filename}`;
+      } else if (body.imageUrl !== undefined) {
+        updateData.imageUrl = body.imageUrl ? body.imageUrl.toString() : null;
+      }
+
+      if (body.bannerImageUrl !== undefined) updateData.bannerImageUrl = body.bannerImageUrl ? body.bannerImageUrl.toString() : null;
+      if (body.validFrom !== undefined && body.validFrom !== '') updateData.validFrom = new Date(body.validFrom.toString());
+      if (body.validUntil !== undefined && body.validUntil !== '') updateData.validUntil = new Date(body.validUntil.toString());
+
+      if (body.isActive !== undefined) updateData.isActive = body.isActive === 'true' || body.isActive === true;
+      if (body.featured !== undefined) updateData.featured = body.featured === 'true' || body.featured === true;
+
+      updateData.updatedAt = new Date();
+
+      // Remove undefined fields
+      Object.keys(updateData).forEach(k => updateData[k] === undefined && delete updateData[k]);
+
+      const [updated] = await db.update(schema.contests).set(updateData).where(eq(schema.contests.id, id)).returning();
+      if (!updated) return res.status(404).json({ error: 'Contest not found' });
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating contest:', error);
+      res.status(500).json({ error: 'Failed to update contest', details: error.message });
+    }
+  });
+
+  // Admin: delete contest
+  app.delete('/api/admin/contests/:id', adminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const [deleted] = await db.delete(schema.contests).where(eq(schema.contests.id, id)).returning();
+      if (!deleted) return res.status(404).json({ error: 'Contest not found' });
+      res.json({ message: 'Contest deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting contest:', error);
+      res.status(500).json({ error: 'Failed to delete contest' });
+    }
+  });
+
   // Debug endpoint to check combos table
   app.get('/api/combos/debug', async (req, res) => {
     try {
@@ -11262,6 +11443,222 @@ Poppik Affiliate Portal
     } catch (error) {
       console.error("❌ Error checking notification status:", error);
       res.status(500).json({ error: "Failed to check status" });
+    }
+  });
+  // Public media links endpoint (for front-end gallery)
+  app.get('/api/media', async (req, res) => {
+    try {
+      console.log('GET /api/media called with query:', req.query);
+      const { isActive, category, type } = req.query as any;
+
+      // Build base query
+      let query = db.select().from(schema.mediaLinks as any);
+
+      // Add filters if provided
+      const whereClauses: any[] = [];
+
+      if (typeof isActive !== 'undefined') {
+        const active = isActive === 'true' || isActive === true;
+        whereClauses.push(eq(schema.mediaLinks.isActive, active));
+      }
+
+      if (category) {
+        whereClauses.push(eq(schema.mediaLinks.category, category));
+      }
+
+      if (type) {
+        whereClauses.push(eq(schema.mediaLinks.type, type));
+      }
+
+      // Date filtering: by default include only items valid now; if `ignoreDates=true` is passed, skip this filter
+      const ignoreDates = (req.query as any).ignoreDates === 'true' || (req.query as any).ignoreDates === true;
+      const now = new Date();
+      if (ignoreDates) {
+        console.log('GET /api/media skipping validFrom/validUntil filtering due to ignoreDates flag');
+      }
+
+      if (whereClauses.length > 0) {
+        query = query.where(and(...whereClauses));
+      }
+
+      // Order by explicit sort order then newest first
+      let mediaList = await query.orderBy(asc(schema.mediaLinks.sortOrder), desc(schema.mediaLinks.createdAt));
+
+      // If date filtering is enabled, apply it in JS to handle null/string dates robustly
+      if (!ignoreDates) {
+        const filtered = (mediaList || []).filter((row: any) => {
+          try {
+            const vf = row.validFrom ? new Date(row.validFrom) : null;
+            const vu = row.validUntil ? new Date(row.validUntil) : null;
+
+            if (!vf && !vu) return true;
+            if (vf && vu) return vf.getTime() <= now.getTime() && vu.getTime() >= now.getTime();
+            if (vf && !vu) return vf.getTime() <= now.getTime();
+            if (!vf && vu) return vu.getTime() >= now.getTime();
+            return false;
+          } catch (e) {
+            // If date parsing fails, include the row to avoid hiding content
+            console.warn('Date parse error for media row', row.id, e);
+            return true;
+          }
+        });
+        mediaList = filtered;
+      }
+
+      console.log(`GET /api/media returning ${Array.isArray(mediaList) ? mediaList.length : 0} items`);
+
+      // Ensure we always return an array
+      res.json(mediaList || []);
+    } catch (error) {
+      console.error('Error fetching public media links:', error);
+      res.status(500).json({ error: 'Failed to fetch media' });
+    }
+  });
+  // Debug endpoint - return raw media rows (ignores validFrom/validUntil)
+  // NOTE: temporary, remove in production
+  app.get('/api/media/debug', async (req, res) => {
+    try {
+      console.log('GET /api/media/debug called');
+      const all = await db.select().from(schema.mediaLinks).orderBy(asc(schema.mediaLinks.sortOrder), desc(schema.mediaLinks.createdAt));
+      console.log(`GET /api/media/debug returning ${Array.isArray(all) ? all.length : 0} items`);
+      res.json(all || []);
+    } catch (error) {
+      console.error('Error fetching debug media list:', error);
+      res.status(500).json({ error: 'Failed to fetch debug media' });
+    }
+  });
+  app.get("/api/admin/media", adminMiddleware, async (req, res) => {
+    try {
+      const mediaList = await db
+        .select()
+        .from(schema.mediaLinks)
+        .orderBy(asc(schema.mediaLinks.sortOrder), desc(schema.mediaLinks.createdAt));
+      
+      res.json(mediaList);
+    } catch (error) {
+      console.error("Error fetching media:", error);
+      res.status(500).json({ error: "Failed to fetch media" });
+    }
+  });
+
+  // Create new media (admin)
+  app.post("/api/admin/media", adminMiddleware, async (req, res) => {
+    try {
+      console.log("📝 Creating media with data:", req.body);
+      
+      const mediaData = {
+        title: req.body.title,
+        description: req.body.description || null,
+        imageUrl: req.body.imageUrl,
+        videoUrl: req.body.videoUrl || null,
+        redirectUrl: req.body.redirectUrl,
+        category: req.body.category || "media",
+        type: req.body.type || "image",
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        sortOrder: req.body.sortOrder || 0,
+        validFrom: req.body.validFrom ? new Date(req.body.validFrom) : null,
+        validUntil: req.body.validUntil ? new Date(req.body.validUntil) : null,
+        metadata: req.body.metadata || null,
+      };
+
+      console.log("📝 Processed media data:", mediaData);
+      
+      const newMedia = await db.insert(schema.mediaLinks).values(mediaData).returning();
+      console.log("✅ Media created successfully:", newMedia[0]);
+      res.json(newMedia[0]);
+    } catch (error) {
+      console.error("❌ Error creating media:", error);
+      res.status(500).json({ 
+        error: "Failed to create media",
+        details: (error as any).message,
+        code: (error as any).code
+      });
+    }
+  });
+
+  // Update media (admin)
+  app.put("/api/admin/media/:id", adminMiddleware, async (req, res) => {
+    try {
+      const mediaId = parseInt(req.params.id);
+      const mediaData = {
+        title: req.body.title,
+        description: req.body.description || null,
+        imageUrl: req.body.imageUrl,
+        videoUrl: req.body.videoUrl || null,
+        redirectUrl: req.body.redirectUrl,
+        category: req.body.category,
+        type: req.body.type,
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+        sortOrder: req.body.sortOrder || 0,
+        validFrom: req.body.validFrom ? new Date(req.body.validFrom) : null,
+        validUntil: req.body.validUntil ? new Date(req.body.validUntil) : null,
+        metadata: req.body.metadata || null,
+        updatedAt: new Date(),
+      };
+
+      const updatedMedia = await db
+        .update(schema.mediaLinks)
+        .set(mediaData)
+        .where(eq(schema.mediaLinks.id, mediaId))
+        .returning();
+
+      if (updatedMedia.length === 0) {
+        return res.status(404).json({ error: "Media not found" });
+      }
+
+      res.json(updatedMedia[0]);
+    } catch (error) {
+      console.error("❌ Error updating media:", error);
+      res.status(500).json({ 
+        error: "Failed to update media",
+        details: (error as any).message
+      });
+    }
+  });
+
+  // Delete media (admin)
+  app.delete("/api/admin/media/:id", adminMiddleware, async (req, res) => {
+    try {
+      const mediaId = parseInt(req.params.id);
+      console.log("🗑️ Deleting media with ID:", mediaId);
+      
+      const deletedMedia = await db
+        .delete(schema.mediaLinks)
+        .where(eq(schema.mediaLinks.id, mediaId))
+        .returning();
+      
+      console.log("✅ Media deleted:", deletedMedia);
+      
+      if (deletedMedia.length === 0) {
+        return res.status(404).json({ error: "Media not found" });
+      }
+      
+      res.json({ message: "Media deleted successfully", deletedMedia: deletedMedia[0] });
+    } catch (error) {
+      console.error("❌ Error deleting media:", error);
+      res.status(500).json({ 
+        error: "Failed to delete media",
+        details: (error as any).message
+      });
+    }
+  });
+
+  // Bulk update sort order (admin)
+  app.post("/api/admin/media/reorder", adminMiddleware, async (req, res) => {
+    try {
+      const items: Array<{ id: number; sortOrder: number }> = req.body.items;
+      
+      for (const item of items) {
+        await db
+          .update(schema.mediaLinks)
+          .set({ sortOrder: item.sortOrder, updatedAt: new Date() })
+          .where(eq(schema.mediaLinks.id, item.id));
+      }
+
+      res.json({ message: "Sort order updated successfully" });
+    } catch (error) {
+      console.error("Error updating sort order:", error);
+      res.status(500).json({ error: "Failed to update sort order" });
     }
   });
 

@@ -300,10 +300,9 @@ export default function MediaManagement() {
 
       // Upload to server
       const formDataToSend = new FormData();
-      formDataToSend.append('file', file);
-      formDataToSend.append('type', 'image');
+      formDataToSend.append('image', file);
 
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/upload/image', {
         method: 'POST',
         body: formDataToSend
       });
@@ -312,7 +311,7 @@ export default function MediaManagement() {
         const data = await response.json();
         setFormData(prev => ({
           ...prev,
-          imageUrl: data.url
+          imageUrl: data.imageUrl
         }));
         toast({ title: 'Success', description: 'Image uploaded successfully' });
       } else {
@@ -354,10 +353,9 @@ export default function MediaManagement() {
 
       // Upload to server
       const formDataToSend = new FormData();
-      formDataToSend.append('file', file);
-      formDataToSend.append('type', 'video');
+      formDataToSend.append('video', file);
 
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/upload/video', {
         method: 'POST',
         body: formDataToSend
       });
@@ -366,7 +364,7 @@ export default function MediaManagement() {
         const data = await response.json();
         setFormData(prev => ({
           ...prev,
-          videoUrl: data.url
+          videoUrl: data.videoUrl
         }));
         toast({ title: 'Success', description: 'Video uploaded successfully' });
       } else {
@@ -552,19 +550,17 @@ export default function MediaManagement() {
                             disabled={uploading}
                             className="hidden"
                           />
-                          <label htmlFor="image-upload-input">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              disabled={uploading}
-                              className="gap-2 cursor-pointer"
-                              onClick={() => document.getElementById('image-upload-input')?.click()}
-                            >
-                              <Upload className="w-4 h-4" />
-                              {uploading ? 'Uploading...' : 'Upload'}
-                            </Button>
-                          </label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={uploading}
+                            className="gap-2"
+                            onClick={() => document.getElementById('image-upload-input')?.click()}
+                          >
+                            <Upload className="w-4 h-4" />
+                            {uploading ? 'Uploading...' : 'Upload'}
+                          </Button>
                         </div>
                       </div>
                       {imagePreview && (
@@ -597,19 +593,17 @@ export default function MediaManagement() {
                             disabled={uploading}
                             className="hidden"
                           />
-                          <label htmlFor="video-upload-input">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              disabled={uploading}
-                              className="gap-2 cursor-pointer"
-                              onClick={() => document.getElementById('video-upload-input')?.click()}
-                            >
-                              <Upload className="w-4 h-4" />
-                              {uploading ? 'Uploading...' : 'Upload'}
-                            </Button>
-                          </label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={uploading}
+                            className="gap-2"
+                            onClick={() => document.getElementById('video-upload-input')?.click()}
+                          >
+                            <Upload className="w-4 h-4" />
+                            {uploading ? 'Uploading...' : 'Upload'}
+                          </Button>
                         </div>
                       </div>
                       {videoPreview && (
