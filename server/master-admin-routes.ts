@@ -29,14 +29,18 @@ export function createMasterAdminRoutes(pool: Pool) {
 
       const token = authHeader.substring(7);
       
-      if (JWT_SECRET === "your-secret-key") {
-        console.error("SECURITY WARNING: Using default JWT secret!");
+      // Only warn about default secret in development
+      if (JWT_SECRET === "your-secret-key" && process.env.NODE_ENV === "production") {
+        console.error("SECURITY WARNING: Using default JWT secret in production!");
         return res.status(500).json({ error: "Server configuration error. Contact administrator." });
       }
       
       const decoded = jwt.verify(token, JWT_SECRET) as any;
 
-      if (decoded.role !== "master_admin") {
+      // Allow both 'master_admin' and 'admin' roles to access master-admin routes.
+      // Some setup scripts create the admin user with role 'admin'. Accept both
+      // so the dashboard can be used by admins until a dedicated master admin exists.
+      if (!(decoded.role === "master_admin" || decoded.role === "admin")) {
         return res.status(403).json({ error: "Access denied. Master Admin privileges required." });
       }
 
@@ -149,14 +153,33 @@ export function createMasterAdminRoutes(pool: Pool) {
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
+      // Normalize role to avoid case/whitespace mismatches
+      // Default to 'admin' for users created via Master Admin UI
+      const normalizedRole = role ? String(role).trim().toLowerCase() : 'admin';
+
+      // Prevent creating another master admin through this endpoint
+      if (normalizedRole === 'master_admin') {
+        return res.status(403).json({ error: "Cannot assign Master Admin role through this endpoint" });
+      }
+
       const [newUser] = await db.insert(schema.users).values({
         firstName,
         lastName,
         email,
         phone,
         password: hashedPassword,
-        role: role || "user",
+        role: normalizedRole,
       }).returning();
+
+      // Fetch any permissions associated with this role so the frontend
+      // can render the appropriate dashboard/actions immediately.
+      const effectivePermissionsRole = normalizedRole || 'user';
+      let effectivePermissions: any[] = [];
+      try {
+        effectivePermissions = await db.select().from(schema.adminPermissions).where(eq(schema.adminPermissions.role, effectivePermissionsRole));
+      } catch (e) {
+        console.error('Failed to fetch effective permissions after user create', e);
+      }
 
       await logActivity(
         req.user!.userId,
@@ -170,7 +193,7 @@ export function createMasterAdminRoutes(pool: Pool) {
         req
       );
 
-      res.json({ message: "User created successfully", user: { ...newUser, password: undefined } });
+      res.json({ message: "User created successfully", user: { ...newUser, password: undefined }, permissions: effectivePermissions });
     } catch (error) {
       console.error("Create user error:", error);
       res.status(500).json({ error: "Failed to create user" });
@@ -194,13 +217,14 @@ export function createMasterAdminRoutes(pool: Pool) {
       const updateData: any = { firstName, lastName, email, phone, updatedAt: new Date() };
       
       if (role && role !== existingUser.role) {
+        const normalizedNewRole = String(role).trim().toLowerCase();
         if (existingUser.role === "master_admin") {
           return res.status(403).json({ error: "Cannot change Master Admin role" });
         }
-        if (role === "master_admin") {
+        if (normalizedNewRole === "master_admin") {
           return res.status(403).json({ error: "Cannot assign Master Admin role through this endpoint" });
         }
-        updateData.role = role;
+        updateData.role = normalizedNewRole;
       }
       
       if (password) {
@@ -269,15 +293,16 @@ export function createMasterAdminRoutes(pool: Pool) {
   router.put("/api/master-admin/users/:id/role", masterAdminMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       const { id } = req.params;
-      const { role } = req.body;
+      let { role } = req.body;
+      role = role ? String(role).trim().toLowerCase() : role;
 
       if (Number(id) === req.user!.userId) {
         return res.status(403).json({ error: "Cannot change your own role" });
       }
 
-      const validRoles = ["user", "admin", "affiliate", "influencer"];
+      const validRoles = ["user", "admin", "ecommerce", "marketing", "digital_marketing", "hr", "account", "affiliate", "influencer"];
       if (!validRoles.includes(role)) {
-        return res.status(400).json({ error: "Invalid role. Cannot assign master_admin role." });
+        return res.status(400).json({ error: "Invalid role selected." });
       }
 
       const [user] = await db.select().from(schema.users).where(eq(schema.users.id, Number(id)));
@@ -321,6 +346,33 @@ export function createMasterAdminRoutes(pool: Pool) {
     } catch (error) {
       console.error("Permissions fetch error:", error);
       res.status(500).json({ error: "Failed to fetch permissions" });
+    }
+  });
+
+  // Get permissions for a specific role
+  router.get("/api/master-admin/roles/:role/permissions", masterAdminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { role } = req.params;
+      const permissions = await db.select().from(schema.adminPermissions).where(eq(schema.adminPermissions.role, role));
+      res.json(permissions);
+    } catch (error) {
+      console.error("Role permissions fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch role permissions" });
+    }
+  });
+
+  // Get effective permissions for a specific user by id
+  router.get("/api/master-admin/users/:id/permissions", masterAdminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const [user] = await db.select().from(schema.users).where(eq(schema.users.id, Number(id)));
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const permissions = await db.select().from(schema.adminPermissions).where(eq(schema.adminPermissions.role, user.role));
+      res.json({ role: user.role, permissions });
+    } catch (error) {
+      console.error("User permissions fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch user permissions" });
     }
   });
 
@@ -622,6 +674,247 @@ export function createMasterAdminRoutes(pool: Pool) {
     } catch (error) {
       console.error("System health error:", error);
       res.status(500).json({ error: "System health check failed" });
+    }
+  });
+
+  // System Stats endpoint for Master Admin Dashboard
+  router.get("/api/master-admin/system-stats", masterAdminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Run queries defensively — if one fails, continue and return best-effort data.
+      let totalUsersCount = 0;
+      let adminUsersCount = 0;
+      let masterAdminsCount = 0;
+      let activeUsersCount = 0;
+      let dbSize = "N/A";
+      let tableCount = 0;
+
+      try {
+        const [totalUsers] = await db.select({ count: sql<number>`count(*)` }).from(schema.users);
+        totalUsersCount = Number((totalUsers && (totalUsers as any).count) || 0);
+      } catch (e) {
+        console.error('Failed to get total users count', e);
+      }
+
+      try {
+        const [adminUsers] = await db.select({ count: sql<number>`count(*)` }).from(schema.users).where(eq(schema.users.role, "admin"));
+        const [masterAdmins] = await db.select({ count: sql<number>`count(*)` }).from(schema.users).where(eq(schema.users.role, "master_admin"));
+        adminUsersCount = Number((adminUsers && (adminUsers as any).count) || 0);
+        masterAdminsCount = Number((masterAdmins && (masterAdmins as any).count) || 0);
+      } catch (e) {
+        console.error('Failed to get admin/master admin counts', e);
+      }
+
+      try {
+        // Active users within last 30 days
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const [activeUsers] = await db
+          .select({ count: sql<number>`count(distinct ${sql`user_id`})` })
+          .from(schema.loginHistory)
+          .where(gte(schema.loginHistory.createdAt, thirtyDaysAgo));
+        activeUsersCount = Number((activeUsers && (activeUsers as any).count) || 0);
+      } catch (e) {
+        console.error('Failed to get active users count', e);
+      }
+
+      try {
+        const client = await pool.connect();
+        try {
+          const dbSizeResult = await client.query(`SELECT pg_size_pretty(pg_database_size(current_database())) as size`);
+          const tableCountResult = await client.query(`SELECT count(*) as count FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`);
+          dbSize = dbSizeResult.rows[0]?.size || "N/A";
+          tableCount = Number(tableCountResult.rows[0]?.count || 0);
+        } finally {
+          client.release();
+        }
+      } catch (e) {
+        console.error('Failed to get DB size or table count', e);
+      }
+
+      // Check system health
+      const memUsage = process.memoryUsage();
+      const heapPercentage = memUsage.heapTotal ? (memUsage.heapUsed / memUsage.heapTotal) * 100 : 0;
+      let systemHealth = "Good";
+      if (heapPercentage > 90) systemHealth = "Critical";
+      else if (heapPercentage > 70) systemHealth = "Warning";
+
+      const alerts: any[] = [];
+      if (heapPercentage > 70) {
+        alerts.push({
+          message: `High memory usage: ${heapPercentage.toFixed(1)}%`,
+          timestamp: new Date().toISOString(),
+          severity: heapPercentage > 90 ? "critical" : "warning"
+        });
+      }
+
+      res.json({
+        totalUsers: totalUsersCount,
+        adminUsers: adminUsersCount + masterAdminsCount,
+        masterAdmins: masterAdminsCount,
+        activeUsers: activeUsersCount,
+        systemHealth,
+        dbSize,
+        tableCount,
+        alerts,
+        memoryUsage: {
+          heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+          heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+          percentage: heapPercentage.toFixed(1)
+        },
+        uptime: Math.round(process.uptime()),
+      });
+    } catch (error) {
+      console.error("System stats error:", error);
+      res.status(500).json({ error: "Failed to fetch system stats" });
+    }
+  });
+
+  // Development-only debug endpoint to return raw DB values for quick inspection
+  router.get("/api/master-admin/debug-db", masterAdminMiddleware, async (req: AuthenticatedRequest, res) => {
+    if (process.env.NODE_ENV !== 'development') {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    try {
+      const client = await pool.connect();
+      try {
+        const usersCount = await db.select({ count: sql<number>`count(*)` }).from(schema.users);
+        const ordersCount = await db.select({ count: sql<number>`count(*)` }).from(schema.ordersTable);
+        const productsCount = await db.select({ count: sql<number>`count(*)` }).from(schema.products);
+        const dbSizeResult = await client.query(`SELECT pg_size_pretty(pg_database_size(current_database())) as size`);
+        const tableCountResult = await client.query(`SELECT count(*) as count FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`);
+
+        res.json({
+          usersCount: usersCount?.[0]?.count || null,
+          ordersCount: ordersCount?.[0]?.count || null,
+          productsCount: productsCount?.[0]?.count || null,
+          dbSize: dbSizeResult.rows[0]?.size || null,
+          tableCount: tableCountResult.rows[0]?.count || null,
+        });
+      } finally {
+        client.release();
+      }
+    } catch (e) {
+      console.error('Debug DB error', e);
+      res.status(500).json({ error: 'Failed to fetch debug DB info', details: String(e) });
+    }
+  });
+
+  // System action endpoints for quick actions
+  router.post("/api/master-admin/system/clear-cache", masterAdminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Clear any application cache (simulate cache clearing)
+      if (global.gc) {
+        global.gc();
+      }
+      
+      await logActivity(
+        req.user!.userId,
+        "SYSTEM_ACTION",
+        "system",
+        "Cleared system cache",
+        "system",
+        undefined,
+        null,
+        null,
+        req
+      );
+
+      res.json({ message: "Cache cleared successfully", timestamp: new Date().toISOString() });
+    } catch (error) {
+      console.error("Clear cache error:", error);
+      res.status(500).json({ error: "Failed to clear cache" });
+    }
+  });
+
+  router.post("/api/master-admin/system/optimize-db", masterAdminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const client = await pool.connect();
+      
+      // Run VACUUM ANALYZE for optimization
+      await client.query("VACUUM ANALYZE");
+      
+      client.release();
+      
+      await logActivity(
+        req.user!.userId,
+        "SYSTEM_ACTION",
+        "system",
+        "Optimized database",
+        "system",
+        undefined,
+        null,
+        null,
+        req
+      );
+
+      res.json({ message: "Database optimized successfully", timestamp: new Date().toISOString() });
+    } catch (error) {
+      console.error("Optimize DB error:", error);
+      res.status(500).json({ error: "Failed to optimize database" });
+    }
+  });
+
+  // Bulk settings update endpoint
+  router.put("/api/master-admin/settings", masterAdminMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { section, ...settings } = req.body;
+      const updatedSettings: any[] = [];
+
+      for (const [key, value] of Object.entries(settings)) {
+        if (typeof value === 'undefined') continue;
+
+        // Check if setting exists
+        const [existing] = await db
+          .select()
+          .from(schema.systemSettings)
+          .where(eq(schema.systemSettings.settingKey, key));
+
+        if (existing) {
+          // Update existing setting
+          if (existing.isEditable) {
+            const [updated] = await db
+              .update(schema.systemSettings)
+              .set({ 
+                settingValue: String(value), 
+                lastModifiedBy: req.user!.userId, 
+                updatedAt: new Date() 
+              })
+              .where(eq(schema.systemSettings.settingKey, key))
+              .returning();
+            updatedSettings.push(updated);
+          }
+        } else {
+          // Create new setting
+          const [created] = await db.insert(schema.systemSettings).values({
+            settingKey: key,
+            settingValue: String(value),
+            settingType: typeof value === 'boolean' ? 'boolean' : 'string',
+            category: section || 'general',
+            description: `${key} setting`,
+            isEditable: true,
+            lastModifiedBy: req.user!.userId,
+          }).returning();
+          updatedSettings.push(created);
+        }
+      }
+
+      await logActivity(
+        req.user!.userId,
+        "UPDATE",
+        "settings",
+        `Updated ${section || 'general'} settings`,
+        "settings",
+        undefined,
+        null,
+        settings,
+        req
+      );
+
+      res.json({ message: "Settings updated successfully", settings: updatedSettings });
+    } catch (error) {
+      console.error("Bulk settings update error:", error);
+      res.status(500).json({ error: "Failed to update settings" });
     }
   });
 

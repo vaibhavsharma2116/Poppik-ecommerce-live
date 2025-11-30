@@ -1096,3 +1096,53 @@ export const backupLogs = pgTable("backup_logs", {
 
 export type BackupLog = typeof backupLogs.$inferSelect;
 export type InsertBackupLog = typeof backupLogs.$inferInsert;
+
+// Role-based access control configuration
+export const ROLES = {
+  MASTER_ADMIN: 'master_admin',
+  ADMIN: 'admin',
+  ECOMMERCE: 'ecommerce',
+  MARKETING: 'marketing',
+  DIGITAL_MARKETING: 'digital_marketing',
+  HR: 'hr',
+  ACCOUNT: 'account',
+  USER: 'user'
+} as const;
+
+export const ROLE_PERMISSIONS = {
+  dashboard: ['master_admin', 'admin', 'ecommerce', 'marketing', 'digital_marketing', 'hr', 'account'],
+  categories: ['master_admin', 'admin', 'ecommerce'],
+  products: ['master_admin', 'admin', 'ecommerce'],
+  orders: ['master_admin', 'admin', 'ecommerce'],
+  customers: ['master_admin', 'admin', 'ecommerce', 'marketing'],
+  announcements: ['master_admin', 'admin', 'marketing'],
+  shades: ['master_admin', 'admin', 'ecommerce'],
+  sliders: ['master_admin', 'admin', 'digital_marketing'],
+  stores: ['master_admin', 'admin', 'ecommerce'],
+  'contact-submissions': ['master_admin', 'admin', 'marketing'],
+  testimonials: ['master_admin', 'admin', 'digital_marketing'],
+  'video-testimonials': ['master_admin', 'admin', 'digital_marketing'],
+  'influencer-videos': ['master_admin', 'admin', 'digital_marketing'],
+  'affiliate-videos': ['master_admin', 'admin', 'digital_marketing'],
+  'channel-partner-videos': ['master_admin', 'admin', 'digital_marketing'],
+  blog: ['master_admin', 'admin', 'digital_marketing'],
+  combos: ['master_admin', 'admin', 'ecommerce'],
+  'combo-sliders': ['master_admin', 'admin', 'ecommerce'],
+  'job-positions': ['master_admin', 'admin', 'hr'],
+  'job-applications': ['master_admin', 'admin', 'hr'],
+  'influencer-applications': ['master_admin', 'admin', 'digital_marketing'],
+  'affiliate-applications': ['master_admin', 'admin', 'marketing'],
+  'affiliate-withdrawals': ['master_admin', 'admin', 'account'],
+  'promo-codes': ['master_admin'],
+  'promo-code-usage': ['master_admin'],
+  'gift-settings': ['master_admin'],
+  offers: ['master_admin', 'admin', 'marketing'],
+  contests: ['master_admin', 'admin', 'marketing'],
+  media: ['master_admin', 'admin', 'digital_marketing'],
+  settings: ['master_admin'],
+  // Master admin exclusive features
+  'master': ['master_admin'],
+  'master/users': ['master_admin'],
+  'master/settings': ['master_admin'],
+  'master/logs': ['master_admin']
+} as const;

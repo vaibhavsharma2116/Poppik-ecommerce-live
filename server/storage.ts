@@ -290,7 +290,8 @@ export class DatabaseStorage implements IStorage {
         city: userData.city || null,
         state: userData.state || null,
         pincode: userData.pincode || null,
-        role: userData.role || 'customer',
+        // Normalize role values to avoid casing/whitespace mismatches across codebase
+        role: (userData.role || 'user').toString().trim().toLowerCase(),
         createdAt: new Date(),
         updatedAt: new Date()
       }).returning();
@@ -318,7 +319,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
-    const result = await this.db.update(users).set(userData).where(eq(users.id, id)).returning();
+    // Normalize role if provided
+    const safeData: any = { ...userData };
+    if (safeData.role !== undefined && safeData.role !== null) {
+      safeData.role = String(safeData.role).trim().toLowerCase();
+    }
+
+    const result = await this.db.update(users).set(safeData).where(eq(users.id, id)).returning();
     return result[0];
   }
 

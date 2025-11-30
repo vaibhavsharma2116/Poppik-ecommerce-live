@@ -35,8 +35,18 @@ export default function AdminLogin() {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         
-        alert("Admin login successful!");
-        window.location.href = "/admin"; // Redirect to admin dashboard
+        // Redirect based on role
+        if (data.user.role === 'master_admin') {
+          alert("Master Admin login successful!");
+          window.location.href = "/admin/master"; // Redirect to master admin dashboard
+        } else if (data.user.role === 'admin') {
+          alert("Admin login successful!");
+          window.location.href = "/admin"; // Redirect to admin dashboard
+        } else {
+          alert("Invalid admin role");
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        }
       } else {
         alert(data.error || "Invalid admin credentials");
       }

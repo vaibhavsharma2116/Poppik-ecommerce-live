@@ -64,8 +64,8 @@ export default function MasterAdminDashboard() {
       } else {
         throw new Error(`Failed to ${action}`);
       }
-    } catch (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error?.message || "Operation failed", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -102,6 +102,24 @@ export default function MasterAdminDashboard() {
     },
   ];
 
+  // derive allowed modules from cached allowedModules (set by admin layout)
+  const getAllowedModules = (): Set<string> | null => {
+    try {
+      const raw = localStorage.getItem('allowedModules');
+      if (!raw) return null;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return null;
+      return new Set(arr as string[]);
+    } catch (e) {
+      return null;
+    }
+  };
+  const allowedModules = getAllowedModules();
+  const canShow = (moduleKey: string) => {
+    if (!allowedModules) return true; // fallback when no permissions fetched
+    return allowedModules.has(moduleKey) || allowedModules.has('master') || allowedModules.has('dashboard');
+  };
+
   return (
     <div className="flex-1 space-y-8 p-8 pt-6">
       {/* Header */}
@@ -129,6 +147,9 @@ export default function MasterAdminDashboard() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
+          // decide module key for each stat
+          const moduleKey = index === 0 ? 'dashboard' : index === 1 ? 'master/users' : index === 2 ? 'dashboard' : 'master';
+          if (!canShow(moduleKey)) return null;
           return (
             <Card key={index} className="border-0 shadow-xl bg-white/70 backdrop-blur-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -157,40 +178,50 @@ export default function MasterAdminDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button 
-              variant="outline" 
-              className="h-20 flex flex-col items-center justify-center gap-2"
-              onClick={() => handleSystemAction('clear-cache')}
-              disabled={loading}
-            >
-              <Database className="h-5 w-5" />
-              <span className="text-sm">Clear Cache</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-20 flex flex-col items-center justify-center gap-2"
-              onClick={() => handleSystemAction('optimize-db')}
-              disabled={loading}
-            >
-              <TrendingUp className="h-5 w-5" />
-              <span className="text-sm">Optimize DB</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-20 flex flex-col items-center justify-center gap-2"
-              onClick={() => window.location.href = '/admin/master/users'}
-            >
-              <Users className="h-5 w-5" />
-              <span className="text-sm">Manage Users</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-20 flex flex-col items-center justify-center gap-2"
-              onClick={() => window.location.href = '/admin/master/settings'}
-            >
-              <Settings className="h-5 w-5" />
-              <span className="text-sm">System Settings</span>
-            </Button>
+            {canShow('master') && (
+              <>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex flex-col items-center justify-center gap-2"
+                  onClick={() => handleSystemAction('clear-cache')}
+                  disabled={loading}
+                >
+                  <Database className="h-5 w-5" />
+                  <span className="text-sm">Clear Cache</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex flex-col items-center justify-center gap-2"
+                  onClick={() => handleSystemAction('optimize-db')}
+                  disabled={loading}
+                >
+                  <TrendingUp className="h-5 w-5" />
+                  <span className="text-sm">Optimize DB</span>
+                </Button>
+              </>
+            )}
+
+            {canShow('master/users') && (
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col items-center justify-center gap-2"
+                onClick={() => window.location.href = '/admin/master/users'}
+              >
+                <Users className="h-5 w-5" />
+                <span className="text-sm">Manage Users</span>
+              </Button>
+            )}
+
+            {canShow('master/settings') && (
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col items-center justify-center gap-2"
+                onClick={() => window.location.href = '/admin/master/settings'}
+              >
+                <Settings className="h-5 w-5" />
+                <span className="text-sm">System Settings</span>
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

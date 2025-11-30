@@ -40,12 +40,24 @@ export default function Login() {
         localStorage.setItem("user", JSON.stringify(data.user));
 
         alert("Login successful!");
-        // Redirect based on user role
-        if (data.user.role === "admin") {
+        // Redirect based on user role: any admin-type role goes to admin panel
+        const adminRoles = [
+          "admin",
+          "master_admin",
+          "ecommerce",
+          "marketing",
+          "digital_marketing",
+          "hr",
+          "account",
+          "affiliate",
+          "influencer",
+        ];
+        const role = (data.user.role || "").toString().trim().toLowerCase();
+        if (adminRoles.includes(role)) {
           window.location.href = "/admin";
         } else {
           window.location.href = "/";
-        } 
+        }
       } else {
         alert(data.error || "Invalid credentials");
       }
