@@ -27,10 +27,24 @@ export default function AdminAnnouncements() {
   // No cache, instant refresh configuration
   const { data: announcements = [], isLoading, refetch } = useQuery<Announcement[]>({
     queryKey: ['/api/admin/announcements'],
+    queryFn: async () => {
+      const timestamp = Date.now();
+      const response = await fetch(`/api/admin/announcements?_t=${timestamp}`, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch announcements');
+      return response.json();
+    },
     staleTime: 0, // Always stale
-    cacheTime: 0, // No caching
-    refetchOnMount: true,
-    refetchInterval: 5000, // Refetch every 5 seconds
+    gcTime: 0, // No caching (changed from cacheTime)
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchInterval: 3000, // Refetch every 3 seconds
   });
 
   // WebSocket setup for real-time updates
@@ -107,7 +121,10 @@ export default function AdminAnnouncements() {
     mutationFn: async (text: string) => {
       const response = await fetch('/api/admin/announcements', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
         body: JSON.stringify({
           text,
           isActive: true,
@@ -118,17 +135,16 @@ export default function AdminAnnouncements() {
       if (!response.ok) throw new Error('Failed to create announcement');
       return response.json();
     },
-    onSuccess: () => {
-      // Instant invalidation and refetch
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+    onSuccess: async () => {
       setNewAnnouncementText("");
       toast({
         title: "✓ Created",
         description: "Announcement created successfully",
       });
-      // Force immediate refetch
-      setTimeout(() => refetch(), 100);
+      // Immediate invalidation and refetch
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+      await refetch();
     },
     onError: (error: any) => {
       toast({
@@ -143,24 +159,26 @@ export default function AdminAnnouncements() {
     mutationFn: async ({ id, data }: { id: number; data: Partial<Announcement> }) => {
       const response = await fetch(`/api/admin/announcements/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
         body: JSON.stringify(data),
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to update announcement');
       return response.json();
     },
-    onSuccess: () => {
-      // Instant invalidation and refetch
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+    onSuccess: async () => {
       setEditingId(null);
       toast({
         title: "✓ Updated",
         description: "Announcement updated successfully",
       });
-      // Force immediate refetch
-      setTimeout(() => refetch(), 100);
+      // Immediate invalidation and refetch
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+      await refetch();
     },
     onError: (error: any) => {
       toast({
@@ -175,21 +193,23 @@ export default function AdminAnnouncements() {
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/admin/announcements/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Cache-Control': 'no-cache'
+        },
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to delete announcement');
       return response.json();
     },
-    onSuccess: () => {
-      // Instant invalidation and refetch
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+    onSuccess: async () => {
       toast({
         title: "✓ Deleted",
         description: "Announcement deleted successfully",
       });
-      // Force immediate refetch
-      setTimeout(() => refetch(), 100);
+      // Immediate invalidation and refetch
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+      await refetch();
     },
     onError: (error: any) => {
       toast({

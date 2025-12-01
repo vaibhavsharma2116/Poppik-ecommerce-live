@@ -483,9 +483,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch stores" });
     }
   });
-
-  app.get("/api/admin/stores", async (req, res) => {
+app.get("/api/admin/stores", async (req, res) => {
     try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+
       // Check if authorization header exists
       const authHeader = req.headers.authorization;
 
@@ -500,7 +505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as any;
 
         // Check if user has admin role
-        if (decoded.role !== 'admin') {
+        if (decoded.role !== 'admin' && decoded.role !== 'master_admin') {
           return res.status(403).json({ error: "Access denied. Admin privileges required." });
         }
 
@@ -518,6 +523,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/stores", async (req, res) => {
     try {
+      // Set no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+
       // Parse coordinates to remove degree symbols and direction letters
       const storeData = { ...req.body };
 
@@ -541,6 +550,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/stores/:id", async (req, res) => {
     try {
+      // Set no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+
       const storeId = parseInt(req.params.id);
 
       // Parse coordinates to remove degree symbols and direction letters
@@ -570,6 +583,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/admin/stores/:id", async (req, res) => {
     try {
+      // Set no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+
       const storeId = parseInt(req.params.id);
       await db.delete(schema.stores).where(eq(schema.stores.id, storeId));
       res.json({ message: "Store deleted successfully" });

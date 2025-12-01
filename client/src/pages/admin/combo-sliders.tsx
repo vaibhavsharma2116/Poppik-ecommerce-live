@@ -37,13 +37,16 @@ export default function AdminComboSliders() {
     sortOrder: 0
   });
 
-  const { data: sliders = [], isLoading } = useQuery<ComboSlider[]>({
+  const { data: sliders = [], isLoading, refetch } = useQuery<ComboSlider[]>({
     queryKey: ['/api/admin/combo-sliders'],
     queryFn: async () => {
-      const res = await fetch('/api/admin/combo-sliders', {
+      const timestamp = Date.now();
+      const res = await fetch(`/api/admin/combo-sliders?_t=${timestamp}`, {
         method: 'GET',
         headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
       if (!res.ok) throw new Error('Failed to fetch sliders');
@@ -53,6 +56,8 @@ export default function AdminComboSliders() {
     },
     staleTime: 0,
     gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const createMutation = useMutation({
@@ -67,12 +72,11 @@ export default function AdminComboSliders() {
       if (!response.ok) throw new Error('Failed to create slider');
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log('✅ Slider created, refreshing list...');
-      queryClient.setQueryData(['/api/admin/combo-sliders'], (oldData: any) =>
-        oldData ? [...oldData, data] : [data]
-      );
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/combo-sliders'], refetchType: 'all' });
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/combo-sliders'] });
+      queryClient.removeQueries({ queryKey: ['/api/admin/combo-sliders'] });
+      await refetch();
       toast({ title: "Slider created successfully" });
       resetForm();
     },
@@ -94,12 +98,11 @@ export default function AdminComboSliders() {
       if (!response.ok) throw new Error('Failed to update slider');
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log('✅ Slider updated, refreshing list...');
-      queryClient.setQueryData(['/api/admin/combo-sliders'], (oldData: any) =>
-        oldData ? oldData.map((s: any) => s.id === data.id ? data : s) : [data]
-      );
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/combo-sliders'], refetchType: 'all' });
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/combo-sliders'] });
+      queryClient.removeQueries({ queryKey: ['/api/admin/combo-sliders'] });
+      await refetch();
       toast({ title: "Slider updated successfully" });
       resetForm();
     },
@@ -120,12 +123,11 @@ export default function AdminComboSliders() {
       if (!response.ok) throw new Error('Failed to delete slider');
       return response.json();
     },
-    onSuccess: (data, deletedId) => {
+    onSuccess: async (data, deletedId) => {
       console.log('✅ Slider deleted, refreshing list...');
-      queryClient.setQueryData(['/api/admin/combo-sliders'], (oldData: any) =>
-        oldData ? oldData.filter((s: any) => s.id !== deletedId) : []
-      );
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/combo-sliders'], refetchType: 'all' });
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/combo-sliders'] });
+      queryClient.removeQueries({ queryKey: ['/api/admin/combo-sliders'] });
+      await refetch();
       toast({ title: "Slider deleted successfully" });
     },
     onError: (error) => {

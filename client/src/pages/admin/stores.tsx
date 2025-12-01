@@ -56,16 +56,26 @@ export default function AdminStores() {
     queryKey: ['/api/admin/stores'],
     queryFn: async () => {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/stores', {
+      const timestamp = Date.now();
+      const response = await fetch(`/api/admin/stores?t=${timestamp}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        cache: 'no-store'
       });
       if (!response.ok) {
         throw new Error('Failed to fetch stores');
       }
       return response.json();
-    }
+    },
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchInterval: false
   });
 
   const createMutation = useMutation({
@@ -74,20 +84,20 @@ export default function AdminStores() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to create store');
       return response.json();
     },
-    onSuccess: (createdStore: any) => {
-      // Update cache immediately so the new store appears without a refresh
-      queryClient.setQueryData<Store[] | undefined>(['/api/admin/stores'], (old) => {
-        if (!old) return [createdStore];
-        return [createdStore, ...old];
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: ['/api/admin/stores'] });
+      queryClient.removeQueries({ queryKey: ['/api/stores'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/stores'], refetchType: 'all' });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/stores'], type: 'all' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/stores'], refetchType: 'all' });
       toast({ title: "Store created successfully" });
       setIsAddDialogOpen(false);
       resetForm();
@@ -100,20 +110,20 @@ export default function AdminStores() {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to update store');
       return response.json();
     },
-    onSuccess: (updatedStore: any) => {
-      // Update the store in cache immediately so UI reflects changes without refresh
-      queryClient.setQueryData<Store[] | undefined>(['/api/admin/stores'], (old) => {
-        if (!old) return [updatedStore];
-        return old.map((s) => (s.id === updatedStore.id ? updatedStore : s));
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: ['/api/admin/stores'] });
+      queryClient.removeQueries({ queryKey: ['/api/stores'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/stores'], refetchType: 'all' });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/stores'], type: 'all' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/stores'], refetchType: 'all' });
       toast({ title: "Store updated successfully" });
       setIsEditDialogOpen(false);
       resetForm();
@@ -125,15 +135,19 @@ export default function AdminStores() {
       const response = await fetch(`/api/admin/stores/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
       });
       if (!response.ok) throw new Error('Failed to delete store');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: ['/api/admin/stores'] });
+      queryClient.removeQueries({ queryKey: ['/api/stores'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/stores'], refetchType: 'all' });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/stores'], type: 'all' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/stores'], refetchType: 'all' });
       toast({ title: "Store deleted successfully" });
     },
   });

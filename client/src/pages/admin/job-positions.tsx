@@ -58,11 +58,14 @@ export default function AdminJobPositions() {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('/api/admin/job-positions', {
+      // Add timestamp to prevent any caching
+      const timestamp = Date.now();
+      const response = await fetch(`/api/admin/job-positions?_t=${timestamp}`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
 
@@ -80,14 +83,14 @@ export default function AdminJobPositions() {
       }
       const data = await response.json();
       console.log('Admin job positions received:', data);
-      return data;
+      return Array.isArray(data) ? data : [];
     },
     enabled: !!(localStorage.getItem('token') || localStorage.getItem('adminToken')),
-    select: (data) => Array.isArray(data) ? data : [],
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
+    refetchInterval: false,
   });
 
   // Subscribe to server-sent events for realtime updates (create/update/delete)
@@ -168,28 +171,16 @@ export default function AdminJobPositions() {
       if (!response.ok) throw new Error('Failed to create job position');
       return response.json();
     },
-    // Optimistic update: add the new position to cache immediately
-    onMutate: async (newData: any) => {
-      await queryClient.cancelQueries({ queryKey: ['/api/admin/job-positions'] });
-      const previous = queryClient.getQueryData<any[]>(['/api/admin/job-positions']);
-
-      // Create a temporary item with a negative id to show instantly
-      const tempId = Date.now() * -1;
-      const optimisticItem = { id: tempId, ...newData, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-
-      queryClient.setQueryData(['/api/admin/job-positions'], (old: any[] = []) => [optimisticItem, ...old]);
-      return { previous, tempId };
-    },
-    onError: (err, newData, context: any) => {
-      // Rollback to previous cache on error
-      if (context?.previous) {
-        queryClient.setQueryData(['/api/admin/job-positions'], context.previous);
-      }
-      toast({ title: 'Error', description: 'Failed to create job position', variant: 'destructive' });
-    },
-    onSettled: async () => {
+    onSuccess: async (newPosition) => {
+      // Immediately update cache with real data
+      queryClient.setQueryData(['/api/admin/job-positions'], (old: any[] = []) => {
+        return [newPosition, ...old.filter(p => p.id !== newPosition.id)];
+      });
+      
+      // Force immediate refetch to ensure sync
       await queryClient.invalidateQueries({ queryKey: ['/api/admin/job-positions'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/admin/job-positions'] });
+      await refetch();
+      
       setIsDialogOpen(false);
       setEditingPosition(null);
       setSelectedJobType('Full-Time Job');
@@ -198,6 +189,9 @@ export default function AdminJobPositions() {
       setRequirementsContent('');
       setIsActive(true);
       toast({ title: 'Success', description: 'Job position created successfully' });
+    },
+    onError: (err) => {
+      toast({ title: 'Error', description: 'Failed to create job position', variant: 'destructive' });
     },
   });
 
@@ -220,25 +214,16 @@ export default function AdminJobPositions() {
       if (!response.ok) throw new Error('Failed to update job position');
       return response.json();
     },
-    onMutate: async ({ id, data }: any) => {
-      await queryClient.cancelQueries({ queryKey: ['/api/admin/job-positions'] });
-      const previous = queryClient.getQueryData<any[]>(['/api/admin/job-positions']);
-
+    onSuccess: async (updatedPosition) => {
+      // Immediately update cache with real data
       queryClient.setQueryData(['/api/admin/job-positions'], (old: any[] = []) => {
-        return old.map(item => item.id === id ? { ...item, ...data, updatedAt: new Date().toISOString() } : item);
+        return old.map(item => item.id === updatedPosition.id ? updatedPosition : item);
       });
-
-      return { previous };
-    },
-    onError: (err, variables, context: any) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['/api/admin/job-positions'], context.previous);
-      }
-      toast({ title: 'Error', description: 'Failed to update job position', variant: 'destructive' });
-    },
-    onSettled: async () => {
+      
+      // Force immediate refetch to ensure sync
       await queryClient.invalidateQueries({ queryKey: ['/api/admin/job-positions'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/admin/job-positions'] });
+      await refetch();
+      
       setIsDialogOpen(false);
       setEditingPosition(null);
       setSelectedJobType('Full-Time Job');
@@ -247,6 +232,9 @@ export default function AdminJobPositions() {
       setRequirementsContent('');
       setIsActive(true);
       toast({ title: 'Success', description: 'Job position updated successfully' });
+    },
+    onError: (err) => {
+      toast({ title: 'Error', description: 'Failed to update job position', variant: 'destructive' });
     },
   });
 
@@ -267,23 +255,20 @@ export default function AdminJobPositions() {
       if (!response.ok) throw new Error('Failed to delete job position');
       return response.json();
     },
-    onMutate: async (id: number) => {
-      await queryClient.cancelQueries({ queryKey: ['/api/admin/job-positions'] });
-      const previous = queryClient.getQueryData<any[]>(['/api/admin/job-positions']);
-
-      queryClient.setQueryData(['/api/admin/job-positions'], (old: any[] = []) => old.filter(item => item.id !== id));
-      return { previous };
-    },
-    onError: (err, id, context: any) => {
-      if (context?.previous) {
-        queryClient.setQueryData(['/api/admin/job-positions'], context.previous);
-      }
-      toast({ title: 'Error', description: 'Failed to delete job position', variant: 'destructive' });
-    },
-    onSettled: async () => {
+    onSuccess: async (data, id) => {
+      // Immediately remove from cache
+      queryClient.setQueryData(['/api/admin/job-positions'], (old: any[] = []) => {
+        return old.filter(item => item.id !== id);
+      });
+      
+      // Force immediate refetch to ensure sync
       await queryClient.invalidateQueries({ queryKey: ['/api/admin/job-positions'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/admin/job-positions'] });
+      await refetch();
+      
       toast({ title: 'Success', description: 'Job position deleted successfully' });
+    },
+    onError: (err) => {
+      toast({ title: 'Error', description: 'Failed to delete job position', variant: 'destructive' });
     },
   });
 

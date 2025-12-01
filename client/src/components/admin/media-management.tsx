@@ -60,9 +60,15 @@ export default function MediaManagement() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/media', {
+      const timestamp = Date.now();
+      const response = await fetch(`/api/admin/media?t=${timestamp}`, {
         cache: 'no-store',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
       if (response.ok) {
         const data = await response.json();
@@ -140,66 +146,14 @@ export default function MediaManagement() {
   useEffect(() => {
     // initial load
     fetchMediaList();
-
-    // subscribe to server-sent events for instant updates
-    let es: EventSource | null = null;
-    try {
-      es = new EventSource('/api/media/stream');
-      es.addEventListener('media', (e: MessageEvent) => {
-        try {
-          const payload = JSON.parse((e as any).data);
-          if (!payload || !payload.action) return;
-          switch (payload.action) {
-            case 'create': {
-              setMediaList(prev => {
-                const next = [payload.item, ...prev];
-                applyFiltersAndSort(next);
-                return next;
-              });
-              break;
-            }
-            case 'update': {
-              setMediaList(prev => {
-                const idx = prev.findIndex(p => p.id === payload.item.id);
-                if (idx === -1) return prev;
-                const copy = [...prev];
-                copy[idx] = payload.item;
-                applyFiltersAndSort(copy);
-                return copy;
-              });
-              break;
-            }
-            case 'delete': {
-              setMediaList(prev => {
-                const next = prev.filter(p => p.id !== payload.item.id);
-                applyFiltersAndSort(next);
-                return next;
-              });
-              break;
-            }
-            case 'reorder': {
-              if (Array.isArray(payload.items)) {
-                setMediaList(payload.items);
-                applyFiltersAndSort(payload.items);
-              }
-              break;
-            }
-            default:
-              break;
-          }
-        } catch (err) {
-          console.warn('Error processing media SSE event:', err);
-        }
-      });
-      es.onerror = () => {
-        // EventSource will auto-reconnect; you can add logging here
-      };
-    } catch (e) {
-      console.warn('SSE not available:', e);
-    }
+    
+    // Auto-refresh every 3 seconds for real-time updates
+    const refreshInterval = setInterval(() => {
+      fetchMediaList();
+    }, 3000);
 
     return () => {
-      if (es) es.close();
+      clearInterval(refreshInterval);
     };
   }, []);
 
@@ -279,21 +233,18 @@ export default function MediaManagement() {
           method,
           headers: { 
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
             ...(token && { 'Authorization': `Bearer ${token}` })
           },
           body: JSON.stringify(formData)
         });
 
         const responseData = await response.json().catch(() => null);
-          if (response.ok && responseData) {
-          // Replace with server-provided item if available
-          const reconciled = mediaList.map(m => m.id === editingId ? responseData : m);
-          setMediaList(reconciled);
-          applyFiltersAndSort(reconciled);
+        if (response.ok && responseData) {
           toast({ title: 'Success', description: 'Media updated successfully' });
           resetForm();
-          // ensure authoritative sync shortly after
-          scheduleRefresh(600);
+          // Immediate refresh
+          await fetchMediaList();
         } else {
           setMediaList(prevList);
           applyFiltersAndSort(prevList);
@@ -342,6 +293,7 @@ export default function MediaManagement() {
           method,
           headers: { 
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
             ...(token && { 'Authorization': `Bearer ${token}` })
           },
           body: JSON.stringify(formData)
@@ -349,14 +301,10 @@ export default function MediaManagement() {
 
         const responseData = await response.json().catch(() => null);
         if (response.ok && responseData) {
-          // Replace temp item with actual item from server
-          const reconciled = optimisticList.map(m => m.id === tempId ? responseData : m);
-          setMediaList(reconciled);
-          applyFiltersAndSort(reconciled);
           toast({ title: 'Success', description: 'Media created successfully' });
           resetForm();
-          // ensure authoritative sync shortly after
-          scheduleRefresh(600);
+          // Immediate refresh
+          await fetchMediaList();
         } else {
           setMediaList(prevList);
           applyFiltersAndSort(prevList);
@@ -414,8 +362,8 @@ export default function MediaManagement() {
       });
       if (response.ok) {
         toast({ title: 'Success', description: 'Media deleted successfully' });
-        // sync authoritative list shortly after delete
-        scheduleRefresh(600);
+        // Immediate refresh
+        await fetchMediaList();
       } else {
         const errorData = await response.json().catch(() => null);
         setMediaList(prevList);
@@ -562,15 +510,9 @@ export default function MediaManagement() {
       });
 
       if (response.ok) {
-        const resp = await response.json().catch(() => null);
-        if (resp) {
-          const reconciled = mediaList.map(m => m.id === media.id ? resp : m);
-          setMediaList(reconciled);
-          applyFiltersAndSort(reconciled);
-        }
         toast({ title: 'Success', description: `Media ${!media.isActive ? 'activated' : 'deactivated'}` });
-        // sync authoritative list shortly after toggle
-        scheduleRefresh(600);
+        // Immediate refresh
+        await fetchMediaList();
       } else {
         setMediaList(prevList);
         applyFiltersAndSort(prevList);

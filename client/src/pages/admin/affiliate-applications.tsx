@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, Trash2, Mail, Phone, MapPin, Landmark, CheckCircle, XCircle } from "lucide-react";
+import { Eye, Trash2, Mail, Phone, MapPin, Landmark, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AdminAffiliateApplications() {
@@ -31,22 +31,35 @@ export default function AdminAffiliateApplications() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: applications = [], isLoading } = useQuery({
+  const { data: applications = [], isLoading, refetch } = useQuery({
     queryKey: ['/api/admin/affiliate-applications'],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/affiliate-applications`);
+      if (!res.ok) throw new Error('Failed to fetch applications');
+      return res.json();
+    },
+    staleTime: 60000, // 1 minute
+    gcTime: 300000, // 5 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status, notes }: any) => {
       const response = await fetch(`/api/admin/affiliate-applications/${id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
         body: JSON.stringify({ status, notes }),
       });
       if (!response.ok) throw new Error('Failed to update status');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/affiliate-applications'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/affiliate-applications'] });
       setIsViewDialogOpen(false);
       setReviewNotes('');
       toast({ title: 'Success', description: 'Application status updated' });
@@ -57,12 +70,15 @@ export default function AdminAffiliateApplications() {
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/admin/affiliate-applications/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
       });
       if (!response.ok) throw new Error('Failed to delete application');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/affiliate-applications'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/affiliate-applications'] });
       toast({ title: 'Success', description: 'Application deleted successfully' });
     },
   });
@@ -106,6 +122,15 @@ export default function AdminAffiliateApplications() {
             {applications.length} application{applications.length !== 1 ? 's' : ''} received
           </p>
         </div>
+        <Button 
+          onClick={() => refetch()} 
+          variant="outline"
+          size="sm"
+          disabled={isLoading}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
       <Card>
