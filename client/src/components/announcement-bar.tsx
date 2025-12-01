@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Announcement {
   id: number;
@@ -12,9 +12,67 @@ interface Announcement {
 export default function AnnouncementBar() {
   const [isVisible, setIsVisible] = useState(true);
 
+  const queryClient = useQueryClient();
   const { data: announcements = [] } = useQuery<Announcement[]>({
     queryKey: ['/api/announcements'],
+    staleTime: 0,
+    cacheTime: 0,
+    refetchOnWindowFocus: true,
   });
+
+  // Lightweight WebSocket to receive real-time announcement updates
+  useEffect(() => {
+    let mounted = true;
+    let ws: WebSocket | null = null;
+    let reconnectAttempts = 0;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const hostsToTry = [
+      `${protocol}://${window.location.host}/ws/announcements`,
+      `${protocol}://${window.location.hostname}:5000/ws/announcements`,
+    ];
+
+    function connect() {
+      if (!mounted) return;
+      const url = hostsToTry[Math.min(reconnectAttempts, hostsToTry.length - 1)];
+      try {
+        ws = new WebSocket(url);
+
+        ws.onopen = () => {
+          reconnectAttempts = 0;
+        };
+
+        ws.onmessage = () => {
+          // Invalidate announcements query so UI updates instantly
+          queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+        };
+
+        ws.onclose = () => {
+          if (!mounted) return;
+          reconnectAttempts += 1;
+          const delay = Math.min(5000, 500 * reconnectAttempts);
+          setTimeout(connect, delay);
+        };
+
+        ws.onerror = () => {
+          try { ws?.close(); } catch (_) {}
+          reconnectAttempts += 1;
+          const delay = Math.min(2000, 300 * reconnectAttempts);
+          setTimeout(connect, delay);
+        };
+      } catch (e) {
+        reconnectAttempts += 1;
+        setTimeout(connect, 1000);
+      }
+    }
+
+    connect();
+
+    return () => {
+      mounted = false;
+      try { ws?.close(); } catch (_) {}
+    };
+  }, [queryClient]);
 
   // Ensure announcements is an array
   if (!isVisible || !Array.isArray(announcements) || announcements.length === 0) return null;

@@ -79,6 +79,18 @@ export default function MediaManagement() {
     }
   };
 
+  // Schedule a short server refresh after optimistic writes to ensure authoritative sync
+  let refreshTimer: number | null = null;
+  const scheduleRefresh = (delay = 800) => {
+    try {
+      if (refreshTimer) window.clearTimeout(refreshTimer as any);
+    } catch (e) {}
+    refreshTimer = window.setTimeout(() => {
+      fetchMediaList();
+      refreshTimer = null;
+    }, delay) as unknown as number;
+  };
+
   // Apply filters and sorting
   const applyFiltersAndSort = (list: MediaLink[]) => {
     let filtered = list;
@@ -247,41 +259,118 @@ export default function MediaManagement() {
       return;
     }
 
-    setLoading(true);
-    try {
-      const url = editingId ? `/api/admin/media/${editingId}` : '/api/admin/media';
-      const method = editingId ? 'PUT' : 'POST';
-      const token = localStorage.getItem('token');
+    // Use optimistic UI updates: update local state immediately, then reconcile with server
+    const token = localStorage.getItem('token');
+    const url = editingId ? `/api/admin/media/${editingId}` : '/api/admin/media';
+    const method = editingId ? 'PUT' : 'POST';
 
-      console.log('Saving media:', { url, method, editingId, formData });
+    // Validate done above; perform optimistic update
+    if (editingId) {
+      // Update existing item optimistically
+      const prevList = mediaList;
+      const updatedAt = new Date().toISOString();
+      const optimisticList = mediaList.map(m => m.id === editingId ? ({ ...m, ...formData, updatedAt }) as MediaLink : m);
+      setMediaList(optimisticList);
+      applyFiltersAndSort(optimisticList);
 
-      const response = await fetch(url, {
-        method,
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: JSON.stringify(formData)
-      });
+      try {
+        setLoading(true);
+        const response = await fetch(url, {
+          method,
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          },
+          body: JSON.stringify(formData)
+        });
 
-      console.log('Response status:', response.status);
-      const responseData = await response.json();
-      console.log('Response data:', responseData);
-
-      if (response.ok) {
-        toast({ title: 'Success', description: editingId ? 'Media updated successfully' : 'Media created successfully' });
-        resetForm();
-        fetchMediaList();
-      } else {
-        const errorMessage = responseData.details || responseData.error || 'Failed to save media';
-        console.error('Error response:', responseData);
-        toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
+        const responseData = await response.json().catch(() => null);
+          if (response.ok && responseData) {
+          // Replace with server-provided item if available
+          const reconciled = mediaList.map(m => m.id === editingId ? responseData : m);
+          setMediaList(reconciled);
+          applyFiltersAndSort(reconciled);
+          toast({ title: 'Success', description: 'Media updated successfully' });
+          resetForm();
+          // ensure authoritative sync shortly after
+          scheduleRefresh(600);
+        } else {
+          setMediaList(prevList);
+          applyFiltersAndSort(prevList);
+          const errorMessage = responseData?.details || responseData?.error || 'Failed to save media';
+          toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
+        }
+      } catch (error) {
+        setMediaList(prevList);
+        applyFiltersAndSort(prevList);
+        console.error('Error saving media:', error);
+        toast({ title: 'Error', description: (error as Error).message || 'Failed to save media', variant: 'destructive' });
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error saving media:', error);
-      toast({ title: 'Error', description: (error as Error).message || 'Failed to save media', variant: 'destructive' });
-    } finally {
-      setLoading(false);
+    } else {
+      // Create new item optimistically with temporary negative id
+      const tempId = -Date.now();
+      const createdAt = new Date().toISOString();
+      const tempItem: MediaLink = {
+        id: tempId as any,
+        title: formData.title,
+        description: formData.description,
+        imageUrl: formData.imageUrl,
+        videoUrl: formData.videoUrl,
+        redirectUrl: formData.redirectUrl,
+        category: formData.category,
+        type: formData.type,
+        clickCount: 0,
+        isActive: formData.isActive,
+        sortOrder: formData.sortOrder || 0,
+        validFrom: formData.validFrom || undefined,
+        validUntil: formData.validUntil || undefined,
+        metadata: {},
+        createdAt,
+        updatedAt: createdAt,
+      };
+
+      const prevList = mediaList;
+      const optimisticList = [tempItem, ...mediaList];
+      setMediaList(optimisticList);
+      applyFiltersAndSort(optimisticList);
+
+      try {
+        setLoading(true);
+        const response = await fetch(url, {
+          method,
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const responseData = await response.json().catch(() => null);
+        if (response.ok && responseData) {
+          // Replace temp item with actual item from server
+          const reconciled = optimisticList.map(m => m.id === tempId ? responseData : m);
+          setMediaList(reconciled);
+          applyFiltersAndSort(reconciled);
+          toast({ title: 'Success', description: 'Media created successfully' });
+          resetForm();
+          // ensure authoritative sync shortly after
+          scheduleRefresh(600);
+        } else {
+          setMediaList(prevList);
+          applyFiltersAndSort(prevList);
+          const errorMessage = responseData?.details || responseData?.error || 'Failed to create media';
+          toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
+        }
+      } catch (error) {
+        setMediaList(prevList);
+        applyFiltersAndSort(prevList);
+        console.error('Error creating media:', error);
+        toast({ title: 'Error', description: (error as Error).message || 'Failed to create media', variant: 'destructive' });
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -310,9 +399,14 @@ export default function MediaManagement() {
   // Delete media
   const handleDeleteMedia = async (id: number) => {
     if (!confirm('Are you sure you want to delete this media?')) return;
+    // Optimistic delete: remove from UI immediately, restore on failure
+    const prevList = mediaList;
+    const optimistic = mediaList.filter(p => p.id !== id);
+    setMediaList(optimistic);
+    applyFiltersAndSort(optimistic);
 
-    setLoading(true);
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/media/${id}`, { 
         method: 'DELETE',
@@ -320,14 +414,19 @@ export default function MediaManagement() {
       });
       if (response.ok) {
         toast({ title: 'Success', description: 'Media deleted successfully' });
-        fetchMediaList();
+        // sync authoritative list shortly after delete
+        scheduleRefresh(600);
       } else {
-        const errorData = await response.json();
-        const errorMessage = errorData.details || errorData.error || 'Failed to delete media';
+        const errorData = await response.json().catch(() => null);
+        setMediaList(prevList);
+        applyFiltersAndSort(prevList);
+        const errorMessage = errorData?.details || errorData?.error || 'Failed to delete media';
         console.error('Delete error response:', errorData);
         toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
       }
     } catch (error) {
+      setMediaList(prevList);
+      applyFiltersAndSort(prevList);
       console.error('Error deleting media:', error);
       toast({ title: 'Error', description: (error as Error).message || 'Failed to delete media', variant: 'destructive' });
     } finally {
@@ -443,12 +542,16 @@ export default function MediaManagement() {
 
   // Toggle active status
   const handleToggleActive = async (media: MediaLink) => {
-    setLoading(true);
+    // Optimistic toggle
+    const prevList = mediaList;
+    const optimisticList = mediaList.map(m => m.id === media.id ? ({ ...m, isActive: !m.isActive }) : m);
+    setMediaList(optimisticList);
+    applyFiltersAndSort(optimisticList);
+
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
       const updatedData = { ...media, isActive: !media.isActive };
-      console.log('Toggling active status:', updatedData);
-      
       const response = await fetch(`/api/admin/media/${media.id}`, {
         method: 'PUT',
         headers: { 
@@ -458,17 +561,26 @@ export default function MediaManagement() {
         body: JSON.stringify(updatedData)
       });
 
-      console.log('Toggle response status:', response.status);
-
       if (response.ok) {
-        fetchMediaList();
+        const resp = await response.json().catch(() => null);
+        if (resp) {
+          const reconciled = mediaList.map(m => m.id === media.id ? resp : m);
+          setMediaList(reconciled);
+          applyFiltersAndSort(reconciled);
+        }
         toast({ title: 'Success', description: `Media ${!media.isActive ? 'activated' : 'deactivated'}` });
+        // sync authoritative list shortly after toggle
+        scheduleRefresh(600);
       } else {
-        const errorData = await response.json();
-        console.error('Toggle error:', errorData);
+        setMediaList(prevList);
+        applyFiltersAndSort(prevList);
+        const err = await response.json().catch(() => null);
+        console.error('Toggle error:', err);
         toast({ title: 'Error', description: 'Failed to update media status', variant: 'destructive' });
       }
     } catch (error) {
+      setMediaList(prevList);
+      applyFiltersAndSort(prevList);
       console.error('Error updating media:', error);
       toast({ title: 'Error', description: 'Failed to update media status', variant: 'destructive' });
     } finally {
