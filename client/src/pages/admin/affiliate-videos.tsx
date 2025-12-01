@@ -57,9 +57,18 @@ export default function AdminAffiliateVideos() {
       });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
-      setItems(Array.isArray(data) ? data : []);
+      console.log('Affiliate videos fetched:', data);
+      const items = Array.isArray(data) ? data : [];
+      // Ensure all items have proper types
+      const typedItems = items.map((item: any) => ({
+        ...item,
+        isActive: item.isActive === true || item.isActive === 'true',
+        clickCount: parseInt(item.clickCount) || 0,
+        sortOrder: parseInt(item.sortOrder) || 0
+      }));
+      setItems(typedItems);
     } catch (err) {
-      console.error(err);
+      console.error('Fetch error:', err);
       toast({ title: 'Error', description: 'Failed to load affiliate videos', variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -175,15 +184,18 @@ export default function AdminAffiliateVideos() {
         },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error('Save failed');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.details || 'Save failed');
+      }
       toast({ title: 'Success', description: editing ? 'Updated' : 'Created' });
       setIsModalOpen(false);
       resetForm();
       // Fetch fresh data immediately
       await fetchList();
     } catch (err) {
-      console.error(err);
-      toast({ title: 'Error', description: 'Failed to save affiliate video', variant: 'destructive' });
+      console.error('Save error:', err);
+      toast({ title: 'Error', description: `Failed to save affiliate video: ${(err as Error).message}`, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -263,69 +275,107 @@ export default function AdminAffiliateVideos() {
           ) : items.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No affiliate videos yet. Create one to get started.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Thumbnail</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((it) => (
-                  <TableRow key={it.id}>
-                    <TableCell>
-                      {it.imageUrl && (
-                        <img src={it.imageUrl} alt={it.title} className="w-12 h-12 rounded object-cover" />
-                      )}
-                    </TableCell>
-                    <TableCell>{it.title}</TableCell>
-                    <TableCell>{it.category}</TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${it.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                        {it.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditing(it);
-                            setForm(it);
-                            setImageFile(null);
-                            setVideoFile(null);
-                            setIsModalOpen(true);
-                          }}
-                          disabled={deleting === it.id}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(it.id)}
-                          disabled={deleting === it.id}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          {deleting === it.id ? (
-                            <div className="h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
+            <>
+              <div className="mb-4 text-sm text-muted-foreground">
+                Total: {items.length} items | Shown: {items.filter(it => it.title && it.title.trim()).length} items with titles
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Thumbnail</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Affiliate Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {items.filter(it => it.title && it.title.trim()).map((it) => (
+                    <TableRow key={it.id}>
+                      <TableCell className="text-xs text-muted-foreground">{it.id}</TableCell>
+                      <TableCell>
+                        {it.imageUrl && (
+                          <img src={it.imageUrl} alt={it.title} className="w-12 h-12 rounded object-cover" />
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">{it.title}</TableCell>
+                      <TableCell>{it.affiliateName || '-'}</TableCell>
+                      <TableCell>{it.category}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${it.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                          {it.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditing(it);
+                              setForm(it);
+                              setImageFile(null);
+                              setVideoFile(null);
+                              setIsModalOpen(true);
+                            }}
+                            disabled={deleting === it.id}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(it.id)}
+                            disabled={deleting === it.id}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            {deleting === it.id ? (
+                              <div className="h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* Debug: Show items without titles */}
+      {items.filter(it => !it.title || !it.title.trim()).length > 0 && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardHeader>
+            <CardTitle className="text-yellow-900">⚠️ Items without titles ({items.filter(it => !it.title || !it.title.trim()).length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {items.filter(it => !it.title || !it.title.trim()).map((it) => (
+                <div key={it.id} className="p-3 bg-white rounded border border-yellow-300 text-sm">
+                  <div><strong>ID:</strong> {it.id}</div>
+                  <div><strong>Affiliate Name:</strong> {it.affiliateName || '(empty)'}</div>
+                  <div><strong>Title:</strong> {it.title ? `"${it.title}"` : '(EMPTY - this is the problem!)'}</div>
+                  <div><strong>Status:</strong> {it.isActive ? 'Active' : 'Inactive'}</div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDelete(it.id)}
+                    className="mt-2 text-red-600 hover:text-red-700"
+                  >
+                    Delete This Item
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={isModalOpen} onOpenChange={(o) => { if (!o) { setIsModalOpen(false); resetForm(); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-6">
@@ -364,7 +414,7 @@ export default function AdminAffiliateVideos() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold">Thumbnail Image *</label>
+              <label className="block text-sm font-semibold">Thumbnail Image</label>
               <div className="flex gap-2 items-end">
                 <Input
                   value={form.imageUrl}

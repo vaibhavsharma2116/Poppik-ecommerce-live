@@ -39,6 +39,20 @@ export default function AdminComboSliders() {
 
   const { data: sliders = [], isLoading } = useQuery<ComboSlider[]>({
     queryKey: ['/api/admin/combo-sliders'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/combo-sliders', {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      if (!res.ok) throw new Error('Failed to fetch sliders');
+      const data = await res.json();
+      console.log('✅ Combo sliders fetched (fresh data):', data.length);
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const createMutation = useMutation({
@@ -46,15 +60,26 @@ export default function AdminComboSliders() {
       const response = await fetch('/api/admin/combo-sliders', {
         method: 'POST',
         body: data,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
       });
       if (!response.ok) throw new Error('Failed to create slider');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/combo-sliders'] });
+    onSuccess: (data) => {
+      console.log('✅ Slider created, refreshing list...');
+      queryClient.setQueryData(['/api/admin/combo-sliders'], (oldData: any) =>
+        oldData ? [...oldData, data] : [data]
+      );
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/combo-sliders'], refetchType: 'all' });
       toast({ title: "Slider created successfully" });
       resetForm();
     },
+    onError: (error) => {
+      console.error('❌ Error creating slider:', error);
+      toast({ title: "Error", description: "Failed to create slider", variant: "destructive" });
+    }
   });
 
   const updateMutation = useMutation({
@@ -62,29 +87,51 @@ export default function AdminComboSliders() {
       const response = await fetch(`/api/admin/combo-sliders/${id}`, {
         method: 'PUT',
         body: data,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
       });
       if (!response.ok) throw new Error('Failed to update slider');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/combo-sliders'] });
+    onSuccess: (data) => {
+      console.log('✅ Slider updated, refreshing list...');
+      queryClient.setQueryData(['/api/admin/combo-sliders'], (oldData: any) =>
+        oldData ? oldData.map((s: any) => s.id === data.id ? data : s) : [data]
+      );
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/combo-sliders'], refetchType: 'all' });
       toast({ title: "Slider updated successfully" });
       resetForm();
     },
+    onError: (error) => {
+      console.error('❌ Error updating slider:', error);
+      toast({ title: "Error", description: "Failed to update slider", variant: "destructive" });
+    }
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/admin/combo-sliders/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
       });
       if (!response.ok) throw new Error('Failed to delete slider');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/combo-sliders'] });
+    onSuccess: (data, deletedId) => {
+      console.log('✅ Slider deleted, refreshing list...');
+      queryClient.setQueryData(['/api/admin/combo-sliders'], (oldData: any) =>
+        oldData ? oldData.filter((s: any) => s.id !== deletedId) : []
+      );
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/combo-sliders'], refetchType: 'all' });
       toast({ title: "Slider deleted successfully" });
     },
+    onError: (error) => {
+      console.error('❌ Error deleting slider:', error);
+      toast({ title: "Error", description: "Failed to delete slider", variant: "destructive" });
+    }
   });
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {

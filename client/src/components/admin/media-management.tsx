@@ -61,6 +61,7 @@ export default function MediaManagement() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('/api/admin/media', {
+        cache: 'no-store',
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
       if (response.ok) {
@@ -125,7 +126,69 @@ export default function MediaManagement() {
   };
 
   useEffect(() => {
+    // initial load
     fetchMediaList();
+
+    // subscribe to server-sent events for instant updates
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource('/api/media/stream');
+      es.addEventListener('media', (e: MessageEvent) => {
+        try {
+          const payload = JSON.parse((e as any).data);
+          if (!payload || !payload.action) return;
+          switch (payload.action) {
+            case 'create': {
+              setMediaList(prev => {
+                const next = [payload.item, ...prev];
+                applyFiltersAndSort(next);
+                return next;
+              });
+              break;
+            }
+            case 'update': {
+              setMediaList(prev => {
+                const idx = prev.findIndex(p => p.id === payload.item.id);
+                if (idx === -1) return prev;
+                const copy = [...prev];
+                copy[idx] = payload.item;
+                applyFiltersAndSort(copy);
+                return copy;
+              });
+              break;
+            }
+            case 'delete': {
+              setMediaList(prev => {
+                const next = prev.filter(p => p.id !== payload.item.id);
+                applyFiltersAndSort(next);
+                return next;
+              });
+              break;
+            }
+            case 'reorder': {
+              if (Array.isArray(payload.items)) {
+                setMediaList(payload.items);
+                applyFiltersAndSort(payload.items);
+              }
+              break;
+            }
+            default:
+              break;
+          }
+        } catch (err) {
+          console.warn('Error processing media SSE event:', err);
+        }
+      });
+      es.onerror = () => {
+        // EventSource will auto-reconnect; you can add logging here
+      };
+    } catch (e) {
+      console.warn('SSE not available:', e);
+    }
+
+    return () => {
+      if (es) es.close();
+    };
   }, []);
 
   useEffect(() => {

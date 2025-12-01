@@ -55,6 +55,11 @@ app.use(compression({
   level: 6,
   threshold: 1024, // Compress responses > 1KB
   filter: (req, res) => {
+    // Don't compress server-sent events or media stream endpoints
+    try {
+      if (req.path && req.path.startsWith('/api/media/stream')) return false;
+      if (req.path && req.path.startsWith('/api/media')) return false;
+    } catch (e) {}
     if (req.headers['x-no-compression']) return false;
     return compression.filter(req, res);
   }
@@ -107,6 +112,11 @@ const CACHE_DURATION = 30000; // 30 seconds
 
 app.use((req, res, next) => {
   if (req.method === 'GET' && req.path.startsWith('/api/')) {
+    // Don't cache endpoints that require instant real-time updates
+    if (req.path.startsWith('/api/announcements') || req.path.startsWith('/api/sliders') || req.path.startsWith('/api/admin/sliders') || req.path.startsWith('/api/media')) {
+      return next();
+    }
+
     const cacheKey = req.path + JSON.stringify(req.query);
     const cached = cache.get(cacheKey);
 

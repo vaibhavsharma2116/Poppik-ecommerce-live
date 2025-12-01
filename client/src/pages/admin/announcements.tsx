@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Plus, GripVertical, Save } from "lucide-react";
+import { Trash2, Plus, GripVertical, Save, AlertCircle } from "lucide-react";
 
 interface Announcement {
   id: number;
@@ -22,10 +22,86 @@ export default function AdminAnnouncements() {
   const [newAnnouncementText, setNewAnnouncementText] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
+  const [wsConnected, setWsConnected] = useState(false);
 
-  const { data: announcements = [], isLoading } = useQuery<Announcement[]>({
+  // No cache, instant refresh configuration
+  const { data: announcements = [], isLoading, refetch } = useQuery<Announcement[]>({
     queryKey: ['/api/admin/announcements'],
+    staleTime: 0, // Always stale
+    cacheTime: 0, // No caching
+    refetchOnMount: true,
+    refetchInterval: 5000, // Refetch every 5 seconds
   });
+
+  // WebSocket setup for real-time updates
+  useEffect(() => {
+    let mounted = true;
+    let ws: WebSocket | null = null;
+    let reconnectAttempts = 0;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    // Try same host first, then fallback to backend default port 5000
+    const hostsToTry = [
+      `${protocol}://${window.location.host}/ws/announcements`,
+      `${protocol}://${window.location.hostname}:5000/ws/announcements`,
+    ];
+
+    function connectToNextHost() {
+      if (!mounted) return;
+      const url = hostsToTry[Math.min(reconnectAttempts, hostsToTry.length - 1)];
+      try {
+        console.log('Attempting announcements WS ->', url);
+        ws = new WebSocket(url);
+
+        ws.onopen = () => {
+          console.log('Announcements WebSocket connected to', url);
+          reconnectAttempts = 0;
+          setWsConnected(true);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('WebSocket message:', data);
+            // Instantly refetch on any change
+            refetch();
+          } catch (e) {
+            console.error('WebSocket message parse error:', e);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('Announcements WebSocket disconnected');
+          setWsConnected(false);
+          if (!mounted) return;
+          reconnectAttempts += 1;
+          const delay = Math.min(5000, 500 * reconnectAttempts);
+          setTimeout(connectToNextHost, delay);
+        };
+
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          setWsConnected(false);
+          // try next host on error
+          reconnectAttempts += 1;
+          try { ws?.close(); } catch (_) {}
+          const delay = Math.min(2000, 300 * reconnectAttempts);
+          setTimeout(connectToNextHost, delay);
+        };
+      } catch (e) {
+        console.error('Failed to create WS', e);
+        reconnectAttempts += 1;
+        setTimeout(connectToNextHost, 1000);
+      }
+    }
+
+    connectToNextHost();
+
+    return () => {
+      mounted = false;
+      try { ws?.close(); } catch (_) {}
+    };
+  }, [refetch]);
 
   const createMutation = useMutation({
     mutationFn: async (text: string) => {
@@ -43,18 +119,21 @@ export default function AdminAnnouncements() {
       return response.json();
     },
     onSuccess: () => {
+      // Instant invalidation and refetch
       queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
       queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
       setNewAnnouncementText("");
       toast({
-        title: "Success",
+        title: "✓ Created",
         description: "Announcement created successfully",
       });
+      // Force immediate refetch
+      setTimeout(() => refetch(), 100);
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
-        title: "Error",
-        description: "Failed to create announcement",
+        title: "✗ Error",
+        description: error.message || "Failed to create announcement",
         variant: "destructive",
       });
     },
@@ -72,18 +151,21 @@ export default function AdminAnnouncements() {
       return response.json();
     },
     onSuccess: () => {
+      // Instant invalidation and refetch
       queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
       queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
       setEditingId(null);
       toast({
-        title: "Success",
+        title: "✓ Updated",
         description: "Announcement updated successfully",
       });
+      // Force immediate refetch
+      setTimeout(() => refetch(), 100);
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
-        title: "Error",
-        description: "Failed to update announcement",
+        title: "✗ Error",
+        description: error.message || "Failed to update announcement",
         variant: "destructive",
       });
     },
@@ -99,17 +181,20 @@ export default function AdminAnnouncements() {
       return response.json();
     },
     onSuccess: () => {
+      // Instant invalidation and refetch
       queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
       queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
       toast({
-        title: "Success",
+        title: "✓ Deleted",
         description: "Announcement deleted successfully",
       });
+      // Force immediate refetch
+      setTimeout(() => refetch(), 100);
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
-        title: "Error",
-        description: "Failed to delete announcement",
+        title: "✗ Error",
+        description: error.message || "Failed to delete announcement",
         variant: "destructive",
       });
     },
@@ -171,10 +256,27 @@ export default function AdminAnnouncements() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Announcements</h1>
-        <p className="text-gray-600 mt-2">
-          Manage announcements that appear at the top of your website
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Announcements</h1>
+            <p className="text-gray-600 mt-2">
+              Manage announcements that appear at the top of your website
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`h-3 w-3 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className="text-sm font-medium">
+              {wsConnected ? 'Live Updates' : 'Syncing...'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
+        <AlertCircle className="h-4 w-4 text-blue-600" />
+        <span className="text-sm text-blue-800">
+          ✓ Live updates enabled. Changes reflect instantly without page reload.
+        </span>
       </div>
 
       <Card className="mb-6">
@@ -189,10 +291,15 @@ export default function AdminAnnouncements() {
               onChange={(e) => setNewAnnouncementText(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleCreate()}
               className="flex-1"
+              disabled={createMutation.isPending}
             />
-            <Button onClick={handleCreate} disabled={createMutation.isPending}>
+            <Button
+              onClick={handleCreate}
+              disabled={createMutation.isPending || !newAnnouncementText.trim()}
+              className="whitespace-nowrap"
+            >
               <Plus className="h-4 w-4 mr-2" />
-              Add Announcement
+              {createMutation.isPending ? 'Adding...' : 'Add Announcement'}
             </Button>
           </div>
         </CardContent>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, Upload, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface MediaItem {
   id?: number;
@@ -25,57 +26,54 @@ interface MediaItem {
 
 export default function AdminChannelPartnerVideos() {
   const { toast } = useToast();
-  const [items, setItems] = useState<MediaItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<MediaItem | null>(null);
   const [form, setForm] = useState<MediaItem>({ partnerName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'channel-partner', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState<number | null>(null);
   const imageBlobRef = useRef<string | null>(null);
   const videoBlobRef = useRef<string | null>(null);
   const thumbInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Cache-busting fetch with no-cache headers
-  const fetchList = useCallback(async () => {
-    setLoading(true);
-    try {
+  // AGGRESSIVE NO-CACHE CONFIG - React Query
+  const { data: items = [], isLoading, refetch: refetchList } = useQuery<MediaItem[]>({
+    queryKey: ['/api/admin/channel-partner-videos'],
+    queryFn: async () => {
       const token = localStorage.getItem('token');
+      if (!token) throw new Error('No authentication token');
       const res = await fetch(`/api/admin/channel-partner-videos?t=${Date.now()}`, {
         method: 'GET',
         cache: 'no-store',
         headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
           'Pragma': 'no-cache',
           'Expires': '0',
-          ...(token && { Authorization: `Bearer ${token}` })
+          'Surrogate-Control': 'no-store',
+          'Authorization': `Bearer ${token}`
         }
       });
-      if (!res.ok) throw new Error('Failed');
+      if (!res.ok) throw new Error('Failed to fetch channel partner videos');
       const data = await res.json();
-      setItems(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Error', description: 'Failed to load channel partner videos', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => { fetchList(); }, [fetchList]);
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+    refetchInterval: false,
+    enabled: true
+  });
 
   const resetForm = () => {
     setEditing(null);
     setForm({ partnerName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'channel-partner', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' });
-    if (imageBlobRef.current && imageBlobRef.current.startsWith('blob:')) {
+    if (imageBlobRef.current?.startsWith('blob:')) {
       try { URL.revokeObjectURL(imageBlobRef.current); } catch (e) { }
       imageBlobRef.current = null;
     }
-    if (videoBlobRef.current && videoBlobRef.current.startsWith('blob:')) {
+    if (videoBlobRef.current?.startsWith('blob:')) {
       try { URL.revokeObjectURL(videoBlobRef.current); } catch (e) { }
       videoBlobRef.current = null;
     }
@@ -83,20 +81,9 @@ export default function AdminChannelPartnerVideos() {
     setVideoFile(null);
   };
 
-  useEffect(() => {
-    return () => {
-      if (imageBlobRef.current && imageBlobRef.current.startsWith('blob:')) {
-        try { URL.revokeObjectURL(imageBlobRef.current); } catch (e) { }
-      }
-      if (videoBlobRef.current && videoBlobRef.current.startsWith('blob:')) {
-        try { URL.revokeObjectURL(videoBlobRef.current); } catch (e) { }
-      }
-    };
-  }, []);
-
   const handleImageSelect = (file: File | null) => {
     if (!file) {
-      if (imageBlobRef.current && imageBlobRef.current.startsWith('blob:')) {
+      if (imageBlobRef.current?.startsWith('blob:')) {
         try { URL.revokeObjectURL(imageBlobRef.current); } catch (e) { }
         imageBlobRef.current = null;
       }
@@ -105,7 +92,7 @@ export default function AdminChannelPartnerVideos() {
       return;
     }
     const url = URL.createObjectURL(file);
-    if (imageBlobRef.current && imageBlobRef.current.startsWith('blob:')) {
+    if (imageBlobRef.current?.startsWith('blob:')) {
       try { URL.revokeObjectURL(imageBlobRef.current); } catch (e) { }
     }
     imageBlobRef.current = url;
@@ -115,7 +102,7 @@ export default function AdminChannelPartnerVideos() {
 
   const handleVideoSelect = (file: File | null) => {
     if (!file) {
-      if (videoBlobRef.current && videoBlobRef.current.startsWith('blob:')) {
+      if (videoBlobRef.current?.startsWith('blob:')) {
         try { URL.revokeObjectURL(videoBlobRef.current); } catch (e) { }
         videoBlobRef.current = null;
       }
@@ -124,7 +111,7 @@ export default function AdminChannelPartnerVideos() {
       return;
     }
     const url = URL.createObjectURL(file);
-    if (videoBlobRef.current && videoBlobRef.current.startsWith('blob:')) {
+    if (videoBlobRef.current?.startsWith('blob:')) {
       try { URL.revokeObjectURL(videoBlobRef.current); } catch (e) { }
     }
     videoBlobRef.current = url;
@@ -132,118 +119,172 @@ export default function AdminChannelPartnerVideos() {
     setForm(prev => ({ ...prev, videoUrl: url }));
   };
 
-  const handleSave = async () => {
-    if (!form.title || !form.title.trim()) { toast({ title: 'Error', description: 'Title required', variant: 'destructive' }); return; }
-    setSaving(true);
-    try {
+  // Save mutation - handles both create and update with optimistic updates
+  const saveMutation = useMutation<any, Error, MediaItem>({
+    mutationFn: async (payloadForm) => {
       const token = localStorage.getItem('token');
-      const url = editing ? `/api/admin/channel-partner-videos/${editing.id}?t=${Date.now()}` : `/api/admin/channel-partner-videos?t=${Date.now()}`;
-      const method = editing ? 'PUT' : 'POST';
+      // work on local copy to avoid mutating React state directly
+      const local = { ...payloadForm } as any;
 
+      // upload files if present
       if (imageFile) {
-        const fd = new FormData(); fd.append('file', imageFile); fd.append('type', 'image');
-        const r = await fetch('/api/upload', { method: 'POST', body: fd });
-        if (r.ok) { const j = await r.json(); form.imageUrl = j.url; }
+        const fd = new FormData();
+        fd.append('file', imageFile);
+        fd.append('type', 'image');
+        const r = await fetch('/api/upload', {
+          method: 'POST',
+          body: fd,
+          headers: { 'Cache-Control': 'no-store' }
+        });
+        if (r.ok) {
+          const j = await r.json();
+          local.imageUrl = j.url;
+        }
       }
+
       if (videoFile) {
-        const fd = new FormData(); fd.append('file', videoFile); fd.append('type', 'video');
-        const r = await fetch('/api/upload', { method: 'POST', body: fd });
-        if (r.ok) { const j = await r.json(); form.videoUrl = j.url; }
+        const fd = new FormData();
+        fd.append('file', videoFile);
+        fd.append('type', 'video');
+        const r = await fetch('/api/upload', {
+          method: 'POST',
+          body: fd,
+          headers: { 'Cache-Control': 'no-store' }
+        });
+        if (r.ok) {
+          const j = await r.json();
+          local.videoUrl = j.url;
+        }
       }
 
       let metadataToSend: any = null;
       try {
-        if (typeof form.metadata === 'string') metadataToSend = JSON.parse(form.metadata || '{}');
-        else metadataToSend = form.metadata || {};
+        if (typeof local.metadata === 'string') metadataToSend = JSON.parse(local.metadata || '{}');
+        else metadataToSend = local.metadata || {};
       } catch (err) {
-        toast({ title: 'Error', description: 'Metadata must be valid JSON', variant: 'destructive' });
-        setSaving(false);
-        return;
+        throw new Error('Metadata must be valid JSON');
       }
 
-      const payload = { ...form, metadata: metadataToSend } as any;
+      const payload = { ...local, metadata: metadataToSend } as any;
+
+      const url = payload.id
+        ? `/api/admin/channel-partner-videos/${payload.id}?t=${Date.now()}`
+        : `/api/admin/channel-partner-videos?t=${Date.now()}`;
+      const method = payload.id ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
         method,
         cache: 'no-store',
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
           'Pragma': 'no-cache',
           'Expires': '0',
-          ...(token && { Authorization: `Bearer ${token}` })
+          'Surrogate-Control': 'no-store',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('Save failed');
-      toast({ title: 'Success', description: editing ? 'Updated' : 'Created' });
+      return res.json();
+    },
+    onMutate: async (newItem) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/channel-partner-videos'] });
+      const previousItems = queryClient.getQueryData<MediaItem[]>(['/api/admin/channel-partner-videos']) || [];
+      let next;
+      if (newItem.id) {
+        next = previousItems.map(it => it.id === newItem.id ? { ...it, ...newItem } : it);
+      } else {
+        // assign a temporary negative id so key is unique locally
+        const tempId = Date.now() * -1;
+        next = [...previousItems, { ...newItem, id: tempId } as any];
+      }
+      queryClient.setQueryData(['/api/admin/channel-partner-videos'], next);
+      // close modal immediately for snappy UX
       setIsModalOpen(false);
-      resetForm();
-      // Fetch fresh data immediately
-      await fetchList();
-    } catch (err) {
+      return { previousItems };
+    },
+    onError: (err, newItem, context: any) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(['/api/admin/channel-partner-videos'], context.previousItems);
+      }
       console.error(err);
-      toast({ title: 'Error', description: 'Failed to save channel partner video', variant: 'destructive' });
-    } finally {
-      setSaving(false);
+      toast({ title: 'Error', description: err.message || 'Failed to save', variant: 'destructive' });
+    },
+    onSuccess: async (data, variables, context) => {
+      // ensure server state replaces optimistic state
+      const previousItems = queryClient.getQueryData<MediaItem[]>(['/api/admin/channel-partner-videos']) || [];
+      if (variables.id) {
+        const updated = previousItems.map(item => item.id === variables.id || (item.id && item.id < 0 && item.title === variables.title) ? data : item);
+        queryClient.setQueryData(['/api/admin/channel-partner-videos'], updated);
+      } else {
+        // remove any temp item and add the returned item
+        const filtered = previousItems.filter(item => !(item.id && item.id < 0 && item.title === variables.title));
+        queryClient.setQueryData(['/api/admin/channel-partner-videos'], [...filtered, data]);
+      }
+      resetForm();
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/channel-partner-videos'] });
+      await refetchList();
+      toast({ title: 'Success', description: variables.id ? 'Updated instantly!' : 'Created instantly!' });
     }
-  };
+  });
 
-  const handleDelete = async (id?: number) => {
-    if (!id) return;
-    if (!confirm('Delete this item?')) return;
-    setDeleting(id);
-    try {
+  // Delete mutation with optimistic updates
+  const deleteMutation = useMutation<any, Error, number>({
+    mutationFn: async (id: number) => {
+      if (!confirm('Delete this item?')) throw new Error('Cancelled');
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/admin/channel-partner-videos/${id}?t=${Date.now()}`, {
         method: 'DELETE',
         cache: 'no-store',
         headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
           'Pragma': 'no-cache',
           'Expires': '0',
-          ...(token && { Authorization: `Bearer ${token}` })
+          'Surrogate-Control': 'no-store',
+          'Authorization': `Bearer ${token}`
         }
       });
       if (!res.ok) throw new Error('Delete failed');
-      toast({ title: 'Deleted' });
-      // Fetch fresh data immediately
-      await fetchList();
-    } catch (err) {
+      return res.json();
+    },
+    onMutate: async (id: number) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/channel-partner-videos'] });
+      const previousItems = queryClient.getQueryData<MediaItem[]>(['/api/admin/channel-partner-videos']) || [];
+      queryClient.setQueryData(['/api/admin/channel-partner-videos'], previousItems.filter(i => i.id !== id));
+      return { previousItems };
+    },
+    onError: (err, id, context: any) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(['/api/admin/channel-partner-videos'], context.previousItems);
+      }
       console.error(err);
-      toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' });
-    } finally {
-      setDeleting(null);
+      toast({ title: 'Error', description: err.message || 'Failed to delete', variant: 'destructive' });
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/channel-partner-videos'] });
+      await refetchList();
+      toast({ title: 'Deleted instantly!' });
     }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await fetchList();
-      toast({ title: 'Refreshed', description: 'Data updated successfully' });
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  });
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Channel Partner Videos</h2>
-          <p className="text-muted-foreground mt-1">Manage channel partner videos and thumbnails</p>
+          <p className="text-muted-foreground mt-1">Manage channel partner videos and thumbnails - Instant Updates</p>
         </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRefresh}
-            disabled={refreshing}
+            onClick={() => refetchList()}
+            disabled={isLoading}
             className="gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Refreshing...' : 'Refresh'}
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            {isLoading ? 'Loading...' : 'Refresh'}
           </Button>
           <Button onClick={() => { resetForm(); setIsModalOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Add Channel Partner Video
@@ -253,20 +294,21 @@ export default function AdminChannelPartnerVideos() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Channel Partner Videos ({items.length})</CardTitle>
+          <CardTitle>All Channel Partner Videos ({(Array.isArray(items) ? items : []).length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center p-8">
               <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
             </div>
-          ) : items.length === 0 ? (
+          ) : (Array.isArray(items) ? items : []).length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No channel partner videos yet. Create one to get started.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Thumbnail</TableHead>
+                  <TableHead>Partner</TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Status</TableHead>
@@ -274,15 +316,16 @@ export default function AdminChannelPartnerVideos() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((it) => (
+                {(Array.isArray(items) ? items : []).map((it) => (
                   <TableRow key={it.id}>
-                    <TableCell>
-                      {it.imageUrl && (
-                        <img src={it.imageUrl} alt={it.title} className="w-12 h-12 rounded object-cover" />
-                      )}
-                    </TableCell>
-                    <TableCell>{it.title}</TableCell>
-                    <TableCell>{it.category}</TableCell>
+                      <TableCell>
+                        {it.imageUrl && (
+                          <img src={it.imageUrl} alt={it.title || it.partnerName} className="w-12 h-12 rounded object-cover" />
+                        )}
+                      </TableCell>
+                      <TableCell>{it.partnerName || '-'}</TableCell>
+                      <TableCell>{it.title || '-'}</TableCell>
+                      <TableCell>{it.category}</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${it.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                         {it.isActive ? 'Active' : 'Inactive'}
@@ -300,18 +343,18 @@ export default function AdminChannelPartnerVideos() {
                             setVideoFile(null);
                             setIsModalOpen(true);
                           }}
-                          disabled={deleting === it.id}
+                          disabled={deleteMutation.isPending}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(it.id)}
-                          disabled={deleting === it.id}
+                          onClick={() => it.id && deleteMutation.mutate(it.id)}
+                          disabled={deleteMutation.isPending}
                           className="text-red-600 hover:text-red-700"
                         >
-                          {deleting === it.id ? (
+                          {deleteMutation.isPending ? (
                             <div className="h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                           ) : (
                             <Trash2 className="h-4 w-4" />
@@ -415,12 +458,12 @@ export default function AdminChannelPartnerVideos() {
                   setIsModalOpen(false);
                   resetForm();
                 }}
-                disabled={saving}
+                disabled={saveMutation.isPending}
               >
                 Cancel
               </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? (
+              <Button onClick={() => saveMutation.mutate({ ...form, id: editing?.id })} disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? (
                   <>
                     <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                     {editing ? 'Updating...' : 'Creating...'}

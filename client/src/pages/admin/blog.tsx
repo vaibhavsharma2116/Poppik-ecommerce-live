@@ -202,34 +202,62 @@ export default function AdminBlog() {
     video?: File;
   }>({});
 
-  // Get blog posts
-  const { data: blogPostsData = [], isLoading: postsLoading } = useQuery({
+  // Get blog posts - AGGRESSIVE NO-CACHE CONFIG
+  const { data: blogPostsData = [], isLoading: postsLoading, refetch: refetchPosts } = useQuery<BlogPost[]>({
     queryKey: ['/api/admin/blog/posts'],
     queryFn: async () => {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/blog/posts', {
+      if (!token) throw new Error('No authentication token');
+      const response = await fetch(`/api/admin/blog/posts?t=${Date.now()}`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'Surrogate-Control': 'no-store'
+        },
+        cache: 'no-store'
       });
       if (!response.ok) throw new Error('Failed to fetch blog posts');
-      return response.json();
-    }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    refetchInterval: false,
+    enabled: true
   });
 
-  // Get blog categories
-  const { data: blogCategories = [], isLoading: categoriesLoading } = useQuery({
+  // Get blog categories - AGGRESSIVE NO-CACHE CONFIG
+  const { data: blogCategories = [], isLoading: categoriesLoading, refetch: refetchCategories } = useQuery<BlogCategory[]>({
     queryKey: ['/api/admin/blog/categories'],
     queryFn: async () => {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/blog/categories', {
+      if (!token) throw new Error('No authentication token');
+      const response = await fetch(`/api/admin/blog/categories?t=${Date.now()}`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'Surrogate-Control': 'no-store'
+        },
+        cache: 'no-store'
       });
       if (!response.ok) throw new Error('Failed to fetch blog categories');
-      return response.json();
-    }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    refetchInterval: false,
+    enabled: true
   });
 
   
@@ -256,7 +284,7 @@ export default function AdminBlog() {
 
       // Add text fields
       Object.entries(formData).forEach(([key, value]) => {
-        if (key === 'tags') {
+        if (key === 'tags' && Array.isArray(value)) {
           submitFormData.append(key, typeof value === 'string' ? value : value.join(','));
         } else {
           submitFormData.append(key, String(value));
@@ -279,17 +307,35 @@ export default function AdminBlog() {
 
       const response = await fetch(url, {
         method,
-        body: submitFormData
+        body: submitFormData,
+        headers: {
+          'Cache-Control': 'no-store'
+        }
       });
 
       if (response.ok) {
-        queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/posts'] });
+        const newPost = await response.json();
+        
+        // Optimistic update: immediately add/update in cache
+        const previousPosts = queryClient.getQueryData<BlogPost[]>(['/api/admin/blog/posts']) || [];
+        if (editingPost) {
+          // Update existing
+          queryClient.setQueryData(['/api/admin/blog/posts'], previousPosts.map(post => post.id === editingPost.id ? newPost : post));
+        } else {
+          // Add new
+          queryClient.setQueryData(['/api/admin/blog/posts'], [...previousPosts, newPost]);
+        }
+        
+        // Then invalidate and refetch for consistency
+        await queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/posts'] });
+        await refetchPosts();
+        
         resetForm();
         setShowAddModal(false);
         setEditingPost(null);
         toast({ 
           title: 'Success',
-          description: editingPost ? 'Blog post updated successfully!' : 'Blog post created successfully!' 
+          description: editingPost ? 'Blog post updated instantly!' : 'Blog post created instantly!' 
         });
       } else {
         const error = await response.json();
@@ -377,7 +423,7 @@ export default function AdminBlog() {
     setShowCategoryModal(true);
   };
 
-  const filteredPosts = blogPostsData.filter(post => {
+  const filteredPosts = (Array.isArray(blogPostsData) ? blogPostsData : []).filter((post: BlogPost) => {
     const matchesSearch = !searchQuery || 
       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       post.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -395,15 +441,26 @@ export default function AdminBlog() {
       const response = await fetch(`/api/admin/blog/posts/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store'
         }
       });
       if (!response.ok) throw new Error('Failed to delete blog post');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/posts'] });
-      toast({ title: "Blog post deleted successfully" });
+    onSuccess: async (data, deletedId) => {
+      setShowDeleteDialog(false);
+      setDeletingPost(null);
+      
+      // Optimistic update: immediately remove from cache
+      const previousPosts = queryClient.getQueryData<BlogPost[]>(['/api/admin/blog/posts']) || [];
+      queryClient.setQueryData(['/api/admin/blog/posts'], previousPosts.filter(post => post.id !== deletedId));
+      
+      // Then invalidate and refetch for consistency
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/posts'] });
+      await refetchPosts();
+      
+      toast({ title: "Blog post deleted instantly!" });
     },
     onError: (error) => {
       toast({ 
@@ -422,22 +479,27 @@ export default function AdminBlog() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store'
         },
         body: JSON.stringify(categoryData)
       });
       if (!response.ok) throw new Error('Failed to create category');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['/api/admin/blog/categories'],
-        exact: true 
-      });
+    onSuccess: async (data) => {
+      // Optimistic update: immediately add new category to cache
+      const previousCategories = queryClient.getQueryData<BlogCategory[]>(['/api/admin/blog/categories']) || [];
+      queryClient.setQueryData(['/api/admin/blog/categories'], [...previousCategories, data]);
+      
+      // Then invalidate and refetch for consistency
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/categories'] });
+      await refetchCategories();
+      
       setShowCategoryModal(false);
       resetCategoryForm();
       setEditingCategory(null);
-      toast({ title: "Category created successfully" });
+      toast({ title: "Category created instantly!" });
     },
     onError: (error) => {
       toast({ 
@@ -456,22 +518,27 @@ export default function AdminBlog() {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store'
         },
         body: JSON.stringify(categoryData)
       });
       if (!response.ok) throw new Error('Failed to update category');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['/api/admin/blog/categories'],
-        exact: true 
-      });
+    onSuccess: async (data, { id }) => {
+      // Optimistic update: immediately update category in cache
+      const previousCategories = queryClient.getQueryData<BlogCategory[]>(['/api/admin/blog/categories']) || [];
+      queryClient.setQueryData(['/api/admin/blog/categories'], previousCategories.map(cat => cat.id === id ? data : cat));
+      
+      // Then invalidate and refetch for consistency
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/categories'] });
+      await refetchCategories();
+      
       setShowCategoryModal(false);
       setEditingCategory(null);
       resetCategoryForm();
-      toast({ title: "Category updated successfully" });
+      toast({ title: "Category updated instantly!" });
     },
     onError: (error) => {
       toast({ 
@@ -489,15 +556,23 @@ export default function AdminBlog() {
       const response = await fetch(`/api/admin/blog/categories/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store'
         }
       });
       if (!response.ok) throw new Error('Failed to delete category');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/categories'] });
-      toast({ title: "Category deleted successfully" });
+    onSuccess: async (data, deletedId) => {
+      // Optimistic update: immediately remove from cache
+      const previousCategories = queryClient.getQueryData<BlogCategory[]>(['/api/admin/blog/categories']) || [];
+      queryClient.setQueryData(['/api/admin/blog/categories'], previousCategories.filter(cat => cat.id !== deletedId));
+      
+      // Then invalidate and refetch for consistency
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/blog/categories'] });
+      await refetchCategories();
+      
+      toast({ title: "Category deleted instantly!" });
     },
     onError: (error) => {
       toast({ 
@@ -587,7 +662,7 @@ export default function AdminBlog() {
             </div>
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPosts.map((post) => (
+              {filteredPosts.map((post: BlogPost) => (
                 <Card key={post.id} className="overflow-hidden">
                   <div className="relative">
                     <img
@@ -681,7 +756,7 @@ export default function AdminBlog() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPosts.map((post) => (
+                  {filteredPosts.map((post: BlogPost) => (
                     <TableRow key={post.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">

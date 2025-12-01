@@ -31,14 +31,26 @@ export default function AdminContests() {
   const [form, setForm] = useState({ title: '', imageUrl: '', isActive: true });
   const [files, setFiles] = useState<{ image?: File }>({});
 
-  const { data: contests = [], isLoading } = useQuery({
+  const { data: contests = [], isLoading, refetch } = useQuery({
     queryKey: ['/api/admin/contests'],
     queryFn: async () => {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/admin/contests', { headers: { Authorization: `Bearer ${token}` } });
+      const timestamp = Date.now();
+      const res = await fetch(`/api/admin/contests?_t=${timestamp}`, { 
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        } 
+      });
       if (!res.ok) return [];
       return res.json();
-    }
+    },
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    gcTime: 0
   });
   
 
@@ -60,8 +72,9 @@ export default function AdminContests() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/contests'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/contests'] });
+      await refetch();
       setShowModal(false);
       setEditing(null);
       setForm({ title: '', imageUrl: '', isActive: true, // @ts-ignore
@@ -81,7 +94,11 @@ export default function AdminContests() {
       if (!res.ok) throw new Error('Delete failed');
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/admin/contests'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/contests'] });
+      await refetch();
+      toast({ title: 'Deleted', description: 'Contest deleted successfully' });
+    }
   });
 
   const openEdit = (c: Contest) => {
@@ -105,8 +122,13 @@ export default function AdminContests() {
           <h1 className="text-2xl font-bold">Contest Management</h1>
           <p className="text-sm text-muted-foreground">Create and manage contests and banners</p>
         </div>
-        <Button onClick={() => { setEditing(null); setForm({ title: '', imageUrl: '', isActive: true, // @ts-ignore
-          detailedDescription: '' }); setShowModal(true); }}>Add Contest</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
+            {isLoading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+          <Button onClick={() => { setEditing(null); setForm({ title: '', imageUrl: '', isActive: true, // @ts-ignore
+            detailedDescription: '' }); setShowModal(true); }}>Add Contest</Button>
+        </div>
       </div>
 
       <Card>

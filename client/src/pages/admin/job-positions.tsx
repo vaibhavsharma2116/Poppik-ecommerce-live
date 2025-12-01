@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function AdminJobPositions() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingPosition, setEditingPosition] = useState(null);
+  const [editingPosition, setEditingPosition] = useState<any>(null);
   const [selectedJobType, setSelectedJobType] = useState('Full-Time Job');
   const [aboutRoleContent, setAboutRoleContent] = useState('');
   const [responsibilitiesContent, setResponsibilitiesContent] = useState('');
@@ -46,7 +46,7 @@ export default function AdminJobPositions() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: positions = [], isLoading, error } = useQuery({
+  const { data: positions = [], isLoading, error, refetch } = useQuery({
     queryKey: ['/api/admin/job-positions'],
     queryFn: async () => {
       const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
@@ -59,7 +59,11 @@ export default function AdminJobPositions() {
       }
 
       const response = await fetch('/api/admin/job-positions', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
       });
 
       if (response.status === 401) {
@@ -80,7 +84,66 @@ export default function AdminJobPositions() {
     },
     enabled: !!(localStorage.getItem('token') || localStorage.getItem('adminToken')),
     select: (data) => Array.isArray(data) ? data : [],
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
+
+  // Subscribe to server-sent events for realtime updates (create/update/delete)
+  useEffect(() => {
+    // Only run if admin token exists
+    const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+    if (!token) return;
+
+    const es = new EventSource('/api/admin/job-positions/stream');
+
+    const handleCreate = (e: MessageEvent) => {
+      try {
+        const position = JSON.parse(e.data);
+        queryClient.setQueryData(['/api/admin/job-positions'], (old: any[] = []) => {
+          // Avoid duplicates
+          const filtered = old.filter(i => i.id !== position.id);
+          return [position, ...filtered];
+        });
+      } catch (err) {
+        console.error('Error parsing jobPositionCreated event', err);
+      }
+    };
+
+    const handleUpdate = (e: MessageEvent) => {
+      try {
+        const position = JSON.parse(e.data);
+        queryClient.setQueryData(['/api/admin/job-positions'], (old: any[] = []) => old.map(i => i.id === position.id ? position : i));
+      } catch (err) {
+        console.error('Error parsing jobPositionUpdated event', err);
+      }
+    };
+
+    const handleDelete = (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        const id = payload?.id;
+        if (id === undefined) return;
+        queryClient.setQueryData(['/api/admin/job-positions'], (old: any[] = []) => old.filter(i => i.id !== id));
+      } catch (err) {
+        console.error('Error parsing jobPositionDeleted event', err);
+      }
+    };
+
+    es.addEventListener('jobPositionCreated', handleCreate as EventListener);
+    es.addEventListener('jobPositionUpdated', handleUpdate as EventListener);
+    es.addEventListener('jobPositionDeleted', handleDelete as EventListener);
+
+    es.onerror = (err) => {
+      console.warn('Job positions SSE error, will attempt to reconnect', err);
+      // EventSource will automatically attempt to reconnect
+    };
+
+    return () => {
+      es.close();
+    };
+  }, [queryClient]);
 
   if (error) {
     console.error('Error loading job positions:', error);
@@ -95,16 +158,45 @@ export default function AdminJobPositions() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         },
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to create job position');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/job-positions'] });
+    // Optimistic update: add the new position to cache immediately
+    onMutate: async (newData: any) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/job-positions'] });
+      const previous = queryClient.getQueryData<any[]>(['/api/admin/job-positions']);
+
+      // Create a temporary item with a negative id to show instantly
+      const tempId = Date.now() * -1;
+      const optimisticItem = { id: tempId, ...newData, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+
+      queryClient.setQueryData(['/api/admin/job-positions'], (old: any[] = []) => [optimisticItem, ...old]);
+      return { previous, tempId };
+    },
+    onError: (err, newData, context: any) => {
+      // Rollback to previous cache on error
+      if (context?.previous) {
+        queryClient.setQueryData(['/api/admin/job-positions'], context.previous);
+      }
+      toast({ title: 'Error', description: 'Failed to create job position', variant: 'destructive' });
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/job-positions'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/job-positions'] });
       setIsDialogOpen(false);
+      setEditingPosition(null);
+      setSelectedJobType('Full-Time Job');
+      setAboutRoleContent('');
+      setResponsibilitiesContent('');
+      setRequirementsContent('');
+      setIsActive(true);
       toast({ title: 'Success', description: 'Job position created successfully' });
     },
   });
@@ -118,17 +210,42 @@ export default function AdminJobPositions() {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         },
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to update job position');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/job-positions'] });
+    onMutate: async ({ id, data }: any) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/job-positions'] });
+      const previous = queryClient.getQueryData<any[]>(['/api/admin/job-positions']);
+
+      queryClient.setQueryData(['/api/admin/job-positions'], (old: any[] = []) => {
+        return old.map(item => item.id === id ? { ...item, ...data, updatedAt: new Date().toISOString() } : item);
+      });
+
+      return { previous };
+    },
+    onError: (err, variables, context: any) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['/api/admin/job-positions'], context.previous);
+      }
+      toast({ title: 'Error', description: 'Failed to update job position', variant: 'destructive' });
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/job-positions'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/job-positions'] });
       setIsDialogOpen(false);
       setEditingPosition(null);
+      setSelectedJobType('Full-Time Job');
+      setAboutRoleContent('');
+      setResponsibilitiesContent('');
+      setRequirementsContent('');
+      setIsActive(true);
       toast({ title: 'Success', description: 'Job position updated successfully' });
     },
   });
@@ -140,13 +257,32 @@ export default function AdminJobPositions() {
 
       const response = await fetch(`/api/admin/job-positions/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
       if (!response.ok) throw new Error('Failed to delete job position');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/job-positions'] });
+    onMutate: async (id: number) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/job-positions'] });
+      const previous = queryClient.getQueryData<any[]>(['/api/admin/job-positions']);
+
+      queryClient.setQueryData(['/api/admin/job-positions'], (old: any[] = []) => old.filter(item => item.id !== id));
+      return { previous };
+    },
+    onError: (err, id, context: any) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['/api/admin/job-positions'], context.previous);
+      }
+      toast({ title: 'Error', description: 'Failed to delete job position', variant: 'destructive' });
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/job-positions'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/job-positions'] });
       toast({ title: 'Success', description: 'Job position deleted successfully' });
     },
   });
@@ -157,7 +293,7 @@ export default function AdminJobPositions() {
     
     const data = {
       title: formData.get('title'),
-      slug: editingPosition?.slug || (formData.get('title') as string).toLowerCase().replace(/\s+/g, '-'),
+      slug: (editingPosition as any)?.slug || (formData.get('title') as string).toLowerCase().replace(/\s+/g, '-'),
       department: formData.get('department'),
       location: formData.get('location'),
       type: formData.get('type'),
@@ -175,7 +311,7 @@ export default function AdminJobPositions() {
     };
 
     if (editingPosition) {
-      updateMutation.mutate({ id: editingPosition.id, data });
+      updateMutation.mutate({ id: (editingPosition as any).id, data });
     } else {
       createMutation.mutate(data);
     }
@@ -216,7 +352,7 @@ export default function AdminJobPositions() {
                   <Input
                     id="title"
                     name="title"
-                    defaultValue={editingPosition?.title}
+                    defaultValue={(editingPosition as any)?.title}
                     required
                   />
                 </div>
@@ -225,7 +361,7 @@ export default function AdminJobPositions() {
                   <Input
                     id="jobId"
                     name="jobId"
-                    defaultValue={editingPosition?.jobId}
+                    defaultValue={(editingPosition as any)?.jobId}
                   />
                 </div>
               </div>
@@ -236,7 +372,7 @@ export default function AdminJobPositions() {
                   <Input
                     id="department"
                     name="department"
-                    defaultValue={editingPosition?.department}
+                    defaultValue={(editingPosition as any)?.department}
                     required
                   />
                 </div>
@@ -245,7 +381,7 @@ export default function AdminJobPositions() {
                   <Input
                     id="location"
                     name="location"
-                    defaultValue={editingPosition?.location}
+                    defaultValue={(editingPosition as any)?.location}
                     required
                   />
                 </div>
@@ -290,7 +426,7 @@ export default function AdminJobPositions() {
                   <Input
                     id="experienceLevel"
                     name="experienceLevel"
-                    defaultValue={editingPosition?.experienceLevel}
+                    defaultValue={(editingPosition as any)?.experienceLevel}
                     required
                   />
                 </div>
@@ -299,7 +435,7 @@ export default function AdminJobPositions() {
                   <Input
                     id="workExperience"
                     name="workExperience"
-                    defaultValue={editingPosition?.workExperience}
+                    defaultValue={(editingPosition as any)?.workExperience}
                     required
                   />
                 </div>
@@ -310,7 +446,7 @@ export default function AdminJobPositions() {
                 <Input
                   id="education"
                   name="education"
-                  defaultValue={editingPosition?.education}
+                  defaultValue={(editingPosition as any)?.education}
                   required
                 />
               </div>
@@ -320,7 +456,7 @@ export default function AdminJobPositions() {
                 <Textarea
                   id="description"
                   name="description"
-                  defaultValue={editingPosition?.description}
+                  defaultValue={(editingPosition as any)?.description}
                   required
                 />
               </div>
@@ -328,7 +464,7 @@ export default function AdminJobPositions() {
               <div>
                 <Label htmlFor="aboutRole">About the Role *</Label>
                 <RichTextEditor
-                  content={aboutRoleContent || editingPosition?.aboutRole || ''}
+                  content={aboutRoleContent || (editingPosition as any)?.aboutRole || ''}
                   onChange={setAboutRoleContent}
                 />
               </div>
@@ -336,7 +472,7 @@ export default function AdminJobPositions() {
               <div>
                 <Label htmlFor="responsibilities">Responsibilities *</Label>
                 <RichTextEditor
-                  content={responsibilitiesContent || (typeof editingPosition?.responsibilities === 'string' ? editingPosition.responsibilities : '')}
+                  content={responsibilitiesContent || (typeof (editingPosition as any)?.responsibilities === 'string' ? (editingPosition as any).responsibilities : '')}
                   onChange={setResponsibilitiesContent}
                 />
               </div>
@@ -344,7 +480,7 @@ export default function AdminJobPositions() {
               <div>
                 <Label htmlFor="requirements">Requirements *</Label>
                 <RichTextEditor
-                  content={requirementsContent || (typeof editingPosition?.requirements === 'string' ? editingPosition.requirements : '')}
+                  content={requirementsContent || (typeof (editingPosition as any)?.requirements === 'string' ? (editingPosition as any).requirements : '')}
                   onChange={setRequirementsContent}
                 />
               </div>
@@ -365,7 +501,7 @@ export default function AdminJobPositions() {
                     id="sortOrder"
                     name="sortOrder"
                     type="number"
-                    defaultValue={editingPosition?.sortOrder || 0}
+                    defaultValue={(editingPosition as any)?.sortOrder || 0}
                     className="w-24"
                   />
                 </div>
@@ -375,7 +511,7 @@ export default function AdminJobPositions() {
                     id="expiresAt"
                     name="expiresAt"
                     type="date"
-                    defaultValue={editingPosition?.expiresAt ? new Date(editingPosition.expiresAt).toISOString().split('T')[0] : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                    defaultValue={(editingPosition as any)?.expiresAt ? new Date((editingPosition as any).expiresAt).toISOString().split('T')[0] : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                   />
                 </div>
               </div>

@@ -29,15 +29,66 @@ export default function MediaLinks() {
   const [redirecting, setRedirecting] = useState<number | null>(null);
   const { toast } = useToast();
 
-  // Fetch media list
+  // Fetch media list and subscribe to server-sent events for live updates
   useEffect(() => {
     fetchMediaList();
+
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource('/api/media/stream');
+      es.addEventListener('media', (e: MessageEvent) => {
+        try {
+          const payload = JSON.parse((e as any).data);
+          if (!payload || !payload.action) return;
+          switch (payload.action) {
+            case 'create':
+              setMediaList(prev => {
+                const next = [payload.item, ...prev];
+                setFilteredMedia(next);
+                return next;
+              });
+              break;
+            case 'update':
+              setMediaList(prev => {
+                const idx = prev.findIndex(p => p.id === payload.item.id);
+                if (idx === -1) return prev;
+                const copy = [...prev];
+                copy[idx] = payload.item;
+                setFilteredMedia(copy);
+                return copy;
+              });
+              break;
+            case 'delete':
+              setMediaList(prev => {
+                const next = prev.filter(p => p.id !== payload.item.id);
+                setFilteredMedia(next);
+                return next;
+              });
+              break;
+            case 'reorder':
+              if (Array.isArray(payload.items)) {
+                setMediaList(payload.items);
+                setFilteredMedia(payload.items);
+              }
+              break;
+            default:
+              break;
+          }
+        } catch (err) {
+          console.warn('Error processing media SSE event:', err);
+        }
+      });
+    } catch (e) {
+      console.warn('SSE not available for media page:', e);
+    }
+
+    return () => { if (es) es.close(); };
   }, []);
 
   const fetchMediaList = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/media?isActive=true');
+      const response = await fetch('/api/media?isActive=true', { cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
         setMediaList(data);

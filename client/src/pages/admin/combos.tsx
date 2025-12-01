@@ -71,7 +71,12 @@ export default function AdminCombos() {
 
       const res = await fetch('/api/admin/combos', {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
 
       if (res.status === 401) {
@@ -93,7 +98,10 @@ export default function AdminCombos() {
     },
     enabled: !!(localStorage.getItem('token') || localStorage.getItem('adminToken')),
     retry: 1,
-    staleTime: 30000,
+    staleTime: 0, // No cache - always fresh
+    gcTime: 0, // Don't keep in memory
+    refetchOnMount: 'always', // Always refetch on mount
+    refetchOnWindowFocus: true, // Refetch when window gains focus
   });
 
   // Fetch all products for selection
@@ -168,8 +176,9 @@ export default function AdminCombos() {
       if (!response.ok) throw new Error("Failed to create combo");
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/combos"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/combos"], refetchType: 'all' });
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/combos"] });
       toast({ title: "Combo created successfully" });
       resetForm();
     },
@@ -202,8 +211,9 @@ export default function AdminCombos() {
       if (!response.ok) throw new Error("Failed to update combo");
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/combos"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/combos"], refetchType: 'all' });
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/combos"] });
       toast({ title: "Combo updated successfully" });
       resetForm();
     },
@@ -235,8 +245,9 @@ export default function AdminCombos() {
       if (!response.ok) throw new Error("Failed to delete combo");
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/combos"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/combos"], refetchType: 'all' });
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/combos"] });
       toast({ title: "Combo deleted successfully" });
     },
   });

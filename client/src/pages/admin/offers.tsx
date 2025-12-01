@@ -52,6 +52,7 @@ interface Offer {
   benefits?: string; // Added benefits
   additionalImageUrls?: string[]; // To store URLs of additional images
   videoUrl?: string; // To store URL of the video
+  bannerImages?: string[]; // To store URLs of banner images
 }
 
 export default function AdminOffers() {
@@ -99,12 +100,11 @@ export default function AdminOffers() {
     benefits: "", // Added benefits
   });
 
-  // Fetch offers with proper authorization
-  const { data: offers, isLoading, error } = useQuery<Offer[]>({
+  // Fetch offers with proper authorization and no caching
+  const { data: offers, isLoading, error, refetch } = useQuery<Offer[]>({
     queryKey: ['/api/admin/offers'],
     queryFn: async () => {
       const token = localStorage.getItem('token');
-      console.log('🔑 Fetching offers with token:', token ? 'Present' : 'Missing');
 
       if (!token) {
         toast({
@@ -116,15 +116,17 @@ export default function AdminOffers() {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('/api/admin/offers', {
+      const timestamp = Date.now();
+      const response = await fetch(`/api/admin/offers?_t=${timestamp}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
-
-      console.log('📊 Offers API response status:', response.status);
 
       if (response.status === 401) {
         toast({
@@ -140,18 +142,21 @@ export default function AdminOffers() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ Offers fetch error:', errorData);
-        // Return empty array instead of throwing to prevent UI breakage
         return [];
       }
 
       const data = await response.json();
-      console.log('✅ Offers fetched successfully:', data);
-      // Ensure we always return an array
+      console.log('✅ Offers fetched:', data.length);
       return Array.isArray(data) ? data : [];
     },
     enabled: !!localStorage.getItem('token'),
     retry: 1,
-    staleTime: 30000
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchInterval: false,
+    staleTime: 0,
+    gcTime: 0,
+    networkMode: 'always'
   });
 
   // Show error toast if fetch fails
@@ -193,8 +198,18 @@ export default function AdminOffers() {
       }
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/offers'] });
+    onSuccess: async (newOffer) => {
+      // Immediately update cache with new offer
+      queryClient.setQueryData<Offer[]>(['/api/admin/offers'], (old) => {
+        if (!old) return [newOffer];
+        return [newOffer, ...old];
+      });
+      
+      // Force refetch to ensure consistency
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/offers'], refetchType: 'all' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/offers'], refetchType: 'all' });
+      await refetch();
+      
       toast({ title: "Success", description: "Offer created successfully" });
       resetForm();
       setIsCreateDialogOpen(false);
@@ -230,11 +245,22 @@ export default function AdminOffers() {
       }
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/offers'] });
+    onSuccess: async (updatedOffer) => {
+      // Immediately update cache with updated offer
+      queryClient.setQueryData<Offer[]>(['/api/admin/offers'], (old) => {
+        if (!old) return [updatedOffer];
+        return old.map(offer => offer.id === updatedOffer.id ? updatedOffer : offer);
+      });
+      
+      // Force refetch to ensure consistency
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/offers'], refetchType: 'all' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/offers'], refetchType: 'all' });
+      await refetch();
+      
       toast({ title: "Success", description: "Offer updated successfully" });
       resetForm();
       setEditingOffer(null);
+      setIsCreateDialogOpen(false);
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -266,8 +292,18 @@ export default function AdminOffers() {
       }
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/offers'] });
+    onSuccess: async (_, deletedId) => {
+      // Immediately remove from cache
+      queryClient.setQueryData<Offer[]>(['/api/admin/offers'], (old) => {
+        if (!old) return [];
+        return old.filter(offer => offer.id !== deletedId);
+      });
+      
+      // Force refetch to ensure consistency
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/offers'], refetchType: 'all' });
+      await queryClient.invalidateQueries({ queryKey: ['/api/offers'], refetchType: 'all' });
+      await refetch();
+      
       toast({ title: "Success", description: "Offer deleted successfully" });
     },
     onError: (error: Error) => {

@@ -4,6 +4,7 @@ import multer from "multer";
 import { storage } from "./storage";
 import { OTPService } from "./otp-service";
 import path from "path";
+import { createAnnouncementsBroadcaster } from "./announcements-ws";
 import fs from "fs";
 import cookieParser from 'cookie-parser';
 import bcrypt from "bcrypt";
@@ -601,6 +602,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sortOrder: 2
         }
       ]);
+    }
+  });
+
+  // File upload endpoints (multer `upload` is configured earlier)
+  app.post('/api/upload', upload.single('file'), async (req: any, res: any) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+      const fileUrl = `/uploads/${req.file.filename}`;
+      res.json({ url: fileUrl });
+    } catch (err) {
+      console.error('Error in /api/upload:', err);
+      res.status(500).json({ error: 'Upload failed' });
+    }
+  });
+
+  // Convenience aliases
+  app.post('/api/upload/image', upload.single('file'), async (req: any, res: any) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+      const fileUrl = `/uploads/${req.file.filename}`;
+      res.json({ url: fileUrl });
+    } catch (err) {
+      console.error('Error in /api/upload/image:', err);
+      res.status(500).json({ error: 'Upload failed' });
+    }
+  });
+
+  app.post('/api/upload/video', upload.single('file'), async (req: any, res: any) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+      const fileUrl = `/uploads/${req.file.filename}`;
+      res.json({ url: fileUrl });
+    } catch (err) {
+      console.error('Error in /api/upload/video:', err);
+      res.status(500).json({ error: 'Upload failed' });
     }
   });
 
@@ -1872,6 +1908,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("📦 Fetching active offers...");
 
+      // Set no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const offers = await db
         .select()
         .from(schema.offers)
@@ -1880,17 +1921,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`✅ Found ${offers.length} active offers`);
 
-      // Ensure we always return an array, even if database is unavailable
       res.json(offers || []);
     } catch (error) {
       console.error("❌ Error fetching offers:", error);
-      console.error("Error details:", {
-        message: error.message,
-        code: error.code,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      });
-
-      // Return empty array instead of error to prevent UI breakage
       res.json([]);
     }
   });
@@ -1898,15 +1931,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all offers for admin (including inactive)
   app.get("/api/admin/offers", async (req, res) => {
     try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+
       const offers = await db
         .select()
         .from(schema.offers)
         .orderBy(desc(schema.offers.sortOrder), desc(schema.offers.createdAt));
 
+      console.log(`📦 Admin offers fetched: ${offers.length} items`);
       res.json(offers);
     } catch (error) {
       console.error("Error fetching admin offers:", error);
       res.status(500).json({ error: "Failed to fetch offers" });
+    }
+  });
+
+  // Get all combos (public endpoint)
+  app.get("/api/combos", async (req, res) => {
+    try {
+      // Set no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const activeCombos = await db
+        .select()
+        .from(schema.combos)
+        .where(eq(schema.combos.isActive, true))
+        .orderBy(desc(schema.combos.sortOrder), desc(schema.combos.createdAt));
+
+      console.log(`📦 Public combos fetched: ${activeCombos.length} items`);
+      res.json(activeCombos);
+    } catch (error) {
+      console.error("Error fetching combos:", error);
+      res.json([]);
+    }
+  });
+
+  // Get all combos for admin (including inactive)
+  app.get("/api/admin/combos", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers to prevent any caching
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+
+      const token = req.headers.authorization?.substring(7);
+      if (!token) {
+        return res.status(401).json({ error: "Access denied. No token provided." });
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as any;
+      if (decoded.role !== 'admin' && decoded.role !== 'master_admin') {
+        return res.status(403).json({ error: "Access denied. Admin privileges required." });
+      }
+
+      const allCombos = await db
+        .select()
+        .from(schema.combos)
+        .orderBy(desc(schema.combos.sortOrder), desc(schema.combos.createdAt));
+
+      console.log(`📦 Admin combos fetched: ${allCombos.length} items`);
+      res.json(allCombos);
+    } catch (error) {
+      console.error("Error fetching admin combos:", error);
+      res.status(500).json({ error: "Failed to fetch combos" });
     }
   });
 
@@ -6101,6 +6197,189 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Blog API Routes
 
+  // Public blog routes
+  app.get("/api/blog/posts", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      const { category, featured, search } = req.query;
+
+      let posts;
+
+      if (search) {
+        posts = await storage.searchBlogPosts(search.toString());
+      } else if (featured === 'true') {
+        posts = await storage.getFeaturedBlogPosts();
+      } else {
+        posts = await storage.getPublishedBlogPosts();
+      }
+
+      // Filter by category if provided
+      if (category && category !== 'All') {
+        posts = posts.filter(post => post.category === category);
+      }
+
+      // Parse tags for frontend
+      const postsWithParsedTags = posts.map(post => ({
+        ...post,
+        tags: typeof post.tags === 'string' ? JSON.parse(post.tags || '[]') : (post.tags || [])
+      }));
+
+      res.json(postsWithParsedTags);
+    } catch (error) {
+      console.error("Error fetching blog posts:", error);
+      res.status(500).json({ error: "Failed to fetch blog posts" });
+    }
+  });
+
+  app.get("/api/blog/posts/:slug", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      const { slug } = req.params;
+      const post = await storage.getBlogPostBySlug(slug);
+
+      if (!post) {
+        return res.status(404).json({ error: "Blog post not found" });
+      }
+
+      // Parse tags for frontend
+      const postWithParsedTags = {
+        ...post,
+        tags: typeof post.tags === 'string' ? JSON.parse(post.tags || '[]') : (post.tags || [])
+      };
+
+      res.json(postWithParsedTags);
+    } catch (error) {
+      console.error("Error fetching blog post:", error);
+      res.status(500).json({ error: "Failed to fetch blog post" });
+    }
+  });
+
+  app.get("/api/blog/categories", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      const categories = await storage.getBlogCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching blog categories:", error);
+      res.json([
+        { id: 1, name: "Skincare", slug: "skincare", description: "All about skincare", isActive: true, sortOrder: 1 },
+        { id: 2, name: "Makeup", slug: "makeup", description: "All about makeup", isActive: true, sortOrder: 2 },
+        { id: 3, name: "Haircare", slug: "haircare", description: "All about haircare", isActive: true, sortOrder: 3 }
+      ]);
+    }
+  });
+
+  // Admin blog routes
+  app.get("/api/admin/blog/posts", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers for admin
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      const posts = await storage.getBlogPosts();
+
+      // Parse tags for frontend
+      const postsWithParsedTags = posts.map(post => ({
+        ...post,
+        tags: typeof post.tags === 'string' ? JSON.parse(post.tags) : post.tags
+      }));
+
+      res.json(postsWithParsedTags);
+    } catch (error) {
+      console.error("Error fetching admin blog posts:", error);
+      res.status(500).json({ error: "Failed to fetch blog posts" });
+    }
+  });
+
+  app.get("/api/admin/blog/categories", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers for admin
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      const categories = await storage.getBlogCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching blog categories:", error);
+      res.status(500).json({ error: "Failed to fetch blog categories" });
+    }
+  });
+
+  app.get("/api/admin/blog/subcategories", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers for admin
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      const subcategories = await storage.getBlogSubcategories();
+      res.json(subcategories);
+    } catch (error) {
+      console.error("Error fetching blog subcategories:", error);
+      res.status(500).json({ error: "Failed to fetch blog subcategories" });
+    }
+  });
+
+  app.get("/api/admin/blog/categories/:categoryId/subcategories", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers for admin
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      const { categoryId } = req.params;
+      const subcategories = await storage.getBlogSubcategoriesByCategory(parseInt(categoryId));
+      res.json(subcategories);
+    } catch (error) {
+      console.error("Error fetching blog subcategories by category:", error);
+      res.status(500).json({ error: "Failed to fetch blog subcategories" });
+    }
+  });
+
+  app.post("/api/admin/blog/categories", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+
+      const { name, description, isActive, sortOrder } = req.body;
+
+      if (!name || name.trim().length === 0) {
+        return res.status(400).json({ error: "Category name is required" });
+      }
+
+      const categoryData: InsertBlogCategory = {
+        name: name.trim(),
+        description: description?.trim() || '',
+        isActive: isActive !== false && isActive !== 'false',
+        sortOrder: parseInt(sortOrder) || 0
+      };
+
+      const category = await storage.createBlogCategory(categoryData);
+      res.status(201).json(category);
+    } catch (error) {
+      console.error("Error creating blog category:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to create blog category";
+      res.status(500).json({ error: errorMessage });
+    }
+  });
+
   // Like/Unlike blog post
   app.post("/api/blog/posts/:id/like", async (req, res) => {
     try {
@@ -6114,9 +6393,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const postId = parseInt(id);
 
       // Simple implementation without separate likes table for now
-      const db = require('./storage').getDb();
-      const post = await db.select().from(require('../shared/schema').blogPosts)
-        .where(require('drizzle-orm').eq(require('../shared/schema').blogPosts.id, postId))
+      const post = await db.select().from(blogPosts)
+        .where(eq(blogPosts.id, postId))
         .limit(1);
 
       if (!post || post.length === 0) {
@@ -6301,6 +6579,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { name: 'contentVideos', maxCount: 10 }
   ]), async (req, res) => {
     try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       let imageUrl = req.body.imageUrl;
       let videoUrl = req.body.videoUrl;
@@ -6365,6 +6649,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { name: 'contentVideos', maxCount: 10 }
   ]), async (req, res) => {
     try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+
       const { id } = req.params;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
@@ -6434,6 +6724,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/admin/blog/posts/:id", async (req, res) => {
     try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+
       const { id } = req.params;
       const success = await storage.deleteBlogPost(parseInt(id));
 
@@ -6582,6 +6878,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/blog/categories/:id", async (req, res) => {
     try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+
       const { id } = req.params;
       const { name, description, isActive, sortOrder } = req.body;
 
@@ -6602,7 +6904,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating blog category:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to update blog category";
-      res.status.json({
+      res.status(500).json({
         error: "Failed to update blog category",
         details: errorMessage
       });
@@ -6611,6 +6913,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/admin/blog/categories/:id", async (req, res) => {
     try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+
       const { id } = req.params;
       const categoryId = parseInt(id);
 
@@ -7650,7 +7958,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting shade:", error);
-      res.status(5050).json({ error: "Failed to delete shade" });
+      res.status(500).json({ error: "Failed to delete shade" });
     }
   });
 
@@ -8344,6 +8652,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/announcements', async (req, res) => {
     try {
       const announcement = await storage.createAnnouncement(req.body);
+      try {
+        // broadcast if broadcaster available
+        if (typeof (global as any).announcementsBroadcaster !== 'undefined' && (global as any).announcementsBroadcaster) {
+          (global as any).announcementsBroadcaster.broadcast('created', announcement);
+        }
+      } catch (e) {
+        console.warn('Announcements broadcast failed:', e);
+      }
       res.json(announcement);
     } catch (error) {
       console.error('Error creating announcement:', error);
@@ -8384,6 +8700,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('Announcement updated successfully:', updatedAnnouncement);
+      try {
+        if (typeof (global as any).announcementsBroadcaster !== 'undefined' && (global as any).announcementsBroadcaster) {
+          (global as any).announcementsBroadcaster.broadcast('updated', updatedAnnouncement);
+        }
+      } catch (e) {
+        console.warn('Announcements broadcast failed:', e);
+      }
       res.json(updatedAnnouncement);
     } catch (error) {
       console.error('Error updating announcement:', error);
@@ -8401,6 +8724,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deleted = await storage.deleteAnnouncement(id);
       if (!deleted) {
         return res.status(404).json({ error: 'Announcement not found' });
+      }
+      try {
+        if (typeof (global as any).announcementsBroadcaster !== 'undefined' && (global as any).announcementsBroadcaster) {
+          (global as any).announcementsBroadcaster.broadcast('deleted', { id });
+        }
+      } catch (e) {
+        console.warn('Announcements broadcast failed:', e);
       }
       res.json({ message: 'Announcement deleted successfully' });
     } catch (error) {
@@ -8535,7 +8865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: list all contests
-  app.get('/api/admin/contests', adminMiddleware, async (req, res) => {
+  app.get('/api/admin/contests', async (req, res) => {
     try {
       const contests = await db.select().from(schema.contests).orderBy(desc(schema.contests.createdAt));
       res.json(contests);
@@ -8546,7 +8876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: create contest (accepts multipart/form-data with optional image)
-  app.post('/api/admin/contests', adminMiddleware, upload.single('image'), async (req, res) => {
+  app.post('/api/admin/contests', upload.single('image'), async (req, res) => {
     try {
       const body = req.body || {};
 
@@ -8591,7 +8921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: update contest (accepts multipart/form-data with optional image)
-  app.put('/api/admin/contests/:id', adminMiddleware, upload.single('image'), async (req, res) => {
+  app.put('/api/admin/contests/:id', upload.single('image'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const body = req.body || {};
@@ -8631,7 +8961,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin: delete contest
-  app.delete('/api/admin/contests/:id', adminMiddleware, async (req, res) => {
+  app.delete('/api/admin/contests/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const [deleted] = await db.delete(schema.contests).where(eq(schema.contests.id, id)).returning();
@@ -10233,6 +10563,11 @@ Poppik Affiliate Portal
     try {
       console.log('GET /api/job-positions - Fetching all job positions');
 
+      // Set no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       // Auto-expire old job positions
       try {
         await storage.autoExpireJobPositions();
@@ -10301,10 +10636,35 @@ Poppik Affiliate Portal
     }
   });
 
+  // Server-Sent Events for realtime job positions updates (admin)
+  const jobPositionsSSEClients = new Set<any>();
+
+  app.get('/api/admin/job-positions/stream', async (req, res) => {
+    // Allow only GET
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    // Send an initial comment to establish the stream
+    res.write(': connected to job positions stream\n\n');
+
+    jobPositionsSSEClients.add(res);
+
+    req.on('close', () => {
+      jobPositionsSSEClients.delete(res);
+    });
+  });
+
   // Admin endpoints for job positions management
   app.get('/api/admin/job-positions', async (req, res) => {
     try {
       console.log('GET /api/admin/job-positions - Fetching all job positions for admin');
+
+      // Set strict no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
 
       const positions = await storage.getJobPositions();
       console.log('Total positions found for admin:', positions.length);
@@ -10364,7 +10724,23 @@ Poppik Affiliate Portal
 
       const position = await storage.createJobPosition(positionData);
       console.log('Job position created successfully:', position);
-
+      // Broadcast to SSE clients about the new position
+      try {
+        for (const client of jobPositionsSSEClients) {
+          try {
+            client.write('event: jobPositionCreated\n');
+            client.write('data: ' + JSON.stringify(position) + '\n\n');
+          } catch (e) {
+            // ignore write errors for individual clients
+          }
+        }
+      } catch (e) {
+        console.error('Error broadcasting job position create event:', e);
+      }
+      // Set strict no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.status(201).json(position);
     } catch (error) {
       console.error('Error creating job position:', error);
@@ -10392,6 +10768,22 @@ Poppik Affiliate Portal
       if (!position) {
         return res.status(404).json({ error: 'Job position not found' });
       }
+      // Broadcast update to SSE clients
+      try {
+        for (const client of jobPositionsSSEClients) {
+          try {
+            client.write('event: jobPositionUpdated\n');
+            client.write('data: ' + JSON.stringify(position) + '\n\n');
+          } catch (e) {
+            // ignore individual client errors
+          }
+        }
+      } catch (e) {
+        console.error('Error broadcasting job position update event:', e);
+      }
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.json(position);
     } catch (error) {
       console.error('Error updating job position:', error);
@@ -10406,6 +10798,22 @@ Poppik Affiliate Portal
       if (!success) {
         return res.status(404).json({ error: 'Job position not found' });
       }
+      // Broadcast deletion to SSE clients
+      try {
+        for (const client of jobPositionsSSEClients) {
+          try {
+            client.write('event: jobPositionDeleted\n');
+            client.write('data: ' + JSON.stringify({ id }) + '\n\n');
+          } catch (e) {
+            // ignore individual client errors
+          }
+        }
+      } catch (e) {
+        console.error('Error broadcasting job position delete event:', e);
+      }
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.json({ message: 'Job position deleted successfully' });
     } catch (error) {
       console.error('Error deleting job position:', error);
@@ -11446,7 +11854,31 @@ Poppik Affiliate Portal
     }
   });
   // Public media links endpoint (for front-end gallery)
+  // In-memory list of Server-Sent-Events subscribers for media updates
+  const mediaSubscribers: any[] = [];
+
+  // SSE endpoint - clients subscribe to this to receive real-time media changes
+  app.get('/api/media/stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Connection', 'keep-alive');
+    if (typeof (res as any).flushHeaders === 'function') (res as any).flushHeaders();
+    // initial comment to keep connection alive
+    res.write('retry: 10000\n\n');
+
+    mediaSubscribers.push(res);
+
+    req.on('close', () => {
+      const idx = mediaSubscribers.indexOf(res);
+      if (idx !== -1) mediaSubscribers.splice(idx, 1);
+    });
+  });
+
   app.get('/api/media', async (req, res) => {
+    // Force no caching for public media list
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     try {
       console.log('GET /api/media called with query:', req.query);
       const { isActive, category, type } = req.query as any;
@@ -11519,6 +11951,11 @@ Poppik Affiliate Portal
   app.get('/api/media/debug', async (req, res) => {
     try {
       console.log('GET /api/media/debug called');
+      // No-cache for debug endpoint as well
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+
       const all = await db.select().from(schema.mediaLinks).orderBy(asc(schema.mediaLinks.sortOrder), desc(schema.mediaLinks.createdAt));
       console.log(`GET /api/media/debug returning ${Array.isArray(all) ? all.length : 0} items`);
       res.json(all || []);
@@ -11527,8 +11964,13 @@ Poppik Affiliate Portal
       res.status(500).json({ error: 'Failed to fetch debug media' });
     }
   });
-  app.get("/api/admin/media", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/media", async (req, res) => {
     try {
+      // Ensure admin list is returned fresh (no caching)
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+
       const mediaList = await db
         .select()
         .from(schema.mediaLinks)
@@ -11542,7 +11984,7 @@ Poppik Affiliate Portal
   });
 
   // Create new media (admin)
-  app.post("/api/admin/media", adminMiddleware, async (req, res) => {
+  app.post("/api/admin/media", async (req, res) => {
     try {
       console.log("📝 Creating media with data:", req.body);
       
@@ -11566,6 +12008,20 @@ Poppik Affiliate Portal
       const newMedia = await db.insert(schema.mediaLinks).values(mediaData).returning();
       console.log("✅ Media created successfully:", newMedia[0]);
       res.json(newMedia[0]);
+
+      // Broadcast create to SSE subscribers
+      try {
+        console.log('📣 Broadcasting media create to SSE subscribers:', newMedia[0].id);
+        for (const s of mediaSubscribers) {
+          try {
+            s.write(`event: media\ndata: ${JSON.stringify({ action: 'create', item: newMedia[0] })}\n\n`);
+          } catch (e) {
+            // ignore individual client errors
+          }
+        }
+      } catch (e) {
+        console.warn('Error broadcasting media create:', e);
+      }
     } catch (error) {
       console.error("❌ Error creating media:", error);
       res.status(500).json({ 
@@ -11577,7 +12033,7 @@ Poppik Affiliate Portal
   });
 
   // Update media (admin)
-  app.put("/api/admin/media/:id", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/media/:id", async (req, res) => {
     try {
       const mediaId = parseInt(req.params.id);
       const mediaData = {
@@ -11607,6 +12063,17 @@ Poppik Affiliate Portal
       }
 
       res.json(updatedMedia[0]);
+
+      try {
+        console.log('📣 Broadcasting media update to SSE subscribers:', updatedMedia[0].id);
+        for (const s of mediaSubscribers) {
+          try {
+            s.write(`event: media\ndata: ${JSON.stringify({ action: 'update', item: updatedMedia[0] })}\n\n`);
+          } catch (e) {}
+        }
+      } catch (e) {
+        console.warn('Error broadcasting media update:', e);
+      }
     } catch (error) {
       console.error("❌ Error updating media:", error);
       res.status(500).json({ 
@@ -11617,7 +12084,7 @@ Poppik Affiliate Portal
   });
 
   // Delete media (admin)
-  app.delete("/api/admin/media/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/media/:id", async (req, res) => {
     try {
       const mediaId = parseInt(req.params.id);
       console.log("🗑️ Deleting media with ID:", mediaId);
@@ -11634,6 +12101,17 @@ Poppik Affiliate Portal
       }
       
       res.json({ message: "Media deleted successfully", deletedMedia: deletedMedia[0] });
+
+      try {
+        console.log('📣 Broadcasting media delete to SSE subscribers:', deletedMedia[0].id);
+        for (const s of mediaSubscribers) {
+          try {
+            s.write(`event: media\ndata: ${JSON.stringify({ action: 'delete', item: deletedMedia[0] })}\n\n`);
+          } catch (e) {}
+        }
+      } catch (e) {
+        console.warn('Error broadcasting media delete:', e);
+      }
     } catch (error) {
       console.error("❌ Error deleting media:", error);
       res.status(500).json({ 
@@ -11644,7 +12122,7 @@ Poppik Affiliate Portal
   });
 
   // Bulk update sort order (admin)
-  app.post("/api/admin/media/reorder", adminMiddleware, async (req, res) => {
+  app.post("/api/admin/media/reorder", async (req, res) => {
     try {
       const items: Array<{ id: number; sortOrder: number }> = req.body.items;
       
@@ -11655,13 +12133,25 @@ Poppik Affiliate Portal
           .where(eq(schema.mediaLinks.id, item.id));
       }
 
+      try {
+        const snapshot = await db.select().from(schema.mediaLinks).orderBy(asc(schema.mediaLinks.sortOrder), desc(schema.mediaLinks.createdAt));
+        console.log('📣 Broadcasting media reorder to SSE subscribers (items):', snapshot.length);
+        for (const s of mediaSubscribers) {
+          try {
+            s.write(`event: media\ndata: ${JSON.stringify({ action: 'reorder', items: snapshot })}\n\n`);
+          } catch (e) {}
+        }
+      } catch (e) {
+        console.warn('Error broadcasting media reorder:', e);
+      }
+
       res.json({ message: "Sort order updated successfully" });
     } catch (error) {
       console.error("Error updating sort order:", error);
       res.status(500).json({ error: "Failed to update sort order" });
     }
   });
-  app.get('/api/admin/influencer-videos', adminMiddleware, async (req, res) => {
+  app.get('/api/admin/influencer-videos', async (req, res) => {
     try {
       const list = await db.select().from(schema.influencerVideos).orderBy(desc(schema.influencerVideos.createdAt));
       res.json(list);
@@ -11672,7 +12162,7 @@ Poppik Affiliate Portal
   });
 
   // Admin: create influencer video
-  app.post('/api/admin/influencer-videos', adminMiddleware, async (req, res) => {
+  app.post('/api/admin/influencer-videos', async (req, res) => {
     try {
       const data = {
         influencerName: req.body.influencerName,
@@ -11696,7 +12186,7 @@ Poppik Affiliate Portal
   });
 
   // Admin: update influencer video
-  app.put('/api/admin/influencer-videos/:id', adminMiddleware, async (req, res) => {
+  app.put('/api/admin/influencer-videos/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const data = {
@@ -11723,7 +12213,7 @@ Poppik Affiliate Portal
   });
 
   // Admin: delete influencer video
-  app.delete('/api/admin/influencer-videos/:id', adminMiddleware, async (req, res) => {
+  app.delete('/api/admin/influencer-videos/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await db.delete(schema.influencerVideos).where(eq(schema.influencerVideos.id, id)).returning();
@@ -11863,7 +12353,7 @@ Poppik Affiliate Portal
   });
 
   // Admin: get all affiliate videos
-  app.get('/api/admin/affiliate-videos', adminMiddleware, async (req, res) => {
+  app.get('/api/admin/affiliate-videos', async (req, res) => {
     try {
       // No cache - always fresh data
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
@@ -11879,19 +12369,24 @@ Poppik Affiliate Portal
   });
 
   // Admin: create affiliate video
-  app.post('/api/admin/affiliate-videos', adminMiddleware, async (req, res) => {
+  app.post('/api/admin/affiliate-videos', async (req, res) => {
     try {
+      // Validate required fields - title is mandatory
+      if (!req.body.title || !req.body.title.trim()) {
+        return res.status(400).json({ error: 'Title is required' });
+      }
+
       const data = {
-        affiliateName: req.body.affiliateName,
-        title: req.body.title,
+        affiliateName: req.body.affiliateName || null,
+        title: req.body.title.trim(),
         description: req.body.description || null,
-        imageUrl: req.body.imageUrl,
+        imageUrl: req.body.imageUrl ? req.body.imageUrl.trim() : null,
         videoUrl: req.body.videoUrl || null,
         redirectUrl: req.body.redirectUrl || null,
         category: req.body.category || 'affiliate',
         type: req.body.type || 'video',
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
-        sortOrder: req.body.sortOrder || 0,
+        sortOrder: req.body.sortOrder !== undefined ? parseInt(req.body.sortOrder) : 0,
         metadata: req.body.metadata || null,
       };
       const inserted = await db.insert(schema.affiliateVideos).values(data).returning();
@@ -11903,20 +12398,25 @@ Poppik Affiliate Portal
   });
 
   // Admin: update affiliate video
-  app.put('/api/admin/affiliate-videos/:id', adminMiddleware, async (req, res) => {
+  app.put('/api/admin/affiliate-videos/:id', async (req, res) => {
     try {
+      // Validate required fields - title is mandatory
+      if (!req.body.title || !req.body.title.trim()) {
+        return res.status(400).json({ error: 'Title is required' });
+      }
+
       const id = parseInt(req.params.id);
       const data = {
-        affiliateName: req.body.affiliateName,
-        title: req.body.title,
+        affiliateName: req.body.affiliateName || null,
+        title: req.body.title.trim(),
         description: req.body.description || null,
-        imageUrl: req.body.imageUrl,
+        imageUrl: req.body.imageUrl ? req.body.imageUrl.trim() : null,
         videoUrl: req.body.videoUrl || null,
         redirectUrl: req.body.redirectUrl || null,
         category: req.body.category,
         type: req.body.type,
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
-        sortOrder: req.body.sortOrder || 0,
+        sortOrder: req.body.sortOrder !== undefined ? parseInt(req.body.sortOrder) : 0,
         metadata: req.body.metadata || null,
         updatedAt: new Date(),
       };
@@ -11930,7 +12430,7 @@ Poppik Affiliate Portal
   });
 
   // Admin: delete affiliate video
-  app.delete('/api/admin/affiliate-videos/:id', adminMiddleware, async (req, res) => {
+  app.delete('/api/admin/affiliate-videos/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await db.delete(schema.affiliateVideos).where(eq(schema.affiliateVideos.id, id)).returning();
@@ -12070,7 +12570,7 @@ Poppik Affiliate Portal
   });
 
   // Admin: get all channel partner videos
-  app.get('/api/admin/channel-partner-videos', adminMiddleware, async (req, res) => {
+  app.get('/api/admin/channel-partner-videos', async (req, res) => {
     try {
       // No cache - always fresh data
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
@@ -12086,8 +12586,13 @@ Poppik Affiliate Portal
   });
 
   // Admin: create channel partner video
-  app.post('/api/admin/channel-partner-videos', adminMiddleware, async (req, res) => {
+  app.post('/api/admin/channel-partner-videos', async (req, res) => {
     try {
+      // No cache headers
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       const data = {
         partnerName: req.body.partnerName,
         title: req.body.title,
@@ -12110,8 +12615,13 @@ Poppik Affiliate Portal
   });
 
   // Admin: update channel partner video
-  app.put('/api/admin/channel-partner-videos/:id', adminMiddleware, async (req, res) => {
+  app.put('/api/admin/channel-partner-videos/:id', async (req, res) => {
     try {
+      // No cache headers
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       const id = parseInt(req.params.id);
       const data = {
         partnerName: req.body.partnerName,
@@ -12137,8 +12647,13 @@ Poppik Affiliate Portal
   });
 
   // Admin: delete channel partner video
-  app.delete('/api/admin/channel-partner-videos/:id', adminMiddleware, async (req, res) => {
+  app.delete('/api/admin/channel-partner-videos/:id', async (req, res) => {
     try {
+      // No cache headers
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       const id = parseInt(req.params.id);
       const deleted = await db.delete(schema.channelPartnerVideos).where(eq(schema.channelPartnerVideos.id, id)).returning();
       if (!deleted || deleted.length === 0) return res.status(404).json({ error: 'Not found' });
@@ -12150,5 +12665,13 @@ Poppik Affiliate Portal
   });
 
   const httpServer = createServer(app);
+  try {
+    const announcer = createAnnouncementsBroadcaster();
+    announcer.setup(httpServer);
+    (global as any).announcementsBroadcaster = announcer;
+    console.log('✅ Announcements broadcaster setup complete');
+  } catch (e) {
+    console.warn('⚠️ Failed to setup announcements broadcaster:', e);
+  }
   return httpServer;
 }

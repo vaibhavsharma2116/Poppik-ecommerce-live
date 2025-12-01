@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,8 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Package
+  Package,
+  RefreshCw
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -60,6 +61,16 @@ interface Product {
   price: number;
 }
 
+// Helper function to force clean cache invalidation
+const forceRefreshShades = (queryClient: any) => {
+  queryClient.removeQueries({ queryKey: ['admin-shades'] });
+  queryClient.removeQueries({ queryKey: ['shades'] });
+  queryClient.removeQueries({ queryKey: ['categories'] });
+  queryClient.removeQueries({ queryKey: ['subcategories'] });
+  queryClient.removeQueries({ queryKey: ['products'] });
+  return queryClient.refetchQueries({ queryKey: ['admin-shades'], type: 'active' });
+};
+
 export default function AdminShades() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -80,6 +91,22 @@ export default function AdminShades() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Force refresh on component mount and visibility change
+  useEffect(() => {
+    // Refresh when page loads
+    forceRefreshShades(queryClient);
+
+    // Refresh when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        forceRefreshShades(queryClient);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [queryClient]);
 
   // Fetch categories and subcategories
   const { data: categories = [] } = useQuery<Category[]>({
@@ -110,18 +137,19 @@ export default function AdminShades() {
     },
   });
 
-  // Fetch shades with optimized caching
+  // Fetch shades with NO caching - always fresh data
   const { data: shades = [], isLoading, refetch } = useQuery<Shade[]>({
     queryKey: ['admin-shades'],
     queryFn: async () => {
-      const response = await fetch('/api/admin/shades');
+      const response = await fetch('/api/admin/shades?t=' + Date.now());
       if (!response.ok) throw new Error('Failed to fetch shades');
       return response.json();
     },
-    staleTime: 1000 * 60, // 1 minute
-    gcTime: 1000 * 60 * 5, // 5 minutes
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    staleTime: 0, // No caching - always fetch fresh
+    gcTime: 0, // Don't keep old data
+    refetchOnMount: 'always', // Always refetch on component mount/page load
+    refetchOnWindowFocus: 'always', // Always refetch on window focus (tab switch)
+    refetchInterval: 0, // Don't auto-refetch in background
   });
 
   // Create shade mutation with optimistic update
@@ -170,8 +198,8 @@ export default function AdminShades() {
       });
       setIsAddModalOpen(false);
       resetForm();
-      queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
-      queryClient.invalidateQueries({ queryKey: ['shades'] });
+      // Force clean refresh
+      forceRefreshShades(queryClient);
     },
     onError: (error, newShade, context) => {
       // Rollback on error
@@ -221,8 +249,8 @@ export default function AdminShades() {
       setIsEditModalOpen(false);
       setSelectedShade(null);
       resetForm();
-      queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
-      queryClient.invalidateQueries({ queryKey: ['shades'] });
+      // Force clean refresh
+      forceRefreshShades(queryClient);
     },
     onError: (error, variables, context) => {
       if (context?.previousShades) {
@@ -272,8 +300,8 @@ export default function AdminShades() {
       });
       setIsDeleteModalOpen(false);
       setSelectedShade(null);
-      queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
-      queryClient.invalidateQueries({ queryKey: ['shades'] });
+      // Force clean refresh
+      forceRefreshShades(queryClient);
     },
     onError: (error, id, context) => {
       if (context?.previousShades) {
@@ -419,11 +447,8 @@ export default function AdminShades() {
 
         const updatedShade = await response.json();
         
-        // Update with server response
-        queryClient.setQueryData<Shade[]>(['admin-shades'], (old = []) =>
-          old.map(shade => shade.id === id ? updatedShade : shade)
-        );
-        queryClient.invalidateQueries({ queryKey: ['shades'] });
+        // Force clean refresh
+        forceRefreshShades(queryClient);
 
         toast({
           title: "Success",
@@ -545,10 +570,20 @@ export default function AdminShades() {
           </h2>
           <p className="text-slate-600 mt-1">Manage product shade colors and their category associations</p>
         </div>
-        <Button onClick={handleAdd} className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
-          <Plus className="h-4 w-4 mr-2" />
-          Add New Shade
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => forceRefreshShades(queryClient)}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+          <Button onClick={handleAdd} className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Shade
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -731,9 +766,8 @@ export default function AdminShades() {
 
                             const updatedShade = await response.json();
 
-                            // Invalidate and refetch automatically
-                            queryClient.invalidateQueries({ queryKey: ['admin-shades'] });
-                            queryClient.invalidateQueries({ queryKey: ['shades'] });
+                            // Force clean refresh
+                            forceRefreshShades(queryClient);
 
                             toast({
                               title: "Success",

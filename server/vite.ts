@@ -35,8 +35,8 @@ export async function setupVite(app: Express, server: Server) {
 
   // Vite middleware को configure करते हैं कि वो API routes को skip करे
   app.use((req, res, next) => {
-    // Skip API routes and well-known devtools requests from Vite middleware
-    if (req.url.startsWith('/api/') || req.url.startsWith('/.well-known/')) {
+    // Skip API routes, websocket endpoints and well-known devtools requests from Vite middleware
+    if (req.url.startsWith('/api/') || req.url.startsWith('/.well-known/') || req.url.startsWith('/ws')) {
       return next();
     }
     // Non-API routes के लिए Vite middleware run करते हैं
@@ -47,8 +47,8 @@ export async function setupVite(app: Express, server: Server) {
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
-    // Double check - skip API and well-known devtools requests here as well
-    if (url.startsWith('/api/') || url.startsWith('/.well-known/')) {
+    // Double check - skip API, websocket and well-known devtools requests here as well
+    if (url.startsWith('/api/') || url.startsWith('/.well-known/') || url.startsWith('/ws')) {
       return next();
     }
 
