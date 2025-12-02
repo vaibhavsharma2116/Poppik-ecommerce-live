@@ -647,24 +647,6 @@ export default function OfferDetail() {
     }
   }, [offer?.productIds]);
 
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const affiliateRef = urlParams.get('ref');
-
-    if (affiliateRef && offer?.id) {
-      fetch('/api/affiliate/track-click', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          affiliateCode: affiliateRef,
-          offerId: offer.id,
-        }),
-      }).catch(err => console.error('Error tracking affiliate click:', err));
-
-      localStorage.setItem('affiliateRef', affiliateRef);
-    }
-  }, [offer?.id]);
-
   const handleShare = (platform: string) => {
     const url = window.location.href;
     const text = `Check out this amazing offer: ${offer?.title}`;
@@ -1176,38 +1158,7 @@ export default function OfferDetail() {
                             <h4 className="text-sm font-semibold text-gray-900 line-clamp-1">
                               {product.name}
                             </h4>
-                            {hasShades && (
-                              <div className="mt-1 flex gap-1 items-center">
-                                <span className="text-xs text-gray-500">{productShades.length} shades</span>
-                                <div className="flex gap-0.5">
-                                  {productShades.slice(0, 4).map((shade: any) => (
-                                    <div
-                                      key={shade.id}
-                                      className="relative"
-                                      title={shade.name}
-                                    >
-                                      {shade.imageUrl ? (
-                                        <img
-                                          src={shade.imageUrl}
-                                          alt={shade.name}
-                                          className="w-4 h-4 rounded-full border border-gray-300 object-cover"
-                                        />
-                                      ) : (
-                                        <div
-                                          className="w-4 h-4 rounded-full border border-gray-300"
-                                          style={{ backgroundColor: shade.colorCode || getShadeColor(shade.name) }}
-                                        />
-                                      )}
-                                    </div>
-                                  ))}
-                                  {productShades.length > 4 && (
-                                    <div className="w-4 h-4 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center text-[7px] font-bold text-purple-700">
-                                      +{productShades.length - 4}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
+                            
                           </div>
 
                           {/* Shade Selection Button - Inline with Product Name */}
