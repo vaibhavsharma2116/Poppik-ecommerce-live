@@ -57,7 +57,7 @@ export default function AdminCombos() {
     howToUse: "",
   });
 
-  const { data: combos, isLoading, error } = useQuery<any[]>({
+  const { data: combos, isLoading, error, refetch } = useQuery<any[]>({
     queryKey: ["/api/admin/combos"],
     queryFn: async () => {
       const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
@@ -152,7 +152,7 @@ export default function AdminCombos() {
   );
 
   const createMutation = useMutation({
-    mutationFn: async (data: FormData) => {
+    mutationFn: async (payload: any) => {
       const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       if (!token) {
         toast({ title: 'Authentication Required', description: 'Please login to continue', variant: 'destructive' });
@@ -160,32 +160,63 @@ export default function AdminCombos() {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch("/api/admin/combos", {
-        method: "POST",
-        body: data,
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+      const options: RequestInit = { method: 'POST', headers };
+
+      if (payload instanceof FormData) {
+        options.body = payload;
+      } else if (payload && payload.isJson) {
+        headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(payload.data);
+      } else if (payload && payload.data) {
+        headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(payload.data);
+      } else {
+        throw new Error('Invalid payload for create combo');
+      }
+
+      const response = await fetch(`/api/admin/combos?t=${Date.now()}`, options);
       if (response.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('adminToken');
         window.location.href = '/admin/auth/admin-login';
         throw new Error('Authentication required');
       }
-      if (!response.ok) throw new Error("Failed to create combo");
+      if (!response.ok) throw new Error('Failed to create combo');
       return response.json();
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/admin/combos"], refetchType: 'all' });
-      await queryClient.refetchQueries({ queryKey: ["/api/admin/combos"] });
-      toast({ title: "Combo created successfully" });
+    onSuccess: async (newCombo) => {
+      // Immediately clear all cache
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/combos'] });
+      queryClient.removeQueries({ queryKey: ['/api/admin/combos'] });
+      
+      // Set new data optimistically
+      queryClient.setQueryData(['/api/admin/combos'], (old: any[] = []) => [newCombo, ...old]);
+      
+      toast({ title: 'Combo created successfully' });
       resetForm();
+      
+      // Force refetch with cache bypass
+      await queryClient.refetchQueries({ 
+        queryKey: ['/api/admin/combos'], 
+        type: 'all',
+        exact: true
+      });
+      
+      // Force hard reload to bypass all cache
+      setTimeout(() => window.location.reload(), 500);
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to create combo', description: String(err?.message || err), variant: 'destructive' });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: FormData }) => {
+    mutationFn: async (payload: any) => {
+      const id = payload?.id;
+      const data = payload?.data;
+      if (!id) throw new Error('Missing combo id for update');
+
       const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
       if (!token) {
         toast({ title: 'Authentication Required', description: 'Please login to continue', variant: 'destructive' });
@@ -193,29 +224,57 @@ export default function AdminCombos() {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`/api/admin/combos/${id}`, {
-        method: "PUT",
-        body: data,
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+      const options: RequestInit = { method: 'PUT', headers };
 
+      if (data instanceof FormData) {
+        options.body = data;
+      } else if (data && data.isJson) {
+        headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(data.data);
+      } else if (data && data.data) {
+        headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(data.data);
+      } else {
+        headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(data);
+      }
+
+      const response = await fetch(`/api/admin/combos/${id}?t=${Date.now()}`, options);
       if (response.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('adminToken');
         window.location.href = '/admin/auth/admin-login';
         throw new Error('Authentication required');
       }
-
-      if (!response.ok) throw new Error("Failed to update combo");
+      if (!response.ok) throw new Error('Failed to update combo');
       return response.json();
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/admin/combos"], refetchType: 'all' });
-      await queryClient.refetchQueries({ queryKey: ["/api/admin/combos"] });
-      toast({ title: "Combo updated successfully" });
+    onSuccess: async (updatedCombo) => {
+      // Immediately clear all cache
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/combos'] });
+      queryClient.removeQueries({ queryKey: ['/api/admin/combos'] });
+      
+      // Update optimistically
+      queryClient.setQueryData(['/api/admin/combos'], (old: any[] = []) => 
+        old.map(c => c.id === updatedCombo.id ? updatedCombo : c)
+      );
+      
+      toast({ title: 'Combo updated successfully' });
       resetForm();
+      
+      // Force refetch with cache bypass
+      await queryClient.refetchQueries({ 
+        queryKey: ['/api/admin/combos'], 
+        type: 'all',
+        exact: true
+      });
+      
+      // Force hard reload to bypass all cache
+      setTimeout(() => window.location.reload(), 500);
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to update combo', description: String(err?.message || err), variant: 'destructive' });
     },
   });
 
@@ -228,7 +287,7 @@ export default function AdminCombos() {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`/api/admin/combos/${id}`, {
+      const response = await fetch(`/api/admin/combos/${id}?t=${Date.now()}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`
@@ -243,12 +302,32 @@ export default function AdminCombos() {
       }
 
       if (!response.ok) throw new Error("Failed to delete combo");
-      return response.json();
+      return { id };
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/admin/combos"], refetchType: 'all' });
-      await queryClient.refetchQueries({ queryKey: ["/api/admin/combos"] });
-      toast({ title: "Combo deleted successfully" });
+    onSuccess: async (data) => {
+      // Immediately clear all cache
+      await queryClient.cancelQueries({ queryKey: ['/api/admin/combos'] });
+      queryClient.removeQueries({ queryKey: ['/api/admin/combos'] });
+      
+      // Remove optimistically
+      queryClient.setQueryData(['/api/admin/combos'], (old: any[] = []) => 
+        old.filter(c => c.id !== data.id)
+      );
+      
+      toast({ title: 'Combo deleted successfully' });
+      
+      // Force refetch with cache bypass
+      await queryClient.refetchQueries({ 
+        queryKey: ['/api/admin/combos'], 
+        type: 'all',
+        exact: true
+      });
+      
+      // Force hard reload to bypass all cache
+      setTimeout(() => window.location.reload(), 500);
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to delete combo', description: String(err?.message || err), variant: 'destructive' });
     },
   });
 
@@ -258,7 +337,7 @@ export default function AdminCombos() {
       // Limit to 10 images max
       const newFiles = files.slice(0, 10 - selectedImages.length);
       setSelectedImages(prev => [...prev, ...newFiles]);
-      
+
       newFiles.forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -267,6 +346,30 @@ export default function AdminCombos() {
         reader.readAsDataURL(file);
       });
     }
+  };
+
+  // Helper: safely get primary image URL from combo which may store imageUrl as string or array
+  const getPrimaryImage = (combo: any) => {
+    if (!combo) return '';
+    if (Array.isArray(combo.imageUrl) && combo.imageUrl.length > 0) return combo.imageUrl[0];
+    if (combo.imageUrls && Array.isArray(combo.imageUrls) && combo.imageUrls.length > 0) return combo.imageUrls[0];
+    if (typeof combo.imageUrl === 'string') return combo.imageUrl;
+    return '';
+  };
+
+  // Helper: safely compute products count (products may be array or JSON string)
+  const getProductsCount = (combo: any) => {
+    if (!combo) return 0;
+    if (Array.isArray(combo.products)) return combo.products.length;
+    if (typeof combo.products === 'string') {
+      try {
+        const parsed = JSON.parse(combo.products);
+        if (Array.isArray(parsed)) return parsed.length;
+      } catch (e) {
+        return 0;
+      }
+    }
+    return 0;
   };
 
   const removeImage = (index: number) => {
@@ -330,7 +433,7 @@ export default function AdminCombos() {
     }
 
     const formDataToSend = new FormData();
-    
+
     // Store only essential product data to avoid field length issues
     const selectedProducts = formData.products.map(productId => {
       const product = allProducts.find(p => p.id === productId);
@@ -372,7 +475,12 @@ export default function AdminCombos() {
         formDataToSend.append("images", image);
       });
     } else if (editingCombo?.imageUrl) {
-      formDataToSend.append("imageUrl", editingCombo.imageUrl);
+      // Append as JSON string if array to preserve array type server-side
+      if (Array.isArray(editingCombo.imageUrl)) {
+        formDataToSend.append("imageUrl", JSON.stringify(editingCombo.imageUrl));
+      } else {
+        formDataToSend.append("imageUrl", editingCombo.imageUrl);
+      }
     }
 
     // Append video if selected
@@ -453,15 +561,15 @@ export default function AdminCombos() {
       benefits: combo.benefits || '',
       howToUse: combo.howToUse || '',
     });
-    
+
     // Load existing images if available
     const existingImages = combo.imageUrls && combo.imageUrls.length > 0 
       ? combo.imageUrls 
       : combo.imageUrl ? [combo.imageUrl] : [];
-    
+
     setImagePreviews(existingImages);
     setSelectedImages([]);
-    
+
     // Load existing video if available
     if (combo.videoUrl) {
       setVideoPreview(combo.videoUrl);
@@ -472,7 +580,7 @@ export default function AdminCombos() {
     if (combo.productShades) {
       try {
         let shades = {};
-        
+
         if (typeof combo.productShades === 'string') {
           // Try to parse JSON string
           try {
@@ -485,7 +593,7 @@ export default function AdminCombos() {
           // Already an object
           shades = combo.productShades;
         }
-        
+
         // Ensure shades is a valid object (not an array or other type)
         if (shades && typeof shades === 'object' && !Array.isArray(shades)) {
           setSelectedProductShades(shades);
@@ -500,7 +608,7 @@ export default function AdminCombos() {
     } else {
       setSelectedProductShades({});
     }
-    
+
     setIsModalOpen(true);
   };
 
@@ -534,7 +642,11 @@ export default function AdminCombos() {
               {combosList.map((combo: any) => (
                 <TableRow key={combo.id}>
                   <TableCell>
-                    <img src={combo.imageUrl} alt={combo.name} className="w-16 h-16 object-cover rounded" />
+                    <img
+                      src={getPrimaryImage(combo)}
+                      alt={combo.name}
+                      className="w-16 h-16 object-cover rounded"
+                    />
                   </TableCell>
                   <TableCell>{combo.name}</TableCell>
                   <TableCell>₹{combo.price}</TableCell>
@@ -542,7 +654,7 @@ export default function AdminCombos() {
                     <Badge variant="secondary">{combo.discount}</Badge>
                   </TableCell>
                   <TableCell>
-                    {combo.products.length} items
+                    {getProductsCount(combo)} items
                   </TableCell>
                   <TableCell>
                     <Badge variant={combo.isActive ? "default" : "secondary"}>
@@ -833,7 +945,7 @@ export default function AdminCombos() {
                     {formData.products.map(productId => {
                       const product = allProducts.find(p => p.id === productId);
                       if (!product) return null;
-                      
+
                       // Get shades for this product
                       const productShades = Array.isArray(allShades)
                         ? allShades.filter((shade: any) => 
@@ -887,13 +999,13 @@ export default function AdminCombos() {
                                       onClick={() => {
                                         const currentShades = selectedProductShades[productId] || [];
                                         const newShades = { ...selectedProductShades };
-                                        
+
                                         if (isSelected) {
                                           newShades[productId] = currentShades.filter(id => id !== shade.id);
                                         } else {
                                           newShades[productId] = [...currentShades, shade.id];
                                         }
-                                        
+
                                         setSelectedProductShades(newShades);
                                       }}
                                       className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer transition-all ${

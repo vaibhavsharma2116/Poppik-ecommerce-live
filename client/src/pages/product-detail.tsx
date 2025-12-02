@@ -20,6 +20,7 @@ import ProductCard from "@/components/product-card";
 import type { Product } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@radix-ui/react-label";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 interface Review {
   id: number;
@@ -161,7 +162,9 @@ export default function ProductDetail() {
     }
     return resolved;
   };
-
+ const { data: recommendedProducts = [] } = useQuery({
+    queryKey: ['/api/products', { limit: 12 }],
+  });
   // Choose best image for meta tags / social sharing.
   // Priority when a shade is selected: shade image.
   // When no shade selected: 1) first non-base64 DB image, 2) product.imageUrl if non-base64,
@@ -1026,6 +1029,8 @@ export default function ProductDetail() {
                                             src={imageUrl}
                                             className="w-full h-full object-cover rounded"
                                             muted
+                                            autoPlay
+                                            loop
                                             style={{
                                               objectFit: 'cover',
                                               width: '100%',
@@ -1195,6 +1200,7 @@ export default function ProductDetail() {
                                   src={currentUrl}
                                   className="w-full h-full object-contain rounded-xl sm:rounded-2xl"
                                   controls
+                                  autoPlay
                                   poster={imageUrls.find(url => !url.match(/\.(mp4|webm|mov)(\?|$)/i)) || product.imageUrl}
                                   width={400}
                                   height={400}
@@ -2079,45 +2085,94 @@ export default function ProductDetail() {
           </div>
         </section>
 
-        {/* Product Video - Show if available */}
-        {product.videoUrl && (
-          <Card className="overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-pink-50 to-rose-50 border-b">
-              <CardTitle className="flex items-center gap-2">
-                <Video className="h-5 w-5 text-pink-600" />
-                Product Video
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <video
-                src={product.videoUrl.startsWith('/api/') ? product.videoUrl : `/api/images/${product.videoUrl}`}
-                controls
-                className="w-full aspect-video"
-                poster={product.imageUrl}
-              >
-                Your browser does not support the video tag.
-              </video>
-            </CardContent>
-          </Card>
-        )}
+      <section className="mt-12 sm:mt-16">
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+              You May Also Like
+            </h2>
+            <p className="text-sm sm:text-base text-gray-600">
+              Complete your beauty routine with these products
+            </p>
+          </div>
 
-        {/* You May Also Like - Horizontal Scroll */}
-        {filteredRelatedProducts.length > 0 && (
-          <section className="bg-white/60 backdrop-blur-md rounded-xl sm:rounded-3xl p-4 sm:p-8 shadow-xl sm:shadow-2xl border border-white/20">
-            <div className="text-center mb-6 sm:mb-8">
-              <h2 className="text-xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-2">You May Also Like</h2>
-              <p className="text-gray-600 text-sm sm:text-lg font-medium">More products from {product.category}</p>
-            </div>
-
-            <div className="flex space-x-4 overflow-x-auto pb-4 snap-x snap-mandatory">
-              {filteredRelatedProducts.map((relatedProduct) => (
-                <div key={relatedProduct.id} className="flex-none w-64 snap-start">
-                  <ProductCard product={relatedProduct} />
+          {recommendedProducts.length === 0 ? (
+            <>
+              {/* Mobile: Loading Skeleton */}
+              <div className="block md:hidden">
+                <div className="overflow-x-auto scrollbar-hide pb-4">
+                  <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ width: '160px', flexShrink: 0 }}>
+                        <Skeleton className="aspect-square w-full" />
+                        <div className="p-3 space-y-2">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-6 w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+              </div>
+
+              {/* Desktop: Loading Skeleton */}
+              <div className="hidden md:block">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-8">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                      <Skeleton className="aspect-square w-full" />
+                      <div className="p-3 space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-6 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Mobile: 2 Column Grid with Horizontal Scroll */}
+              <div className="block md:hidden">
+                <div className="overflow-x-auto scrollbar-hide pb-4">
+                  <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
+                    {recommendedProducts.map((product: any) => (
+                      <div key={product.id} style={{ width: '160px', flexShrink: 0 }}>
+                        <ProductCard product={product} className="h-full" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop: Carousel */}
+              <div className="hidden md:block">
+                <div className="relative px-4 sm:px-8">
+                  <Carousel
+                    opts={{
+                      align: "start",
+                      loop: true,
+                    }}
+                    className="w-full"
+                  >
+                    <CarouselContent className="-ml-2 md:-ml-4">
+                      {recommendedProducts.map((product: any) => (
+                        <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+                          <ProductCard product={product} />
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="hidden sm:flex -left-4" />
+                    <CarouselNext className="hidden sm:flex -right-4" />
+                  </Carousel>
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+       
+
       </div>
     </>
   );

@@ -586,6 +586,7 @@ export const offers = pgTable("offers", {
   detailedDescription: text("detailed_description"), // Detailed description for Description tab
   productsIncluded: text("products_included"), // Products included details
   benefits: text("benefits"), // Benefits information
+  videoUrl: text("video_url"), // Video URL for offer
   isActive: boolean("is_active").default(true).notNull(),
   sortOrder: integer("sort_order").default(0).notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),

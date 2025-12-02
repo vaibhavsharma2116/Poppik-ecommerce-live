@@ -59,12 +59,21 @@ export default function AdminContests() {
   const saveMutation = useMutation({
     mutationFn: async (payload: any) => {
       const token = localStorage.getItem('token');
+      
+      // Map detailedDescription to content for backend
+      const apiPayload = {
+        ...payload,
+        content: payload.detailedDescription || '',
+      };
+      delete apiPayload.detailedDescription;
+      
       const formData = new FormData();
-      Object.entries(payload).forEach(([k, v]) => formData.append(k, v as any));
+      Object.entries(apiPayload).forEach(([k, v]) => formData.append(k, v as any));
       if (files.image) formData.append('image', files.image);
 
       const url = editing ? `/api/admin/contests/${editing.id}` : '/api/admin/contests';
       const method = editing ? 'PUT' : 'POST';
+      console.log('📤 Sending contest payload, content length:', (apiPayload.content || '').toString().length);
       const res = await fetch(url, { method, body: formData, headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -103,8 +112,13 @@ export default function AdminContests() {
 
   const openEdit = (c: Contest) => {
     setEditing(c);
-    setForm({ title: c.title || '', imageUrl: c.imageUrl || '', isActive: !!c.isActive, // @ts-ignore
-      detailedDescription: c.detailedDescription || '' });
+    setForm({ 
+      title: c.title || '', 
+      imageUrl: c.imageUrl || '', 
+      isActive: !!c.isActive, 
+      // @ts-ignore - Map 'content' from DB to 'detailedDescription' in form
+      detailedDescription: (c as any).content || c.detailedDescription || ''
+    });
     setShowModal(true);
   };
 
@@ -126,8 +140,17 @@ export default function AdminContests() {
           <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
             {isLoading ? 'Refreshing...' : 'Refresh'}
           </Button>
-          <Button onClick={() => { setEditing(null); setForm({ title: '', imageUrl: '', isActive: true, // @ts-ignore
-            detailedDescription: '' }); setShowModal(true); }}>Add Contest</Button>
+          <Button onClick={() => { 
+            setEditing(null); 
+            setForm({ 
+              title: '', 
+              imageUrl: '', 
+              isActive: true, 
+              // @ts-ignore
+              detailedDescription: '' 
+            }); 
+            setShowModal(true); 
+          }}>Add Contest</Button>
         </div>
       </div>
 

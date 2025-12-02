@@ -53,36 +53,36 @@ const defaultQueryFn: QueryFunction = async ({ queryKey }) => {
 };
 
 /**
- * Optimized QueryClient for fast database loads
- * - Intelligent caching without page reload
- * - Different strategies for different data types
- * - No stale data shown without refetch
+ * Zero-cache QueryClient for instant real-time updates
+ * - No caching delays
+ * - Always fresh data
+ * - Instant CRUD operation reflection
  */
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: defaultQueryFn,
       
-      // Caching Strategy - balance fresh data with performance
-      staleTime: 2 * 60 * 1000, // 2 minutes - data stays fresh
-      gcTime: 10 * 60 * 1000, // 10 minutes - keep in memory cache
+      // Zero cache - always fetch fresh
+      staleTime: 0,
+      gcTime: 0,
       
-      // Smart refetch strategy - no unnecessary requests
-      refetchOnWindowFocus: 'stale', // Only if data is stale
-      refetchOnMount: 'stale', // Only if data is stale
-      refetchOnReconnect: 'stale', // Only if data is stale
-      refetchIntervalInBackground: false, // Don't drain resources
+      // Always refetch - no delays
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
+      refetchInterval: false,
       
-      // Retry on failure
-      retry: 2,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+      // Retry quickly
+      retry: 1,
+      retryDelay: 500,
       
-      // Show old data while refetching
+      // Always online mode
       networkMode: 'online',
     },
     mutations: {
-      retry: 1,
-      retryDelay: 1000,
+      retry: 0,
+      networkMode: 'online',
     },
   },
 });

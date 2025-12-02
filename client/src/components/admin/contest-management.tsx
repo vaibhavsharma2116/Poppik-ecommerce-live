@@ -191,6 +191,8 @@ export default function AdminContests() {
       return;
     }
 
+    console.log('💾 Saving contest, formData.content length:', formData.content.length, 'preview:', formData.content.substring(0, 50));
+
     setLoading(true);
     try {
       const url = editingId ? `/api/admin/contests/${editingId}` : "/api/admin/contests";
@@ -203,6 +205,8 @@ export default function AdminContests() {
         validFrom: formData.validFrom ? new Date(formData.validFrom + 'T00:00:00').toISOString() : null,
         validUntil: formData.validUntil ? new Date(formData.validUntil + 'T23:59:59').toISOString() : null,
       };
+
+      console.log('📤 Sending payload to', url, 'with content length:', payload.content.length);
 
       const response = await fetch(url, {
         method,
@@ -230,20 +234,40 @@ export default function AdminContests() {
     }
   };
 
-  const handleEditContest = (contest: Contest) => {
-    setFormData({
-      title: contest.title,
-      slug: contest.slug,
-      content: contest.content,
-      imageUrl: contest.imageUrl,
-      validFrom: contest.validFrom.split("T")[0],
-      validUntil: contest.validUntil.split("T")[0],
-      isActive: contest.isActive,
-      featured: contest.featured,
-    });
-    setImagePreview(contest.imageUrl);
-    setEditingId(contest.id);
-    setIsFormOpen(true);
+  const handleEditContest = async (contestIdOrObj: number | Contest) => {
+    try {
+      let contest: Contest | null = null as any;
+      if (typeof contestIdOrObj === 'number') {
+        const token = localStorage.getItem('token');
+        const resp = await fetch(`/api/admin/contests/${contestIdOrObj}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!resp.ok) {
+          console.error('Failed to fetch contest details for edit');
+          return;
+        }
+        contest = await resp.json();
+      } else {
+        contest = contestIdOrObj as Contest;
+      }
+
+      setFormData({
+        title: contest.title,
+        slug: contest.slug,
+        content: contest.content || '',
+        imageUrl: contest.imageUrl,
+        validFrom: contest.validFrom.split("T")[0],
+        validUntil: contest.validUntil.split("T")[0],
+        isActive: contest.isActive,
+        featured: contest.featured,
+      });
+      setImagePreview(contest.imageUrl);
+      setEditingId(contest.id);
+      setIsFormOpen(true);
+    } catch (error) {
+      console.error('Error while preparing contest edit:', error);
+      toast({ title: 'Error', description: 'Failed to load contest for editing', variant: 'destructive' });
+    }
   };
 
   const handleDeleteContest = async (id: number) => {
@@ -417,7 +441,10 @@ export default function AdminContests() {
                     <label className="block text-sm font-semibold mb-2 text-gray-700">Detailed Content *</label>
                     <RichTextEditor
                       content={formData.content}
-                      onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                      onChange={(content) => {
+                        console.log('🔔 RichTextEditor onChange fired, new content length:', content.length, 'preview:', content.substring(0, 50));
+                        setFormData(prev => ({ ...prev, content }));
+                      }}
                     />
                   </div>
 

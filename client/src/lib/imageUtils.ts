@@ -8,7 +8,7 @@ export interface ImageOptimizationOptions {
 }
 
 export function optimizeImageUrl(
-  originalUrl: string, 
+  originalUrl?: string, 
   options: ImageOptimizationOptions = {}
 ): string {
   const {
@@ -18,6 +18,11 @@ export function optimizeImageUrl(
     format = 'webp',
     fit = 'cover'
   } = options;
+
+  // Defensive: if no URL provided, return empty string
+  if (!originalUrl || typeof originalUrl !== 'string' || originalUrl.trim() === '') {
+    return '';
+  }
 
   // Handle Unsplash URLs with aggressive optimization
   if (originalUrl.includes('unsplash.com')) {
@@ -47,6 +52,9 @@ export function createResponsiveImageSet(
   originalUrl: string,
   baseWidth: number = 400
 ) {
+  if (!originalUrl) {
+    return { src: '', srcSet: '', sizes: '' };
+  }
   const sizes = getResponsiveImageSizes(baseWidth);
   
   return {

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -53,6 +53,12 @@ export default function RichTextEditor({ content, onChange, onPreview }: RichTex
   const [linkText, setLinkText] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const onChangeRef = useRef(onChange);
+
+  // Keep onChange ref in sync
+  React.useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const editor = useEditor({
     extensions: [
@@ -72,11 +78,22 @@ export default function RichTextEditor({ content, onChange, onPreview }: RichTex
         openOnClick: false,
       }),
     ],
-    content,
+    content: content || '<p></p>',
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      console.log('🔄 Editor updated, calling onChange with length:', html.length);
+      onChangeRef.current(html);
     },
   });
+
+  // Sync external content prop changes
+  React.useEffect(() => {
+    if (!editor) return;
+    if (content && content !== '<p></p>' && content !== editor.getHTML()) {
+      console.log('📌 Syncing content from prop, length:', content.length);
+      editor.commands.setContent(content, false);
+    }
+  }, [content, editor]);
 
   if (!editor) {
     return null;

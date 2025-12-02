@@ -634,26 +634,16 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
-  // Convenience aliases
-  app.post('/api/upload/image', upload.single('file'), async (req: any, res: any) => {
+  app.post('/api/upload/video', upload.single('video'), async (req: any, res: any) => {
     try {
-      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-      const fileUrl = `/uploads/${req.file.filename}`;
-      res.json({ url: fileUrl });
-    } catch (err) {
-      console.error('Error in /api/upload/image:', err);
-      res.status(500).json({ error: 'Upload failed' });
-    }
-  });
-
-  app.post('/api/upload/video', upload.single('file'), async (req: any, res: any) => {
-    try {
-      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-      const fileUrl = `/uploads/${req.file.filename}`;
-      res.json({ url: fileUrl });
+      if (!req.file) return res.status(400).json({ error: 'No video file uploaded' });
+      // Use the /api/images/ proxy path like other upload handlers
+      const videoUrl = `/api/images/${req.file.filename}`;
+      console.log('Video uploaded:', req.file.filename, '->', videoUrl);
+      res.json({ videoUrl });
     } catch (err) {
       console.error('Error in /api/upload/video:', err);
-      res.status(500).json({ error: 'Upload failed' });
+      res.status(500).json({ error: 'Upload failed', details: err?.message });
     }
   });
 
@@ -1994,11 +1984,8 @@ app.get("/api/admin/stores", async (req, res) => {
   app.get("/api/admin/combos", async (req, res) => {
     try {
       // Set aggressive no-cache headers to prevent any caching
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      res.setHeader('Surrogate-Control', 'no-store');
-      res.setHeader('X-Content-Type-Options', 'nosniff');
 
       const token = req.headers.authorization?.substring(7);
       if (!token) {
@@ -2359,6 +2346,9 @@ app.get("/api/admin/stores", async (req, res) => {
       // Handle video
       if (files?.video?.[0]) {
         updateData.videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.existingVideoUrl) {
+        // Preserve existing video URL if no new video is uploaded
+        updateData.videoUrl = req.body.existingVideoUrl;
       }
 
       if (req.body.title) updateData.title = req.body.title;
@@ -3333,7 +3323,23 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.json([]);
       }
 
-      res.json(allProducts);
+      // Fetch images for each product
+      const productsWithImages = await Promise.all(
+        allProducts.map(async (product) => {
+          const images = await db
+            .select()
+            .from(schema.productImages)
+            .where(eq(schema.productImages.productId, product.id))
+            .orderBy(asc(schema.productImages.sortOrder));
+          
+          return {
+            ...product,
+            images: images.map(img => img.imageUrl) || []
+          };
+        })
+      );
+
+      res.json(productsWithImages);
     } catch (error) {
       console.error("Error fetching products:", error);
       res.status(500).json({ error: "Failed to fetch products" });
@@ -8892,10 +8898,33 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
-  // Admin: create contest (accepts multipart/form-data with optional image)
-  app.post('/api/admin/contests', upload.single('image'), async (req, res) => {
+  // Admin: get single contest by id (returns full contest including rich content)
+  app.get('/api/admin/contests/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid contest id' });
+      const rows = await db.select().from(schema.contests).where(eq(schema.contests.id, id)).limit(1);
+      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Contest not found' });
+      res.json(rows[0]);
+    } catch (error) {
+      console.error('Error fetching admin contest by id:', error);
+      res.status(500).json({ error: 'Failed to fetch contest' });
+    }
+  });
+
+  // Admin: create contest (accepts JSON or multipart/form-data with optional image)
+  app.post('/api/admin/contests', (req, res, next) => {
+    // Only use multer for multipart/form-data, skip for JSON
+    const contentType = req.headers['content-type'] || '';
+    if (contentType.includes('multipart/form-data')) {
+      return upload.single('image')(req, res, next);
+    }
+    next();
+  }, async (req, res) => {
     try {
       const body = req.body || {};
+      console.log('📝 [POST /api/admin/contests] body keys:', Object.keys(body));
+      console.log('📝 [POST /api/admin/contests] body.content type:', typeof body.content, 'length:', (body.content || '').toString().length);
 
       // Support both JSON and multipart/form-data (when using FormData in client)
       const title = (body.title || '').toString().trim();
@@ -8918,7 +8947,7 @@ app.get("/api/admin/stores", async (req, res) => {
         title,
         slug,
         description: body.description ? body.description.toString() : null,
-        content: body.content ? body.content.toString() : '',
+        content: (body.content || body.detailedDescription) ? (body.content || body.detailedDescription).toString() : '',
         imageUrl,
         bannerImageUrl: body.bannerImageUrl ? body.bannerImageUrl.toString() : null,
         validFrom,
@@ -8929,7 +8958,9 @@ app.get("/api/admin/stores", async (req, res) => {
         updatedAt: new Date()
       };
 
+      console.log('📝 [POST] Saving contest with:', { title: contestData.title, contentLength: contestData.content.length, contentPreview: contestData.content.substring(0, 100) });
       const [newContest] = await db.insert(schema.contests).values(contestData).returning();
+      console.log('✅ [POST] Saved contest id:', newContest.id, 'content field exists:', !!newContest.content, 'length:', (newContest.content || '').toString().length);
       res.json(newContest);
     } catch (error) {
       console.error('Error creating contest:', error);
@@ -8937,18 +8968,28 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
-  // Admin: update contest (accepts multipart/form-data with optional image)
-  app.put('/api/admin/contests/:id', upload.single('image'), async (req, res) => {
+  // Admin: update contest (accepts JSON or multipart/form-data with optional image)
+  app.put('/api/admin/contests/:id', (req, res, next) => {
+    // Only use multer for multipart/form-data, skip for JSON
+    const contentType = req.headers['content-type'] || '';
+    if (contentType.includes('multipart/form-data')) {
+      return upload.single('image')(req, res, next);
+    }
+    next();
+  }, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const body = req.body || {};
+      console.log('📝 [PUT /api/admin/contests/:id] id:', id, 'body.content type:', typeof body.content, 'length:', (body.content || '').toString().length);
 
       const updateData: any = {};
 
       if (body.title !== undefined) updateData.title = body.title.toString();
       if (body.slug !== undefined) updateData.slug = body.slug.toString();
       if (body.description !== undefined) updateData.description = body.description ? body.description.toString() : null;
+      // Accept both 'content' and 'detailedDescription' for backwards compatibility
       if (body.content !== undefined) updateData.content = body.content ? body.content.toString() : '';
+      if (body.detailedDescription !== undefined && !body.content) updateData.content = body.detailedDescription ? body.detailedDescription.toString() : '';
 
       if (req.file) {
         updateData.imageUrl = `/api/images/${req.file.filename}`;
@@ -8968,8 +9009,10 @@ app.get("/api/admin/stores", async (req, res) => {
       // Remove undefined fields
       Object.keys(updateData).forEach(k => updateData[k] === undefined && delete updateData[k]);
 
+      console.log('📝 [PUT] Updating contest id:', id, 'updateData.content length:', (updateData.content || '').toString().length);
       const [updated] = await db.update(schema.contests).set(updateData).where(eq(schema.contests.id, id)).returning();
       if (!updated) return res.status(404).json({ error: 'Contest not found' });
+      console.log('✅ [PUT] Updated contest id:', updated.id, 'content length:', (updated.content || '').toString().length);
       res.json(updated);
     } catch (error) {
       console.error('Error updating contest:', error);
@@ -9190,7 +9233,9 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Handle image updates
       if (files?.images && files.images.length > 0) {
-        updateData.imageUrl = `/api/images/${files.images[0].filename}`;
+        // Ensure imageUrl is stored as an array (DB column is text[])
+        const firstUrl = `/api/images/${files.images[0].filename}`;
+        updateData.imageUrl = [firstUrl];
 
         // Delete existing images from combo_images table
         await db.delete(schema.comboImages).where(eq(schema.comboImages.comboId, id));
@@ -9208,7 +9253,21 @@ app.get("/api/admin/stores", async (req, res) => {
           })
         );
       } else if (req.body.imageUrl) {
-        updateData.imageUrl = req.body.imageUrl;
+        // Coerce imageUrl (may come as JSON string, comma-separated string, or array)
+        let imgVal: any = req.body.imageUrl;
+        if (typeof imgVal === 'string') {
+          // Try parse JSON first
+          try {
+            const parsed = JSON.parse(imgVal);
+            imgVal = parsed;
+          } catch (e) {
+            // Fallback: split comma-separated string
+            imgVal = imgVal.split(',').map((s: string) => s.trim()).filter(Boolean);
+          }
+        }
+
+        if (!Array.isArray(imgVal)) imgVal = [imgVal];
+        updateData.imageUrl = imgVal;
       }
 
       // Handle video upload
@@ -10723,15 +10782,45 @@ Poppik Affiliate Portal
         education: req.body.education || 'Bachelor\'s Degree',
         description: req.body.description || '',
         aboutRole: req.body.aboutRole || '',
-        responsibilities: Array.isArray(req.body.responsibilities) 
-          ? req.body.responsibilities 
-          : (typeof req.body.responsibilities === 'string' ? JSON.parse(req.body.responsibilities || '[]') : []),
-        requirements: Array.isArray(req.body.requirements) 
-          ? req.body.requirements 
-          : (typeof req.body.requirements === 'string' ? JSON.parse(req.body.requirements || '[]') : []),
-        skills: Array.isArray(req.body.skills) 
-          ? req.body.skills 
-          : (typeof req.body.skills === 'string' ? JSON.parse(req.body.skills || '[]') : []),
+        responsibilities: (() => {
+          const r = req.body.responsibilities;
+          if (Array.isArray(r)) return r;
+          if (typeof r === 'string') {
+            try {
+              const parsed = JSON.parse(r);
+              if (Array.isArray(parsed)) return parsed;
+            } catch (e) {
+              return [r];
+            }
+          }
+          return [];
+        })(),
+        requirements: (() => {
+          const r = req.body.requirements;
+          if (Array.isArray(r)) return r;
+          if (typeof r === 'string') {
+            try {
+              const parsed = JSON.parse(r);
+              if (Array.isArray(parsed)) return parsed;
+            } catch (e) {
+              return [r];
+            }
+          }
+          return [];
+        })(),
+        skills: (() => {
+          const s = req.body.skills;
+          if (Array.isArray(s)) return s;
+          if (typeof s === 'string') {
+            try {
+              const parsed = JSON.parse(s);
+              if (Array.isArray(parsed)) return parsed;
+            } catch (e) {
+              return [s];
+            }
+          }
+          return [];
+        })(),
         isActive: req.body.isActive !== undefined ? req.body.isActive : true,
         expiresAt,
         sortOrder: parseInt(req.body.sortOrder) || 0,

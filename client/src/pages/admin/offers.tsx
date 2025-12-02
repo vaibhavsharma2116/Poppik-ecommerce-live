@@ -51,6 +51,7 @@ interface Offer {
   productsIncluded?: string; // Added productsIncluded
   benefits?: string; // Added benefits
   additionalImageUrls?: string[]; // To store URLs of additional images
+  images?: string[]; // To store URLs of additional images
   videoUrl?: string; // To store URL of the video
   bannerImages?: string[]; // To store URLs of banner images
 }
@@ -465,6 +466,9 @@ export default function AdminOffers() {
     // Add video if present
     if (videoFile) {
       formDataToSend.append('video', videoFile);
+    } else if (editingOffer && editingOffer.videoUrl) {
+      // Preserve existing video URL when editing without uploading a new one
+      formDataToSend.append('existingVideoUrl', editingOffer.videoUrl);
     }
 
 
@@ -581,6 +585,13 @@ export default function AdminOffers() {
       setExistingAdditionalImages(offer.images);
     } else {
       setExistingAdditionalImages([]);
+    }
+    
+    // Load existing video if present
+    if (offer.videoUrl) {
+      setVideoPreview(offer.videoUrl);
+    } else {
+      setVideoPreview('');
     }
     
     setIsCreateDialogOpen(true);
