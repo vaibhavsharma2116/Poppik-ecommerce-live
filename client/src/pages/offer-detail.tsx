@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import ProductCard from "@/components/product-card";
 
 interface Offer {
   id: number;
@@ -479,6 +481,7 @@ export default function OfferDetail() {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [productShadesData, setProductShadesData] = useState<Record<number, Shade[]>>({});
   const [selectedShades, setSelectedShades] = useState<Record<number, string | null>>({});
+  const [selectedShadeImages, setSelectedShadeImages] = useState<Record<number, string | null>>({});
   const [shadeSelectorOpen, setShadeSelectorOpen] = useState<number | null>(null);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string>("");
@@ -490,6 +493,7 @@ export default function OfferDetail() {
   });
   const [canReview, setCanReview] = useState<{ canReview: boolean; orderId?: number; message: string }>({ canReview: false, message: "" });
   const [isInWishlist, setIsInWishlist] = useState(false);
+
   const { toast } = useToast();
 
   const { data: offer, isLoading, error } = useQuery<any>({
@@ -572,6 +576,10 @@ export default function OfferDetail() {
     }
   }, [offer?.id]);
 
+  // Load recommended products
+  const { data: recommendedProducts = [] } = useQuery<any[]>({
+    queryKey: ['/api/products', { limit: 12 }],
+  });
   // Check if offer is in wishlist on component mount
   useEffect(() => {
     if (offer?.id) {
@@ -767,6 +775,19 @@ export default function OfferDetail() {
 
   const handleShadeChange = (productId: number, shade: string | null) => {
     setSelectedShades((prev) => ({ ...prev, [productId]: shade }));
+    
+    // Find and set the shade image
+    if (shade) {
+      const shades = productShadesData[productId] || [];
+      const selectedShade = shades.find((s) => s.name === shade);
+      if (selectedShade?.imageUrl) {
+        setSelectedShadeImages((prev) => ({ ...prev, [productId]: selectedShade.imageUrl || null }));
+        // Update main image to show the shade image
+        setSelectedImage(selectedShade.imageUrl);
+      }
+    } else {
+      setSelectedShadeImages((prev) => ({ ...prev, [productId]: null }));
+    }
   };
 
   const handleAddAllToCart = async () => {
@@ -1436,17 +1457,7 @@ export default function OfferDetail() {
 
         {/* Customer Reviews Section */}
         <div className="bg-white/70 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/20 mb-8 sm:mb-12 md:mb-16">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-3xl font-bold">Customer Reviews</h2>
-            {canReview.canReview && (
-              <Button
-                onClick={() => setShowReviewDialog(true)}
-                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-              >
-                Write a Review
-              </Button>
-            )}
-          </div>
+         
           {!canReview.canReview && canReview.message && (
             <div className="bg-gray-100 border border-gray-200 rounded-lg p-4 mb-4 text-center">
               <p className="text-gray-600">{canReview.message}</p>
@@ -1629,6 +1640,92 @@ export default function OfferDetail() {
           </div>
         </DialogContent>
       </Dialog>
+        <section className="mt-12 sm:mt-16">
+                <div className="mb-6 sm:mb-8">
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                    You May Also Like
+                  </h2>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Complete your beauty routine with these products
+                  </p>
+                </div>
+      
+                {recommendedProducts.length === 0 ? (
+                  <>
+                    {/* Mobile: Loading Skeleton */}
+                    <div className="block md:hidden">
+                      <div className="overflow-x-auto scrollbar-hide pb-4">
+                        <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
+                          {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ width: '160px', flexShrink: 0 }}>
+                              <Skeleton className="aspect-square w-full" />
+                              <div className="p-3 space-y-2">
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-4 w-3/4" />
+                                <Skeleton className="h-6 w-1/2" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+      
+                    {/* Desktop: Loading Skeleton */}
+                    <div className="hidden md:block">
+                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-8">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                            <Skeleton className="aspect-square w-full" />
+                            <div className="p-3 space-y-2">
+                              <Skeleton className="h-4 w-full" />
+                              <Skeleton className="h-4 w-3/4" />
+                              <Skeleton className="h-6 w-1/2" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Mobile: 2 Column Grid with Horizontal Scroll */}
+                    <div className="block md:hidden">
+                      <div className="overflow-x-auto scrollbar-hide pb-4">
+                        <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
+                          {(Array.isArray(recommendedProducts) ? recommendedProducts : []).map((product: any) => (
+                            <div key={product.id} style={{ width: '160px', flexShrink: 0 }}>
+                              <ProductCard product={product} className="h-full" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+      
+                    {/* Desktop: Carousel */}
+                    <div className="hidden md:block">
+                      <div className="relative px-4 sm:px-8">
+                        <Carousel
+                          opts={{
+                            align: "start",
+                            loop: true,
+                          }}
+                          className="w-full"
+                        >
+                          <CarouselContent className="-ml-2 md:-ml-4">
+                            {(Array.isArray(recommendedProducts) ? recommendedProducts : []).map((product: any) => (
+                              <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+                                <ProductCard product={product} />
+                              </CarouselItem>
+                            ))}
+                          </CarouselContent>
+                          <CarouselPrevious className="hidden sm:flex -left-4" />
+                          <CarouselNext className="hidden sm:flex -right-4" />
+                        </Carousel>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </section>
     </div>
   );
 }

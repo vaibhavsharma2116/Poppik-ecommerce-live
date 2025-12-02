@@ -255,6 +255,23 @@ export default function ProductDetail() {
 
   const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
 
+  // Get all displayable images including selected shade images
+  const allDisplayableImages = useMemo(() => {
+    const urls: string[] = [];
+    
+    // Add product images first
+    urls.push(...imageUrls);
+    
+    // Add selected shade images
+    selectedShades.forEach(shade => {
+      if (shade.imageUrl && !urls.includes(shade.imageUrl)) {
+        urls.push(shade.imageUrl);
+      }
+    });
+    
+    return urls;
+  }, [imageUrls, selectedShades]);
+
   // Helper: detect base64/data URLs
   const isBase64Image = (u?: string) => {
     if (!u) return false;
@@ -668,29 +685,45 @@ export default function ProductDetail() {
 
     if (isSelected) {
       // Remove shade from selection
-      setSelectedShades(selectedShades.filter(s => s.id !== shade.id));
+      const remainingShades = selectedShades.filter(s => s.id !== shade.id);
+      setSelectedShades(remainingShades);
 
-      // If removing last shade, revert to main product image
-      if (selectedShades.length === 1 && imageUrls.length > 0) {
+      // If there are remaining shades, show the first remaining shade's image
+      if (remainingShades.length > 0 && remainingShades[0].imageUrl) {
+        setSelectedImageUrl(remainingShades[0].imageUrl);
+        (window as any).isDisplayingShadeImage = true;
+      } else if (remainingShades.length === 0 && imageUrls.length > 0) {
+        // If no shades left, revert to main product image
         setSelectedImageUrl(imageUrls[0]);
+        (window as any).isDisplayingShadeImage = false;
       }
 
-      // Update URL to remove shade parameter
-      const newUrl = new URL(window.location);
-      newUrl.searchParams.delete('shade');
+      // Update URL - only keep shade param if shades remain
+      const newUrl = new URL(window.location.toString());
+      if (remainingShades.length > 0) {
+        newUrl.searchParams.set('shade', remainingShades[0].id.toString());
+      } else {
+        newUrl.searchParams.delete('shade');
+      }
       window.history.replaceState({}, '', newUrl.toString());
     } else {
       // Add shade to selection
       const newShades = [...selectedShades, shade];
       setSelectedShades(newShades);
 
-      // Set the newly selected shade's image
+      // Set the newly selected shade's image - PRIORITY: shade image > product image
       if (shade.imageUrl) {
         setSelectedImageUrl(shade.imageUrl);
+        // Mark that we're displaying a shade image (not in imageUrls array)
+        (window as any).isDisplayingShadeImage = true;
+      } else if (imageUrls.length > 0) {
+        // Fallback to first product image if shade doesn't have an image
+        setSelectedImageUrl(imageUrls[0]);
+        (window as any).isDisplayingShadeImage = false;
       }
 
       // Update URL to include shade parameter
-      const newUrl = new URL(window.location);
+      const newUrl = new URL(window.location.toString());
       newUrl.searchParams.set('shade', shade.id.toString());
       window.history.replaceState({}, '', newUrl.toString());
     }
@@ -885,14 +918,19 @@ export default function ProductDetail() {
 
   // Optimize image selection effect
   useEffect(() => {
-    if (imageUrls.length > 0 && !selectedImageUrl) {
-      setSelectedImageUrl(imageUrls[0]);
+    // Use all displayable images (product + shade images)
+    const displayableImages = allDisplayableImages.length > 0 ? allDisplayableImages : imageUrls;
+    
+    if (displayableImages.length > 0 && !selectedImageUrl) {
+      setSelectedImageUrl(displayableImages[0]);
     }
-    // Reset selectedImageUrl if the current one is no longer in the list of available images
-    if (selectedImageUrl && !imageUrls.includes(selectedImageUrl)) {
-      setSelectedImageUrl(imageUrls.length > 0 ? imageUrls[0] : '');
+    // Allow selectedImageUrl to be anything in displayable images or shade images
+    // This prevents resetting when a shade image is selected
+    if (selectedImageUrl && !allDisplayableImages.includes(selectedImageUrl) && !imageUrls.includes(selectedImageUrl)) {
+      // Only reset if it's not a valid image at all
+      setSelectedImageUrl(displayableImages.length > 0 ? displayableImages[0] : '');
     }
-  }, [imageUrls, selectedImageUrl]);
+  }, [imageUrls, allDisplayableImages, selectedImageUrl]);
 
 
   if (!productSlug) {
@@ -1025,7 +1063,7 @@ export default function ProductDetail() {
                     {/* Vertical Layout: Thumbnails on Left, Main Image on Right */}
                     <div className="flex gap-4">
                       {/* Thumbnail Column - Swipeable Vertical Carousel */}
-                      {imageUrls.length > 1 && (
+                      {allDisplayableImages.length > 1 && (
                         <div className="w-20 flex-shrink-0 relative">
                           <div
                             className="h-80 overflow-hidden scroll-smooth"
@@ -1074,24 +1112,24 @@ export default function ProductDetail() {
                                     visibleIndex = 0;
                                   } else if (isAtBottom) {
                                     // If at bottom, select last image
-                                    visibleIndex = imageUrls.length - 1;
+                                    visibleIndex = allDisplayableImages.length - 1;
                                   } else {
                                     // Calculate middle visible item with better accuracy
                                     const scrollCenter = scrollTop + (clientHeight / 2);
                                     visibleIndex = Math.min(
                                       Math.max(0, Math.round(scrollCenter / itemHeight)),
-                                      imageUrls.length - 1
+                                      allDisplayableImages.length - 1
                                     );
                                   }
 
                                   // Auto-select image based on scroll position only if not manually clicked
-                                  if (imageUrls[visibleIndex] && imageUrls[visibleIndex] !== selectedImageUrl) {
-                                    setSelectedImageUrl(imageUrls[visibleIndex]);
+                                  if (allDisplayableImages[visibleIndex] && allDisplayableImages[visibleIndex] !== selectedImageUrl) {
+                                    setSelectedImageUrl(allDisplayableImages[visibleIndex]);
                                   }
                                 }, 150); // 150ms debounce
                               }}
                             >
-                              {imageUrls.map((imageUrl, index) => {
+                              {allDisplayableImages.map((imageUrl, index) => {
                                 // Better video detection
                                 const isVideo = imageUrl?.endsWith('.mp4') ||
                                   imageUrl?.endsWith('.webm') ||
@@ -1195,7 +1233,7 @@ export default function ProductDetail() {
                           </div>
 
                           {/* Navigation Arrows for Better UX */}
-                          {imageUrls.length > 3 && (
+                          {allDisplayableImages.length > 3 && (
                             <>
                               <button
                                 onClick={(e) => {
@@ -1204,11 +1242,11 @@ export default function ProductDetail() {
                                   // Set flag to prevent scroll handler interference
                                   (window as any).thumbnailClickInProgress = true;
 
-                                  const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
+                                  const currentIndex = allDisplayableImages.findIndex(img => img === selectedImageUrl);
 
                                   // Circular navigation - if on first image, go to last
-                                  const prevIndex = currentIndex <= 0 ? imageUrls.length - 1 : currentIndex - 1;
-                                  setSelectedImageUrl(imageUrls[prevIndex]);
+                                  const prevIndex = currentIndex <= 0 ? allDisplayableImages.length - 1 : currentIndex - 1;
+                                  setSelectedImageUrl(allDisplayableImages[prevIndex]);
 
                                   const container = document.getElementById('thumbnail-container');
                                   if (container) {
@@ -1249,20 +1287,20 @@ export default function ProductDetail() {
                                   // Set flag to prevent scroll handler interference
                                   (window as any).thumbnailClickInProgress = true;
 
-                                  const currentIndex = imageUrls.findIndex(img => img === selectedImageUrl);
+                                  const currentIndex = allDisplayableImages.findIndex(img => img === selectedImageUrl);
 
                                   // Circular navigation - if on last image, go to first
-                                  const nextIndex = currentIndex >= imageUrls.length - 1 ? 0 : currentIndex + 1;
+                                  const nextIndex = currentIndex >= allDisplayableImages.length - 1 ? 0 : currentIndex + 1;
                                   const container = document.getElementById('thumbnail-container');
 
                                   if (container) {
-                                    if (currentIndex >= imageUrls.length - 1) {
+                                    if (currentIndex >= allDisplayableImages.length - 1) {
                                       // Going to first image - scroll to top
                                       container.scrollTo({
                                         top: 0,
                                         behavior: 'smooth'
                                       });
-                                    } else if (nextIndex === imageUrls.length - 1) {
+                                    } else if (nextIndex === allDisplayableImages.length - 1) {
                                       // Going to last image - scroll to bottom
                                       container.scrollTo({
                                         top: container.scrollHeight,
@@ -1277,7 +1315,7 @@ export default function ProductDetail() {
 
                                     // Set image after a small delay to sync with scroll
                                     setTimeout(() => {
-                                      setSelectedImageUrl(imageUrls[nextIndex]);
+                                      setSelectedImageUrl(allDisplayableImages[nextIndex]);
 
                                       // Clear flag after complete
                                       setTimeout(() => {
@@ -1285,7 +1323,7 @@ export default function ProductDetail() {
                                       }, 400);
                                     }, 100);
                                   } else {
-                                    setSelectedImageUrl(imageUrls[nextIndex]);
+                                    setSelectedImageUrl(allDisplayableImages[nextIndex]);
                                     setTimeout(() => {
                                       (window as any).thumbnailClickInProgress = false;
                                     }, 100);
@@ -1305,8 +1343,8 @@ export default function ProductDetail() {
                             <div
                               className="w-full bg-purple-500 rounded-full transition-all duration-300"
                               style={{
-                                height: `${Math.min(100, (3 / imageUrls.length) * 100)}%`,
-                                transform: `translateY(${(imageUrls.findIndex(img => img === selectedImageUrl) / Math.max(1, imageUrls.length - 3)) * (64 - Math.min(64, (3 / imageUrls.length) * 64))}px)`
+                                height: `${Math.min(100, (3 / allDisplayableImages.length) * 100)}%`,
+                                transform: `translateY(${(allDisplayableImages.findIndex(img => img === selectedImageUrl) / Math.max(1, allDisplayableImages.length - 3)) * (64 - Math.min(64, (3 / allDisplayableImages.length) * 64))}px)`
                               }}
                             ></div>
                           </div>
@@ -1470,9 +1508,9 @@ export default function ProductDetail() {
                     </div>
 
                     {/* Image Count Indicator */}
-                    {imageUrls.length > 1 && (
+                    {allDisplayableImages.length > 1 && (
                       <div className="text-center text-sm text-gray-500">
-                        {imageUrls.findIndex(img => img === selectedImageUrl) + 1} of {imageUrls.length} images
+                        {allDisplayableImages.findIndex(img => img === selectedImageUrl) + 1} of {allDisplayableImages.length} images
                       </div>
                     )}
                   </div>
@@ -1512,59 +1550,7 @@ export default function ProductDetail() {
                     <span className="text-sm sm:text-base text-gray-600 font-medium">({product.reviewCount !== undefined && product.reviewCount !== null ? product.reviewCount.toLocaleString() : ""} reviews)</span>
                   </div>
 
-                  {/* Shade Selection - Only show if product has shades */}
-                  {shades.length > 0 && (
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-3">
-                        <Label className="text-base font-bold text-gray-900">
-                          Select Shades: {selectedShades.length > 0 ? `${selectedShades.length} selected` : 'No shades selected'}
-                        </Label>
-                      </div>
-                      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
-                        {(showAllShades ? shades : shades.slice(0, 6)).map((shade) => {
-                          const isSelected = selectedShades.some(s => s.id === shade.id);
-                          return (
-                            <div
-                              key={shade.id}
-                              onClick={() => toggleShade(shade)}
-                              className={`cursor-pointer rounded-xl p-3 transition-all duration-200 ${
-                                isSelected
-                                  ? 'ring-2 ring-purple-500 ring-offset-2 shadow-lg scale-105'
-                                  : 'hover:ring-2 hover:ring-gray-300 hover:shadow-md'
-                              }`}
-                            >
-                              <div
-                                className="w-full aspect-square rounded-lg mb-2 border-2"
-                                style={{
-                                  backgroundColor: shade.colorCode,
-                                  borderColor: isSelected ? '#a855f7' : '#e5e7eb'
-                                }}
-                              />
-                              <p className="text-xs text-center font-medium text-gray-700 line-clamp-2">
-                                {shade.name}
-                              </p>
-                              {isSelected && (
-                                <div className="text-center mt-1">
-                                  <Badge className="bg-purple-500 text-white text-xs px-2 py-0.5">
-                                    ✓
-                                  </Badge>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {shades.length > 6 && (
-                        <Button
-                          variant="ghost"
-                          onClick={() => setShowAllShades(!showAllShades)}
-                          className="mt-3 text-purple-600 hover:text-purple-700"
-                        >
-                          {showAllShades ? 'Show Less' : `Show All ${shades.length} Shades`}
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  {/* Shades preview (compact) removed — use circular selector below */}
 
                   {/* Size */}
                   {product.size && (
@@ -1574,7 +1560,7 @@ export default function ProductDetail() {
                     </div>
                   )}
 
-                  {/* Shades Selection - Only show if product has shades */}
+                  {/* Shades Selection - Only show if product has shades (grouped by series/collection) */}
                   {shades.length > 0 && (
                     <div className="space-y-4 mb-6">
                       <div className="flex items-center justify-between">
@@ -1598,58 +1584,86 @@ export default function ProductDetail() {
                           </button>
                         )}
                       </div>
-                      <div className="grid grid-cols-5 gap-3">
-                        {(() => {
-                          const shadesToShow = showAllShades ? shades : shades.slice(0, 5);
 
-                          return shadesToShow.map((shade) => {
-                            const isSelected = selectedShades.some(s => s.id === shade.id);
-                            return (
-                              <div
-                                key={shade.value}
-                                className="flex flex-col items-center group cursor-pointer"
-                                onClick={() => handleShadeSelect(shade)}
-                              >
-                                <div className="relative">
-                                  {isSelected && (
-                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center z-10 shadow-lg">
-                                      <CheckCircle className="w-3 h-3 text-white" />
-                                    </div>
-                                  )}
-                                  {shade.imageUrl ? (
-                                    <img
-                                      src={shade.imageUrl}
-                                      alt={shade.name}
-                                      className={`w-12 h-12 rounded-full border-3 object-cover transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${isSelected
-                                          ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
-                                          : 'border-gray-300 hover:border-purple-400'
-                                        }`}
-                                      title={shade.name}
-                                    />
-                                  ) : (
+                      {(() => {
+                        // Group shades by `series` or `collection` or fallback to 'Default'
+                        const groupsMap = new Map();
+                        shades.forEach((s: any) => {
+                          const key = s.series || s.collection || 'Default';
+                          if (!groupsMap.has(key)) groupsMap.set(key, []);
+                          groupsMap.get(key).push(s);
+                        });
+
+                        // Preserve sort order inside each group if sortOrder exists
+                        const groups = Array.from(groupsMap.entries()).map(([series, list]) => ({
+                          series,
+                          list: (list as any[]).slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+                        }));
+
+                        // Flattened shades for showAll / collapsed logic
+                        const flattened = groups.flatMap(g => g.list);
+                        const shadesToShowFlat = showAllShades ? flattened : flattened.slice(0, 5);
+
+                        return groups.map((g: any) => {
+                          // Only render group if it has at least one shade in the current visible set
+                          const visibleShades = g.list.filter((s: any) => shadesToShowFlat.some((ss: any) => ss.id === s.id));
+                          if (visibleShades.length === 0) return null;
+
+                          return (
+                            <div key={g.series} className="mb-4">
+                              <div className="text-sm font-semibold text-gray-700 mb-2">{g.series}</div>
+                              <div className="grid grid-cols-5 gap-3">
+                                {visibleShades.map((shade: any) => {
+                                  const isSelected = selectedShades.some((s: any) => s.id === shade.id);
+                                  return (
                                     <div
-                                      className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${isSelected
-                                          ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
-                                          : 'border-gray-300 hover:border-purple-400'
-                                        }`}
-                                      style={{ backgroundColor: shade.colorCode }}
-                                      title={shade.name}
-                                    ></div>
-                                  )}
-                                </div>
-                                <span className={`text-xs mt-2 text-center leading-tight transition-colors ${isSelected
-                                    ? 'text-purple-700 font-semibold'
-                                    : 'text-gray-600 group-hover:text-purple-600'
-                                  }`}>
-                                  {shade.name.split(' ').slice(0, 2).join(' ')}
-                                </span>
+                                      key={shade.value}
+                                      className="flex flex-col items-center group cursor-pointer"
+                                      onClick={() => handleShadeSelect(shade)}
+                                    >
+                                      <div className="relative">
+                                        {isSelected && (
+                                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center z-10 shadow-lg">
+                                            <CheckCircle className="w-3 h-3 text-white" />
+                                          </div>
+                                        )}
+                                        {shade.imageUrl ? (
+                                          <img
+                                            src={shade.imageUrl}
+                                            alt={shade.name}
+                                            className={`w-12 h-12 rounded-full border-3 object-cover transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${isSelected
+                                                ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
+                                                : 'border-gray-300 hover:border-purple-400'
+                                              }`}
+                                            title={shade.name}
+                                          />
+                                        ) : (
+                                          <div
+                                            className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${isSelected
+                                                ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
+                                                : 'border-gray-300 hover:border-purple-400'
+                                              }`}
+                                            style={{ backgroundColor: shade.colorCode }}
+                                            title={shade.name}
+                                          ></div>
+                                        )}
+                                      </div>
+                                      <span className={`text-xs mt-2 text-center leading-tight transition-colors ${isSelected
+                                          ? 'text-purple-700 font-semibold'
+                                          : 'text-gray-600 group-hover:text-purple-600'
+                                        }`}>
+                                        {shade.name.split(' ').slice(0, 2).join(' ')}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            );
-                          });
-                        })()}
-                      </div>
+                            </div>
+                          );
+                        });
+                      })()}
 
-                      {/* View All Button */}
+                      {/* View All / Show Less Button (based on flattened count) */}
                       {!showAllShades && shades.length > 5 && (
                         <div className="text-center">
                           <Button
@@ -1664,7 +1678,6 @@ export default function ProductDetail() {
                         </div>
                       )}
 
-                      {/* Show Less Button */}
                       {showAllShades && shades.length > 5 && (
                         <div className="text-center">
                           <Button

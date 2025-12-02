@@ -47,6 +47,10 @@ const RATE_LIMIT_WINDOW = 60000; // 1 minute
 const RATE_LIMIT_MAX = 100; // 100 requests per minute
 const ADMIN_RATE_LIMIT_MAX = 1000; // 1000 requests per minute for admin
 
+// Simple in-memory cache for product shades to reduce DB/load and avoid
+// repeated computations on hot product pages. Entries expire after a short TTL.
+const shadesCache: Map<string, { expires: number; data: any }> = new Map();
+
 function rateLimit(req: any, res: any, next: any) {
   // Use higher limit for admin routes
   const isAdminRoute = req.path.startsWith('/admin/');
@@ -387,6 +391,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (req.path.startsWith('/admin/')) {
       return next();
     }
+    // Exempt product shades endpoint from the global rate limiter because
+    // client code may request shades frequently while rendering product pages.
+    // This prevents 429s for `/api/products/:productId/shades` while keeping
+    // rate limiting for other endpoints.
+    try {
+      if (req.method === 'GET' && /^\/products\/\d+\/shades\/?$/.test(req.path)) {
+        return next();
+      }
+    } catch (e) {
+      // If any error occurs while testing the path, fall back to rate limiting.
+      console.warn('Error checking shade path exemption:', e);
+    }
+
     return rateLimit(req, res, next);
   });
 
@@ -7925,6 +7942,14 @@ app.get("/api/admin/stores", async (req, res) => {
       const shade = await storage.createShade(shadeData);
       console.log("Shade created successfully:", shade);
 
+      // Invalidate shades cache so front-end sees updates immediately
+      try {
+        shadesCache.clear();
+        console.log('Cleared shades cache after creating a shade');
+      } catch (e) {
+        console.warn('Failed to clear shades cache after create:', e);
+      }
+
       res.status(201).json(shade);
     } catch (error) {
       console.error("Error creating shade:", error);
@@ -7969,6 +7994,13 @@ app.get("/api/admin/stores", async (req, res) => {
       });
 
       console.log("Shade updated successfully:", shade);
+      try {
+        shadesCache.clear();
+        console.log('Cleared shades cache after updating a shade');
+      } catch (e) {
+        console.warn('Failed to clear shades cache after update:', e);
+      }
+
       res.json(shade);
     } catch (error) {
       console.error("Error updating shade:", error);
@@ -7995,6 +8027,12 @@ app.get("/api/admin/stores", async (req, res) => {
       const success = await storage.deleteShade(parseInt(id));
       if (!success) {
         return res.status(404).json({ error: "Shade not found" });
+      }
+      try {
+        shadesCache.clear();
+        console.log('Cleared shades cache after deleting a shade');
+      } catch (e) {
+        console.warn('Failed to clear shades cache after delete:', e);
       }
       res.json({ success: true });
     } catch (error) {
@@ -11085,6 +11123,7 @@ app.get('/api/influencer-videos', async (req, res) => {
         rating: t.rating,
         content: t.reviewText,
         isActive: t.isActive,
+        instagramUrl: t.instagramUrl,
         createdAt: t.createdAt,
       }));
       res.json(formattedTestimonials);
@@ -11360,6 +11399,18 @@ app.get('/api/influencer-videos', async (req, res) => {
       const { productId } = req.params;
       console.log("Fetching shades for product:", productId);
 
+      // Check short-lived cache first
+      try {
+        const cacheKey = `productShades:${productId}`;
+        const cached = shadesCache.get(cacheKey);
+        if (cached && cached.expires > Date.now()) {
+          console.log(`Serving product ${productId} shades from cache`);
+          return res.json(cached.data);
+        }
+      } catch (e) {
+        console.warn('Error reading shades cache:', e);
+      }
+
       // Fetch all active shades with associations
       const allShades = await storage.getActiveShadesWithAssociations();
       console.log("Total active shades found:", allShades.length);
@@ -11374,6 +11425,13 @@ app.get('/api/influencer-videos', async (req, res) => {
       });
 
       console.log(`Found ${applicableShades.length} shades for product ${productId}`);
+      try {
+        const cacheKey = `productShades:${productId}`;
+        // Cache for 30 seconds
+        shadesCache.set(cacheKey, { expires: Date.now() + 30 * 1000, data: applicableShades });
+      } catch (e) {
+        console.warn('Error setting shades cache:', e);
+      }
       res.json(applicableShades);
     } catch (error) {
       console.error("Error fetching product shades:", error);

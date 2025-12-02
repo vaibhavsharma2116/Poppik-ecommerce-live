@@ -241,7 +241,19 @@ export default function HomePage() {
     Category[]
   >({
     queryKey: ["/api/categories"],
+    // Normalize backend response so `categories` is always an array
+    select: (data: any) => {
+      if (!data) return [];
+      if (Array.isArray(data)) return data;
+      // Some APIs wrap payload in { data: [...] } or { categories: [...] }
+      if (Array.isArray(data.data)) return data.data;
+      if (Array.isArray(data.categories)) return data.categories;
+      // If it's an object map, return values
+      if (typeof data === 'object') return Object.values(data);
+      return [];
+    },
   });
+
 
   const { data: bestsellerProducts, isLoading: bestsellersLoading } = useQuery<
     Product[]

@@ -235,6 +235,31 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     return null;
   }
 
+  // Helper to resolve product primary image from multiple shapes
+  const getPrimaryImage = (p: any, smallFallback = false) => {
+    const fallback = smallFallback
+      ? 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60'
+      : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
+
+    if (!p) return fallback;
+
+    // If images is array of strings (server returns imageUrl strings)
+    if (p.images && Array.isArray(p.images) && p.images.length > 0) {
+      const first = p.images[0];
+      if (!first) return fallback;
+      if (typeof first === 'string') return first;
+      // first might be object like { url: '', imageUrl: '' }
+      return first.url || first.imageUrl || String(first) || fallback;
+    }
+
+    // Common alternate fields
+    if (p.imageUrl) return p.imageUrl;
+    if (p.image) return p.image;
+    if (p.thumbnail) return p.thumbnail;
+
+    return fallback;
+  };
+
   if (viewMode === 'list') {
     return (
       <div 
@@ -251,16 +276,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <Link href={`/product/${product.slug}`}>
             <div className="relative overflow-hidden bg-gradient-to-br from-pink-50 to-purple-50 h-48 rounded-lg">
               <LazyImage
-                src={(() => {
-                  // Handle new images array format
-                  if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-                    const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                    return imageUrl;
-                  } else if (product.imageUrl) {
-                    return product.imageUrl;
-                  }
-                  return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
-                })()}
+                src={getPrimaryImage(product)}
                 alt={product.name}
                 width={400}
                 height={400}
@@ -431,16 +447,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         <Link href={`/product/${product.slug}`}>
           <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
             <LazyImage
-              src={(() => {
-                // Handle new images array format
-                if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-                  const imageUrl = product.images[0].url || product.images[0].imageUrl;
-                  return imageUrl;
-                } else if (product.imageUrl) {
-                  return product.imageUrl;
-                }
-                return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60';
-              })()}
+              src={getPrimaryImage(product, true)}
               alt={product.name}
               width={200}
               height={200}
@@ -568,15 +575,11 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             {/* Product Image - Dynamic based on selected shade */}
             <div className="relative bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg overflow-hidden aspect-square transition-all duration-300">
               <img
-                src={(() => {
-                  if (selectedShades.length > 0 && selectedShades[0].imageUrl) {
-                    return selectedShades[0].imageUrl;
-                  }
-                  if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-                    return product.images[0].url || product.images[0].imageUrl;
-                  }
-                  return product.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
-                })()}
+                src={
+                  selectedShades.length > 0 && selectedShades[0].imageUrl
+                    ? selectedShades[0].imageUrl
+                    : getPrimaryImage(product)
+                }
                 alt={selectedShades.length > 0 ? selectedShades[0].name : product.name}
                 className="w-full h-full object-contain transition-opacity duration-300"
                 loading="lazy"

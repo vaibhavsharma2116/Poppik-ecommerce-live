@@ -1142,7 +1142,11 @@ export default function AdminProducts() {
                 <div className="flex-1 space-y-4">
                   <div>
                     <h3 className="text-2xl font-bold text-slate-900 mb-2">{selectedProduct.name}</h3>
-                    <p className="text-slate-600 mb-4">{selectedProduct.description}</p>
+                    {(selectedProduct.description && typeof selectedProduct.description === 'string' && selectedProduct.description.includes('<')) ? (
+                      <div className="text-slate-600 mb-4 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: selectedProduct.description }} />
+                    ) : (
+                      <p className="text-slate-600 mb-4">{selectedProduct.description}</p>
+                    )}
                     <div className="flex items-center gap-3">
                       <Badge variant="outline" className="text-sm px-3 py-1">
                         {selectedProduct.category}
@@ -1217,13 +1221,21 @@ export default function AdminProducts() {
                 {selectedProduct.benefits && (
                   <div>
                     <Label className="text-sm font-semibold text-slate-600">Benefits</Label>
-                    <p className="text-slate-700 mt-1">{selectedProduct.benefits}</p>
+                    {typeof selectedProduct.benefits === 'string' && selectedProduct.benefits.includes('<') ? (
+                      <div className="text-slate-700 mt-1 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: selectedProduct.benefits }} />
+                    ) : (
+                      <p className="text-slate-700 mt-1">{selectedProduct.benefits}</p>
+                    )}
                   </div>
                 )}
                 {selectedProduct.howToUse && (
                   <div className="lg:col-span-2">
                     <Label className="text-sm font-semibold text-slate-600">How to Use</Label>
-                    <p className="text-slate-700 mt-1">{selectedProduct.howToUse}</p>
+                    {typeof selectedProduct.howToUse === 'string' && selectedProduct.howToUse.includes('<') ? (
+                      <div className="text-slate-700 mt-1 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: selectedProduct.howToUse }} />
+                    ) : (
+                      <p className="text-slate-700 mt-1">{selectedProduct.howToUse}</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1515,7 +1527,7 @@ export default function AdminProducts() {
               </div>
 
               {/* Product Shades */}
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <Label>Product Shades (Optional)</Label>
                 <p className="text-sm text-gray-500">Select shades available for this product</p>
                 <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
@@ -1550,7 +1562,7 @@ export default function AdminProducts() {
                     <p className="text-sm text-gray-500">No shades available. Create shades in the Shades section first.</p>
                   )}
                 </div>
-              </div>
+              </div> */}
 
             {/* Product Flags */}
             <div className="space-y-4">

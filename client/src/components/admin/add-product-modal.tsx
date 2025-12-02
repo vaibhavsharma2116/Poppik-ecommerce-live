@@ -827,7 +827,7 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
           </div>
 
           {/* Shade Selection */}
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label>Product Shades (Optional)</Label>
             <p className="text-sm text-gray-500">Select shades available for this product</p>
             <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
@@ -860,7 +860,7 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
                 <p className="text-sm text-gray-500">No shades available. Create shades in the Shades section first.</p>
               )}
             </div>
-          </div>
+          </div> */}
 
           {/* Product Flags */}
           <div className="space-y-4">
