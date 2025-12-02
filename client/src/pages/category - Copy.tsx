@@ -42,16 +42,16 @@ export default function CategoryPage() {
 
   // Handle URL subcategory parameter - only on initial load
   useEffect(() => {
-    if (subcategories.length === 0 || hasInitializedFromUrl.current) return;
+    if (!Array.isArray(subcategories) || subcategories.length === 0 || hasInitializedFromUrl.current) return;
 
     const urlParams = new URLSearchParams(window.location.search);
     const subcategoryParam = urlParams.get('subcategory');
 
     if (subcategoryParam) {
-      const subcategory = subcategories.find(sub =>
+      const subcategory = Array.isArray(subcategories) ? subcategories.find(sub =>
         sub.slug === subcategoryParam ||
         sub.name.toLowerCase().replace(/\s+/g, '-') === subcategoryParam
-      );
+      ) : undefined;
 
       if (subcategory) {
         setSelectedSubcategoryId(subcategory.id.toString());
@@ -116,14 +116,14 @@ export default function CategoryPage() {
         window.history.replaceState(null, '', url.toString());
       } else {
         // Update state immediately
-        setSelectedSubcategoryId(subcategoryId);
-        // Update URL with subcategory parameter
-        const subcategory = subcategories.find(sub => sub.id.toString() === subcategoryId);
-        if (subcategory) {
-          const url = new URL(window.location.href);
-          url.searchParams.set('subcategory', subcategory.slug || subcategory.name.toLowerCase().replace(/\s+/g, '-'));
-          window.history.replaceState(null, '', url.toString());
-        }
+          setSelectedSubcategoryId(subcategoryId);
+          // Update URL with subcategory parameter
+          const subcategory = Array.isArray(subcategories) ? subcategories.find(sub => sub.id.toString() === subcategoryId) : undefined;
+          if (subcategory) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('subcategory', subcategory.slug || subcategory.name.toLowerCase().replace(/\s+/g, '-'));
+            window.history.replaceState(null, '', url.toString());
+          }
       }
     });
   };

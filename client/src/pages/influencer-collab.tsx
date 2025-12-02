@@ -30,12 +30,23 @@ function VideosList() {
     const fetchMedia = async () => {
       setLoading(true);
       try {
-        // Prefer influencer_videos admin endpoint; fall back to legacy /api/media
-        let res = await fetch('/api/influencer-videos?isActive=true&category=influencer');
+        // Add timestamp to prevent caching
+        const timestamp = Date.now();
+        let res = await fetch(`/api/influencer-videos?isActive=true&category=influencer&t=${timestamp}`, {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
         let source = 'influencer';
         if (!res.ok) {
           // fallback
-          res = await fetch('/api/media?isActive=true');
+          res = await fetch(`/api/media?isActive=true&t=${timestamp}`, {
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          });
           source = 'media';
         }
         if (!res.ok) {
@@ -64,7 +75,14 @@ function VideosList() {
     };
 
     fetchMedia();
-    return () => { mounted = false; };
+    
+    // Refresh every 5 seconds for fresh data
+    const interval = setInterval(fetchMedia, 5000);
+    
+    return () => { 
+      mounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const handleClick = async (media: any) => {

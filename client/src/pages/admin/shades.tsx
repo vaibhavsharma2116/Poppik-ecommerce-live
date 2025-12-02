@@ -112,28 +112,89 @@ export default function AdminShades() {
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['categories'],
     queryFn: async () => {
-      const response = await fetch('/api/categories');
+      const response = await fetch('/api/categories', { cache: "no-store" });
       if (!response.ok) throw new Error('Failed to fetch categories');
-      return response.json();
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
   });
 
   const { data: subcategories = [] } = useQuery<Subcategory[]>({
     queryKey: ['subcategories'],
     queryFn: async () => {
-      const response = await fetch('/api/subcategories');
+      const response = await fetch('/api/subcategories', { cache: "no-store" });
       if (!response.ok) throw new Error('Failed to fetch subcategories');
-      return response.json();
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
   });
+
+  // Ensure we always operate on an array to avoid runtime errors
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeSubcategories = Array.isArray(subcategories) ? subcategories : [];
+
+  // Helper normalization and matching functions
+  const normalize = (s?: any) => (s === null || s === undefined) ? '' : String(s).toLowerCase().trim();
+
+  const productMatchesCategory = (product: Product, categoryObj: Category) => {
+    // product.category may be a string, number, or object { id, name }
+    const p: any = product as any;
+    let productCategoryRaw: any = p.category ?? p.categoryId ?? '';
+
+    if (productCategoryRaw && typeof productCategoryRaw === 'object') {
+      productCategoryRaw = productCategoryRaw.name ?? productCategoryRaw.id ?? '';
+    }
+
+    // If category stored as numeric id in product.category (rare), convert to string
+    if (typeof productCategoryRaw === 'number') productCategoryRaw = String(productCategoryRaw);
+
+    const productCategory = normalize(productCategoryRaw);
+    if (!productCategory) return false;
+
+    const catName = normalize(categoryObj.name);
+    const catSlug = normalize((categoryObj as any).slug);
+    const catId = String(categoryObj.id);
+
+    // Also compare compacted forms (no spaces/dashes)
+    const prodCompact = productCategory.replace(/[-\s]/g, '');
+    const catCompact = catName.replace(/[-\s]/g, '');
+
+    return productCategory === catName || productCategory === catSlug || productCategory === catId || prodCompact === catCompact;
+  };
+
+  const productMatchesSubcategory = (product: Product, subObj: Subcategory) => {
+    // product.subcategory may be a string, number, or object { id, name }
+    const p: any = product as any;
+    let productSubRaw: any = p.subcategory ?? p.subcategoryId ?? '';
+
+    if (productSubRaw && typeof productSubRaw === 'object') {
+      productSubRaw = productSubRaw.name ?? productSubRaw.id ?? '';
+    }
+
+    if (typeof productSubRaw === 'number') productSubRaw = String(productSubRaw);
+
+    const productSub = normalize(productSubRaw);
+    if (!productSub) return false;
+
+    const subName = normalize(subObj.name);
+    const subSlug = normalize((subObj as any).slug);
+    const subId = String(subObj.id);
+
+    // Consider normalized variations without spaces/dashes
+    const normalizedProductSubCompact = productSub.replace(/[-\s]/g, '');
+    const normalizedSubCompact = subName.replace(/[-\s]/g, '');
+
+    return productSub === subName || productSub === subSlug || productSub === subId || normalizedProductSubCompact === normalizedSubCompact;
+  };
 
   // Fetch products
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['products'],
     queryFn: async () => {
-      const response = await fetch('/api/products');
+      const response = await fetch('/api/products', { cache: "no-store" });
       if (!response.ok) throw new Error('Failed to fetch products');
-      return response.json();
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
   });
 
@@ -469,7 +530,9 @@ export default function AdminShades() {
 
   // Get subcategories for selected categories
   const getAvailableSubcategories = (selectedCategoryIds: number[]) => {
-    return subcategories.filter(sub => selectedCategoryIds.includes(sub.categoryId));
+    // Only return subcategories that belong to the selected categories
+    if (!selectedCategoryIds || selectedCategoryIds.length === 0) return [];
+    return safeSubcategories.filter(sub => selectedCategoryIds.includes(sub.categoryId));
   };
 
   // Get products for shade's categories/subcategories
@@ -480,15 +543,15 @@ export default function AdminShades() {
     return products.filter(product => {
       const categoryMatch = shade.categoryIds?.some(catId => {
         const category = categories.find(c => c.id === catId);
-        return category?.name.toLowerCase() === product.category.toLowerCase();
+        return !!category && productMatchesCategory(product, category);
       });
 
       const subcategoryMatch = shade.subcategoryIds?.some(subId => {
-        const subcategory = subcategories.find(s => s.id === subId);
-        return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
+        const subcategory = safeSubcategories.find(s => s.id === subId);
+        return !!subcategory && productMatchesSubcategory(product, subcategory);
       });
 
-      return categoryMatch || subcategoryMatch;
+      return Boolean(categoryMatch) || Boolean(subcategoryMatch);
     });
   };
 
@@ -500,15 +563,15 @@ export default function AdminShades() {
     return products.filter(product => {
       const categoryMatch = selectedCategoryIds.some(catId => {
         const category = categories.find(c => c.id === catId);
-        return category?.name.toLowerCase() === product.category.toLowerCase();
+        return !!category && productMatchesCategory(product, category);
       });
 
       const subcategoryMatch = selectedSubcategoryIds.some(subId => {
-        const subcategory = subcategories.find(s => s.id === subId);
-        return subcategory?.name.toLowerCase() === product.subcategory?.toLowerCase();
+        const subcategory = safeSubcategories.find(s => s.id === subId);
+        return !!subcategory && productMatchesSubcategory(product, subcategory);
       });
 
-      return categoryMatch || subcategoryMatch;
+      return Boolean(categoryMatch) || Boolean(subcategoryMatch);
     });
   };
 
@@ -520,7 +583,7 @@ export default function AdminShades() {
 
     // Remove subcategories that don't belong to selected categories
     const validSubcategoryIds = formData.subcategoryIds.filter(subId => {
-      const subcategory = subcategories.find(s => s.id === subId);
+      const subcategory = safeSubcategories.find(s => s.id === subId);
       return subcategory && newCategoryIds.includes(subcategory.categoryId);
     });
 
@@ -668,8 +731,8 @@ export default function AdminShades() {
             <TableBody>
               {shades.map((shade) => {
                 const shadeProducts = getShadeProducts(shade);
-                const shadeCategories = Array.isArray(categories) ? categories.filter(cat => shade.categoryIds?.includes(cat.id)) : [];
-                const shadeSubcategories = Array.isArray(subcategories) ? subcategories.filter(sub => shade.subcategoryIds?.includes(sub.id)) : [];
+                const shadeCategories = safeCategories.filter(cat => shade.categoryIds?.includes(cat.id));
+                const shadeSubcategories = safeSubcategories.filter(sub => shade.subcategoryIds?.includes(sub.id));
 
                 return (
                   <TableRow key={shade.id} className="border-b border-slate-100 hover:bg-slate-50/60 transition-all duration-200">
@@ -930,7 +993,7 @@ export default function AdminShades() {
             <div className="space-y-4">
               <Label>Categories</Label>
               <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded-lg p-3">
-                {categories.map(category => (
+                {safeCategories.map(category => (
                   <div key={category.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`cat-${category.id}`}
@@ -943,7 +1006,7 @@ export default function AdminShades() {
               </div>
             </div>
 
-            {formData.categoryIds.length > 0 && (
+            {getAvailableSubcategories(formData.categoryIds).length > 0 && (
               <div className="space-y-4">
                 <Label>Subcategories</Label>
                 <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded-lg p-3">
@@ -961,227 +1024,100 @@ export default function AdminShades() {
               </div>
             )}
 
-            {/* Individual Products Selection */}
+            {/* Individual Products Selection - Only show if subcategories are selected */}
+            {formData.subcategoryIds.length > 0 && (
             <div className="space-y-4">
               <Label>Individual Products (Optional)</Label>
               <div className="border rounded-lg p-3 bg-gray-50">
                 <p className="text-sm text-gray-600 mb-3">Select specific products that should have this shade option (overrides category-based selection)</p>
-                {formData.categoryIds.length > 0 || formData.subcategoryIds.length > 0 ? (
-                  <div className="space-y-3">
-                    {/* Select All / Deselect All buttons */}
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const filteredProducts = products.filter(product => {
-                            // If no categories selected, don't show any products
-                            if (formData.categoryIds.length === 0) {
-                              return false;
-                            }
-
-                            // First filter: Check if product matches selected categories
-                            const categoryMatch = formData.categoryIds.some(catId => {
-                              const category = categories.find(c => c.id === catId);
-                              if (!category) return false;
-                              const categoryName = category.name.toLowerCase().trim();
-                              const productCategory = product.category?.toLowerCase().trim();
-                              return productCategory === categoryName;
-                            });
-
-                            // If product doesn't match selected categories, exclude it
-                            if (!categoryMatch) return false;
-
-                            // Second filter: If subcategories are selected, filter by them too
-                            if (formData.subcategoryIds.length > 0) {
-                              if (!product.subcategory) return false;
-
-                              const subcategoryMatch = formData.subcategoryIds.some(subId => {
-                                const subcategory = subcategories.find(s => s.id === subId);
-                                if (!subcategory) return false;
-                                const subcategoryName = subcategory.name.toLowerCase().trim();
-                                const productSubcategory = product.subcategory?.toLowerCase().trim();
-                                const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
-                                const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
-                                return productSubcategory === subcategoryName || normalizedProductSub === normalizedSubcategory;
-                              });
-
-                              return subcategoryMatch;
-                            }
-
-                            // If no subcategories selected, show all products from selected categories
-                            return true;
-                          });
-
-                          const allProductIds = filteredProducts.map(p => p.id);
-                          setFormData(prev => ({
-                            ...prev,
-                            productIds: [...new Set([...prev.productIds, ...allProductIds])]
-                          }));
-                        }}
-                        className="text-xs"
-                      >
-                        Select All
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const filteredProducts = products.filter(product => {
-                            // If no categories selected, don't show any products
-                            if (formData.categoryIds.length === 0) {
-                              return false;
-                            }
-
-                            // First filter: Check if product matches selected categories
-                            const categoryMatch = formData.categoryIds.some(catId => {
-                              const category = categories.find(c => c.id === catId);
-                              if (!category) return false;
-                              const categoryName = category.name.toLowerCase().trim();
-                              const productCategory = product.category?.toLowerCase().trim();
-                              return productCategory === categoryName;
-                            });
-
-                            // If product doesn't match selected categories, exclude it
-                            if (!categoryMatch) return false;
-
-                            // Second filter: If subcategories are selected, filter by them too
-                            if (formData.subcategoryIds.length > 0) {
-                              if (!product.subcategory) return false;
-
-                              const subcategoryMatch = formData.subcategoryIds.some(subId => {
-                                const subcategory = subcategories.find(s => s.id === subId);
-                                if (!subcategory) return false;
-                                const subcategoryName = subcategory.name.toLowerCase().trim();
-                                const productSubcategory = product.subcategory?.toLowerCase().trim();
-                                const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
-                                const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
-                                return productSubcategory === subcategoryName || normalizedProductSub === normalizedSubcategory;
-                              });
-
-                              return subcategoryMatch;
-                            }
-
-                            // If no subcategories selected, show all products from selected categories
-                            return true;
-                          });
-
-                          const allProductIds = filteredProducts.map(p => p.id);
-                          setFormData(prev => ({
-                            ...prev,
-                            productIds: prev.productIds.filter(id => !allProductIds.includes(id))
-                          }));
-                        }}
-                        className="text-xs"
-                      >
-                        Deselect All
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
-                      {(() => {
-                        // Filter products based on selected categories and subcategories
-                        const filteredProducts = products.filter(product => {
-                          // If no categories selected, don't show any products
-                          if (formData.categoryIds.length === 0) {
-                            return false;
-                          }
-
-                          // First filter: Check if product matches selected categories
-                          const categoryMatch = formData.categoryIds.some(catId => {
-                            const category = categories.find(c => c.id === catId);
-                            if (!category) return false;
-
-                            const categoryName = category.name.toLowerCase().trim();
-                            const productCategory = product.category?.toLowerCase().trim();
-
-                            return productCategory === categoryName;
-                          });
-
-                          // If product doesn't match selected categories, exclude it
-                          if (!categoryMatch) return false;
-
-                          // Second filter: If subcategories are selected, filter by them too
-                          if (formData.subcategoryIds.length > 0) {
-                            // Only show products that match the selected subcategories
-                            if (!product.subcategory) return false;
-
-                            const subcategoryMatch = formData.subcategoryIds.some(subId => {
-                              const subcategory = subcategories.find(s => s.id === subId);
-                              if (!subcategory) return false;
-
-                              const subcategoryName = subcategory.name.toLowerCase().trim();
-                              const productSubcategory = product.subcategory?.toLowerCase().trim();
-
-                              // Also check for common variations
-                              const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
-                              const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
-
-                              return productSubcategory === subcategoryName || 
-                                     normalizedProductSub === normalizedSubcategory;
-                            });
-
-                            return subcategoryMatch;
-                          }
-
-                          // If no subcategories selected, show all products from selected categories
-                          return true;
-                        });
-
-                        return filteredProducts.length > 0 ? (
-                          filteredProducts.map(product => (
-                            <label key={product.id} className="flex items-center space-x-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={formData.productIds.includes(product.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setFormData(prev => ({
-                                      ...prev,
-                                      productIds: [...prev.productIds, product.id]
-                                    }));
-                                  } else {
-                                    setFormData(prev => ({
-                                      ...prev,
-                                      productIds: prev.productIds.filter(id => id !== product.id)
-                                    }));
-                                  }
-                                }}
-                                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                              />
-                              <img 
-                                src={product.imageUrl} 
-                                alt={product.name}
-                                className="w-8 h-8 rounded object-cover border"
-                              />
-                              <div className="flex-1">
-                                <span className="text-sm font-medium">{product.name}</span>
-                                <span className="text-xs text-gray-500 ml-2">₹{product.price}</span>
-                              </div>
-                              {formData.productIds.includes(product.id) && (
-                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                              )}
-                            </label>
-                          ))
-                        ) : (
-                          <p className="text-sm text-gray-500 p-4 text-center">No products found for selected categories</p>
-                        );
-                      })()}
-                    </div>
+                <div className="space-y-3">
+                  {/* Select All / Deselect All buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const filteredProducts = getFilteredProducts(formData.categoryIds, formData.subcategoryIds);
+                        const allProductIds = filteredProducts.map(p => p.id);
+                        setFormData(prev => ({
+                          ...prev,
+                          productIds: prev.productIds.concat(allProductIds).filter((v, i, a) => a.indexOf(v) === i)
+                        }));
+                      }}
+                      className="text-xs"
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const filteredProducts = getFilteredProducts(formData.categoryIds, formData.subcategoryIds);
+                        const allProductIds = filteredProducts.map(p => p.id);
+                        setFormData(prev => ({
+                          ...prev,
+                          productIds: prev.productIds.filter(id => !allProductIds.includes(id))
+                        }));
+                      }}
+                      className="text-xs"
+                    >
+                      Deselect All
+                    </Button>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Please select categories or subcategories first to see filtered products</p>
+
+                  <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
+                    {(() => {
+                      const filteredProducts = getFilteredProducts(formData.categoryIds, formData.subcategoryIds);
+
+                      return filteredProducts.length > 0 ? (
+                        filteredProducts.map(product => (
+                          <label key={product.id} className="flex items-center space-x-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={formData.productIds.includes(product.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    productIds: [...prev.productIds, product.id]
+                                  }));
+                                } else {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    productIds: prev.productIds.filter(id => id !== product.id)
+                                  }));
+                                }
+                              }}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                            />
+                            <img 
+                              src={product.imageUrl} 
+                              alt={product.name}
+                              className="w-8 h-8 rounded object-cover border"
+                            />
+                            <div className="flex-1">
+                              <span className="text-sm font-medium">{product.name}</span>
+                              <span className="text-xs text-gray-500 ml-2">₹{product.price}</span>
+                            </div>
+                            {formData.productIds.includes(product.id) && (
+                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            )}
+                          </label>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500 p-4 text-center">No products found for selected categories</p>
+                      );
+                    })()}
                   </div>
-                )}
+                </div>
                 {formData.productIds.length > 0 && (
                   <p className="text-sm text-blue-600 mt-2">{formData.productIds.length} products selected individually</p>
                 )}
               </div>
             </div>
+            )}
 
             {/* Products Preview */}
             {(formData.categoryIds.length > 0 || formData.subcategoryIds.length > 0 || formData.productIds.length > 0) && (
@@ -1371,7 +1307,7 @@ export default function AdminShades() {
             <div className="space-y-4">
               <Label>Categories</Label>
               <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded-lg p-3">
-                {categories.map(category => (
+                {safeCategories.map(category => (
                   <div key={category.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`edit-cat-${category.id}`}
@@ -1384,7 +1320,7 @@ export default function AdminShades() {
               </div>
             </div>
 
-            {formData.categoryIds.length > 0 && (
+            {getAvailableSubcategories(formData.categoryIds).length > 0 && (
               <div className="space-y-4">
                 <Label>Subcategories</Label>
                 <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto border rounded-lg p-3">
@@ -1402,63 +1338,25 @@ export default function AdminShades() {
               </div>
             )}
 
-            {/* Individual Products Selection */}
+            {/* Individual Products Selection - Only show if subcategories are selected */}
+            {formData.subcategoryIds.length > 0 && (
             <div className="space-y-4">
               <Label>Individual Products (Optional)</Label>
               <div className="border rounded-lg p-3 bg-gray-50">
                 <p className="text-sm text-gray-600 mb-3">Select specific products that should have this shade option (overrides category-based selection)</p>
-                {formData.categoryIds.length > 0 || formData.subcategoryIds.length > 0 ? (
-                  <div className="space-y-3">
-                    {/* Select All / Deselect All buttons */}
+                <div className="space-y-3">
+                  {/* Select All / Deselect All buttons */}
                     <div className="flex gap-2">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const filteredProducts = products.filter(product => {
-                            // If no categories selected, don't show any products
-                            if (formData.categoryIds.length === 0) {
-                              return false;
-                            }
-
-                            // First filter: Check if product matches selected categories
-                            const categoryMatch = formData.categoryIds.some(catId => {
-                              const category = categories.find(c => c.id === catId);
-                              if (!category) return false;
-                              const categoryName = category.name.toLowerCase().trim();
-                              const productCategory = product.category?.toLowerCase().trim();
-                              return productCategory === categoryName;
-                            });
-
-                            // If product doesn't match selected categories, exclude it
-                            if (!categoryMatch) return false;
-
-                            // Second filter: If subcategories are selected, filter by them too
-                            if (formData.subcategoryIds.length > 0) {
-                              if (!product.subcategory) return false;
-
-                              const subcategoryMatch = formData.subcategoryIds.some(subId => {
-                                const subcategory = subcategories.find(s => s.id === subId);
-                                if (!subcategory) return false;
-                                const subcategoryName = subcategory.name.toLowerCase().trim();
-                                const productSubcategory = product.subcategory?.toLowerCase().trim();
-                                const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
-                                const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
-                                return productSubcategory === subcategoryName || normalizedProductSub === normalizedSubcategory;
-                              });
-
-                              return subcategoryMatch;
-                            }
-
-                            // If no subcategories selected, show all products from selected categories
-                            return true;
-                          });
-
+                          const filteredProducts = getFilteredProducts(formData.categoryIds, formData.subcategoryIds);
                           const allProductIds = filteredProducts.map(p => p.id);
                           setFormData(prev => ({
                             ...prev,
-                            productIds: [...new Set([...prev.productIds, ...allProductIds])]
+                            productIds: prev.productIds.concat(allProductIds).filter((v, i, a) => a.indexOf(v) === i)
                           }));
                         }}
                         className="text-xs"
@@ -1470,45 +1368,7 @@ export default function AdminShades() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const filteredProducts = products.filter(product => {
-                            // If no categories selected, don't show any products
-                            if (formData.categoryIds.length === 0) {
-                              return false;
-                            }
-
-                            // First filter: Check if product matches selected categories
-                            const categoryMatch = formData.categoryIds.some(catId => {
-                              const category = categories.find(c => c.id === catId);
-                              if (!category) return false;
-                              const categoryName = category.name.toLowerCase().trim();
-                              const productCategory = product.category?.toLowerCase().trim();
-                              return productCategory === categoryName;
-                            });
-
-                            // If product doesn't match selected categories, exclude it
-                            if (!categoryMatch) return false;
-
-                            // Second filter: If subcategories are selected, filter by them too
-                            if (formData.subcategoryIds.length > 0) {
-                              if (!product.subcategory) return false;
-
-                              const subcategoryMatch = formData.subcategoryIds.some(subId => {
-                                const subcategory = subcategories.find(s => s.id === subId);
-                                if (!subcategory) return false;
-                                const subcategoryName = subcategory.name.toLowerCase().trim();
-                                const productSubcategory = product.subcategory?.toLowerCase().trim();
-                                const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
-                                const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
-                                return productSubcategory === subcategoryName || normalizedProductSub === normalizedSubcategory;
-                              });
-
-                              return subcategoryMatch;
-                            }
-
-                            // If no subcategories selected, show all products from selected categories
-                            return true;
-                          });
-
+                          const filteredProducts = getFilteredProducts(formData.categoryIds, formData.subcategoryIds);
                           const allProductIds = filteredProducts.map(p => p.id);
                           setFormData(prev => ({
                             ...prev,
@@ -1523,53 +1383,7 @@ export default function AdminShades() {
 
                     <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
                       {(() => {
-                        // Filter products based on selected categories and subcategories
-                        const filteredProducts = products.filter(product => {
-                          // If no categories selected, don't show any products
-                          if (formData.categoryIds.length === 0) {
-                            return false;
-                          }
-
-                          // First filter: Check if product matches selected categories
-                          const categoryMatch = formData.categoryIds.some(catId => {
-                            const category = categories.find(c => c.id === catId);
-                            if (!category) return false;
-
-                            const categoryName = category.name.toLowerCase().trim();
-                            const productCategory = product.category?.toLowerCase().trim();
-
-                            return productCategory === categoryName;
-                          });
-
-                          // If product doesn't match selected categories, exclude it
-                          if (!categoryMatch) return false;
-
-                          // Second filter: If subcategories are selected, filter by them too
-                          if (formData.subcategoryIds.length > 0) {
-                            // Only show products that match the selected subcategories
-                            if (!product.subcategory) return false;
-
-                            const subcategoryMatch = formData.subcategoryIds.some(subId => {
-                              const subcategory = subcategories.find(s => s.id === subId);
-                              if (!subcategory) return false;
-
-                              const subcategoryName = subcategory.name.toLowerCase().trim();
-                              const productSubcategory = product.subcategory?.toLowerCase().trim();
-
-                              // Also check for common variations
-                              const normalizedSubcategory = subcategoryName.replace(/[-\s]/g, '');
-                              const normalizedProductSub = productSubcategory?.replace(/[-\s]/g, '') || '';
-
-                              return productSubcategory === subcategoryName || 
-                                     normalizedProductSub === normalizedSubcategory;
-                            });
-
-                            return subcategoryMatch;
-                          }
-
-                          // If no subcategories selected, show all products from selected categories
-                          return true;
-                        });
+                        const filteredProducts = getFilteredProducts(formData.categoryIds, formData.subcategoryIds);
 
                         return filteredProducts.length > 0 ? (
                           filteredProducts.map(product => (
@@ -1612,17 +1426,13 @@ export default function AdminShades() {
                       })()}
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Please select categories or subcategories first to see filtered products</p>
-                  </div>
-                )}
+                </div>
                 {formData.productIds.length > 0 && (
                   <p className="text-sm text-blue-600 mt-2">{formData.productIds.length} products selected individually</p>
                 )}
               </div>
-            </div>
+            
+            )}
 
             {/* Products Preview */}
             {(formData.categoryIds.length > 0 || formData.subcategoryIds.length > 0 || formData.productIds.length > 0) && (

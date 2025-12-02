@@ -81,16 +81,52 @@ export default function Cart() {
   // Fetch announcements for dynamic offers
   const { data: announcements = [] } = useQuery({
     queryKey: ['/api/announcements'],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/announcements');
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    },
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   // Fetch recommended products
   const { data: recommendedProducts = [] } = useQuery({
     queryKey: ['/api/products', { limit: 12 }],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/products?limit=12');
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    },
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   // Fetch gift milestones from backend
   const { data: giftMilestones = [] } = useQuery({
     queryKey: ['/api/gift-milestones'],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/gift-milestones');
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    },
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   // Fetch wallet data
@@ -98,13 +134,19 @@ export default function Cart() {
     queryKey: ['/api/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const res = await fetch(apiUrl(`/api/wallet?userId=${user.id}`), {
-        credentials: 'include',
-      });
-      if (!res.ok) return null;
-      return res.json();
+      try {
+        const res = await fetch(apiUrl(`/api/wallet?userId=${user.id}`), {
+          credentials: 'include',
+        });
+        if (!res.ok) return null;
+        return res.json();
+      } catch {
+        return null;
+      }
     },
     enabled: !!user?.id,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   // Fetch affiliate wallet data
@@ -112,13 +154,19 @@ export default function Cart() {
     queryKey: ['/api/affiliate/wallet', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const res = await fetch(apiUrl(`/api/affiliate/wallet?userId=${user.id}`), {
-        credentials: 'include',
-      });
-      if (!res.ok) return null;
-      return res.json();
+      try {
+        const res = await fetch(apiUrl(`/api/affiliate/wallet?userId=${user.id}`), {
+          credentials: 'include',
+        });
+        if (!res.ok) return null;
+        return res.json();
+      } catch {
+        return null;
+      }
     },
     enabled: !!user?.id,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   // Fetch affiliate application status
@@ -126,13 +174,19 @@ export default function Cart() {
     queryKey: ['/api/affiliate/my-application', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const res = await fetch(`/api/affiliate/my-application?userId=${user.id}`, {
-        credentials: 'include',
-      });
-      if (!res.ok) return null;
-      return res.json();
+      try {
+        const res = await fetch(`/api/affiliate/my-application?userId=${user.id}`, {
+          credentials: 'include',
+        });
+        if (!res.ok) return null;
+        return res.json();
+      } catch {
+        return null;
+      }
     },
     enabled: !!user?.id,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   // Update affiliate status based on application approval
@@ -1032,7 +1086,7 @@ export default function Cart() {
                           <Heart className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => removeItem(item.id, index)}
                           className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                           aria-label="Remove item"
                         >

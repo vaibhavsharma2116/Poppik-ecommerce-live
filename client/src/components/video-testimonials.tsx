@@ -26,11 +26,32 @@ export default function VideoTestimonials() {
   const { toast } = useToast();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // Fetch UGC Video from API with real-time updates
+  // Manual refresh trigger for video testimonials
+  const [refreshTrigger, setRefreshTrigger] = useState(Date.now());
   const { data: videoTestimonials = [], isLoading: testimonialsLoading } = useQuery<VideoTestimonial[]>({
-    queryKey: ["/api/video-testimonials"],
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+    queryKey: ["/api/video-testimonials", refreshTrigger],
+    queryFn: async () => {
+      const response = await fetch(`/api/video-testimonials`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch');
+      return response.json();
+    },
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
+
+  // Optional: useEffect to refresh every 30 seconds (safe, not infinite)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshTrigger(Date.now());
+    }, 30000); // 30 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch all products to match with testimonials
   const { data: allProducts = [], isLoading: productsLoading } = useQuery<Product[]>({

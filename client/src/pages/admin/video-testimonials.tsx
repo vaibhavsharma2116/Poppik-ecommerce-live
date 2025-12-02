@@ -119,16 +119,16 @@ export default function AdminVideoTestimonials() {
       if (!response.ok) throw new Error('Failed to delete');
       return id;
     },
-    onSuccess: (id) => {
-      queryClient.setQueryData(['/api/admin/video-testimonials'], (old: VideoTestimonial[] = []) =>
-        old.filter(t => t.id !== id)
-      );
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/video-testimonials'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/video-testimonials'] });
-      toast({ title: "Success", description: "Video testimonial deleted" });
-      setIsDeleteModalOpen(false);
-      setSelectedTestimonial(null);
-    },
+
+    //   queryClient.setQueryData(['/api/admin/video-testimonials'], (old: VideoTestimonial[] = []) =>
+    //     old.filter(t => t.id !== id)
+    //   );
+    //   queryClient.invalidateQueries({ queryKey: ['/api/admin/video-testimonials'] });
+    //   queryClient.invalidateQueries({ queryKey: ['/api/video-testimonials'] });
+    //   toast({ title: "Success", description: "Video testimonial deleted" });
+    //   setIsDeleteModalOpen(false);
+    //   setSelectedTestimonial(null);
+    // },
     onError: () => {
       toast({ title: "Error", description: "Failed to delete", variant: "destructive" });
     },

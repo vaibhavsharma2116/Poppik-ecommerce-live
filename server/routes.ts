@@ -7113,13 +7113,19 @@ app.get("/api/admin/stores", async (req, res) => {
       });
 
       // In a real application, you would also:
-      // // 1. Send anemail notification to your support team
+      // // 1. Send an email notification to your support team
       // 2. Send a confirmation email to the customer
+
+      // Ensure mutation responses are not cached
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, private, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
 
       res.json({
         message: "Thank you for your message! We'll get back to you within 24 hours.",
         success: true,
-        submissionId: savedSubmission.id
+        submissionId: savedSubmission.id,
+        submission: savedSubmission
       });
     } catch (error) {
       console.error("Contact form submission error:", error);
@@ -7130,8 +7136,10 @@ app.get("/api/admin/stores", async (req, res) => {
   // Contact submissions management endpoints (Admin)
   app.get("/api/admin/contact-submissions", async (req, res) => {
     try {
-      // Set cache headers for faster subsequent loads
-      res.setHeader('Cache-Control', 'private, max-age=30');
+      // No caching - always serve fresh data
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, private, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       
       const submissions = await storage.getContactSubmissions();
       res.json(submissions);
@@ -7171,6 +7179,11 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(404).json({ error: "Contact submission not found" });
       }
 
+      // Prevent caching of mutation responses
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, private, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       res.json({
         message: "Contact submission status updated successfully",
         submission: updatedSubmission
@@ -7188,7 +7201,12 @@ app.get("/api/admin/stores", async (req, res) => {
       if (!success) {
         return res.status(404).json({ error: "Contact submission not found" });
       }
-      res.json({ success: true, message: "Contact submission deleted successfully" });
+      // Prevent caching of mutation responses
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, private, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      res.json({ success: true, message: "Contact submission deleted successfully", id: parseInt(id) });
     } catch (error) {
       console.error("Error deleting contact submission:", error);
       res.status(500).json({ error: "Failed to delete contact submission" });
@@ -10506,7 +10524,51 @@ Poppik Affiliate Portal
   });
 
   // Influencer Applications Routes
+app.get('/api/influencer-videos', async (req, res) => {
+    try {
+      const { isActive, category } = req.query;
+      let query = db.select().from(schema.influencerVideos);
+      if (isActive !== undefined) {
+        query = query.where(eq(schema.influencerVideos.isActive, isActive === 'true'));
+      }
+      if (category) {
+        query = query.where(eq(schema.influencerVideos.category, category as string));
+      }
+      query = query.orderBy(asc(schema.influencerVideos.sortOrder), desc(schema.influencerVideos.createdAt));
+      const list = await query;
+      res.json(list);
+    } catch (error) {
+      console.error('Error fetching influencer videos:', error);
+      res.status(500).json({ error: 'Failed to fetch influencer videos' });
+    }
+  });
 
+  // Get single influencer video
+  app.get('/api/influencer-videos/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const rows = await db.select().from(schema.influencerVideos).where(eq(schema.influencerVideos.id, id));
+      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
+      res.json(rows[0]);
+    } catch (error) {
+      console.error('Error fetching influencer video:', error);
+      res.status(500).json({ error: 'Failed to fetch influencer video' });
+    }
+  });
+
+  // Click tracking for influencer video
+  app.post('/api/influencer-videos/:id/click', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const rows = await db.select().from(schema.influencerVideos).where(eq(schema.influencerVideos.id, id));
+      if (!rows || rows.length === 0) return res.status(404).json({ error: 'Not found' });
+      await db.update(schema.influencerVideos).set({ clickCount: (rows[0].clickCount || 0) + 1 }).where(eq(schema.influencerVideos.id, id));
+      res.json({ redirectUrl: rows[0].redirectUrl || rows[0].videoUrl });
+    } catch (error) {
+      console.error('Error tracking influencer video click:', error);
+      res.status(500).json({ error: 'Failed to track click' });
+    }
+  });
   // Submit influencer application (public)
   app.post('/api/influencer-applications', async (req, res) => {
     try {

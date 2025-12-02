@@ -208,9 +208,12 @@ export default function Layout({ children }: LayoutProps) {
             subcategoriesRes.json()
           ]);
 
-          // Filter only active categories
-          setCategories(categoriesData.filter((cat: Category) => cat.status === 'Active'));
-          setSubcategories(subcategoriesData.filter((sub: Subcategory) => sub.status === 'Active'));
+          // Ensure data is an array and filter only active items
+          const categoriesArray = Array.isArray(categoriesData) ? categoriesData : [];
+          const subcategoriesArray = Array.isArray(subcategoriesData) ? subcategoriesData : [];
+
+          setCategories(categoriesArray.filter((cat: Category) => cat.status === 'Active'));
+          setSubcategories(subcategoriesArray.filter((sub: Subcategory) => sub.status === 'Active'));
         }
       } catch (error) {
         console.error('Failed to fetch navigation data:', error);

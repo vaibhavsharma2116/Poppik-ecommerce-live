@@ -63,10 +63,10 @@ export default function AffiliatePage() {
 
   // Featured Affiliate Videos (public)
   const { data: affiliateVideos = [], isLoading: isVideosLoading, refetch: refetchVideos } = useQuery({
-    queryKey: ['/api/affiliate-videos', 'affiliate', Date.now()],
+    queryKey: ['/api/affiliate-videos', 'affiliate'],
     queryFn: async () => {
       try {
-        const res = await fetch(`/api/affiliate-videos?isActive=true&category=affiliate&t=${Date.now()}`, {
+        const res = await fetch(`/api/affiliate-videos?isActive=true&category=affiliate`, {
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -81,11 +81,7 @@ export default function AffiliatePage() {
         return [];
       }
     },
-    staleTime: 0, // Treat as stale immediately
-    gcTime: 0, // Don't cache the data (was cacheTime in older React Query versions)
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    refetchOnMount: true,
+    staleTime: 1000 * 60 * 5,
   });
 
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);

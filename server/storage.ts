@@ -995,6 +995,7 @@ export class DatabaseStorage implements IStorage {
         imageUrl: shadeData.imageUrl || null,
         categoryIds: shadeData.categoryIds || null,
         subcategoryIds: shadeData.subcategoryIds || null,
+        productIds: shadeData.productIds || null,
         isActive: shadeData.isActive !== undefined ? shadeData.isActive : true,
         inStock: shadeData.inStock !== undefined ? shadeData.inStock : true,
         sortOrder: shadeData.sortOrder || 0,

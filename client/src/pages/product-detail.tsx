@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet";
@@ -53,6 +53,123 @@ interface Category {
   name: string;
 }
 
+// Debounce utility to prevent too many requests
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
+
+// Throttle utility to limit request frequency
+const throttle = (func: Function, limit: number) => {
+  let lastCall = 0;
+  return (...args: any[]) => {
+    const now = Date.now();
+    if (now - lastCall >= limit) {
+      lastCall = now;
+      func(...args);
+    }
+  };
+};
+
+// Request manager with retry logic and rate limiting
+class RequestManager {
+  private requestQueue: (() => Promise<any>)[] = [];
+  private isProcessing = false;
+  private lastRequestTime = 0;
+  private minRequestDelay = 100; // minimum 100ms between requests
+  private retryCount = 3;
+  private retryDelay = 1000; // 1 second
+
+  async executeWithRateLimit(fn: () => Promise<any>): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.requestQueue.push(async () => {
+        try {
+          const result = await this.executeWithRetry(fn);
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+      this.processQueue();
+    });
+  }
+
+  private async processQueue() {
+    if (this.isProcessing || this.requestQueue.length === 0) return;
+
+    this.isProcessing = true;
+    const request = this.requestQueue.shift();
+
+    if (request) {
+      const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+      if (timeSinceLastRequest < this.minRequestDelay) {
+        await new Promise(resolve => 
+          setTimeout(resolve, this.minRequestDelay - timeSinceLastRequest)
+        );
+      }
+
+      this.lastRequestTime = Date.now();
+      await request();
+    }
+
+    this.isProcessing = false;
+    if (this.requestQueue.length > 0) {
+      this.processQueue();
+    }
+  }
+
+  private async executeWithRetry(fn: () => Promise<any>): Promise<any> {
+    let lastError;
+
+    for (let i = 0; i < this.retryCount; i++) {
+      try {
+        const response = await fn();
+        
+        // Check if response is ok (status 200-299)
+        if (response.ok) {
+          return response;
+        }
+
+        // Handle 429 (Too Many Requests) with exponential backoff
+        if (response.status === 429) {
+          const retryAfter = parseInt(response.headers.get('Retry-After') || String(this.retryDelay * (i + 1)), 10) * 1000;
+          await new Promise(resolve => setTimeout(resolve, retryAfter));
+          continue;
+        }
+
+        // If not 429 or 5xx, throw immediately
+        if (response.status < 500) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        // For 5xx errors, retry
+        if (i < this.retryCount - 1) {
+          await new Promise(resolve => 
+            setTimeout(resolve, this.retryDelay * Math.pow(2, i))
+          );
+          continue;
+        }
+
+        return response;
+      } catch (error) {
+        lastError = error;
+        if (i < this.retryCount - 1) {
+          await new Promise(resolve => 
+            setTimeout(resolve, this.retryDelay * Math.pow(2, i))
+          );
+        }
+      }
+    }
+
+    throw lastError || new Error('Request failed after retries');
+  }
+}
+
+const requestManager = new RequestManager();
+
 export default function ProductDetail() {
   const [, params] = useRoute("/product/:slug");
   const productSlugOrId = params?.slug || "";
@@ -95,7 +212,9 @@ export default function ProductDetail() {
     queryFn: async () => {
       if (!product?.id) return [];
 
-      const response = await fetch(`/api/products/${product.id}/images`);
+      const response = await requestManager.executeWithRateLimit(() =>
+        fetch(`/api/products/${product.id}/images`, { cache: "no-store" })
+      );
       if (!response.ok) {
         // Fallback to legacy imageUrl if images API fails
         return product?.imageUrl ? [{ url: product.imageUrl, sortOrder: 0 }] : [];
@@ -244,7 +363,9 @@ export default function ProductDetail() {
     queryFn: async () => {
       if (!product?.id) return [];
 
-      const response = await fetch(`/api/products/${product.id}/shades`);
+      const response = await requestManager.executeWithRateLimit(() =>
+        fetch(`/api/products/${product.id}/shades`, { cache: "no-store" })
+      );
       if (!response.ok) {
         return [];
       }
@@ -273,7 +394,9 @@ export default function ProductDetail() {
     queryFn: async () => {
       if (!product?.id) return [];
 
-      const response = await fetch(`/api/products/${product.id}/reviews`);
+      const response = await requestManager.executeWithRateLimit(() =>
+        fetch(`/api/products/${product.id}/reviews`, { cache: "no-store" })
+      );
       if (!response.ok) {
         return [];
       }
@@ -295,7 +418,9 @@ export default function ProductDetail() {
       if (!user) return { canReview: false, message: "Please login to review" };
 
       const userData = JSON.parse(user);
-      const response = await fetch(`/api/products/${product.id}/can-review?userId=${userData.id}`);
+      const response = await requestManager.executeWithRateLimit(() =>
+        fetch(`/api/products/${product.id}/can-review?userId=${userData.id}`, { cache: "no-store" })
+      );
       if (!response.ok) {
         return { canReview: false, message: "Unable to check review eligibility" };
       }
@@ -613,11 +738,13 @@ export default function ProductDetail() {
         formData.append('image', reviewImage);
       }
 
-      const response = await fetch(`/api/products/${product.id}/reviews`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
+      const response = await requestManager.executeWithRateLimit(() =>
+        fetch(`/api/products/${product.id}/reviews`, {
+          method: 'POST',
+          credentials: 'include',
+          body: formData,
+        })
+      );
 
       if (response.ok) {
         toast({
@@ -1382,7 +1509,7 @@ export default function ProductDetail() {
                       {renderStars(parseFloat(product.rating))}
                     </div>
                     <span className="product-detail-rating sm:text-xl font-bold text-gray-900">{product.rating}</span>
-                    <span className="text-sm sm:text-base text-gray-600 font-medium">({product.reviewCount.toLocaleString()} reviews)</span>
+                    <span className="text-sm sm:text-base text-gray-600 font-medium">({product.reviewCount !== undefined && product.reviewCount !== null ? product.reviewCount.toLocaleString() : ""} reviews)</span>
                   </div>
 
                   {/* Shade Selection - Only show if product has shades */}
@@ -1633,7 +1760,7 @@ export default function ProductDetail() {
                         variant="outline"
                         size="icon"
                         onClick={() => setQuantity(quantity + 1)}
-                        className="h-10 w-10 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50"
+                        className="h-10 w-10 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bgpurple-50"
                       >
                         <Plus className="h-4 w-4 text-purple-600" />
                       </Button>
@@ -1763,7 +1890,7 @@ export default function ProductDetail() {
                       {product.ingredients ? (
                         // If ingredients contain HTML (saved from RichTextEditor), render it as HTML
                         (typeof product.ingredients === 'string' && product.ingredients.includes('<')) ? (
-                          <div className="prose prose-sm max-w-none text-gray-700" dangerouslySetInnerHTML={{ __html: product.ingredients }} />
+                          <div className="text-gray-700 leading-relaxed text-base sm:text-lg font-normal prose prose-gray max-w-none" dangerouslySetInnerHTML={{ __html: product.ingredients }} />
                         ) : (
                           <ul className="space-y-2">
                             {(Array.isArray(product.ingredients)
@@ -1986,7 +2113,7 @@ export default function ProductDetail() {
                   </div>
                   <span className="text-3xl font-bold text-gray-900">{product.rating}</span>
                 </div>
-                <p className="text-gray-600 font-medium">Based on {reviews.length > 0 ? reviews.length : product.reviewCount.toLocaleString()} reviews</p>
+                <p className="text-gray-600 font-medium">Based on {reviews.length > 0 ? reviews.length : product.reviewCount !== undefined && product.reviewCount !== null ? product.reviewCount.toLocaleString() : ""} reviews</p>
               </div>
               <div className="space-y-2 w-full md:w-64">
                 {[5, 4, 3, 2, 1].map((stars) => {
@@ -2137,7 +2264,7 @@ export default function ProductDetail() {
               <div className="block md:hidden">
                 <div className="overflow-x-auto scrollbar-hide pb-4">
                   <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
-                    {recommendedProducts.map((product: any) => (
+                    {(Array.isArray(recommendedProducts) ? recommendedProducts : []).map((product: any) => (
                       <div key={product.id} style={{ width: '160px', flexShrink: 0 }}>
                         <ProductCard product={product} className="h-full" />
                       </div>
@@ -2157,7 +2284,7 @@ export default function ProductDetail() {
                     className="w-full"
                   >
                     <CarouselContent className="-ml-2 md:-ml-4">
-                      {recommendedProducts.map((product: any) => (
+                      {(Array.isArray(recommendedProducts) ? recommendedProducts : []).map((product: any) => (
                         <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
                           <ProductCard product={product} />
                         </CarouselItem>
