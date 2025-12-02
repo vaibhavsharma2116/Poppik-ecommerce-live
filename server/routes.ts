@@ -9336,6 +9336,8 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
+  const jobApplicationsSSEClients = new Set<any>();
+
   // Job application submission endpoint
   app.post('/api/job-applications', upload.single('resume'), async (req, res) => {
     try {
@@ -9372,6 +9374,20 @@ app.get("/api/admin/stores", async (req, res) => {
         resumeUrl,
         status: 'pending'
       }).returning();
+
+      // Broadcast new application to admin SSE clients
+      try {
+        for (const client of jobApplicationsSSEClients) {
+          try {
+            client.write('event: jobApplicationCreated\n');
+            client.write('data: ' + JSON.stringify(savedApplication) + '\n\n');
+          } catch (e) {
+            // ignore write errors for individual clients
+          }
+        }
+      } catch (e) {
+        console.error('Error broadcasting job application create event:', e);
+      }
 
       // HR Manager's email
       const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
@@ -9498,8 +9514,31 @@ Poppik Career Portal
   });
 
   // Admin job applications endpoints
+  // Server-Sent Events for realtime job applications updates (admin)
+
+  app.get('/api/admin/job-applications/stream', async (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    // Send an initial comment to establish the stream
+    res.write(': connected to job applications stream\n\n');
+
+    jobApplicationsSSEClients.add(res);
+
+    req.on('close', () => {
+      jobApplicationsSSEClients.delete(res);
+    });
+  });
+
   app.get('/api/admin/job-applications', async (req, res) => {
     try {
+      // Set strict no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const applications = await db
         .select()
         .from(schema.jobApplications)
@@ -9514,6 +9553,11 @@ Poppik Career Portal
 
   app.get('/api/admin/job-applications/:id', async (req, res) => {
     try {
+      // Set strict no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const id = parseInt(req.params.id);
       const application = await db
         .select()
@@ -9534,6 +9578,11 @@ Poppik Career Portal
 
   app.put('/api/admin/job-applications/:id/status', async (req, res) => {
     try {
+      // Set strict no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const id = parseInt(req.params.id);
       const { status } = req.body;
 
@@ -9554,6 +9603,20 @@ Poppik Career Portal
         return res.status(404).json({ error: 'Application not found' });
       }
 
+      // Broadcast update to admin SSE clients
+      try {
+        for (const client of jobApplicationsSSEClients) {
+          try {
+            client.write('event: jobApplicationUpdated\n');
+            client.write('data: ' + JSON.stringify(updatedApplication) + '\n\n');
+          } catch (e) {
+            // ignore individual client errors
+          }
+        }
+      } catch (e) {
+        console.error('Error broadcasting job application update event:', e);
+      }
+
       res.json({ 
         success: true, 
         message: `Application status updated to ${status}`,
@@ -9567,6 +9630,11 @@ Poppik Career Portal
 
   app.delete('/api/admin/job-applications/:id', async (req, res) => {
     try {
+      // Set strict no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const id = parseInt(req.params.id);
 
       const [deleted] = await db
@@ -9576,6 +9644,20 @@ Poppik Career Portal
 
       if (!deleted) {
         return res.status(404).json({ error: 'Application not found' });
+      }
+
+      // Broadcast deletion to admin SSE clients
+      try {
+        for (const client of jobApplicationsSSEClients) {
+          try {
+            client.write('event: jobApplicationDeleted\n');
+            client.write('data: ' + JSON.stringify({ id }) + '\n\n');
+          } catch (e) {
+            // ignore individual client errors
+          }
+        }
+      } catch (e) {
+        console.error('Error broadcasting job application delete event:', e);
       }
 
       res.json({ success: true, message: 'Application deleted successfully' });

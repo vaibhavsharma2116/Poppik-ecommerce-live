@@ -50,7 +50,7 @@ export default function CategoryPage() {
     if (subcategoryParam) {
       const subcategory = Array.isArray(subcategories) ? subcategories.find(sub =>
         sub.slug === subcategoryParam ||
-        sub.name.toLowerCase().replace(/\s+/g, '-') === subcategoryParam
+        String(sub.name || '').toLowerCase().replace(/\s+/g, '-') === subcategoryParam
       ) : undefined;
 
       if (subcategory) {
@@ -119,9 +119,9 @@ export default function CategoryPage() {
           setSelectedSubcategoryId(subcategoryId);
           // Update URL with subcategory parameter
           const subcategory = Array.isArray(subcategories) ? subcategories.find(sub => sub.id.toString() === subcategoryId) : undefined;
-          if (subcategory) {
+            if (subcategory) {
             const url = new URL(window.location.href);
-            url.searchParams.set('subcategory', subcategory.slug || subcategory.name.toLowerCase().replace(/\s+/g, '-'));
+            url.searchParams.set('subcategory', subcategory.slug || String(subcategory.name || '').toLowerCase().replace(/\s+/g, '-'));
             window.history.replaceState(null, '', url.toString());
           }
       }

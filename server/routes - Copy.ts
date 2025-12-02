@@ -450,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/stores", adminMiddleware, async (req, res) => {
+  app.post("/api/admin/stores", async (req, res) => {
     try {
       // Parse coordinates to remove degree symbols and direction letters
       const storeData = { ...req.body };
@@ -473,7 +473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/stores/:id", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/stores/:id", async (req, res) => {
     try {
       const storeId = parseInt(req.params.id);
 
@@ -502,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/stores/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/stores/:id", async (req, res) => {
     try {
       const storeId = parseInt(req.params.id);
       await db.delete(schema.stores).where(eq(schema.stores.id, storeId));
@@ -1370,7 +1370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get Affiliate Withdrawals (Admin)
-  app.get('/api/admin/affiliate/withdrawals', adminMiddleware, async (req, res) => {
+  app.get('/api/admin/affiliate/withdrawals', async (req, res) => {
     try {
       const withdrawals = await db
         .select({
@@ -1406,7 +1406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Approve affiliate withdrawal (Admin)
-  app.post('/api/admin/affiliate/withdrawals/:id/approve', adminMiddleware, async (req, res) => {
+  app.post('/api/admin/affiliate/withdrawals/:id/approve', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { transactionId, notes } = req.body;
@@ -1443,7 +1443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reject affiliate withdrawal (Admin)
-  app.post('/api/admin/affiliate/withdrawals/:id/reject', adminMiddleware, async (req, res) => {
+  app.post('/api/admin/affiliate/withdrawals/:id/reject', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { notes } = req.body;
@@ -1683,7 +1683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all offers for admin (including inactive)
-  app.get("/api/admin/offers", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/offers", async (req, res) => {
     try {
       const offers = await db
         .select()
@@ -1698,7 +1698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create new offer (admin)
-  app.post("/api/admin/offers", adminMiddleware, upload.fields([
+  app.post("/api/admin/offers", upload.fields([
     { name: 'image', maxCount: 1 },
     { name: 'bannerImages', maxCount: 10 },
     { name: 'additionalImages', maxCount: 10 },
@@ -1781,7 +1781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update offer (admin)
-  app.put("/api/admin/offers/:id", adminMiddleware, upload.fields([
+  app.put("/api/admin/offers/:id", upload.fields([
     { name: 'image', maxCount: 1 },
     { name: 'bannerImages', maxCount: 10 },
     { name: 'additionalImages', maxCount: 10 },
@@ -1926,7 +1926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete offer (admin)
-  app.delete("/api/admin/offers/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/offers/:id", async (req, res) => {
     try {
       const offerId = parseInt(req.params.id);
 
@@ -4016,7 +4016,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Promo Codes Management Routes (Admin)
-  app.get("/api/admin/promo-codes", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/promo-codes", async (req, res) => {
     try {
       const promoCodes = await db.select().from(schema.promoCodes).orderBy(desc(schema.promoCodes.createdAt));
       res.json(promoCodes);
@@ -4026,7 +4026,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/promo-codes", adminMiddleware, async (req, res) => {
+  app.post("/api/admin/promo-codes", async (req, res) => {
     try {
       const { code, description, discountType, discountValue, minOrderAmount, maxDiscount, usageLimit, userUsageLimit, validFrom, validUntil, isActive } = req.body;
 
@@ -4059,7 +4059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/promo-codes/:id", adminMiddleware, async (req, res) => {
+  app.put("/api/admin/promo-codes/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { code, description, discountType, discountValue, minOrderAmount, maxDiscount, usageLimit, userUsageLimit, validFrom, validUntil, isActive } = req.body;
@@ -4097,7 +4097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/promo-codes/:id", adminMiddleware, async (req, res) => {
+  app.delete("/api/admin/promo-codes/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
 
@@ -4213,7 +4213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get promo code usage history (admin)
-  app.get("/api/admin/promo-codes/usage", adminMiddleware, async (req, res) => {
+  app.get("/api/admin/promo-codes/usage", async (req, res) => {
     try {
       const usage = await db
         .select({

@@ -106,9 +106,9 @@ export default function Blog() {
 
   const filteredPosts = blogPosts.filter(post => {
     const matchesSearch = !searchQuery ||
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+      String(post.title || '').toLowerCase().includes(String(searchQuery || '').toLowerCase()) ||
+      String(post.excerpt || '').toLowerCase().includes(String(searchQuery || '').toLowerCase()) ||
+      (Array.isArray(post.tags) && post.tags.some(tag => String(tag || '').toLowerCase().includes(String(searchQuery || '').toLowerCase())));
 
     const matchesCategory = selectedCategory === "All" || post.category === selectedCategory;
     return matchesSearch && matchesCategory;

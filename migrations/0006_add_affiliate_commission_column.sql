@@ -1,0 +1,2 @@
+-- This migration is now handled in the backend - no database changes needed
+-- Affiliate commission is saved directly to affiliate_wallet.commission_balance (numeric 10,2)

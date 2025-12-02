@@ -47,10 +47,29 @@ export default function ComboPage() {
     queryKey: ["/api/combos"],
   });
 
-  const { data: comboSliders = [], isLoading: slidersLoading } = useQuery({
-    queryKey: ['/api/combo-sliders'],
-  });
 
+ const { data: comboSliders = [], isLoading: slidersLoading, refetch } = useQuery<[]>({
+    queryKey: ['/api/admin/combo-sliders'],
+    queryFn: async () => {
+      const timestamp = Date.now();
+      const res = await fetch(`/api/admin/combo-sliders?_t=${timestamp}`, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      if (!res.ok) throw new Error('Failed to fetch sliders');
+      const data = await res.json();
+      console.log('✅ Combo sliders fetched (fresh data):', data.length);
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+  });
   const handleAddToCart = (combo: ComboProduct) => {
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
@@ -256,7 +275,7 @@ console.log("VCVVVVVV",combo)
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8 md:mb-10 lg:mb-12">
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-3 md:mb-4 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Glow & Harmony Combos
+            Glow & Harmony Combo
           </h1>
           <p className="text-sm sm:text-base md:text-lg text-gray-600 px-4">
             Save more with our curated beauty bundles

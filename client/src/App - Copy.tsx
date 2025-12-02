@@ -100,7 +100,7 @@ const ChannelPartnerPage = lazy(() => import("@/pages/channel-partner"));
 const AffiliatePage = lazy(() => import("@/pages/affiliate"));
 const AffiliateApplicationPage = lazy(() => import("@/pages/affiliate-application"));
 const AffiliateForm = lazy(() => import("@/pages/affiliate-form"));
-// const AdminInfluencerApplications = lazy(() => import('./pages/admin/influencer-applications'));
+const AdminInfluencerApplications = lazy(() => import('./pages/admin/influencer-applications'));
 const AdminAffiliateApplications = lazy(() => import('./pages/admin/affiliate-applications'));
 const AdminAffiliateWithdrawals = lazy(() => import("@/pages/admin/affiliate-withdrawals"));
 const AcademyPage = lazy(() => import("./pages/academy"));
@@ -185,7 +185,6 @@ function Router() {
         <AdminLayout>
           <Switch>
             <Route path="/" component={AdminDashboard} />
-            <Route path="/" component={AdminDashboard} />
             <Route path="/products" component={AdminProducts} />
             <Route path="/categories" component={AdminCategories} />
             <Route path="/orders" component={AdminOrders} />
@@ -196,7 +195,7 @@ function Router() {
             <Route path="/sliders" component={() => <LazyRoute component={lazy(() => import("@/pages/admin/sliders"))} />} />
             <Route path="/combo-sliders" component={() => <LazyRoute component={lazy(() => import("@/pages/admin/combo-sliders"))} />} />
             <Route path="/job-applications" component={JobApplications} />
-            {/* <Route path="/influencer-applications" component={AdminInfluencerApplications} /> */}
+            <Route path="/influencer-applications" component={AdminInfluencerApplications} />
             <Route path="/affiliate-applications" component={AdminAffiliateApplications} />
             <Route path="/affiliate-withdrawals" component={AdminAffiliateWithdrawals} />
             <Route path="/promo-codes" component={lazy(() => import("./pages/admin/promo-codes"))} />
@@ -206,7 +205,6 @@ function Router() {
             <Route path="/contests" component={lazy(() => import("./pages/admin/contests"))} />
             <Route path="/job-positions" component={() => <LazyRoute component={lazy(() => import("./pages/admin/job-positions"))} />} />
             <Route path="/stores" component={AdminStores} />
-              <Route path="/notifications" component={AdminNotifications} />
             <Route path="/settings" component={AdminSettings} />
             <Route path="/affiliate-settings" component={() => <LazyRoute component={lazy(() => import("./pages/admin/affiliate-settings"))} />} />
             <Route path="/profile" component={AdminProfile} />
@@ -217,14 +215,9 @@ function Router() {
             <Route path="/blog" component={() => <LazyRoute component={lazy(() => import("./pages/admin/blog"))} />} />
             <Route path="/combos" component={AdminCombos} />
             <Route path="/announcements" component={AdminAnnouncements} />
+            <Route path="/notifications" component={AdminNotifications} />
             <Route path="/shades" component={AdminShades} />
             <Route path="/featured-sections" component={AdminFeaturedSections} />
-            
-            {/* Master Admin Routes */}
-            <Route path="/master" component={() => <LazyRoute component={lazy(() => import("./pages/admin/master-admin-dashboard"))} />} />
-            <Route path="/master/users" component={() => <LazyRoute component={lazy(() => import("./pages/admin/master-admin-users"))} />} />
-            <Route path="/master/settings" component={() => <LazyRoute component={lazy(() => import("./pages/admin/master-admin-settings"))} />} />
-            <Route path="/master/logs" component={() => <LazyRoute component={lazy(() => import("./pages/admin/master-admin-activity-logs"))} />} />
             <Route path="/reports" component={() => <LazyRoute component={AdminReports} />} />
             <Route path="/media" component={() => <LazyRoute component={AdminMedia} />} />
             <Route component={NotFound} />

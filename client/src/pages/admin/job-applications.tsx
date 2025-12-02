@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,22 +35,88 @@ export default function AdminJobApplications() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: applications = [], isLoading } = useQuery({
+  const { data: applications = [], isLoading, refetch } = useQuery({
     queryKey: ['/api/admin/job-applications'],
     queryFn: async () => {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/job-applications', {
+      const timestamp = Date.now();
+      const response = await fetch(`/api/admin/job-applications?_t=${timestamp}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
       if (!response.ok) {
         throw new Error('Failed to fetch job applications');
       }
       return response.json();
-    }
+    },
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchInterval: false,
   });
+
+  // Subscribe to server-sent events for realtime updates
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const es = new EventSource('/api/admin/job-applications/stream');
+
+    const handleCreate = (e: MessageEvent) => {
+      try {
+        const application = JSON.parse(e.data);
+        queryClient.setQueryData(['/api/admin/job-applications'], (old: any[] = []) => {
+          const filtered = old.filter(i => i.id !== application.id);
+          return [application, ...filtered];
+        });
+        toast({ title: 'New Application', description: 'A new job application has been received' });
+      } catch (err) {
+        console.error('Error parsing jobApplicationCreated event', err);
+      }
+    };
+
+    const handleUpdate = (e: MessageEvent) => {
+      try {
+        const application = JSON.parse(e.data);
+        queryClient.setQueryData(['/api/admin/job-applications'], (old: any[] = []) => 
+          old.map(i => i.id === application.id ? application : i)
+        );
+      } catch (err) {
+        console.error('Error parsing jobApplicationUpdated event', err);
+      }
+    };
+
+    const handleDelete = (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        const id = payload?.id;
+        if (id === undefined) return;
+        queryClient.setQueryData(['/api/admin/job-applications'], (old: any[] = []) => 
+          old.filter(i => i.id !== id)
+        );
+      } catch (err) {
+        console.error('Error parsing jobApplicationDeleted event', err);
+      }
+    };
+
+    es.addEventListener('jobApplicationCreated', handleCreate as EventListener);
+    es.addEventListener('jobApplicationUpdated', handleUpdate as EventListener);
+    es.addEventListener('jobApplicationDeleted', handleDelete as EventListener);
+
+    es.onerror = (err) => {
+      console.warn('Job applications SSE error, will attempt to reconnect', err);
+    };
+
+    return () => {
+      es.close();
+    };
+  }, [queryClient, toast]);
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: any) => {
@@ -59,17 +125,30 @@ export default function AdminJobApplications() {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         },
         body: JSON.stringify({ status }),
       });
       if (!response.ok) throw new Error('Failed to update status');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/job-applications'] });
+    onSuccess: async (data) => {
+      // Update cache immediately with returned data
+      const updatedApp = data.application;
+      queryClient.setQueryData(['/api/admin/job-applications'], (old: any[] = []) => 
+        old.map(i => i.id === updatedApp.id ? updatedApp : i)
+      );
+      
+      // Force refetch to ensure sync
+      await refetch();
       toast({ title: 'Success', description: 'Application status updated' });
     },
+    onError: (err) => {
+      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+    }
   });
 
   const deleteMutation = useMutation({
@@ -79,16 +158,28 @@ export default function AdminJobApplications() {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
       if (!response.ok) throw new Error('Failed to delete application');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/job-applications'] });
+    onSuccess: async (data, id) => {
+      // Remove from cache immediately
+      queryClient.setQueryData(['/api/admin/job-applications'], (old: any[] = []) => 
+        old.filter(item => item.id !== id)
+      );
+      
+      // Force refetch to ensure sync
+      await refetch();
       toast({ title: 'Success', description: 'Application deleted successfully' });
     },
+    onError: (err) => {
+      toast({ title: 'Error', description: 'Failed to delete application', variant: 'destructive' });
+    }
   });
 
   const getStatusBadge = (status: string) => {
@@ -117,7 +208,7 @@ export default function AdminJobApplications() {
       <Card>
         <CardHeader>
           <CardTitle>All Applications</CardTitle>
-          <CardDescription>Manage and review job applications</CardDescription>
+          <CardDescription>Manage and review job applications - Updates in realtime, no delays, no cache</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -312,3 +403,4 @@ export default function AdminJobApplications() {
     </div>
   );
 }
+

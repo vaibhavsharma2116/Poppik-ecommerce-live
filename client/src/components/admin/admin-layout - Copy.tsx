@@ -29,8 +29,7 @@ import {
   Palette,
   Wallet,
   Tag, // Added Tag icon for promo codes
-  Gift, // Added Gift icon for gift settings
-  Shield // Added Shield icon for master admin
+  Gift // Added Gift icon for gift settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,47 +46,6 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import AdminSearchCommand from "./admin-search-command";
 import { cn } from "@/lib/utils";
-import { getCurrentUser } from '@/lib/utils';
-
-// Helper function to check if user has access to a route
-const hasAccess = (route: string, userRole: string): boolean => {
-  const ROLE_PERMISSIONS: Record<string, string[]> = {
-    dashboard: ['master_admin', 'admin', 'ecommerce', 'marketing', 'digital_marketing', 'hr', 'account'],
-    categories: ['master_admin', 'admin', 'ecommerce'],
-    products: ['master_admin', 'admin', 'ecommerce'],
-    orders: ['master_admin', 'admin', 'ecommerce'],
-    customers: ['master_admin', 'admin', 'ecommerce', 'marketing'],
-    announcements: ['master_admin', 'admin', 'marketing'],
-    shades: ['master_admin', 'admin', 'ecommerce'],
-    sliders: ['master_admin', 'admin', 'digital_marketing'],
-    stores: ['master_admin', 'admin', 'ecommerce'],
-    'contact-submissions': ['master_admin', 'admin', 'marketing'],
-    testimonials: ['master_admin', 'admin', 'digital_marketing'],
-    'video-testimonials': ['master_admin', 'admin', 'digital_marketing'],
-    'influencer-videos': ['master_admin', 'admin', 'digital_marketing'],
-    'affiliate-videos': ['master_admin', 'admin', 'digital_marketing'],
-    'channel-partner-videos': ['master_admin', 'admin', 'digital_marketing'],
-    blog: ['master_admin', 'admin', 'digital_marketing'],
-    combos: ['master_admin', 'admin', 'ecommerce'],
-    'combo-sliders': ['master_admin', 'admin', 'ecommerce'],
-    'job-positions': ['master_admin', 'admin', 'hr'],
-    'job-applications': ['master_admin', 'admin', 'hr'],
-    'influencer-applications': ['master_admin', 'admin', 'digital_marketing'],
-    'affiliate-applications': ['master_admin', 'admin', 'marketing'],
-    'affiliate-withdrawals': ['master_admin', 'admin', 'account'],
-    'promo-codes': ['master_admin'],
-    'promo-code-usage': ['master_admin'],
-    'gift-settings': ['master_admin'],
-    offers: ['master_admin', 'admin', 'marketing'],
-    contests: ['master_admin', 'admin', 'marketing'],
-    media: ['master_admin', 'admin', 'digital_marketing'],
-    settings: ['master_admin']
-  };
-
-  const cleanRoute = route.startsWith('/') ? route.substring(1) : route;
-  const permissions = ROLE_PERMISSIONS[cleanRoute];
-  return permissions ? permissions.includes(userRole) : false;
-};
 
 const sidebarItems = [
   {
@@ -95,245 +53,188 @@ const sidebarItems = [
     href: "",
     icon: LayoutDashboard,
     badge: null,
-    requiredRole: 'dashboard'
   },
+
+
   {
     title: "Categories",
     href: "/categories",
     icon: FolderTree,
     badge: null,
-    requiredRole: 'categories'
   },
-  {
+    {
     title: "Products",
     href: "/products",
     icon: Package,
-    requiredRole: 'products'
   },
   {
     title: "Orders",
     href: "/orders",
     icon: ShoppingCart,
-    requiredRole: 'orders'
   },
   {
     title: "Customers",
     href: "/customers",
     icon: Users,
-    requiredRole: 'customers'
   },
-  {
-      title: "Notifications",
-      href: "/notifications",
-      icon: MessageSquare,
-      badge: null,
-    },
   {
     title: "Announcements",
     href: "/announcements",
     icon: Bell,
     badge: null,
-    requiredRole: 'announcements'
+  },
+  {
+    title: "Notifications",
+    href: "/notifications",
+    icon: MessageSquare,
+    badge: null,
   },
   {
     title: "Shades",
     href: "/shades",
     icon: Palette,
     badge: null,
-    requiredRole: 'shades'
   },
   {
     title: "Sliders",
     href: "/sliders",
     icon: Images,
     badge: null,
-    requiredRole: 'sliders'
   },
   {
     title: "Stores",
     href: "/stores",
     icon: MapPin,
     badge: null,
-    requiredRole: 'stores'
   },
   {
     title: "Contact Submissions",
     href: "/contact-submissions",
     icon: Mail,
     badge: null,
-    requiredRole: 'contact-submissions'
   },
   {
     title: "Testimonials",
     href: "/testimonials",
     icon: User,
     badge: null,
-    requiredRole: 'testimonials'
   },
   {
     title: "UGC Video",
     href: "/video-testimonials",
     icon: FileText,
     badge: null,
-    requiredRole: 'video-testimonials'
   },
   {
     title: "Influencer Videos",
     href: "/influencer-videos",
     icon: FileText,
     badge: null,
-    requiredRole: 'influencer-videos'
   },
   {
     title: "Affiliate Videos",
     href: "/affiliate-videos",
     icon: FileText,
     badge: null,
-    requiredRole: 'affiliate-videos'
   },
   {
     title: "Channel Partner Videos",
     href: "/channel-partner-videos",
     icon: FileText,
     badge: null,
-    requiredRole: 'channel-partner-videos'
   },
   {
     title: "Blog",
     href: "/blog",
     icon: FileText,
     badge: null,
-    requiredRole: 'blog'
   },
   {
     title: "Combos",
     href: "/combos",
     icon: Package,
     badge: null,
-    requiredRole: 'combos'
   },
   {
     title: "Combo Sliders",
     href: "/combo-sliders",
     icon: Images,
     badge: null,
-    requiredRole: 'combo-sliders'
   },
   {
     title: "Job Positions",
     href: "/job-positions",
     icon: Briefcase,
     badge: null,
-    requiredRole: 'job-positions'
   },
   {
     title: "Job Applications",
     href: "/job-applications",
     icon: Briefcase,
     badge: null,
-    requiredRole: 'job-applications'
   },
   // {
   //   title: "Influencer Applications",
   //   href: "/influencer-applications",
   //   icon: Users,
   //   badge: null,
-  //   requiredRole: 'influencer-applications'
   // },
   {
     title: "Affiliate Applications",
     href: "/affiliate-applications",
     icon: Users,
     badge: null,
-    requiredRole: 'affiliate-applications'
   },
+  // Added Affiliate Withdrawals menu item
   {
     title: "Affiliate Withdrawals",
     href: "/affiliate-withdrawals",
     icon: Wallet,
     badge: null,
-    requiredRole: 'affiliate-withdrawals'
   },
+
   {
     title: "Promo Codes",
     href: "/promo-codes",
     icon: Tag,
     badge: null,
-    requiredRole: 'promo-codes'
   },
+  // Added Promo Code Usage menu item
   {
     title: "Promo Usage",
     href: "/promo-code-usage",
     icon: Tag,
     badge: null,
-    requiredRole: 'promo-code-usage'
   },
   {
     title: "Gift Settings",
     href: "/gift-settings",
     icon: Gift,
     badge: null,
-    requiredRole: 'gift-settings'
   },
   {
     title: "Offers",
     href: "/offers",
     icon: Sparkles,
     badge: null,
-    requiredRole: 'offers'
   },
   {
     title: "Contests",
     href: "/contests",
     icon: Sparkles,
     badge: null,
-    requiredRole: 'contests'
   },
   {
     title: "Media",
     href: "/media",
     icon: Images,
     badge: null,
-    requiredRole: 'media'
   },
   {
     title: "Settings",
     href: "/settings",
     icon: Settings,
     badge: null,
-    requiredRole: 'settings'
-  },
-];
-
-// Master Admin only items
-const masterAdminItems = [
-  {
-    title: "Master Dashboard",
-    href: "/master",
-    icon: Shield,
-    badge: null,
-    requiredRole: 'master'
-  },
-  {
-    title: "User Management",
-    href: "/master/users",
-    icon: Users,
-    badge: null,
-    requiredRole: 'master/users'
-  },
-  {
-    title: "System Settings",
-    href: "/master/settings",
-    icon: Settings,
-    badge: null,
-    requiredRole: 'master/settings'
-  },
-  {
-    title: "Activity Logs",
-    href: "/master/logs",
-    icon: Activity,
-    badge: null,
-    requiredRole: 'master/logs'
   },
 ];
 
@@ -343,7 +244,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [darkMode, setDarkMode] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
-  const [allowedModules, setAllowedModules] = useState<Set<string> | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Check authentication on component mount
@@ -367,10 +267,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       try {
         const user = JSON.parse(userStr);
 
-        // Check if user has any admin role
-        const adminRoles = ['admin', 'master_admin', 'ecommerce', 'marketing', 'digital_marketing', 'hr', 'account'];
-        if (!adminRoles.includes(user.role)) {
-          console.log('User does not have admin role, redirecting to home page');
+        // Check if user is admin
+        if (user.role !== 'admin') {
+          console.log('User is not admin, redirecting to home page');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           setLocation('/');
@@ -395,48 +294,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         const validationResult = await response.json();
 
         // Double check role from server response
-        if (!adminRoles.includes(validationResult.user.role)) {
-          console.log('User role is not valid admin role, redirecting to home page');
+        if (validationResult.user.role !== 'admin') {
+          console.log('User role is not admin, redirecting to home page');
           setLocation('/');
           return;
         }
 
         // User is authenticated
         setIsAuthenticating(false);
-
-        // Fetch effective permissions for this user (best-effort). Store a set of allowed modules.
-        try {
-          const token = localStorage.getItem('token');
-          const currentUser = getCurrentUser();
-          const userId = currentUser?.id || currentUser?.userId || currentUser?.ID || null;
-          if (token && userId) {
-            const permResp = await fetch(`/api/master-admin/users/${userId}/permissions`, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            if (permResp.ok) {
-              const permData = await permResp.json();
-
-              // If permissions array is empty, treat it as "no permissions configured"
-              // and fallback to the built-in ROLE_PERMISSIONS logic instead of
-              // persisting an empty allowedModules set which would block access.
-              if (!Array.isArray(permData.permissions) || permData.permissions.length === 0) {
-                try { localStorage.removeItem('allowedModules'); } catch {}
-                setAllowedModules(null);
-              } else {
-                const modules = new Set<string>();
-                permData.permissions.forEach((p: any) => {
-                  if (p.canRead || p.canCreate || p.canUpdate || p.canDelete || p.canExport) {
-                    modules.add(p.module);
-                  }
-                });
-                try { localStorage.setItem('allowedModules', JSON.stringify(Array.from(modules))); } catch {}
-                setAllowedModules(modules);
-              }
-            }
-          }
-        } catch (e) {
-          console.error('Failed to fetch user permissions', e);
-        }
       } catch (error) {
         console.error('Auth validation error:', error);
         // On error, remove token and redirect to admin login
@@ -452,7 +317,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
-    setLocation('/admin/auth/admin-login');
+    setLocation('/auth/admin-login');
   };
 
   // Global keyboard shortcut for search
@@ -519,65 +384,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {/* Mobile Navigation */}
             <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto scrollbar-custom">
-              {/* Master Admin Section (mobile) - show at top */}
-              {(() => {
-                const user = getCurrentUser();
-                if (user) {
-                  try {
-                    const showMasterSection = user.role === 'master_admin' || (allowedModules && masterAdminItems.some(mi => allowedModules.has(mi.requiredRole)));
-                    if (showMasterSection) {
-                      return (
-                        <>
-                          <div className="px-3 py-2 mb-2">
-                            {!sidebarCollapsed && (
-                              <div className="flex items-center gap-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
-                                <Shield className="h-4 w-4" />
-                                <span>Master Admin</span>
-                              </div>
-                            )}
-                          </div>
-                          {masterAdminItems.map((item) => {
-                            const Icon = item.icon;
-                            const isActive = location === item.href;
-                            return (
-                              <Link
-                                key={`mobile-${item.href}`}
-                                to={item.href}
-                                className={cn(
-                                  "group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200",
-                                  isActive
-                                    ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-white border border-purple-500/30 shadow-lg"
-                                    : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
-                                )}
-                              >
-                                <Icon className={cn("flex-shrink-0 transition-colors w-5 h-5 mr-4")} />
-                                <span className="flex-1">{item.title}</span>
-                              </Link>
-                            );
-                          })}
-                        </>
-                      );
-                    }
-                  } catch (error) {
-                    console.error('Error parsing user data:', error);
-                  }
-                }
-                return null;
-              })()}
-
-              {sidebarItems.filter((item) => {
-                    const user = getCurrentUser();
-                    if (!user) return false;
-                    try {
-                      // If we have fetched allowedModules, prefer that set for access decisions
-                      if (allowedModules) {
-                        return allowedModules.has(item.requiredRole || item.href);
-                      }
-                      return hasAccess(item.requiredRole || item.href, user.role);
-                    } catch {
-                      return false;
-                    }
-                  }).map((item) => {
+              {sidebarItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location === item.href;
 
@@ -645,87 +452,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto scrollbar-custom">
-          {/* Master Admin Section (desktop) - show at top */}
-          {(() => {
-            const user = getCurrentUser();
-            if (user) {
-              try {
-                const showMasterSection = user.role === 'master_admin' || (allowedModules && masterAdminItems.some(mi => allowedModules.has(mi.requiredRole)));
-                if (showMasterSection) {
-                  return (
-                    <>
-                      <div className="px-3 py-2 mb-4">
-                        {!sidebarCollapsed && (
-                          <div className="flex items-center gap-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
-                            <Shield className="h-4 w-4" />
-                            <span>Master Admin</span>
-                          </div>
-                        )}
-                      </div>
-                      {masterAdminItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = location === item.href;
-
-                        return (
-                          <Link
-                            key={`desktop-${item.href}`}
-                            to={item.href}
-                            className={cn(
-                              "group flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200",
-                              isActive
-                                ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-white border border-purple-500/30 shadow-lg"
-                                : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
-                            )}
-                          >
-                            <Icon className={cn("flex-shrink-0 transition-colors", sidebarCollapsed ? "w-6 h-6" : "w-5 h-5 mr-4")} />
-                            {!sidebarCollapsed && (
-                              <>
-                                <span className="flex-1">{item.title}</span>
-                                {item.badge && (
-                                  <Badge variant="secondary" className="ml-auto bg-slate-700 text-slate-300 text-xs">
-                                    {item.badge}
-                                  </Badge>
-                                )}
-                              </>
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </>
-                  );
-                }
-              } catch (error) {
-                console.error('Error parsing user data:', error);
-              }
-            }
-            return null;
-            
-          })()}
-
-
-
-
-          {/* Regular Admin Section Header */}
-          <div className="px-3 py-2 mt-4">
-            {!sidebarCollapsed && (
-              <div className="flex items-center gap-2 text-xs  font-semibold text-slate-400 uppercase tracking-wider">
-                <LayoutDashboard className="h-4 w-4  text-xs font-semibold text-purple-400" />
-                <span className=" text-xs font-semibold text-purple-400 text-xs  font-semibold">Admin Panel</span>
-              </div>
-            )}
-          </div>
-
-          {/* Regular Admin Items */}
-          {sidebarItems.filter((item) => {
-            const user = getCurrentUser();
-            if (!user) return false;
-            try {
-              if (allowedModules) return allowedModules.has(item.requiredRole || item.href);
-              return hasAccess(item.requiredRole || item.href, user.role);
-            } catch {
-              return false;
-            }
-          }).map((item) => {
+          {sidebarItems.map((item) => {
             const Icon = item.icon;
             const isActive = location === item.href;
 
@@ -754,8 +481,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </Link>
             );
           })}
-
-          {/* Master Admin section moved above regular items */}
         </nav>
 
         {/* Footer */}

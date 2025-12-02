@@ -14,10 +14,10 @@ export default function Careers() {
 
   // Fetch job positions from API
   const { data: openPositions = [], isLoading } = useQuery({
-    queryKey: ['/api/job-positions'],
+    queryKey: ['/api/admin/job-positions'],
     queryFn: async () => {
-      console.log('🔄 Fetching job positions from /api/job-positions...');
-      const response = await fetch('/api/job-positions');
+      console.log('🔄 Fetching job positions from /api/admin/job-positions...');
+      const response = await fetch('/api/admin/job-positions');
       if (!response.ok) {
         console.error('❌ Failed to fetch job positions:', response.status);
         throw new Error('Failed to fetch job positions');

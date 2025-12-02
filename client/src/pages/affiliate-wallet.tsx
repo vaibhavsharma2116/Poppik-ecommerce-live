@@ -160,7 +160,7 @@ export default function AffiliateWallet() {
 
   // Filter transactions
   const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = String(transaction.description || '').toLowerCase().includes(String(searchQuery || '').toLowerCase());
     const matchesType = filterType === "all" || transaction.type === filterType;
 
     let matchesDate = true;

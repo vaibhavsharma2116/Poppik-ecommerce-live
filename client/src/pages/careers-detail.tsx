@@ -490,7 +490,7 @@ export default function CareersDetail() {
             {/* Additional Note */}
             <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
               <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
-                While this position is for a {position.type.toLowerCase()}, outstanding candidates may be considered for full-time positions based on performance and availability or the requirements within the company. We encourage you to demonstrate your skills and dedication throughout your time with us.
+                While this position is for a {String(position.type || '').toLowerCase()}, outstanding candidates may be considered for full-time positions based on performance and availability or the requirements within the company. We encourage you to demonstrate your skills and dedication throughout your time with us.
               </p>
             </div>
 

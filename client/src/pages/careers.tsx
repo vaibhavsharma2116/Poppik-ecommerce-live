@@ -17,7 +17,7 @@ export default function Careers() {
     queryFn: async () => {
       console.log('🔍 Fetching job positions from API...');
       try {
-        const response = await fetch('/api/job-positions');
+        const response = await fetch('/api/admin/job-positions');
         console.log('✅ API Response Status:', response.status);
         
         if (!response.ok) {

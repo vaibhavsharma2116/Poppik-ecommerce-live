@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 
 // Helper to get shade color
 function getShadeColor(shadeName: string): string {
-  const name = shadeName.toLowerCase();
+  const name = String(shadeName || '').toLowerCase();
   if (name.includes('red')) return '#ef4444';
   if (name.includes('pink')) return '#ec4899';
   if (name.includes('orange')) return '#f97316';

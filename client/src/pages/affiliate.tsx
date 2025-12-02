@@ -61,27 +61,40 @@ export default function AffiliatePage() {
     }
   }, [application, setLocation]);
 
-  // Featured Affiliate Videos (public)
+  // Featured Affiliate Videos (public) - Real-time with no cache
   const { data: affiliateVideos = [], isLoading: isVideosLoading, refetch: refetchVideos } = useQuery({
     queryKey: ['/api/affiliate-videos', 'affiliate'],
     queryFn: async () => {
       try {
-        const res = await fetch(`/api/affiliate-videos?isActive=true&category=affiliate`, {
+        console.log('🔄 Fetching affiliate videos (no cache)...');
+        const timestamp = Date.now();
+        const res = await fetch(`/api/affiliate-videos?isActive=true&category=affiliate&_t=${timestamp}`, {
+          method: 'GET',
           cache: 'no-store',
           headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
             'Pragma': 'no-cache',
             'Expires': '0'
           }
         });
-        if (!res.ok) return [];
-        return await res.json();
+        if (!res.ok) {
+          console.error('❌ Failed to fetch affiliate videos:', res.status);
+          return [];
+        }
+        const data = await res.json();
+        console.log('✅ Affiliate videos loaded:', data.length, 'items');
+        return data;
       } catch (e) {
-        console.error('Failed to load affiliate videos', e);
+        console.error('❌ Error loading affiliate videos:', e);
         return [];
       }
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0, // Always treat as stale - fetch fresh data
+    gcTime: 0, // Don't cache at all
+    refetchInterval: 5000, // Auto-refresh every 5 seconds
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchOnMount: 'always',
   });
 
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);

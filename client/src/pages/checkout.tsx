@@ -978,7 +978,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
     // Auto-fill state and clear zipcode when city is selected (user will select from dropdown)
     if (name === 'city' && value) {
-      const cityKey = value.toLowerCase().trim();
+      const cityKey = String(value || '').toLowerCase().trim();
       const locationData = cityLocationMap[cityKey];
 
       if (locationData) {
@@ -995,7 +995,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   // Get available pincodes for selected city
   const getAvailablePincodes = () => {
     if (!formData.city) return [];
-    const cityKey = formData.city.toLowerCase().trim();
+    const cityKey = String(formData.city || '').toLowerCase().trim();
     const locationData = cityLocationMap[cityKey];
     return locationData?.pincodes || [];
   };
@@ -1110,7 +1110,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           setNewAddressData(prev => ({
             ...prev,
             town: city,
-            state: state.toLowerCase().replace(/ /g, '_'),
+            state: String(state || '').toLowerCase().replace(/ /g, '_'),
             pincode: pincode,
             area: area,
             landmark: landmark,
