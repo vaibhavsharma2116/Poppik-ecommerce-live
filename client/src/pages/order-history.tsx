@@ -16,6 +16,9 @@ interface OrderItem {
   quantity: number;
   price: string;
   image: string;
+  deliveryAddress?: string;
+  recipientName?: string;
+  recipientPhone?: string;
 }
 
 interface Order {
@@ -576,19 +579,37 @@ export default function OrderHistory() {
                   <h4 className="font-medium text-gray-900 mb-3">Order Items</h4>
                   <div className="space-y-3">
                     {selectedOrder.items.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <Package className="h-6 w-6 text-gray-400" />
+                      <div key={item.id} className="p-3 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                              <Package className="h-6 w-6 text-gray-400" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{item.name}</p>
+                              <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{item.name}</p>
-                            <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                          <div className="text-right">
+                            <p className="font-medium">{item.price}</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium">{item.price}</p>
-                        </div>
+                        
+                        {/* Per-item delivery address */}
+                        {(item.deliveryAddress || item.recipientName || item.recipientPhone) && (
+                          <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
+                            <p className="font-medium text-blue-900 mb-1">Delivery Details:</p>
+                            {item.recipientName && (
+                              <p className="text-gray-700"><span className="font-medium">Recipient:</span> {item.recipientName}</p>
+                            )}
+                            {item.recipientPhone && (
+                              <p className="text-gray-700"><span className="font-medium">Phone:</span> {item.recipientPhone}</p>
+                            )}
+                            {item.deliveryAddress && (
+                              <p className="text-gray-700"><span className="font-medium">Address:</span> {item.deliveryAddress}</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

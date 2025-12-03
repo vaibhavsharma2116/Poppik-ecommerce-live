@@ -326,14 +326,13 @@ export default function CheckoutPage() {
     zipCode: "",
     phone: "",
     paymentMethod: "cashfree",
-    // Priority: passed affiliate code > localStorage affiliateRef
     affiliateCode: passedAffiliateCode || localStorage.getItem('affiliateRef') || "",
-    // Prefer explicit affiliateDiscount passed via location, otherwise fallback to discount from items
     affiliateDiscount: passedAffiliateDiscount || passedAffiliateDiscountFromItems || 0,
-    deliveryInstructions: "", // Added state for delivery instructions
-    saturdayDelivery: false, // Changed to boolean for easier handling
-    sundayDelivery: false // Changed to boolean for easier handling
+    deliveryInstructions: "",
+    saturdayDelivery: false,
+    sundayDelivery: false,
   });
+
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [profileDataLoaded, setProfileDataLoaded] = useState(false);
@@ -350,9 +349,9 @@ export default function CheckoutPage() {
     town: "",
     state: "",
     makeDefault: false,
-    deliveryInstructions: '', // For new address dialog
-    saturdayDelivery: false, // For new address dialog
-    sundayDelivery: false, // For new address dialog
+    deliveryInstructions: '',
+    saturdayDelivery: false,
+    sundayDelivery: false,
   });
 
   // Initialize shipping cost state and loading indicator
@@ -446,6 +445,13 @@ export default function CheckoutPage() {
 const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
     const multiAddressMapping = localStorage.getItem('multiAddressMapping');
 
+    // If NOT a multi-address order, clean up any leftover multi-address flags from previous orders
+    if (!isMultiAddress) {
+      localStorage.removeItem('multiAddressMapping');
+      localStorage.removeItem('checkoutCartItems');
+      localStorage.removeItem('multipleAddressMode');
+    }
+
     // Only redirect if multi-address order AND no addresses have been assigned yet
     if (isMultiAddress && !multiAddressMapping) {
       // Redirect back to delivery address page for multi-address orders that need address assignment
@@ -457,14 +463,8 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       return;
     }
 
-    // If multi-address order with mapping, skip Step 1 and go to Step 2
-    if (isMultiAddress && multiAddressMapping) {
-      setCurrentStep(2);
-      toast({
-        title: "Multi-Address Order",
-        description: "Review your items and their delivery addresses",
-      });
-    }
+    // NOTE: Do not set current step to Review here yet. Wait until cart is loaded
+    // so we don't accidentally skip to Review when cart is empty or cleared.
     // Fetch saved addresses
     const fetchAddresses = async () => {
       try {
@@ -668,26 +668,18 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           setFormData(prev => {
             const updatedForm = {
               ...prev,
-              email: userData.email?.trim() || prev.email || "",
-              firstName: userData.firstName?.trim() || prev.firstName || "",
-              lastName: userData.lastName?.trim() || prev.lastName || "",
-              address: streetAddress?.trim() || prev.address || "",
-              city: city?.trim() || prev.city || "",
-              state: state?.trim() || prev.state || "",
-              zipCode: zipCode?.trim() || prev.zipCode || "",
-              phone: userData.phone?.trim() || prev.phone || "",
+              // Personal/contact/address fields intentionally not overwritten here
               deliveryInstructions: userData.deliveryInstructions?.trim() || prev.deliveryInstructions || "",
               saturdayDelivery: userData.saturdayDelivery === true ? true : prev.saturdayDelivery,
               sundayDelivery: userData.sundayDelivery === true ? true : prev.sundayDelivery
             };
-            
-            console.log('📝 Form data auto-populated:', {
-              email: updatedForm.email ? '✓' : '✗',
-              firstName: updatedForm.firstName ? '✓' : '✗',
-              lastName: updatedForm.lastName ? '✓' : '✗',
-              address: updatedForm.address ? '✓' : '✗'
+
+            console.log('📝 Form data auto-populated (partial):', {
+              deliveryInstructions: updatedForm.deliveryInstructions ? '✓' : '✗',
+              saturdayDelivery: updatedForm.saturdayDelivery ? '✓' : '✗',
+              sundayDelivery: updatedForm.sundayDelivery ? '✓' : '✗'
             });
-            
+
             return updatedForm;
           });
 
@@ -695,12 +687,12 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
             setProfileDataLoaded(true);
 
             // Show notification that data was auto-filled
-            if (userData.firstName || userData.lastName || userData.email || userData.phone || userData.address) {
-              toast({
-                title: "Profile Data Loaded",
-                description: "Your contact information and shipping address have been filled automatically.",
-              });
-            }
+            // if (userData.firstName || userData.lastName || userData.email || userData.phone || userData.address) {
+            //   toast({
+            //     title: "Profile Data Loaded",
+            //     description: "Your contact information and shipping address have been filled automatically.",
+            //   });
+            // }
           }
         }
       }
@@ -713,6 +705,65 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       try {
         const parsedCart = JSON.parse(savedCart);
         setCartItems(parsedCart);
+        // If this is a multi-address order and we have a stored mapping,
+        // verify the mapping actually applies to items in the current cart
+        // before skipping Step 1. This avoids stale mappings forcing the
+        // UI to jump straight to Review.
+        if (isMultiAddress && multiAddressMapping && Array.isArray(parsedCart) && parsedCart.length > 0) {
+          try {
+            const mappingObj = JSON.parse(multiAddressMapping);
+            const mappingKeys = Object.keys(mappingObj || {});
+
+            // Check whether at least one mapping key corresponds to a current cart item
+            const hasRelevantKey = parsedCart.some((cartItem: any) => {
+              const base = String((cartItem as any).itemKey ?? cartItem.id);
+              // Accept per-instance keys like `base-0` or `0-base`, or a base key match
+              return mappingKeys.some(k => {
+                const s = String(k);
+                if (!s) return false;
+                if (s === base) return true;
+                if (s.startsWith(`${base}-`) || s.endsWith(`-${base}`)) return true;
+                return false;
+              });
+            });
+
+            if (hasRelevantKey) {
+              setCurrentStep(2);
+              toast({
+                title: "Multi-Address Order",
+                description: "Review your items and their delivery addresses",
+              });
+            } else {
+              // If mapping exists but doesn't match the cart, check if we're in address assignment mode
+              const multipleMode = localStorage.getItem('multipleAddressMode');
+              if (multipleMode === 'true') {
+                // User is actively assigning addresses, so don't redirect
+                console.warn('multiAddressMapping found but no keys match current cart — user is in address assignment mode');
+              } else {
+                // Mapping is incomplete and we're not in assignment mode, so redirect to address assignment page
+                console.warn('multiAddressMapping found but no keys match current cart — redirecting to address assignment');
+                toast({
+                  title: "Incomplete Address Assignment",
+                  description: "Please assign delivery addresses to your items",
+                });
+                setLocation('/select-delivery-address');
+                return;
+              }
+            }
+          } catch (e) {
+            console.error('Error parsing multiAddressMapping while deciding checkout step:', e);
+            // Only redirect if we're not in address assignment mode
+            const multipleMode = localStorage.getItem('multipleAddressMode');
+            if (multipleMode !== 'true') {
+              toast({
+                title: "Address Assignment Required",
+                description: "Please assign delivery addresses to your items",
+              });
+              setLocation('/select-delivery-address');
+              return;
+            }
+          }
+        }
       } catch (error) {
         console.error("Error parsing cart data:", error);
         setCartItems([]);
@@ -720,6 +771,21 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
     }
     setLoading(false);
   }, [user?.id, profileDataLoaded]);
+
+  // Load multi-address mapping from localStorage so Review step can render addresses
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('multiAddressMapping');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          setMultiAddressMapping(parsed);
+        }
+      }
+    } catch (e) {
+      console.error('Error loading multiAddressMapping from localStorage:', e);
+    }
+  }, []);
 
   // Fetch shipping cost when zipCode or paymentMethod changes
   useEffect(() => {
@@ -1369,14 +1435,14 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         return false;
       }
 
-      if (!formData.email || !formData.firstName || !formData.lastName) {
-        toast({
-          title: "Missing Information",
-          description: "Please fill in all required fields",
-          variant: "destructive",
-        });
-        return false;
-      }
+      // if (!formData.email || !formData.firstName || !formData.lastName) {
+      //   toast({
+      //     title: "Missing Information",
+      //     description: "Please fill in all required fields",
+      //     variant: "destructive",
+      //   });
+      //   return false;
+      // }
 
       if (formData.phone && formData.phone.trim()) {
         const phoneRegex = /^(\+91|91)?[6-9]\d{9}$/;
@@ -1384,24 +1450,104 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         if (!phoneRegex.test(cleanPhone)) {
           toast({
             title: "Invalid Phone Number",
-            description: "Please enter a valid 10-digit Indian mobile number starting with 6-9",
+            description: "Phone appears invalid. We'll proceed but please double-check.",
             variant: "destructive",
           });
-          return false;
         }
       }
 
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email.trim())) {
+      if (formData.email && !emailRegex.test(formData.email.trim())) {
         toast({
           title: "Invalid Email",
-          description: "Please enter a valid email address",
+          description: "Email looks invalid. We'll proceed but please verify.",
           variant: "destructive",
         });
-        return false;
       }
 
       const orderId = `ORD-${Date.now()}-${user.id}`;
+      // Prepare multi-address data if applicable so Cashfree order creation also stores addresses
+      const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
+      const multiAddressMapping = localStorage.getItem('multiAddressMapping');
+
+      let cashfreeShippingAddress: any = `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`;
+      
+      // Prepare items for Cashfree with delivery addresses
+      // Default to Step 1 address for regular orders
+      let cashfreeItems = cartItems.map((item: any) => ({
+        productId: item.id,
+        productName: item.name,
+        productImage: item.image,
+        quantity: item.quantity,
+        price: item.price,
+        cashbackPrice: item.cashbackPrice || null,
+        cashbackPercentage: item.cashbackPercentage || null,
+        deliveryAddress: `${formData.address.trim()}, ${formData.city.trim()}, ${formData.state.trim()} - ${formData.zipCode.trim()}, India`,
+        recipientName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+        recipientPhone: formData.phone?.trim() || '9999999999',
+        deliveryInstructions: formData.deliveryInstructions || null,
+        saturdayDelivery: formData.saturdayDelivery,
+        sundayDelivery: formData.sundayDelivery,
+      }));
+
+      if (isMultiAddress && multiAddressMapping && savedAddresses.length > 0) {
+          try {
+          const mapping = JSON.parse(multiAddressMapping);
+          // Expand items into per-unit entries so each unit can be assigned a separate address
+          const expanded: any[] = [];
+          cartItems.forEach((item: any) => {
+            const mapKeyBase = (item as any).itemKey || item.id;
+            for (let idx = 0; idx < item.quantity; idx++) {
+              // Try per-instance keys first, then fall back to base key
+              const instanceKey1 = `${mapKeyBase}-${idx}`;
+              const instanceKey2 = `${idx}-${mapKeyBase}`;
+              const baseKey = String(mapKeyBase);
+
+              let addressId = mapping[instanceKey1] ?? mapping[instanceKey2] ?? mapping[baseKey];
+
+              // Also allow numeric keys
+              if (addressId === undefined && mapping[Number(instanceKey1)]) {
+                addressId = mapping[Number(instanceKey1)];
+              }
+
+              const address = addressId ? savedAddresses.find((addr: any) => Number(addr.id) === Number(addressId)) : null;
+
+              expanded.push({
+                productId: item.id,
+                productName: item.name,
+                productImage: item.image,
+                quantity: 1,
+                price: item.price,
+                cashbackPrice: item.cashbackPrice || null,
+                cashbackPercentage: item.cashbackPercentage || null,
+                deliveryAddress: address ? `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}` : cashfreeShippingAddress,
+                recipientName: address?.recipientName || `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+                recipientPhone: address?.phoneNumber || formData.phone?.trim() || '9999999999',
+                deliveryInstructions: address?.deliveryInstructions || formData.deliveryInstructions || null,
+                saturdayDelivery: address?.saturdayDelivery,
+                sundayDelivery: address?.sundayDelivery,
+              });
+            }
+          });
+
+          cashfreeItems = expanded;
+
+          cashfreeShippingAddress = JSON.stringify({
+            multi: true,
+            items: cashfreeItems.map((it: any) => ({
+              productId: it.productId,
+              productName: it.productName,
+              quantity: it.quantity,
+              deliveryAddress: it.deliveryAddress,
+              recipientName: it.recipientName,
+              recipientPhone: it.recipientPhone,
+              deliveryInstructions: it.deliveryInstructions
+            }))
+          });
+        } catch (e) {
+          console.error('Error preparing multi-address data for Cashfree order:', e);
+        }
+      }
 
       const response = await fetch(apiUrl('/api/payments/cashfree/create-order'), {
         method: 'POST',
@@ -1421,7 +1567,9 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           orderData: {
             userId: user.id,
             totalAmount: Math.round(total),
-            shippingAddress: `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`,
+            shippingAddress: cashfreeShippingAddress,
+            isMultiAddress: isMultiAddress,
+            multiAddressMapping: multiAddressMapping ? multiAddressMapping : null,
             affiliateCode: passedAffiliateCode || null,
             affiliateCommission: affiliateCommission > 0 ? Math.round(affiliateCommission) : null,
             promoCode: appliedPromo?.code || null,
@@ -1431,15 +1579,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
             deliveryInstructions: formData.deliveryInstructions, // Include general delivery instructions
             saturdayDelivery: formData.saturdayDelivery, // Include weekend delivery preferences
             sundayDelivery: formData.sundayDelivery,   // Include weekend delivery preferences
-            items: cartItems.map(item => ({
-              productId: item.id,
-              productName: item.name,
-              productImage: item.image,
-              quantity: item.quantity,
-              price: item.price,
-              cashbackPrice: item.cashbackPrice || null,
-              cashbackPercentage: item.cashbackPercentage || null,
-            }))
+            items: cashfreeItems
           }
         }),
       });
@@ -1544,14 +1684,34 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   };
 
   const handleNextStep = () => {
-    if (currentStep === 1 && !selectedAddressId && localStorage.getItem('isMultiAddressOrder') !== 'true') {
-      toast({
-        title: "Address Required",
-        description: "Please select or add a delivery address",
-        variant: "destructive",
-      });
-      return;
+    const isMulti = localStorage.getItem('isMultiAddressOrder') === 'true';
+    
+    if (currentStep === 1) {
+      // For regular orders, require address selection
+      if (!selectedAddressId && !isMulti) {
+        toast({
+          title: "Address Required",
+          description: "Please select or add a delivery address",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // For multi-address orders, redirect to address assignment page
+      if (isMulti) {
+        try {
+          const minimalCart = cartItems.map(item => ({ id: item.id, itemKey: (item as any).itemKey || null, quantity: item.quantity }));
+          localStorage.setItem('checkoutCartItems', JSON.stringify(minimalCart));
+          localStorage.setItem('multipleAddressMode', 'true');
+        } catch (e) {
+          console.error('Error preparing multi-address edit mode:', e);
+          localStorage.setItem('multipleAddressMode', 'true');
+        }
+        setLocation('/select-delivery-address');
+        return;
+      }
     }
+    
     setCurrentStep(prev => Math.min(prev + 1, 3));
   };
 
@@ -1574,14 +1734,12 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       return;
     }
 
+    // Relaxed validations: show warnings but do not block order placement
     if (!formData.email?.trim() || !formData.firstName?.trim() || !formData.lastName?.trim() || !formData.address?.trim()) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields: Email, First Name, Last Name, and Address",
-        variant: "destructive",
+        description: "Some required fields are empty. Proceeding anyway — please review before placing the order.",
       });
-      setIsProcessing(false);
-      return;
     }
 
     if (formData.phone && formData.phone.trim()) {
@@ -1590,73 +1748,58 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       if (!phoneRegex.test(cleanPhone)) {
         toast({
           title: "Invalid Phone Number",
-          description: "Please enter a valid 10-digit Indian mobile number starting with 6-9",
+          description: "Phone appears invalid. We'll proceed but please double-check.",
           variant: "destructive",
         });
-        setIsProcessing(false);
-        return false;
       }
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email.trim())) {
+    if (formData.email && !emailRegex.test(formData.email.trim())) {
       toast({
         title: "Invalid Email",
-        description: "Please enter a valid email address",
+        description: "Email looks invalid. We'll proceed but please verify.",
         variant: "destructive",
       });
-      setIsProcessing(false);
-      return false;
     }
 
-    if (!formData.address || formData.address.trim().length < 10) {
+    if (formData.address && formData.address.trim().length < 10) {
       toast({
-        title: "Invalid Address",
-        description: "Please enter a complete address (minimum 10 characters)",
+        title: "Short Address",
+        description: "Address looks short (minimum 10 characters recommended).",
         variant: "destructive",
       });
-      setIsProcessing(false);
-      return false;
     }
 
-    if (!formData.city || formData.city.trim().length < 3) {
+    if (formData.city && formData.city.trim().length < 3) {
       toast({
-        title: "Invalid City",
-        description: "Please select a valid city",
+        title: "City Warning",
+        description: "City may be incomplete. Proceeding anyway.",
         variant: "destructive",
       });
-      setIsProcessing(false);
-      return false;
     }
 
-    if (!formData.state || formData.state.trim().length < 3) {
+    if (formData.state && formData.state.trim().length < 3) {
       toast({
-        title: "Invalid State",
-        description: "Please select a valid state",
+        title: "State Warning",
+        description: "State may be incomplete. Proceeding anyway.",
         variant: "destructive",
       });
-      setIsProcessing(false);
-      return false;
     }
 
-    if (!formData.zipCode || !/^\d{6}$/.test(formData.zipCode.trim())) {
+    if (formData.zipCode && !/^\d{6}$/.test(String(formData.zipCode).trim())) {
       toast({
-        title: "Invalid PIN Code",
-        description: "Please enter a valid 6-digit PIN code",
+        title: "PIN Code Warning",
+        description: "PIN code looks invalid. Proceeding anyway.",
         variant: "destructive",
       });
-      setIsProcessing(false);
-      return false;
     }
 
     if (!formData.city || !formData.state) {
       toast({
         title: "Address Incomplete",
-        description: "Please select city and state",
-        variant: "destructive",
+        description: "City or state missing. Proceeding nevertheless — please complete later.",
       });
-      setIsProcessing(false);
-      return false;
     }
 
 
@@ -1692,36 +1835,69 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           cashbackPrice: item.cashbackPrice || null,
           cashbackPercentage: item.cashbackPercentage || null,
           deliveryInstructions: formData.deliveryInstructions || null,
+          // Add delivery address from Step 1 form for regular orders
+          deliveryAddress: fullAddress,
+          recipientName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+          recipientPhone: formData.phone.trim(),
         }));
 
         // If multi-address order, include delivery addresses for each item
         if (isMultiAddress && multiAddressMapping && savedAddresses.length > 0) {
           try {
             const mapping = JSON.parse(multiAddressMapping);
-            
-            itemsData = cartItems.map((item: any) => {
-              const addressId = mapping[item.id];
-              const address = savedAddresses.find(addr => addr.id === addressId);
-              
-              return {
-                productId: item.id,
-                productName: item.name,
-                productImage: item.image,
-                quantity: item.quantity,
-                price: item.price,
-                cashbackPrice: item.cashbackPrice || null,
-                cashbackPercentage: item.cashbackPercentage || null,
-                deliveryAddress: address ? `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}` : null,
-                recipientName: address ? address.recipientName : null,
-                recipientPhone: address ? address.phoneNumber : null,
-                deliveryInstructions: address?.deliveryInstructions || null,
-                saturdayDelivery: address?.saturdayDelivery,
-                sundayDelivery: address?.sundayDelivery,
-              };
+
+            const expandedItems: any[] = [];
+            cartItems.forEach((item: any) => {
+              const mapKeyBase = (item as any).itemKey || item.id;
+              for (let idx = 0; idx < item.quantity; idx++) {
+                const instanceKey1 = `${mapKeyBase}-${idx}`;
+                const instanceKey2 = `${idx}-${mapKeyBase}`;
+                const baseKey = String(mapKeyBase);
+
+                let addressId = mapping[instanceKey1] ?? mapping[instanceKey2] ?? mapping[baseKey];
+                if (addressId === undefined && mapping[Number(instanceKey1)]) {
+                  addressId = mapping[Number(instanceKey1)];
+                }
+
+                const address = addressId ? savedAddresses.find(addr => Number(addr.id) === Number(addressId)) : null;
+
+                expandedItems.push({
+                  productId: item.id,
+                  productName: item.name,
+                  productImage: item.image,
+                  quantity: 1,
+                  price: item.price,
+                  cashbackPrice: item.cashbackPrice || null,
+                  cashbackPercentage: item.cashbackPercentage || null,
+                  deliveryAddress: address ? `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}` : fullAddress,
+                  recipientName: address?.recipientName || `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+                  recipientPhone: address?.phoneNumber || formData.phone.trim(),
+                  deliveryInstructions: address?.deliveryInstructions || formData.deliveryInstructions || null,
+                  saturdayDelivery: address?.saturdayDelivery,
+                  sundayDelivery: address?.sundayDelivery,
+                });
+              }
             });
 
-            // For multi-address orders, use first address or a combined note
-            shippingAddressData = "Multiple Delivery Addresses - See individual items";
+            itemsData = expandedItems;
+            // For multi-address orders, include a JSON summary of per-item delivery addresses
+            try {
+              shippingAddressData = JSON.stringify({
+                multi: true,
+                items: itemsData.map((it: any) => ({
+                  productId: it.productId,
+                  productName: it.productName,
+                  quantity: it.quantity,
+                  deliveryAddress: it.deliveryAddress,
+                  recipientName: it.recipientName,
+                  recipientPhone: it.recipientPhone,
+                  deliveryInstructions: it.deliveryInstructions
+                }))
+              });
+            } catch (e) {
+              console.error('Error serializing multi-address shipping data:', e);
+              shippingAddressData = "Multiple Delivery Addresses - See individual items";
+            }
           } catch (error) {
             console.error('Error parsing multi-address mapping:', error);
           }
@@ -2008,8 +2184,8 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           <div className="flex items-center justify-between">
             {steps.map((step, index) => {
               const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
-              const stepCompleted = isMultiAddress && step.number === 1 ? true : currentStep > step.number;
-              const stepActive = isMultiAddress && step.number === 1 ? true : currentStep >= step.number;
+              const stepCompleted = currentStep > step.number;
+              const stepActive = currentStep >= step.number;
 
               return (
                 <div key={step.number} className="flex items-center flex-1">
@@ -2028,7 +2204,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                     <span className={`mt-2 text-sm font-medium ${
                       stepActive ? 'text-red-600' : 'text-gray-500'
                     }`}>
-                      {isMultiAddress && step.number === 1 ? 'Multiple Addresses' : step.title}
+                      {step.title}
                     </span>
                   </div>
                   {index < steps.length - 1 && (
@@ -2046,8 +2222,8 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2">
-              {/* Step 1: Delivery Address - Hide for multi-address orders */}
-              {currentStep === 1 && localStorage.getItem('isMultiAddressOrder') !== 'true' && (
+              {/* Step 1: Delivery Address - Show for both regular and multi-address orders */}
+              {currentStep === 1 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center">
@@ -2270,6 +2446,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                   // Save cart items to localStorage for multi-address page
                                   const minimalCart = cartItems.map(item => ({
                                     id: item.id,
+                                    itemKey: (item as any).itemKey || null,
                                     quantity: item.quantity
                                   }));
                                   localStorage.setItem('checkoutCartItems', JSON.stringify(minimalCart));
@@ -2562,7 +2739,17 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                         </div>
                         <button
                           type="button"
-                          onClick={() => setLocation('/select-delivery-address')}
+                          onClick={() => {
+                            try {
+                              const minimalCart = cartItems.map(item => ({ id: item.id, itemKey: (item as any).itemKey || null, quantity: item.quantity }));
+                              localStorage.setItem('checkoutCartItems', JSON.stringify(minimalCart));
+                              localStorage.setItem('multipleAddressMode', 'true');
+                            } catch (e) {
+                              console.error('Error preparing multi-address edit mode:', e);
+                              localStorage.setItem('multipleAddressMode', 'true');
+                            }
+                            setLocation('/select-delivery-address');
+                          }}
                           className="text-xs text-blue-700 hover:text-blue-900 font-semibold underline whitespace-nowrap"
                         >
                           Edit Addresses
@@ -2575,18 +2762,63 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                       let itemAddress = null;
 
                       if (isMultiAddress) {
-                        const instanceKeys = Object.keys(multiAddressMapping).filter(key => key.startsWith(`${item.id}-`));
+                        // Support both numeric id-based instance keys and itemKey-based keys
+                        const itemKeyBase = (item as any).itemKey || item.id;
+                        // Find mapping keys that belong to this item. Only consider
+                        // per-instance keys that include a '-' (e.g. `base-0` or `0-base`).
+                        const instanceKeys = Object.keys(multiAddressMapping).filter((key) => {
+                          const k = String(key);
+                          if (!k.includes('-')) return false;
+                          return k.startsWith(`${itemKeyBase}-`) || k.endsWith(`-${itemKeyBase}`);
+                        });
 
+                        // If we have per-instance mappings, render them per quantity.
                         if (instanceKeys.length > 0) {
-                          const instances = instanceKeys.map(key => {
-                            const addressId = multiAddressMapping[key];
-                            const address = savedAddresses.find(addr => addr.id === addressId);
-                            const instanceNum = parseInt(key.split('-')[1]) + 1;
-                            return { instanceNum, address };
-                          }).filter(inst => inst.address);
+                          // Build an array of addresses for each instance index (0..quantity-1)
+                          const qty = item.quantity || 1;
+                          const addressesByIndex: Array<{ instanceNum: number; address: any | null }> = [];
+                          for (let i = 0; i < qty; i++) {
+                            const keyCandidates = [
+                              `${itemKeyBase}-${i}`,
+                              `${i}-${itemKeyBase}`,
+                            ];
+                            let foundAddr: any = null;
+                            for (const kc of keyCandidates) {
+                              if (Object.prototype.hasOwnProperty.call(multiAddressMapping, kc)) {
+                                const addressId = multiAddressMapping[String(kc)];
+                                foundAddr = savedAddresses.find(addr => Number(addr.id) === Number(addressId)) || null;
+                                break;
+                              }
+                            }
+                            addressesByIndex.push({ instanceNum: i + 1, address: foundAddr });
+                          }
+
+                          // Also include any additional instance mappings discovered
+                          // defensively, but only consider indices within the item's quantity
+                          const extraInstances = instanceKeys.map(key => {
+                            const addressId = multiAddressMapping[String(key)];
+                            const address = savedAddresses.find(addr => Number(addr.id) === Number(addressId)) || null;
+                            const parts = String(key).split('-');
+                            let idx = -1;
+                            if (parts.length > 1) {
+                              if (/^\d+$/.test(parts[1])) idx = parseInt(parts[1], 10);
+                              else if (/^\d+$/.test(parts[0])) idx = parseInt(parts[0], 10);
+                            } else if (/^\d+$/.test(parts[0])) {
+                              idx = parseInt(parts[0], 10);
+                            }
+                            return { instanceNum: idx >= 0 ? idx + 1 : -1, address };
+                          }).filter(inst => inst.address && inst.instanceNum > 0 && inst.instanceNum <= (item.quantity || 1));
+
+                          // Merge extras into primary array if any missing (ignore extras outside quantity)
+                          extraInstances.forEach(e => {
+                            const idx = e.instanceNum - 1;
+                            if (idx >= 0 && idx < addressesByIndex.length) {
+                              if (!addressesByIndex[idx].address) addressesByIndex[idx].address = e.address;
+                            }
+                          });
 
                           return (
-                            <div key={item.id} className="border border-gray-200 rounded-md bg-white">
+                            <div key={(item as any).itemKey || `${item.id}-${itemIndex}`} className="border border-gray-200 rounded-md bg-white">
                               {/* Compact Product Header */}
                               <div className="p-3 bg-gray-50 border-b">
                                 <div className="flex gap-3">
@@ -2605,7 +2837,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                               </div>
 
                               {/* Compact Multiple Addresses */}
-                              {instances.map(({ instanceNum, address }) => (
+                              {addressesByIndex.filter(a => a.address).map(({ instanceNum, address }: any) => (
                                 <div key={instanceNum} className="p-3 border-t border-gray-100">
                                   <div className="flex gap-2">
                                     <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
@@ -2632,17 +2864,21 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                               ))}
                             </div>
                           );
-                        } else {
-                          const addressId = multiAddressMapping[item.id.toString()];
-                          itemAddress = addressId ? savedAddresses.find(addr => addr.id === addressId) : null;
-                        }
+                          } else {
+                            // No per-instance keys found. Check if a base-level mapping
+                            // exists for this item (e.g. user assigned a single address
+                            // to the whole product while in multi-address mode).
+                            const mapKey = String((item as any).itemKey ?? item.id);
+                            const baseAddressId = multiAddressMapping[mapKey] ?? multiAddressMapping[String(item.id)];
+                            itemAddress = baseAddressId ? savedAddresses.find(addr => Number(addr.id) === Number(baseAddressId)) : null;
+                          }
                       } else {
                         itemAddress = selectedAddressId ? savedAddresses.find(addr => addr.id === selectedAddressId) : null;
                       }
 
                       if (!isMultiAddress || (isMultiAddress && itemAddress)) {
                         return (
-                          <div key={item.id} className="border border-gray-200 rounded-md bg-white">
+                          <div key={(item as any).itemKey || `${item.id}-${itemIndex}`} className="border border-gray-200 rounded-md bg-white">
                             {/* Compact Single Item */}
                             <div className="p-3">
                               <div className="flex gap-3">
@@ -2695,9 +2931,8 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                         type="button" 
                         variant="outline" 
                         onClick={() => {
-                          // Go back to Step 1 to allow address changes
+                          // For both regular and multi-address orders, go back to Step 1 (address selection)
                           setCurrentStep(1);
-                          // Keep selectedAddressId and formData so address stays selected
                         }}
                         size="sm"
                       >
@@ -2721,60 +2956,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Contact Information Section */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                      <h3 className="font-semibold text-blue-900 mb-3">Contact Information</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="email">Email *</Label>
-                          <Input
-                            id="email"
-                            name="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={handleInputChange}
-                            placeholder="your@email.com"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="phone">Phone *</Label>
-                          <Input
-                            id="phone"
-                            name="phone"
-                            type="tel"
-                            value={formData.phone}
-                            onChange={handleInputChange}
-                            placeholder="10-digit number"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="firstName">First Name *</Label>
-                          <Input
-                            id="firstName"
-                            name="firstName"
-                            value={formData.firstName}
-                            onChange={handleInputChange}
-                            placeholder="First Name"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="lastName">Last Name *</Label>
-                          <Input
-                            id="lastName"
-                            name="lastName"
-                            value={formData.lastName}
-                            onChange={handleInputChange}
-                            placeholder="Last Name"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
+                    {/* Contact Information removed per request */}
 
                     {/* Payment Method Section */}
                     <div className="mt-4">

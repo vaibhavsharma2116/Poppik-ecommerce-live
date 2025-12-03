@@ -860,6 +860,15 @@ export default function OfferDetail() {
         }
       }
 
+      // If the offer has explicit affiliate fields set, prefer those
+      if (offer.affiliateCommission && parseFloat(String(offer.affiliateCommission)) > 0) {
+        totalAffiliateCommission = parseFloat(String(offer.affiliateCommission));
+      }
+
+      if (offer.affiliateUserDiscount && parseFloat(String(offer.affiliateUserDiscount)) > 0) {
+        totalAffiliateUserDiscount = parseFloat(String(offer.affiliateUserDiscount));
+      }
+
       for (const productId of productIds) {
         let product = offerProducts.find((p: any) => p.id === productId);
 

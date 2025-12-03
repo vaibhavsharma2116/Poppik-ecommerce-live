@@ -55,6 +55,8 @@ export default function AdminCombos() {
     productsIncluded: "",
     benefits: "",
     howToUse: "",
+    affiliateCommission: "",
+    affiliateUserDiscount: "",
   });
 
   const { data: combos, isLoading, error, refetch } = useQuery<any[]>({
@@ -468,6 +470,8 @@ export default function AdminCombos() {
     formDataToSend.append("productsIncluded", formData.productsIncluded || "");
     formDataToSend.append("benefits", formData.benefits || "");
     formDataToSend.append("howToUse", formData.howToUse || "");
+    formDataToSend.append("affiliateCommission", formData.affiliateCommission || "0");
+    formDataToSend.append("affiliateUserDiscount", formData.affiliateUserDiscount || "0");
 
     // Append all selected images
     if (selectedImages.length > 0) {
@@ -523,6 +527,8 @@ export default function AdminCombos() {
       productsIncluded: '',
       benefits: '',
       howToUse: '',
+      affiliateCommission: '',
+      affiliateUserDiscount: '',
     });
     setProductSearchTerm('');
     setImagePreviews([]);
@@ -560,6 +566,8 @@ export default function AdminCombos() {
       productsIncluded: combo.productsIncluded || '',
       benefits: combo.benefits || '',
       howToUse: combo.howToUse || '',
+      affiliateCommission: combo.affiliateCommission ? String(combo.affiliateCommission) : '',
+      affiliateUserDiscount: combo.affiliateUserDiscount ? String(combo.affiliateUserDiscount) : '',
     });
 
     // Load existing images if available
@@ -633,6 +641,8 @@ export default function AdminCombos() {
                 <TableHead>Name</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Discount</TableHead>
+                <TableHead>Affiliate Comm</TableHead>
+                <TableHead>Affiliate Disc</TableHead>
                 <TableHead>Products</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -652,6 +662,12 @@ export default function AdminCombos() {
                   <TableCell>₹{combo.price}</TableCell>
                   <TableCell>
                     <Badge variant="secondary">{combo.discount}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {combo.affiliateCommission ? `${combo.affiliateCommission}%` : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {combo.affiliateUserDiscount ? `${combo.affiliateUserDiscount}%` : '-'}
                   </TableCell>
                   <TableCell>
                     {getProductsCount(combo)} items
@@ -877,6 +893,35 @@ export default function AdminCombos() {
                   value={formData.reviewCount}
                   onChange={(e) => setFormData({ ...formData, reviewCount: e.target.value })}
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Affiliate Commission (%)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={formData.affiliateCommission}
+                  onChange={(e) => setFormData({ ...formData, affiliateCommission: e.target.value })}
+                  placeholder="e.g., 5"
+                />
+                <p className="text-xs text-gray-500 mt-1">Percentage of sale paid to affiliate</p>
+              </div>
+              <div>
+                <Label>Affiliate User Discount (%)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={formData.affiliateUserDiscount}
+                  onChange={(e) => setFormData({ ...formData, affiliateUserDiscount: e.target.value })}
+                  placeholder="e.g., 10"
+                />
+                <p className="text-xs text-gray-500 mt-1">Discount percentage offered to referred user</p>
               </div>
             </div>
 

@@ -58,7 +58,7 @@ export default function SelectDeliveryAddress() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<DeliveryAddress | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [itemAddressMapping, setItemAddressMapping] = useState<ItemAddressMapping>({});
+  const [itemAddressMapping, setItemAddressMapping] = useState<Record<string, number>>({});
   const [isMultipleAddressMode, setIsMultipleAddressMode] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const [itemInstanceMapping, setItemInstanceMapping] = useState<{[key: string]: number}>({});
@@ -115,13 +115,46 @@ export default function SelectDeliveryAddress() {
           const minimalCart = JSON.parse(savedCart);
           const fullCartItems = JSON.parse(fullCart);
           
-          // Reconstruct cart items with full data
+          // Reconstruct cart items with full data. Prefer matching by `itemKey` (preserves shade/instance),
+          // fallback to matching by `id` if itemKey is not present.
           const reconstructedItems = minimalCart.map((minimal: any) => {
-            const fullItem = fullCartItems.find((item: any) => item.id === minimal.id);
+            let fullItem = null;
+            if (minimal.itemKey) {
+              fullItem = fullCartItems.find((item: any) => item.itemKey === minimal.itemKey);
+            }
+            if (!fullItem) {
+              fullItem = fullCartItems.find((item: any) => item.id === minimal.id);
+            }
             return fullItem ? { ...fullItem, quantity: minimal.quantity } : null;
           }).filter(Boolean);
           
           setCartItems(reconstructedItems);
+          // If we already have saved mapping (editing an existing multi-address order), load it
+          try {
+            const existingMapRaw = localStorage.getItem('multiAddressMapping');
+            if (existingMapRaw) {
+              const existingMap = JSON.parse(existingMapRaw || '{}');
+              const addrMap: Record<string, number> = {};
+              const instMap: Record<string, number> = {};
+              const expanded = new Set<number>();
+
+              Object.keys(existingMap).forEach((k) => {
+                if (k.includes('-')) {
+                  instMap[k] = existingMap[k];
+                  const baseId = parseInt(String(k).split('-')[0]);
+                  if (!isNaN(baseId)) expanded.add(baseId as number);
+                } else {
+                  addrMap[k] = existingMap[k];
+                }
+              });
+
+              setItemAddressMapping(addrMap);
+              setItemInstanceMapping(instMap);
+              setExpandedItems(expanded);
+            }
+          } catch (e) {
+            console.error('Error loading existing multi-address mapping:', e);
+          }
         } catch (error) {
           console.error('Error reconstructing cart items:', error);
           toast({
@@ -271,27 +304,39 @@ export default function SelectDeliveryAddress() {
 
   const handleSelectAddress = (address: DeliveryAddress) => {
     if (!isMultipleAddressMode) {
+      // Save selected address but do NOT navigate away immediately so the
+      // chosen address remains visible on the page (user requested it
+      // should not be hidden after selection).
       localStorage.setItem('selectedDeliveryAddress', JSON.stringify(address));
-      setLocation('/checkout');
+      setSelectedAddressId(address.id);
+      // Intentionally not calling `setLocation('/checkout')` here so the
+      // selection stays on screen. Navigation can be triggered explicitly
+      // by the user in the checkout flow.
     }
   };
 
-  const updateQuantity = (itemId: number, newQuantity: number) => {
+  const updateQuantity = (itemKeyOrId: string | number, newQuantity: number) => {
     if (newQuantity < 1 || newQuantity > 10) return;
-    
+
     setCartItems(items =>
-      items.map(item =>
-        item.id === itemId ? { ...item, quantity: newQuantity } : item
-      )
+      items.map(item => {
+        const match = (item as any).itemKey
+          ? (String((item as any).itemKey) === String(itemKeyOrId))
+          : (Number(item.id) === Number(itemKeyOrId));
+        return match ? { ...item, quantity: newQuantity } : item;
+      })
     );
 
-    // Update localStorage
-    const updatedCart = cartItems.map(item =>
-      item.id === itemId ? { ...item, quantity: newQuantity } : item
-    );
+    // Update localStorage (use current cartItems snapshot and map accordingly)
+    const updatedCart = cartItems.map(item => {
+      const match = (item as any).itemKey
+        ? (String((item as any).itemKey) === String(itemKeyOrId))
+        : (Number(item.id) === Number(itemKeyOrId));
+      return match ? { ...item, quantity: newQuantity } : item;
+    });
     localStorage.setItem('cart', JSON.stringify(updatedCart));
     localStorage.setItem('checkoutCartItems', JSON.stringify(
-      updatedCart.map(item => ({ id: item.id, quantity: item.quantity }))
+      updatedCart.map(item => ({ id: item.id, itemKey: (item as any).itemKey || null, quantity: item.quantity }))
     ));
     window.dispatchEvent(new Event('cartUpdated'));
 
@@ -301,17 +346,20 @@ export default function SelectDeliveryAddress() {
     });
   };
 
-  const handleItemAddressChange = (itemId: number, addressId: number) => {
+  // Ensure address selection for each item/instance does not affect others
+  const handleItemAddressChange = (itemKeyOrId: string | number, addressId: number) => {
+    const key = String(itemKeyOrId);
     setItemAddressMapping(prev => ({
       ...prev,
-      [itemId]: addressId
+      [key]: addressId
     }));
   };
 
-  const handleItemInstanceAddressChange = (itemKey: string, addressId: number) => {
+  const handleItemInstanceAddressChange = (instanceKey: string, addressId: number) => {
+    const key = String(instanceKey);
     setItemInstanceMapping(prev => ({
       ...prev,
-      [itemKey]: addressId
+      [key]: addressId
     }));
   };
 
@@ -334,20 +382,28 @@ export default function SelectDeliveryAddress() {
 
     cartItems.forEach(item => {
       const isExpanded = expandedItems.has(item.id);
+      const keyBase = (item as any).itemKey || item.id;
       
       if (isExpanded && item.quantity > 1) {
         // Count individual instances
         totalInstances += item.quantity;
         for (let i = 0; i < item.quantity; i++) {
-          const instanceKey = `${item.id}-${i}`;
-          if (itemInstanceMapping[instanceKey]) {
+          const instanceKey = `${keyBase}-${i}`;
+          if (itemInstanceMapping[String(instanceKey)]) {
             assignedInstances++;
           }
         }
-      } else {
-        // Count as single item
+      } else if (item.quantity === 1) {
+        // For single quantity items, check itemInstanceMapping with "-0" suffix
         totalInstances++;
-        if (itemAddressMapping[item.id]) {
+        const instanceKey = `${keyBase}-0`;
+        if (itemInstanceMapping[String(instanceKey)]) {
+          assignedInstances++;
+        }
+      } else {
+        // For multiple quantity items (not expanded), check itemAddressMapping
+        totalInstances++;
+        if (itemAddressMapping[String(keyBase)]) {
           assignedInstances++;
         }
       }
@@ -367,24 +423,52 @@ export default function SelectDeliveryAddress() {
       
       cartItems.forEach(item => {
         const isExpanded = expandedItems.has(item.id);
+        const keyBase = (item as any).itemKey || item.id;
         
         if (isExpanded && item.quantity > 1) {
-          // Save individual instance mappings
+          // Save individual instance mappings for expanded items
           for (let i = 0; i < item.quantity; i++) {
-            const instanceKey = `${item.id}-${i}`;
-            if (itemInstanceMapping[instanceKey]) {
-              minimalMapping[instanceKey] = itemInstanceMapping[instanceKey];
+            const instanceKey = `${keyBase}-${i}`;
+            if (itemInstanceMapping[String(instanceKey)]) {
+              minimalMapping[String(instanceKey)] = itemInstanceMapping[String(instanceKey)];
             }
           }
+        } else if (item.quantity === 1) {
+          // For single quantity items, save from itemInstanceMapping with "-0" suffix
+          const instanceKey = `${keyBase}-0`;
+          if (itemInstanceMapping[String(instanceKey)]) {
+            minimalMapping[String(instanceKey)] = itemInstanceMapping[String(instanceKey)];
+          }
         } else {
-          // Save single item mapping
-          if (itemAddressMapping[item.id]) {
-            minimalMapping[item.id.toString()] = itemAddressMapping[item.id];
+          // For multiple quantity items (not expanded), save from itemAddressMapping
+          if (itemAddressMapping[String(keyBase)]) {
+            minimalMapping[String(keyBase)] = itemAddressMapping[String(keyBase)];
           }
         }
       });
 
-      localStorage.setItem('multiAddressMapping', JSON.stringify(minimalMapping));
+      // Canonicalize keys: ensure instance keys are always in the form `${base}-${index}`
+      const canonicalMapping: { [key: string]: number } = {};
+      Object.keys(minimalMapping).forEach(k => {
+        const val = minimalMapping[k];
+        const parts = String(k).split('-');
+        if (parts.length === 2) {
+          // Determine which part is numeric (index) and which is base
+          let base = parts[0];
+          let idxPart = parts[1];
+          if (/^\d+$/.test(parts[0]) && !/^\d+$/.test(parts[1])) {
+            base = parts[1];
+            idxPart = parts[0];
+          }
+          const idx = /^\d+$/.test(idxPart) ? parseInt(idxPart, 10) : 0;
+          canonicalMapping[`${base}-${idx}`] = val;
+        } else {
+          // Non-instance mapping, store as string key
+          canonicalMapping[String(k)] = val;
+        }
+      });
+
+      localStorage.setItem('multiAddressMapping', JSON.stringify(canonicalMapping));
       localStorage.setItem('isMultiAddressOrder', 'true');
       localStorage.removeItem('multipleAddressMode');
       localStorage.removeItem('checkoutCartItems');
@@ -473,7 +557,7 @@ export default function SelectDeliveryAddress() {
                           <div className="mt-3 flex items-center gap-3">
                             <div className="flex items-center border border-gray-300 rounded-lg">
                               <button
-                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                onClick={() => updateQuantity((item as any).itemKey || item.id, item.quantity - 1)}
                                 className="p-2 hover:bg-gray-100 transition-colors"
                                 aria-label="Decrease quantity"
                               >
@@ -481,7 +565,7 @@ export default function SelectDeliveryAddress() {
                               </button>
                               <span className="px-4 py-2 font-medium min-w-[3rem] text-center">{item.quantity}</span>
                               <button
-                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                onClick={() => updateQuantity((item as any).itemKey || item.id, item.quantity + 1)}
                                 className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50"
                                 disabled={item.quantity >= 10}
                                 aria-label="Increase quantity"
@@ -502,22 +586,44 @@ export default function SelectDeliveryAddress() {
                             )}
                           </div>
 
-                          {!isExpanded && (
-                            <div className="mt-3">
-                              <Label className="text-xs">Select delivery address:</Label>
-                              <select
-                                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                value={itemAddressMapping[item.id] || ''}
-                                onChange={(e) => handleItemAddressChange(item.id, parseInt(e.target.value))}
-                              >
-                                <option value="">Choose an address...</option>
-                                {addresses.map((addr) => (
-                                  <option key={addr.id} value={addr.id}>
-                                    {addr.recipientName} - {addr.city}, {addr.pincode}
-                                  </option>
-                                ))}
-                              </select>
+                          {item.quantity === 1 ? (
+                            <div className="mt-4">
+                              <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
+                                <span className="text-sm font-medium text-gray-700 min-w-[80px]">
+                                  Item 1:
+                                </span>
+                                <select
+                                  className="flex-1 rounded-md border border-input bg-white px-3 py-2 text-sm"
+                                      value={itemInstanceMapping[String(`${(item as any).itemKey || item.id}-0`)] || ''}
+                                      onChange={(e) => handleItemInstanceAddressChange(String(`${(item as any).itemKey || item.id}-0`), parseInt(e.target.value))}
+                                >
+                                  <option value="">Choose an address...</option>
+                                  {addresses.map((addr) => (
+                                    <option key={addr.id} value={addr.id}>
+                                      {addr.recipientName} - {addr.city}, {addr.pincode}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
                             </div>
+                          ) : (
+                            !isExpanded && (
+                              <div className="mt-3">
+                                <Label className="text-xs">Select delivery address:</Label>
+                                <select
+                                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                  value={itemAddressMapping[String((item as any).itemKey || item.id)] || ''}
+                                  onChange={(e) => handleItemAddressChange(String((item as any).itemKey || item.id), parseInt(e.target.value))}
+                                >
+                                  <option value="">Choose an address...</option>
+                                  {addresses.map((addr) => (
+                                    <option key={addr.id} value={addr.id}>
+                                      {addr.recipientName} - {addr.city}, {addr.pincode}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )
                           )}
                         </div>
                       </div>
@@ -536,7 +642,8 @@ export default function SelectDeliveryAddress() {
                             </Button>
                           </div>
                           {Array.from({ length: item.quantity }).map((_, index) => {
-                            const instanceKey = `${item.id}-${index}`;
+                            const keyBase = (item as any).itemKey || item.id;
+                            const instanceKey = `${keyBase}-${index}`;
                             return (
                               <div key={instanceKey} className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
                                 <span className="text-sm font-medium text-gray-700 min-w-[80px]">
@@ -544,8 +651,8 @@ export default function SelectDeliveryAddress() {
                                 </span>
                                 <select
                                   className="flex-1 rounded-md border border-input bg-white px-3 py-2 text-sm"
-                                  value={itemInstanceMapping[instanceKey] || ''}
-                                  onChange={(e) => handleItemInstanceAddressChange(instanceKey, parseInt(e.target.value))}
+                                  value={itemInstanceMapping[String(instanceKey)] || ''}
+                                  onChange={(e) => handleItemInstanceAddressChange(String(instanceKey), parseInt(e.target.value))}
                                 >
                                   <option value="">Choose an address...</option>
                                   {addresses.map((addr) => (

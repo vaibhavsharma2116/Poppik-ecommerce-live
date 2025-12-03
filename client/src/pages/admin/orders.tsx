@@ -53,6 +53,9 @@ interface Order {
     quantity: number;
     price: string;
     image: string;
+    deliveryAddress?: string;
+    recipientName?: string;
+    recipientPhone?: string;
   }>;
   userId?: number;
   totalAmount?: number;
@@ -752,10 +755,58 @@ export default function AdminOrders() {
                       </div>
                       <div>
                         <Label className="text-slate-600">Shipping Address</Label>
-                        <p className="font-medium flex items-start gap-1">
-                          <MapPin className="h-4 w-4 mt-0.5" />
-                          {selectedOrder.customer.address}
-                        </p>
+                                <p className="font-medium flex items-start gap-1">
+                                  <MapPin className="h-4 w-4 mt-0.5" />
+                                  {selectedOrder.customer.address}
+                                </p>
+                                {/* Render multi-address details if shippingAddress contains multi-address JSON */}
+                                {(() => {
+                                  try {
+                                    const raw = selectedOrder.shippingAddress;
+                                    if (!raw) return null;
+                                    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                                    if (parsed && parsed.multi && Array.isArray(parsed.items)) {
+                                      return (
+                                        <Card className="mt-4">
+                                          <CardHeader>
+                                            <CardTitle className="text-md">Delivery Addresses</CardTitle>
+                                          </CardHeader>
+                                          <CardContent>
+                                            <div className="text-sm text-slate-600 mb-2 flex items-center gap-2">
+                                              <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                              Multiple delivery addresses present for this order
+                                            </div>
+                                            <div className="overflow-auto">
+                                              <Table>
+                                                <TableHeader>
+                                                  <TableRow className="bg-slate-50/80">
+                                                    <TableHead>Item</TableHead>
+                                                    <TableHead>Recipient</TableHead>
+                                                    <TableHead>Phone</TableHead>
+                                                    <TableHead>Address</TableHead>
+                                                  </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                  {parsed.items.map((it: any, idx: number) => (
+                                                    <TableRow key={idx}>
+                                                      <TableCell>{it.productName || it.name || `Item ${idx + 1}`}</TableCell>
+                                                      <TableCell>{it.recipientName || '-'}</TableCell>
+                                                      <TableCell>{it.recipientPhone || '-'}</TableCell>
+                                                      <TableCell className="whitespace-pre-wrap">{it.deliveryAddress || it.address || '-'}</TableCell>
+                                                    </TableRow>
+                                                  ))}
+                                                </TableBody>
+                                              </Table>
+                                            </div>
+                                          </CardContent>
+                                        </Card>
+                                      );
+                                    }
+                                  } catch (e) {
+                                    // parsing failed or no multi-address data; fall back silently
+                                  }
+                                  return null;
+                                })()}
                       </div>
                     </div>
                   </CardContent>
@@ -770,19 +821,54 @@ export default function AdminOrders() {
                   <CardContent>
                     <div className="space-y-4">
                       {selectedOrder.products.map((product, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
-                              <Package className="h-6 w-6 text-slate-400" />
+                        <div key={index} className="p-4 border border-slate-200 rounded-lg space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
+                                <Package className="h-6 w-6 text-slate-400" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{product.name}</p>
+                                <p className="text-sm text-slate-600">Quantity: {product.quantity}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium">{product.name}</p>
-                              <p className="text-sm text-slate-600">Quantity: {product.quantity}</p>
+                            <div className="text-right">
+                              <p className="font-medium">{product.price}</p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-medium">{product.price}</p>
-                          </div>
+                          
+                          {/* Show delivery address info if available */}
+                          {(product.deliveryAddress || product.recipientName || product.recipientPhone) && (
+                            <div className="pt-3 border-t border-slate-100 space-y-2 bg-slate-50 p-3 rounded-md">
+                              {product.recipientName && (
+                                <div className="flex items-start gap-2">
+                                  <User className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <p className="text-xs text-slate-500">Recipient Name</p>
+                                    <p className="text-sm font-medium">{product.recipientName}</p>
+                                  </div>
+                                </div>
+                              )}
+                              {product.recipientPhone && (
+                                <div className="flex items-start gap-2">
+                                  <Phone className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <p className="text-xs text-slate-500">Phone</p>
+                                    <p className="text-sm font-medium">{product.recipientPhone}</p>
+                                  </div>
+                                </div>
+                              )}
+                              {product.deliveryAddress && (
+                                <div className="flex items-start gap-2">
+                                  <MapPin className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <p className="text-xs text-slate-500">Delivery Address</p>
+                                    <p className="text-sm font-medium whitespace-pre-wrap">{product.deliveryAddress}</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

@@ -93,7 +93,9 @@ interface BlogPost {
   author: string;
   category: string;
   subcategory?: string;
-  imageUrl: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
+  heroImageUrl?: string;
   videoUrl?: string;
   featured: boolean;
   published: boolean;
@@ -112,6 +114,8 @@ interface InsertBlogPost {
   author: string;
   category: string;
   imageUrl?: string;
+  thumbnailUrl?: string;
+  heroImageUrl?: string;
   videoUrl?: string;
   featured?: boolean;
   published?: boolean;
@@ -181,7 +185,8 @@ export default function AdminBlog() {
     content: '',
     author: '',
     category: '',
-    imageUrl: '',
+    thumbnailUrl: '',
+    heroImageUrl: '',
     videoUrl: '',
     featured: false,
     published: true,
@@ -198,8 +203,9 @@ export default function AdminBlog() {
   
 
   const [files, setFiles] = useState<{
-    image?: File;
     video?: File;
+    thumbnail?: File;
+    hero?: File;
   }>({});
 
   // Get blog posts - AGGRESSIVE NO-CACHE CONFIG
@@ -292,8 +298,11 @@ export default function AdminBlog() {
       });
 
       // Add files if they exist
-      if (files.image) {
-        submitFormData.append('image', files.image);
+      if (files.thumbnail) {
+        submitFormData.append('image', files.thumbnail);
+      }
+      if (files.hero) {
+        submitFormData.append('hero', files.hero);
       }
       if (files.video) {
         submitFormData.append('video', files.video);
@@ -372,7 +381,8 @@ export default function AdminBlog() {
       content: '',
       author: '',
       category: '',
-      imageUrl: '',
+      thumbnailUrl: '',
+      heroImageUrl: '',
       videoUrl: '',
       featured: false,
       published: true,
@@ -402,7 +412,8 @@ export default function AdminBlog() {
       content: post.content,
       author: post.author,
       category: post.category,
-      imageUrl: post.imageUrl,
+      thumbnailUrl: post.thumbnailUrl || post.imageUrl || '',
+      heroImageUrl: post.heroImageUrl || post.imageUrl || '',
       videoUrl: post.videoUrl || '',
       featured: post.featured,
       published: post.published,
@@ -666,7 +677,7 @@ export default function AdminBlog() {
                 <Card key={post.id} className="overflow-hidden">
                   <div className="relative">
                     <img
-                      src={post.imageUrl}
+                      src={post.thumbnailUrl || post.imageUrl || '/placeholder.png'}
                       alt={post.title}
                       className="w-full h-48 object-cover"
                     />
@@ -761,7 +772,7 @@ export default function AdminBlog() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <img
-                            src={post.imageUrl}
+                            src={post.thumbnailUrl || post.imageUrl || '/placeholder.png'}
                             alt={post.title}
                             className="w-12 h-12 object-cover rounded"
                           />
@@ -1410,9 +1421,9 @@ export default function AdminBlog() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {formData.imageUrl && (
+                      {(formData.heroImageUrl ?? formData.thumbnailUrl) && (
                         <img 
-                          src={formData.imageUrl} 
+                          src={formData.heroImageUrl ?? formData.thumbnailUrl} 
                           alt="Preview" 
                           className="w-full h-64 object-cover rounded-md"
                         />
@@ -1467,33 +1478,48 @@ export default function AdminBlog() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="image">Featured Image</Label>
+                <Label htmlFor="thumbnail">Thumbnail Image (Listing) *</Label>
                 <Input
-                  id="image"
+                  id="thumbnail"
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setFiles({ ...files, image: e.target.files?.[0] })}
+                  onChange={(e) => setFiles({ ...files, thumbnail: e.target.files?.[0] })}
                 />
-                {formData.imageUrl && (
+                {formData.thumbnailUrl && (
                   <div className="text-sm text-muted-foreground">
-                    Current: {formData.imageUrl}
+                    Current: {formData.thumbnailUrl}
                   </div>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="video">Video (Optional)</Label>
+                <Label htmlFor="hero">Hero Image (Detail) *</Label>
                 <Input
-                  id="video"
+                  id="hero"
                   type="file"
-                  accept="video/*"
-                  onChange={(e) => setFiles({ ...files, video: e.target.files?.[0] })}
+                  accept="image/*"
+                  onChange={(e) => setFiles({ ...files, hero: e.target.files?.[0] })}
                 />
-                {formData.videoUrl && (
+                {formData.heroImageUrl && (
                   <div className="text-sm text-muted-foreground">
-                    Current: {formData.videoUrl}
+                    Current: {formData.heroImageUrl}
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="video">Video (Optional)</Label>
+              <Input
+                id="video"
+                type="file"
+                accept="video/*"
+                onChange={(e) => setFiles({ ...files, video: e.target.files?.[0] })}
+              />
+              {formData.videoUrl && (
+                <div className="text-sm text-muted-foreground">
+                  Current: {formData.videoUrl}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center space-x-4">

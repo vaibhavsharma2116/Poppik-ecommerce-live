@@ -16,7 +16,9 @@ interface BlogPost {
   author: string;
   category: string;
   tags: string[];
-  imageUrl: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
+  heroImageUrl?: string;
   videoUrl?: string;
   featured: boolean;
   published: boolean;
@@ -180,7 +182,7 @@ export default function BlogPostDetail() {
           </video>
         ) : (
           <img
-            src={post.imageUrl}
+            src={post.heroImageUrl || post.thumbnailUrl || post.imageUrl || '/placeholder.png'}
             alt={post.title}
             className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] "
           />

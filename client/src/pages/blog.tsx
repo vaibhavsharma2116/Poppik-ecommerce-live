@@ -15,7 +15,9 @@ interface BlogPost {
   author: string;
   category: string;
   tags: string[];
-  imageUrl: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
+  heroImageUrl?: string;
   videoUrl?: string;
   featured: boolean;
   published: boolean;
@@ -238,7 +240,7 @@ export default function Blog() {
                       {/* Image - Mobile Optimized */}
                       <div className="relative overflow-hidden bg-gray-100 mb-3 sm:mb-4 rounded-lg sm:rounded-none" style={{ paddingBottom: '66.67%' }}>
                         <img
-                          src={post.imageUrl}
+                          src={post.thumbnailUrl || post.imageUrl || '/placeholder.png'}
                           alt={post.title}
                           className="absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500"
                         />

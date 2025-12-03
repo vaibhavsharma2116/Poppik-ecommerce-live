@@ -99,6 +99,8 @@ export default function AdminOffers() {
     detailedDescription: "", // Added detailedDescription
     productsIncluded: "", // Added productsIncluded
     benefits: "", // Added benefits
+    affiliateCommission: "", // Percentage value (0-100)
+    affiliateUserDiscount: "", // Percentage value (0-100)
   });
 
   // Fetch offers with proper authorization and no caching
@@ -416,6 +418,23 @@ export default function AdminOffers() {
       return;
     }
 
+    // Validate affiliate fields (if provided)
+    if (formData.affiliateCommission) {
+      const ac = parseFloat(formData.affiliateCommission);
+      if (isNaN(ac) || ac < 0 || ac > 100) {
+        toast({ title: 'Error', description: 'Affiliate commission must be a number between 0 and 100', variant: 'destructive' });
+        return;
+      }
+    }
+
+    if (formData.affiliateUserDiscount) {
+      const ad = parseFloat(formData.affiliateUserDiscount);
+      if (isNaN(ad) || ad < 0 || ad > 100) {
+        toast({ title: 'Error', description: 'Affiliate user discount must be a number between 0 and 100', variant: 'destructive' });
+        return;
+      }
+    }
+
     const formDataToSend = new FormData();
     formDataToSend.append('title', formData.title);
     formDataToSend.append('description', formData.description);
@@ -436,6 +455,10 @@ export default function AdminOffers() {
     formDataToSend.append('linkUrl', formData.linkUrl || '');
     formDataToSend.append('buttonText', formData.buttonText || 'Shop Now');
     formDataToSend.append('productIds', JSON.stringify(formData.productIds || []));
+
+    // Affiliate fields
+    formDataToSend.append('affiliateCommission', formData.affiliateCommission || '0');
+    formDataToSend.append('affiliateUserDiscount', formData.affiliateUserDiscount || '0');
 
     if (imageFile) {
       formDataToSend.append('image', imageFile);
@@ -502,6 +525,8 @@ export default function AdminOffers() {
       detailedDescription: "", // Reset new field
       productsIncluded: "", // Reset new field
       benefits: "", // Reset new field
+      affiliateCommission: "",
+      affiliateUserDiscount: "",
     });
     setImageFile(null);
     setImagePreview("");
@@ -565,6 +590,8 @@ export default function AdminOffers() {
       detailedDescription: offer.detailedDescription || "", // Set new field
       productsIncluded: offer.productsIncluded || "", // Set new field
       benefits: offer.benefits || "", // Set new field
+      affiliateCommission: offer.affiliateCommission ? String(offer.affiliateCommission) : "",
+      affiliateUserDiscount: offer.affiliateUserDiscount ? String(offer.affiliateUserDiscount) : "",
     });
     setImagePreview(offer.imageUrl);
     
@@ -931,6 +958,38 @@ export default function AdminOffers() {
                     readOnly
                   />
                   <p className="text-xs text-gray-500">Auto-calculated from cashback %</p>
+                </div>
+              </div>
+
+              {/* Affiliate Fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="affiliateCommission">Affiliate Commission (%)</Label>
+                  <Input
+                    id="affiliateCommission"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="e.g., 5"
+                    value={formData.affiliateCommission}
+                    onChange={(e) => setFormData({ ...formData, affiliateCommission: e.target.value })}
+                  />
+                  <p className="text-xs text-gray-500">Percentage of sale paid to affiliate</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="affiliateUserDiscount">Affiliate User Discount (%)</Label>
+                  <Input
+                    id="affiliateUserDiscount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    placeholder="e.g., 10"
+                    value={formData.affiliateUserDiscount}
+                    onChange={(e) => setFormData({ ...formData, affiliateUserDiscount: e.target.value })}
+                  />
+                  <p className="text-xs text-gray-500">Discount percentage offered to referred user</p>
                 </div>
               </div>
 

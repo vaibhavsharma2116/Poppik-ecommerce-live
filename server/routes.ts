@@ -1115,6 +1115,9 @@ app.get("/api/admin/stores", async (req, res) => {
                   price: item.price,
                   cashbackPrice: item.cashbackPrice || null,
                   cashbackPercentage: item.cashbackPercentage || null,
+                  deliveryAddress: item.deliveryAddress || null,
+                  recipientName: item.recipientName || null,
+                  recipientPhone: item.recipientPhone || null,
                 }));
 
                 await db.insert(schema.orderItemsTable).values(orderItems);
@@ -4301,6 +4304,10 @@ app.get("/api/admin/stores", async (req, res) => {
                 productImage: item.productImage,
                 quantity: Number(item.quantity),
                 price: item.price,
+                // Multi-address order details
+                deliveryAddress: item.deliveryAddress || null,
+                recipientName: item.recipientName || null,
+                recipientPhone: item.recipientPhone || null,
               }));
 
               await db.insert(schema.orderItemsTable).values(orderItems);
@@ -4352,6 +4359,9 @@ app.get("/api/admin/stores", async (req, res) => {
               quantity: schema.orderItemsTable.quantity,
               price: schema.orderItemsTable.price,
               image: schema.orderItemsTable.productImage,
+              deliveryAddress: schema.orderItemsTable.deliveryAddress,
+              recipientName: schema.orderItemsTable.recipientName,
+              recipientPhone: schema.orderItemsTable.recipientPhone,
             })
             .from(schema.orderItemsTable)
             .where(eq(schema.orderItemsTable.orderId, order.id));
@@ -4370,13 +4380,31 @@ app.get("/api/admin/stores", async (req, res) => {
 
           const userData = user[0] || { firstName: 'Unknown', lastName: 'Customer', email: 'unknown@email.com', phone: 'N/A' };
 
+          // Format shipping address: if client sent JSON for multi-address orders, parse and create readable string
+          let formattedShippingAddress = order.shippingAddress;
+          try {
+            const parsed = typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress) : order.shippingAddress;
+            if (parsed && parsed.multi && Array.isArray(parsed.items)) {
+              formattedShippingAddress = parsed.items.map((it: any, idx: number) => {
+                const header = it.productName ? `${idx + 1}. ${it.productName}` : `${idx + 1}. Item`;
+                const addr = it.deliveryAddress || 'No address provided';
+                const recip = it.recipientName ? ` (Recipient: ${it.recipientName}` : '';
+                const phone = it.recipientPhone ? `${it.recipientName ? ', ' : ' (Recipient: '}Phone: ${it.recipientPhone}` : '';
+                const closing = (it.recipientName || it.recipientPhone) ? ')' : '';
+                return `${header} → ${addr}${recip}${phone}${closing}`;
+              }).join('\n');
+            }
+          } catch (e) {
+            // leave raw shippingAddress if parse fails
+          }
+
           return {
             id: `ORD-${order.id.toString().padStart(3, '0')}`,
             customer: {
               name: `${userData.firstName} ${userData.lastName}`,
               email: userData.email,
               phone: userData.phone || 'N/A',
-              address: order.shippingAddress,
+              address: formattedShippingAddress,
             },
             date: order.createdAt.toISOString().split('T')[0],
             total: `₹${order.totalAmount}`,
@@ -4388,7 +4416,7 @@ app.get("/api/admin/stores", async (req, res) => {
             products: items,
             userId: order.userId,
             totalAmount: order.totalAmount,
-            shippingAddress: order.shippingAddress,
+            shippingAddress: formattedShippingAddress,
           };
         })
       );
@@ -4476,9 +4504,23 @@ app.get("/api/admin/stores", async (req, res) => {
               quantity: schema.orderItemsTable.quantity,
               price: schema.orderItemsTable.price,
               image: schema.orderItemsTable.productImage,
+              deliveryAddress: schema.orderItemsTable.deliveryAddress,
+              recipientName: schema.orderItemsTable.recipientName,
+              recipientPhone: schema.orderItemsTable.recipientPhone,
             })
             .from(schema.orderItemsTable)
             .where(eq(schema.orderItemsTable.orderId, order.id));
+
+          // Also provide formatted shipping address for user-facing orders list
+          let formattedShipping = order.shippingAddress;
+          try {
+            const parsed = typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress) : order.shippingAddress;
+            if (parsed && parsed.multi && Array.isArray(parsed.items)) {
+              formattedShipping = parsed.items.map((it: any, idx: number) => `${idx + 1}. ${it.productName || 'Item'} → ${it.deliveryAddress || 'No address'}`).join('\n');
+            }
+          } catch (e) {
+            // ignore
+          }
 
           return {
             id: `ORD-${order.id.toString().padStart(3, '0')}`,
@@ -4488,7 +4530,7 @@ app.get("/api/admin/stores", async (req, res) => {
             items,
             trackingNumber: order.trackingNumber,
             estimatedDelivery: order.estimatedDelivery?.toISOString().split('T')[0],
-            shippingAddress: order.shippingAddress,
+            shippingAddress: formattedShipping,
             paymentMethod: order.paymentMethod,
             userId: order.userId,
           };
@@ -4523,9 +4565,23 @@ app.get("/api/admin/stores", async (req, res) => {
           quantity: schema.orderItemsTable.quantity,
           price: schema.orderItemsTable.price,
           image: schema.orderItemsTable.productImage,
+          deliveryAddress: schema.orderItemsTable.deliveryAddress,
+          recipientName: schema.orderItemsTable.recipientName,
+          recipientPhone: schema.orderItemsTable.recipientPhone,
         })
         .from(schema.orderItemsTable)
         .where(eq(schema.orderItemsTable.orderId, order[0].id));
+
+      // Format shippingAddress if it's a multi-address JSON payload
+      let formattedShippingForSingle = order[0].shippingAddress;
+      try {
+        const parsedSingle = typeof order[0].shippingAddress === 'string' ? JSON.parse(order[0].shippingAddress) : order[0].shippingAddress;
+        if (parsedSingle && parsedSingle.multi && Array.isArray(parsedSingle.items)) {
+          formattedShippingForSingle = parsedSingle.items.map((it: any, idx: number) => `${idx + 1}. ${it.productName || 'Item'} → ${it.deliveryAddress || 'No address'}`).join('\n');
+        }
+      } catch (e) {
+        // ignore
+      }
 
       const orderWithItems = {
         id: `ORD-${order[0].id.toString().padStart(3, '0')}`,
@@ -4535,7 +4591,7 @@ app.get("/api/admin/stores", async (req, res) => {
         items,
         trackingNumber: order[0].trackingNumber,
         estimatedDelivery: order[0].estimatedDelivery?.toISOString().split('T')[0],
-        shippingAddress: order[0].shippingAddress,
+        shippingAddress: formattedShippingForSingle,
         paymentMethod: order[0].paymentMethod,
         userId: order[0].userId,
       };
@@ -5210,6 +5266,10 @@ app.get("/api/admin/stores", async (req, res) => {
             discountType: item.discountType || null,
             discountValue: item.discountValue ? String(item.discountValue) : null,
             discountAmount: item.discountAmount ? String(item.discountAmount) : null,
+            // Multi-address order details
+            deliveryAddress: item.deliveryAddress || null,
+            recipientName: item.recipientName || null,
+            recipientPhone: item.recipientPhone || null,
           };
 
           // Determine if this is a combo or regular product
@@ -5621,13 +5681,16 @@ app.get("/api/admin/stores", async (req, res) => {
       let shiprocketAwb = null;
       let shiprocketError = null;
 
+      // Prepare a user placeholder so it's available outside the Shiprocket block
+      let user: any = [];
+
       // Check if Shiprocket is configured
       if (process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
         try {
           console.log('Starting Shiprocket order creation for:', orderId);
 
           // Get user details from database
-          const user = await db
+          user = await db
             .select({
               firstName: schema.users.firstName,
               lastName: schema.users.lastName,
@@ -6615,6 +6678,8 @@ app.get("/api/admin/stores", async (req, res) => {
 
   app.post("/api/admin/blog/posts", upload.fields([
     { name: 'image', maxCount: 1 },
+    { name: 'thumbnail', maxCount: 1 },
+    { name: 'hero', maxCount: 1 },
     { name: 'video', maxCount: 1 },
     { name: 'contentVideos', maxCount: 10 }
   ]), async (req, res) => {
@@ -6627,12 +6692,26 @@ app.get("/api/admin/stores", async (req, res) => {
 
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       let imageUrl = req.body.imageUrl;
+      let thumbnailUrl = req.body.thumbnailUrl;
+      let heroImageUrl = req.body.heroImageUrl;
       let videoUrl = req.body.videoUrl;
       const contentVideoUrls: string[] = [];
 
-      // Handle image upload
+      // Handle thumbnail upload (maps to imageUrl for API compatibility)
+      if (files?.thumbnail?.[0]) {
+        thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
+        imageUrl = thumbnailUrl; // Set imageUrl as fallback
+      }
+
+      // Handle hero upload
+      if (files?.hero?.[0]) {
+        heroImageUrl = `/api/images/${files.hero[0].filename}`;
+      }
+
+      // Handle image upload (legacy field, maps to thumbnail if not provided)
       if (files?.image?.[0]) {
         imageUrl = `/api/images/${files.image[0].filename}`;
+        if (!thumbnailUrl) thumbnailUrl = imageUrl;
       }
 
       // Handle video upload
@@ -6669,6 +6748,8 @@ app.get("/api/admin/stores", async (req, res) => {
         author: req.body.author,
         category: req.body.category,
         imageUrl: imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400',
+        thumbnailUrl: thumbnailUrl || imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400',
+        heroImageUrl: heroImageUrl || imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400',
         videoUrl,
         featured: req.body.featured === 'true',
         published: req.body.published === 'true',
@@ -6685,6 +6766,8 @@ app.get("/api/admin/stores", async (req, res) => {
 
   app.put("/api/admin/blog/posts/:id", upload.fields([
     { name: 'image', maxCount: 1 },
+    { name: 'thumbnail', maxCount: 1 },
+    { name: 'hero', maxCount: 1 },
     { name: 'video', maxCount: 1 },
     { name: 'contentVideos', maxCount: 10 }
   ]), async (req, res) => {
@@ -6736,9 +6819,25 @@ app.get("/api/admin/stores", async (req, res) => {
 
       if (content) updateData.content = content;
 
-      // Handle image upload
+      // Handle thumbnail upload (maps to imageUrl for API compatibility)
+      if (files?.thumbnail?.[0]) {
+        updateData.thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
+        updateData.imageUrl = updateData.thumbnailUrl; // Set imageUrl as fallback
+      } else if (req.body.thumbnailUrl) {
+        updateData.thumbnailUrl = req.body.thumbnailUrl;
+      }
+
+      // Handle hero upload
+      if (files?.hero?.[0]) {
+        updateData.heroImageUrl = `/api/images/${files.hero[0].filename}`;
+      } else if (req.body.heroImageUrl) {
+        updateData.heroImageUrl = req.body.heroImageUrl;
+      }
+
+      // Handle image upload (legacy field, maps to thumbnail if not provided)
       if (files?.image?.[0]) {
         updateData.imageUrl = `/api/images/${files.image[0].filename}`;
+        if (!updateData.thumbnailUrl) updateData.thumbnailUrl = updateData.imageUrl;
       } else if (req.body.imageUrl) {
         updateData.imageUrl = req.body.imageUrl;
       }
@@ -7300,6 +7399,64 @@ app.get("/api/admin/stores", async (req, res) => {
     const tax = Math.round(subtotal * 0.18); // 18% GST
     const total = subtotal + tax;
 
+    // Prepare readable shipping address HTML (handles JSON, arrays or plain strings)
+    function escapeHtml(str: any) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatSingleAddress(a: any) {
+      const addr = a.deliveryAddress || a.address || '';
+      const name = a.recipientName || a.name || '';
+      const phone = a.recipientPhone || a.phone || '';
+      const prod = a.productName ? `<strong>Product:</strong> ${escapeHtml(a.productName)}<br>` : '';
+      const qty = a.quantity ? `<strong>Qty:</strong> ${escapeHtml(a.quantity)}<br>` : '';
+      let parts = '';
+      if (prod) parts += prod;
+      if (qty) parts += qty;
+      parts += `<strong>Address:</strong> ${escapeHtml(addr)}<br>`;
+      if (name) parts += `<strong>Name:</strong> ${escapeHtml(name)}<br>`;
+      if (phone) parts += `<strong>Phone:</strong> ${escapeHtml(phone)}<br>`;
+      return parts;
+    }
+
+    let shippingHtml = '';
+    try {
+      const raw = order.shippingAddress;
+      let parsed = raw;
+      if (typeof raw === 'string') {
+        // try parse JSON, otherwise keep as string
+        try {
+          parsed = JSON.parse(raw);
+        } catch (e) {
+          parsed = raw;
+        }
+      }
+
+      if (Array.isArray(parsed)) {
+        shippingHtml = parsed.map(formatSingleAddress).join('<br>----<br>');
+      } else if (parsed && typeof parsed === 'object') {
+        if (parsed.multi && Array.isArray(parsed.items)) {
+          shippingHtml = parsed.items.map(formatSingleAddress).join('<br>----<br>');
+        } else if (parsed.deliveryAddress || parsed.recipientName || parsed.recipientPhone) {
+          shippingHtml = formatSingleAddress(parsed);
+        } else {
+          // unknown object shape - stringify safely
+          shippingHtml = escapeHtml(JSON.stringify(parsed, null, 2)).replace(/\n/g, '<br>');
+        }
+      } else {
+        // plain string
+        shippingHtml = escapeHtml(String(parsed)).replace(/\n/g, '<br>');
+      }
+    } catch (e) {
+      shippingHtml = escapeHtml(String(order.shippingAddress || ''));
+    }
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7508,7 +7665,7 @@ app.get("/api/admin/stores", async (req, res) => {
                 ${customer.phone ? `<p>${customer.phone}</p>` : ''}
                 <br>
                 <p><strong>Shipping Address:</strong></p>
-                <p>${order.shippingAddress}</p>
+                <p>${shippingHtml}</p>
             </div>
         </div>
 
@@ -8601,6 +8758,8 @@ app.get("/api/admin/stores", async (req, res) => {
         sortOrder: parseInt(req.body.sortOrder) || 0,
         linkUrl: req.body.linkUrl || null,
         buttonText: req.body.buttonText || 'Shop Now'
+        ,affiliateCommission: req.body.affiliateCommission ? parseFloat(req.body.affiliateCommission) : 0
+        ,affiliateUserDiscount: req.body.affiliateUserDiscount ? parseFloat(req.body.affiliateUserDiscount) : 0
       };
 
       console.log('Creating offer with data:', offerData);
@@ -8634,7 +8793,9 @@ app.get("/api/admin/stores", async (req, res) => {
         sortOrder: parseInt(req.body.sortOrder) || 0,
         linkUrl: req.body.linkUrl || null,
         buttonText: req.body.buttonText || 'Shop Now',
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        affiliateCommission: req.body.affiliateCommission ? parseFloat(req.body.affiliateCommission) : 0,
+        affiliateUserDiscount: req.body.affiliateUserDiscount ? parseFloat(req.body.affiliateUserDiscount) : 0
       };
 
       // Parse productIds and ensure it's an array of integers
@@ -9215,6 +9376,8 @@ app.get("/api/admin/stores", async (req, res) => {
         discount: (req.body.discount || '').substring(0, 50),
         cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
         cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
+        affiliateCommission: req.body.affiliateCommission ? parseFloat(req.body.affiliateCommission) : 0,
+        affiliateUserDiscount: req.body.affiliateUserDiscount ? parseFloat(req.body.affiliateUserDiscount) : 0,
         imageUrl: imageUrls,
         videoUrl: videoUrl,
         products: JSON.stringify(products),
@@ -9279,6 +9442,8 @@ app.get("/api/admin/stores", async (req, res) => {
         discount: (req.body.discount || '').substring(0, 50),
         cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
         cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
+        affiliateCommission: req.body.affiliateCommission ? parseFloat(req.body.affiliateCommission) : 0,
+        affiliateUserDiscount: req.body.affiliateUserDiscount ? parseFloat(req.body.affiliateUserDiscount) : 0,
         products: JSON.stringify(products),
         rating: parseFloat(req.body.rating) || 5.0,
         reviewCount: parseInt(req.body.reviewCount) || 0,

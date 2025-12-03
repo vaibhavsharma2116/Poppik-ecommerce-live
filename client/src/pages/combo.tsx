@@ -98,6 +98,9 @@ console.log("VCVVVVVV",combo)
         // Explicitly set product-related fields
         productName: combo.name,
         productImage: combo.imageUrl,
+        // Affiliate fields (new)
+        affiliateCommission: combo.affiliateCommission || 0,
+        affiliateUserDiscount: combo.affiliateUserDiscount || 0,
       };
       cart.push(cartItem);
     }

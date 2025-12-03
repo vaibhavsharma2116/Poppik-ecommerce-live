@@ -538,19 +538,20 @@ export default function Cart() {
   }, 0);
 
   // Calculate total affiliate discount and commission from cart items
-  const totalAffiliateDiscountFromItems = cartItems.reduce((total, item) => {
+  // Only apply these if an affiliate code is actually being used
+  const totalAffiliateDiscountFromItems = affiliateCode ? cartItems.reduce((total, item) => {
     if (item.affiliateUserDiscount) {
       return total + (Number(item.affiliateUserDiscount) * item.quantity);
     }
     return total;
-  }, 0);
+  }, 0) : 0;
 
-  const totalAffiliateCommissionFromItems = cartItems.reduce((total, item) => {
+  const totalAffiliateCommissionFromItems = affiliateCode ? cartItems.reduce((total, item) => {
     if (item.affiliateCommission) {
       return total + (Number(item.affiliateCommission) * item.quantity);
     }
     return total;
-  }, 0);
+  }, 0) : 0;
 
   // Cart subtotal after product discounts
   const cartSubtotal = subtotal - productDiscount;
@@ -731,6 +732,13 @@ export default function Cart() {
     // Remove old static affiliate discount logic - everything is now dynamic
     localStorage.removeItem('affiliateCode');
     localStorage.removeItem('affiliateDiscount');
+
+    // Clear multi-address order flags from previous orders
+    // This ensures regular orders from cart don't skip the address selection step
+    localStorage.removeItem('isMultiAddressOrder');
+    localStorage.removeItem('multiAddressMapping');
+    localStorage.removeItem('checkoutCartItems');
+    localStorage.removeItem('multipleAddressMode');
 
     setLocation("/checkout", {
       state: {
@@ -1058,7 +1066,7 @@ export default function Cart() {
                     <div className="flex flex-col space-y-3 sm:space-y-2 items-center">
                       <div className="flex items-center border border-gray-300 rounded-lg">
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.id, item.quantity - 1, index)}
                           className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           disabled={!item.inStock}
                           aria-label="Decrease quantity"
@@ -1067,7 +1075,7 @@ export default function Cart() {
                         </button>
                         <span className="px-4 py-2 font-medium min-w-[3rem] text-center">{item.quantity}</span>
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.id, item.quantity + 1, index)}
                           className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           disabled={!item.inStock || item.quantity >= 10}
                           aria-label="Increase quantity"

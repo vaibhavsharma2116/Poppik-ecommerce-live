@@ -341,6 +341,8 @@ export const blogPosts = pgTable('blog_posts', {
   category: text('category').notNull(),
   subcategory: text('subcategory'),
   imageUrl: text('image_url'),
+  thumbnailUrl: text('thumbnail_url'),
+  heroImageUrl: text('hero_image_url'),
   videoUrl: text('video_url'),
   featured: boolean('featured').default(false),
   published: boolean('published').default(true),
@@ -448,6 +450,8 @@ export const combos = pgTable("combos", {
   howToUse: text("how_to_use"),
   cashbackPercentage: numeric("cashback_percentage", { precision: 5, scale: 2 }),
   cashbackPrice: numeric("cashback_price", { precision: 10, scale: 2 }),
+  affiliateCommission: numeric('affiliate_commission', { precision: 5, scale: 2 }).default(0), // commission % for affiliates on this combo
+  affiliateUserDiscount: numeric('affiliate_user_discount', { precision: 5, scale: 2 }).default(0), // discount % given to customer when affiliate code used on combo
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -578,6 +582,8 @@ export const offers = pgTable("offers", {
   discountText: varchar("discount_text", { length: 100 }),
   cashbackPercentage: numeric("cashback_percentage", { precision: 5, scale: 2 }), // Cashback percentage
   cashbackPrice: numeric("cashback_price", { precision: 10, scale: 2 }), // Auto-calculated cashback amount
+  affiliateCommission: numeric('affiliate_commission', { precision: 5, scale: 2 }).default(0), // commission % for affiliates on this offer
+  affiliateUserDiscount: numeric('affiliate_user_discount', { precision: 5, scale: 2 }).default(0), // discount % given to customer when affiliate code used on offer
   validFrom: timestamp("valid_from", { mode: "date" }).notNull(),
   validUntil: timestamp("valid_until", { mode: "date" }).notNull(),
   linkUrl: text("link_url"),
