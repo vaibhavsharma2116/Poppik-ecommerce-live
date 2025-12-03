@@ -53,6 +53,8 @@ createRoot(document.getElementById("root")!).render(<App />);
 		function connect() {
 			const url = hosts[Math.min(idx, hosts.length - 1)];
 			ws = new WebSocket(url);
+			// expose current ws for other components to reuse
+			try { (window as any).__announcements_ws__ = ws; } catch (e) {}
 			ws.onopen = () => {
 				console.log('[announcements-ws] connected to', url);
 				idx = 0;
@@ -81,8 +83,6 @@ createRoot(document.getElementById("root")!).render(<App />);
 		}
 
 		connect();
-		// expose for debugging
-		(window as any).__announcements_ws__ = ws;
 	} catch (e) {
 		console.warn('Failed to init announcements WS', e);
 	}

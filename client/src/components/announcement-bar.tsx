@@ -32,8 +32,37 @@ export default function AnnouncementBar() {
       `${protocol}://${window.location.hostname}:5000/ws/announcements`,
     ];
 
+    const MAX_RECONNECTS = 6; // stop after a few attempts to avoid resource exhaustion
+
+    const onMessage = () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
+    };
+
+    // If a global announcements WS exists (created in main.tsx), reuse it instead
+    const globalWs = (window as any).__announcements_ws__ as WebSocket | undefined;
+    if (globalWs) {
+      try {
+        globalWs.addEventListener('message', onMessage);
+      } catch (e) {}
+
+      return () => {
+        try { globalWs.removeEventListener('message', onMessage); } catch (e) {}
+      };
+    }
+
     function connect() {
       if (!mounted) return;
+      if (!navigator.onLine) {
+        // if offline, retry later
+        setTimeout(connect, 2000);
+        return;
+      }
+
+      if (reconnectAttempts >= MAX_RECONNECTS) {
+        console.warn('[announcement-bar] max reconnect attempts reached, stopping retries');
+        return;
+      }
+
       const url = hostsToTry[Math.min(reconnectAttempts, hostsToTry.length - 1)];
       try {
         ws = new WebSocket(url);
@@ -42,22 +71,19 @@ export default function AnnouncementBar() {
           reconnectAttempts = 0;
         };
 
-        ws.onmessage = () => {
-          // Invalidate announcements query so UI updates instantly
-          queryClient.invalidateQueries({ queryKey: ['/api/announcements'] });
-        };
+        ws.onmessage = onMessage;
 
         ws.onclose = () => {
           if (!mounted) return;
           reconnectAttempts += 1;
-          const delay = Math.min(5000, 500 * reconnectAttempts);
+          const delay = Math.min(10000, 500 * Math.pow(2, reconnectAttempts));
           setTimeout(connect, delay);
         };
 
         ws.onerror = () => {
           try { ws?.close(); } catch (_) {}
           reconnectAttempts += 1;
-          const delay = Math.min(2000, 300 * reconnectAttempts);
+          const delay = Math.min(10000, 400 * Math.pow(2, reconnectAttempts));
           setTimeout(connect, delay);
         };
       } catch (e) {
