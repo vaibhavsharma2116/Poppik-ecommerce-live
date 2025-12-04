@@ -211,6 +211,15 @@ function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
 
   const displayedCombos = showAllCombos ? activeCombos : activeCombos.slice(0, 6);
 
+  const getPrimaryImage = (combo: any) => {
+    if (!combo) return null;
+    if (Array.isArray(combo.imageUrl) && combo.imageUrl.length) return combo.imageUrl[0];
+    if (Array.isArray(combo.imageUrls) && combo.imageUrls.length) return combo.imageUrls[0];
+    if (Array.isArray(combo.images) && combo.images.length) return combo.images[0];
+    if (typeof combo.imageUrl === 'string' && combo.imageUrl) return combo.imageUrl;
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -224,7 +233,7 @@ function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
               <CardContent className="p-0">
                 <div className="aspect-square relative overflow-hidden rounded-t-lg bg-gray-100">
                   <img
-                    src={combo.imageUrl}
+                    src={getPrimaryImage(combo) || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75'}
                     alt={combo.name}
                     className="w-full h-full object-cover"
                   />

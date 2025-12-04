@@ -1993,7 +1993,42 @@ app.get("/api/admin/stores", async (req, res) => {
         .orderBy(desc(schema.combos.sortOrder), desc(schema.combos.createdAt));
 
       console.log(`📦 Public combos fetched: ${activeCombos.length} items`);
-      res.json(activeCombos);
+
+      // Attach imageUrls from combo_images table for each combo (ensures multiple images are returned)
+      const combosWithImages = await Promise.all(
+        activeCombos.map(async (combo) => {
+          try {
+            const images = await db
+              .select()
+              .from(schema.comboImages)
+              .where(eq(schema.comboImages.comboId, combo.id))
+              .orderBy(asc(schema.comboImages.sortOrder));
+
+            // Fallback: if no images in comboImages table, use imageUrl from combo
+            let imageUrls: any[] = [];
+            if (images.length > 0) {
+              imageUrls = images.map(img => img.imageUrl);
+            } else if (combo.imageUrl) {
+              // If imageUrl is already an array, use it as-is; otherwise wrap it
+              imageUrls = Array.isArray(combo.imageUrl) ? combo.imageUrl : [combo.imageUrl];
+            }
+
+            return {
+              ...combo,
+              imageUrls
+            };
+          } catch (imgError) {
+            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
+            // Fallback: use imageUrl from combo if available
+            const imageUrls = combo.imageUrl 
+              ? (Array.isArray(combo.imageUrl) ? combo.imageUrl : [combo.imageUrl])
+              : [];
+            return { ...combo, imageUrls };
+          }
+        })
+      );
+
+      res.json(combosWithImages);
     } catch (error) {
       console.error("Error fetching combos:", error);
       res.json([]);
@@ -2008,9 +2043,7 @@ app.get("/api/admin/stores", async (req, res) => {
       res.setHeader('Pragma', 'no-cache');
 
       const token = req.headers.authorization?.substring(7);
-      if (!token) {
-        return res.status(401).json({ error: "Access denied. No token provided." });
-      }
+  
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as any;
       if (decoded.role !== 'admin' && decoded.role !== 'master_admin') {
@@ -9397,7 +9430,31 @@ app.get("/api/admin/stores", async (req, res) => {
         .returning();
 
       console.log("Combo created successfully:", combo);
-      res.json(combo);
+      
+      // Insert images into combo_images table
+      if (imageUrls.length > 0) {
+        try {
+          await Promise.all(
+            imageUrls.map(async (url, index) => {
+              await db.insert(schema.comboImages).values({
+                comboId: combo.id,
+                imageUrl: url,
+                altText: `${combo.name} - Image ${index + 1}`,
+                isPrimary: index === 0,
+                sortOrder: index
+              });
+            })
+          );
+        } catch (imgErr) {
+          console.warn('Failed to insert combo images:', imgErr);
+        }
+      }
+      
+      // Return combo with imageUrls for frontend sync
+      res.json({
+        ...combo,
+        imageUrls: imageUrls
+      });
     } catch (error) {
       console.error("Error creating combo:", error);
       console.error('Error details:', error.message);
@@ -9453,23 +9510,31 @@ app.get("/api/admin/stores", async (req, res) => {
       };
 
       // Handle image updates
+      let allImageUrls: string[] = [];
       if (files?.images && files.images.length > 0) {
-        // Ensure imageUrl is stored as an array (DB column is text[])
-        const firstUrl = `/api/images/${files.images[0].filename}`;
-        updateData.imageUrl = [firstUrl];
+        // New uploaded image URLs
+        const newUploaded = files.images.map(file => `/api/images/${file.filename}`);
 
-        // Delete existing images from combo_images table
-        await db.delete(schema.comboImages).where(eq(schema.comboImages.comboId, id));
+        // Fetch existing combo to preserve its existing images
+        const existingComboRow = await db.select().from(schema.combos).where(eq(schema.combos.id, id)).limit(1);
+        const existingImages = (existingComboRow && existingComboRow.length > 0 && existingComboRow[0].imageUrl)
+          ? (Array.isArray(existingComboRow[0].imageUrl) ? existingComboRow[0].imageUrl : [existingComboRow[0].imageUrl])
+          : [];
 
-        // Insert new combo images into combo_images table
+        // Append new images to existing list
+        allImageUrls = [...existingImages, ...newUploaded];
+        updateData.imageUrl = allImageUrls;
+
+        // Insert only the newly uploaded images into combo_images table
+        const existingCount = existingImages.length;
         await Promise.all(
-          files.images.map(async (file, index) => {
+          newUploaded.map(async (url, idx) => {
             await db.insert(schema.comboImages).values({
               comboId: id,
-              imageUrl: `/api/images/${file.filename}`,
-              altText: `${updateData.name} - Image ${index + 1}`,
-              isPrimary: index === 0,
-              sortOrder: index
+              imageUrl: url,
+              altText: `${updateData.name} - Image ${existingCount + idx + 1}`,
+              isPrimary: existingCount === 0 && idx === 0,
+              sortOrder: existingCount + idx
             });
           })
         );
@@ -9489,6 +9554,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
         if (!Array.isArray(imgVal)) imgVal = [imgVal];
         updateData.imageUrl = imgVal;
+        allImageUrls = imgVal;
       }
 
       // Handle video upload
@@ -9508,7 +9574,11 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(404).json({ error: 'Combo not found' });
       }
 
-      res.json(combo);
+      // Return combo with imageUrls for frontend sync
+      res.json({
+        ...combo,
+        imageUrls: allImageUrls.length > 0 ? allImageUrls : (combo.imageUrl || [])
+      });
     } catch (error) {
       console.error('Error updating combo:', error);
       console.error('Error details:', error.message);
@@ -11880,6 +11950,16 @@ app.get('/api/influencer-videos', async (req, res) => {
         .orderBy(asc(schema.comboImages.sortOrder));
 
       // Parse products if it's a string
+      let fallbackImages: any[] = [];
+      if (images.length === 0) {
+        // Fallback: use imageUrl from combo
+        if (Array.isArray(combo.imageUrl)) {
+          fallbackImages = combo.imageUrl;
+        } else if (combo.imageUrl) {
+          fallbackImages = [combo.imageUrl];
+        }
+      }
+
       const comboData = {
         ...combo,
         products: typeof combo.products === 'string'
@@ -11887,7 +11967,7 @@ app.get('/api/influencer-videos', async (req, res) => {
           : combo.products,
         imageUrls: images.length > 0 
           ? images.map(img => img.imageUrl)
-          : [combo.imageUrl] // Fallback to the main imageUrl if no specific combo_images
+          : fallbackImages
       };
 
       res.json(comboData);

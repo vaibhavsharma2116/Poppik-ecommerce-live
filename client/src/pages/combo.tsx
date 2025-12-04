@@ -15,8 +15,9 @@ interface ComboProduct {
   price: string | number;
   originalPrice: string | number;
   discount: string;
-  imageUrl: string;
-  images?: string[];
+  imageUrl?: string | string[];
+  imageUrls?: string[];
+  images?: string[] | string;
   products: string[] | string;
   rating: string | number;
   reviewCount: number;
@@ -47,6 +48,22 @@ export default function ComboPage() {
     queryKey: ["/api/combos"],
   });
 
+
+ const getPrimaryImage = (combo: any) => {
+    if (!combo) return null;
+    if (Array.isArray(combo.imageUrl) && combo.imageUrl.length) return combo.imageUrl[0];
+    if (Array.isArray(combo.imageUrls) && combo.imageUrls.length) return combo.imageUrls[0];
+    if (Array.isArray(combo.images) && combo.images.length) return combo.images[0];
+    if (typeof combo.imageUrl === 'string' && combo.imageUrl) return combo.imageUrl;
+    if (typeof combo.images === 'string' && combo.images) {
+      try {
+        const parsed = JSON.parse(combo.images);
+        if (Array.isArray(parsed) && parsed.length) return parsed[1-1];
+      } catch {}
+      return combo.images;
+    }
+    return null;
+  };
 
  const { data: comboSliders = [], isLoading: slidersLoading, refetch } = useQuery<[]>({
     queryKey: ['/api/admin/combo-sliders'],
@@ -89,7 +106,7 @@ console.log("VCVVVVVV",combo)
         name: combo.name,
         price: `₹${price}`,
         originalPrice: combo.originalPrice ? `₹${originalPrice}` : undefined,
-        image: combo.imageUrl,
+        image: getPrimaryImage(combo) || '',
         quantity: 1,
         inStock: true,
         isCombo: true,
@@ -97,7 +114,7 @@ console.log("VCVVVVVV",combo)
         cashbackPrice: combo.cashbackPrice,
         // Explicitly set product-related fields
         productName: combo.name,
-        productImage: combo.imageUrl,
+        productImage: getPrimaryImage(combo) || '',
         // Affiliate fields (new)
         affiliateCommission: combo.affiliateCommission || 0,
         affiliateUserDiscount: combo.affiliateUserDiscount || 0,
@@ -149,7 +166,7 @@ console.log("VCVVVVVV",combo)
           name: combo.name.substring(0, 100),
           price: `₹${combo.price}`,
           originalPrice: combo.originalPrice ? `₹${combo.originalPrice}` : undefined,
-          image: combo.imageUrl?.substring(0, 200) || '',
+          image: (getPrimaryImage(combo) || '').substring(0, 200) || '',
           inStock: true,
           category: 'combo',
           rating: combo.rating.toString(),
@@ -328,9 +345,9 @@ console.log("VCVVVVVV",combo)
                   </button>
                   <div className="relative overflow-hidden bg-white">
                     <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
-                      {combo.imageUrl || (combo.images && combo.images.length > 0) ? (
+                      {getPrimaryImage(combo) ? (
                         <img
-                          src={combo.imageUrl || combo.images[0]}
+                          src={getPrimaryImage(combo)!}
                           alt={combo.name}
                           className="h-full w-full object-cover"
                           loading="lazy"

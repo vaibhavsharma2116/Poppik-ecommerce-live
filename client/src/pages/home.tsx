@@ -952,7 +952,7 @@ function ComboSection() {
           name: combo.name.substring(0, 100),
           price: `₹${combo.price}`,
           originalPrice: combo.originalPrice ? `₹${combo.originalPrice}` : undefined,
-          image: combo.imageUrl?.substring(0, 200) || '',
+          image: (getPrimaryImage(combo) || '').substring(0, 200) || '',
           inStock: combo.inStock !== false,
           category: 'combo',
           rating: combo.rating?.toString() || '5.0',
@@ -989,6 +989,22 @@ function ComboSection() {
         }`}
       />
     ));
+  };
+
+  const getPrimaryImage = (combo: any) => {
+    if (!combo) return null;
+    if (Array.isArray(combo.imageUrl) && combo.imageUrl.length) return combo.imageUrl[0];
+    if (Array.isArray(combo.imageUrls) && combo.imageUrls.length) return combo.imageUrls[0];
+    if (Array.isArray(combo.images) && combo.images.length) return combo.images[0];
+    if (typeof combo.imageUrl === 'string' && combo.imageUrl) return combo.imageUrl;
+    if (typeof combo.images === 'string' && combo.images) {
+      try {
+        const parsed = JSON.parse(combo.images);
+        if (Array.isArray(parsed) && parsed.length) return parsed[0];
+      } catch {}
+      return combo.images;
+    }
+    return null;
   };
 
   if (isLoading) {
@@ -1077,9 +1093,9 @@ function ComboSection() {
                   </button>
                   <div className="relative overflow-hidden bg-white">
                     <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
-                      {combo.imageUrl || (combo.images && combo.images.length > 0) ? (
+                      {getPrimaryImage(combo) ? (
                         <img
-                          src={combo.imageUrl || combo.images[0]}
+                          src={getPrimaryImage(combo)!}
                           alt={combo.name}
                           className="h-full w-full object-cover"
                           loading="lazy"

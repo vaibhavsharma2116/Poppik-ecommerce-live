@@ -192,8 +192,14 @@ export default function AdminCombos() {
       await queryClient.cancelQueries({ queryKey: ['/api/admin/combos'] });
       queryClient.removeQueries({ queryKey: ['/api/admin/combos'] });
       
+      // Ensure imageUrls is preserved in the combo object
+      const comboWithImages = {
+        ...newCombo,
+        imageUrls: newCombo.imageUrls || newCombo.imageUrl || []
+      };
+      
       // Set new data optimistically
-      queryClient.setQueryData(['/api/admin/combos'], (old: any[] = []) => [newCombo, ...old]);
+      queryClient.setQueryData(['/api/admin/combos'], (old: any[] = []) => [comboWithImages, ...old]);
       
       toast({ title: 'Combo created successfully' });
       resetForm();
@@ -257,9 +263,15 @@ export default function AdminCombos() {
       await queryClient.cancelQueries({ queryKey: ['/api/admin/combos'] });
       queryClient.removeQueries({ queryKey: ['/api/admin/combos'] });
       
+      // Ensure imageUrls is preserved in the combo object
+      const comboWithImages = {
+        ...updatedCombo,
+        imageUrls: updatedCombo.imageUrls || updatedCombo.imageUrl || []
+      };
+      
       // Update optimistically
       queryClient.setQueryData(['/api/admin/combos'], (old: any[] = []) => 
-        old.map(c => c.id === updatedCombo.id ? updatedCombo : c)
+        old.map(c => c.id === updatedCombo.id ? comboWithImages : c)
       );
       
       toast({ title: 'Combo updated successfully' });
@@ -351,11 +363,24 @@ export default function AdminCombos() {
   };
 
   // Helper: safely get primary image URL from combo which may store imageUrl as string or array
+  const normalizeImageUrl = (u: string) => {
+    if (!u) return u;
+    u = u.toString().trim();
+    if (u === '') return u;
+    // If already absolute URL, return as-is
+    if (u.startsWith('http://') || u.startsWith('https://')) return u;
+    // Ensure leading slash for api paths
+    if (!u.startsWith('/')) return '/' + u;
+    return u;
+  };
+
   const getPrimaryImage = (combo: any) => {
     if (!combo) return '';
-    if (Array.isArray(combo.imageUrl) && combo.imageUrl.length > 0) return combo.imageUrl[0];
-    if (combo.imageUrls && Array.isArray(combo.imageUrls) && combo.imageUrls.length > 0) return combo.imageUrls[0];
-    if (typeof combo.imageUrl === 'string') return combo.imageUrl;
+    // Prefer the normalized imageUrls array (constructed from combo_images)
+    if (combo.imageUrls && Array.isArray(combo.imageUrls) && combo.imageUrls.length > 0) return normalizeImageUrl(combo.imageUrls[0]);
+    // Fallback to imageUrl which may be string or array, normalize accordingly
+    if (Array.isArray(combo.imageUrl) && combo.imageUrl.length > 0) return normalizeImageUrl(combo.imageUrl[0]);
+    if (typeof combo.imageUrl === 'string' && combo.imageUrl.trim() !== '') return normalizeImageUrl(combo.imageUrl);
     return '';
   };
 
@@ -375,8 +400,31 @@ export default function AdminCombos() {
   };
 
   const removeImage = (index: number) => {
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    const totalPreviews = imagePreviews.length;
+    const selectedCount = selectedImages.length;
+    const existingCount = Math.max(0, totalPreviews - selectedCount);
+
+    // Remove from previews first
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+
+    if (index < existingCount) {
+      // Removing an existing image (URL). Update editingCombo.imageUrl as well so
+      // the removed image isn't re-sent when saving.
+      const urlToRemove = imagePreviews[index];
+      if (editingCombo) {
+        const existingImages = Array.isArray(editingCombo.imageUrl)
+          ? [...editingCombo.imageUrl]
+          : (editingCombo.imageUrl ? [editingCombo.imageUrl] : []);
+        const updated = existingImages.filter((u: string) => u !== urlToRemove);
+        setEditingCombo({ ...editingCombo, imageUrl: updated });
+      }
+    } else {
+      // Removing a newly selected file. Map index to selectedImages position.
+      const fileIndex = index - existingCount;
+      setSelectedImages(prev => prev.filter((_, i) => i !== fileIndex));
+    }
+
+    setImagePreviews(newPreviews);
   };
 
   const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -571,11 +619,25 @@ export default function AdminCombos() {
     });
 
     // Load existing images if available
-    const existingImages = combo.imageUrls && combo.imageUrls.length > 0 
-      ? combo.imageUrls 
-      : combo.imageUrl ? [combo.imageUrl] : [];
+    const existingImages = (combo.imageUrls && Array.isArray(combo.imageUrls) && combo.imageUrls.length > 0)
+      ? combo.imageUrls
+      : (combo.imageUrl && Array.isArray(combo.imageUrl) && combo.imageUrl.length > 0)
+      ? combo.imageUrl
+      : (combo.imageUrl && typeof combo.imageUrl === 'string')
+      ? [combo.imageUrl]
+      : [];
 
-    setImagePreviews(existingImages);
+    // Normalize URLs (ensure leading slash or absolute URL). For backwards compatibility some rows may have comma-separated strings - split them.
+    const normalized = existingImages.flatMap((img: any) => {
+      if (!img) return [];
+      if (typeof img === 'string' && img.includes(',')) {
+        return img.split(',').map(s => normalizeImageUrl(s.trim())).filter(Boolean);
+      }
+      if (typeof img === 'string') return [normalizeImageUrl(img)];
+      return [img];
+    });
+
+    setImagePreviews(normalized);
     setSelectedImages([]);
 
     // Load existing video if available

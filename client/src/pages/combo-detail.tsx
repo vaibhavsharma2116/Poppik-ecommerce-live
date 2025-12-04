@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-
+import ProductCard from "@/components/product-card";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 // Helper to get shade color
 function getShadeColor(shadeName: string): string {
   const name = String(shadeName || '').toLowerCase();
@@ -30,6 +31,20 @@ function getShadeColor(shadeName: string): string {
   return '#9333ea';
 }
 
+// Normalize image/video URLs so local `/api/images/...` paths resolve to backend in dev
+function normalizeImageUrl(url?: string | null): string {
+  if (!url) return url || '';
+  try {
+    const s = String(url).trim();
+    if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:')) return s;
+    if (s.startsWith('//')) return window.location.protocol + s;
+ 
+    return s;
+  } catch (e) {
+    return url as string;
+  }
+}
+
 // Shade Selector Sheet Component (copied/adapted from offer-detail)
 function ShadeSelectorSheet({
   product,
@@ -41,32 +56,37 @@ function ShadeSelectorSheet({
 }: {
   product: any;
   shades: any[];
-  selectedShade: string | null;
+  selectedShade: any | null;
   isOpen: boolean;
   onClose: () => void;
-  onShadeSelect: (shade: string) => void;
+  onShadeSelect: (shade: any) => void;
 }) {
-  const [selectedShades, setSelectedShades] = useState<Set<string>>(new Set(selectedShade ? [selectedShade] : []));
+  // Use shade ids for selection to avoid duplicate-name issues.
+  const [selectedShades, setSelectedShades] = useState<Set<string>>(new Set(selectedShade ? [String(selectedShade.id || selectedShade.name)] : []));
 
   useEffect(() => {
-    setSelectedShades(new Set(selectedShade ? [selectedShade] : []));
+    setSelectedShades(new Set(selectedShade ? [String(selectedShade.id || selectedShade.name)] : []));
   }, [selectedShade, isOpen]);
 
   const handleClearAll = () => {
     setSelectedShades(new Set());
   };
 
-  const handleShadeToggle = (shadeName: string) => {
+  const handleShadeToggle = (shade: any) => {
+    const shadeKey = String(shade.id || shade.name);
     const newSelection = new Set<string>();
-    if (!selectedShades.has(shadeName)) {
-      newSelection.add(shadeName);
+    if (!selectedShades.has(shadeKey)) {
+      newSelection.add(shadeKey);
     }
     setSelectedShades(newSelection);
   };
 
   const handleConfirm = () => {
     if (selectedShades.size > 0) {
-      onShadeSelect(Array.from(selectedShades).join(', '));
+      const selectedKey = Array.from(selectedShades)[0];
+      const selectedShadeObj = shades.find((s: any) => String(s.id || s.name) === selectedKey) || null;
+      // Pass full shade object (may include id, name, imageUrl, colorCode, etc.)
+      onShadeSelect(selectedShadeObj);
       onClose();
     }
   };
@@ -101,12 +121,13 @@ function ShadeSelectorSheet({
         <div className="overflow-y-auto h-[calc(100%-180px)] pb-4 -mx-6 px-6">
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
             {shades.map((shade: any) => {
-              const isSelected = selectedShades.has(shade.name);
+              const shadeKey = String(shade.id || shade.name);
+              const isSelected = selectedShades.has(shadeKey);
               return (
-                <button key={shade.id} onClick={() => handleShadeToggle(shade.name)} className={`group flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${isSelected ? 'border-purple-600 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg scale-105 ring-2 ring-purple-300' : 'border-gray-200 hover:border-purple-400 hover:bg-gradient-to-br hover:from-purple-50 hover:to-pink-50 hover:shadow-md hover:scale-102'}`}>
+                <button key={shade.id} onClick={() => handleShadeToggle(shade)} className={`group flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${isSelected ? 'border-purple-600 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg scale-105 ring-2 ring-purple-300' : 'border-gray-200 hover:border-purple-400 hover:bg-gradient-to-br hover:from-purple-50 hover:to-pink-50 hover:shadow-md hover:scale-102'}`}>
                   <div className="relative">
                     {shade.imageUrl ? (
-                      <img src={shade.imageUrl} alt={shade.name} className={`w-16 h-16 rounded-xl shadow-md border-4 border-white object-cover transition-transform ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`} />
+                      <img src={normalizeImageUrl(shade.imageUrl)} alt={shade.name} className={`w-16 h-16 rounded-xl shadow-md border-4 border-white object-cover transition-transform ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`} />
                     ) : (
                       <div className={`w-16 h-16 rounded-xl shadow-md border-4 border-white transition-transform ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`} style={{ backgroundColor: shade.colorCode || getShadeColor(shade.name) }} />
                     )}
@@ -180,7 +201,7 @@ export default function ComboDetail() {
   });
   // Shade data for products (fetched when combo products are available)
   const [productShadesData, setProductShadesData] = useState<Record<number, any[]>>({});
-  const [selectedShades, setSelectedShades] = useState<Record<number, string | null>>({});
+  const [selectedShades, setSelectedShades] = useState<Record<number, any | null>>({});
   const [shadeSelectorOpen, setShadeSelectorOpen] = useState<number | null>(null);
 
   // Check if user can review this combo
@@ -212,7 +233,9 @@ export default function ComboDetail() {
       setCanReview(reviewEligibility);
     }
   }, [reviewEligibility]);
-
+ const { data: recommendedProducts = [] } = useQuery<any[]>({
+    queryKey: ['/api/products', { limit: 12 }],
+  });
   useEffect(() => {
     // Track affiliate click if ref parameter exists
     const urlParams = new URLSearchParams(window.location.search);
@@ -265,15 +288,32 @@ export default function ComboDetail() {
     }
   }, [products]);
 
+  // Helper to get primary image from combo
+  const getPrimaryImage = (comboData: any) => {
+    if (!comboData) return null;
+    if (Array.isArray(comboData.imageUrl) && comboData.imageUrl.length) return comboData.imageUrl[0];
+    if (Array.isArray(comboData.imageUrls) && comboData.imageUrls.length) return comboData.imageUrls[0];
+    if (Array.isArray(comboData.images) && comboData.images.length) return comboData.images[0];
+    if (typeof comboData.imageUrl === 'string' && comboData.imageUrl) return comboData.imageUrl;
+    return null;
+  };
+
   // Get all image URLs (from imageUrls array or fallback to imageUrl)
   const allImageUrls = combo?.imageUrls && combo.imageUrls.length > 0 
     ? combo.imageUrls 
     : combo?.imageUrl 
-      ? [combo.imageUrl] 
+      ? (Array.isArray(combo.imageUrl) ? combo.imageUrl : [combo.imageUrl])
       : [];
 
-  // Combine images and video for carousel
+  // If the first product in the combo has a selected shade with an image,
+  // prepend it to the carousel thumbnails so it appears on the left side.
+  const firstProduct = Array.isArray(products) && products.length > 0 && typeof products[0] !== 'string' ? products[0] : null;
+  const firstProductId = firstProduct ? firstProduct.id : null;
+  const firstSelectedShadeImage = firstProductId ? selectedShades[firstProductId]?.imageUrl : undefined;
+
+  // Combine images and video for carousel, optionally with the selected shade image first
   const mediaItems = [
+    ...(firstSelectedShadeImage ? [{ type: 'image', url: firstSelectedShadeImage, isShade: true, productId: firstProductId }] : []),
     ...allImageUrls.map((url: string) => ({ type: 'image', url })),
     ...(combo?.videoUrl ? [{ type: 'video', url: combo.videoUrl }] : [])
   ];
@@ -307,7 +347,7 @@ export default function ComboDetail() {
         name: combo.name.substring(0, 100), // Limit name length
         price: `₹${combo.price}`,
         originalPrice: combo.originalPrice ? `₹${combo.originalPrice}` : undefined,
-        image: combo.imageUrl?.substring(0, 200) || '', // Limit image URL length
+        image: (getPrimaryImage(combo) || '').substring(0, 200) || '', // Limit image URL length
         inStock: true,
         category: 'combo',
         rating: '5.0',
@@ -345,7 +385,7 @@ export default function ComboDetail() {
     });
 
     const unselectedProducts = productsWithShades.filter((product: any) => {
-      return !selectedShades[product.id] || selectedShades[product.id].trim() === '';
+      return !selectedShades[product.id] || !selectedShades[product.id]?.name;
     });
 
     if (unselectedProducts.length > 0) {
@@ -364,22 +404,30 @@ export default function ComboDetail() {
       existingItem.quantity += 1;
       // Update selected shades if any
       if (Object.keys(selectedShades).length > 0) {
-        existingItem.selectedShades = selectedShades;
+        existingItem.selectedShades = Object.fromEntries(
+          Object.entries(selectedShades).map(([k, v]) => [k, v ? { id: v.id, name: v.name, imageUrl: v.imageUrl } : null])
+        );
       }
     } else {
+      // Normalize selected shades for storage: keep id, name, imageUrl only
+      const selectedShadesForCart = Object.keys(selectedShades).length > 0
+        ? Object.fromEntries(
+            Object.entries(selectedShades).map(([k, v]) => [k, v ? { id: v.id, name: v.name, imageUrl: v.imageUrl } : null])
+          )
+        : undefined;
       const cartItem = {
         id: combo.id,
         comboId: combo.id, // Use comboId instead of productId
         name: combo.name,
         price: `₹${combo.price}`,
         originalPrice: combo.originalPrice ? `₹${combo.originalPrice}` : undefined,
-        image: combo.imageUrl,
+        image: getPrimaryImage(combo) || '',
         quantity: 1,
         inStock: true,
         isCombo: true,
         cashbackPercentage: combo.cashbackPercentage,
         cashbackPrice: combo.cashbackPrice,
-        selectedShades: Object.keys(selectedShades).length > 0 ? selectedShades : undefined,
+        selectedShades: selectedShadesForCart,
       };
       cart.push(cartItem);
     }
@@ -559,8 +607,30 @@ export default function ComboDetail() {
   const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice) : combo.originalPrice;
   const discountPercentage = originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
 
-  const handleShadeChange = (productId: number, shade: string | null) => {
+  const handleShadeChange = (productId: number, shade: {name: string; imageUrl?: string} | null) => {
     setSelectedShades((prev) => ({ ...prev, [productId]: shade }));
+
+    // If the shade is for the first product, show it immediately in the main viewer
+    try {
+      const firstProduct = Array.isArray(products) && products.length > 0 && typeof products[0] !== 'string' ? products[0] : null;
+      if (firstProduct && productId === firstProduct.id && shade && shade.imageUrl) {
+        // set the viewer to the prepended shade thumbnail (index 0)
+        setTimeout(() => {
+          setCurrentImageIndex(0);
+          const container = document.getElementById('thumbnail-container');
+          if (container) {
+            try {
+              container.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (e) {
+              container.scrollTop = 0;
+            }
+          }
+        }, 80);
+      }
+    } catch (e) {
+      // ignore errors in DOM operations
+      console.error('Error selecting shade thumbnail:', e);
+    }
   };
 
   return (
@@ -718,7 +788,7 @@ export default function ComboDetail() {
                                   {item.type === 'video' ? (
                                     <div className="relative w-full h-full">
                                       <video
-                                        src={item.url}
+                                        src={normalizeImageUrl(item.url)}
                                         className="w-full h-full object-cover rounded-lg"
                                         muted
                                       />
@@ -730,7 +800,8 @@ export default function ComboDetail() {
                                     </div>
                                   ) : (
                                     <img
-                                      src={item.url}
+                                      key={`thumb-img-${index}`}
+                                      src={normalizeImageUrl(item.url)}
                                       alt={`${combo.name} view ${index + 1}`}
                                       className="w-full h-full hover:scale-110 transition-transform duration-200"
                                       style={{ 
@@ -739,8 +810,10 @@ export default function ComboDetail() {
                                         height: '100%',
                                         borderRadius: '6px'
                                       }}
+                                      loading="lazy"
                                       onError={(e) => {
                                         const target = e.target as HTMLImageElement;
+                                        console.error('Thumbnail failed to load:', target.src);
                                         target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=100&q=80';
                                       }}
                                     />
@@ -868,31 +941,38 @@ export default function ComboDetail() {
 
                     {/* Main Display - Image or Video */}
                     <div className="flex-1 bg-white rounded-2xl overflow-hidden shadow-lg relative group" style={{ aspectRatio: '1/1', minHeight: '300px', height: '400px' }}>
-                      <div className="w-full h-full flex items-center justify-center p-2">
+                      <div className="w-full h-full flex items-center justify-center p-2 bg-gradient-to-br from-gray-50 to-gray-100">
                         {mediaItems.length > 0 && mediaItems[currentImageIndex]?.type === 'video' ? (
                           <video
-                            src={mediaItems[currentImageIndex].url}
+                            src={normalizeImageUrl(mediaItems[currentImageIndex].url)}
                             controls
                             preload="metadata"
                             className="w-full h-full object-contain rounded-2xl"
                             style={{ maxHeight: '100%' }}
                           >
-                            <source src={mediaItems[currentImageIndex].url} type="video/mp4" />
-                            <source src={mediaItems[currentImageIndex].url} type="video/webm" />
+                            <source src={normalizeImageUrl(mediaItems[currentImageIndex].url)} type="video/mp4" />
+                            <source src={normalizeImageUrl(mediaItems[currentImageIndex].url)} type="video/webm" />
                             Your browser does not support the video tag.
                           </video>
                         ) : (
                           <img
-                            src={mediaItems.length > 0 ? mediaItems[currentImageIndex]?.url : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600&q=80'}
-                            alt={combo.name}
-                            className="w-full h-full object-contain rounded-2xl group-hover:scale-110 cursor-zoom-in"
+                            key={`main-img-${currentImageIndex}`}
+                            src={normalizeImageUrl(mediaItems.length > 0 ? mediaItems[currentImageIndex]?.url : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600&q=80')}
+                            alt={`${combo.name} - Image ${currentImageIndex + 1}`}
+                            className="w-full h-full object-contain rounded-2xl group-hover:scale-110 cursor-zoom-in transition-transform duration-200"
+                            style={{ 
+                              maxWidth: '100%',
+                              maxHeight: '100%',
+                              objectFit: 'contain'
+                            }}
+                            loading="lazy"
                             onClick={(e) => {
                               const modal = document.createElement('div');
                               modal.className = 'fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4';
                               modal.onclick = () => modal.remove();
 
                               const img = document.createElement('img');
-                              img.src = mediaItems.length > 0 ? mediaItems[currentImageIndex]?.url : combo.imageUrl;
+                              img.src = normalizeImageUrl(mediaItems.length > 0 ? mediaItems[currentImageIndex]?.url : (getPrimaryImage(combo) || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600&q=80'));
                               img.className = 'max-w-full max-h-full object-contain rounded-lg';
                               img.onclick = (e) => e.stopPropagation();
 
@@ -907,6 +987,7 @@ export default function ComboDetail() {
                             }}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
+                              console.error('Image failed to load:', target.src);
                               target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=600&q=80';
                             }}
                           />
@@ -976,46 +1057,38 @@ export default function ComboDetail() {
                   <div className="space-y-2">
                     {products.map((product: any, index: number) => {
                       const productImage = (() => {
+                        // Try images array first
                         if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-                          return product.images[0].url || product.images[0].imageUrl || product.imageUrl;
+                          const firstImage = product.images[0];
+                          if (typeof firstImage === 'string') return firstImage; // Direct URL string
+                          if (typeof firstImage === 'object') {
+                            return firstImage.url || firstImage.imageUrl || firstImage;
+                          }
                         }
-                        return product.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
+                        // Fallback to imageUrl
+                        if (product.imageUrl) {
+                          if (Array.isArray(product.imageUrl)) return product.imageUrl[0] || '';
+                          return product.imageUrl;
+                        }
+                        // Last resort: Unsplash placeholder
+                        return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
                       })();
 
                       const productShades = productShadesData[product.id] || [];
                       const hasShades = productShades.length > 0;
-                      const selectedCount = selectedShades[product.id]?.split(', ').length || 0;
 
                       return (
                         <div key={index} className="flex items-center gap-2 bg-white rounded-lg border border-purple-100 hover:border-purple-300 p-2 transition-all group">
                           {/* Product Image */}
                           <div className="w-16 h-16 flex-shrink-0 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden">
-                            <img src={productImage} alt={product.name} className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform" />
+                            <img src={normalizeImageUrl(productImage)} alt={product.name} className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform" />
                           </div>
 
                           {/* Product Info and Shade Button in Same Row */}
                           <div className="flex-1 min-w-0 flex items-center gap-2">
                             <div className="flex-1 min-w-0">
                               <h4 className="text-sm font-semibold text-gray-900 line-clamp-1">{product.name}</h4>
-                              {hasShades && (
-                                <div className="mt-1 flex gap-1 items-center">
-                                  <span className="text-xs text-gray-500">{productShades.length} shades</span>
-                                  <div className="flex gap-0.5">
-                                    {productShades.slice(0, 4).map((shade: any) => (
-                                      <div key={shade.id} className="relative" title={shade.name}>
-                                        {shade.imageUrl ? (
-                                          <img src={shade.imageUrl} alt={shade.name} className="w-4 h-4 rounded-full border border-gray-300 object-cover" />
-                                        ) : (
-                                          <div className="w-4 h-4 rounded-full border border-gray-300" style={{ backgroundColor: shade.colorCode || getShadeColor(shade.name) }} />
-                                        )}
-                                      </div>
-                                    ))}
-                                    {productShades.length > 4 && (
-                                      <div className="w-4 h-4 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center text-[7px] font-bold text-purple-700">+{productShades.length - 4}</div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
+                              
                             </div>
 
                             {/* Shade Selection Button - Inline with Product Name */}
@@ -1035,7 +1108,7 @@ export default function ComboDetail() {
                                 <Palette className="w-4 h-4" />
                                 {selectedShades[product.id] ? (
                                   <>
-                                    <span className="text-[9px] whitespace-nowrap">{selectedCount} selected</span>
+                                    <span className="text-[9px] whitespace-nowrap line-clamp-1">{selectedShades[product.id]?.name}</span>
                                     <Check className="w-3 h-3" />
                                   </>
                                 ) : (
@@ -1103,7 +1176,6 @@ export default function ComboDetail() {
                 </div>
               )}
 
-              {/* Shade Selection Warning */}
               {(() => {
                 const productsWithShades = products.filter((product: any) => {
                   const productShades = productShadesData[product.id] || [];
@@ -1111,11 +1183,16 @@ export default function ComboDetail() {
                 });
 
                 const unselectedProducts = productsWithShades.filter((product: any) => {
-                  return !selectedShades[product.id] || selectedShades[product.id].trim() === '';
+                  return !selectedShades[product.id] || !selectedShades[product.id]?.name;
                 });
 
-                // Removed shade selection alert box. Now handled in button label below.
-                return null;
+                return unselectedProducts.length > 0 ? (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+                    <p className="text-sm text-orange-700 font-medium">
+                      ⚠️ Please select shade(s) for: {unselectedProducts.map((p: any) => p.name).join(', ')}
+                    </p>
+                  </div>
+                ) : null;
               })()}
 
               {/* Actions */}
@@ -1130,7 +1207,7 @@ export default function ComboDetail() {
                       return productShades.length > 0;
                     });
                     const unselectedProducts = productsWithShades.filter((product: any) => {
-                      return !selectedShades[product.id] || selectedShades[product.id].trim() === '';
+                      return !selectedShades[product.id] || !selectedShades[product.id]?.name;
                     });
                     return unselectedProducts.length > 0;
                   })()}
@@ -1142,7 +1219,7 @@ export default function ComboDetail() {
                       return productShades.length > 0;
                     });
                     const unselectedProducts = productsWithShades.filter((product: any) => {
-                      return !selectedShades[product.id] || selectedShades[product.id].trim() === '';
+                      return !selectedShades[product.id] || !selectedShades[product.id]?.name;
                     });
                     return unselectedProducts.length > 0
                       ? 'Select All Shades First'
@@ -1260,20 +1337,30 @@ export default function ComboDetail() {
                       <div className="space-y-2">
                         {products.map((product: any, index: number) => {
                           const productImage = (() => {
+                            // Try images array first
                             if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-                              return product.images[0].url || product.images[0].imageUrl || product.imageUrl;
+                              const firstImage = product.images[0];
+                              if (typeof firstImage === 'string') return firstImage; // Direct URL string
+                              if (typeof firstImage === 'object') {
+                                return firstImage.url || firstImage.imageUrl || firstImage;
+                              }
                             }
-                            return product.imageUrl || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
+                            // Fallback to imageUrl
+                            if (product.imageUrl) {
+                              if (Array.isArray(product.imageUrl)) return product.imageUrl[0] || '';
+                              return product.imageUrl;
+                            }
+                            // Last resort: Unsplash placeholder
+                            return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
                           })();
 
                           const productShades = productShadesData[product.id] || [];
                           const hasShades = productShades.length > 0;
-                          const selectedCount = selectedShades[product.id]?.split(', ').length || 0;
 
                           return (
                             <div key={index} className="flex items-center gap-2 bg-white rounded-lg border border-purple-100 hover:border-purple-300 p-2 transition-all group">
                               <div className="w-16 h-16 flex-shrink-0 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden">
-                                <img src={productImage} alt={product.name} className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform" />
+                                <img src={normalizeImageUrl(productImage)} alt={product.name} className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform" />
                               </div>
 
                               <div className="flex-1 min-w-0 flex items-center gap-2">
@@ -1286,7 +1373,7 @@ export default function ComboDetail() {
                                         {productShades.slice(0, 4).map((shade: any) => (
                                           <div key={shade.id} className="relative" title={shade.name}>
                                             {shade.imageUrl ? (
-                                              <img src={shade.imageUrl} alt={shade.name} className="w-4 h-4 rounded-full border border-gray-300 object-cover" />
+                                              <img src={normalizeImageUrl(shade.imageUrl)} alt={shade.name} className="w-4 h-4 rounded-full border border-gray-300 object-cover" />
                                             ) : (
                                               <div className="w-4 h-4 rounded-full border border-gray-300" style={{ backgroundColor: shade.colorCode || getShadeColor(shade.name) }} />
                                             )}
@@ -1303,7 +1390,7 @@ export default function ComboDetail() {
                                 {hasShades && (
                                   <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShadeSelectorOpen(product.id); }} className={`flex-shrink-0 rounded-lg px-3 py-2 text-xs font-bold transition-all flex flex-col items-center gap-1 shadow-md hover:shadow-lg ${selectedShades[product.id] ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' : 'bg-gradient-to-r from-pink-500 to-purple-500 text-white'}`}>
                                     <Palette className="w-4 h-4" />
-                                    {selectedShades[product.id] ? (<><span className="text-[9px] whitespace-nowrap">{selectedCount} selected</span><Check className="w-3 h-3" /></>) : (<span className="text-[9px] whitespace-nowrap">Select</span>)}
+                                    {selectedShades[product.id] ? (<><span className="text-[9px] whitespace-nowrap line-clamp-1">{selectedShades[product.id]?.name}</span><Check className="w-3 h-3" /></>) : (<span className="text-[9px] whitespace-nowrap">Select</span>)}
                                   </button>
                                 )}
                               </div>
@@ -1451,8 +1538,9 @@ export default function ComboDetail() {
             <div className="mt-6 space-y-2">
               {[5, 4, 3, 2, 1].map((star) => {
                 const distribution = calculateRatingDistribution();
-                const count = distribution[star as keyof typeof distribution];
-                const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+                const count = distribution[star - 1] || 0;
+                const reviewsArray = Array.isArray(reviews) ? reviews : [];
+                const percentage = reviewsArray.length > 0 ? (count / reviewsArray.length) * 100 : 0;
 
                 return (
                   <div key={star} className="flex items-center space-x-3">
@@ -1659,6 +1747,92 @@ export default function ComboDetail() {
           </div>
         </DialogContent>
       </Dialog>
+      <section className="mt-12 sm:mt-16">
+                      <div className="mb-6 sm:mb-8">
+                        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                          You May Also Like
+                        </h2>
+                        <p className="text-sm sm:text-base text-gray-600">
+                          Complete your beauty routine with these products
+                        </p>
+                      </div>
+            
+                      {recommendedProducts.length === 0 ? (
+                        <>
+                          {/* Mobile: Loading Skeleton */}
+                          <div className="block md:hidden">
+                            <div className="overflow-x-auto scrollbar-hide pb-4">
+                              <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
+                                {Array.from({ length: 4 }).map((_, i) => (
+                                  <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm" style={{ width: '160px', flexShrink: 0 }}>
+                                    <Skeleton className="aspect-square w-full" />
+                                    <div className="p-3 space-y-2">
+                                      <Skeleton className="h-4 w-full" />
+                                      <Skeleton className="h-4 w-3/4" />
+                                      <Skeleton className="h-6 w-1/2" />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+            
+                          {/* Desktop: Loading Skeleton */}
+                          <div className="hidden md:block">
+                            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 px-4 sm:px-8">
+                              {Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                                  <Skeleton className="aspect-square w-full" />
+                                  <div className="p-3 space-y-2">
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-4 w-3/4" />
+                                    <Skeleton className="h-6 w-1/2" />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* Mobile: 2 Column Grid with Horizontal Scroll */}
+                          <div className="block md:hidden">
+                            <div className="overflow-x-auto scrollbar-hide pb-4">
+                              <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
+                                {(Array.isArray(recommendedProducts) ? recommendedProducts : []).map((product: any) => (
+                                  <div key={product.id} style={{ width: '160px', flexShrink: 0 }}>
+                                    <ProductCard product={product} className="h-full" />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+            
+                          {/* Desktop: Carousel */}
+                          <div className="hidden md:block">
+                            <div className="relative px-4 sm:px-8">
+                              <Carousel
+                                opts={{
+                                  align: "start",
+                                  loop: true,
+                                }}
+                                className="w-full"
+                              >
+                                <CarouselContent className="-ml-2 md:-ml-4">
+                                  {(Array.isArray(recommendedProducts) ? recommendedProducts : []).map((product: any) => (
+                                    <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+                                      <ProductCard product={product} />
+                                    </CarouselItem>
+                                  ))}
+                                </CarouselContent>
+                                <CarouselPrevious className="hidden sm:flex -left-4" />
+                                <CarouselNext className="hidden sm:flex -right-4" />
+                              </Carousel>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </section>
     </div>
   );
 }
