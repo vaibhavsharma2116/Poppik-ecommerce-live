@@ -82,19 +82,25 @@ function OffersList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
     );
   }
 
-  const activeOffers = offers?.filter((offer: any) => offer.isActive) || [];
+  // Only include offers that are active and have affiliate settings configured
+  const eligibleOffers = (offers || []).filter((offer: any) => {
+    if (!offer || !offer.isActive) return false;
+    const commission = Number(offer.affiliateCommission ?? offer.affiliate_commission ?? 0);
+    const userDiscount = Number(offer.affiliateUserDiscount ?? offer.affiliate_user_discount ?? 0);
+    return commission > 0 && userDiscount > 0;
+  });
 
-  if (activeOffers.length === 0) {
+  if (eligibleOffers.length === 0) {
     return (
       <div className="text-center py-12">
         <Tag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Special Offers Available</h3>
-        <p className="text-gray-500">Check back soon for new deals!</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Affiliate-enabled Offers</h3>
+        <p className="text-gray-500">No active offers are configured for affiliates right now.</p>
       </div>
     );
   }
 
-  const displayedOffers = showAllOffers ? activeOffers : activeOffers.slice(0, 6);
+  const displayedOffers = showAllOffers ? eligibleOffers : eligibleOffers.slice(0, 6);
 
   return (
     <div className="space-y-6">
@@ -150,7 +156,7 @@ function OffersList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
         })}
       </div>
 
-      {activeOffers.length > 6 && (
+      {eligibleOffers.length > 6 && (
         <div className="flex justify-center mt-8">
           <Button
             onClick={() => setShowAllOffers(!showAllOffers)}
@@ -197,19 +203,25 @@ function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
     );
   }
 
-  const activeCombos = combos?.filter((combo: any) => combo.isActive) || [];
+  // Only include combos that are active and have affiliate settings configured
+  const eligibleCombos = (combos || []).filter((combo: any) => {
+    if (!combo || !combo.isActive) return false;
+    const commission = Number(combo.affiliateCommission ?? combo.affiliate_commission ?? 0);
+    const userDiscount = Number(combo.affiliateUserDiscount ?? combo.affiliate_user_discount ?? 0);
+    return commission > 0 && userDiscount > 0;
+  });
 
-  if (activeCombos.length === 0) {
+  if (eligibleCombos.length === 0) {
     return (
       <div className="text-center py-12">
         <ShoppingBag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Combo Offers Available</h3>
-        <p className="text-gray-500">Check back soon for new combo deals!</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Affiliate-enabled Combos</h3>
+        <p className="text-gray-500">No combo offers are configured for affiliates right now.</p>
       </div>
     );
   }
 
-  const displayedCombos = showAllCombos ? activeCombos : activeCombos.slice(0, 6);
+  const displayedCombos = showAllCombos ? eligibleCombos : eligibleCombos.slice(0, 6);
 
   const getPrimaryImage = (combo: any) => {
     if (!combo) return null;
@@ -274,7 +286,7 @@ function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
         })}
       </div>
 
-      {activeCombos.length > 6 && (
+      {eligibleCombos.length > 6 && (
         <div className="flex justify-center mt-8">
           <Button
             onClick={() => setShowAllCombos(!showAllCombos)}
@@ -399,17 +411,25 @@ function ProductsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: str
     );
   }
 
-  if (!products || products.length === 0) {
+  // Only include products that have affiliate settings configured
+  const eligibleProducts = (products || []).filter((p: any) => {
+    // Products may store numeric fields as strings or numbers; coerce to Number
+    const commission = Number(p.affiliateCommission ?? p.affiliate_commission ?? 0);
+    const userDiscount = Number(p.affiliateUserDiscount ?? p.affiliate_user_discount ?? 0);
+    return commission > 0 && userDiscount > 0;
+  });
+
+  if (!eligibleProducts || eligibleProducts.length === 0) {
     return (
       <div className="text-center py-12">
         <ShoppingBag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Products Available</h3>
-        <p className="text-gray-500">Check back soon for new products to promote!</p>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Affiliate-enabled Products</h3>
+        <p className="text-gray-500">No products currently have affiliate commission and user discount configured.</p>
       </div>
     );
   }
 
-  const displayedProducts = showAllProducts ? products : products.slice(0, 6);
+  const displayedProducts = showAllProducts ? eligibleProducts : eligibleProducts.slice(0, 6);
 
   return (
     <div className="space-y-6">
@@ -453,7 +473,7 @@ function ProductsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: str
         ))}
       </div>
 
-      {products.length > 6 && (
+      {eligibleProducts.length > 6 && (
         <div className="flex justify-center mt-8">
           <Button
             onClick={() => setShowAllProducts(!showAllProducts)}

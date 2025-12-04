@@ -471,21 +471,69 @@ export default function ProductDetail() {
       }
     }
 
-    if (affiliateRef && product?.id) {
-      // Track the click
-      fetch('/api/affiliate/track-click', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          affiliateCode: affiliateRef,
-          productId: product.id,
-        }),
-      }).catch(err => console.error('Error tracking affiliate click:', err));
+    const validateAndTrack = async () => {
+      if (!affiliateRef || !product?.id) return;
 
-      // Store in localStorage for checkout
-      localStorage.setItem('affiliateRef', affiliateRef);
-    }
+      try {
+        // Validate first
+        const vRes = await fetch(`/api/affiliate/validate?code=${encodeURIComponent(affiliateRef)}`);
+        if (!vRes.ok) {
+          const err = await vRes.json().catch(() => ({}));
+          const message = err?.error || 'Invalid affiliate code';
+          toast({ title: 'Invalid Affiliate', description: message, variant: 'destructive' });
+          // Do not store invalid code
+          localStorage.removeItem('affiliateRef');
+          // Remove ref parameter from URL
+          const cleanUrl = new URL(window.location.toString());
+          cleanUrl.searchParams.delete('ref');
+          // also remove any direct code param (e.g., ?POPPIKAP29)
+          if (window.location.search && !window.location.search.includes('=')) {
+            // remove query string entirely
+            window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+          } else {
+            window.history.replaceState({}, '', cleanUrl.toString());
+          }
+          return;
+        }
+
+        // Check that the product itself is configured for affiliate (both commission and user discount)
+        const commission = Number((product as any)?.affiliateCommission ?? (product as any)?.affiliate_commission ?? 0);
+        const userDiscount = Number((product as any)?.affiliateUserDiscount ?? (product as any)?.affiliate_user_discount ?? 0);
+
+        if (!(commission > 0 && userDiscount > 0)) {
+          // Affiliate code is valid but not applicable to this product
+          toast({ title: 'Not Eligible', description: 'This affiliate code is not valid for this product', variant: 'destructive' });
+          localStorage.removeItem('affiliateRef');
+          // Remove ref parameter from URL
+          const cleanUrl = new URL(window.location.toString());
+          cleanUrl.searchParams.delete('ref');
+          if (window.location.search && !window.location.search.includes('=')) {
+            window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+          } else {
+            window.history.replaceState({}, '', cleanUrl.toString());
+          }
+          return;
+        }
+
+        // If valid and product eligible, track the click
+        await fetch('/api/affiliate/track-click', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            affiliateCode: affiliateRef,
+            productId: product.id,
+          }),
+        });
+
+        // Store in localStorage for checkout
+        localStorage.setItem('affiliateRef', affiliateRef);
+      } catch (err) {
+        console.error('Error validating/tracking affiliate click:', err);
+      }
+    };
+
+    validateAndTrack();
   }, [product?.id]);
 
   useEffect(() => {
@@ -599,14 +647,14 @@ export default function ProductDetail() {
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
-    // Get affiliate percentage from product data
-    const affiliateCommissionPercentage = parseFloat((product as any)?.affiliateCommission || '0');
-    const affiliateUserDiscountPercentage = parseFloat((product as any)?.affiliateUserDiscount || '0');
+    // Get affiliate percentage from product data (support both camelCase and snake_case)
+    const affiliateCommissionPercentage = parseFloat(String((product as any)?.affiliateCommission ?? (product as any)?.affiliate_commission ?? '0')) || 0;
+    const affiliateUserDiscountPercentage = parseFloat(String((product as any)?.affiliateUserDiscount ?? (product as any)?.affiliate_user_discount ?? '0')) || 0;
 
     // Calculate actual values based on product price
     const productPrice = parseFloat(product.price);
-    const affiliateCommissionAmount = (productPrice * affiliateCommissionPercentage) / 100;
-    const affiliateUserDiscountAmount = (productPrice * affiliateUserDiscountPercentage) / 100;
+    const affiliateCommissionAmount = affiliateCommissionPercentage > 0 ? (productPrice * affiliateCommissionPercentage) / 100 : 0;
+    const affiliateUserDiscountAmount = affiliateUserDiscountPercentage > 0 ? (productPrice * affiliateUserDiscountPercentage) / 100 : 0;
 
     // Add each selected shade to cart
     if (selectedShades.length > 0) {
@@ -1749,6 +1797,29 @@ export default function ProductDetail() {
                             {product.cashbackPercentage}% Cashback
                           </span>
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Affiliate Info - show only when product configured for affiliates */}
+                  {((product as any)?.affiliateCommission ?? (product as any)?.affiliate_commission) > 0 && ((product as any)?.affiliateUserDiscount ?? (product as any)?.affiliate_user_discount) > 0 && (
+                    <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-semibold text-purple-700">Affiliate Details</span>
+                          <p className="text-xs text-purple-600 mt-0.5">This product is eligible for affiliate rewards.</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-purple-800">Affiliate Commission: {Number((product as any).affiliateCommission ?? (product as any).affiliate_commission ?? 0)}%</p>
+                          <p className="text-sm font-semibold text-purple-700">Customer Discount: {Number((product as any).affiliateUserDiscount ?? (product as any).affiliate_user_discount ?? 0)}%</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 text-xs text-gray-600">
+                        {localStorage.getItem('affiliateRef') ? (
+                          <span>Using affiliate code <strong className="text-gray-800">{localStorage.getItem('affiliateRef')}</strong>. Discount will apply at checkout.</span>
+                        ) : (
+                          <span>No affiliate code applied. Share your affiliate link to let customers use the discount.</span>
+                        )}
                       </div>
                     </div>
                   )}

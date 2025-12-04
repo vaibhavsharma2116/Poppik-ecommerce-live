@@ -237,11 +237,11 @@ export default function ComboDetail() {
     queryKey: ['/api/products', { limit: 12 }],
   });
   useEffect(() => {
-    // Track affiliate click if ref parameter exists
+    // Validate affiliate code (if present) and track only when applicable to this combo
     const urlParams = new URLSearchParams(window.location.search);
     // Support multiple affiliate parameter formats: ref=CODE, CODE (first param as value), or direct parameter
     let affiliateRef = urlParams.get('ref');
-    
+
     // If no 'ref' parameter, check for direct affiliate code (e.g., ?POPPIKAP12)
     if (!affiliateRef) {
       const searchString = window.location.search.substring(1); // Remove the ?
@@ -250,22 +250,74 @@ export default function ComboDetail() {
       }
     }
 
-    if (affiliateRef && combo?.id) {
-      // Track the click
-      fetch('/api/affiliate/track-click', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          affiliateCode: affiliateRef,
-          comboId: combo.id,
-        }),
-      }).catch(err => console.error('Error tracking affiliate click:', err));
+    if (!affiliateRef || !combo?.id) return;
 
-      // Store in localStorage for checkout
-      localStorage.setItem('affiliateRef', affiliateRef);
-    }
-  }, [combo?.id]);
+    const removeAffiliateRef = () => {
+      try { localStorage.removeItem('affiliateRef'); } catch (e) { }
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('ref');
+        const raw = u.search.substring(1);
+        if (raw && /^[A-Z0-9]+($|&)/.test(raw)) {
+          const parts = raw.split('&').slice(1);
+          u.search = parts.length ? `?${parts.join('&')}` : '';
+        }
+        window.history.replaceState({}, '', u.toString());
+      } catch (e) {
+        try { window.history.replaceState({}, '', window.location.pathname + window.location.hash); } catch (err) { }
+      }
+    };
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/affiliate/validate?code=${encodeURIComponent(affiliateRef)}`);
+        if (!res.ok) {
+          removeAffiliateRef();
+          toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
+          return;
+        }
+
+        const data = await res.json();
+        if (!data || !data.valid) {
+          removeAffiliateRef();
+          toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
+          return;
+        }
+
+        // Determine if this combo or its products are affiliate-enabled
+        const comboCommission = Number(combo?.affiliateCommission ?? combo?.affiliate_commission ?? 0);
+        const comboUserDiscount = Number(combo?.affiliateUserDiscount ?? combo?.affiliate_user_discount ?? 0);
+
+        let eligible = comboCommission > 0 && comboUserDiscount > 0;
+
+        if (!eligible && Array.isArray(combo?.products) && combo.products.length > 0) {
+          eligible = combo.products.some((p: any) => {
+            const pc = Number(p?.affiliateCommission ?? p?.affiliate_commission ?? 0);
+            const pd = Number(p?.affiliateUserDiscount ?? p?.affiliate_user_discount ?? 0);
+            return pc > 0 && pd > 0;
+          });
+        }
+
+        if (!eligible) {
+          removeAffiliateRef();
+          toast({ title: 'Not Eligible', description: 'This affiliate code cannot be applied to this combo.', variant: 'destructive' });
+          return;
+        }
+
+        // Valid and eligible — track and persist
+        fetch('/api/affiliate/track-click', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ affiliateCode: affiliateRef, comboId: combo.id }),
+        }).catch(err => console.error('Error tracking affiliate click:', err));
+
+        try { localStorage.setItem('affiliateRef', affiliateRef); } catch (e) { }
+      } catch (err) {
+        console.error('Error validating affiliate code:', err);
+      }
+    })();
+  }, [combo?.id, combo, toast]);
 
   // Prepare products (safe parse) and load shades for products before any early returns
   const products = combo

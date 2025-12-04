@@ -720,6 +720,7 @@ export default function Cart() {
         commission: totalAffiliateCommissionFromItems,
         discount: totalAffiliateDiscountFromItems,
         fromProducts: true,
+        affiliateCode: affiliateCode, // Also save affiliate code here
         timestamp: new Date().toISOString()
       }));
     } else {
@@ -727,7 +728,7 @@ export default function Cart() {
     }
 
     // Get affiliate code from localStorage if it exists (set when visiting product page with affiliate link)
-    const affiliateRef = localStorage.getItem('affiliateRef');
+    const affiliateRef = localStorage.getItem('affiliateRef') || affiliateCode;
 
     // Remove old static affiliate discount logic - everything is now dynamic
     localStorage.removeItem('affiliateCode');
@@ -747,7 +748,7 @@ export default function Cart() {
         affiliateWalletAmount,
         promoCode: appliedPromo,
         promoDiscount: generalPromoDiscount,
-        affiliateCode: affiliateRef || "", // Pass affiliate code from localStorage
+        affiliateCode: affiliateRef || "", // Pass affiliate code from cart state or localStorage
         affiliateCommissionFromItems: totalAffiliateCommissionFromItems,
         affiliateDiscountFromItems: totalAffiliateDiscountFromItems,
       }
@@ -1114,10 +1115,10 @@ export default function Cart() {
                 <h2 className="text-xl font-semibold text-gray-900">Order Summary</h2>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Promo Code</label>
+                  <label className="text-sm font-medium text-gray-700">Promo Code / Affiliate Code</label>
                   <div className="flex space-x-2">
                     <Input
-                      placeholder="Try SAVE10, FLAT50"
+                      placeholder="Try SAVE10, FLAT50, or POPPIKAP..."
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
                       className="flex-1"
@@ -1127,13 +1128,13 @@ export default function Cart() {
                     </Button>
                   </div>
                   {appliedPromo && (
-                    <p className="text-green-600 text-xs">
-                      Applied: {appliedPromo.code} ({appliedPromo.discountType === 'percentage' ? appliedPromo.discountAmount + '%' : (appliedPromo.discountType === 'fixed' ? `Rs. ${appliedPromo.discountAmount} off` : 'Free Shipping')})
+                    <p className="text-green-600 text-xs font-medium bg-green-50 p-2 rounded">
+                      ✓ Applied Promo: {appliedPromo.code} ({appliedPromo.discountType === 'percentage' ? appliedPromo.discountAmount + '%' : (appliedPromo.discountType === 'fixed' ? `₹${appliedPromo.discountAmount} off` : 'Free Shipping')})
                     </p>
                   )}
-                  {affiliateDiscount > 0 && (
-                    <p className="text-green-600 text-xs">
-                      Applied Affiliate Code: {affiliateCode} (Save ₹{affiliateDiscount.toLocaleString()})
+                  {affiliateCode && totalAffiliateDiscountFromItems > 0 && (
+                    <p className="text-purple-600 text-xs font-medium bg-purple-50 p-2 rounded">
+                      ✓ Applied Affiliate Code: <span className="font-bold">{affiliateCode}</span> (Save ₹{totalAffiliateDiscountFromItems.toLocaleString()})
                     </p>
                   )}
                 </div>
@@ -1223,14 +1224,20 @@ export default function Cart() {
                     </div>
                   )}
 
+                  {/* Affiliate Discount Display - Show when affiliate code is applied */}
+                  {totalAffiliateDiscountFromItems > 0 && affiliateCode && (
+                    <div className="flex justify-between text-sm bg-purple-50 p-2 rounded">
+                      <span className="text-purple-700 font-medium">Affiliate Discount ({affiliateCode})</span>
+                      <span className="font-bold text-purple-600">-₹{Math.round(totalAffiliateDiscountFromItems).toLocaleString()}</span>
+                    </div>
+                  )}
+
                   {dynamicDiscount > 0 && (
                     <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
                       <span className="text-green-700 font-medium">Offers Applied</span>
                       <span className="font-bold text-green-600">-₹{dynamicDiscount.toLocaleString()}</span>
                     </div>
                   )}
-
-                  {/* Affiliate discount UI removed from cart. Discount is applied at checkout only. */}
 
                   {appliedPromo && generalPromoDiscount > 0 && (
                     <div className="flex items-center justify-between text-sm bg-green-50 p-2 rounded">
@@ -1292,9 +1299,9 @@ export default function Cart() {
                     <span className="text-lg font-bold text-gray-900">Total</span>
                     <span className="text-2xl font-bold text-pink-600">₹{total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   </div>
-                  {(totalDiscount > 0 || walletAmount > 0 || affiliateWalletAmount > 0) && (
+                  {(totalDiscount > 0 || walletAmount > 0 || affiliateWalletAmount > 0 || totalAffiliateDiscountFromItems > 0) && (
                     <div className="text-xs text-green-600 text-right mt-1">
-                      You saved ₹{(totalDiscount + walletAmount + affiliateWalletAmount).toLocaleString(undefined, { maximumFractionDigits: 2 })}!
+                      You saved ₹{(totalDiscount + walletAmount + affiliateWalletAmount + totalAffiliateDiscountFromItems).toLocaleString(undefined, { maximumFractionDigits: 2 })}!
                     </div>
                   )}
                 </div>

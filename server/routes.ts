@@ -1388,6 +1388,36 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
+  // Validate affiliate code - quick check to see if code corresponds to an approved affiliate
+  app.get('/api/affiliate/validate', async (req, res) => {
+    try {
+      const { code } = req.query;
+      if (!code) return res.status(400).json({ error: 'Affiliate code is required' });
+
+      const affiliateCode = String(code).toUpperCase();
+      const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
+      if (isNaN(affiliateUserId)) return res.status(400).json({ error: 'Invalid affiliate code format' });
+
+      const affiliate = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(and(
+          eq(schema.affiliateApplications.userId, affiliateUserId),
+          eq(schema.affiliateApplications.status, 'approved')
+        ))
+        .limit(1);
+
+      if (!affiliate || affiliate.length === 0) {
+        return res.status(404).json({ error: 'Affiliate not found or not approved' });
+      }
+
+      res.json({ valid: true, message: 'Affiliate code is valid', affiliateUserId });
+    } catch (error) {
+      console.error('Error validating affiliate code:', error);
+      res.status(500).json({ error: 'Failed to validate affiliate code' });
+    }
+  });
+
   // Get Affiliate Clicks - Get all clicks for an affiliate
   app.get("/api/affiliate/clicks", async (req, res) => {
     try {

@@ -96,6 +96,13 @@ console.log("VCVVVVVV",combo)
     const price = typeof combo.price === 'string' ? parseFloat(combo.price.replace(/[^0-9.-]+/g,"")) : combo.price;
     const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice.replace(/[^0-9.-]+/g,"")) : combo.originalPrice;
 
+    // Get affiliate percentages from combo data
+    const affiliateCommissionPercentage = parseFloat(combo.affiliateCommission || '0');
+    const affiliateUserDiscountPercentage = parseFloat(combo.affiliateUserDiscount || '0');
+
+    // Calculate actual values based on combo price
+    const affiliateCommissionAmount = (price * affiliateCommissionPercentage) / 100;
+    const affiliateUserDiscountAmount = (price * affiliateUserDiscountPercentage) / 100;
 
     if (existingItem) {
       existingItem.quantity += 1;
@@ -115,9 +122,9 @@ console.log("VCVVVVVV",combo)
         // Explicitly set product-related fields
         productName: combo.name,
         productImage: getPrimaryImage(combo) || '',
-        // Affiliate fields (new)
-        affiliateCommission: combo.affiliateCommission || 0,
-        affiliateUserDiscount: combo.affiliateUserDiscount || 0,
+        // Affiliate fields - now with calculated amounts
+        affiliateCommission: affiliateCommissionAmount,
+        affiliateUserDiscount: affiliateUserDiscountAmount,
       };
       cart.push(cartItem);
     }

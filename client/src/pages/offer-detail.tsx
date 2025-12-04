@@ -44,6 +44,10 @@ interface Offer {
   detailedDescription?: string;
   productsIncluded?: string;
   benefits?: string;
+  affiliateCommission?: number | string;
+  affiliate_commission?: number | string;
+  affiliateUserDiscount?: number | string;
+  affiliate_user_discount?: number | string;
 }
 
 interface Product {
@@ -545,12 +549,12 @@ export default function OfferDetail() {
     }
   }, [reviewEligibility]);
 
-  // Track affiliate click if ref parameter exists
+  // Validate affiliate code (if present) and track only when applicable to this offer
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     // Support multiple affiliate parameter formats: ref=CODE, CODE (first param as value), or direct parameter
     let affiliateRef = urlParams.get('ref');
-    
+
     // If no 'ref' parameter, check for direct affiliate code (e.g., ?POPPIKAP12)
     if (!affiliateRef) {
       const searchString = window.location.search.substring(1); // Remove the ?
@@ -559,22 +563,92 @@ export default function OfferDetail() {
       }
     }
 
-    if (affiliateRef && offer?.id) {
-      // Track the click
-      fetch('/api/affiliate/track-click', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          affiliateCode: affiliateRef,
-          offerId: offer.id,
-        }),
-      }).catch(err => console.error('Error tracking affiliate click:', err));
+    if (!affiliateRef || !offer?.id) return;
 
-      // Store in localStorage for checkout
-      localStorage.setItem('affiliateRef', affiliateRef);
-    }
-  }, [offer?.id]);
+    const removeAffiliateRef = () => {
+      try {
+        localStorage.removeItem('affiliateRef');
+      } catch (e) {
+        /* ignore */
+      }
+
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('ref');
+
+        // If the URL used a bare code as the first param (e.g. ?POPPIKAP12), remove it
+        const raw = u.search.substring(1); // without '?'
+        if (raw && /^[A-Z0-9]+($|&)/.test(raw)) {
+          const parts = raw.split('&').slice(1);
+          u.search = parts.length ? `?${parts.join('&')}` : '';
+        }
+
+        window.history.replaceState({}, '', u.toString());
+      } catch (e) {
+        // fallback: try to remove query by replacing history with pathname only
+        try {
+          window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+        } catch (err) {
+          // ignore
+        }
+      }
+    };
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/affiliate/validate?code=${encodeURIComponent(affiliateRef)}`);
+        if (!res.ok) {
+          removeAffiliateRef();
+          toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
+          return;
+        }
+
+        const data = await res.json();
+        if (!data || !data.valid) {
+          removeAffiliateRef();
+          toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
+          return;
+        }
+
+        // Determine if this offer/composed products are affiliate-enabled
+        const offerCommission = Number(offer?.affiliateCommission ?? offer?.affiliate_commission ?? 0);
+        const offerUserDiscount = Number(offer?.affiliateUserDiscount ?? offer?.affiliate_user_discount ?? 0);
+
+        let eligible = offerCommission > 0 && offerUserDiscount > 0;
+
+        // If offer itself doesn't have affiliate fields, check its products
+        if (!eligible && Array.isArray(offer?.products) && offer.products.length > 0) {
+          eligible = offer.products.some((p: any) => {
+            const pc = Number(p?.affiliateCommission ?? p?.affiliate_commission ?? 0);
+            const pd = Number(p?.affiliateUserDiscount ?? p?.affiliate_user_discount ?? 0);
+            return pc > 0 && pd > 0;
+          });
+        }
+
+        if (!eligible) {
+          removeAffiliateRef();
+          toast({ title: 'Not Eligible', description: 'This affiliate code cannot be applied to this offer.', variant: 'destructive' });
+          return;
+        }
+
+        // Valid and eligible — track and persist
+        fetch('/api/affiliate/track-click', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ affiliateCode: affiliateRef, offerId: offer.id }),
+        }).catch(err => console.error('Error tracking affiliate click:', err));
+
+        try {
+          localStorage.setItem('affiliateRef', affiliateRef);
+        } catch (e) {
+          // ignore localStorage failures
+        }
+      } catch (err) {
+        console.error('Error validating affiliate code:', err);
+      }
+    })();
+  }, [offer?.id, offer?.affiliateCommission, offer?.affiliateUserDiscount, offer?.products, toast]);
 
   // Load recommended products
   const { data: recommendedProducts = [] } = useQuery<any[]>({
