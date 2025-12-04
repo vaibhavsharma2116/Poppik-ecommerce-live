@@ -274,13 +274,18 @@ const apiUrl = (path: string) => {
 interface CartItem {
   id: number;
   name: string;
-  price?: string;
+  price: string;
+  originalPrice?: string;
   image: string;
   quantity: number;
   inStock: boolean;
   cashbackPrice?: string;
   cashbackPercentage?: string;
-  affiliateCommission?: number; // Dynamic affiliate commission % from product
+  affiliateCommission?: number;
+  affiliateUserDiscount?: number;
+  isCombo?: boolean;
+  isOfferItem?: boolean;
+  offerId?: number;
   selectedShade?: {
     id?: number;
     name: string;
@@ -1571,7 +1576,6 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
             isMultiAddress: isMultiAddress,
             multiAddressMapping: multiAddressMapping ? multiAddressMapping : null,
             affiliateCode: passedAffiliateCode || null,
-            affiliateCommission: affiliateCommission > 0 ? Math.round(affiliateCommission) : null,
             promoCode: appliedPromo?.code || null,
             promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
             redeemAmount: Math.round(redeemAmount) || 0,
@@ -1617,18 +1621,15 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         return false;
       }
 
-      sessionStorage.setItem('pendingOrder', JSON.stringify({
-        orderId: orderData.orderId,
-        paymentSessionId: orderData.paymentSessionId,
-        customerData: formData,
-        cartItems: cartItems,
-        totalAmount: total,
-        redeemAmount: redeemAmount,
-        affiliateWalletAmount: affiliateWalletAmount, // Include affiliateWalletAmount
-        affiliateCommission: affiliateCommission,
-      }));
-
-      return new Promise((resolve) => {
+        sessionStorage.setItem('pendingOrder', JSON.stringify({
+          orderId: orderData.orderId,
+          paymentSessionId: orderData.paymentSessionId,
+          customerData: formData,
+          cartItems: cartItems,
+          totalAmount: total,
+          redeemAmount: redeemAmount,
+          affiliateWalletAmount: affiliateWalletAmount
+        }));      return new Promise((resolve) => {
         const existingScript = document.querySelector('script[src="https://sdk.cashfree.com/js/v3/cashfree.js"]');
         if (existingScript) {
           existingScript.remove();
@@ -1827,7 +1828,9 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
         let shippingAddressData = fullAddress;
         let itemsData = cartItems.map(item => ({
-          productId: item.id,
+          productId: item.isCombo ? null : (item.id || null),
+          comboId: item.isCombo ? item.id : null,
+          offerId: item.isOfferItem ? item.offerId : null,
           productName: item.name,
           productImage: item.image,
           quantity: item.quantity,
@@ -1903,26 +1906,20 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           }
         }
 
+        // Only include affiliate commission if there's an actual affiliate code
+        const effectiveAffiliateCode = formData.affiliateCode || passedAffiliateCode || null;
+        // Don't calculate commission on client - let server calculate from product settings
+        // This ensures the exact admin-configured rates are used
+        const shouldIncludeAffiliateCode = effectiveAffiliateCode ? true : false;
+
         const orderData = {
           userId: user.id,
           totalAmount: Math.round(total), // Round to integer
           paymentMethod: paymentMethod,
           shippingAddress: shippingAddressData,
           isMultiAddress: isMultiAddress,
-          affiliateCode: formData.affiliateCode || passedAffiliateCode || null,
-          affiliateCommission: affiliateCommission > 0 ? affiliateCommission : null,
-          affiliateCommissionEarned: (() => {
-            try {
-              const raw = localStorage.getItem('affiliateCommissionEarned');
-              if (raw) {
-                const parsed = JSON.parse(raw);
-                return parsed.commission || 0;
-              }
-            } catch (e) {
-              // ignore
-            }
-            return 0;
-          })(),
+          affiliateCode: shouldIncludeAffiliateCode ? effectiveAffiliateCode : null,
+          // Don't send affiliateCommission or affiliateCommissionEarned - let server calculate from products
           promoCode: appliedPromo?.code || null,
           promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
           redeemAmount: Math.round(redeemAmount) || 0,
@@ -1938,8 +1935,6 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
         console.log('📦 Order Data being sent:', {
           affiliateCode: orderData.affiliateCode,
-          affiliateCommission: orderData.affiliateCommission,
-          affiliateCommissionEarned: orderData.affiliateCommissionEarned,
           totalAmount: orderData.totalAmount
         });
 

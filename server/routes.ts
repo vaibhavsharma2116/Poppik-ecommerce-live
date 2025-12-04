@@ -5104,6 +5104,14 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(400).json({ error: "Cannot use a promo code together with an affiliate code/link or affiliate wallet redemption. Remove one before placing the order." });
       }
 
+      // 🔒 CRITICAL VALIDATION: Affiliate commission must only be credited if affiliate code is present
+      if ((affiliateCommission && Number(affiliateCommission) > 0) || (affiliateCommissionEarned && Number(affiliateCommissionEarned) > 0)) {
+        if (!effectiveAffiliateCode) {
+          console.error(`❌ FRAUD ATTEMPT: Affiliate commission (₹${affiliateCommission || affiliateCommissionEarned}) claimed WITHOUT affiliate code by user ${userId}`);
+          return res.status(400).json({ error: "Affiliate commission cannot be claimed without an affiliate code. Please apply a valid affiliate code first." });
+        }
+      }
+
       // Insert the order into database
       const newOrderData = {
         userId: Number(userId),
@@ -5124,88 +5132,12 @@ app.get("/api/admin/stores", async (req, res) => {
 
       console.log('✅ Order created successfully:', newOrder.id);
 
-      // Credit commission earned — prefer affiliate from link (cookie) instead of current user
-      if (affiliateCommissionEarned && affiliateCommissionEarned > 0) {
-        try {
-          // Decide recipient: prefer affiliate from effectiveAffiliateCode (if present), otherwise current user
-          let recipientUserId: number | null = null;
-          if (effectiveAffiliateCode && typeof effectiveAffiliateCode === 'string' && effectiveAffiliateCode.startsWith('POPPIKAP')) {
-            const parsed = parseInt(effectiveAffiliateCode.replace('POPPIKAP', ''));
-            if (!isNaN(parsed)) recipientUserId = parsed;
-          }
-          if (recipientUserId === null) recipientUserId = Number(userId);
-
-          console.log(`🔍 Crediting affiliate commission ₹${affiliateCommissionEarned} to user ${recipientUserId} (source order by user ${userId})`);
-
-          // Get or create affiliate wallet for recipient
-          let userWallet = await db
-            .select()
-            .from(schema.affiliateWallet)
-            .where(eq(schema.affiliateWallet.userId, Number(recipientUserId)))
-            .limit(1);
-
-          if (userWallet.length === 0) {
-            console.log(`📝 Creating new affiliate wallet for user ${recipientUserId}`);
-            const [newWallet] = await db.insert(schema.affiliateWallet).values({
-              userId: Number(recipientUserId),
-              cashbackBalance: "0.00",
-              commissionBalance: affiliateCommissionEarned.toFixed(2),
-              totalEarnings: affiliateCommissionEarned.toFixed(2),
-              totalWithdrawn: "0.00",
-              createdAt: new Date(),
-              updatedAt: new Date()
-            }).returning();
-            console.log(`✅ Affiliate wallet created for user ${recipientUserId} with commission: ₹${affiliateCommissionEarned.toFixed(2)}`, newWallet);
-          } else {
-            console.log(`📝 Updating existing affiliate wallet for user ${recipientUserId}`);
-            const currentCommission = parseFloat(userWallet[0].commissionBalance || '0');
-            const currentEarnings = parseFloat(userWallet[0].totalEarnings || '0');
-            const newCommission = currentCommission + Number(affiliateCommissionEarned);
-            const newEarnings = currentEarnings + Number(affiliateCommissionEarned);
-
-            console.log(`Current commission: ₹${currentCommission}, Adding: ₹${affiliateCommissionEarned}, New total: ₹${newCommission}`);
-
-            const [updatedWallet] = await db.update(schema.affiliateWallet)
-              .set({
-                commissionBalance: newCommission.toFixed(2),
-                totalEarnings: newEarnings.toFixed(2),
-                updatedAt: new Date()
-              })
-              .where(eq(schema.affiliateWallet.userId, Number(recipientUserId)))
-              .returning();
-
-            console.log(`✅ Affiliate wallet updated for user ${recipientUserId}: Commission ₹${newCommission.toFixed(2)}, Total Earnings ₹${newEarnings.toFixed(2)}`, updatedWallet);
-          }
-
-          // Add transaction record for earned commission
-          const [txRecord] = await db.insert(schema.affiliateTransactions).values({
-            userId: Number(recipientUserId),
-            orderId: newOrder.id,
-            type: 'commission',
-            amount: affiliateCommissionEarned.toFixed(2),
-            balanceType: 'commission',
-            description: `Commission credited from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
-            status: 'completed',
-            transactionId: null,
-            notes: null,
-            processedAt: new Date(),
-            createdAt: new Date()
-          }).returning();
-
-          console.log(`✅ Commission credit recorded: ₹${affiliateCommissionEarned.toFixed(2)} to user ${recipientUserId} for order ${newOrder.id}`, txRecord);
-        } catch (commissionError) {
-          console.error(`❌ Error processing affiliate commission earned:`, commissionError);
-          // Continue with order creation even if commission credit fails
-        }
-      } else {
-        console.log(`⏭️ No affiliate commission earned to process (affiliateCommissionEarned: ${affiliateCommissionEarned})`);
-      }
-
-      // Process affiliate commission for COD orders
-      if (effectiveAffiliateCode && effectiveAffiliateCode.startsWith('POPPIKAP') && paymentMethod === 'Cash on Delivery') {
+      // 🔒 SINGLE UNIFIED AFFILIATE COMMISSION PROCESSING
+      // Only process commission once per order - avoid duplicate entries
+      if (effectiveAffiliateCode && effectiveAffiliateCode.startsWith('POPPIKAP')) {
         const affiliateUserId = parseInt(effectiveAffiliateCode.replace('POPPIKAP', ''));
 
-        console.log(`🔍 Processing affiliate commission for COD order: ${affiliateCode}, userId: ${affiliateUserId}`);
+        console.log(`🔍 Processing affiliate commission for order: ${effectiveAffiliateCode}, userId: ${affiliateUserId}`);
 
         if (!isNaN(affiliateUserId)) {
           try {
@@ -5220,15 +5152,82 @@ app.get("/api/admin/stores", async (req, res) => {
               .limit(1);
 
             if (affiliateApp && affiliateApp.length > 0) {
-              // Use the affiliateCommission value passed from checkout instead of recalculating
-              const calculatedCommission = affiliateCommission || 0;
-              const commissionRate = calculatedCommission > 0 && Number(totalAmount) > 0 
-                ? ((calculatedCommission / Number(totalAmount)) * 100).toFixed(2)
+              // 💡 Calculate commission from product-level settings, not from checkout
+              // This ensures the exact commission admin configured is used
+              let totalOrderCommission = 0;
+              const commissionBreakdown = [];
+
+              for (const item of items) {
+                let itemCommissionRate = 0;
+                
+                // Get the actual product/combo/offer to find the configured commission rate
+                if (item.productId && !isNaN(Number(item.productId))) {
+                  try {
+                    const product = await db
+                      .select({ affiliateCommission: schema.products.affiliateCommission })
+                      .from(schema.products)
+                      .where(eq(schema.products.id, Number(item.productId)))
+                      .limit(1);
+                    
+                    if (product.length > 0) {
+                      itemCommissionRate = parseFloat(String(product[0].affiliateCommission || 0));
+                    }
+                  } catch (err) {
+                    console.warn(`Could not fetch product ${item.productId} commission`);
+                  }
+                } else if (item.comboId && !isNaN(Number(item.comboId))) {
+                  try {
+                    const combo = await db
+                      .select({ affiliateCommission: schema.combos.affiliateCommission })
+                      .from(schema.combos)
+                      .where(eq(schema.combos.id, Number(item.comboId)))
+                      .limit(1);
+                    
+                    if (combo.length > 0) {
+                      itemCommissionRate = parseFloat(String(combo[0].affiliateCommission || 0));
+                    }
+                  } catch (err) {
+                    console.warn(`Could not fetch combo ${item.comboId} commission`);
+                  }
+                } else if (item.offerId && !isNaN(Number(item.offerId))) {
+                  try {
+                    const offer = await db
+                      .select({ affiliateCommission: schema.offers.affiliateCommission })
+                      .from(schema.offers)
+                      .where(eq(schema.offers.id, Number(item.offerId)))
+                      .limit(1);
+                    
+                    if (offer.length > 0) {
+                      itemCommissionRate = parseFloat(String(offer[0].affiliateCommission || 0));
+                    }
+                  } catch (err) {
+                    console.warn(`Could not fetch offer ${item.offerId} commission`);
+                  }
+                }
+
+                // Calculate commission for this item
+                const itemPrice = parseFloat(String(item.price).replace(/[₹,]/g, '') || '0');
+                const itemQuantity = Number(item.quantity) || 1;
+                const itemTotal = itemPrice * itemQuantity;
+                const itemCommission = (itemTotal * itemCommissionRate) / 100;
+                
+                totalOrderCommission += itemCommission;
+                commissionBreakdown.push({
+                  product: item.productName || item.name,
+                  price: itemPrice,
+                  quantity: itemQuantity,
+                  rate: itemCommissionRate,
+                  commission: itemCommission
+                });
+              }
+
+              const commissionRate = totalOrderCommission > 0 && Number(totalAmount) > 0 
+                ? ((totalOrderCommission / Number(totalAmount)) * 100).toFixed(2)
                 : '0.00';
 
-              console.log(`💰 Using commission from checkout: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%)`);
+              console.log(`💰 Calculated commission from product settings: ₹${totalOrderCommission.toFixed(2)} (${commissionRate}%)`, commissionBreakdown);
 
-              if (calculatedCommission > 0) {
+              if (totalOrderCommission > 0) {
                 // Get or create affiliate wallet
                 let wallet = await db
                   .select()
@@ -5241,19 +5240,19 @@ app.get("/api/admin/stores", async (req, res) => {
                   await db.insert(schema.affiliateWallet).values({
                     userId: affiliateUserId,
                     cashbackBalance: "0.00",
-                    commissionBalance: calculatedCommission.toFixed(2),
-                    totalEarnings: calculatedCommission.toFixed(2),
+                    commissionBalance: totalOrderCommission.toFixed(2),
+                    totalEarnings: totalOrderCommission.toFixed(2),
                     totalWithdrawn: "0.00"
                   });
-                  console.log(`✅ Wallet created for affiliate ${affiliateUserId} with commission: ₹${calculatedCommission.toFixed(2)}`);
+                  console.log(`✅ Wallet created for affiliate ${affiliateUserId} with commission: ₹${totalOrderCommission.toFixed(2)}`);
                 } else {
                   console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
                   const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
                   const currentEarnings = parseFloat(wallet[0].totalEarnings || '0');
-                  const newCommission = currentCommission + calculatedCommission;
-                  const newEarnings = currentEarnings + calculatedCommission;
+                  const newCommission = currentCommission + totalOrderCommission;
+                  const newEarnings = currentEarnings + totalOrderCommission;
 
-                  console.log(`Current commission: ₹${currentCommission}, Adding: ₹${calculatedCommission}, New total: ₹${newCommission}`);
+                  console.log(`Current commission: ₹${currentCommission}, Adding: ₹${totalOrderCommission.toFixed(2)}, New total: ₹${newCommission.toFixed(2)}`);
 
                   await db.update(schema.affiliateWallet)
                     .set({
@@ -5267,7 +5266,7 @@ app.get("/api/admin/stores", async (req, res) => {
                 }
               }
 
-              // Record affiliate sale
+              // Record affiliate sale - SINGLE ENTRY per order
               await db.insert(schema.affiliateSales).values({
                 affiliateUserId,
                 affiliateCode: effectiveAffiliateCode,
@@ -5278,19 +5277,19 @@ app.get("/api/admin/stores", async (req, res) => {
                 customerPhone: customerPhone || null,
                 productName: items.map((item: any) => item.productName || item.name).join(', '),
                 saleAmount: Number(totalAmount).toFixed(2),
-                commissionAmount: calculatedCommission.toFixed(2),
+                commissionAmount: totalOrderCommission.toFixed(2),
                 commissionRate: commissionRate,
                 status: 'confirmed'
               });
 
-              // Add transaction record
+              // Add transaction record - SINGLE ENTRY per order
               await db.insert(schema.affiliateTransactions).values({
                 userId: affiliateUserId,
                 orderId: newOrder.id,
                 type: 'commission',
-                amount: calculatedCommission.toFixed(2),
+                amount: totalOrderCommission.toFixed(2),
                 balanceType: 'commission',
-                description: `Commission (${commissionRate}%) from COD order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+                description: `Commission (${commissionRate}%) from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
                 status: 'completed',
                 transactionId: null,
                 notes: null,
@@ -5298,15 +5297,17 @@ app.get("/api/admin/stores", async (req, res) => {
                 createdAt: new Date()
               });
 
-              console.log(`✅ Affiliate commission credited: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for COD order ${newOrder.id}`);
+              console.log(`✅ Affiliate commission credited: ₹${totalOrderCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for order ${newOrder.id}`);
             } else {
               console.error(`❌ Affiliate not found or not approved for user ${affiliateUserId}`);
             }
           } catch (affiliateError) {
-            console.error(`❌ Error processing affiliate commission for COD:`, affiliateError);
+            console.error(`❌ Error processing affiliate commission:`, affiliateError);
             // Continue with order creation even if affiliate is invalid
           }
         }
+      } else {
+        console.log(`⏭️ No affiliate code provided for order`);
       }
 
       // Create order items in separate table
