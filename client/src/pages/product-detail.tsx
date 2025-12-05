@@ -1598,7 +1598,7 @@ export default function ProductDetail() {
 
                   <h1 className="product-detail-title sm:text-4xl text-gray-900 mb-3 sm:mb-4">{product.name}</h1>
 
-                  <p className="product-detail-description sm:text-lg text-gray-600 mb-4 sm:mb-6">{product.shortDescription}</p>
+                  <div className="product-detail-description sm:text-lg text-gray-600 mb-4 sm:mb-6" dangerouslySetInnerHTML={{ __html: product.shortDescription || product.description || '' }} />
 
                   {/* Rating */}
                   <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">

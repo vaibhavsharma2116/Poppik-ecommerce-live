@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { ChevronRight, Star, ShoppingCart, Heart, ArrowLeft, Share2, Package, ChevronLeft, Palette, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -176,6 +176,7 @@ async function fetchProductDetailsAndShades(productIds: number[]) {
 export default function ComboDetail() {
   const [, params] = useRoute("/combo/:id");
   const comboId = params?.id || "";
+  const [location] = useLocation();
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -264,6 +265,26 @@ export default function ComboDetail() {
       // ignore
     }
   }, [comboId]);
+
+  // When navigating to the combo page without any query string (i.e. the
+  // URL is `/combo/:id` with no affiliate code), remove `affiliateRef` from
+  // localStorage so stale codes are not kept across navigations.
+  useEffect(() => {
+    try {
+      const search = window.location.search || '';
+      // If there's any search/query string, don't remove — the capture logic
+      // handles storing it. Only remove when there is NO query string.
+      if (search && search.length > 0) return;
+
+      try {
+        localStorage.removeItem('affiliateRef');
+      } catch (e) {
+        // ignore
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [location]);
 
   // Update canReview state when eligibility data changes
   useEffect(() => {
