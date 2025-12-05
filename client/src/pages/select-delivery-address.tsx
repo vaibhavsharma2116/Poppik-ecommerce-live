@@ -368,7 +368,7 @@ export default function SelectDeliveryAddress() {
       // chosen address remains visible on the page (user requested it
       // should not be hidden after selection).
       localStorage.setItem('selectedDeliveryAddress', JSON.stringify(address));
-      setSelectedAddressId(address.id);
+      setSelectedAddressId(Number(address.id));
       // Intentionally not calling `setLocation('/checkout')` here so the
       // selection stays on screen. Navigation can be triggered explicitly
       // by the user in the checkout flow.
@@ -777,12 +777,12 @@ export default function SelectDeliveryAddress() {
                   <div
                     key={address.id}
                     className={`border-2 rounded-lg p-4 transition-colors cursor-pointer ${
-                      selectedAddressId === address.id
+                      Number(address.id) === selectedAddressId
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => {
-                      setSelectedAddressId(address.id);
+                      setSelectedAddressId(Number(address.id));
                       handleSelectAddress(address);
                     }}
                   >
@@ -790,12 +790,12 @@ export default function SelectDeliveryAddress() {
                       <div className="flex items-start space-x-3 flex-1">
                         <div
                           className={`w-5 h-5 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${
-                            selectedAddressId === address.id
+                            Number(address.id) === selectedAddressId
                               ? 'bg-blue-600'
                               : 'border-2 border-gray-300'
                           }`}
                         >
-                          {selectedAddressId === address.id && (
+                          {Number(address.id) === selectedAddressId && (
                             <div className="w-2 h-2 bg-white rounded-full"></div>
                           )}
                         </div>

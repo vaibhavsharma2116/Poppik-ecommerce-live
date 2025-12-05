@@ -162,8 +162,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               colorCode: shade.colorCode,
               imageUrl: shade.imageUrl
             },
-            cashbackPercentage: product.cashbackPercentage || undefined,
-            cashbackPrice: product.cashbackPrice || undefined,
+            cashbackPercentage: product.cashbackPercentage ? parseFloat(String(product.cashbackPercentage)) : undefined,
+            cashbackPrice: product.cashbackPrice ? parseFloat(String(product.cashbackPrice)) : undefined,
           });
         }
       });
@@ -185,8 +185,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           quantity: quantity,
           inStock: true,
           selectedShade: null,
-          cashbackPercentage: product.cashbackPercentage || undefined,
-          cashbackPrice: product.cashbackPrice || undefined,
+          cashbackPercentage: product.cashbackPercentage ? parseFloat(String(product.cashbackPercentage)) : undefined,
+          cashbackPrice: product.cashbackPrice ? parseFloat(String(product.cashbackPrice)) : undefined,
         });
       }
     }

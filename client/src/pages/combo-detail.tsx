@@ -227,6 +227,44 @@ export default function ComboDetail() {
   console.log("Loading:", isLoading);
   console.log("Error:", error);
 
+  // Capture affiliate code from URL (either ?ref=CODE or raw ?CODE) and
+  // persist it to localStorage immediately, then remove it from the URL.
+  // This ensures the code is stored even when navigation is client-side
+  // and avoids relying on a full page reload.
+  useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      let affiliateRef = urlParams.get('ref');
+
+      if (!affiliateRef) {
+        const searchString = window.location.search.substring(1);
+        if (searchString && /^[A-Z0-9]+/.test(searchString)) {
+          affiliateRef = searchString.split('&')[0];
+        }
+      }
+
+      if (!affiliateRef) return;
+
+      try { localStorage.setItem('affiliateRef', affiliateRef); } catch (e) { }
+
+      // Remove affiliate param from URL without reloading
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('ref');
+        const raw = u.search.substring(1);
+        if (raw && /^[A-Z0-9]+($|&)/.test(raw)) {
+          const parts = raw.split('&').slice(1);
+          u.search = parts.length ? `?${parts.join('&')}` : '';
+        }
+        window.history.replaceState({}, '', u.toString());
+      } catch (e) {
+        try { window.history.replaceState({}, '', window.location.pathname + window.location.hash); } catch (err) { }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [comboId]);
+
   // Update canReview state when eligibility data changes
   useEffect(() => {
     if (reviewEligibility && typeof reviewEligibility === 'object') {
@@ -248,6 +286,11 @@ export default function ComboDetail() {
       if (searchString && /^[A-Z0-9]+/.test(searchString)) {
         affiliateRef = searchString.split('&')[0]; // Get first query param value
       }
+    }
+
+    // If still not found in URL, fall back to localStorage (captured earlier)
+    if (!affiliateRef) {
+      try { affiliateRef = localStorage.getItem('affiliateRef') || '' } catch (e) { affiliateRef = '' }
     }
 
     if (!affiliateRef || !combo?.id) return;
@@ -497,8 +540,8 @@ export default function ComboDetail() {
         quantity: 1,
         inStock: true,
         isCombo: true,
-        cashbackPercentage: combo.cashbackPercentage,
-        cashbackPrice: combo.cashbackPrice,
+        cashbackPercentage: combo.cashbackPercentage ? parseFloat(String(combo.cashbackPercentage)) : undefined,
+        cashbackPrice: combo.cashbackPrice ? parseFloat(String(combo.cashbackPrice)) : undefined,
         selectedShades: selectedShadesForCart,
       };
       cart.push(cartItem);

@@ -1026,7 +1026,7 @@ export default function Cart() {
                         })()}
 
                         {/* Cashback Badge for Cart Item - Enhanced Display */}
-                        {item.cashbackPercentage && item.cashbackPrice && (
+                        {item.cashbackPercentage !== undefined && item.cashbackPercentage !== null && item.cashbackPrice !== undefined && item.cashbackPrice !== null && (
                           <div className="mt-2 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 rounded-lg p-3 shadow-sm">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
@@ -1040,7 +1040,7 @@ export default function Cart() {
                                   ₹{(Number(item.cashbackPrice) * item.quantity).toFixed(2)}
                                 </span>
                                 <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full font-semibold">
-                                  {item.cashbackPercentage}%
+                                  {Number(item.cashbackPercentage).toFixed(2)}%
                                 </span>
                               </div>
                             </div>
@@ -1393,7 +1393,7 @@ export default function Cart() {
             <div className="block md:hidden">
               <div className="overflow-x-auto scrollbar-hide pb-4">
                 <div className="flex gap-3 px-2" style={{ width: 'max-content' }}>
-                  {recommendedProducts.map((product: any) => (
+                  {(Array.isArray(recommendedProducts) ? recommendedProducts : []).map((product: any) => (
                     <div key={product.id} style={{ width: '160px', flexShrink: 0 }}>
                       <ProductCard product={product} className="h-full" />
                     </div>
@@ -1413,7 +1413,7 @@ export default function Cart() {
                   className="w-full"
                 >
                   <CarouselContent className="-ml-2 md:-ml-4">
-                    {recommendedProducts.map((product: any) => (
+                    {(Array.isArray(recommendedProducts) ? recommendedProducts : []).map((product: any) => (
                       <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
                         <ProductCard product={product} />
                       </CarouselItem>

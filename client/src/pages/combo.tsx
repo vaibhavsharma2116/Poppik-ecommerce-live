@@ -117,8 +117,8 @@ console.log("VCVVVVVV",combo)
         quantity: 1,
         inStock: true,
         isCombo: true,
-        cashbackPercentage: combo.cashbackPercentage,
-        cashbackPrice: combo.cashbackPrice,
+        cashbackPercentage: combo.cashbackPercentage ? parseFloat(String(combo.cashbackPercentage)) : undefined,
+        cashbackPrice: combo.cashbackPrice ? parseFloat(String(combo.cashbackPrice)) : undefined,
         // Explicitly set product-related fields
         productName: combo.name,
         productImage: getPrimaryImage(combo) || '',

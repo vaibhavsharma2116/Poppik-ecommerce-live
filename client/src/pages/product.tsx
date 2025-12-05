@@ -225,8 +225,8 @@ export default function ProductsPage() {
             quantity: 1,
             inStock: product.inStock !== false,
             selectedShade: null,
-            cashbackPercentage: product.cashbackPercentage || undefined,
-            cashbackPrice: product.cashbackPrice || undefined,
+            cashbackPercentage: product.cashbackPercentage ? parseFloat(String(product.cashbackPercentage)) : undefined,
+            cashbackPrice: product.cashbackPrice ? parseFloat(String(product.cashbackPrice)) : undefined,
           });
           addedCount++;
         }

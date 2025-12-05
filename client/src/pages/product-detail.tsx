@@ -458,6 +458,13 @@ export default function ProductDetail() {
   }, [productReviews]);
 
   useEffect(() => {
+    // Remove affiliateRef from localStorage if product slug is "samar"
+    if (productSlugOrId === 'samar') {
+      localStorage.removeItem('affiliateRef');
+    }
+  }, [productSlugOrId]);
+
+  useEffect(() => {
     // Track affiliate click if ref parameter exists
     const urlParams = new URLSearchParams(window.location.search);
     // Support multiple affiliate parameter formats: ref=CODE, CODE (first param as value), or direct parameter
@@ -680,6 +687,8 @@ export default function ProductDetail() {
               colorCode: shade.colorCode,
               imageUrl: shade.imageUrl
             },
+            cashbackPercentage: product.cashbackPercentage ? parseFloat(String(product.cashbackPercentage)) : undefined,
+            cashbackPrice: product.cashbackPrice ? parseFloat(String(product.cashbackPrice)) : undefined,
             affiliateCommission: affiliateCommissionAmount,
             affiliateUserDiscount: affiliateUserDiscountAmount,
             affiliateCommissionPercentage,
@@ -705,6 +714,8 @@ export default function ProductDetail() {
           quantity: quantity,
           inStock: true,
           selectedShade: null,
+          cashbackPercentage: product.cashbackPercentage ? parseFloat(String(product.cashbackPercentage)) : undefined,
+          cashbackPrice: product.cashbackPrice ? parseFloat(String(product.cashbackPrice)) : undefined,
           affiliateCommission: affiliateCommissionAmount,
           affiliateUserDiscount: affiliateUserDiscountAmount,
           affiliateCommissionPercentage,

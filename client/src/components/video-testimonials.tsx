@@ -129,7 +129,9 @@ export default function VideoTestimonials() {
         originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
         image: product.imageUrl,
         quantity: 1,
-        inStock: true
+        inStock: true,
+        cashbackPercentage: product.cashbackPercentage ? parseFloat(String(product.cashbackPercentage)) : undefined,
+        cashbackPrice: product.cashbackPrice ? parseFloat(String(product.cashbackPrice)) : undefined,
       });
       toast({
         title: "Added to Cart",

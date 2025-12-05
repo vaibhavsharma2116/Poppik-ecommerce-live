@@ -553,7 +553,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
             if (selectedAddressFromStorage) {
               try {
                 const selectedAddr = JSON.parse(selectedAddressFromStorage);
-                const addressInList = addresses.find((addr: any) => Number(addr.id) === Number(selectedAddr.id));
+                const addressInList = normalized.find((addr: any) => Number(addr.id) === Number(selectedAddr.id));
 
                 if (addressInList) {
                   setSelectedAddressId(Number(addressInList.id));
@@ -572,13 +572,13 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
               }
             } else {
               // Select the default address or the first one if no address was selected
-              const defaultAddress = addresses.find((addr: any) => addr.isDefault);
+              const defaultAddress = normalized.find((addr: any) => addr.isDefault);
               if (defaultAddress) {
                 setSelectedAddressId(Number(defaultAddress.id));
                 populateFormWithAddress(defaultAddress);
-              } else if (addresses.length > 0) {
-                setSelectedAddressId(Number(addresses[0].id));
-                populateFormWithAddress(addresses[0]);
+              } else if (normalized.length > 0) {
+                setSelectedAddressId(Number(normalized[0].id));
+                populateFormWithAddress(normalized[0]);
               }
             }
           }
@@ -1064,20 +1064,35 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   })();
 
   // Use affiliate discount from formData (loaded from localStorage or passed value) or the initial value
-  const affiliateDiscountAmount = (formData.affiliateDiscount || passedAffiliateDiscount || initialAffiliateDiscount || totalAffiliateDiscountFromItems) || 0;
-
-  // Calculate subtotal after product discount (before affiliate) - Same as cart
-  const subtotalAfterProductDiscount = cartSubtotalAfterProductDiscount;
+  // Calculate the actual discount amount from the percentage ONLY if affiliateRef is in localStorage
+  let affiliateDiscountAmount = 0;
+  const hasAffiliateRef = typeof window !== 'undefined' && localStorage.getItem('affiliateRef');
+  
+  if (hasAffiliateRef) {
+    if (formData.affiliateDiscount && formData.affiliateDiscount > 0) {
+      // formData.affiliateDiscount is a percentage (e.g., 15 or 10)
+      affiliateDiscountAmount = Math.round((cartSubtotalAfterProductDiscount * formData.affiliateDiscount) / 100);
+    } else if (passedAffiliateDiscount && passedAffiliateDiscount > 0) {
+      // passedAffiliateDiscount is a percentage
+      affiliateDiscountAmount = Math.round((cartSubtotalAfterProductDiscount * passedAffiliateDiscount) / 100);
+    } else if (initialAffiliateDiscount && initialAffiliateDiscount > 0) {
+      // initialAffiliateDiscount is already an amount from localStorage
+      affiliateDiscountAmount = initialAffiliateDiscount;
+    } else if (totalAffiliateDiscountFromItems && totalAffiliateDiscountFromItems > 0) {
+      // totalAffiliateDiscountFromItems is already an amount
+      affiliateDiscountAmount = totalAffiliateDiscountFromItems;
+    }
+  }
 
   // Subtotal for calculating gift milestone (after product discount, before affiliate)
-  const subtotalForGiftMilestone = subtotalAfterProductDiscount;
+  const subtotalForGiftMilestone = cartSubtotalAfterProductDiscount;
 
-  const subtotalAfterDiscount = subtotalAfterProductDiscount - affiliateDiscountAmount - promoDiscount - giftMilestoneDiscount;
+  const subtotalAfterDiscount = cartSubtotalAfterProductDiscount - affiliateDiscountAmount - promoDiscount - giftMilestoneDiscount;
 
   // Free shipping only if no promo code, no affiliate discount, and subtotal > 599
   const shipping = (promoDiscount > 0 || affiliateDiscountAmount > 0 || giftMilestoneDiscount > 0)
     ? shippingCost
-    : (subtotalAfterProductDiscount > 599 ? 0 : shippingCost);
+    : (cartSubtotalAfterProductDiscount > 599 ? 0 : shippingCost);
 
   // Calculate total before redemption (same as cart page)
   const totalBeforeRedemption = subtotalAfterDiscount + shipping;
@@ -1319,20 +1334,29 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   };
 
   const populateFormWithAddress = (address: any) => {
+    console.log('DEBUG: populateFormWithAddress called with', address);
+    const cleanedPhone = address.phoneNumber ? String(address.phoneNumber).replace(/[^0-9]/g, '') : '';
+    const cleanedPincode = address.pincode ? String(address.pincode).replace(/[^0-9]/g, '').substring(0, 6) : '';
+
     setFormData(prev => ({
       ...prev,
       firstName: address.recipientName?.split(' ')[0] || "",
       lastName: address.recipientName?.split(' ').slice(1).join(' ') || "",
-      phone: address.phoneNumber || "",
+      phone: cleanedPhone,
       address: address.addressLine1 || "",
       city: address.city || "",
       state: address.state || "",
-      zipCode: address.pincode || "",
+      zipCode: cleanedPincode,
       saturdayDelivery: address.saturdayDelivery === true, // Populate weekend delivery info as boolean
       sundayDelivery: address.sundayDelivery === true, // Populate weekend delivery info as boolean
       deliveryInstructions: address.deliveryInstructions || "", // Populate delivery instructions
     }));
   };
+
+  // DEBUG: log formData and completion state when formData changes
+  useEffect(() => {
+    console.log('DEBUG: formData', formData, 'isAddressComplete', isAddressComplete);
+  }, [formData, isAddressComplete]);
 
   const handleAddressSelection = (addressId: number) => {
     setSelectedAddressId(Number(addressId));
@@ -2561,11 +2585,13 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                           </div>
                         )}
 
+                        {/* DEBUG: show selected id and addresses in console (remove after debugging) */}
+                        {typeof window !== 'undefined' && console.log('DEBUG: selectedAddressId', selectedAddressId, 'savedAddresses', savedAddresses)}
                         {savedAddresses.map((address) => (
                           <div
                             key={address.id}
                             className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                              selectedAddressId === address.id
+                              Number(address.id) === selectedAddressId
                                 ? 'border-red-500 bg-red-50'
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
@@ -2573,11 +2599,11 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                           >
                             <div className="flex items-start space-x-3">
                               <div className={`w-5 h-5 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${
-                                selectedAddressId === address.id
+                                Number(address.id) === selectedAddressId
                                   ? 'bg-red-600'
                                   : 'border-2 border-gray-300'
                               }`}>
-                                {selectedAddressId === address.id && (
+                                {Number(address.id) === selectedAddressId && (
                                   <Check className="h-3 w-3 text-white" />
                                 )}
                               </div>
@@ -2974,7 +3000,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                             itemAddress = baseAddressId ? savedAddresses.find(addr => Number(addr.id) === Number(baseAddressId)) : null;
                           }
                       } else {
-                        itemAddress = selectedAddressId ? savedAddresses.find(addr => addr.id === selectedAddressId) : null;
+                        itemAddress = selectedAddressId ? savedAddresses.find(addr => Number(addr.id) === selectedAddressId) : null;
                       }
 
                       if (!isMultiAddress || (isMultiAddress && itemAddress)) {
@@ -3141,6 +3167,13 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                       <div className="flex justify-between text-sm bg-purple-50 p-2 rounded">
                         <span className="text-purple-700 font-medium">Affiliate Discount</span>
                         <span className="font-bold text-purple-600">-₹{Math.round(affiliateDiscountAmount).toLocaleString()}</span>
+                      </div>
+                    )}
+
+                    {totalAffiliateCommissionFromItems > 0 && localStorage.getItem('affiliateRef') && (
+                      <div className="flex justify-between text-sm bg-blue-50 p-2 rounded">
+                        <span className="text-blue-700 font-medium">Affiliate Commission Earned</span>
+                        <span className="font-bold text-blue-600">+₹{Math.round(totalAffiliateCommissionFromItems).toLocaleString()}</span>
                       </div>
                     )}
 

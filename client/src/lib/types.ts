@@ -20,6 +20,8 @@ export interface Product {
   ingredients?: string;
   benefits?: string;
   howToUse?: string;
+  cashbackPercentage?: number;
+  cashbackPrice?: number;
 }
 
 export interface Category {
