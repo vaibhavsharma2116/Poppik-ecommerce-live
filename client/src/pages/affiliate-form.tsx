@@ -53,14 +53,6 @@ export default function AffiliateForm() {
         description: "Thank you for applying! We'll review your application and get back to you within 5-7 business days.",
       });
       
-      // Store pending application in localStorage
-      localStorage.setItem('pendingAffiliateApplication', JSON.stringify({
-        ...formData,
-        userId: user.id,
-        status: 'pending',
-        submittedAt: new Date().toISOString()
-      }));
-      
       // Redirect to affiliate page
       setLocation("/affiliate");
     },

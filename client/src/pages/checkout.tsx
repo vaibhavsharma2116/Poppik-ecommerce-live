@@ -516,32 +516,41 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
               normalized = Array.isArray(addresses) ? addresses : (addresses ? [addresses] : []);
             }
 
-            // If API returns no saved delivery addresses, but user's profile has an address,
-            // create a fallback address so the checkout UI shows a selectable address.
-            if ((!normalized || normalized.length === 0) && user) {
+            // Always include user's profile address as an option alongside saved addresses
+            // This gives users the option to use either their profile address or newly saved addresses
+            if (user) {
               try {
                 const profileAddr = (user as any).address || null;
                 const profileCity = (user as any).city || (user as any).town || '';
                 const profileState = (user as any).state || '';
                 const profileZip = (user as any).zipCode || (user as any).zip || '';
+                const profilePhone = (user as any).phone || (user as any).mobile || '';
 
-                if (profileAddr || profileCity || profileState || profileZip) {
-                  const fallback = normalizeAddress({
-                    id: -1,
+                // Create profile address if we have at least phone number AND (address OR city)
+                if ((profileAddr || profileCity) && profilePhone) {
+                  const profileAddressObj = normalizeAddress({
+                    id: 999999, // Use a unique ID for profile-based address
                     recipient_name: `${(user as any).firstName || ''} ${(user as any).lastName || ''}`.trim() || (user as any).email || 'You',
-                    address_line1: profileAddr || '',
-                    city: profileCity,
-                    state: profileState,
-                    pincode: profileZip,
+                    address_line1: profileAddr || profileCity || 'Your Address',
+                    city: profileCity || 'Not Set',
+                    state: profileState || 'Not Set',
+                    pincode: profileZip || '000000',
                     country: 'India',
-                    phone_number: (user as any).phone || (user as any).mobile || '',
-                    is_default: true,
+                    phone_number: profilePhone,
+                    is_default: normalized.length === 0, // Only mark as default if no other addresses exist
                   });
 
-                  normalized = [fallback];
+                  // Check if profile address is already in the normalized list (to avoid duplicates)
+                  const profileAddrExists = normalized.some((addr: any) => Number(addr.id) === 999999);
+                  
+                  if (!profileAddrExists) {
+                    // Add profile address to the beginning of the list so it's visible
+                    normalized.unshift(profileAddressObj);
+                    console.log('✅ Added profile address to address list:', profileAddressObj);
+                  }
                 }
               } catch (e) {
-                console.warn('Error creating fallback address from profile:', e);
+                console.warn('Error creating profile address:', e);
               }
             }
 
@@ -1141,7 +1150,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   const isAddressComplete = Boolean(
     ( (formData.firstName && formData.firstName.trim().length > 0) || (formData.lastName && formData.lastName.trim().length > 0) ) &&
     formData.phone && formData.phone.trim().length > 0 &&
-    formData.address && formData.address.trim().length >= 10 &&
+    formData.address && formData.address.trim().length > 0 &&
     formData.city && formData.city.trim().length > 0 &&
     formData.state && formData.state.trim().length > 0 &&
     formData.zipCode && /^\d{6}$/.test(String(formData.zipCode))
@@ -1359,9 +1368,30 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   }, [formData, isAddressComplete]);
 
   const handleAddressSelection = (addressId: number) => {
-    setSelectedAddressId(Number(addressId));
-    const selectedAddress = savedAddresses.find(addr => Number(addr.id) === Number(addressId));
+    const idNum = Number(addressId);
+    setSelectedAddressId(idNum);
+    const selectedAddress = savedAddresses.find(addr => Number(addr.id) === idNum);
     if (selectedAddress) {
+      // If the user previously had a multi-address order saved, selecting
+      // a single address here should switch back to single-address checkout.
+      // Clear multi-address flags and mapping from localStorage and state so
+      // Continue -> Review doesn't redirect to `/select-delivery-address`.
+      try {
+        const wasMulti = localStorage.getItem('isMultiAddressOrder') === 'true' ||
+                         localStorage.getItem('multipleAddressMode') === 'true' ||
+                         Boolean(localStorage.getItem('multiAddressMapping'));
+        if (wasMulti) {
+          localStorage.removeItem('isMultiAddressOrder');
+          localStorage.removeItem('multiAddressMapping');
+          localStorage.removeItem('checkoutCartItems');
+          localStorage.removeItem('multipleAddressMode');
+          setMultiAddressMapping({});
+          toast({ title: 'Switched to single-address', description: 'Using the selected address for this order.' });
+        }
+      } catch (e) {
+        console.error('Error clearing multi-address data:', e);
+      }
+
       populateFormWithAddress(selectedAddress);
     }
   };
@@ -1448,8 +1478,20 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         try {
           const normalized = Array.isArray(updatedAddresses) ? updatedAddresses.map(normalizeAddress) : [normalizeAddress(updatedAddresses)];
           setSavedAddresses(normalized as any[]);
+          
+          // Find and select the newly added address from normalized list
+          const newlyAddedAddress = normalized.find((addr: any) => Number(addr.id) === Number(savedAddress.id));
+          if (newlyAddedAddress) {
+            setSelectedAddressId(Number(newlyAddedAddress.id));
+            populateFormWithAddress(newlyAddedAddress);
+            console.log('✅ New address selected and populated:', newlyAddedAddress);
+          }
         } catch (e) {
+          console.warn('Error normalizing addresses, using raw response:', e);
           setSavedAddresses(updatedAddresses as any[]);
+          // Try to populate with raw savedAddress as fallback
+          setSelectedAddressId(Number(savedAddress.id));
+          populateFormWithAddress(normalizeAddress(savedAddress));
         }
 
         // Dispatch a global update event so other components can refresh without reload
@@ -1458,10 +1500,6 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         } catch (e) {
           console.warn('Could not dispatch deliveryAddressesUpdated event', e);
         }
-
-        // Select the newly added address (coerce id to number)
-        setSelectedAddressId(Number(savedAddress.id));
-        populateFormWithAddress(savedAddress);
       }
 
       // Reset new address form
@@ -2586,7 +2624,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                         )}
 
                         {/* DEBUG: show selected id and addresses in console (remove after debugging) */}
-                        {typeof window !== 'undefined' && console.log('DEBUG: selectedAddressId', selectedAddressId, 'savedAddresses', savedAddresses)}
+                        {typeof window !== 'undefined' && (console.log('DEBUG: selectedAddressId', selectedAddressId, 'savedAddresses', savedAddresses), null)}
                         {savedAddresses.map((address) => (
                           <div
                             key={address.id}

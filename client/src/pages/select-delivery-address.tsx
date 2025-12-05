@@ -223,31 +223,41 @@ export default function SelectDeliveryAddress() {
       try {
         let normalized = Array.isArray(data) ? data.map(normalizeAddress) : [normalizeAddress(data)];
 
-        // If API returned no addresses, try to use profile address as a fallback so selects show something
-        if ((!normalized || normalized.length === 0) && user) {
+        // Always include user's profile address as an option alongside saved addresses
+        // This gives users the option to use either their profile address or newly saved addresses
+        if (user) {
           try {
             const profileAddr = (user as any).address || '';
             const profileCity = (user as any).city || (user as any).town || '';
             const profileState = (user as any).state || '';
             const profileZip = (user as any).zipCode || (user as any).zip || '';
+            const profilePhone = (user as any).phone || (user as any).mobile || '';
 
-            if (profileAddr || profileCity || profileState || profileZip) {
-              const fallback = normalizeAddress({
-                id: -1,
+            // Create profile address if we have at least phone number AND (address OR city)
+            if ((profileAddr || profileCity) && profilePhone) {
+              const profileAddressObj = normalizeAddress({
+                id: 999999, // Use a unique ID for profile-based address
                 recipient_name: `${(user as any).firstName || ''} ${(user as any).lastName || ''}`.trim() || (user as any).email || 'You',
-                address_line1: profileAddr || '',
-                city: profileCity,
-                state: profileState,
-                pincode: profileZip,
+                address_line1: profileAddr || profileCity || 'Your Address',
+                city: profileCity || 'Not Set',
+                state: profileState || 'Not Set',
+                pincode: profileZip || '000000',
                 country: 'India',
-                phone_number: (user as any).phone || (user as any).mobile || '',
-                is_default: true,
+                phone_number: profilePhone,
+                is_default: normalized.length === 0, // Only mark as default if no other addresses exist
               });
 
-              normalized = [fallback];
+              // Check if profile address is already in the normalized list (to avoid duplicates)
+              const profileAddrExists = normalized.some((addr: any) => Number(addr.id) === 999999);
+              
+              if (!profileAddrExists) {
+                // Add profile address to the beginning of the list so it's visible
+                normalized.unshift(profileAddressObj);
+                console.log('✅ Added profile address to address list:', profileAddressObj);
+              }
             }
           } catch (e) {
-            console.warn('Error creating fallback address from profile:', e);
+            console.warn('Error creating profile address:', e);
           }
         }
 

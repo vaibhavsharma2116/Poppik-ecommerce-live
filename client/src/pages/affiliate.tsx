@@ -21,19 +21,7 @@ export default function AffiliatePage() {
       if (!user.id) return null;
       const res = await fetch(`/api/affiliate/my-application?userId=${user.id}`);
       if (!res.ok) {
-        console.log('Failed to fetch application, checking localStorage');
-        // Check localStorage for pending application
-        const pending = localStorage.getItem('pendingAffiliateApplication');
-        if (pending) {
-          const pendingApp = JSON.parse(pending);
-          // Only use if submitted within last 24 hours
-          const submittedTime = new Date(pendingApp.submittedAt).getTime();
-          if (Date.now() - submittedTime < 24 * 60 * 60 * 1000) {
-            return pendingApp;
-          } else {
-            localStorage.removeItem('pendingAffiliateApplication');
-          }
-        }
+        console.log('Failed to fetch application');
         return null;
       }
       // Clear localStorage if we got data from server
@@ -47,19 +35,38 @@ export default function AffiliatePage() {
     retryDelay: 1000,
   });
 
+  // Determine whether the fetched application belongs to the current user.
+  const isOwnApplication = Boolean(
+    application && (
+      // application may store userId as number or string, or include email
+      (application.userId && String(application.userId) === String(user.id)) ||
+      (application.email && user.email && String(application.email).toLowerCase() === String(user.email).toLowerCase())
+    )
+  );
+
   // No automatic redirect - approved affiliates stay on affiliate page
   useEffect(() => {
-    console.log('Checking application status:', application);
-    if (application) {
+    console.log('Checking application status:', application, 'isOwnApplication', isOwnApplication);
+    if (isOwnApplication) {
       console.log('Application status:', application.status);
       const status = application.status?.toLowerCase();
       if (status === "approved") {
         console.log('User is approved affiliate');
-        // Clear localStorage for pending applications
-        localStorage.removeItem('pendingAffiliateApplication');
+        // Clear localStorage for pending applications belonging to this user
+        try {
+          const pending = localStorage.getItem('pendingAffiliateApplication');
+          if (pending) {
+            const pendingApp = JSON.parse(pending);
+            if (String(pendingApp.userId) === String(user.id)) {
+              localStorage.removeItem('pendingAffiliateApplication');
+            }
+          }
+        } catch (e) {
+          // ignore localStorage parse errors
+        }
       }
     }
-  }, [application, setLocation]);
+  }, [application, isOwnApplication, setLocation, user.id]);
 
   // Featured Affiliate Videos (public) - Real-time with no cache
   const { data: affiliateVideos = [], isLoading: isVideosLoading, refetch: refetchVideos } = useQuery({
@@ -178,7 +185,7 @@ export default function AffiliatePage() {
                 <p className="text-sm xs:text-base text-gray-700 leading-relaxed">
                   Whether you're a makeup artist, beauty enthusiast, or lifestyle creator, we want to work with you. Get exclusive access to our products, create authentic content, and be part of a brand that celebrates beauty in all its forms!
                 </p>
-                {!application ? (
+                {!isOwnApplication ? (
                   <Button
                     onClick={() => setLocation("/affiliate-form")}
                     className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold px-6 xs:px-8 py-4 xs:py-6 text-base xs:text-lg rounded-full mt-4 w-full sm:w-auto"
