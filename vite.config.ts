@@ -50,7 +50,7 @@ export default defineConfig({
     cssCodeSplit: true,
   },
   server: {
-    port: 5000,
+    port: 8085,
     strictPort: true,
   },
   optimizeDeps: {

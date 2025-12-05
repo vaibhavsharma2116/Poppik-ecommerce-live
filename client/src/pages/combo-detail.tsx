@@ -319,6 +319,26 @@ export default function ComboDetail() {
     })();
   }, [combo?.id, combo, toast]);
 
+  // Cleanup affiliate ref from localStorage when leaving the combo page
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Check if affiliateRef exists in localStorage
+      const storedAffiliateRef = localStorage.getItem('affiliateRef');
+      
+      // Only remove if it exists
+      if (storedAffiliateRef) {
+        try { localStorage.removeItem('affiliateRef'); } catch (e) { }
+      }
+    };
+
+    // Listen for navigation events
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
   // Prepare products (safe parse) and load shades for products before any early returns
   const products = combo
     ? (typeof combo.products === 'string' ? (() => { try { return JSON.parse(combo.products); } catch { return []; } })() : combo.products)

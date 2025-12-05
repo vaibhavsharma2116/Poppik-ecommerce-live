@@ -17,6 +17,24 @@ const apiUrl = (path: string) => {
   return `${base}${path}`;
 };
 
+// Normalize address objects returned by API (snake_case -> camelCase)
+const normalizeAddress = (addr: any) => {
+  if (!addr) return addr;
+  return {
+    id: addr.id ?? addr.address_id ?? addr.addressId,
+    recipientName: addr.recipientName ?? addr.recipient_name ?? addr.name ?? addr.recipient,
+    addressLine1: addr.addressLine1 ?? addr.address_line1 ?? addr.line1 ?? addr.address1,
+    addressLine2: addr.addressLine2 ?? addr.address_line2 ?? addr.line2 ?? addr.address2,
+    city: addr.city ?? addr.town ?? addr.city_name,
+    state: addr.state ?? addr.state_name,
+    pincode: addr.pincode ?? addr.pin ?? addr.postcode ?? addr.postal_code,
+    country: addr.country ?? 'India',
+    phoneNumber: addr.phoneNumber ?? addr.phone_number ?? addr.phone,
+    deliveryInstructions: addr.deliveryInstructions ?? addr.delivery_instructions ?? addr.instructions ?? null,
+    isDefault: addr.isDefault ?? addr.is_default ?? false,
+  };
+};
+
 interface DeliveryAddress {
   id: number;
   recipientName: string;
@@ -103,6 +121,10 @@ export default function SelectDeliveryAddress() {
 
     fetchAddresses();
 
+    // Refresh when other pages/components update addresses
+    const onAddressesUpdated = () => fetchAddresses();
+    window.addEventListener('deliveryAddressesUpdated', onAddressesUpdated as EventListener);
+
     // Check if in multiple address mode
     const multipleMode = localStorage.getItem('multipleAddressMode');
     if (multipleMode === 'true') {
@@ -176,6 +198,10 @@ export default function SelectDeliveryAddress() {
       setIsAddDialogOpen(true);
       localStorage.removeItem('addNewAddressMode');
     }
+
+    return () => {
+      window.removeEventListener('deliveryAddressesUpdated', onAddressesUpdated as EventListener);
+    };
   }, []);
 
   const fetchAddresses = async () => {
@@ -194,7 +220,41 @@ export default function SelectDeliveryAddress() {
       }
       
       const data = await response.json();
-      setAddresses(data || []);
+      try {
+        let normalized = Array.isArray(data) ? data.map(normalizeAddress) : [normalizeAddress(data)];
+
+        // If API returned no addresses, try to use profile address as a fallback so selects show something
+        if ((!normalized || normalized.length === 0) && user) {
+          try {
+            const profileAddr = (user as any).address || '';
+            const profileCity = (user as any).city || (user as any).town || '';
+            const profileState = (user as any).state || '';
+            const profileZip = (user as any).zipCode || (user as any).zip || '';
+
+            if (profileAddr || profileCity || profileState || profileZip) {
+              const fallback = normalizeAddress({
+                id: -1,
+                recipient_name: `${(user as any).firstName || ''} ${(user as any).lastName || ''}`.trim() || (user as any).email || 'You',
+                address_line1: profileAddr || '',
+                city: profileCity,
+                state: profileState,
+                pincode: profileZip,
+                country: 'India',
+                phone_number: (user as any).phone || (user as any).mobile || '',
+                is_default: true,
+              });
+
+              normalized = [fallback];
+            }
+          } catch (e) {
+            console.warn('Error creating fallback address from profile:', e);
+          }
+        }
+
+        setAddresses(normalized || []);
+      } catch (e) {
+        setAddresses(data || []);
+      }
     } catch (error) {
       console.error('Error fetching addresses:', error);
       toast({
