@@ -162,45 +162,53 @@ function VideosList() {
     return <></>;
   }
 
+  const isSingleVideo = videos.length === 1;
+
   return (
     <>
-      {videos.slice(0, expanded ? 9 : 3).map((video, i) => (
-        <div key={video.id || i} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-lg">
-          <div className="relative">
-            <img src={video.imageUrl || video.thumb || '/uploads/placeholder.jpg'} alt={video.title} className="w-full h-64 md:h-72 object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-            {video.metadata?.badge && (
-              <span className="absolute left-4 top-4 bg-pink-600 text-white text-xs font-semibold px-3 py-1 rounded">{video.metadata.badge}</span>
-            )}
-            <button onClick={(e) => handleShare(e, video)} className="absolute right-4 top-4 bg-white bg-opacity-90 rounded-full p-2 shadow" title="Share" aria-label="Share video" onMouseDown={(e)=>e.stopPropagation()}>
-              <Share2 className="w-4 h-4 text-gray-700" />
-            </button>
-            <div className="absolute right-4 bottom-4 bg-black bg-opacity-80 text-white text-sm px-3 py-1 rounded">{video.metadata?.duration || video.duration || '-'}</div>
-            <button onClick={() => handleClick(video)} className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <div className="w-16 h-16 bg-white bg-opacity-95 rounded-full flex items-center justify-center shadow-xl">
-                <Play className="w-7 h-7 text-pink-600" />
+      <div className={isSingleVideo ? "col-span-full" : ""}>
+        <div className={isSingleVideo ? "max-w-2xl mx-auto" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"}>
+          {videos.slice(0, expanded ? 9 : 3).map((video, i) => (
+            <div key={video.id || i} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+              <div className="relative">
+                <img src={video.imageUrl || video.thumb || '/uploads/placeholder.jpg'} alt={video.title} className={isSingleVideo ? "w-full h-96 object-cover" : "w-full h-64 md:h-72 object-cover"} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                {video.metadata?.badge && (
+                  <span className="absolute left-4 top-4 bg-pink-600 text-white text-xs font-semibold px-3 py-1 rounded">{video.metadata.badge}</span>
+                )}
+                <button onClick={(e) => handleShare(e, video)} className="absolute right-4 top-4 bg-white bg-opacity-90 rounded-full p-2 shadow hover:bg-opacity-100 transition" title="Share" aria-label="Share video" onMouseDown={(e)=>e.stopPropagation()}>
+                  <Share2 className="w-4 h-4 text-gray-700" />
+                </button>
+                <div className="absolute right-4 bottom-4 bg-black bg-opacity-80 text-white text-sm px-3 py-1 rounded">{video.metadata?.duration || video.duration || '-'}</div>
+                <button onClick={() => handleClick(video)} className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform">
+                  <div className="w-16 h-16 bg-white bg-opacity-95 rounded-full flex items-center justify-center shadow-xl">
+                    <Play className="w-7 h-7 text-pink-600" />
+                  </div>
+                </button>
               </div>
-            </button>
-          </div>
-          <div className="p-8">
-            {video.influencerName ? (
-              <div className="text-sm text-pink-600 font-medium mb-1">{video.influencerName}</div>
-            ) : null}
-            <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-2 line-clamp-2">{video.title}</h3>
-            {video.description ? (
-              <p className="text-sm text-gray-600 mb-3 line-clamp-3">{video.description}</p>
-            ) : null}
-            <div className="text-sm md:text-base text-gray-500">{video.metadata?.author || video.author || video.displayName || ''}</div>
-          </div>
+              <div className={isSingleVideo ? "p-10" : "p-8"}>
+                {video.influencerName ? (
+                  <div className="text-sm text-pink-600 font-medium mb-2">{video.influencerName}</div>
+                ) : null}
+                <h3 className={isSingleVideo ? "text-2xl md:text-3xl font-bold text-gray-900 mb-3" : "text-lg md:text-xl font-semibold text-gray-900 mb-2 line-clamp-2"}>{video.title}</h3>
+                {video.description ? (
+                  <p className={isSingleVideo ? "text-base text-gray-600 mb-4 leading-relaxed" : "text-sm text-gray-600 mb-3 line-clamp-3"}>{video.description}</p>
+                ) : null}
+                <div className={isSingleVideo ? "text-base text-gray-500 font-medium" : "text-sm md:text-base text-gray-500"}>{video.metadata?.author || video.author || video.displayName || ''}</div>
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
-
-      <div className="col-span-full flex justify-center mt-6">
-        <button onClick={() => setExpanded(prev => !prev)} className="bg-white border border-pink-100 rounded-full px-8 py-3 shadow-md flex items-center gap-3 text-sm md:text-base font-medium text-pink-600 hover:shadow-lg">
-          <span>{expanded ? 'Show less' : 'Show more'}</span>
-          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
       </div>
+
+      {!isSingleVideo && (
+        <div className="col-span-full flex justify-center mt-8">
+          <button onClick={() => setExpanded(prev => !prev)} className="bg-white border border-pink-100 rounded-full px-8 py-3 shadow-md flex items-center gap-3 text-sm md:text-base font-medium text-pink-600 hover:shadow-lg hover:border-pink-300 transition">
+            <span>{expanded ? 'Show less' : 'Show more'}</span>
+            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        </div>
+      )}
 
       <Dialog open={modalOpen} onOpenChange={(o) => { setModalOpen(o); if (!o) setModalVideo(null); }}>
         <DialogContent className="max-w-4xl w-full">
@@ -458,17 +466,16 @@ export default function InfluencerCollabPage() {
 
       <section className="py-16 md:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-12">
             <div>
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
                 Featured Videos
               </h2>
-              <p className="text-sm text-gray-500">Curated picks for partners</p>
+              <p className="text-base text-gray-600 mt-2">Curated picks for partners</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          
+          <div className="flex justify-center">
             <VideosList />
           </div>
         </div>

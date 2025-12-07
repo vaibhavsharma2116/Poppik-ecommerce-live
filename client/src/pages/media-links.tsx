@@ -153,45 +153,49 @@ export default function MediaLinks() {
   }
 
   return (
-    <div className="min-h-screen bg-white py-8">
+    <div className="min-h-screen bg-white py-4 sm:py-6 md:py-8 lg:py-12">
       <div>
         {/* Page Title */}
-        <div className="mb-12 text-center px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl md:text-5xl  text-gray-900 mb-4">OUR MEDIA</h1>
+        <div className="mb-6 sm:mb-8 md:mb-10 lg:mb-12 text-center px-3 sm:px-4 md:px-6 lg:px-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-2 sm:mb-3 md:mb-4">
+            OUR MEDIA
+          </h1>
         </div>
 
         {/* Category Filter */}
         {categories.length > 1 && (
-          <div className="mb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            <div className="flex gap-8 border-b border-gray-300 pb-3">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`pb-2 font-medium text-sm sm:text-base transition-all whitespace-nowrap ${
-                    selectedCategory === category
-                      ? 'text-black border-b-2 border-black'
-                      : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
-                  }`}
-                >
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </button>
-              ))}
+          <div className="mb-6 sm:mb-8 md:mb-10 lg:mb-12 px-3 sm:px-4 md:px-6 lg:px-8 max-w-7xl mx-auto">
+            <div className="overflow-x-auto">
+              <div className="flex gap-3 sm:gap-4 md:gap-6 lg:gap-8 border-b border-gray-300 pb-2 sm:pb-3 min-w-max md:min-w-0">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`pb-2 sm:pb-3 font-medium text-xs sm:text-sm md:text-base transition-all whitespace-nowrap flex-shrink-0 ${
+                      selectedCategory === category
+                        ? 'text-black border-b-2 border-black'
+                        : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
+                    }`}
+                  >
+                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
         {/* Media Grid - Image and Video */}
         {filteredMedia.length === 0 ? (
-          <div className="text-center py-16 bg-gray-50 rounded-lg mx-4 sm:mx-6 lg:mx-8">
-            <p className="text-gray-500 text-lg">No media found</p>
+          <div className="text-center py-8 sm:py-12 md:py-16 bg-gray-50 rounded-lg mx-3 sm:mx-4 md:mx-6 lg:mx-8">
+            <p className="text-gray-500 text-sm sm:text-base md:text-lg">No media found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-5 px-3 sm:px-4 md:px-6 lg:px-8">
             {filteredMedia.map((media) => (
               <div
                 key={media.id}
-                className="cursor-pointer relative group"
+                className="cursor-pointer relative group overflow-hidden rounded-sm hover:shadow-lg transition-shadow duration-300"
                 onClick={() => handleMediaClick(media)}
               >
                 {/* Image - No Shadow, No Border */}
@@ -199,17 +203,17 @@ export default function MediaLinks() {
                   <img
                     src={media.imageUrl}
                     alt={media.title}
-                    className="w-full h-64 object-cover"
+                    className="w-full h-40 sm:h-48 md:h-56 lg:h-64 object-cover group-hover:scale-105 transition-transform duration-300"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3C/svg%3E';
                     }}
                   />
                 ) : (
                   /* Video */
-                  <div className="relative w-full h-64 bg-black overflow-hidden">
+                  <div className="relative w-full h-40 sm:h-48 md:h-56 lg:h-64 bg-black overflow-hidden group">
                     <video
                       src={media.videoUrl}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       autoPlay
                       loop
                       muted
@@ -218,7 +222,8 @@ export default function MediaLinks() {
                       }}
                     />
                     {/* Play Button Overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-all">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-all duration-300">
+                      <Play className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     </div>
                   </div>
                 )}

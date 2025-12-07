@@ -220,6 +220,13 @@ export default function AdminInfluencerVideos() {
 
   const handleSave = async () => {
     if (!form.title || !form.title.trim()) { toast({ title: 'Error', description: 'Title required', variant: 'destructive' }); return; }
+    
+    // Check if creating new item when one already exists
+    if (!editing && items.length > 0) {
+      toast({ title: 'Error', description: 'Only one influencer video is allowed. Please delete the existing one first.', variant: 'destructive' }); 
+      return;
+    }
+    
     // Call mutation with form and files
     const payload = { form, imageFile, videoFile };
     if (editing) {
@@ -240,8 +247,9 @@ export default function AdminInfluencerVideos() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Influencer Videos</h2>
           <p className="text-muted-foreground mt-1">Manage influencer-submitted videos and thumbnails</p>
+          {items.length > 0 && <p className="text-sm text-amber-600 mt-2">⚠️ Only one influencer video is allowed at a time</p>}
         </div>
-        <Button onClick={() => { resetForm(); setIsModalOpen(true); }}>
+        <Button onClick={() => { resetForm(); setIsModalOpen(true); }} disabled={items.length > 0}>
           <Plus className="mr-2 h-4 w-4" /> Add Influencer Video
         </Button>
       </div>
