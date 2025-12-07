@@ -37,6 +37,15 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
+// Global error handlers to avoid silent crashes and aid debugging
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err && (err.stack || err));
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 const app = express();
 
 // Security headers with performance optimizations
@@ -183,6 +192,11 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
   // Register API routes FIRST
   const server = await registerRoutes(app);
+
+  // Lightweight health endpoint for load-balancer and uptime checks
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ ok: true, uptime: process.uptime(), env: process.env.NODE_ENV || 'development' });
+  });
 
   // Handle product share URLs for social media crawlers
   app.get(["/product/:slug", "/share/product/:slug"], async (req, res, next) => {
@@ -522,6 +536,15 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   const port = process.env.PORT || 5000;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
+
+    // Inform process managers (pm2 with wait_ready) that the server is ready
+    if (typeof process.send === 'function') {
+      try {
+        process.send('ready');
+      } catch (e) {
+        // ignore
+      }
+    }
 
     // Clear cache periodically
     setInterval(() => {
