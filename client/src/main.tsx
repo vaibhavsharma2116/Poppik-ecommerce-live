@@ -45,7 +45,7 @@ createRoot(document.getElementById("root")!).render(<App />);
 		const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
 		const hosts = [
 			`${protocol}://${window.location.host}/ws/announcements`,
-			`${protocol}://${window.location.hostname}:5000/ws/announcements`,
+			`${protocol}://${window.location.hostname}:8085/ws/announcements`,
 		];
 
 		let ws: WebSocket | null = null;

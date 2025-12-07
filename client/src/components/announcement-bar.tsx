@@ -29,7 +29,7 @@ export default function AnnouncementBar() {
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const hostsToTry = [
       `${protocol}://${window.location.host}/ws/announcements`,
-      `${protocol}://${window.location.hostname}:5000/ws/announcements`,
+      `${protocol}://${window.location.hostname}:8085/ws/announcements`,
     ];
 
     const MAX_RECONNECTS = 6; // stop after a few attempts to avoid resource exhaustion

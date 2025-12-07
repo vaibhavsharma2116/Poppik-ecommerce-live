@@ -57,7 +57,7 @@ export default function AdminAnnouncements() {
     // Try same host first, then fallback to backend default port 5000
     const hostsToTry = [
       `${protocol}://${window.location.host}/ws/announcements`,
-      `${protocol}://${window.location.hostname}:5000/ws/announcements`,
+      `${protocol}://${window.location.hostname}:8085/ws/announcements`,
     ];
 
     function connectToNextHost() {

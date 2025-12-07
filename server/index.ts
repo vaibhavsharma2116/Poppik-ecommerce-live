@@ -533,7 +533,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
 
   // Serve the app on port 5000 (required for Replit web preview)
-  const port = process.env.PORT || 5000;
+  const port = process.env.PORT || 8085;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
 
