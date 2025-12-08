@@ -663,6 +663,14 @@ export default function Layout({ children }: LayoutProps) {
                                     >
                                       Delete Account
                                     </button>
+                                    {/* Cashback Wallet for all users */}
+                                    <Link
+                                      href="/wallet"
+                                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                                      onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                      Cashback Wallet
+                                    </Link>
                                     {isApprovedAffiliate && (
                                       <Accordion type="single" collapsible className="w-full">
                                         <AccordionItem value="affiliate" className="border-0">
@@ -677,13 +685,6 @@ export default function Layout({ children }: LayoutProps) {
                                                 onClick={() => setIsMobileMenuOpen(false)}
                                               >
                                                 Dashboard
-                                              </Link>
-                                              <Link
-                                                href="/wallet"
-                                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                onClick={() => setIsMobileMenuOpen(false)}
-                                              >
-                                                Cashback Wallet
                                               </Link>
                                               <Link
                                                 href="/affiliate-wallet"

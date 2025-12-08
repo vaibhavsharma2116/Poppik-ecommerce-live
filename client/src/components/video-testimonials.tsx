@@ -210,7 +210,7 @@ export default function VideoTestimonials() {
                       {/* Video Section with Reel-like aspect ratio */}
                       <div
                         className="relative bg-gray-100 cursor-pointer"
-                        style={{ aspectRatio: '9/14' }}
+                        style={{ aspectRatio: '9/16' }}
                         onClick={() => handleVideoClick(testimonial)}
                       >
                         <video

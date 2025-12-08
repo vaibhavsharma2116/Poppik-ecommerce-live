@@ -599,14 +599,14 @@ export default function SelectDeliveryAddress() {
                   
                   return (
                     <div key={item.id} className="p-4 bg-white rounded-lg border">
-                      <div className="flex items-start gap-4">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-20 h-20 object-cover rounded"
-                        />
-                        <div className="flex-1">
-                          <h3 className="font-semibold">{item.name}</h3>
+                        <div className="flex flex-col sm:flex-row items-start gap-4">
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded mx-auto sm:mx-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm sm:text-base break-words">{item.name}</h3>
                           {item.selectedShade && (
                             <p className="text-xs text-gray-600 mt-1">Shade: {item.selectedShade.name}</p>
                           )}
@@ -624,7 +624,7 @@ export default function SelectDeliveryAddress() {
                             )}
                           </div>
 
-                          <div className="mt-3 flex items-center gap-3">
+                          <div className="mt-3 flex flex-col sm:flex-row items-center gap-3">
                             <div className="flex items-center border border-gray-300 rounded-lg">
                               <button
                                 onClick={() => updateQuantity((item as any).itemKey || item.id, item.quantity - 1)}
@@ -649,21 +649,21 @@ export default function SelectDeliveryAddress() {
                                 variant="link"
                                 size="sm"
                                 onClick={() => toggleExpandItem(item.id)}
-                                className="text-blue-600 hover:text-blue-700 p-0 h-auto"
+                                className="text-blue-600 hover:text-blue-700 p-0 h-auto w-full sm:w-auto text-left text-sm sm:text-base"
                               >
-                                Deliver this item to additional addresses
+                                Deliver item to additional addresses
                               </Button>
                             )}
                           </div>
 
                           {item.quantity === 1 ? (
                             <div className="mt-4">
-                              <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
-                                <span className="text-sm font-medium text-gray-700 min-w-[80px]">
+                              <div className="flex flex-col sm:flex-row items-center gap-3 bg-gray-50 p-3 rounded-lg">
+                                <span className="text-sm font-medium text-gray-700 min-w-[80px] w-full sm:w-auto">
                                   Item 1:
                                 </span>
                                 <select
-                                  className="flex-1 rounded-md border border-input bg-white px-3 py-2 text-sm"
+                                  className="flex-1 rounded-md border border-input bg-white px-3 py-2 text-sm w-full"
                                       value={itemInstanceMapping[String(`${(item as any).itemKey || item.id}-0`)] || ''}
                                       onChange={(e) => handleItemInstanceAddressChange(String(`${(item as any).itemKey || item.id}-0`), parseInt(e.target.value))}
                                 >
@@ -708,19 +708,19 @@ export default function SelectDeliveryAddress() {
                               onClick={() => toggleExpandItem(item.id)}
                               className="text-blue-600 hover:text-blue-700"
                             >
-                              Use same address for all
+                              Use same address
                             </Button>
                           </div>
                           {Array.from({ length: item.quantity }).map((_, index) => {
                             const keyBase = (item as any).itemKey || item.id;
                             const instanceKey = `${keyBase}-${index}`;
                             return (
-                              <div key={instanceKey} className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
-                                <span className="text-sm font-medium text-gray-700 min-w-[80px]">
+                              <div key={instanceKey} className="flex flex-col sm:flex-row items-center gap-3 bg-gray-50 p-3 rounded-lg">
+                                <span className="text-sm font-medium text-gray-700 min-w-[80px] w-full sm:w-auto">
                                   Item {index + 1}:
                                 </span>
                                 <select
-                                  className="flex-1 rounded-md border border-input bg-white px-3 py-2 text-sm"
+                                  className="flex-1 rounded-md border border-input bg-white px-3 py-2 text-sm w-full"
                                   value={itemInstanceMapping[String(instanceKey)] || ''}
                                   onChange={(e) => handleItemInstanceAddressChange(String(instanceKey), parseInt(e.target.value))}
                                 >
@@ -796,7 +796,7 @@ export default function SelectDeliveryAddress() {
                       handleSelectAddress(address);
                     }}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col sm:flex-row items-start justify-between">
                       <div className="flex items-start space-x-3 flex-1">
                         <div
                           className={`w-5 h-5 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${
@@ -835,7 +835,7 @@ export default function SelectDeliveryAddress() {
                           )}
                         </div>
                       </div>
-                      <div>
+                      <div className="mt-3 sm:mt-0">
                         <Button
                           variant="ghost"
                           size="icon"
