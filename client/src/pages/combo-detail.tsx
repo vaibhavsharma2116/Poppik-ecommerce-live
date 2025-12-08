@@ -811,7 +811,7 @@ export default function ComboDetail() {
                         >
                           <div 
                             id="thumbnail-container"
-                            className="flex flex-col gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
+                            className="flex flex-col gap-2 sm:gap-2.5 md:gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
                             style={{
                               scrollSnapType: 'y mandatory',
                               scrollBehavior: 'smooth',
