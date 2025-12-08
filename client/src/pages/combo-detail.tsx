@@ -804,14 +804,14 @@ export default function ComboDetail() {
                   <div className="flex gap-4">
                     {/* Thumbnail Column - Swipeable Vertical Carousel */}
                     {mediaItems.length > 1 && (
-                      <div className="w-14 sm:w-16 md:w-20 flex-shrink-0 relative">
+                      <div className="w-20 flex-shrink-0 relative">
                         <div 
-                          className="h-64 sm:h-72 md:h-80 overflow-hidden scroll-smooth"
+                          className="h-80 overflow-hidden scroll-smooth"
                           style={{ scrollBehavior: 'smooth' }}
                         >
                           <div 
                             id="thumbnail-container"
-                            className="flex flex-col gap-2 sm:gap-2.5 md:gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
+                            className="flex flex-col gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
                             style={{
                               scrollSnapType: 'y mandatory',
                               scrollBehavior: 'smooth',
