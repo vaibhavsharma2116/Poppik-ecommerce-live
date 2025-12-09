@@ -63,7 +63,7 @@ app.use(cors({
 app.use(compression({
   level: 6,
   threshold: 1024, // Compress responses > 1KB
-  filter: (req, res) => {
+  filter: (req: any, res: any) => {
     // Don't compress server-sent events or media stream endpoints
     try {
       if (req.path && req.path.startsWith('/api/media/stream')) return false;
@@ -179,24 +179,45 @@ import { shades } from "@shared/schema";
 // Create db instance
 const db = drizzle(pool, { schema: { products, productImages, shades } });
 
+// Add health check endpoint BEFORE async initialization
+app.get('/health', (_req, res) => {
+  res.status(200).json({ ok: true, uptime: process.uptime(), env: process.env.NODE_ENV || 'development' });
+});
+
+// Simple favicon response to prevent 502 errors on favicon requests
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).send(); // No content
+});
+
 (async () => {
-  // Simple database connection test
-  try {
-    const client = await pool.connect();
-    await client.query('SELECT 1');
-    client.release();
-    console.log("✅ Database connection verified");
-  } catch (error) {
-    console.error("❌ Database connection failed:", error);
+  let dbConnected = false;
+
+  // Simple database connection test with retries
+  const maxRetries = 3;
+  let retries = 0;
+  
+  while (retries < maxRetries && !dbConnected) {
+    try {
+      const client = await pool.connect();
+      await client.query('SELECT 1');
+      client.release();
+      console.log("✅ Database connection verified");
+      dbConnected = true;
+    } catch (error) {
+      retries++;
+      console.error(`❌ Database connection failed (attempt ${retries}/${maxRetries}):`, error);
+      if (retries < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+      }
+    }
+  }
+  
+  if (!dbConnected) {
+    console.warn("⚠️ WARNING: Database not available, running in degraded mode");
   }
 
   // Register API routes FIRST
   const server = await registerRoutes(app);
-
-  // Lightweight health endpoint for load-balancer and uptime checks
-  app.get('/health', (_req, res) => {
-    res.status(200).json({ ok: true, uptime: process.uptime(), env: process.env.NODE_ENV || 'development' });
-  });
 
   // Handle product share URLs for social media crawlers
   app.get(["/product/:slug", "/share/product/:slug"], async (req, res, next) => {
@@ -501,9 +522,27 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       const indexPath = path.join(process.cwd(), "dist/public/index.html");
 
       if (fs.existsSync(indexPath)) {
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate');
         res.sendFile(indexPath);
       } else {
-        res.status(404).send('Not Found');
+        // Fallback to a basic HTML response instead of 404 to prevent 502
+        res.status(200).send(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Poppik Lifestyle</title>
+              <meta charset="UTF-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            </head>
+            <body style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: system-ui;">
+              <div style="text-align: center;">
+                <h1>Loading...</h1>
+                <p>Please wait while we load the application.</p>
+                <script>location.reload();</script>
+              </div>
+            </body>
+          </html>
+        `);
       }
     } catch (error) {
       console.error("Error serving index.html:", error);
@@ -533,7 +572,7 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
 
   // Serve the app on port 5000 (required for Replit web preview)
-  const port = process.env.PORT || 8085;
+  const port = parseInt(process.env.PORT || '8085', 10);
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
 

@@ -1,24 +1,25 @@
 module.exports = {
   apps: [
     {
-      name: "my-app",
-      script: "./dist/index.js",  // TypeScript build output
+      name: "poppik-app",
+      script: "./dist/index.js",
       instances: 1,
       autorestart: true,
       watch: false,
       max_memory_restart: "500M",
-      // Add restart/backoff settings to avoid fast crash loops causing 502s
-      max_restarts: 5,
-      restart_delay: 5000,
-      // If you use PM2's wait_ready, server should call process.send('ready') when ready
-      wait_ready: false,
-      listen_timeout: 8000,
-      // Log files
-      error_file: "./logs/my-app-err.log",
-      out_file: "./logs/my-app-out.log",
+      max_restarts: 10,
+      min_uptime: "30s",
+      restart_delay: 3000,
+      wait_ready: true,
+      listen_timeout: 10000,
+      kill_timeout: 5000,
+      error_file: "./logs/error.log",
+      out_file: "./logs/out.log",
+      log_file: "./logs/combined.log",
       merge_logs: true,
       env: {
-        NODE_ENV: "production"
+        NODE_ENV: "production",
+        NODE_OPTIONS: "--max-old-space-size=512"
       }
     }
   ]
