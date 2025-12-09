@@ -37,30 +37,10 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          // Vendor chunk
-          if (id.includes('node_modules')) {
-            if (id.includes('react')) {
-              return 'react-vendor';
-            }
-            if (id.includes('@radix-ui')) {
-              return 'ui-vendor';
-            }
-            if (id.includes('@tanstack')) {
-              return 'query-vendor';
-            }
-            if (id.includes('lucide-react') || id.includes('@lucide')) {
-              return 'icons-vendor';
-            }
-            return 'vendor';
-          }
-          // Page-specific chunks for better code splitting
-          if (id.includes('pages/admin')) {
-            return 'admin-pages';
-          }
-          if (id.includes('pages/auth')) {
-            return 'auth-pages';
-          }
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-accordion', '@radix-ui/react-avatar'],
+          'query-vendor': ['@tanstack/react-query'],
         },
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',

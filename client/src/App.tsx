@@ -185,12 +185,6 @@ function AffiliateHandler() {
 }
 
 function Router() {
-  const handleRouteChange = (callback: () => void) => {
-    startTransition(() => {
-      callback();
-    });
-  };
-
   return (
     <>
       <AffiliateHandler />
@@ -283,7 +277,7 @@ function Router() {
             <Route path="/contact" component={Contact} />
             <Route path="/auth/login" component={Login} />
             <Route path="/auth/signup" component={Signup} />
-            <Route path="/auth/otp-verification" component={OTPVerification} />
+            <Route path="/auth/otp-verification" component={() => <LazyRoute component={OTPVerification} />} />
             <Route path="/profile" component={Profile} />
             <Route path="/cart" component={CartPage} />
             <Route path="/checkout" component={Checkout} />
