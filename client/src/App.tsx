@@ -125,11 +125,30 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// Error component for failed lazy loading
+const LazyErrorFallback = ({ error }: { error?: Error }) => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="text-center">
+      <h1 className="text-2xl font-bold mb-4">Oops! Something went wrong</h1>
+      <p className="text-gray-600 mb-4">Failed to load page. Please try reloading.</p>
+      {error && <p className="text-sm text-gray-500 mb-4">{error.message}</p>}
+      <button
+        onClick={() => window.location.reload()}
+        className="px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700"
+      >
+        Reload Page
+      </button>
+    </div>
+  </div>
+);
+
 // Wrapper component to handle transitions properly
 function LazyRoute({ component: Component }: { component: React.ComponentType }) {
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      <Component />
+      <ErrorBoundary>
+        <Component />
+      </ErrorBoundary>
     </Suspense>
   );
 }

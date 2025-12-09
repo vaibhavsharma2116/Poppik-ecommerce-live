@@ -505,7 +505,7 @@ export default function AdminCombos() {
     formDataToSend.append("description", formData.description.substring(0, 500));
     formDataToSend.append("price", formData.price);
     formDataToSend.append("originalPrice", formData.originalPrice);
-    formDataToSend.append("discount", formData.discount.substring(0, 50));
+    formDataToSend.append("discount", formData.discount || "0");
     formDataToSend.append("cashbackPercentage", formData.cashbackPercentage || "0");
     formDataToSend.append("cashbackPrice", formData.cashbackPrice || "0");
     formDataToSend.append("products", JSON.stringify(selectedProducts));
@@ -596,12 +596,18 @@ export default function AdminCombos() {
       ? combo.products.map((p: any) => p.id || p).filter((id: any) => typeof id === 'number')
       : [];
 
+    // Extract discount as number (remove % and OFF if present)
+    let discountValue = combo.discount || '';
+    if (typeof discountValue === 'string') {
+      discountValue = discountValue.replace('%', '').replace('OFF', '').trim();
+    }
+
     setFormData({
       name: combo.name,
       description: combo.description,
       price: combo.price.toString(),
       originalPrice: combo.originalPrice.toString(),
-      discount: combo.discount,
+      discount: discountValue,
       cashbackPercentage: combo.cashbackPercentage?.toString() || '',
       cashbackPrice: combo.cashbackPrice?.toString() || '',
       imageUrl: combo.imageUrl,
@@ -859,12 +865,24 @@ export default function AdminCombos() {
                   step="0.01"
                   value={formData.originalPrice}
                   onChange={(e) => {
-                    setFormData({ ...formData, originalPrice: e.target.value });
-                    // Auto-calculate discount if sale price is set
-                    if (formData.price && e.target.value) {
-                      const discount = ((parseFloat(e.target.value) - parseFloat(formData.price)) / parseFloat(e.target.value) * 100).toFixed(2);
-                      setFormData(prev => ({ ...prev, discount: `${discount}% OFF` }));
-                    }
+                    const originalPrice = e.target.value;
+                    setFormData(prev => {
+                      const updated = { ...prev, originalPrice };
+                      
+                      // Case 1: Original Price + Sale Price → Calculate Discount
+                      if (updated.price && originalPrice) {
+                        const discount = ((parseFloat(originalPrice) - parseFloat(updated.price)) / parseFloat(originalPrice) * 100).toFixed(2);
+                        updated.discount = discount;
+                      }
+                      // Case 2: Original Price + Discount → Calculate Sale Price
+                      else if (updated.discount && originalPrice) {
+                        const discountNum = parseFloat(updated.discount);
+                        const salePrice = (parseFloat(originalPrice) * (1 - discountNum / 100)).toFixed(2);
+                        updated.price = salePrice;
+                      }
+                      
+                      return updated;
+                    });
                   }}
                   placeholder="e.g., 1999"
                   required
@@ -878,12 +896,24 @@ export default function AdminCombos() {
                   step="0.01"
                   value={formData.price}
                   onChange={(e) => {
-                    setFormData({ ...formData, price: e.target.value });
-                    // Auto-calculate discount if original price is set
-                    if (formData.originalPrice && e.target.value) {
-                      const discount = ((parseFloat(formData.originalPrice) - parseFloat(e.target.value)) / parseFloat(formData.originalPrice) * 100).toFixed(2);
-                      setFormData(prev => ({ ...prev, discount: `${discount}% OFF` }));
-                    }
+                    const salePrice = e.target.value;
+                    setFormData(prev => {
+                      const updated = { ...prev, price: salePrice };
+                      
+                      // Case 1: Original Price + Sale Price → Calculate Discount
+                      if (updated.originalPrice && salePrice) {
+                        const discount = ((parseFloat(updated.originalPrice) - parseFloat(salePrice)) / parseFloat(updated.originalPrice) * 100).toFixed(2);
+                        updated.discount = discount;
+                      }
+                      // Case 2: Sale Price + Discount → Calculate Original Price
+                      else if (updated.discount && salePrice) {
+                        const discountNum = parseFloat(updated.discount);
+                        const originalPrice = (parseFloat(salePrice) / (1 - discountNum / 100)).toFixed(2);
+                        updated.originalPrice = originalPrice;
+                      }
+                      
+                      return updated;
+                    });
                   }}
                   placeholder="e.g., 1199"
                   required
@@ -895,13 +925,31 @@ export default function AdminCombos() {
                 <Input
                   type="number"
                   step="0.01"
-                  value={formData.discount.replace('%', '').replace('OFF', '').trim()}
-                  onChange={(e) => setFormData({ ...formData, discount: `${e.target.value}% OFF` })}
-                  placeholder="Auto-calculated from original and sale price"
-                  className="bg-gray-50"
-                  readOnly
+                  value={formData.discount}
+                  onChange={(e) => {
+                    const discount = e.target.value;
+                    setFormData(prev => {
+                      const updated = { ...prev, discount };
+                      
+                      // Case 1: Original Price + Discount → Calculate Sale Price
+                      if (updated.originalPrice && discount) {
+                        const discountNum = parseFloat(discount);
+                        const salePrice = (parseFloat(updated.originalPrice) * (1 - discountNum / 100)).toFixed(2);
+                        updated.price = salePrice;
+                      }
+                      // Case 2: Sale Price + Discount → Calculate Original Price
+                      else if (updated.price && discount) {
+                        const discountNum = parseFloat(discount);
+                        const originalPrice = (parseFloat(updated.price) / (1 - discountNum / 100)).toFixed(2);
+                        updated.originalPrice = originalPrice;
+                      }
+                      
+                      return updated;
+                    });
+                  }}
+                  placeholder="Enter discount percentage"
                 />
-                <p className="text-xs text-gray-500 mt-1">Auto-calculated based on original price and sale price</p>
+                <p className="text-xs text-gray-500 mt-1">Enter any 2 values (Original Price, Sale Price, or Discount) - the third will auto-calculate</p>
               </div>
 
               <div>

@@ -287,10 +287,127 @@ export default function CareersDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-12xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+      <style>{`
+        @media (max-width: 640px) {
+          .career-detail-container {
+            padding: 1rem 0.75rem;
+          }
+          .career-section {
+            padding: 1rem;
+            margin-bottom: 1rem;
+          }
+          .career-title {
+            font-size: 1.25rem;
+            line-height: 1.5rem;
+          }
+          .career-subtitle {
+            font-size: 0.875rem;
+          }
+          .career-text {
+            font-size: 0.875rem;
+          }
+          .career-icon {
+            height: 1rem;
+            width: 1rem;
+          }
+          .career-badge {
+            font-size: 0.75rem;
+            padding: 0.375rem 0.75rem;
+          }
+          .career-button {
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            height: auto;
+          }
+          .career-skill-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .career-detail-container {
+            padding: 0.75rem 0.5rem;
+          }
+          .career-section {
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            border-radius: 0.375rem;
+          }
+          .career-title {
+            font-size: 1.125rem;
+            line-height: 1.375rem;
+          }
+          .career-subtitle {
+            font-size: 0.8125rem;
+          }
+          .career-text {
+            font-size: 0.8125rem;
+            line-height: 1.5rem;
+          }
+          .career-icon {
+            height: 0.875rem;
+            width: 0.875rem;
+          }
+          .career-gap {
+            gap: 0.5rem;
+          }
+          .career-gap-sm {
+            gap: 0.375rem;
+          }
+          .career-button-sm {
+            font-size: 0.8125rem;
+            padding: 0.375rem 0.75rem;
+          }
+          .career-list-item {
+            gap: 0.5rem;
+          }
+          .career-sidebar {
+            margin-top: 1rem;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .career-detail-container {
+            padding: 0.5rem 0.375rem;
+          }
+          .career-section {
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+          }
+          .career-title {
+            font-size: 1rem;
+          }
+          .career-subtitle {
+            font-size: 0.75rem;
+          }
+          .career-text {
+            font-size: 0.75rem;
+          }
+          .career-icon {
+            height: 0.75rem;
+            width: 0.75rem;
+          }
+          .career-badge {
+            font-size: 0.625rem;
+          }
+        }
+
+        /* Improvements for tablet screens */
+        @media (min-width: 768px) and (max-width: 1024px) {
+          .career-detail-container {
+            padding: 1.5rem 1rem;
+          }
+          .career-section {
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+          }
+        }
+      `}</style>
+      <div className="max-w-12xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 career-detail-container">
         {/* Back Button */}
-        <Link href="/careers" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4 sm:mb-6 transition-colors font-medium text-sm sm:text-base">
-          <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+        <Link href="/careers" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4 sm:mb-6 transition-colors font-medium text-sm sm:text-base career-text">
+          <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 career-icon" />
           Back to All Jobs
         </Link>
 
@@ -433,82 +550,82 @@ export default function CareersDetail() {
             </div>
 
             {/* About the Role */}
-            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">About the Role</h2>
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm career-section">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4 career-title">About the Role</h2>
               {typeof position.aboutRole === 'string' && position.aboutRole.includes('<') ? (
                 <div 
-                  className="text-gray-700 leading-relaxed text-sm sm:text-base prose prose-sm max-w-none"
+                  className="text-gray-700 leading-relaxed text-sm sm:text-base prose prose-sm max-w-none career-text"
                   dangerouslySetInnerHTML={{ __html: position.aboutRole }}
                 />
               ) : (
-                <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
+                <p className="text-gray-700 leading-relaxed text-sm sm:text-base career-text">
                   {position.aboutRole}
                 </p>
               )}
             </div>
 
             {/* Key Responsibilities */}
-            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Key Responsibilities</h2>
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm career-section">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4 career-title">Key Responsibilities</h2>
               {Array.isArray(position.responsibilities) ? (
                 <ul className="space-y-2 sm:space-y-3">
                   {position.responsibilities.map((item: string, index: number) => (
-                    <li key={index} className="flex items-start">
-                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 text-sm sm:text-base">{item}</span>
+                    <li key={index} className="flex items-start career-list-item">
+                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5 career-icon" />
+                      <span className="text-gray-700 text-sm sm:text-base career-text">{item}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <div 
-                  className="text-gray-700 leading-relaxed text-sm sm:text-base prose prose-sm max-w-none"
+                  className="text-gray-700 leading-relaxed text-sm sm:text-base prose prose-sm max-w-none career-text"
                   dangerouslySetInnerHTML={{ __html: position.responsibilities as string }}
                 />
               )}
             </div>
 
             {/* What We're Looking For */}
-            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">What We're Looking For</h2>
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm career-section">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4 career-title">What We're Looking For</h2>
               {Array.isArray(position.requirements) ? (
                 <ul className="space-y-2 sm:space-y-3">
                   {position.requirements.map((item: string, index: number) => (
-                    <li key={index} className="flex items-start">
-                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 text-sm sm:text-base">{item}</span>
+                    <li key={index} className="flex items-start career-list-item">
+                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5 career-icon" />
+                      <span className="text-gray-700 text-sm sm:text-base career-text">{item}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <div 
-                  className="text-gray-700 leading-relaxed text-sm sm:text-base prose prose-sm max-w-none"
+                  className="text-gray-700 leading-relaxed text-sm sm:text-base prose prose-sm max-w-none career-text"
                   dangerouslySetInnerHTML={{ __html: position.requirements as string }}
                 />
               )}
             </div>
 
             {/* Additional Note */}
-            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm">
-              <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm career-section">
+              <p className="text-gray-700 leading-relaxed text-sm sm:text-base career-text">
                 While this position is for a {String(position.type || '').toLowerCase()}, outstanding candidates may be considered for full-time positions based on performance and availability or the requirements within the company. We encourage you to demonstrate your skills and dedication throughout your time with us.
               </p>
             </div>
 
             {/* Bottom Apply Now Button */}
-            <div className="bg-white rounded-lg p-6 sm:p-8 shadow-sm">
+            <div className="bg-white rounded-lg p-6 sm:p-8 shadow-sm career-section">
               <div className="text-center">
                 {position.isActive ? (
-                  <Link href={`/careers/apply/${positionSlug}`} className="inline-block">
-                    <Button className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white px-8 sm:px-12 py-4 sm:py-6 text-base sm:text-lg font-semibold shadow-lg">
+                  <Link href={`/careers/apply/${positionSlug}`} className="inline-block w-full sm:w-auto">
+                    <Button className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white px-8 sm:px-12 py-4 sm:py-6 text-base sm:text-lg font-semibold shadow-lg w-full sm:w-auto career-button">
                       Apply Now
                     </Button>
                   </Link>
                 ) : (
-                  <Button disabled className="bg-gray-400 text-white px-8 sm:px-12 py-4 sm:py-6 text-base sm:text-lg font-semibold cursor-not-allowed">
+                  <Button disabled className="bg-gray-400 text-white px-8 sm:px-12 py-4 sm:py-6 text-base sm:text-lg font-semibold cursor-not-allowed w-full sm:w-auto career-button">
                     Applications Closed
                   </Button>
                 )}
-                <p className="text-sm text-gray-500 mt-4">
+                <p className="text-sm text-gray-500 mt-4 career-text">
                   Ready to join our team? Submit your application now!
                 </p>
               </div>
@@ -516,26 +633,26 @@ export default function CareersDetail() {
           </div>
 
           {/* Sidebar - Right Side */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 career-sidebar">
             <div className="sticky top-4 sm:top-8 space-y-4 sm:space-y-6">
 
               {/* Job Details */}
               <Card className="shadow-sm">
                 <CardHeader className="border-b p-4 sm:p-6">
-                  <CardTitle className="text-base sm:text-lg font-semibold text-gray-900">Job Details</CardTitle>
+                  <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 career-title">Job Details</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
                   <div>
                     <h4 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">Experience Level</h4>
-                    <p className="text-gray-600 text-xs sm:text-base">{position.experienceLevel}</p>
+                    <p className="text-gray-600 text-xs sm:text-base career-text">{position.experienceLevel}</p>
                   </div>
                   <div>
                     <h4 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">Work Experience (years)</h4>
-                    <p className="text-gray-600 text-xs sm:text-base">{position.workExperience}</p>
+                    <p className="text-gray-600 text-xs sm:text-base career-text">{position.workExperience}</p>
                   </div>
                   <div>
                     <h4 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">Education</h4>
-                    <p className="text-gray-600 text-xs sm:text-base">{position.education}</p>
+                    <p className="text-gray-600 text-xs sm:text-base career-text">{position.education}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -543,19 +660,19 @@ export default function CareersDetail() {
               {/* Skills */}
               <Card className="shadow-sm">
                 <CardHeader className="border-b p-4 sm:p-6">
-                  <CardTitle className="text-base sm:text-lg font-semibold text-gray-900">Skills</CardTitle>
+                  <CardTitle className="text-base sm:text-lg font-semibold text-gray-900 career-title">Skills</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6">
                   {position.skills && Array.isArray(position.skills) && position.skills.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 career-gap">
                       {position.skills.map((skill: string, index: number) => (
-                        <Badge key={index} variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs sm:text-sm">
+                        <Badge key={index} variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs sm:text-sm career-skill-badge">
                           {skill}
                         </Badge>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-500 text-sm">No skills specified</p>
+                    <p className="text-gray-500 text-sm career-text">No skills specified</p>
                   )}
                 </CardContent>
               </Card>

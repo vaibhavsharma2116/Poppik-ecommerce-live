@@ -191,7 +191,7 @@ export default function MediaLinks() {
             <p className="text-gray-500 text-sm sm:text-base md:text-lg">No media found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-5 px-3 sm:px-4 md:px-6 lg:px-8">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-5 px-3 sm:px-4 md:px-6 lg:px-8">
             {filteredMedia.map((media) => (
               <div
                 key={media.id}

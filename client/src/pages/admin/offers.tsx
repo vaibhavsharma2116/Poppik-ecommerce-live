@@ -805,46 +805,8 @@ export default function AdminOffers() {
                 <p className="text-xs text-slate-500">Video for offer detail page gallery</p>
               </div>
 
-              {/* Price Fields */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price">Offer Price (₹) *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="e.g., 999"
-                    value={formData.price}
-                    onChange={(e) => {
-                      const offerPrice = e.target.value;
-                      setFormData(prev => ({ ...prev, price: offerPrice }));
-
-                      // Auto-calculate discount if original price is set
-                      if (formData.originalPrice && offerPrice) {
-                        const original = parseFloat(formData.originalPrice);
-                        const offer = parseFloat(offerPrice);
-                        if (original > offer) {
-                          const discountPercent = (((original - offer) / original) * 100).toFixed(2);
-                          setFormData(prev => ({
-                            ...prev,
-                            price: offerPrice,
-                            discountType: 'percentage',
-                            discountValue: parseFloat(discountPercent)
-                          }));
-                        }
-                      }
-
-                      // Auto-calculate cashback if percentage is set
-                      if (formData.cashbackPercentage && offerPrice) {
-                        const cashback = (parseFloat(offerPrice) * parseFloat(formData.cashbackPercentage) / 100).toFixed(2);
-                        setFormData(prev => ({ ...prev, cashbackPrice: cashback }));
-                      }
-                    }}
-                    required
-                  />
-                  <p className="text-xs text-gray-500">Final price after all discounts</p>
-                </div>
+              {/* Price Fields - Bidirectional Auto-Calculation */}
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="originalPrice">Original Price (₹)</Label>
                   <Input
@@ -856,60 +818,118 @@ export default function AdminOffers() {
                     value={formData.originalPrice}
                     onChange={(e) => {
                       const originalPrice = e.target.value;
-                      setFormData(prev => ({ ...prev, originalPrice: originalPrice }));
-
-                      // Auto-calculate discount if offer price is set
-                      if (formData.price && originalPrice) {
-                        const original = parseFloat(originalPrice);
-                        const offer = parseFloat(formData.price);
-                        if (original > offer) {
-                          const discountPercent = (((original - offer) / original) * 100).toFixed(2);
-                          setFormData(prev => ({
-                            ...prev,
-                            originalPrice: originalPrice,
-                            discountType: 'percentage',
-                            discountValue: parseFloat(discountPercent)
-                          }));
+                      setFormData(prev => {
+                        const updated = { ...prev, originalPrice };
+                        
+                        // Case 1: Original Price + Offer Price → Calculate Discount
+                        if (updated.price && originalPrice) {
+                          const discount = ((parseFloat(originalPrice) - parseFloat(updated.price)) / parseFloat(originalPrice) * 100).toFixed(2);
+                          updated.discountType = 'percentage';
+                          updated.discountValue = parseFloat(discount);
                         }
-                      }
+                        // Case 2: Original Price + Discount → Calculate Offer Price
+                        else if (updated.discountValue && originalPrice && updated.discountType === 'percentage') {
+                          const offerPrice = (parseFloat(originalPrice) * (1 - updated.discountValue / 100)).toFixed(2);
+                          updated.price = offerPrice;
+                        }
+                        
+                        return updated;
+                      });
                     }}
                   />
-                  <p className="text-xs text-gray-500">Price before discount (optional)</p>
+                  <p className="text-xs text-gray-500">Price before discount</p>
                 </div>
-              </div>
 
-              {/* Discount Type & Value */}
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="discountType">Discount Type *</Label>
-                  <select
-                    id="discountType"
-                    className="w-full px-3 py-2 border rounded-md"
-                    value={formData.discountType || 'none'}
-                    onChange={(e) => setFormData({ ...formData, discountType: e.target.value as 'percentage' | 'flat' | 'none' })}
-                  >
-                    <option value="none">No Discount</option>
-                    <option value="percentage">Percentage (%)</option>
-                    <option value="flat">Flat Amount (₹)</option>
-                  </select>
+                  <Label htmlFor="price">Offer Price (₹) *</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="e.g., 999"
+                    value={formData.price}
+                    onChange={(e) => {
+                      const offerPrice = e.target.value;
+                      setFormData(prev => {
+                        const updated = { ...prev, price: offerPrice };
+                        
+                        // Case 1: Original Price + Offer Price → Calculate Discount
+                        if (updated.originalPrice && offerPrice) {
+                          const discount = ((parseFloat(updated.originalPrice) - parseFloat(offerPrice)) / parseFloat(updated.originalPrice) * 100).toFixed(2);
+                          updated.discountType = 'percentage';
+                          updated.discountValue = parseFloat(discount);
+                        }
+                        // Case 2: Offer Price + Discount → Calculate Original Price
+                        else if (updated.discountValue && offerPrice && updated.discountType === 'percentage') {
+                          const originalPrice = (parseFloat(offerPrice) / (1 - updated.discountValue / 100)).toFixed(2);
+                          updated.originalPrice = originalPrice;
+                        }
+
+                        // Auto-calculate cashback if percentage is set
+                        if (updated.cashbackPercentage && offerPrice) {
+                          const cashback = (parseFloat(offerPrice) * parseFloat(updated.cashbackPercentage) / 100).toFixed(2);
+                          updated.cashbackPrice = cashback;
+                        }
+                        
+                        return updated;
+                      });
+                    }}
+                    required
+                  />
+                  <p className="text-xs text-gray-500">Final price after discount</p>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="discountValue">
-                    Discount Value {formData.discountType !== 'none' && '*'}
-                  </Label>
+                  <Label htmlFor="discountValue">Discount (%)</Label>
                   <Input
                     id="discountValue"
                     type="number"
                     step="0.01"
                     min="0"
-                    max={formData.discountType === 'percentage' ? '100' : undefined}
-                    placeholder={formData.discountType === 'percentage' ? 'e.g., 20' : 'e.g., 300'}
+                    max="100"
+                    placeholder="e.g., 33"
                     value={formData.discountValue?.toString() || ''}
-                    onChange={(e) => setFormData({ ...formData, discountValue: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    disabled={formData.discountType === 'none'}
-                    required={formData.discountType !== 'none'}
+                    onChange={(e) => {
+                      const discount = e.target.value;
+                      setFormData(prev => {
+                        const updated = { ...prev, discountValue: discount ? parseFloat(discount) : undefined };
+                        
+                        // Case 1: Original Price + Discount → Calculate Offer Price
+                        if (updated.originalPrice && discount) {
+                          const offerPrice = (parseFloat(updated.originalPrice) * (1 - parseFloat(discount) / 100)).toFixed(2);
+                          updated.price = offerPrice;
+                          updated.discountType = 'percentage';
+                        }
+                        // Case 2: Offer Price + Discount → Calculate Original Price
+                        else if (updated.price && discount) {
+                          const originalPrice = (parseFloat(updated.price) / (1 - parseFloat(discount) / 100)).toFixed(2);
+                          updated.originalPrice = originalPrice;
+                          updated.discountType = 'percentage';
+                        }
+                        
+                        return updated;
+                      });
+                    }}
                   />
+                  <p className="text-xs text-gray-500">Enter any 2 values - 3rd auto-calculates</p>
                 </div>
+              </div>
+
+              {/* Discount Type Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="discountType">Discount Type *</Label>
+                <select
+                  id="discountType"
+                  className="w-full px-3 py-2 border rounded-md"
+                  value={formData.discountType || 'percentage'}
+                  onChange={(e) => setFormData({ ...formData, discountType: e.target.value as 'percentage' | 'flat' | 'none' })}
+                >
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="flat">Flat Amount (₹)</option>
+                  <option value="none">No Discount</option>
+                </select>
+                <p className="text-xs text-gray-500">Percentage calculation recommended for auto-calculations above</p>
               </div>
 
               {/* Discount Text (Display Text) */}

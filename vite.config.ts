@@ -27,6 +27,7 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: false,
     minify: 'terser',
+    reportCompressedSize: false,
     terserOptions: {
       compress: {
         drop_console: true,
@@ -36,25 +37,52 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
-          'query-vendor': ['@tanstack/react-query'],
+        manualChunks: (id) => {
+          // Vendor chunk
+          if (id.includes('node_modules')) {
+            if (id.includes('react')) {
+              return 'react-vendor';
+            }
+            if (id.includes('@radix-ui')) {
+              return 'ui-vendor';
+            }
+            if (id.includes('@tanstack')) {
+              return 'query-vendor';
+            }
+            if (id.includes('lucide-react') || id.includes('@lucide')) {
+              return 'icons-vendor';
+            }
+            return 'vendor';
+          }
+          // Page-specific chunks for better code splitting
+          if (id.includes('pages/admin')) {
+            return 'admin-pages';
+          }
+          if (id.includes('pages/auth')) {
+            return 'auth-pages';
+          }
         },
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
       },
     },
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1500,
     cssCodeSplit: true,
+    // Add rollup cache for faster rebuilds
+    rollupCache: null,
+    // Increase chunk size limit and be smarter about splitting
+    dynamicImportVarsOptions: {
+      warnOnError: true,
+      exclude: [/node_modules/],
+    },
   },
   server: {
     port: 8085,
     strictPort: true,
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
+    include: ['react', 'react-dom', 'wouter'],
     exclude: [],
   },
 });

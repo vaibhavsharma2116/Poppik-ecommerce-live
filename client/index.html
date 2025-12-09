@@ -17,6 +17,11 @@
       .loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #fff; z-index: 9999; }
     </style>
 
+    <!-- Disable caching for HTML to ensure fresh chunks -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
     <title>Poppik Lifestyle</title>
       <script type="application/ld+json">
       {
@@ -34,6 +39,31 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Handle script loading errors globally
+      window.addEventListener('error', (event) => {
+        if (event.filename && event.filename.includes('/assets/')) {
+          console.error('Failed to load asset:', event.filename);
+          // Reload the page to retry
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
+      });
+      
+      // Handle import errors for dynamic chunks
+      window.addEventListener('unhandledrejection', (event) => {
+        if (event.reason && typeof event.reason === 'object') {
+          const error = event.reason;
+          if (error.message && error.message.includes('Failed to fetch')) {
+            console.error('Failed to load dynamic module:', error);
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+          }
+        }
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
