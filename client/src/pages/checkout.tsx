@@ -921,10 +921,6 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
               });
 
               setShippingCost(Math.round(cheapestCourier.rate));
-              toast({
-                title: "Shipping Cost Calculated",
-                description: `₹${Math.round(cheapestCourier.rate)} via ${cheapestCourier.courier_name}`,
-              });
             } else {
               setShippingCost(99);
               toast({
@@ -1051,6 +1047,14 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
   const totalAffiliateCommissionFromItems = cartItems.reduce((total, item) => {
     if (item.affiliateCommission) {
       return total + (Number(item.affiliateCommission) * item.quantity);
+    }
+    return total;
+  }, 0);
+
+  // Calculate total cashback earned from items
+  const totalCashbackEarned = cartItems.reduce((total, item) => {
+    if (item.cashbackPrice && item.cashbackPercentage !== undefined && item.cashbackPercentage !== null) {
+      return total + (Number(item.cashbackPrice) * item.quantity);
     }
     return total;
   }, 0);
@@ -1729,7 +1733,23 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         }
       }
 
-      const response = await fetch(apiUrl('/api/payments/cashfree/create-order'), {
+        // Build customer details dynamically: prefer selected address recipient if available
+        const selectedAddr = selectedAddressId ? savedAddresses.find(addr => Number(addr.id) === Number(selectedAddressId)) : null;
+        const customerDetailsPayload: any = {
+          customerId: String(user.id),
+          customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+          customerEmail: (formData.email || user.email || '').trim(),
+          customerPhone: formData.phone?.trim() || '9999999999',
+        };
+
+        if (selectedAddr) {
+          if (selectedAddr.recipientName) customerDetailsPayload.customerName = selectedAddr.recipientName;
+          if (selectedAddr.phoneNumber) customerDetailsPayload.customerPhone = selectedAddr.phoneNumber;
+          // If the saved address contains an email field, prefer it; otherwise keep form/user email
+          if ((selectedAddr as any).email) customerDetailsPayload.customerEmail = (selectedAddr as any).email;
+        }
+
+        const response = await fetch(apiUrl('/api/payments/cashfree/create-order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1737,12 +1757,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           amount: Math.round(total),
           orderId: orderId,
           currency: 'INR',
-          customerDetails: {
-            customerId: String(user.id),
-            customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
-            customerEmail: formData.email.trim(),
-            customerPhone: formData.phone?.trim() || '9999999999',
-          },
+            customerDetails: customerDetailsPayload,
           orderNote: 'Beauty Store Purchase',
           orderData: {
             userId: user.id,
@@ -1804,15 +1819,11 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           totalAmount: total,
           redeemAmount: redeemAmount,
           affiliateWalletAmount: affiliateWalletAmount
-        }));      return new Promise((resolve) => {
-        const existingScript = document.querySelector('script[src="https://sdk.cashfree.com/js/v3/cashfree.js"]');
-        if (existingScript) {
-          existingScript.remove();
-        }
+        }));
 
-        const script = document.createElement('script');
-        script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
-        script.onload = () => {
+      return new Promise((resolve) => {
+        // Check if Cashfree SDK is already loaded
+        if ((window as any).Cashfree) {
           try {
             const cashfree = (window as any).Cashfree({
               mode: orderData.environment || 'sandbox'
@@ -1836,7 +1847,49 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
             });
             resolve(false);
           }
+          return;
+        }
+
+        // Remove existing script if present
+        const existingScript = document.querySelector('script[src="https://sdk.cashfree.com/js/v3/cashfree.js"]');
+        if (existingScript) {
+          existingScript.remove();
+        }
+
+        // Load Cashfree SDK
+        const script = document.createElement('script');
+        script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+        script.async = true;
+        
+        script.onload = () => {
+          try {
+            // Wait a bit for SDK to be ready
+            setTimeout(() => {
+              const cashfree = (window as any).Cashfree({
+                mode: orderData.environment || 'sandbox'
+              });
+
+              console.log("Initiating Cashfree checkout with session ID:", orderData.paymentSessionId);
+              console.log("Using environment mode:", orderData.environment || 'sandbox');
+
+              cashfree.checkout({
+                paymentSessionId: orderData.paymentSessionId,
+                returnUrl: `${window.location.origin}/checkout?payment=processing&orderId=${orderData.orderId}`,
+              });
+
+              resolve(true);
+            }, 100);
+          } catch (checkoutError) {
+            console.error("Cashfree checkout error:", checkoutError);
+            toast({
+              title: "Payment Error",
+              description: "Failed to initialize payment. Please try again.",
+              variant: "destructive",
+            });
+            resolve(false);
+          }
         };
+        
         script.onerror = () => {
           console.error("Failed to load Cashfree SDK");
           toast({
@@ -1846,6 +1899,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           });
           resolve(false);
         };
+        
         document.head.appendChild(script);
       });
     } catch (error) {
@@ -2427,23 +2481,6 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                               <DialogTitle>Enter a new delivery address</DialogTitle>
                             </DialogHeader>
                             <div className="space-y-4">
-                              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-start gap-2">
-                                <MapPin className="h-4 w-4 text-blue-600 mt-0.5" />
-                                <div>
-                                  <p className="text-sm font-medium text-blue-900">Save time. Autofill your current location.</p>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-2"
-                                    type="button"
-                                    onClick={handleAutofillLocation}
-                                  >
-                                    <MapPin className="h-3 w-3 mr-1" />
-                                    Autofill
-                                  </Button>
-                                </div>
-                              </div>
-
                               <div>
                                 <Label htmlFor="newCountry">Country/Region *</Label>
                                 <select
@@ -2685,23 +2722,6 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                               <DialogTitle>Enter a new delivery address</DialogTitle>
                             </DialogHeader>
                             <div className="space-y-4">
-                              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-start gap-2">
-                                <MapPin className="h-4 w-4 text-blue-600 mt-0.5" />
-                                <div>
-                                  <p className="text-sm font-medium text-blue-900">Save time. Autofill your current location.</p>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-2"
-                                    type="button"
-                                    onClick={handleAutofillLocation}
-                                  >
-                                    <MapPin className="h-3 w-3 mr-1" />
-                                    Autofill
-                                  </Button>
-                                </div>
-                              </div>
-
                               <div>
                                 <Label htmlFor="newCountry">Country/Region *</Label>
                                 <select
@@ -3272,6 +3292,16 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                       </div>
                     )}
 
+                    {totalCashbackEarned > 0 && (
+                      <div className="flex justify-between text-sm bg-orange-50 p-2 rounded">
+                        <span className="text-orange-700 font-medium">Cashback Earned</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-orange-600">+₹{totalCashbackEarned.toFixed(2)}</span>
+                          <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">{((totalCashbackEarned / cartSubtotal) * 100).toFixed(2)}%</span>
+                        </div>
+                      </div>
+                    )}
+
                     {safeWalletAmount > 0 && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Cashback Wallet</span>
@@ -3313,7 +3343,6 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                           </div>
                           <span className="text-lg font-bold text-purple-600">₹{affiliateCommission.toLocaleString()}</span>
                         </div>
-                        <p className="text-xs text-purple-700">Commission will be credited to your wallet after delivery</p>
                       </div>
                     )}
                   </div>

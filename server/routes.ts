@@ -162,6 +162,31 @@ const CASHFREE_BASE_URL = isProduction
 
 const CASHFREE_MODE = isProduction ? 'production' : 'sandbox';
 
+// Helper function to safely get error message
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'An unexpected error occurred';
+};
+
+// Helper function to safely get error properties
+const getErrorProperties = (error: unknown) => {
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      code: (error as any).code,
+      constraint: (error as any).constraint,
+      detail: (error as any).detail,
+      stack: (error as any).stack
+    };
+  }
+  return { message: getErrorMessage(error) };
+};
+
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -220,7 +245,7 @@ const transporter = nodemailer.createTransport({
   },
   // Force IPv4
   family: 4
-});
+} as any);
 
 // Function to send order notification email
 async function sendOrderNotificationEmail(orderData: any) {
@@ -229,7 +254,7 @@ async function sendOrderNotificationEmail(orderData: any) {
   const emailSubject = `Poppik Lifestyle Order Confirmation - ${orderId}`;
 
   let itemHtml = '';
-  items.forEach(item => {
+  items.forEach((item: any) => {
     itemHtml += `
       <tr style="border-bottom: 1px solid #ddd;">
         <td style="padding: 10px 0; text-align: left;">
@@ -380,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client.release();
       }
     } catch (error) {
-      console.error('Database connection test failed:', error.message);
+      console.error('Database connection test failed:', getErrorMessage(error));
     }
     next();
   });
@@ -429,8 +454,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       dbStatus = "disconnected";
-      dbError = error.message;
-      console.error('Database health check failed:', error.message);
+      dbError = getErrorMessage(error);
+      console.error('Database health check failed:', getErrorMessage(error));
     }
 
     res.json({
@@ -660,7 +685,7 @@ app.get("/api/admin/stores", async (req, res) => {
       res.json({ videoUrl });
     } catch (err) {
       console.error('Error in /api/upload/video:', err);
-      res.status(500).json({ error: 'Upload failed', details: err?.message });
+      res.status(500).json({ error: 'Upload failed', details: getErrorMessage(err) });
     }
   });
 
@@ -750,34 +775,39 @@ app.get("/api/admin/stores", async (req, res) => {
         token
       });
     } catch (error) {
+      const errorProps = getErrorProperties(error);
       console.error("Signup error details:", {
-        message: error.message,
-        code: error.code,
-        constraint: error.constraint,
-        detail: error.detail,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        message: errorProps.message,
+        code: errorProps.code,
+        constraint: errorProps.constraint,
+        detail: errorProps.detail,
+        stack: process.env.NODE_ENV === 'development' ? errorProps.stack : undefined
       });
 
       // Handle specific database errors
-      if (error.code === '23505') { // Unique constraint violation
-        if (error.constraint && error.constraint.includes('email')) {
+      const errorCode = (error as any).code;
+      const errorConstraint = (error as any).constraint;
+      const errorMessage = getErrorMessage(error);
+      
+      if (errorCode === '23505') { // Unique constraint violation
+        if (errorConstraint && errorConstraint.includes('email')) {
           return res.status(400).json({ error: "A user with this email already exists" });
         }
         return res.status(400).json({ error: "A user with this information already exists" });
       }
 
-      if (error.code === 'ECONNREFUSED') {
+      if (errorCode === 'ECONNREFUSED') {
         return res.status(500).json({ error: "Database connection error. Please try again." });
       }
 
-      if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
+      if (errorMessage && errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
         return res.status(500).json({ error: "Database table not found. Please contact support." });
       }
 
       // Generic error response
       res.status(500).json({
         error: "Failed to create user",
-        details: process.env.NODE_ENV === 'development' ? error.message : "Please try again or contact support if the problem persists."
+        details: process.env.NODE_ENV === 'development' ? errorMessage : "Please try again or contact support if the problem persists."
       });
     }
   });
@@ -881,7 +911,7 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
-  app.post("/api/auth/logout", (res) => {
+  app.post("/api/auth/logout", (req, res) => {
     res.json({ message: "Logged out successfully" });
   });
 
@@ -924,14 +954,25 @@ app.get("/api/admin/stores", async (req, res) => {
       // Create Cashfree order payload with proper HTTPS URLs
       const host = req.get('host');
 
-      // Always use HTTPS for Cashfree as it requires secure URLs
+      // Determine a secure public host to use for Cashfree return/notify URLs.
+      // Priority:
+      // 1) NGROK_URL env (recommended for local dev)
+      // 2) REPL_SLUG/REPL_OWNER (existing logic)
+      // 3) request host (may be localhost - Cashfree requires HTTPS/public URL)
       let protocol = 'https';
-
-      // For Replit development, use the replit.dev domain with HTTPS
       let returnHost = host;
-      if (host && (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0'))) {
-        // For local development, we need to use a publicly accessible HTTPS URL
-        // Since Cashfree requires HTTPS, we'll use the Replit preview URL
+
+      const ngrokUrl = process.env.NGROK_URL;
+      if (ngrokUrl) {
+        try {
+          const parsed = new URL(ngrokUrl);
+          protocol = parsed.protocol.replace(':', '') || 'https';
+          returnHost = parsed.host;
+        } catch (e) {
+          console.warn('Invalid NGROK_URL, falling back to host:', ngrokUrl);
+        }
+      } else if (host && (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0'))) {
+        // For local development without NGROK, try replit preview domain if available
         const replitHost = process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : host;
         returnHost = replitHost;
         protocol = 'https';
@@ -1010,7 +1051,7 @@ app.get("/api/admin/stores", async (req, res) => {
       console.error("Cashfree create order error:", error);
       res.status(500).json({
         error: "Failed to create payment order",
-        details: error.message
+        details: getErrorMessage(error)
       });
     }
   });
@@ -1045,7 +1086,7 @@ app.get("/api/admin/stores", async (req, res) => {
         }
       });
 
-      const statusResult = await statusResponse.json();
+      const statusResult: any = await statusResponse.json();
 
       console.log("Payment verification response:", JSON.stringify(statusResult, null, 2));
 
@@ -1080,7 +1121,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
           if (cashfreePayment.length > 0) {
             const payment = cashfreePayment[0];
-            const orderData = payment.orderData;
+            const orderData: any = payment.orderData;
 
             // Check if order already exists in ordersTable
             const existingOrder = await db
@@ -1089,7 +1130,7 @@ app.get("/api/admin/stores", async (req, res) => {
               .where(eq(schema.ordersTable.cashfreeOrderId, orderId))
               .limit(1);
 
-            if (existingOrder.length === 0) {
+            if (existingOrder.length === 0 && payment.userId) {
               // Create order in ordersTable
               const [newOrder] = await db.insert(schema.ordersTable).values({
                 userId: payment.userId,
@@ -2048,7 +2089,7 @@ app.get("/api/admin/stores", async (req, res) => {
               imageUrls
             };
           } catch (imgError) {
-            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
+            console.warn(`Failed to get images for combo ${combo.id}:`, getErrorMessage(imgError));
             // Fallback: use imageUrl from combo if available
             const imageUrls = combo.imageUrl 
               ? (Array.isArray(combo.imageUrl) ? combo.imageUrl : [combo.imageUrl])
@@ -2075,7 +2116,7 @@ app.get("/api/admin/stores", async (req, res) => {
       const token = req.headers.authorization?.substring(7);
   
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as any;
+      const decoded = jwt.verify(token || "", process.env.JWT_SECRET || "your-secret-key") as any;
       if (decoded.role !== 'admin' && decoded.role !== 'master_admin') {
         return res.status(403).json({ error: "Access denied. Admin privileges required." });
       }
@@ -2251,7 +2292,7 @@ app.get("/api/admin/stores", async (req, res) => {
       res.status(201).json(newOffer);
     } catch (error) {
       console.error("Error creating offer:", error);
-      res.status(500).json({ error: "Failed to create offer", details: error.message });
+      res.status(500).json({ error: "Failed to create offer", details: getErrorMessage(error) });
     }
   });
 
@@ -2319,7 +2360,7 @@ app.get("/api/admin/stores", async (req, res) => {
       res.json({ sent: sentCount, total: subscriptions.length });
     } catch (error) {
       console.error('Error sending admin notifications:', error);
-      res.status(500).json({ error: 'Failed to send notifications', details: error.message });
+      res.status(500).json({ error: 'Failed to send notifications', details: getErrorMessage(error) });
     }
   });
 
@@ -2571,7 +2612,7 @@ app.get("/api/admin/stores", async (req, res) => {
       res.json(updatedOffer);
     } catch (error) {
       console.error("Error updating offer:", error);
-      res.status(500).json({ error: "Failed to update offer", details: error.message });
+      res.status(500).json({ error: "Failed to update offer", details: getErrorMessage(error) });
     }
   });
 
@@ -2877,7 +2918,7 @@ app.get("/api/admin/stores", async (req, res) => {
       res.status(500).json({
         success: false,
         message: "SMS service test failed",
-        error: error.message,
+        error: getErrorMessage(error),
         details: {
           configured: !!process.env.MDSSEND_API_KEY && !!process.env.MDSSEND_SENDER_ID,
           possibleIssues: [
@@ -2928,7 +2969,7 @@ app.get("/api/admin/stores", async (req, res) => {
           results.push({
             url,
             success: false,
-            error: error.message
+            error: getErrorMessage(error)
           });
         }
       }
@@ -2943,7 +2984,7 @@ app.get("/api/admin/stores", async (req, res) => {
     } catch (error) {
       res.status(500).json({
         error: "Network test failed",
-        details: error.message
+        details: getErrorMessage(error)
       });
     }
   });
@@ -3008,7 +3049,7 @@ app.get("/api/admin/stores", async (req, res) => {
       res.json({
         success: false,
         error: "Failed to get OTP",
-        details: error.message
+        details: getErrorMessage(error)
       });
     }
   });
@@ -3087,7 +3128,7 @@ app.get("/api/admin/stores", async (req, res) => {
     } catch (error) {
       console.error('Direct SMS test error:', error);
       res.status(500).json({
-        error: error.message,
+        error: getErrorMessage(error),
         details: 'Failed to send direct SMS test'
       });
     }
@@ -3145,7 +3186,7 @@ app.get("/api/admin/stores", async (req, res) => {
       });
     } catch (error) {
       console.error("Profile update error:", error);
-      res.status(500).json({ error: "Failed to update profile", details: error.message });
+      res.status(500).json({ error: "Failed to update profile", details: getErrorMessage(error) });
     }
   });
 
@@ -3312,7 +3353,7 @@ app.get("/api/admin/stores", async (req, res) => {
       console.error("Video upload error:", error);
       res.status(500).json({
         error: "Failed to upload video",
-        details: error.message
+        details: getErrorMessage(error)
       });
     }
   });
@@ -4757,7 +4798,7 @@ app.get("/api/admin/stores", async (req, res) => {
       res.status(201).json(promoCode);
     } catch (error) {
       console.error("Error creating promo code:", error);
-      if (error.code === '23505') {
+      if ((error as any).code === '23505') {
         return res.status(400).json({ error: "Promo code already exists" });
       }
       res.status(500).json({ error: "Failed to create promo code" });
@@ -5878,14 +5919,15 @@ app.get("/api/admin/stores", async (req, res) => {
 
     } catch (error) {
       console.error("Order creation error:", error);
+      const errorProps = getErrorProperties(error);
       console.error("Error details:", {
-        message: error.message,
-        stack: error.stack,
-        code: error.code
+        message: errorProps.message,
+        stack: errorProps.stack,
+        code: errorProps.code
       });
       res.status(500).json({
         error: "Failed to create order",
-        details: error.message || "Unknown error occurred"
+        details: errorProps.message || "Unknown error occurred"
       });
     }
   });
@@ -8384,24 +8426,25 @@ app.get("/api/admin/stores", async (req, res) => {
       res.json(newSlider);
     } catch (error) {
       console.error('Error creating category slider:', error);
+      const errorProps = getErrorProperties(error);
       console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        constraint: error.constraint,
-        detail: error.detail
+        message: errorProps.message,
+        code: errorProps.code,
+        constraint: errorProps.constraint,
+        detail: errorProps.detail
       });
 
-      if (error.code === '23505') { // Unique constraint violation
+      if (errorProps.code === '23505') { // Unique constraint violation
         return res.status(400).json({ error: 'A slider with similar data already exists' });
       }
 
-      if (error.code === '23503') { // Foreign key constraint violation
+      if (errorProps.code === '23503') { // Foreign key constraint violation
         return res.status(400).json({ error: 'Invalid category reference' });
       }
 
       res.status(500).json({
         error: 'Failed to create category slider',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        details: process.env.NODE_ENV === 'development' ? errorProps.message : undefined
       });
     }
   });
@@ -9331,7 +9374,7 @@ app.get("/api/admin/stores", async (req, res) => {
       });
     } catch (error) {
       console.error('Debug combos error:', error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: getErrorMessage(error) });
     }
   });
 
