@@ -1027,26 +1027,18 @@ export default function Cart() {
 
                         {/* Cashback Badge for Cart Item - Enhanced Display */}
                         {item.cashbackPercentage !== undefined && item.cashbackPercentage !== null && item.cashbackPrice !== undefined && item.cashbackPrice !== null && (
-                          <div className="mt-2 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 rounded-lg p-3 shadow-sm">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-                                  <span className="text-white text-xs font-bold">₹</span>
-                                </div>
-                                <span className="text-sm font-bold text-orange-700">Cashback Earned</span>
+                          <div className="mt-2 inline-flex items-center bg-orange-500 text-white rounded-full px-3 py-1 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 bg-white/20 rounded-full flex items-center justify-center">
+                                <span className="text-white text-[10px] font-bold">₹</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-lg font-bold text-orange-600">
-                                  ₹{(Number(item.cashbackPrice) * item.quantity).toFixed(2)}
-                                </span>
-                                <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full font-semibold">
-                                  {Number(item.cashbackPercentage).toFixed(2)}%
-                                </span>
-                              </div>
+                              <span className="text-sm font-semibold">Cashback</span>
                             </div>
-                            <p className="text-xs text-orange-600 mt-1.5 text-center sm:text-left">
-                              Will be credited after delivery
-                            </p>
+                            <div className="h-4 w-px bg-white/30 mx-3" />
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold">₹{(Number(item.cashbackPrice) * item.quantity).toFixed(2)}</span>
+                              <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full font-semibold">{Number(item.cashbackPercentage).toFixed(2)}%</span>
+                            </div>
                           </div>
                         )}
 

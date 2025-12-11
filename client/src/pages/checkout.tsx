@@ -14,6 +14,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 // City to State and Pincode mapping - now supports multiple pincodes per city
 const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
@@ -3001,32 +3007,45 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                 </div>
                               </div>
 
-                              {/* Compact Multiple Addresses */}
-                              {addressesByIndex.filter(a => a.address).map(({ instanceNum, address }: any) => (
-                                <div key={instanceNum} className="p-3 border-t border-gray-100">
-                                  <div className="flex gap-2">
-                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
-                                      {instanceNum}
-                                    </div>
-                                    <div className="flex-1 text-xs">
-                                      <p className="font-semibold text-gray-900">{address?.recipientName}</p>
-                                      <p className="text-gray-600 mt-0.5 leading-relaxed">
-                                        {address?.addressLine1}, {address?.city}, {address?.state.replace(/_/g, ' ').toUpperCase()} - {address?.pincode}
-                                      </p>
-                                      {address?.phoneNumber && <p className="text-gray-500 mt-0.5">📱 {address.phoneNumber}</p>}
-                                      {address?.deliveryInstructions && (
-                                        <p className="text-gray-600 mt-1 italic">✎ {address.deliveryInstructions}</p>
-                                      )}
-                                      {(address?.saturdayDelivery || address?.sundayDelivery) && (
-                                        <div className="mt-1 flex gap-1">
-                                          {address.saturdayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sat</span>}
-                                          {address.sundayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sun</span>}
+                              {/* Compact Multiple Addresses with Accordion */}
+                              {addressesByIndex.filter(a => a.address).length > 0 && (
+                                <Accordion type="single" collapsible className="border-t border-gray-100">
+                                  {addressesByIndex.filter(a => a.address).map(({ instanceNum, address }: any) => (
+                                    <AccordionItem key={instanceNum} value={`addr-${instanceNum}`} className="border-0 border-b border-gray-100 last:border-b-0">
+                                      <AccordionTrigger className="py-2 px-3 hover:bg-gray-50 text-left text-xs">
+                                        <div className="flex gap-2 flex-1 items-start">
+                                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold mt-0.5">
+                                            {instanceNum}
+                                          </div>
+                                          <div className="flex-1 text-left min-w-0">
+                                            <p className="font-semibold text-gray-900 text-xs">{address?.recipientName}</p>
+                                            <p className="text-gray-500 text-xs truncate">{address?.city}, {address?.state.replace(/_/g, ' ').toUpperCase()} - {address?.pincode}</p>
+                                          </div>
                                         </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
+                                      </AccordionTrigger>
+                                      <AccordionContent className="py-2 px-3 bg-gray-50 text-xs">
+                                        <div className="space-y-1.5">
+                                          <div>
+                                            <p className="font-semibold text-gray-900">{address?.recipientName}</p>
+                                            <p className="text-gray-600 leading-relaxed">{address?.addressLine1}</p>
+                                            <p className="text-gray-600">{address?.city}, {address?.state.replace(/_/g, ' ').toUpperCase()} - {address?.pincode}</p>
+                                          </div>
+                                          {address?.phoneNumber && <p className="text-gray-500">📱 {address.phoneNumber}</p>}
+                                          {address?.deliveryInstructions && (
+                                            <p className="text-gray-600 italic">✎ {address.deliveryInstructions}</p>
+                                          )}
+                                          {(address?.saturdayDelivery || address?.sundayDelivery) && (
+                                            <div className="flex gap-1 pt-1">
+                                              {address.saturdayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sat</span>}
+                                              {address.sundayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sun</span>}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </AccordionContent>
+                                    </AccordionItem>
+                                  ))}
+                                </Accordion>
+                              )}
                             </div>
                           );
                           } else {
@@ -3060,29 +3079,40 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                 </div>
                               </div>
                               
-                              {/* Compact Address */}
+                              {/* Compact Address with Accordion */}
                               {itemAddress && (
-                                <div className="mt-3 pt-3 border-t text-xs">
-                                  <div className="flex gap-2">
-                                    <MapPin className="h-3.5 w-3.5 text-gray-500 flex-shrink-0 mt-0.5" />
-                                    <div className="flex-1">
-                                      <p className="font-semibold text-gray-900">{itemAddress.recipientName}</p>
-                                      <p className="text-gray-600 mt-0.5 leading-relaxed">
-                                        {itemAddress.addressLine1}, {itemAddress.city}, {itemAddress.state.replace(/_/g, ' ').toUpperCase()} - {itemAddress.pincode}
-                                      </p>
-                                      {itemAddress.phoneNumber && <p className="text-gray-500 mt-0.5">📱 {itemAddress.phoneNumber}</p>}
-                                      {itemAddress.deliveryInstructions && (
-                                        <p className="text-gray-600 mt-1 italic">✎ {itemAddress.deliveryInstructions}</p>
-                                      )}
-                                      {(itemAddress.saturdayDelivery || itemAddress.sundayDelivery) && (
-                                        <div className="mt-1 flex gap-1">
-                                          {itemAddress.saturdayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sat</span>}
-                                          {itemAddress.sundayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sun</span>}
+                                <Accordion type="single" collapsible className="mt-3">
+                                  <AccordionItem value="address" className="border">
+                                    <AccordionTrigger className="py-2 px-3 hover:bg-gray-50 text-xs">
+                                      <div className="flex gap-2 items-center text-left flex-1">
+                                        <MapPin className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-semibold text-gray-900 text-xs">{itemAddress.recipientName}</p>
+                                          <p className="text-gray-500 text-xs truncate">{itemAddress.city}, {itemAddress.state.replace(/_/g, ' ').toUpperCase()} - {itemAddress.pincode}</p>
                                         </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
+                                      </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="py-2 px-3 bg-gray-50 text-xs">
+                                      <div className="space-y-1.5">
+                                        <div>
+                                          <p className="font-semibold text-gray-900">{itemAddress.recipientName}</p>
+                                          <p className="text-gray-600 leading-relaxed">{itemAddress.addressLine1}</p>
+                                          <p className="text-gray-600">{itemAddress.city}, {itemAddress.state.replace(/_/g, ' ').toUpperCase()} - {itemAddress.pincode}</p>
+                                        </div>
+                                        {itemAddress.phoneNumber && <p className="text-gray-500">📱 {itemAddress.phoneNumber}</p>}
+                                        {itemAddress.deliveryInstructions && (
+                                          <p className="text-gray-600 italic">✎ {itemAddress.deliveryInstructions}</p>
+                                        )}
+                                        {(itemAddress.saturdayDelivery || itemAddress.sundayDelivery) && (
+                                          <div className="flex gap-1 pt-1">
+                                            {itemAddress.saturdayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sat</span>}
+                                            {itemAddress.sundayDelivery && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded">Sun</span>}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </AccordionContent>
+                                  </AccordionItem>
+                                </Accordion>
                               )}
                             </div>
                           </div>
