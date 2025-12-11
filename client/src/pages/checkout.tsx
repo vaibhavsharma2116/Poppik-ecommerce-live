@@ -1735,11 +1735,33 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
         // Build customer details dynamically: prefer selected address recipient if available
         const selectedAddr = selectedAddressId ? savedAddresses.find(addr => Number(addr.id) === Number(selectedAddressId)) : null;
+        
+        // Build customer name with fallback to user data
+        let customerName = `${(formData.firstName || '').trim()} ${(formData.lastName || '').trim()}`.trim();
+        if (!customerName && user.name) {
+          customerName = user.name;
+        }
+        if (!customerName) {
+          customerName = 'Customer';
+        }
+
+        // Build customer email with fallback to user email
+        let customerEmail = (formData.email || user.email || '').trim();
+        if (!customerEmail) {
+          customerEmail = 'noemail@example.com'; // Fallback email for Cashfree
+        }
+
+        // Build customer phone with validation
+        let customerPhone = (formData.phone || '').trim();
+        if (!customerPhone || customerPhone.length < 10) {
+          customerPhone = '9999999999'; // Fallback phone for Cashfree
+        }
+
         const customerDetailsPayload: any = {
           customerId: String(user.id),
-          customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
-          customerEmail: (formData.email || user.email || '').trim(),
-          customerPhone: formData.phone?.trim() || '9999999999',
+          customerName: customerName,
+          customerEmail: customerEmail,
+          customerPhone: customerPhone,
         };
 
         if (selectedAddr) {
@@ -1748,6 +1770,13 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           // If the saved address contains an email field, prefer it; otherwise keep form/user email
           if ((selectedAddr as any).email) customerDetailsPayload.customerEmail = (selectedAddr as any).email;
         }
+
+        console.log('📱 Cashfree Payment - Customer Details:', {
+          customerId: customerDetailsPayload.customerId,
+          customerName: customerDetailsPayload.customerName,
+          customerEmail: customerDetailsPayload.customerEmail,
+          customerPhone: customerDetailsPayload.customerPhone
+        });
 
         const response = await fetch(apiUrl('/api/payments/cashfree/create-order'), {
         method: 'POST',
@@ -1965,12 +1994,12 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
     }
 
     // Relaxed validations: show warnings but do not block order placement
-    if (!formData.email?.trim() || !formData.firstName?.trim() || !formData.lastName?.trim() || !formData.address?.trim()) {
-      toast({
-        title: "Missing Information",
-        description: "Some required fields are empty. Proceeding anyway — please review before placing the order.",
-      });
-    }
+    // if (!formData.email?.trim() || !formData.firstName?.trim() || !formData.lastName?.trim() || !formData.address?.trim()) {
+    //   toast({
+    //     title: "Missing Information",
+    //     description: "Some required fields are empty. Proceeding anyway — please review before placing the order.",
+    //   });
+    // }
 
     if (formData.phone && formData.phone.trim()) {
       const phoneRegex = /^(\+91|91)?[6-9]\d{9}$/;

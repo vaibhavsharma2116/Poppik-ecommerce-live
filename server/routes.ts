@@ -978,23 +978,35 @@ app.get("/api/admin/stores", async (req, res) => {
         protocol = 'https';
       }
 
+      // Ensure customer phone is valid (Cashfree requires phone to be 10+ digits)
+      let sanitizedPhone = (customerDetails.customerPhone || '9999999999').toString();
+      if (sanitizedPhone.length < 10) {
+        sanitizedPhone = '9999999999';
+      }
+
       const cashfreePayload = {
         order_id: orderId,
         order_amount: amount,
         order_currency: currency,
         customer_details: {
-          customer_id: customerDetails.customerId,
-          customer_name: customerDetails.customerName,
-          customer_email: customerDetails.customerEmail,
-          customer_phone: customerDetails.customerPhone || '9999999999'
+          customer_id: customerDetails.customerId.toString(),
+          customer_name: customerDetails.customerName.trim(),
+          customer_email: customerDetails.customerEmail.trim(),
+          customer_phone: sanitizedPhone
         },
         order_meta: {
           return_url: `${protocol}://${returnHost}/checkout?payment=processing&orderId=${orderId}`,
           notify_url: `${protocol}://${returnHost}/api/payments/cashfree/webhook`
         },
-        order_note: orderNote || 'Beauty Store Purchase'
+        order_note: (orderNote || 'Beauty Store Purchase').substring(0, 255)
       };
 
+      console.log("Creating Cashfree order with credentials:", {
+        appId: CASHFREE_APP_ID.substring(0, 8) + '...',
+        mode: CASHFREE_MODE,
+        baseUrl: CASHFREE_BASE_URL
+      });
+      
       console.log("Cashfree API URL:", `${CASHFREE_BASE_URL}/pg/orders`);
       console.log("Cashfree payload:", JSON.stringify(cashfreePayload, null, 2));
 
@@ -1017,10 +1029,20 @@ app.get("/api/admin/stores", async (req, res) => {
 
       if (!cashfreeResponse.ok) {
         console.error("Cashfree API error:", cashfreeResult);
+        // Parse error details
+        const errorMessage = cashfreeResult.message || cashfreeResult.error || "Failed to create Cashfree order";
+        const errorCode = cashfreeResult.code || cashfreeResult.type || "unknown";
+        
         return res.status(400).json({
-          error: cashfreeResult.message || "Failed to create Cashfree order",
+          error: errorMessage,
           cashfreeError: true,
-          details: cashfreeResult
+          errorCode: errorCode,
+          details: {
+            message: cashfreeResult.message,
+            code: cashfreeResult.code,
+            type: cashfreeResult.type,
+            timestamp: new Date().toISOString()
+          }
         });
       }
 
@@ -5148,11 +5170,12 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(400).json({ error: "Cannot use a promo code together with an affiliate code/link or affiliate wallet redemption. Remove one before placing the order." });
       }
 
-      // 🔒 CRITICAL VALIDATION: Affiliate commission must only be credited if affiliate code is present
+      // 🔒 CRITICAL VALIDATION: Affiliate commission fields should only affect processing when an affiliate code is present
+      // If affiliate commission values are present but no affiliate code was supplied, log a warning and ignore them
       if ((affiliateCommission && Number(affiliateCommission) > 0) || (affiliateCommissionEarned && Number(affiliateCommissionEarned) > 0)) {
         if (!effectiveAffiliateCode) {
-          console.error(`❌ FRAUD ATTEMPT: Affiliate commission (₹${affiliateCommission || affiliateCommissionEarned}) claimed WITHOUT affiliate code by user ${userId}`);
-          return res.status(400).json({ error: "Affiliate commission cannot be claimed without an affiliate code. Please apply a valid affiliate code first." });
+          console.warn(`⚠️ Suspicious affiliate commission fields present (affiliateCommission=${affiliateCommission}, affiliateCommissionEarned=${affiliateCommissionEarned}) without an affiliate code for user ${userId}. Ignoring these fields.`);
+          // Do not reject the order; the commission will not be processed without a valid affiliate code.
         }
       }
 
