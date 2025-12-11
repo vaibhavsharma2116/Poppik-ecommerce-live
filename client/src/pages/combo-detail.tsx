@@ -204,6 +204,7 @@ export default function ComboDetail() {
   const [productShadesData, setProductShadesData] = useState<Record<number, any[]>>({});
   const [selectedShades, setSelectedShades] = useState<Record<number, any | null>>({});
   const [shadeSelectorOpen, setShadeSelectorOpen] = useState<number | null>(null);
+  const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
 
   // Check if user can review this combo
   const { data: reviewEligibility } = useQuery({
@@ -511,8 +512,11 @@ export default function ComboDetail() {
     window.dispatchEvent(new Event("wishlistUpdated"));
   };
 
-  const addToCart = () => {
+  // Add to cart, optionally using an override for selected shades to avoid race conditions
+  const addToCart = (overrideSelectedShades?: Record<number, any | null>) => {
     if (!combo) return;
+
+    const effectiveSelectedShades = overrideSelectedShades ?? selectedShades;
 
     // Check if all products with shades have at least one shade selected
     const productsWithShades = products.filter((product: any) => {
@@ -521,7 +525,7 @@ export default function ComboDetail() {
     });
 
     const unselectedProducts = productsWithShades.filter((product: any) => {
-      return !selectedShades[product.id] || !selectedShades[product.id]?.name;
+      return !effectiveSelectedShades[product.id] || !effectiveSelectedShades[product.id]?.name;
     });
 
     if (unselectedProducts.length > 0) {
@@ -539,16 +543,16 @@ export default function ComboDetail() {
     if (existingItem) {
       existingItem.quantity += 1;
       // Update selected shades if any
-      if (Object.keys(selectedShades).length > 0) {
+      if (Object.keys(effectiveSelectedShades).length > 0) {
         existingItem.selectedShades = Object.fromEntries(
-          Object.entries(selectedShades).map(([k, v]) => [k, v ? { id: v.id, name: v.name, imageUrl: v.imageUrl } : null])
+          Object.entries(effectiveSelectedShades).map(([k, v]) => [k, v ? { id: v.id, name: v.name, imageUrl: v.imageUrl } : null])
         );
       }
     } else {
       // Normalize selected shades for storage: keep id, name, imageUrl only
-      const selectedShadesForCart = Object.keys(selectedShades).length > 0
+      const selectedShadesForCart = Object.keys(effectiveSelectedShades).length > 0
         ? Object.fromEntries(
-            Object.entries(selectedShades).map(([k, v]) => [k, v ? { id: v.id, name: v.name, imageUrl: v.imageUrl } : null])
+            Object.entries(effectiveSelectedShades).map(([k, v]) => [k, v ? { id: v.id, name: v.name, imageUrl: v.imageUrl } : null])
           )
         : undefined;
       const cartItem = {
@@ -1210,6 +1214,11 @@ export default function ComboDetail() {
                         return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
                       })();
 
+                      const PLACEHOLDER = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
+
+                      // Use placeholder if image is broken
+                      const displayImage = brokenImages.has(productImage) ? PLACEHOLDER : productImage;
+
                       const productShades = productShadesData[product.id] || [];
                       const hasShades = productShades.length > 0;
 
@@ -1217,7 +1226,17 @@ export default function ComboDetail() {
                         <div key={index} className="flex items-center gap-2 bg-white rounded-lg border border-purple-100 hover:border-purple-300 p-2 transition-all group">
                           {/* Product Image */}
                           <div className="w-16 h-16 flex-shrink-0 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden">
-                            <img src={normalizeImageUrl(productImage)} alt={product.name} className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform" />
+                            <img 
+                              src={normalizeImageUrl(displayImage)} 
+                              alt={product.name} 
+                              className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
+                              onError={(e) => {
+                                // Only add to broken if it's not already the placeholder
+                                if (displayImage !== PLACEHOLDER && productImage !== PLACEHOLDER) {
+                                  setBrokenImages(prev => new Set([...prev, productImage]));
+                                }
+                              }}
+                            />
                           </div>
 
                           {/* Product Info and Shade Button in Same Row */}
@@ -1227,8 +1246,8 @@ export default function ComboDetail() {
                               
                             </div>
 
-                            {/* Shade Selection Button - Inline with Product Name */}
-                            {hasShades && (
+                            {/* Shade Selection Button - Inline with Product Name (only for multi-product combos) */}
+                            {hasShades && products.length > 1 && (
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -1322,7 +1341,9 @@ export default function ComboDetail() {
                   return !selectedShades[product.id] || !selectedShades[product.id]?.name;
                 });
 
-                return unselectedProducts.length > 0 ? (
+                // Hide warning for single product combos (auto-select will happen on click)
+                const isSingleProductCombo = products.length === 1 && productsWithShades.length === 1;
+                return !isSingleProductCombo && unselectedProducts.length > 0 ? (
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
                     <p className="text-sm text-orange-700 font-medium">
                       ⚠️ Please select shade(s) for: {unselectedProducts.map((p: any) => p.name).join(', ')}
@@ -1336,7 +1357,27 @@ export default function ComboDetail() {
                 <Button 
                   size="lg" 
                   className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" 
-                  onClick={addToCart}
+                  onClick={() => {
+                    // If combo has a single product with shades and it's unselected, auto-select first shade and add
+                    const productsWithShades = products.filter((product: any) => {
+                      const productShades = productShadesData[product.id] || [];
+                      return productShades.length > 0;
+                    });
+                    const unselectedProducts = productsWithShades.filter((product: any) => {
+                      return !selectedShades[product.id] || !selectedShades[product.id]?.name;
+                    });
+
+                    const canAutoAddSingle = unselectedProducts.length === 1 && products.length === 1 && (productShadesData[products[0].id] || []).length > 0;
+                    if (canAutoAddSingle) {
+                      const prod = products[0];
+                      const firstShade = (productShadesData[prod.id] || [])[0] || null;
+                      const override = { ...selectedShades, [prod.id]: firstShade };
+                      addToCart(override);
+                      return;
+                    }
+
+                    addToCart();
+                  }}
                   disabled={(() => {
                     const productsWithShades = products.filter((product: any) => {
                       const productShades = productShadesData[product.id] || [];
@@ -1345,7 +1386,9 @@ export default function ComboDetail() {
                     const unselectedProducts = productsWithShades.filter((product: any) => {
                       return !selectedShades[product.id] || !selectedShades[product.id]?.name;
                     });
-                    return unselectedProducts.length > 0;
+
+                    const canAutoAddSingle = unselectedProducts.length === 1 && products.length === 1 && (productShadesData[products[0].id] || []).length > 0;
+                    return unselectedProducts.length > 0 && !canAutoAddSingle;
                   })()}
                 >
                   <ShoppingCart className="w-5 h-5 mr-2" />
@@ -1357,8 +1400,9 @@ export default function ComboDetail() {
                     const unselectedProducts = productsWithShades.filter((product: any) => {
                       return !selectedShades[product.id] || !selectedShades[product.id]?.name;
                     });
+                    const isSingleProductCombo = products.length === 1 && productsWithShades.length === 1;
                     return unselectedProducts.length > 0
-                      ? 'Select All Shades First'
+                      ? (isSingleProductCombo ? 'Add to Cart' : 'Select All Shades First')
                       : 'Add to Cart';
                   })()}
                 </Button>
@@ -1490,13 +1534,28 @@ export default function ComboDetail() {
                             return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
                           })();
 
+                          const PLACEHOLDER = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
+
+                          // Use placeholder if image is broken
+                          const displayImage = brokenImages.has(productImage) ? PLACEHOLDER : productImage;
+
                           const productShades = productShadesData[product.id] || [];
                           const hasShades = productShades.length > 0;
 
                           return (
                             <div key={index} className="flex items-center gap-2 bg-white rounded-lg border border-purple-100 hover:border-purple-300 p-2 transition-all group">
                               <div className="w-16 h-16 flex-shrink-0 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden">
-                                <img src={normalizeImageUrl(productImage)} alt={product.name} className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform" />
+                                <img 
+                                  src={normalizeImageUrl(displayImage)} 
+                                  alt={product.name} 
+                                  className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
+                                  onError={(e) => {
+                                    // Only add to broken if it's not already the placeholder
+                                    if (displayImage !== PLACEHOLDER && productImage !== PLACEHOLDER) {
+                                      setBrokenImages(prev => new Set([...prev, productImage]));
+                                    }
+                                  }}
+                                />
                               </div>
 
                               <div className="flex-1 min-w-0 flex items-center gap-2">

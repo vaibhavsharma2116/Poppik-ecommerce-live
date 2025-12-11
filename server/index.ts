@@ -99,8 +99,12 @@ app.use('/uploads', express.static('uploads', {
 
 // Cache API responses
 app.use((req, res, next) => {
+  // IMPORTANT: /api/products should NOT be cached for real-time CRUD operations
   if (req.method === 'GET' && req.path.startsWith('/api/products')) {
-    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+    // No caching - always fetch fresh data
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
   }
   next();
 });
@@ -122,7 +126,7 @@ const CACHE_DURATION = 30000; // 30 seconds
 app.use((req, res, next) => {
   if (req.method === 'GET' && req.path.startsWith('/api/')) {
     // Don't cache endpoints that require instant real-time updates
-    if (req.path.startsWith('/api/announcements') || req.path.startsWith('/api/sliders') || req.path.startsWith('/api/admin/sliders') || req.path.startsWith('/api/media')) {
+    if (req.path.startsWith('/api/announcements') || req.path.startsWith('/api/sliders') || req.path.startsWith('/api/admin/sliders') || req.path.startsWith('/api/media') || req.path.startsWith('/api/products')) {
       return next();
     }
 

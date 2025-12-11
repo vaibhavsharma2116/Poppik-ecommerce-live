@@ -141,42 +141,42 @@ export function NotificationPopup({ onClose }: NotificationPopupProps) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Section */}
-        <div className="relative bg-white p-6 pb-4">
+        <div className="relative bg-white p-4 sm:p-6 pb-2 sm:pb-4">
           {/* Close Button */}
           <button
             onClick={handleDontAllow}
-            className="absolute top-4 right-4 text-gray-600 hover:text-gray-800 p-1 transition-all"
+            className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-600 hover:text-gray-800 p-1 transition-all flex-shrink-0"
             aria-label="Close"
           >
-            <X size={24} />
+            <X size={20} className="sm:w-6 sm:h-6" />
           </button>
 
           {/* Logo and Text Container */}
-          <div className="flex items-start gap-4">
+          <div className="flex items-start gap-2 sm:gap-4">
             {/* Logo */}
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 mt-1">
               <img 
                 src={logo} 
                 alt="Poppik" 
-                className="h-16 w-auto object-contain"
+                className="h-12 sm:h-16 w-auto object-contain"
               />
             </div>
 
             {/* Text Content */}
-            <div className="flex-1">
-                <h4 className="font-bold text-lg leading-snug mb-2" style={{maxHeight: '2.5em', overflow: 'hidden'}}>
+            <div className="flex-1 min-w-0 pr-10">
+                <h4 className="font-bold text-sm sm:text-base md:text-lg leading-snug mb-2 break-words">
                   THE WEBSITE WANTS TO SEND YOU AWESOME OFFERS!
                 </h4>
             </div>
           </div>
 
           {/* Description */}
-          <p className="text-gray-700 text-sm mt-4 leading-relaxed">
+          <p className="text-gray-700 text-xs sm:text-sm mt-3 sm:mt-4 leading-relaxed">
             Notifications can be turned off anytime from browser settings.
           </p>
 
           {/* Email Input Section */}
-          <div className="mt-4">
+          <div className="mt-3 sm:mt-4">
             <label className="block text-xs font-semibold text-gray-700 mb-2">
               Email Address (Optional)
             </label>
@@ -197,17 +197,17 @@ export function NotificationPopup({ onClose }: NotificationPopupProps) {
         </div>
 
         {/* Button Section */}
-        <div className="px-2 py-2 flex gap-3 bg-white border-t border-gray-200">
+        <div className="px-2 sm:px-4 py-2 flex gap-2 sm:gap-3 bg-white border-t border-gray-200">
             <button
-              className="flex-1 px-6 py-2 text-gray-700 font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-150"
-              style={{minWidth: '120px', height: '40px'}}
+              className="flex-1 px-3 sm:px-6 py-2 text-xs sm:text-sm text-gray-700 font-medium bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-150"
+              style={{minHeight: '40px'}}
               onClick={handleDontAllow}
             >
               Don't Allow
             </button>
             <button
-              className="flex-1 px-6 py-2 text-white font-medium bg-pink-500 hover:bg-pink-600 rounded-lg transition-all duration-150"
-              style={{minWidth: '120px', height: '40px'}}
+              className="flex-1 px-3 sm:px-6 py-2 text-xs sm:text-sm text-white font-medium bg-pink-500 hover:bg-pink-600 rounded-lg transition-all duration-150"
+              style={{minHeight: '40px'}}
               onClick={handleAllow}
             >
               Allow

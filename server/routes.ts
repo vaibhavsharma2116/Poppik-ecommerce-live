@@ -92,7 +92,7 @@ function rateLimit(req: any, res: any, next: any) {
   next();
 }
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, and, sql, or, like, isNull, asc } from "drizzle-orm";
+import { eq, and, sql, or, like, isNull, asc, inArray } from "drizzle-orm";
 import { desc } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
@@ -3625,6 +3625,9 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Set content type to ensure JSON response
       res.setHeader('Content-Type', 'application/json');
+      // Ensure no caching for CRUD operations
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
 
       // Validate required fields
       const { name, price, category, description } = req.body;
@@ -11815,6 +11818,10 @@ app.get('/api/influencer-videos', async (req, res) => {
       const { id } = req.params;
       const productId = parseInt(id);
 
+      // Ensure no caching for CRUD operations
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+
       console.log("Updating product:", productId, "with data:", req.body);
 
       // Process cashback fields
@@ -11864,6 +11871,10 @@ app.get('/api/influencer-videos', async (req, res) => {
     try {
       const { id } = req.params;
       const productId = parseInt(id);
+
+      // Ensure no caching for CRUD operations
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
 
       console.log(`DELETE /api/products/${id} - Request received`);
 
@@ -11981,6 +11992,38 @@ app.get('/api/influencer-videos', async (req, res) => {
         .orderBy(asc(schema.comboImages.sortOrder));
 
       // Parse products if it's a string
+      let productIds: any[] = [];
+      try {
+        productIds = typeof combo.products === 'string'
+          ? JSON.parse(combo.products)
+          : combo.products || [];
+      } catch (e) {
+        console.error("Error parsing combo products:", e);
+        productIds = [];
+      }
+
+      // Fetch full product details for each product ID
+      let fullProducts: any[] = [];
+      if (Array.isArray(productIds) && productIds.length > 0) {
+        try {
+          // Filter out null/invalid IDs and convert to numbers
+          const validProductIds = productIds
+            .filter(pid => pid !== null && pid !== undefined && pid !== '')
+            .map(pid => typeof pid === 'string' ? parseInt(pid) : pid)
+            .filter(pid => !isNaN(pid));
+
+          if (validProductIds.length > 0) {
+            fullProducts = await db
+              .select()
+              .from(schema.products)
+              .where(inArray(schema.products.id, validProductIds));
+          }
+        } catch (e) {
+          console.error("Error fetching product details:", e);
+          fullProducts = [];
+        }
+      }
+
       let fallbackImages: any[] = [];
       if (images.length === 0) {
         // Fallback: use imageUrl from combo
@@ -11993,9 +12036,7 @@ app.get('/api/influencer-videos', async (req, res) => {
 
       const comboData = {
         ...combo,
-        products: typeof combo.products === 'string'
-          ? JSON.parse(combo.products)
-          : combo.products,
+        products: fullProducts.length > 0 ? fullProducts : productIds,
         imageUrls: images.length > 0 
           ? images.map(img => img.imageUrl)
           : fallbackImages

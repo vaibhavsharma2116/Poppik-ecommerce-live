@@ -727,7 +727,7 @@ export default function AffiliateDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Modern Header - Fully Responsive */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-200  top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-18 md:h-20">
             <div className="flex items-center gap-2 sm:gap-3 md:gap-4">

@@ -218,6 +218,7 @@ export const orderItemsTable = pgTable("order_items", {
   id: serial("id").primaryKey(),
   orderId: integer("order_id").references(() => ordersTable.id).notNull(),
   productId: integer("product_id").references(() => products.id), // Nullable for combos
+  comboId: integer("combo_id").references(() => combos.id),
   productName: text("product_name").notNull(),
   productImage: text("product_image").notNull(),
   quantity: integer("quantity").notNull(),
