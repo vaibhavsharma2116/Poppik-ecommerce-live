@@ -1521,8 +1521,7 @@ export default function Layout({ children }: LayoutProps) {
               <ul className="space-y-2">
                 <li>
                   <a
-                    // href="/"
-                    onClick={(e) => e.preventDefault()}
+                    href="https://www.amazon.in/stores/page/59FA5054-B89F-4ECA-A0D2-1D19E71E7CF7"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-gray-400 hover:text-white transition-colors text-sm"

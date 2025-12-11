@@ -1,9 +1,16 @@
 import { useState, useEffect } from "react";
 import React from "react";
-import { ChevronLeft, ChevronRight, Play, X, ShoppingCart } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, X, ShoppingCart, Plus, Minus, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import type { Product } from "@/lib/types";
@@ -17,6 +24,14 @@ interface VideoTestimonial {
   productId: number;
   isActive: boolean;
   sortOrder: number;
+}
+
+interface Shade {
+  id: number;
+  name: string;
+  colorCode: string;
+  imageUrl?: string;
+  isActive: boolean;
 }
 
 export default function VideoTestimonials() {
@@ -62,6 +77,37 @@ export default function VideoTestimonials() {
   // If filtering is needed client-side, uncomment and adjust the line below
   // const activeTestimonials = Array.isArray(videoTestimonials) ? videoTestimonials.filter(t => t.isActive).sort((a, b) => a.sortOrder - b.sortOrder) : [];
   const activeTestimonials = Array.isArray(videoTestimonials) ? videoTestimonials : [];
+
+  // Shade drawer state for UGC videos (moved here so hooks run before any early returns)
+  const [isShadeDrawerOpen, setIsShadeDrawerOpen] = useState(false);
+  const [productShades, setProductShades] = useState<Shade[]>([]);
+  const [selectedShades, setSelectedShades] = useState<Shade[]>([]);
+  const [shadeQuantity, setShadeQuantity] = useState(1);
+  const [currentProductForShades, setCurrentProductForShades] = useState<Product | null>(null);
+  // Cache shades per product to avoid refetching and to show conditional buttons
+  const [shadesCache, setShadesCache] = useState<Record<number, Shade[]>>({});
+
+  // Prefetch shades for testimonial products so we can render correct button (Add vs Select Shades)
+  useEffect(() => {
+    const ids = Array.from(new Set(activeTestimonials.map(t => t.productId)));
+    ids.forEach(async (id) => {
+      if (shadesCache[id] !== undefined) return; // already fetched
+      try {
+        const res = await fetch(`/api/products/${id}/shades`);
+        if (!res.ok) {
+          setShadesCache(prev => ({ ...prev, [id]: [] }));
+        } else {
+          const shades = await res.json();
+          const filtered = Array.isArray(shades)
+            ? shades.filter((s: any) => s.productIds && Array.isArray(s.productIds) && s.productIds.includes(id))
+            : [];
+          setShadesCache(prev => ({ ...prev, [id]: filtered }));
+        }
+      } catch (err) {
+        setShadesCache(prev => ({ ...prev, [id]: [] }));
+      }
+    });
+  }, [activeTestimonials]);
 
   // Auto-slide effect - pause when modal is open
   useEffect(() => {
@@ -142,6 +188,102 @@ export default function VideoTestimonials() {
     localStorage.setItem("cart", JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
+  };
+
+  
+
+  
+
+  // Open shade drawer for a product (fetch shades and open drawer)
+  const openShadeDrawer = async (product: Product, preloadedShades?: Shade[]) => {
+    setCurrentProductForShades(product);
+    setSelectedShades([]);
+    setShadeQuantity(1);
+    if (preloadedShades) {
+      setProductShades(preloadedShades);
+    } else {
+      try {
+        const response = await fetch(`/api/products/${product.id}/shades`);
+        if (!response.ok) {
+          setProductShades([]);
+        } else {
+          const shades = await response.json();
+          const filtered = Array.isArray(shades)
+            ? shades.filter((s: any) => s.productIds && Array.isArray(s.productIds) && s.productIds.includes(product.id))
+            : [];
+          setProductShades(filtered);
+          // cache result
+          setShadesCache(prev => ({ ...prev, [product.id]: filtered }));
+        }
+      } catch (err) {
+        setProductShades([]);
+      }
+    }
+    setIsShadeDrawerOpen(true);
+  };
+
+  // Add to cart from shade drawer
+  const addToCartFromDrawer = () => {
+    const product = currentProductForShades;
+    if (!product) return;
+
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+    if (productShades.length > 0 && selectedShades.length > 0) {
+      selectedShades.forEach((shade) => {
+        const itemKey = `${product.id}-${shade.id}`;
+        const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
+        if (existingItem) {
+          existingItem.quantity += shadeQuantity;
+        } else {
+          cart.push({
+            id: product.id,
+            itemKey,
+            name: product.name,
+            price: `₹${product.price}`,
+            originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
+            image: shade.imageUrl || product.imageUrl,
+            quantity: shadeQuantity,
+            inStock: true,
+            selectedShade: {
+              id: shade.id,
+              name: shade.name,
+              colorCode: shade.colorCode,
+              imageUrl: shade.imageUrl,
+            },
+            cashbackPercentage: product.cashbackPercentage ? parseFloat(String(product.cashbackPercentage)) : undefined,
+            cashbackPrice: product.cashbackPrice ? parseFloat(String(product.cashbackPrice)) : undefined,
+          });
+        }
+      });
+    } else {
+      const itemKey = `${product.id}`;
+      const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
+      if (existingItem) {
+        existingItem.quantity += shadeQuantity;
+      } else {
+        cart.push({
+          id: product.id,
+          itemKey,
+          name: product.name,
+          price: `₹${product.price}`,
+          originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
+          image: product.imageUrl,
+          quantity: shadeQuantity,
+          inStock: true,
+          selectedShade: null,
+          cashbackPercentage: product.cashbackPercentage ? parseFloat(String(product.cashbackPercentage)) : undefined,
+          cashbackPrice: product.cashbackPrice ? parseFloat(String(product.cashbackPrice)) : undefined,
+        });
+      }
+    }
+
+    localStorage.setItem("cart", JSON.stringify(cart));
+    localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
+    window.dispatchEvent(new Event("cartUpdated"));
+    toast({ title: "Added to Cart", description: `${product.name} added to cart` });
+    setIsShadeDrawerOpen(false);
+    setCurrentProductForShades(null);
   };
 
   if (testimonialsLoading || productsLoading) {
@@ -259,13 +401,45 @@ export default function VideoTestimonials() {
                                 </p>
                               )}
                             </div>
-                            <Button
-                              onClick={() => addToCart(product)}
-                              className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs py-1.5 flex items-center justify-center gap-1"
-                            >
-                              <ShoppingCart className="h-3 w-3" />
-                              ADD
-                            </Button>
+                            {(() => {
+                              const cached = shadesCache[product.id];
+                              const hasShades = Array.isArray(cached) ? cached.length > 0 : undefined;
+                              if (hasShades === undefined) {
+                                // still loading cache - show lightweight button that opens drawer (safe)
+                                return (
+                                  <Button
+                                    onClick={() => openShadeDrawer(product)}
+                                    className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs py-1.5 flex items-center justify-center gap-1"
+                                  >
+                                    <ShoppingCart className="h-3 w-3" />
+                                    Select Shades
+                                  </Button>
+                                );
+                              }
+
+                              if (hasShades) {
+                                return (
+                                  <Button
+                                    onClick={() => openShadeDrawer(product, shadesCache[product.id])}
+                                    className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs py-1.5 flex items-center justify-center gap-1"
+                                  >
+                                    <ShoppingCart className="h-3 w-3" />
+                                    Select Shades
+                                  </Button>
+                                );
+                              }
+
+                              // no shades -> add directly
+                              return (
+                                <Button
+                                  onClick={() => addToCart(product)}
+                                  className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs py-1.5 flex items-center justify-center gap-1"
+                                >
+                                  <ShoppingCart className="h-3 w-3" />
+                                  ADD
+                                </Button>
+                              );
+                            })()}
                           </>
                         ) : (
                           <>
@@ -289,6 +463,156 @@ export default function VideoTestimonials() {
           </div>
         </div>
       </div>
+
+      {/* Shade Selection Drawer for UGC video products */}
+      <Sheet open={isShadeDrawerOpen} onOpenChange={setIsShadeDrawerOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="border-b pb-4 mb-4">
+            <SheetTitle className="text-xl font-bold">{currentProductForShades?.name}</SheetTitle>
+            <SheetDescription>
+              Select shade and quantity
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-6 px-4 pb-6">
+            <div className="relative bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg overflow-hidden aspect-square">
+              <img
+                src={currentProductForShades?.imageUrl}
+                alt={currentProductForShades?.name || ''}
+                className="w-full h-full object-contain"
+                loading="lazy"
+              />
+              {selectedShades.length > 0 && (
+                <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-md">
+                  <span className="text-xs font-semibold text-purple-600">
+                    {selectedShades.length} shade{selectedShades.length > 1 ? 's' : ''} selected
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-100">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  ₹{currentProductForShades ? Number(currentProductForShades.price).toLocaleString() : '0'}
+                </span>
+              </div>
+              {selectedShades.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-sm text-gray-600">Selected Shades:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedShades.map(shade => (
+                      <div key={shade.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-purple-200">
+                        <div 
+                          className="w-3 h-3 rounded-full border border-white shadow-sm"
+                          style={{ backgroundColor: shade.colorCode }}
+                        />
+                        <span className="text-xs font-medium text-purple-700">{shade.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">Select Shades:</h3>
+                {selectedShades.length > 0 && (
+                  <button
+                    onClick={() => setSelectedShades([])}
+                    className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                {productShades.length > 0 ? (
+                  productShades.map((shade) => {
+                    const isSelected = selectedShades.some(s => s.id === shade.id);
+                    return (
+                      <div
+                        key={shade.id}
+                        onClick={() => {
+                          if (isSelected) setSelectedShades(selectedShades.filter(s => s.id !== shade.id));
+                          else setSelectedShades([...selectedShades, shade]);
+                        }}
+                        className={`cursor-pointer group relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 hover:shadow-lg ${isSelected ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md scale-105' : 'border-purple-300 hover:border-purple-400'}`}
+                      >
+                        {shade.imageUrl ? (
+                          <div className="relative">
+                            <img src={shade.imageUrl} alt={shade.name} className={`w-12 h-12 rounded-full object-cover border-2 shadow-md ${isSelected ? 'border-purple-500' : 'border-gray-300'}`} />
+                            {isSelected && <div className="absolute inset-0 rounded-full bg-purple-500/20 animate-pulse" />}
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <div className={`w-12 h-12 rounded-full border-2 shadow-md ${isSelected ? 'border-purple-500 scale-110' : 'border-gray-300'}`} style={{ backgroundColor: shade.colorCode }} />
+                            {isSelected && <div className="absolute inset-0 rounded-full bg-white/30 animate-pulse" />}
+                          </div>
+                        )}
+                        <span className={`text-xs text-center font-medium ${isSelected ? 'text-purple-700' : 'text-gray-700'}`}>{shade.name}</span>
+                        {isSelected && (
+                          <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-1 shadow-lg">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-4 text-sm text-gray-500">No shades available for this product.</div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="font-semibold text-gray-900">Quantity:</h3>
+              <div className="flex items-center justify-center gap-6 bg-gray-50 rounded-lg p-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShadeQuantity(Math.max(1, shadeQuantity - 1))}
+                  disabled={shadeQuantity <= 1}
+                  className="h-12 w-12 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 disabled:opacity-30 transition-all"
+                >
+                  <Minus className="h-5 w-5 text-purple-600" />
+                </Button>
+                <div className="text-center min-w-[4rem]">
+                  <span className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{shadeQuantity}</span>
+                  <p className="text-xs text-gray-500 mt-1">Items</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShadeQuantity(shadeQuantity + 1)}
+                  className="h-12 w-12 rounded-full border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all"
+                >
+                  <Plus className="h-5 w-5 text-purple-600" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-4 border-t-2 border-purple-100">
+              <Button
+                className={`w-full py-4 text-lg font-semibold bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600`}
+                onClick={addToCartFromDrawer}
+                disabled={productShades.length > 0 && selectedShades.length === 0}
+              >
+                <ShoppingCart className="h-5 w-5 mr-2" />
+                {productShades.length > 0 ? `Add ${selectedShades.length} Shade${selectedShades.length > 1 ? 's' : ''} to Cart` : 'Add to Cart'}
+              </Button>
+
+              {productShades.length > 0 && selectedShades.length === 0 && (
+                <div className="flex items-center justify-center gap-2 text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="font-medium">Please select at least one shade to continue</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Video Popup Modal - Instagram Reel Style */}
       <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
@@ -340,16 +664,53 @@ export default function VideoTestimonials() {
                               <p className="text-sm text-gray-300 line-through">₹{product.originalPrice}</p>
                             )}
                           </div>
-                          <Button
-                            onClick={() => {
-                              addToCart(product);
-                              setIsVideoModalOpen(false);
-                            }}
-                            className="w-full bg-white text-gray-900 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
-                          >
-                            <ShoppingCart className="h-4 w-4" />
-                            ADD TO CART
-                          </Button>
+                          {(() => {
+                            const cached = shadesCache[product.id];
+                            const hasShades = Array.isArray(cached) ? cached.length > 0 : undefined;
+                            if (hasShades === undefined) {
+                              return (
+                                <Button
+                                  onClick={() => {
+                                    openShadeDrawer(product);
+                                    setIsVideoModalOpen(false);
+                                  }}
+                                  className="w-full bg-white text-gray-900 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
+                                >
+                                  <ShoppingCart className="h-4 w-4" />
+                                  Select Shades
+                                </Button>
+                              );
+                            }
+
+                            if (hasShades) {
+                              return (
+                                <Button
+                                  onClick={() => {
+                                    openShadeDrawer(product, shadesCache[product.id]);
+                                    setIsVideoModalOpen(false);
+                                  }}
+                                  className="w-full bg-white text-gray-900 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
+                                >
+                                  <ShoppingCart className="h-4 w-4" />
+                                  Select Shades
+                                </Button>
+                              );
+                            }
+
+                            // no shades -> add directly and close modal
+                            return (
+                              <Button
+                                onClick={() => {
+                                  addToCart(product);
+                                  setIsVideoModalOpen(false);
+                                }}
+                                className="w-full bg-white text-gray-900 hover:bg-gray-100 font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
+                              >
+                                <ShoppingCart className="h-4 w-4" />
+                                ADD TO CART
+                              </Button>
+                            );
+                          })()}
                         </div>
                       </div>
                     ) : null;

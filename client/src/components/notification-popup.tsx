@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 // import { useUser } from "@/hooks/useUser";
 import { X } from "lucide-react";
 import { initializePushNotifications } from "@/lib/pushNotificationService";
-import poppikLogo from "@/assets/POPPIK LOGO.jpg";
+import logo from "@/assets/logo.png";
 import { Mail } from "lucide-react";
 
 interface NotificationPopupProps {
@@ -154,11 +154,11 @@ export function NotificationPopup({ onClose }: NotificationPopupProps) {
           {/* Logo and Text Container */}
           <div className="flex items-start gap-4">
             {/* Logo */}
-            <div className="flex-shrink-0 bg-black rounded p-2">
+            <div className="flex-shrink-0">
               <img 
-                src={poppikLogo} 
+                src={logo} 
                 alt="Poppik" 
-                className="h-10 w-10 object-contain"
+                className="h-16 w-auto object-contain"
               />
             </div>
 
