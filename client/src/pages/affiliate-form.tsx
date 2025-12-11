@@ -289,7 +289,7 @@ export default function AffiliateForm() {
             </CardContent>
           </Card>
 
-          <Card className="mb-6">
+          {/* <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-purple-600" />
@@ -347,7 +347,7 @@ export default function AffiliateForm() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <div className="flex gap-4">
             <Button

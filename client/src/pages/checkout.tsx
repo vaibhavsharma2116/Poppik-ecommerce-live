@@ -2879,12 +2879,12 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                   checked={newAddressData.makeDefault}
                                   onChange={(e) => setNewAddressData({...newAddressData, makeDefault: e.target.checked})}
                                 />
-                                <Label htmlFor="makeDefault" className="text-sm font-normal">
+                                {/* <Label htmlFor="makeDefault" className="text-sm font-normal">
                                   Make this my default address
-                                </Label>
+                                </Label> */}
                               </div>
 
-                              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                              {/* <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                                 <p className="text-sm font-semibold mb-2">Add delivery instructions (optional)</p>
                                 <Textarea
                                   placeholder="E.g., Leave at door, Ring bell twice, Call before delivery..."
@@ -2895,7 +2895,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                   }}
                                 />
                                 <p className="text-xs text-gray-600 mt-2">Preferences are used to plan your delivery. However, shipments can sometimes arrive early or later than planned.</p>
-                              </div>
+                              </div> */}
 
                               <Button
                                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
