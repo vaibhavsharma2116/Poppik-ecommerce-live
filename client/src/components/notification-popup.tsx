@@ -72,12 +72,15 @@ export function NotificationPopup({ onClose }: NotificationPopupProps) {
       if (finalEmail && typeof window !== 'undefined') {
         try {
           localStorage.setItem('notificationEmail', finalEmail);
+          console.log('📧 Email stored for notifications:', finalEmail);
         } catch (e) {
           console.warn('Could not set localStorage:', e);
         }
       }
       
+      console.log("🔔 User clicked Allow, initializing push notifications with email:", finalEmail);
       const success = await initializePushNotifications(finalEmail);
+      
       if (success) {
         console.log("✅ Push notifications enabled successfully!");
         

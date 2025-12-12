@@ -53,6 +53,7 @@ import { getCurrentUser } from '@/lib/utils';
 const hasAccess = (route: string, userRole: string): boolean => {
   const ROLE_PERMISSIONS: Record<string, string[]> = {
     dashboard: ['master_admin', 'admin', 'ecommerce', 'marketing', 'digital_marketing', 'hr', 'account'],
+    notifications: ['master_admin', 'admin'],
     categories: ['master_admin', 'admin', 'ecommerce'],
     products: ['master_admin', 'admin', 'ecommerce'],
     orders: ['master_admin', 'admin', 'ecommerce'],
@@ -127,6 +128,7 @@ const sidebarItems = [
       href: "/notifications",
       icon: MessageSquare,
       badge: null,
+      requiredRole: 'notifications'
     },
   {
     title: "Announcements",

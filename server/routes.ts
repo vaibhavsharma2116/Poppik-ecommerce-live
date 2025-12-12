@@ -12199,7 +12199,12 @@ app.get('/api/influencer-videos', async (req, res) => {
       const { subscription, timestamp, email } = req.body;
       const token = req.headers.authorization?.split(" ")[1];
 
+      console.log("📥 POST /api/notifications/subscribe called");
+      console.log("📧 Email:", email);
+      console.log("🔔 Subscription endpoint:", subscription?.endpoint?.substring(0, 50) + "...");
+
       if (!subscription || !subscription.endpoint) {
+        console.error("❌ Invalid subscription data received");
         return res.status(400).json({ error: "Invalid subscription data" });
       }
 
@@ -12252,6 +12257,7 @@ app.get('/api/influencer-videos', async (req, res) => {
       }
 
       // Create new subscription
+      console.log("📝 Creating new push subscription for email:", email);
       const newSubscription = await db
         .insert(schema.pushSubscriptions)
         .values({
@@ -12270,6 +12276,7 @@ app.get('/api/influencer-videos', async (req, res) => {
         subscription.endpoint.substring(0, 50) + "...",
         email ? `| Email: ${email}` : ""
       );
+      console.log("💾 Saved to DB with ID:", newSubscription[0].id);
 
       res.json({
         success: true,
@@ -12278,7 +12285,7 @@ app.get('/api/influencer-videos', async (req, res) => {
       });
     } catch (error) {
       console.error("❌ Error saving push subscription:", error);
-      res.status(500).json({ error: "Failed to save subscription" });
+      res.status(500).json({ error: "Failed to save subscription", details: String(error) });
     }
   });
 

@@ -63,7 +63,8 @@ async function requestNotificationPermission(): Promise<NotificationPermission> 
   }
 
   if (Notification.permission === "denied") {
-    throw new Error("Notification permission was denied");
+    console.warn("⚠️ Notification permission was previously denied");
+    return "denied";
   }
 
   try {
@@ -130,6 +131,9 @@ async function saveSubscriptionToBackend(
     // Use provided email or get from localStorage
     const finalEmail = email || (typeof window !== 'undefined' ? localStorage.getItem('notificationEmail') : null);
     
+    console.log("📤 Saving subscription to backend with email:", finalEmail);
+    console.log("📤 Subscription endpoint:", subscription.endpoint?.substring(0, 50) + "...");
+    
     const response = await fetch("/api/notifications/subscribe", {
       method: "POST",
       headers: {
@@ -143,7 +147,9 @@ async function saveSubscriptionToBackend(
     });
 
     if (!response.ok) {
-      throw new Error(`Backend returned ${response.status}`);
+      const errorText = await response.text();
+      console.error("❌ Backend error response:", errorText);
+      throw new Error(`Backend returned ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();
@@ -187,6 +193,7 @@ async function getExistingSubscription(
 export async function initializePushNotifications(email?: string): Promise<boolean> {
   try {
     console.log("🚀 Initializing push notifications...");
+    console.log("📧 Email provided:", email);
 
     // Check browser support
     if (!isNotificationSupported()) {
@@ -197,14 +204,16 @@ export async function initializePushNotifications(email?: string): Promise<boole
     // Request permission
     const permission = await requestNotificationPermission();
     if (permission !== "granted") {
-      console.warn("⚠️ Notification permission not granted");
+      console.warn("⚠️ Notification permission not granted, got:", permission);
       return false;
     }
 
     // Register service worker
+    console.log("📝 Registering service worker...");
     const swRegistration = await registerServiceWorker();
 
     // Check for existing subscription
+    console.log("📝 Checking for existing subscription...");
     let subscription = await getExistingSubscription(swRegistration);
 
     // If no existing subscription, create a new one
@@ -214,6 +223,7 @@ export async function initializePushNotifications(email?: string): Promise<boole
     }
 
     // Save/update subscription on backend with email
+    console.log("📝 Saving subscription to backend...");
     await saveSubscriptionToBackend(subscription, email);
 
     console.log("✅ Push notifications fully initialized!");
