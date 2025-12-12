@@ -29,6 +29,7 @@ export default function ComboPage() {
   const { toast } = useToast();
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+  const [comboProductInfo, setComboProductInfo] = useState<Map<number, { isSingleProduct: boolean; hasShades: boolean }>>(new Map());
 
   // Load wishlist from localStorage on mount
   React.useEffect(() => {
@@ -87,6 +88,52 @@ export default function ComboPage() {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
+  // Helper function to check if combo has single product and if any products have shades
+  const checkComboProductInfo = async (combo: ComboProduct) => {
+    try {
+      const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products || [];
+      const isSingleProduct = Array.isArray(products) && products.length === 1;
+      
+      // Check if any product in the combo has shades
+      let anyProductHasShades = false;
+      if (Array.isArray(products)) {
+        for (const product of products) {
+          if (!product || typeof product === 'string') continue;
+          const productId = product.id || product.productId;
+          if (productId) {
+            try {
+              const response = await fetch(`/api/products/${productId}/shades`);
+              if (response.ok) {
+                const shades = await response.json();
+                if (Array.isArray(shades) && shades.length > 0) {
+                  anyProductHasShades = true;
+                  break;
+                }
+              }
+            } catch (e) {
+              console.error('Error fetching shades:', e);
+            }
+          }
+        }
+      }
+      
+      setComboProductInfo(prev => new Map(prev).set(combo.id, { isSingleProduct, hasShades: anyProductHasShades }));
+      return { isSingleProduct, hasShades: anyProductHasShades };
+    } catch (e) {
+      console.error('Error checking combo product info:', e);
+      return { isSingleProduct: false, hasShades: false };
+    }
+  };
+
+  // Effect to check product info for all combos
+  React.useEffect(() => {
+    comboProducts.forEach(combo => {
+      if (!comboProductInfo.has(combo.id)) {
+        checkComboProductInfo(combo);
+      }
+    });
+  }, [comboProducts, comboProductInfo]);
+
   const handleAddToCart = (combo: ComboProduct) => {
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
@@ -488,14 +535,47 @@ console.log("VCVVVVVV",combo)
             </div>
           </div>
 
-                  {/* Add to Cart Button */}
-                  <Button
-                    className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                    onClick={() => handleCardAdd(combo)}
-                  >
-                    <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="hidden xs:inline">Add to </span>Cart
-                  </Button>
+                  {/* Add to Cart or Select Shades Button */}
+                  {(() => {
+                    const info = comboProductInfo.get(combo.id);
+                    const isSingleProduct = info?.isSingleProduct ?? false;
+                    const hasShades = info?.hasShades ?? false;
+
+                    if (isSingleProduct) {
+                      // Single product - always show Add to Cart
+                      return (
+                        <Button
+                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          onClick={() => handleAddToCart(combo)}
+                        >
+                          <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+                          <span className="hidden xs:inline">Add to </span>Cart
+                        </Button>
+                      );
+                    } else if (!hasShades) {
+                      // Multiple products but NO shades - show Add to Cart
+                      return (
+                        <Button
+                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          onClick={() => handleAddToCart(combo)}
+                        >
+                          <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+                          <span className="hidden xs:inline">Add to </span>Cart
+                        </Button>
+                      );
+                    } else {
+                      // Multiple products with shades - show Select Shades
+                      return (
+                        <Button
+                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          onClick={() => window.location.href = `/combo/${combo.id}`}
+                        >
+                          <Star className="h-3 w-3 sm:h-4 sm:w-4" />
+                          <span className="hidden xs:inline">Select </span>Shades
+                        </Button>
+                      );
+                    }
+                  })()}
                 </div>
               </div>
             );

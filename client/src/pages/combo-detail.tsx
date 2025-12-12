@@ -1441,10 +1441,21 @@ export default function ComboDetail() {
                       const productShades = productShadesData[product.id] || [];
                       return productShades.length > 0;
                     });
+                    const productsWithoutShades = products.filter((product: any) => {
+                      const productShades = productShadesData[product.id] || [];
+                      return productShades.length === 0;
+                    });
                     const unselectedProducts = productsWithShades.filter((product: any) => {
                       return !selectedShades[product.id] || !selectedShades[product.id]?.name;
                     });
                     const isSingleProductCombo = products.length === 1 && productsWithShades.length === 1;
+                    
+                    // If all products have no shades or only some have shades and rest don't
+                    if (productsWithoutShades.length > 0) {
+                      return 'Add to Cart';
+                    }
+                    
+                    // If there are unselected shades
                     return unselectedProducts.length > 0
                       ? (isSingleProductCombo ? 'Add to Cart' : 'Select All Shades First')
                       : 'Add to Cart';

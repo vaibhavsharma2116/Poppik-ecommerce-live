@@ -890,6 +890,7 @@ console.log("featured",featured)
 function ComboSection() {
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [wishlist, setWishlist] = useState<Set<number>>(new Set());
+  const [comboProductInfo, setComboProductInfo] = useState<Map<number, { isSingleProduct: boolean; hasShades: boolean }>>(new Map());
   const { toast } = useToast();
 
   const { data: comboProducts = [], isLoading } = useQuery<any[]>({
@@ -900,6 +901,52 @@ function ComboSection() {
   const activeComboProducts = Array.isArray(comboProducts)
     ? comboProducts.filter(combo => combo.isActive).slice(0, 4)
     : [];
+
+  // Helper function to check if combo has single product and if any products have shades
+  const checkComboProductInfo = async (combo: any) => {
+    try {
+      const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products || [];
+      const isSingleProduct = Array.isArray(products) && products.length === 1;
+      
+      // Check if any product in the combo has shades
+      let anyProductHasShades = false;
+      if (Array.isArray(products)) {
+        for (const product of products) {
+          if (!product || typeof product === 'string') continue;
+          const productId = product.id || product.productId;
+          if (productId) {
+            try {
+              const response = await fetch(`/api/products/${productId}/shades`);
+              if (response.ok) {
+                const shades = await response.json();
+                if (Array.isArray(shades) && shades.length > 0) {
+                  anyProductHasShades = true;
+                  break;
+                }
+              }
+            } catch (e) {
+              console.error('Error fetching shades:', e);
+            }
+          }
+        }
+      }
+      
+      setComboProductInfo(prev => new Map(prev).set(combo.id, { isSingleProduct, hasShades: anyProductHasShades }));
+      return { isSingleProduct, hasShades: anyProductHasShades };
+    } catch (e) {
+      console.error('Error checking combo product info:', e);
+      return { isSingleProduct: false, hasShades: false };
+    }
+  };
+
+  // Effect to check product info for all active combos
+  useEffect(() => {
+    activeComboProducts.forEach(combo => {
+      if (!comboProductInfo.has(combo.id)) {
+        checkComboProductInfo(combo);
+      }
+    });
+  }, [activeComboProducts, comboProductInfo]);
 
   // Load wishlist from localStorage on mount
   useEffect(() => {
@@ -1198,14 +1245,105 @@ function ComboSection() {
                     </div>
                   </div>
 
-                  {/* Add to Cart Button */}
-                  <Button
-                    className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                    onClick={() => window.location.href = `/combo/${combo.id}`}
-                  >
-                    <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="hidden xs:inline">Add to </span>Cart
-                  </Button>
+                  {/* Add to Cart or Select Shades Button */}
+                  {(() => {
+                    const info = comboProductInfo.get(combo.id);
+                    const isSingleProduct = info?.isSingleProduct ?? false;
+                    const hasShades = info?.hasShades ?? false;
+
+                    if (isSingleProduct) {
+                      // Single product - always show Add to Cart
+                      return (
+                        <Button
+                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          onClick={() => {
+                            const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+                            const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id);
+                            const price = typeof combo.price === 'string' ? parseFloat(combo.price.replace(/[^0-9.-]+/g,"")) : combo.price;
+                            const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice.replace(/[^0-9.-]+/g,"")) : combo.originalPrice;
+                            
+                            if (existingItem) {
+                              existingItem.quantity += 1;
+                            } else {
+                              cart.push({
+                                id: combo.id,
+                                name: combo.name,
+                                price: `₹${price}`,
+                                originalPrice: combo.originalPrice ? `₹${originalPrice}` : undefined,
+                                image: typeof combo.imageUrl === 'string' ? combo.imageUrl : Array.isArray(combo.imageUrl) ? combo.imageUrl[0] : undefined,
+                                quantity: 1,
+                                inStock: true,
+                                isCombo: true,
+                                cashbackPercentage: combo.cashbackPercentage ? parseFloat(String(combo.cashbackPercentage)) : undefined,
+                                cashbackPrice: combo.cashbackPrice ? parseFloat(String(combo.cashbackPrice)) : undefined,
+                              });
+                            }
+                            localStorage.setItem("cart", JSON.stringify(cart));
+                            localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
+                            window.dispatchEvent(new Event("cartUpdated"));
+                            toast({
+                              title: "Added to Cart",
+                              description: `${combo.name} has been added to your cart.`,
+                            });
+                          }}
+                        >
+                          <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+                          <span className="hidden xs:inline">Add to </span>Cart
+                        </Button>
+                      );
+                    } else if (!hasShades) {
+                      // Multiple products but NO shades - show Add to Cart
+                      return (
+                        <Button
+                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          onClick={() => {
+                            const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+                            const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id);
+                            const price = typeof combo.price === 'string' ? parseFloat(combo.price.replace(/[^0-9.-]+/g,"")) : combo.price;
+                            const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice.replace(/[^0-9.-]+/g,"")) : combo.originalPrice;
+                            
+                            if (existingItem) {
+                              existingItem.quantity += 1;
+                            } else {
+                              cart.push({
+                                id: combo.id,
+                                name: combo.name,
+                                price: `₹${price}`,
+                                originalPrice: combo.originalPrice ? `₹${originalPrice}` : undefined,
+                                image: typeof combo.imageUrl === 'string' ? combo.imageUrl : Array.isArray(combo.imageUrl) ? combo.imageUrl[0] : undefined,
+                                quantity: 1,
+                                inStock: true,
+                                isCombo: true,
+                                cashbackPercentage: combo.cashbackPercentage ? parseFloat(String(combo.cashbackPercentage)) : undefined,
+                                cashbackPrice: combo.cashbackPrice ? parseFloat(String(combo.cashbackPrice)) : undefined,
+                              });
+                            }
+                            localStorage.setItem("cart", JSON.stringify(cart));
+                            localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
+                            window.dispatchEvent(new Event("cartUpdated"));
+                            toast({
+                              title: "Added to Cart",
+                              description: `${combo.name} has been added to your cart.`,
+                            });
+                          }}
+                        >
+                          <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+                          <span className="hidden xs:inline">Add to </span>Cart
+                        </Button>
+                      );
+                    } else {
+                      // Multiple products with shades - show Select Shades
+                      return (
+                        <Button
+                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          onClick={() => window.location.href = `/combo/${combo.id}`}
+                        >
+                          <Star className="h-3 w-3 sm:h-4 sm:w-4" />
+                          <span className="hidden xs:inline">Select </span>Shades
+                        </Button>
+                      );
+                    }
+                  })()}
                 </div>
               </div>
             );
