@@ -12086,14 +12086,36 @@ app.get('/api/influencer-videos', async (req, res) => {
 
             // Fetch product images for each product
             for (let i = 0; i < fullProducts.length; i++) {
-              const productImages = await db
-                .select()
-                .from(schema.productImages)
-                .where(eq(schema.productImages.productId, fullProducts[i].id))
-                .orderBy(asc(schema.productImages.sortOrder));
+              try {
+                const productImages = await db
+                  .select()
+                  .from(schema.productImages)
+                  .where(eq(schema.productImages.productId, fullProducts[i].id))
+                  .orderBy(asc(schema.productImages.sortOrder));
 
-              // Add imageUrls array to product
-              fullProducts[i].imageUrls = productImages.map(img => img.imageUrl);
+                if (productImages.length > 0) {
+                  // Use images from product_images table
+                  fullProducts[i].images = productImages.map(img => img.imageUrl);
+                  fullProducts[i].imageUrls = productImages.map(img => img.imageUrl);
+                } else if (fullProducts[i].imageUrl) {
+                  // Fall back to product's own imageUrl (which might be base64 or a real URL)
+                  fullProducts[i].images = [fullProducts[i].imageUrl];
+                  fullProducts[i].imageUrls = [fullProducts[i].imageUrl];
+                } else {
+                  fullProducts[i].images = [];
+                  fullProducts[i].imageUrls = [];
+                }
+              } catch (imgErr) {
+                console.error(`Error fetching images for product ${fullProducts[i].id}:`, imgErr);
+                // Ensure images arrays exist even on error
+                if (fullProducts[i].imageUrl) {
+                  fullProducts[i].images = [fullProducts[i].imageUrl];
+                  fullProducts[i].imageUrls = [fullProducts[i].imageUrl];
+                } else {
+                  fullProducts[i].images = [];
+                  fullProducts[i].imageUrls = [];
+                }
+              }
             }
           }
         } catch (e) {
@@ -12119,6 +12141,13 @@ app.get('/api/influencer-videos', async (req, res) => {
           ? images.map(img => img.imageUrl)
           : fallbackImages
       };
+
+      // Debug log
+      if (fullProducts.length > 0) {
+        console.log(`📦 Combo ${comboId} - Returning ${fullProducts.length} products with images:`, 
+          fullProducts.map(p => ({ id: p.id, name: p.name, imageUrls: p.imageUrls }))
+        );
+      }
 
       res.json(comboData);
     } catch (error: any) {

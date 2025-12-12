@@ -409,6 +409,19 @@ export default function ComboDetail() {
     ? (typeof combo.products === 'string' ? (() => { try { return JSON.parse(combo.products); } catch { return []; } })() : combo.products)
     : [];
 
+  // Debug: Log products with their images
+  useEffect(() => {
+    if (combo && Array.isArray(products) && products.length > 0) {
+      console.log('🎨 Combo loaded with products:', products.map(p => ({ 
+        id: p.id, 
+        name: p.name, 
+        imageUrl: p.imageUrl ? p.imageUrl.substring(0, 50) : 'none',
+        imageUrls: p.imageUrls,
+        hasImages: p.imageUrls && p.imageUrls.length > 0
+      })));
+    }
+  }, [combo, products]);
+
   useEffect(() => {
     try {
       const productIds: number[] = Array.isArray(products)
@@ -1197,21 +1210,19 @@ export default function ComboDetail() {
                   <div className="space-y-2">
                     {products.map((product: any, index: number) => {
                       const productImage = (() => {
-                        // Try imageUrls array first (from product_images table)
+                        // Try images array first (from product_images table - same as /api/products endpoint)
+                        if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+                          return product.images[0];
+                        }
+                        // Try imageUrls array as fallback
                         if (product.imageUrls && Array.isArray(product.imageUrls) && product.imageUrls.length > 0) {
                           return product.imageUrls[0];
                         }
-                        // Try images array
-                        if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-                          const firstImage = product.images[0];
-                          if (typeof firstImage === 'string') return firstImage; // Direct URL string
-                          if (typeof firstImage === 'object') {
-                            return firstImage.url || firstImage.imageUrl || firstImage;
-                          }
-                        }
-                        // Fallback to imageUrl
+                        // Fallback to imageUrl - accept both URLs and base64 data
                         if (product.imageUrl) {
-                          if (Array.isArray(product.imageUrl)) return product.imageUrl[0] || '';
+                          if (Array.isArray(product.imageUrl)) {
+                            return product.imageUrl[0] || '';
+                          }
                           return product.imageUrl;
                         }
                         // Last resort: Unsplash placeholder
