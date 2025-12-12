@@ -1197,7 +1197,11 @@ export default function ComboDetail() {
                   <div className="space-y-2">
                     {products.map((product: any, index: number) => {
                       const productImage = (() => {
-                        // Try images array first
+                        // Try imageUrls array first (from product_images table)
+                        if (product.imageUrls && Array.isArray(product.imageUrls) && product.imageUrls.length > 0) {
+                          return product.imageUrls[0];
+                        }
+                        // Try images array
                         if (product.images && Array.isArray(product.images) && product.images.length > 0) {
                           const firstImage = product.images[0];
                           if (typeof firstImage === 'string') return firstImage; // Direct URL string

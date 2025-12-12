@@ -12083,6 +12083,18 @@ app.get('/api/influencer-videos', async (req, res) => {
               .select()
               .from(schema.products)
               .where(inArray(schema.products.id, validProductIds));
+
+            // Fetch product images for each product
+            for (let i = 0; i < fullProducts.length; i++) {
+              const productImages = await db
+                .select()
+                .from(schema.productImages)
+                .where(eq(schema.productImages.productId, fullProducts[i].id))
+                .orderBy(asc(schema.productImages.sortOrder));
+
+              // Add imageUrls array to product
+              fullProducts[i].imageUrls = productImages.map(img => img.imageUrl);
+            }
           }
         } catch (e) {
           console.error("Error fetching product details:", e);
