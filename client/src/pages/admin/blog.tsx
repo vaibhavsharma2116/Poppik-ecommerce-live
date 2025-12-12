@@ -135,6 +135,13 @@ export default function AdminBlog() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const resolveImage = (url?: string | null) => {
+    if (!url) return '/placeholder.png';
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    if (url.startsWith('/')) return `${window.location.origin}${url}`;
+    return `${window.location.origin}/api/images/${url}`;
+  };
+
   // Using query data directly instead of local state to prevent re-render issues
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -178,6 +185,8 @@ export default function AdminBlog() {
     },
   });
 
+  
+
   // Form states
   const [formData, setFormData] = useState({
     title: '',
@@ -207,6 +216,25 @@ export default function AdminBlog() {
     thumbnail?: File;
     hero?: File;
   }>({});
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [heroPreview, setHeroPreview] = useState<string | null>(null);
+
+  // Revoke object URLs when previews change to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      if (thumbnailPreview) {
+        try { URL.revokeObjectURL(thumbnailPreview); } catch (e) {}
+      }
+    };
+  }, [thumbnailPreview]);
+
+  useEffect(() => {
+    return () => {
+      if (heroPreview) {
+        try { URL.revokeObjectURL(heroPreview); } catch (e) {}
+      }
+    };
+  }, [heroPreview]);
 
   // Get blog posts - AGGRESSIVE NO-CACHE CONFIG
   const { data: blogPostsData = [], isLoading: postsLoading, refetch: refetchPosts } = useQuery<BlogPost[]>({
@@ -391,6 +419,8 @@ export default function AdminBlog() {
     setFiles({});
     editor?.commands.setContent('');
     setShowPreview(false);
+    setThumbnailPreview(null);
+    setHeroPreview(null);
   };
 
   const resetCategoryForm = () => {
@@ -677,7 +707,7 @@ export default function AdminBlog() {
                 <Card key={post.id} className="overflow-hidden">
                   <div className="relative">
                     <img
-                      src={post.thumbnailUrl || post.imageUrl || '/placeholder.png'}
+                      src={resolveImage(post.thumbnailUrl || post.imageUrl)}
                       alt={post.title}
                       className="w-full h-48 object-cover"
                     />
@@ -687,7 +717,7 @@ export default function AdminBlog() {
                           className="w-full h-full object-cover"
                           controls
                           preload="metadata"
-                          poster={post.imageUrl}
+                          poster={resolveImage(post.imageUrl)}
                         >
                           <source src={post.videoUrl} type="video/mp4" />
                           Your browser does not support the video tag.
@@ -772,7 +802,7 @@ export default function AdminBlog() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <img
-                            src={post.thumbnailUrl || post.imageUrl || '/placeholder.png'}
+                            src={resolveImage(post.thumbnailUrl || post.imageUrl)}
                             alt={post.title}
                             className="w-12 h-12 object-cover rounded"
                           />
@@ -1483,13 +1513,25 @@ export default function AdminBlog() {
                   id="thumbnail"
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setFiles({ ...files, thumbnail: e.target.files?.[0] })}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setFiles(prev => ({ ...prev, thumbnail: file }));
+                      const url = URL.createObjectURL(file);
+                      setThumbnailPreview(url);
+                    }
+                  }}
                 />
-                {formData.thumbnailUrl && (
-                  <div className="text-sm text-muted-foreground">
-                    Current: {formData.thumbnailUrl}
-                  </div>
-                )}
+                <div className="mt-2 flex items-start gap-3">
+                  {thumbnailPreview ? (
+                    <img src={thumbnailPreview} alt="Thumbnail preview" className="w-40 h-24 object-cover rounded" />
+                  ) : formData.thumbnailUrl ? (
+                    <img src={resolveImage(formData.thumbnailUrl)} alt="Current thumbnail" className="w-40 h-24 object-cover rounded" />
+                  ) : null}
+                  {formData.thumbnailUrl && !thumbnailPreview && (
+                    <div className="text-sm text-muted-foreground">Current: {formData.thumbnailUrl}</div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="hero">Hero Image (Detail) *</Label>
@@ -1497,13 +1539,25 @@ export default function AdminBlog() {
                   id="hero"
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setFiles({ ...files, hero: e.target.files?.[0] })}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setFiles(prev => ({ ...prev, hero: file }));
+                      const url = URL.createObjectURL(file);
+                      setHeroPreview(url);
+                    }
+                  }}
                 />
-                {formData.heroImageUrl && (
-                  <div className="text-sm text-muted-foreground">
-                    Current: {formData.heroImageUrl}
-                  </div>
-                )}
+                <div className="mt-2 flex items-start gap-3">
+                  {heroPreview ? (
+                    <img src={heroPreview} alt="Hero preview" className="w-40 h-24 object-cover rounded" />
+                  ) : formData.heroImageUrl ? (
+                    <img src={resolveImage(formData.heroImageUrl)} alt="Current hero" className="w-40 h-24 object-cover rounded" />
+                  ) : null}
+                  {formData.heroImageUrl && !heroPreview && (
+                    <div className="text-sm text-muted-foreground">Current: {formData.heroImageUrl}</div>
+                  )}
+                </div>
               </div>
             </div>
 

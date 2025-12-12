@@ -3256,7 +3256,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
   // Serve uploaded images with optimization
   app.use("/api/images", (req, res, next) => {
-    const imagePath = path.join(uploadsDir, req.path.split('?')[0]);
+    const imagePath = path.join(uploadsDir, req.path.split('?')[0].substring(1));
 
     // Check if file exists
     if (!fs.existsSync(imagePath)) {

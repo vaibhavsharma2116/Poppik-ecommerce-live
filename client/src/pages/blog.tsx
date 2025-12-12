@@ -38,6 +38,12 @@ interface BlogCategory {
 }
 
 export default function Blog() {
+  const resolveImage = (url?: string | null) => {
+    if (!url) return '/placeholder.png';
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    if (url.startsWith('/')) return `${window.location.origin}${url}`;
+    return `${window.location.origin}/api/images/${url}`;
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
@@ -240,7 +246,7 @@ export default function Blog() {
                       {/* Image - Mobile Optimized */}
                       <div className="relative overflow-hidden bg-gray-100 mb-3 sm:mb-4 rounded-lg sm:rounded-none" style={{ paddingBottom: '66.67%' }}>
                         <img
-                          src={post.thumbnailUrl || post.imageUrl || '/placeholder.png'}
+                          src={resolveImage(post.imageUrl || post.heroImageUrl || post.thumbnailUrl)}
                           alt={post.title}
                           className="absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500"
                         />
@@ -250,7 +256,7 @@ export default function Blog() {
                               className="w-full h-full"
                               controls
                               preload="metadata"
-                              poster={post.imageUrl}
+                              poster={resolveImage(post.imageUrl)}
                             >
                               <source src={post.videoUrl} type="video/mp4" />
                             </video>

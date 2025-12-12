@@ -83,6 +83,13 @@ export default function BlogPostDetail() {
     }
   };
 
+  const resolveImage = (url?: string | null) => {
+    if (!url) return '/placeholder.png';
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    if (url.startsWith('/')) return `${window.location.origin}${url}`;
+    return `${window.location.origin}/api/images/${url}`;
+  };
+
   const handleCopyLink = async () => {
     const url = window.location.href;
     try {
@@ -182,7 +189,7 @@ export default function BlogPostDetail() {
           </video>
         ) : (
           <img
-            src={post.heroImageUrl || post.thumbnailUrl || post.imageUrl || '/placeholder.png'}
+            src={resolveImage(post.heroImageUrl || post.thumbnailUrl || post.imageUrl)}
             alt={post.title}
             className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] "
           />
