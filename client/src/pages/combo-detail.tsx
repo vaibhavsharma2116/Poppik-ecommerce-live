@@ -202,6 +202,8 @@ export default function ComboDetail() {
   });
   // Shade data for products (fetched when combo products are available)
   const [productShadesData, setProductShadesData] = useState<Record<number, any[]>>({});
+  // Product details cache for included products (fetch full product when combo only contains minimal data)
+  const [productDetailsData, setProductDetailsData] = useState<Record<number, any>>({});
   const [selectedShades, setSelectedShades] = useState<Record<number, any | null>>({});
   const [shadeSelectorOpen, setShadeSelectorOpen] = useState<number | null>(null);
   const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
@@ -432,9 +434,27 @@ export default function ComboDetail() {
         : [];
 
       if (productIds.length > 0) {
+        // Fetch shades
         fetchProductDetailsAndShades(productIds)
           .then((map) => setProductShadesData(map))
           .catch((err) => console.error('Error fetching product shades:', err));
+
+        // Fetch full product details (to obtain images if combo payload is minimal)
+        Promise.all(
+          productIds.map((id) =>
+            fetch(`/api/products/${id}`)
+              .then((res) => (res.ok ? res.json() : Promise.resolve(null)))
+              .catch(() => null)
+          )
+        )
+          .then((results) => {
+            const map: Record<number, any> = {};
+            results.forEach((res) => {
+              if (res && res.id) map[res.id] = res;
+            });
+            setProductDetailsData(map);
+          })
+          .catch((err) => console.error('Error fetching product details for combo:', err));
       }
     } catch (err) {
       console.error('Error parsing products for shades:', err);
@@ -1212,21 +1232,23 @@ export default function ComboDetail() {
 
                   <div className="space-y-2">
                     {products.map((product: any, index: number) => {
+                      // Prefer fetched product details (if available) so we can render accurate images
+                      const productFromDetails = product && product.id && productDetailsData[product.id] ? productDetailsData[product.id] : product;
                       const productImage = (() => {
                         // Try images array first (from product_images table - same as /api/products endpoint)
-                        if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-                          return product.images[0];
+                        if (productFromDetails?.images && Array.isArray(productFromDetails.images) && productFromDetails.images.length > 0) {
+                          const firstImage = productFromDetails.images[0];
+                          if (typeof firstImage === 'string') return firstImage;
+                          if (typeof firstImage === 'object') return firstImage.url || firstImage.imageUrl || firstImage;
                         }
                         // Try imageUrls array as fallback
-                        if (product.imageUrls && Array.isArray(product.imageUrls) && product.imageUrls.length > 0) {
-                          return product.imageUrls[0];
+                        if (productFromDetails?.imageUrls && Array.isArray(productFromDetails.imageUrls) && productFromDetails.imageUrls.length > 0) {
+                          return productFromDetails.imageUrls[0];
                         }
                         // Fallback to imageUrl - accept both URLs and base64 data
-                        if (product.imageUrl) {
-                          if (Array.isArray(product.imageUrl)) {
-                            return product.imageUrl[0] || '';
-                          }
-                          return product.imageUrl;
+                        if (productFromDetails?.imageUrl) {
+                          if (Array.isArray(productFromDetails.imageUrl)) return productFromDetails.imageUrl[0] || '';
+                          return productFromDetails.imageUrl;
                         }
                         // Last resort: Unsplash placeholder
                         return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';
@@ -1538,19 +1560,25 @@ export default function ComboDetail() {
 
                       <div className="space-y-2">
                         {products.map((product: any, index: number) => {
+                          // Prefer fetched product details (if available) so we can render accurate images
+                          const productFromDetails = product && product.id && productDetailsData[product.id] ? productDetailsData[product.id] : product;
                           const productImage = (() => {
                             // Try images array first
-                            if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-                              const firstImage = product.images[0];
+                            if (productFromDetails?.images && Array.isArray(productFromDetails.images) && productFromDetails.images.length > 0) {
+                              const firstImage = productFromDetails.images[0];
                               if (typeof firstImage === 'string') return firstImage; // Direct URL string
                               if (typeof firstImage === 'object') {
                                 return firstImage.url || firstImage.imageUrl || firstImage;
                               }
                             }
+                            // Fallback to imageUrls
+                            if (productFromDetails?.imageUrls && Array.isArray(productFromDetails.imageUrls) && productFromDetails.imageUrls.length > 0) {
+                              return productFromDetails.imageUrls[0];
+                            }
                             // Fallback to imageUrl
-                            if (product.imageUrl) {
-                              if (Array.isArray(product.imageUrl)) return product.imageUrl[0] || '';
-                              return product.imageUrl;
+                            if (productFromDetails?.imageUrl) {
+                              if (Array.isArray(productFromDetails.imageUrl)) return productFromDetails.imageUrl[0] || '';
+                              return productFromDetails.imageUrl;
                             }
                             // Last resort: Unsplash placeholder
                             return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=80';

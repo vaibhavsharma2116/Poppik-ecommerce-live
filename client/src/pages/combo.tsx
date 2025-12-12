@@ -139,6 +139,37 @@ console.log("VCVVVVVV",combo)
     });
   };
 
+  // Handle add from combo card: if combo requires shade selection or has multiple products,
+  // navigate to combo detail so user can select shades. Otherwise add directly.
+  const handleCardAdd = (combo: any) => {
+    try {
+      const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products || [];
+
+      const hasShadedProducts = Array.isArray(products) && products.some((p: any) => {
+        if (!p || typeof p === 'string') return false;
+        return (
+          (Array.isArray(p.shades) && p.shades.length > 0) ||
+          (p.shadeCount && p.shadeCount > 0) ||
+          p.has_shades || p.hasShades ||
+          (Array.isArray(p.variants) && p.variants.length > 0)
+        );
+      });
+
+      // If combo has multiple products or contains shaded products, go to detail page
+      if ((Array.isArray(products) && products.length > 1) || hasShadedProducts) {
+        window.location.href = `/combo/${combo.id}`;
+        return;
+      }
+
+      // Otherwise add directly
+      handleAddToCart(combo);
+    } catch (e) {
+      // Fallback: navigate to detail on parse errors
+      console.error('Error checking combo products for shades:', e);
+      window.location.href = `/combo/${combo.id}`;
+    }
+  };
+
   const handleToggleWishlist = (combo: ComboProduct) => {
     // Check if user is logged in
     const user = localStorage.getItem("user");
@@ -460,7 +491,7 @@ console.log("VCVVVVVV",combo)
                   {/* Add to Cart Button */}
                   <Button
                     className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                    onClick={() => handleAddToCart(combo)}
+                    onClick={() => handleCardAdd(combo)}
                   >
                     <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
                     <span className="hidden xs:inline">Add to </span>Cart
