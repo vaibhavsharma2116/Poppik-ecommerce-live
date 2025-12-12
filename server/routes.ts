@@ -12142,11 +12142,15 @@ app.get('/api/influencer-videos', async (req, res) => {
           : fallbackImages
       };
 
-      // Debug log
+      // Debug log with detailed product info
       if (fullProducts.length > 0) {
-        console.log(`📦 Combo ${comboId} - Returning ${fullProducts.length} products with images:`, 
-          fullProducts.map(p => ({ id: p.id, name: p.name, imageUrls: p.imageUrls }))
-        );
+        console.log(`📦 Combo ${comboId} - Returning ${fullProducts.length} products`);
+        fullProducts.forEach(p => {
+          console.log(`  Product ${p.id}: ${p.name}`);
+          console.log(`    - images array: ${p.images && p.images.length ? 'YES (' + p.images.length + ')' : 'NO'}`);
+          console.log(`    - imageUrls array: ${p.imageUrls && p.imageUrls.length ? 'YES (' + p.imageUrls.length + ')' : 'NO'}`);
+          console.log(`    - imageUrl field: ${p.imageUrl ? 'YES (' + String(p.imageUrl).substring(0, 50) + '...)' : 'NO'}`);
+        });
       }
 
       res.json(comboData);

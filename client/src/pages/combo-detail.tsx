@@ -412,13 +412,16 @@ export default function ComboDetail() {
   // Debug: Log products with their images
   useEffect(() => {
     if (combo && Array.isArray(products) && products.length > 0) {
-      console.log('🎨 Combo loaded with products:', products.map(p => ({ 
-        id: p.id, 
-        name: p.name, 
-        imageUrl: p.imageUrl ? p.imageUrl.substring(0, 50) : 'none',
-        imageUrls: p.imageUrls,
-        hasImages: p.imageUrls && p.imageUrls.length > 0
-      })));
+      console.log('🎨 === COMBO PRODUCTS DEBUG ===');
+      console.log('🎨 Combo:', combo.name);
+      products.forEach((p, idx) => {
+        console.group(`Product ${idx + 1}: ${p.name} (ID: ${p.id})`);
+        console.log('  - images:', p.images);
+        console.log('  - imageUrls:', p.imageUrls);
+        console.log('  - imageUrl:', p.imageUrl ? p.imageUrl.substring(0, 80) + '...' : 'NOT FOUND');
+        console.groupEnd();
+      });
+      console.log('🎨 === END DEBUG ===');
     }
   }, [combo, products]);
 
@@ -1246,10 +1249,14 @@ export default function ComboDetail() {
                               alt={product.name} 
                               className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
                               onError={(e) => {
+                                console.warn(`❌ Image failed to load for product ${product.id}:`, displayImage?.substring(0, 100) || 'empty');
                                 // Only add to broken if it's not already the placeholder
                                 if (displayImage !== PLACEHOLDER && productImage !== PLACEHOLDER) {
                                   setBrokenImages(prev => new Set([...prev, productImage]));
                                 }
+                              }}
+                              onLoad={(e) => {
+                                console.log(`✅ Image loaded for product ${product.id}`);
                               }}
                             />
                           </div>
