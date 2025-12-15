@@ -456,6 +456,114 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
     }
   });
 
+  // Handle combo share URLs for social media crawlers (serve OG HTML)
+  app.get(["/combo/:slug", "/share/combo/:slug"], async (req, res, next) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isCrawler = /bot|crawler|spider|facebookexternalhit|whatsapp|whatsappbot|twitterbot|linkedinbot|pinterestbot|telegrambot|slackbot|discordbot|google/i.test(userAgent);
+    const isBrowser = /mozilla/i.test(userAgent) && !/bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot/i.test(userAgent);
+    const isHead = req.method === 'HEAD';
+    const forceShare = typeof req.query === 'object' && (req.query.share === '1' || req.query.share === 'true');
+
+    if (!isCrawler && !isHead && !forceShare) {
+      return next();
+    }
+
+    try {
+      const { slug } = req.params as any;
+      const isNumeric = /^\d+$/.test(slug);
+
+      // Fetch combo by id or slug
+      let combo: any = null;
+      if (isNumeric) {
+        const q = await pool.query('SELECT * FROM combos WHERE id = $1 LIMIT 1', [parseInt(slug)]);
+        combo = q.rows[0];
+      } else {
+        const q = await pool.query('SELECT * FROM combos WHERE slug = $1 LIMIT 1', [slug]);
+        combo = q.rows[0];
+      }
+
+      if (!combo) return next();
+
+      // Fetch combo images
+      const imagesRes = await pool.query('SELECT * FROM combo_images WHERE combo_id = $1 ORDER BY sort_order LIMIT 10', [combo.id]);
+      const images = imagesRes.rows || [];
+
+      const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+
+      // Choose best image
+      let comboImage = null;
+      if (images.length > 0) {
+        const nonBase64 = images.find((img: any) => img.image_url && !img.image_url.startsWith('data:'));
+        comboImage = nonBase64?.image_url || images[0].image_url;
+      }
+
+      if (!comboImage && Array.isArray(combo.image_url) && combo.image_url.length > 0) {
+        const nonBase64 = combo.image_url.find((u: string) => u && !u.startsWith('data:'));
+        comboImage = nonBase64 || combo.image_url[0];
+      }
+
+      if (!comboImage && combo.image_url && typeof combo.image_url === 'string') {
+        comboImage = combo.image_url;
+      }
+
+      if (!comboImage) comboImage = fallbackImage;
+
+      // Ensure absolute HTTPS URL
+      let fullImageUrl = comboImage;
+      const baseUrl = 'https://poppiklifestyle.com';
+      if (fullImageUrl && !fullImageUrl.toLowerCase().startsWith('http')) {
+        if (fullImageUrl.startsWith('/')) fullImageUrl = `${baseUrl}${fullImageUrl}`;
+        else fullImageUrl = `${baseUrl}/${fullImageUrl}`;
+      }
+
+      if (!fullImageUrl) fullImageUrl = fallbackImage;
+
+      const comboUrl = `${baseUrl}/combo/${combo.id}`;
+      const title = `${combo.name} - ₹${combo.price} | Poppik Lifestyle`;
+      const description = combo.description || combo.detailed_description || 'Explore this combo on Poppik Lifestyle';
+
+      const html = `<!DOCTYPE html>
+<html lang="en" prefix="og: http://ogp.me/ns#">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title.replace(/"/g, '&quot;')}</title>
+  <meta name="description" content="${description.replace(/"/g, '&quot;')}">
+  <meta property="og:type" content="product">
+  <meta property="og:site_name" content="Poppik Lifestyle">
+  <meta property="og:url" content="${comboUrl}">
+  <meta property="og:title" content="${title.replace(/"/g, '&quot;')}">
+  <meta property="og:description" content="${description.replace(/"/g, '&quot;')}">
+  <meta property="og:image" content="${fullImageUrl}">
+  <meta property="og:image:url" content="${fullImageUrl}">
+  <meta property="og:image:secure_url" content="${fullImageUrl}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="${combo.name.replace(/"/g, '&quot;')}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}">
+  <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}">
+  <meta name="twitter:image" content="${fullImageUrl}">
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; background: white; border-radius: 15px; padding: 40px;">
+    <img src="${fullImageUrl}" alt="${combo.name}" style="max-width: 100%; height: auto; border-radius: 10px; margin-bottom: 20px;">
+    <h1 style="color: #333; margin: 20px 0; font-size: 28px;">${combo.name}</h1>
+    <p style="color: #10b981; font-size: 32px; font-weight: bold; margin: 20px 0;">₹${combo.price}</p>
+    <a href="${comboUrl}" style="display: inline-block; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">View Combo on Poppik</a>
+  </div>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+      res.send(html);
+    } catch (err) {
+      console.error('Error serving combo page:', err);
+      next();
+    }
+  });
+
   // Vite/Static setup
   if (app.get("env") === "development") {
     await setupVite(app, server);
