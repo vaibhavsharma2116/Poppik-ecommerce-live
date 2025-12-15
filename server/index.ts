@@ -518,6 +518,19 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
       if (!fullImageUrl) fullImageUrl = fallbackImage;
 
+      // Determine image MIME type from extension for better crawler compatibility
+      let imageType = 'image/jpeg';
+      try {
+        const lower = String(fullImageUrl).toLowerCase();
+        if (lower.endsWith('.png')) imageType = 'image/png';
+        else if (lower.endsWith('.webp')) imageType = 'image/webp';
+        else if (lower.endsWith('.gif')) imageType = 'image/gif';
+        else if (lower.endsWith('.svg')) imageType = 'image/svg+xml';
+        else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) imageType = 'image/jpeg';
+      } catch (e) {
+        // fallback kept
+      }
+
       const comboUrl = `${baseUrl}/combo/${combo.id}`;
       const title = `${combo.name} - ₹${combo.price} | Poppik Lifestyle`;
       const description = combo.description || combo.detailed_description || 'Explore this combo on Poppik Lifestyle';
@@ -537,9 +550,11 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   <meta property="og:image" content="${fullImageUrl}">
   <meta property="og:image:url" content="${fullImageUrl}">
   <meta property="og:image:secure_url" content="${fullImageUrl}">
+  <meta property="og:image:type" content="${imageType}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="${combo.name.replace(/"/g, '&quot;')}">
+  <link rel="image_src" href="${fullImageUrl}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}">
   <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}">
@@ -555,8 +570,11 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 </body>
 </html>`;
 
+      // Expose selected OG image for debugging and to help crawlers
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+      res.setHeader('X-OG-Image', fullImageUrl);
+      console.log('📤 Combo OG image selected:', fullImageUrl, 'type:', imageType);
       res.send(html);
     } catch (err) {
       console.error('Error serving combo page:', err);
