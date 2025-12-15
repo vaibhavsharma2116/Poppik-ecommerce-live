@@ -377,7 +377,7 @@ async function sendOrderNotificationEmail(orderData: any) {
           <a href="${baseUrl}/order-history?orderId=${encodeURIComponent(orderId)}" style="display: inline-block; background-color: #e74c3c; color: #fff; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: bold;">View Your Order</a>
         </p>
         <p style="color: #888; font-size: 13px;">
-          You'll receive another email when your order ships. For any questions, please contact us at <a href="mailto:mohitksharmajpr@gmail.com" style="color: #e74c3c; text-decoration: none;">mohitksharmajpr@gmail.com</a>.
+          You'll receive another email when your order ships. For any questions, please contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
         </p>
         <p style="color: #888; font-size: 13px; margin-top: 10px;">
           © 2024 Poppik Lifestyle Private Limited. All rights reserved.
@@ -388,8 +388,8 @@ async function sendOrderNotificationEmail(orderData: any) {
 
   try {
     const mailOptions: any = {
-      from: process.env.SMTP_FROM || 'mohitksharmajpr@gmail.com',
-      to: customerEmail || process.env.SMTP_FALLBACK_TO || 'mohitksharmajpr@gmail.com',
+      from: process.env.SMTP_FROM || 'info@poppik.in',
+      to: customerEmail || process.env.SMTP_FALLBACK_TO || 'info@poppik.in',
       subject: emailSubject,
       html: emailHtml,
     };
@@ -404,7 +404,7 @@ async function sendOrderNotificationEmail(orderData: any) {
     console.log(`✅ Order notification email sent successfully to ${mailOptions.to} for order ${orderId}`);
       // Send a separate detailed email to internal/admin address with action required
       try {
-        const adminTo = process.env.INTERNAL_ORDER_TO || 'mohitksharmajpr@gmail.com';
+        const adminTo = process.env.INTERNAL_ORDER_TO || 'info@poppik.in';
         const adminSubject = `New Order Received - ${orderId}`;
 
         const adminItemsHtml = items.map((it: any) => {
@@ -6027,7 +6027,7 @@ app.get("/api/admin/stores", async (req, res) => {
         console.warn('Shiprocket not configured - skipping integration');
       }
 
-      // Send order notification email to mohitksharmajpr@gmail.com
+      // Send order notification email to info@poppik.in
       await sendOrderNotificationEmail({
         orderId: orderId,
         customerName: customerName || `${user[0]?.firstName || ''} ${user[0]?.lastName || ''}`.trim(),
@@ -7969,7 +7969,7 @@ app.get("/api/admin/stores", async (req, res) => {
         <div class="footer">
             <p><strong>Thank you for your business!</strong></p>
             <p>This is a computer generated invoice. No signature required.</p>
-            <p>For any queries, please contact us at mohitksharmajpr@gmail.com</p>
+            <p>For any queries, please contact us at info@poppik.in</p>
             <p>Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}</p>
         </div>
     </div>
@@ -11015,7 +11015,7 @@ Poppik Affiliate Portal
                 </a>
               </div>
               <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 30px 0 20px 0;">
-                If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:mohitksharmajpr@gmail.com" style="color: #e74c3c; text-decoration: none;">mohitksharmajpr@gmail.com</a>.
+                If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
               </p>
               <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0;">
                 Thank you for joining us. We look forward to a successful and rewarding partnership.
@@ -11046,7 +11046,7 @@ Poppik Affiliate Portal
                 We encourage you to reapply in the future. Keep creating amazing content!
               </p>
               <p style="font-size: 14px; color: #999999; margin: 20px 0 0 0;">
-                Questions? Contact us at <a href="mailto:mohitksharmajpr@gmail.com" style="color: #e74c3c;">mohitksharmajpr@gmail.com</a>
+                Questions? Contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c;">info@poppik.in</a>
               </p>
             </div>
             <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
@@ -11055,7 +11055,7 @@ Poppik Affiliate Portal
           </div>`;
 
         await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'mohitksharmajpr@gmail.com',
+          from: process.env.SMTP_FROM || 'info@poppik.in',
           to: updatedApplication.email,
           subject: emailSubject,
           html: emailHtml
