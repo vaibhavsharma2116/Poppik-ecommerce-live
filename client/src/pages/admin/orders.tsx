@@ -700,6 +700,14 @@ export default function AdminOrders() {
                         <Download className="h-4 w-4 mr-2" />
                         Download Invoice
                       </Button>
+                      <Button 
+                        className="w-full justify-start" 
+                        variant="outline"
+                        onClick={() => window.open(`/admin/orders/thermal-invoice?orderId=${selectedOrder.id}`, '_blank')}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Thermal Print
+                      </Button>
                       {selectedOrder.status === 'pending' && (
                         <Button
                           className="w-full justify-start"

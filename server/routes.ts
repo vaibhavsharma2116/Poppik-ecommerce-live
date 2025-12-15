@@ -290,30 +290,14 @@ async function sendOrderNotificationEmail(orderData: any) {
       }
     }
 
-    // If image is not an absolute URL, try to resolve it to a local file (attach) or prefix baseUrl
+    // If image is not an absolute URL, try to resolve it to a public URL (do NOT attach or inline images)
     if (imageSrc && !/^https?:\/\//i.test(imageSrc)) {
-      // If it starts with a leading slash, try resolving as a server-relative path first
       if (imageSrc.startsWith('/')) {
-        const localCandidate = path.join(process.cwd(), imageSrc.replace(/^\//, ''));
-        if (fs.existsSync(localCandidate)) {
-          const cid = `product-${idx}@poppik`;
-          attachments.push({ filename: path.basename(localCandidate), path: localCandidate, cid });
-          imageSrc = `cid:${cid}`;
-        } else {
-          // Not available locally, use absolute URL on the public server
-          imageSrc = `${baseUrl}${imageSrc}`;
-        }
+        // Prefer public server URL for server-relative paths; do not attach
+        imageSrc = `${baseUrl}${imageSrc}`;
       } else {
-        // Could be just a filename stored in uploads
-        const candidate = path.join(process.cwd(), 'uploads', imageSrc);
-        if (fs.existsSync(candidate)) {
-          const cid = `product-${idx}@poppik`;
-          attachments.push({ filename: path.basename(candidate), path: candidate, cid });
-          imageSrc = `cid:${cid}`;
-        } else {
-          // Fallback to uploads path on the public server
-          imageSrc = `${baseUrl}/uploads/${imageSrc}`;
-        }
+        // Could be just a filename stored in uploads - use public uploads URL
+        imageSrc = `${baseUrl}/uploads/${imageSrc}`;
       }
     }
 
@@ -324,10 +308,7 @@ async function sendOrderNotificationEmail(orderData: any) {
 
     itemHtml += `
       <tr style="border-bottom: 1px solid #ddd;">
-        <td style="padding: 10px 0; text-align: left;">
-          <img src="${imageSrc}" alt="${item.productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">
-          ${item.productName}
-        </td>
+        <td style="padding: 10px 0; text-align: left;">${item.productName}</td>
         <td style="padding: 10px 0; text-align: right;">${item.quantity}</td>
         <td style="padding: 10px 0; text-align: right;">₹${item.price}</td>
         <td style="padding: 10px 0; text-align: right;">₹${(parseFloat(String(item.price).replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
@@ -392,6 +373,9 @@ async function sendOrderNotificationEmail(orderData: any) {
       </div>
 
       <div style="text-align: center; margin-top: 40px;">
+        <p style="margin: 0 0 12px 0;">
+          <a href="${baseUrl}/order-history?orderId=${encodeURIComponent(orderId)}" style="display: inline-block; background-color: #e74c3c; color: #fff; padding: 12px 20px; border-radius: 6px; text-decoration: none; font-weight: bold;">View Your Order</a>
+        </p>
         <p style="color: #888; font-size: 13px;">
           You'll receive another email when your order ships. For any questions, please contact us at <a href="mailto:mohitksharmajpr@gmail.com" style="color: #e74c3c; text-decoration: none;">mohitksharmajpr@gmail.com</a>.
         </p>
@@ -405,7 +389,7 @@ async function sendOrderNotificationEmail(orderData: any) {
   try {
     const mailOptions: any = {
       from: process.env.SMTP_FROM || 'mohitksharmajpr@gmail.com',
-      to: 'mohitksharmajpr@gmail.com', // Always send to mohitksharmajpr@gmail.com
+      to: customerEmail || process.env.SMTP_FALLBACK_TO || 'mohitksharmajpr@gmail.com',
       subject: emailSubject,
       html: emailHtml,
     };
@@ -417,7 +401,67 @@ async function sendOrderNotificationEmail(orderData: any) {
     }
 
     await transporter.sendMail(mailOptions);
-    console.log(`✅ Order notification email sent successfully to mohitksharmajpr@gmail.com for order ${orderId}`);
+    console.log(`✅ Order notification email sent successfully to ${mailOptions.to} for order ${orderId}`);
+      // Send a separate detailed email to internal/admin address with action required
+      try {
+        const adminTo = process.env.INTERNAL_ORDER_TO || 'mohitksharmajpr@gmail.com';
+        const adminSubject = `New Order Received - ${orderId}`;
+
+        const adminItemsHtml = items.map((it: any) => {
+          const unitPrice = (it.price !== undefined && it.price !== null) ? `₹${it.price}` : 'N/A';
+          return `
+            <tr>
+              <td style="padding:8px 0;">${it.productName}</td>
+              <td style="padding:8px 0; text-align:right;">${it.quantity} units</td>
+              <td style="padding:8px 0; text-align:right;">${unitPrice}</td>
+            </tr>
+          `;
+        }).join('');
+
+        const adminHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 700px; margin:0 auto; padding:20px; background:#fff;">
+            <div style="text-align:center; margin-bottom:12px;">
+              <img src="${logoHtmlSrc}" alt="Poppik Logo" style="width:150px; margin-bottom:10px;" />
+            </div>
+            <h3>Dear POPPIK,</h3>
+            <p>You have received a new order:</p>
+            <p><strong>Order ID:</strong> ${orderId}</p>
+            <table style="width:100%; border-collapse:collapse; margin-top:12px;">
+              <thead>
+                <tr style="border-bottom:1px solid #eee; text-align:left;">
+                  <th style="padding:6px 0;">Product</th>
+                  <th style="padding:6px 0; text-align:right;">Quantity</th>
+                  <th style="padding:6px 0; text-align:right;">Unit Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${adminItemsHtml}
+              </tbody>
+            </table>
+
+            <h4 style="color:#d33;">What You Need to Do</h4>
+            <p>Pack the order and mark it <strong>Ready to Dispatch</strong> by <strong>${new Date(Date.now() + 24*60*60*1000).toLocaleString()}</strong> to avoid SLA breaches, which may impact your ratings and performance.</p>
+            <p>If you cannot fulfill the order within the next 3-4 days, please cancel it.</p>
+
+            <p style="margin-top:20px;">
+              <a href="${baseUrl}/admin/orders?orderId=${encodeURIComponent(orderId)}" target="_blank" style="display:inline-block;background:#111827;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:600;">View Detail</a>
+            </p>
+          </div>
+        `;
+
+        const adminMailOptions: any = {
+          from: process.env.SMTP_FROM || 'no-reply@poppik.in',
+          to: adminTo,
+          subject: adminSubject,
+          html: adminHtml,
+        };
+        if (attachments && attachments.length > 0) adminMailOptions.attachments = attachments;
+
+        await transporter.sendMail(adminMailOptions);
+        console.log(`✅ Admin order email sent to ${adminTo} for order ${orderId}`);
+      } catch (adminEmailError) {
+        console.error(`❌ Failed to send admin order email for order ${orderId}:`, adminEmailError);
+      }
   } catch (emailError) {
     console.error(`❌ Failed to send order notification email for order ${orderId}:`, emailError);
   }

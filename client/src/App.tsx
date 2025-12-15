@@ -77,6 +77,7 @@ const AdminDashboard = lazy(() => import("@/pages/admin/dashboard"));
 const AdminProducts = lazy(() => import("@/pages/admin/products"));
 const AdminCategories = lazy(() => import("@/pages/admin/category"));
 const AdminOrders = lazy(() => import("@/pages/admin/orders"));
+const AdminThermalInvoice = lazy(() => import("@/pages/admin/thermal-invoice"));
 const AdminCustomers = lazy(() => import("@/pages/admin/customers"));
 const AdminSettings = lazy(() => import("@/pages/admin/settings"));
 const AdminProfile = lazy(() => import("@/pages/admin/profile"));
@@ -202,6 +203,7 @@ function Router() {
             <Route path="/products" component={AdminProducts} />
             <Route path="/categories" component={AdminCategories} />
             <Route path="/orders" component={AdminOrders} />
+            <Route path="/orders/thermal-invoice" component={() => <LazyRoute component={AdminThermalInvoice} />} />
             <Route path="/customers" component={AdminCustomers} />
 <Route path="/influencer-videos" component={() => <LazyRoute component={AdminInfluencerVideos} />} />
             <Route path="/affiliate-videos" component={() => <LazyRoute component={AdminAffiliateVideos} />} />

@@ -234,6 +234,27 @@ export default function OrderHistory() {
     fetchOrders();
   }, []);
 
+  // If an orderId query param is present, open that order after orders load
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const orderIdParam = params.get('orderId');
+      if (orderIdParam && orders && orders.length > 0) {
+        const found = orders.find(o => o.id === orderIdParam);
+        if (found) {
+          setSelectedOrder(found);
+          setIsDetailsOpen(true);
+          // Remove the query param to avoid reopening the dialog on navigation
+          const url = new URL(window.location.href);
+          url.searchParams.delete('orderId');
+          window.history.replaceState({}, '', url.pathname + url.search);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [orders]);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
