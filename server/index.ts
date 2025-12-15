@@ -227,21 +227,26 @@ app.get('/favicon.ico', (req, res) => {
   app.get(["/product/:slug", "/share/product/:slug"], async (req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
 
-    // Detect social media crawlers and bots - be more specific
-    const isCrawler = /bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot|linkedinbot|pinterestbot|telegrambot|slackbot|discordbot|google/i.test(userAgent);
+    // Detect social media crawlers and bots (include common variations)
+    const isCrawler = /bot|crawler|spider|facebookexternalhit|whatsapp|whatsappbot|twitterbot|linkedinbot|pinterestbot|telegrambot|slackbot|discordbot|google/i.test(userAgent);
 
-    // IMPORTANT: Skip if it's a regular browser (contains Mozilla but not a bot)
+    // IMPORTANT: Treat as browser if it looks like an interactive browser without bot markers
     const isBrowser = /mozilla/i.test(userAgent) && !/bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot/i.test(userAgent);
+
+    const isHead = req.method === 'HEAD';
+    const forceShare = typeof req.query === 'object' && (req.query.share === '1' || req.query.share === 'true');
 
     console.log('🤖 Product page request:', {
       path: req.path,
-      userAgent: userAgent.substring(0, 100),
+      userAgent: String(userAgent).substring(0, 100),
       isCrawler,
-      isBrowser
+      isBrowser,
+      method: req.method,
+      forceShare
     });
 
-    // Only serve static OG page to crawlers, not browsers
-    if (!isCrawler || isBrowser) {
+    // Serve static OG page to crawlers, HEAD requests (for crawlers), or when explicitly requested via ?share=true
+    if (!isCrawler && !isHead && !forceShare) {
       return next();
     }
 
