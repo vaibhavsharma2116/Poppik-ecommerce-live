@@ -599,6 +599,100 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
     }
   });
 
+  // Handle blog post share URLs for social media crawlers
+  app.get(["/blog/:slug", "/share/blog/:slug"], async (req, res, next) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isCrawler = /bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot|linkedinbot|pinterestbot|telegrambot|slackbot|discordbot|google/i.test(userAgent);
+    const isBrowser = /mozilla/i.test(userAgent) && !/bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot/i.test(userAgent);
+
+    if (!isCrawler || isBrowser) {
+      return next();
+    }
+
+    try {
+      const { slug } = req.params as any;
+
+      // Fetch blog post directly from DB
+      const q = await pool.query('SELECT * FROM blog_posts WHERE slug = $1 LIMIT 1', [slug]);
+      const post = q.rows[0];
+
+      if (!post) return next();
+
+      const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+
+      // Prefer hero image, then imageUrl, then thumbnail
+      let blogImage = post.hero_image_url || post.image_url || post.thumbnail_url || fallbackImage;
+
+      // Ensure absolute HTTPS URL
+      const baseUrl = 'https://poppiklifestyle.com';
+      if (blogImage && !String(blogImage).toLowerCase().startsWith('http')) {
+        if (String(blogImage).startsWith('/')) blogImage = `${baseUrl}${blogImage}`;
+        else blogImage = `${baseUrl}/${blogImage}`;
+      }
+
+      if (!blogImage) blogImage = fallbackImage;
+
+      // Append small cache buster for same-origin images to avoid generic thumbnails
+      try {
+        const lower = String(blogImage).toLowerCase();
+        if (lower.includes('poppiklifestyle.com')) {
+          const sep = blogImage.includes('?') ? '&' : '?';
+          blogImage = `${blogImage}${sep}og=blog_${post.id}`;
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      const title = `${post.title} | Poppik Lifestyle`;
+      const description = post.excerpt || post.content?.slice(0, 160) || 'Read this article on Poppik Lifestyle';
+      const postUrl = `${baseUrl}/blog/${post.slug}`;
+
+      const html = `<!DOCTYPE html>
+<html lang="en" prefix="og: http://ogp.me/ns#">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title.replace(/"/g, '&quot;')}</title>
+  <meta name="description" content="${String(description).replace(/"/g, '&quot;')}">
+  <link rel="canonical" href="${postUrl}">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Poppik Lifestyle">
+  <meta property="og:url" content="${postUrl}">
+  <meta property="og:title" content="${title.replace(/"/g, '&quot;')}">
+  <meta property="og:description" content="${String(description).replace(/"/g, '&quot;')}">
+  <meta property="og:image" content="${blogImage}">
+  <meta property="og:image:url" content="${blogImage}">
+  <meta property="og:image:secure_url" content="${blogImage}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="${String(post.title).replace(/"/g, '&quot;')}">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}">
+  <meta name="twitter:description" content="${String(description).replace(/"/g, '&quot;')}">
+  <meta name="twitter:image" content="${blogImage}">
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+  <div style="text-align:center; background:white; border-radius:12px; padding:30px; box-shadow:0 8px 30px rgba(0,0,0,0.08);">
+    <img src="${blogImage}" alt="${String(post.title).replace(/"/g, '&quot;')}" style="max-width:100%; height:auto; border-radius:8px; margin-bottom:20px;" onerror="this.src='${fallbackImage}'">
+    <h1 style="font-size:22px; color:#222; margin:10px 0;">${String(post.title).replace(/"/g, '&quot;')}</h1>
+    <p style="color:#555;">${String(description)}</p>
+    <a href="${postUrl}" style="display:inline-block; margin-top:18px; background:linear-gradient(to right,#ec4899,#8b5cf6); color:#fff; padding:12px 22px; border-radius:8px; text-decoration:none;">Read on Poppik</a>
+  </div>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+      res.setHeader('X-OG-Image', blogImage);
+      res.send(html);
+    } catch (err) {
+      console.error('Error serving blog OG page:', err);
+      next();
+    }
+  });
+
   // Vite/Static setup
   if (app.get("env") === "development") {
     await setupVite(app, server);
