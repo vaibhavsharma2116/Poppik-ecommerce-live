@@ -520,6 +520,21 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
       if (!fullImageUrl) fullImageUrl = fallbackImage;
 
+      // Append a small cache-busting query for same-origin images so crawlers
+      // are more likely to fetch the actual combo image instead of a cached
+      // site-wide logo thumbnail. This helps WhatsApp/Facebook pick the
+      // correct OG image when CDN or cache returns a generic image.
+      try {
+        const urlLower = String(fullImageUrl || '').toLowerCase();
+        if (urlLower.startsWith(baseUrl) || urlLower.includes('poppiklifestyle.com')) {
+          // Don't duplicate query params if already present
+          const separator = fullImageUrl.includes('?') ? '&' : '?';
+          fullImageUrl = `${fullImageUrl}${separator}og=combo_${combo.id}`;
+        }
+      } catch (e) {
+        // ignore
+      }
+
       // Determine image MIME type from extension for better crawler compatibility
       let imageType = 'image/jpeg';
       try {
