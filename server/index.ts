@@ -37,15 +37,6 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-// Global error handlers to avoid silent crashes and aid debugging
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err && (err.stack || err));
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
 const app = express();
 
 // Security headers with performance optimizations
@@ -54,21 +45,13 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-app.use(cors({
-  credentials: true,
-  origin: process.env.CLIENT_URL || 'http://localhost:5173'
-}));
+app.use(cors());
 
 // Aggressive compression
 app.use(compression({
   level: 6,
   threshold: 1024, // Compress responses > 1KB
-  filter: (req: any, res: any) => {
-    // Don't compress server-sent events or media stream endpoints
-    try {
-      if (req.path && req.path.startsWith('/api/media/stream')) return false;
-      if (req.path && req.path.startsWith('/api/media')) return false;
-    } catch (e) {}
+  filter: (req, res) => {
     if (req.headers['x-no-compression']) return false;
     return compression.filter(req, res);
   }
@@ -99,12 +82,8 @@ app.use('/uploads', express.static('uploads', {
 
 // Cache API responses
 app.use((req, res, next) => {
-  // IMPORTANT: /api/products should NOT be cached for real-time CRUD operations
   if (req.method === 'GET' && req.path.startsWith('/api/products')) {
-    // No caching - always fetch fresh data
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
   }
   next();
 });
@@ -125,11 +104,6 @@ const CACHE_DURATION = 30000; // 30 seconds
 
 app.use((req, res, next) => {
   if (req.method === 'GET' && req.path.startsWith('/api/')) {
-    // Don't cache endpoints that require instant real-time updates
-    if (req.path.startsWith('/api/announcements') || req.path.startsWith('/api/sliders') || req.path.startsWith('/api/admin/sliders') || req.path.startsWith('/api/media') || req.path.startsWith('/api/products')) {
-      return next();
-    }
-
     const cacheKey = req.path + JSON.stringify(req.query);
     const cached = cache.get(cacheKey);
 
@@ -183,41 +157,15 @@ import { shades } from "@shared/schema";
 // Create db instance
 const db = drizzle(pool, { schema: { products, productImages, shades } });
 
-// Add health check endpoint BEFORE async initialization
-app.get('/health', (_req, res) => {
-  res.status(200).json({ ok: true, uptime: process.uptime(), env: process.env.NODE_ENV || 'development' });
-});
-
-// Simple favicon response to prevent 502 errors on favicon requests
-app.get('/favicon.ico', (req, res) => {
-  res.status(204).send(); // No content
-});
-
 (async () => {
-  let dbConnected = false;
-
-  // Simple database connection test with retries
-  const maxRetries = 3;
-  let retries = 0;
-  
-  while (retries < maxRetries && !dbConnected) {
-    try {
-      const client = await pool.connect();
-      await client.query('SELECT 1');
-      client.release();
-      console.log("✅ Database connection verified");
-      dbConnected = true;
-    } catch (error) {
-      retries++;
-      console.error(`❌ Database connection failed (attempt ${retries}/${maxRetries}):`, error);
-      if (retries < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
-      }
-    }
-  }
-  
-  if (!dbConnected) {
-    console.warn("⚠️ WARNING: Database not available, running in degraded mode");
+  // Simple database connection test
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT 1');
+    client.release();
+    console.log("✅ Database connection verified");
+  } catch (error) {
+    console.error("❌ Database connection failed:", error);
   }
 
   // Register API routes FIRST
@@ -227,26 +175,21 @@ app.get('/favicon.ico', (req, res) => {
   app.get(["/product/:slug", "/share/product/:slug"], async (req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
 
-    // Detect social media crawlers and bots (include common variations)
-    const isCrawler = /bot|crawler|spider|facebookexternalhit|whatsapp|whatsappbot|twitterbot|linkedinbot|pinterestbot|telegrambot|slackbot|discordbot|google/i.test(userAgent);
+    // Detect social media crawlers and bots - be more specific
+    const isCrawler = /bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot|linkedinbot|pinterestbot|telegrambot|slackbot|discordbot|google/i.test(userAgent);
 
-    // IMPORTANT: Treat as browser if it looks like an interactive browser without bot markers
+    // IMPORTANT: Skip if it's a regular browser (contains Mozilla but not a bot)
     const isBrowser = /mozilla/i.test(userAgent) && !/bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot/i.test(userAgent);
-
-    const isHead = req.method === 'HEAD';
-    const forceShare = typeof req.query === 'object' && (req.query.share === '1' || req.query.share === 'true');
 
     console.log('🤖 Product page request:', {
       path: req.path,
-      userAgent: String(userAgent).substring(0, 100),
+      userAgent: userAgent.substring(0, 100),
       isCrawler,
-      isBrowser,
-      method: req.method,
-      forceShare
+      isBrowser
     });
 
-    // Serve static OG page to crawlers, HEAD requests (for crawlers), or when explicitly requested via ?share=true
-    if (!isCrawler && !isHead && !forceShare) {
+    // Only serve static OG page to crawlers, not browsers
+    if (!isCrawler || isBrowser) {
       return next();
     }
 
@@ -531,27 +474,9 @@ app.get('/favicon.ico', (req, res) => {
       const indexPath = path.join(process.cwd(), "dist/public/index.html");
 
       if (fs.existsSync(indexPath)) {
-        res.setHeader('Cache-Control', 'no-cache, must-revalidate');
         res.sendFile(indexPath);
       } else {
-        // Fallback to a basic HTML response instead of 404 to prevent 502
-        res.status(200).send(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Poppik Lifestyle</title>
-              <meta charset="UTF-8" />
-              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            </head>
-            <body style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: system-ui;">
-              <div style="text-align: center;">
-                <h1>Loading...</h1>
-                <p>Please wait while we load the application.</p>
-                <script>location.reload();</script>
-              </div>
-            </body>
-          </html>
-        `);
+        res.status(404).send('Not Found');
       }
     } catch (error) {
       console.error("Error serving index.html:", error);
@@ -581,18 +506,9 @@ app.get('/favicon.ico', (req, res) => {
 
 
   // Serve the app on port 5000 (required for Replit web preview)
-  const port = parseInt(process.env.PORT || '8085', 10);
+  const port = process.env.PORT || 5000;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
-
-    // Inform process managers (pm2 with wait_ready) that the server is ready
-    if (typeof process.send === 'function') {
-      try {
-        process.send('ready');
-      } catch (e) {
-        // ignore
-      }
-    }
 
     // Clear cache periodically
     setInterval(() => {
