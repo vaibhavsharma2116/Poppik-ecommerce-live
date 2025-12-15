@@ -191,7 +191,7 @@ export default function BlogPostDetail() {
           <img
             src={resolveImage(post.heroImageUrl || post.thumbnailUrl || post.imageUrl)}
             alt={post.title}
-            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] "
+            className="w-full h-[160px] sm:h-[280px] md:h-[380px] lg:h-[400px] "
           />
         )}
       </div>

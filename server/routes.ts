@@ -107,7 +107,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration and error recovery
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -253,17 +253,84 @@ async function sendOrderNotificationEmail(orderData: any) {
 
   const emailSubject = `Poppik Lifestyle Order Confirmation - ${orderId}`;
 
+  // Ensure images in emails are absolute URLs or inline attachments (CID).
+  const baseUrl = (process.env.APP_BASE_URL || process.env.APP_URL || process.env.SITE_URL || 'https://poppik.in').replace(/\/$/, '');
+
+  // Prepare attachments array (logo + inline product images if available locally)
+  const attachments: any[] = [];
+
+  // Attach logo from repository if present, fallback to remote URL in HTML
+  const logoLocalPath = path.join(process.cwd(), 'attached_assets', 'logo.png');
+  const logoCid = 'poppik-logo@poppik';
+  let logoHtmlSrc = 'https://poppik.in/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fpoppik-logo.31d60553.png&w=256&q=75';
+  if (fs.existsSync(logoLocalPath)) {
+    attachments.push({ filename: 'logo.png', path: logoLocalPath, cid: logoCid });
+    logoHtmlSrc = `cid:${logoCid}`;
+  }
+
   let itemHtml = '';
-  items.forEach((item: any) => {
+  items.forEach((item: any, idx: number) => {
+    // Normalize product image to absolute URL or attach inline if file exists in uploads
+    let imageSrc = item.productImage || '';
+
+    // Handle Next.js optimized image URLs like "/_next/image?url=/path/to/file.png&w=256"
+    if (imageSrc && imageSrc.includes('/_next/image')) {
+      try {
+        const m = imageSrc.match(/[?&]url=([^&]+)/i);
+        if (m && m[1]) {
+          const decoded = decodeURIComponent(m[1]);
+          if (decoded.startsWith('/')) {
+            imageSrc = `${baseUrl}${decoded}`;
+          } else {
+            imageSrc = decoded;
+          }
+        }
+      } catch (e) {
+        // If parsing fails, keep original imageSrc
+      }
+    }
+
+    // If image is not an absolute URL, try to resolve it to a local file (attach) or prefix baseUrl
+    if (imageSrc && !/^https?:\/\//i.test(imageSrc)) {
+      // If it starts with a leading slash, try resolving as a server-relative path first
+      if (imageSrc.startsWith('/')) {
+        const localCandidate = path.join(process.cwd(), imageSrc.replace(/^\//, ''));
+        if (fs.existsSync(localCandidate)) {
+          const cid = `product-${idx}@poppik`;
+          attachments.push({ filename: path.basename(localCandidate), path: localCandidate, cid });
+          imageSrc = `cid:${cid}`;
+        } else {
+          // Not available locally, use absolute URL on the public server
+          imageSrc = `${baseUrl}${imageSrc}`;
+        }
+      } else {
+        // Could be just a filename stored in uploads
+        const candidate = path.join(process.cwd(), 'uploads', imageSrc);
+        if (fs.existsSync(candidate)) {
+          const cid = `product-${idx}@poppik`;
+          attachments.push({ filename: path.basename(candidate), path: candidate, cid });
+          imageSrc = `cid:${cid}`;
+        } else {
+          // Fallback to uploads path on the public server
+          imageSrc = `${baseUrl}/uploads/${imageSrc}`;
+        }
+      }
+    }
+
+    // If still empty, use a placeholder image
+    if (!imageSrc) {
+      imageSrc = `${baseUrl}/images/placeholder.png`;
+    }
+
     itemHtml += `
       <tr style="border-bottom: 1px solid #ddd;">
         <td style="padding: 10px 0; text-align: left;">
-          <img src="${item.productImage}" alt="${item.productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">
+          <img src="${imageSrc}" alt="${item.productName}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 10px; vertical-align: middle;">
           ${item.productName}
         </td>
         <td style="padding: 10px 0; text-align: right;">${item.quantity}</td>
         <td style="padding: 10px 0; text-align: right;">₹${item.price}</td>
-        <td style="padding: 10px 0; text-align: right;">₹${(parseFloat(item.price.replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
+        <td style="padding: 10px 0; text-align: right;">₹${(parseFloat(String(item.price).replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
       </tr>
     `;
   });
@@ -271,7 +338,7 @@ async function sendOrderNotificationEmail(orderData: any) {
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 30px; border-radius: 8px;">
       <div style="text-align: center; border-bottom: 2px solid #e74c3c; padding-bottom: 20px; margin-bottom: 30px;">
-        <img src="https://poppik.in/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fpoppik-logo.31d60553.png&w=256&q=75" alt="Poppik Logo" style="width: 150px; margin-bottom: 10px;">
+        <img src="${logoHtmlSrc}" alt="Poppik Logo" style="width: 150px; margin-bottom: 10px;">
         <h2 style="color: #e74c3c; margin: 0;">Thank You for Your Order!</h2>
         <p style="color: #666; font-size: 14px;">Your order #${orderId} has been successfully placed.</p>
       </div>
@@ -326,7 +393,7 @@ async function sendOrderNotificationEmail(orderData: any) {
 
       <div style="text-align: center; margin-top: 40px;">
         <p style="color: #888; font-size: 13px;">
-          You'll receive another email when your order ships. For any questions, please contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
+          You'll receive another email when your order ships. For any questions, please contact us at <a href="mailto:mohitksharmajpr@gmail.com" style="color: #e74c3c; text-decoration: none;">mohitksharmajpr@gmail.com</a>.
         </p>
         <p style="color: #888; font-size: 13px; margin-top: 10px;">
           © 2024 Poppik Lifestyle Private Limited. All rights reserved.
@@ -336,13 +403,21 @@ async function sendOrderNotificationEmail(orderData: any) {
   `;
 
   try {
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || 'info@poppik.in',
-      to: 'info@poppik.in', // Always send to info@poppik.in
+    const mailOptions: any = {
+      from: process.env.SMTP_FROM || 'mohitksharmajpr@gmail.com',
+      to: 'mohitksharmajpr@gmail.com', // Always send to mohitksharmajpr@gmail.com
       subject: emailSubject,
       html: emailHtml,
-    });
-    console.log(`✅ Order notification email sent successfully to info@poppik.in for order ${orderId}`);
+    };
+
+    if (attachments && attachments.length > 0) mailOptions.attachments = attachments;
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('📎 Order email attachments prepared:', attachments.map(a => ({ filename: a.filename, path: a.path, cid: a.cid })));
+    }
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Order notification email sent successfully to mohitksharmajpr@gmail.com for order ${orderId}`);
   } catch (emailError) {
     console.error(`❌ Failed to send order notification email for order ${orderId}:`, emailError);
   }
@@ -5908,7 +5983,7 @@ app.get("/api/admin/stores", async (req, res) => {
         console.warn('Shiprocket not configured - skipping integration');
       }
 
-      // Send order notification email to info@poppik.in
+      // Send order notification email to mohitksharmajpr@gmail.com
       await sendOrderNotificationEmail({
         orderId: orderId,
         customerName: customerName || `${user[0]?.firstName || ''} ${user[0]?.lastName || ''}`.trim(),
@@ -7850,7 +7925,7 @@ app.get("/api/admin/stores", async (req, res) => {
         <div class="footer">
             <p><strong>Thank you for your business!</strong></p>
             <p>This is a computer generated invoice. No signature required.</p>
-            <p>For any queries, please contact us at info@poppik.in</p>
+            <p>For any queries, please contact us at mohitksharmajpr@gmail.com</p>
             <p>Generated on ${new Date().toLocaleDateString('en-IN')} at ${new Date().toLocaleTimeString('en-IN')}</p>
         </div>
     </div>
@@ -10896,7 +10971,7 @@ Poppik Affiliate Portal
                 </a>
               </div>
               <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 30px 0 20px 0;">
-                If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
+                If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:mohitksharmajpr@gmail.com" style="color: #e74c3c; text-decoration: none;">mohitksharmajpr@gmail.com</a>.
               </p>
               <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0;">
                 Thank you for joining us. We look forward to a successful and rewarding partnership.
@@ -10927,7 +11002,7 @@ Poppik Affiliate Portal
                 We encourage you to reapply in the future. Keep creating amazing content!
               </p>
               <p style="font-size: 14px; color: #999999; margin: 20px 0 0 0;">
-                Questions? Contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c;">info@poppik.in</a>
+                Questions? Contact us at <a href="mailto:mohitksharmajpr@gmail.com" style="color: #e74c3c;">mohitksharmajpr@gmail.com</a>
               </p>
             </div>
             <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
@@ -10936,7 +11011,7 @@ Poppik Affiliate Portal
           </div>`;
 
         await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'info@poppik.in',
+          from: process.env.SMTP_FROM || 'mohitksharmajpr@gmail.com',
           to: updatedApplication.email,
           subject: emailSubject,
           html: emailHtml

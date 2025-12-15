@@ -3129,7 +3129,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                               </div>
                               
                               {/* Compact Address with Accordion */}
-                              {itemAddress && (
+                              {isMultiAddress && itemAddress && (
                                 <Accordion type="single" collapsible className="mt-3">
                                   <AccordionItem value="address" className="border">
                                     <AccordionTrigger className="py-2 px-3 hover:bg-gray-50 text-xs">
@@ -3169,6 +3169,26 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                       }
                       return null;
                     })}
+
+                    {/* For single-address orders show the chosen address once (not per item) */}
+                    {localStorage.getItem('isMultiAddressOrder') !== 'true' && selectedAddressId && (() => {
+                      const addr = savedAddresses.find(a => Number(a.id) === Number(selectedAddressId));
+                      if (!addr) return null;
+                      return (
+                        <div className="border border-gray-200 rounded-md bg-white p-3 mb-3">
+                          <div className="flex items-start gap-3">
+                            <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
+                            <div>
+                              <p className="font-semibold text-gray-900">Deliver to</p>
+                              <p className="text-sm text-gray-700 mt-1">{addr.recipientName}</p>
+                              <p className="text-sm text-gray-700">{addr.addressLine1}{addr.addressLine2 ? ', ' + addr.addressLine2 : ''}</p>
+                              <p className="text-sm text-gray-700">{addr.city}, {String(addr.state || '').replace(/_/g, ' ').toUpperCase()} - {addr.pincode}</p>
+                              {addr.phoneNumber && <p className="text-sm text-gray-600 mt-1">Phone: {addr.phoneNumber}</p>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     <div className="flex justify-between pt-3 mt-3 border-t">
                       <Button 
