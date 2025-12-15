@@ -445,6 +445,8 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Pragma', 'public');
       res.setHeader('Expires', new Date(Date.now() + 3600000).toUTCString());
+      // Expose selected OG image URL to help debugging crawlers/previews
+      res.setHeader('X-OG-Image', fullImageUrl);
 
       console.log('📤 Sending OG page with image:', fullImageUrl);
       console.log('📤 Serving HTML for:', req.path);
