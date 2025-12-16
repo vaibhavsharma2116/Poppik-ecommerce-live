@@ -171,7 +171,7 @@ export default function BlogPostDetail() {
       <div className="w-full bg-gray-100">
         {post.videoUrl ? (
           <video
-            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] object-cover"
+            className="w-full h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] "
             controls
             preload="metadata"
             poster={post.imageUrl}

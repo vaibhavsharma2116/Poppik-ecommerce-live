@@ -70,17 +70,17 @@ export default function OffersPage() {
                     <div className="relative overflow-hidden">
                       {/* Discount Badge - Responsive */}
                       <div className="absolute top-2 left-2 sm:top-3 sm:left-3 md:top-4 md:left-4 z-10">
-                        <Badge className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg">
+                        {/* <Badge className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg">
                           {discount}
-                        </Badge>
+                        </Badge> */}
                       </div>
 
                       {/* Expired Badge - Responsive */}
                       {isExpired && (
                         <div className="absolute top-2 right-2 sm:top-3 sm:right-3 md:top-4 md:right-4 z-10">
-                          <Badge className="bg-gray-600 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg">
+                          {/* <Badge className="bg-gray-600 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg">
                             EXPIRED
-                          </Badge>
+                          </Badge> */}
                         </div>
                       )}
 
@@ -89,14 +89,14 @@ export default function OffersPage() {
                         <img
                           src={offer.imageUrl}
                           alt={offer.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full  group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       </div>
 
                       {/* Content Overlay - Responsive Padding & Text */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-3 sm:p-4 md:p-6 lg:p-8">
+                      {/* <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-3 sm:p-4 md:p-6 lg:p-8">
                         <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold text-white mb-1 sm:mb-2 line-clamp-2">
                           {offer.title}
                         </h3>
@@ -108,7 +108,7 @@ export default function OffersPage() {
                             Valid until {new Date(offer.validUntil).toLocaleDateString('en-IN')}
                           </p>
                         )}
-                      </div>
+                      </div> */}
                     </div>
                   </CardContent>
                 </Card>

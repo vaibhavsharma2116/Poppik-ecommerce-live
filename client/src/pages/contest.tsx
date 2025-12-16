@@ -60,10 +60,10 @@ export default function ContestsPage() {
                     <div className="relative overflow-hidden">
                       {/* Contest Badge */}
                       <div className="absolute top-2 left-2 sm:top-3 sm:left-3 md:top-4 md:left-4 z-10">
-                        <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg flex items-center gap-1">
+                        {/* <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg flex items-center gap-1">
                           <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
                           CONTEST
-                        </Badge>
+                        </Badge> */}
                       </div>
 
                       {/* Expired Badge */}
@@ -80,7 +80,7 @@ export default function ContestsPage() {
                         <img
                           src={contest.imageUrl}
                           alt={contest.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full  group-hover:scale-105 transition-transform duration-500"
                           loading="lazy"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -88,9 +88,9 @@ export default function ContestsPage() {
 
                       {/* Content Overlay */}
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-3 sm:p-4 md:p-6 lg:p-8">
-                        <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold text-white mb-1 sm:mb-2 line-clamp-2">
+                        {/* <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold text-white mb-1 sm:mb-2 line-clamp-2">
                           {contest.title}
-                        </h3>
+                        </h3> */}
                         <p className="text-xs sm:text-sm text-gray-200 line-clamp-2">
                           {contest.description}
                         </p>

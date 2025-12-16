@@ -40,6 +40,9 @@ export default function MediaManagement() {
   const [uploading, setUploading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
+  const refreshIntervalRef = React.useRef<number | null>(null);
+  const lastFetchRef = React.useRef<number>(0);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -56,7 +59,11 @@ export default function MediaManagement() {
   const { toast } = useToast();
 
   // Fetch media list
-  const fetchMediaList = async () => {
+  const fetchMediaList = async (force = false) => {
+    const now = Date.now();
+    // throttle: ignore calls within 2500ms unless forced
+    if (!force && lastFetchRef.current && now - lastFetchRef.current < 2500) return;
+    lastFetchRef.current = now;
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
@@ -92,7 +99,7 @@ export default function MediaManagement() {
       if (refreshTimer) window.clearTimeout(refreshTimer as any);
     } catch (e) {}
     refreshTimer = window.setTimeout(() => {
-      fetchMediaList();
+      fetchMediaList(true);
       refreshTimer = null;
     }, delay) as unknown as number;
   };
@@ -145,17 +152,50 @@ export default function MediaManagement() {
 
   useEffect(() => {
     // initial load
-    fetchMediaList();
-    
-    // Auto-refresh every 3 seconds for real-time updates
-    const refreshInterval = setInterval(() => {
-      fetchMediaList();
-    }, 3000);
+    fetchMediaList(true);
+
+    const startInterval = () => {
+      if (refreshIntervalRef.current) return; // already running
+      // only run when form is closed and page is visible
+      if (isFormOpen || document.visibilityState !== 'visible') return;
+      refreshIntervalRef.current = window.setInterval(() => {
+        fetchMediaList();
+      }, 3000) as unknown as number;
+    };
+
+    const stopInterval = () => {
+      if (refreshIntervalRef.current) {
+        try { window.clearInterval(refreshIntervalRef.current); } catch (e) {}
+        refreshIntervalRef.current = null;
+      }
+    };
+
+    // start depending on current state
+    startInterval();
+
+    // Pause when form opens/closes or when page visibility changes
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') startInterval();
+      else stopInterval();
+    };
+
+    const onFocus = () => startInterval();
+    const onBlur = () => stopInterval();
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('blur', onBlur);
+
+    // If form opens while interval is running, stop it
+    if (isFormOpen) stopInterval();
 
     return () => {
-      clearInterval(refreshInterval);
+      stopInterval();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('blur', onBlur);
     };
-  }, []);
+  }, [isFormOpen]);
 
   useEffect(() => {
     applyFiltersAndSort(mediaList);
@@ -243,8 +283,9 @@ export default function MediaManagement() {
         if (response.ok && responseData) {
           toast({ title: 'Success', description: 'Media updated successfully' });
           resetForm();
+          setIsFormOpen(false);
           // Immediate refresh
-          await fetchMediaList();
+          await fetchMediaList(true);
         } else {
           setMediaList(prevList);
           applyFiltersAndSort(prevList);
@@ -303,8 +344,9 @@ export default function MediaManagement() {
         if (response.ok && responseData) {
           toast({ title: 'Success', description: 'Media created successfully' });
           resetForm();
+          setIsFormOpen(false);
           // Immediate refresh
-          await fetchMediaList();
+          await fetchMediaList(true);
         } else {
           setMediaList(prevList);
           applyFiltersAndSort(prevList);
@@ -363,7 +405,7 @@ export default function MediaManagement() {
       if (response.ok) {
         toast({ title: 'Success', description: 'Media deleted successfully' });
         // Immediate refresh
-        await fetchMediaList();
+        await fetchMediaList(true);
       } else {
         const errorData = await response.json().catch(() => null);
         setMediaList(prevList);
@@ -512,7 +554,7 @@ export default function MediaManagement() {
       if (response.ok) {
         toast({ title: 'Success', description: `Media ${!media.isActive ? 'activated' : 'deactivated'}` });
         // Immediate refresh
-        await fetchMediaList();
+        await fetchMediaList(true);
       } else {
         setMediaList(prevList);
         applyFiltersAndSort(prevList);
