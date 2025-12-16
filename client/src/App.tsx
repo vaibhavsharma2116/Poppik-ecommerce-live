@@ -61,6 +61,8 @@ const Contact = lazy(() => import("@/pages/contact"));
 const Login = lazy(() => import("./pages/auth/login"));
 const Signup = lazy(() => import("./pages/auth/signup"));
 const OTPVerification = lazy(() => import("./pages/auth/otp-verification"));
+const ForgotPassword = lazy(() => import("./pages/auth/forgot-password"));
+const ResetPassword = lazy(() => import("./pages/auth/reset-password"));
 const Profile = lazy(() => import("./pages/profile"));
 const CartPage = lazy(() => import('./pages/cart'));
 const Checkout = lazy(() => import("./pages/checkout"));
@@ -279,6 +281,8 @@ function Router() {
             <Route path="/contact" component={Contact} />
             <Route path="/auth/login" component={Login} />
             <Route path="/auth/signup" component={Signup} />
+            <Route path="/auth/forgot-password" component={ForgotPassword} />
+            <Route path="/auth/reset-password" component={() => <LazyRoute component={ResetPassword} />} />
             <Route path="/auth/otp-verification" component={() => <LazyRoute component={OTPVerification} />} />
             <Route path="/profile" component={Profile} />
             <Route path="/cart" component={CartPage} />

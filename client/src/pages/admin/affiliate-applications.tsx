@@ -259,7 +259,7 @@ export default function AdminAffiliateApplications() {
                 </div>
               </div>
 
-              <div>
+              {/* <div>
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <Landmark className="h-5 w-5 text-purple-600" />
                   Banking Details
@@ -276,9 +276,9 @@ export default function AdminAffiliateApplications() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
-              <div>
+              {/* <div>
                 <h3 className="font-semibold mb-2">Review Notes</h3>
                 <Textarea
                   value={reviewNotes}
@@ -286,16 +286,16 @@ export default function AdminAffiliateApplications() {
                   placeholder="Add notes about this application..."
                   rows={4}
                 />
-              </div>
+              </div> */}
 
-              {selectedApplication.reviewedAt && (
+              {/* {selectedApplication.reviewedAt && (
                 <div className="text-sm text-muted-foreground bg-gray-50 p-4 rounded">
                   <p><strong>Reviewed on:</strong> {new Date(selectedApplication.reviewedAt).toLocaleDateString()}</p>
                   {selectedApplication.reviewNotes && (
                     <p className="mt-2"><strong>Previous Notes:</strong> {selectedApplication.reviewNotes}</p>
                   )}
                 </div>
-              )}
+              )} */}
 
               <div className="flex items-center justify-between pt-4 border-t">
                 <div className="text-sm text-muted-foreground">

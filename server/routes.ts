@@ -1034,6 +1034,91 @@ app.get("/api/admin/stores", async (req, res) => {
     res.json({ message: "Logged out successfully" });
   });
 
+  // Forgot password - send reset link (returns 200 regardless to avoid account enumeration)
+  app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+      const { email } = req.body || {};
+      if (!email) return res.status(400).json({ error: 'Email is required' });
+
+      // Lookup user
+      const user = await storage.getUserByEmail(String(email).toLowerCase());
+
+      // Always respond with success message to avoid leaking whether an email exists
+      const messageResponse = { message: "If that email exists, we've sent password reset instructions." };
+
+      if (!user) {
+        return res.json(messageResponse);
+      }
+
+      // Create a short-lived JWT token for password reset
+      const secret = process.env.JWT_SECRET || 'your-secret-key';
+      const token = jwt.sign({ uid: user.id, type: 'password_reset' }, secret, { expiresIn: '1h' });
+
+      const baseUrl = (process.env.APP_BASE_URL || process.env.APP_URL || process.env.SITE_URL || 'https://poppiklifestyle.com').replace(/\/$/, '');
+      const resetLink = `${baseUrl}/auth/reset-password?token=${token}`;
+
+      // Send email using configured transporter
+      try {
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@poppik.in',
+          to: user.email,
+          subject: 'Poppik - Password reset instructions',
+          html: `
+            <p>Hi ${user.first_name || user.firstName || 'there'},</p>
+            <p>We received a request to reset your password. Click the link below to set a new password. This link expires in 1 hour.</p>
+            <p><a href="${resetLink}">Reset your password</a></p>
+            <p>If you didn't request this, you can safely ignore this email.</p>
+            <p>— Poppik Team</p>
+          `
+        });
+      } catch (emailErr) {
+        console.error('Error sending reset email:', emailErr);
+        // don't expose error; still return generic message
+      }
+
+      return res.json(messageResponse);
+    } catch (err) {
+      console.error('Error in forgot-password endpoint:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Reset password - accepts token and new password
+  app.post('/api/auth/reset-password', async (req, res) => {
+    try {
+      const { token, password } = req.body || {};
+      if (!token || !password) return res.status(400).json({ error: 'Token and password are required' });
+
+      const secret = process.env.JWT_SECRET || 'your-secret-key';
+      let payload: any;
+      try {
+        payload = jwt.verify(token, secret) as any;
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid or expired token' });
+      }
+
+      if (!payload || payload.type !== 'password_reset' || !payload.uid) {
+        return res.status(400).json({ error: 'Invalid token payload' });
+      }
+
+      const userId = parseInt(String(payload.uid), 10);
+      if (!userId) return res.status(400).json({ error: 'Invalid user in token' });
+
+      // Hash and update password
+      const hashed = await bcrypt.hash(String(password), 10);
+      const updatedUser = await storage.updateUser(userId, { password: hashed });
+
+      if (!updatedUser) {
+        return res.status(500).json({ error: 'Unable to update password' });
+      }
+
+      return res.json({ message: 'Password updated successfully' });
+    } catch (err) {
+      console.error('Error in reset-password endpoint:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Cashfree Payment Routes
   app.post('/api/payments/cashfree/create-order', async (req, res) => {
     try {
