@@ -20,6 +20,8 @@ export class OTPService {
   // Mobile OTP methods
   static async sendMobileOTP(phoneNumber: string): Promise<{ success: boolean; message: string }> {
     try {
+      const isProduction = process.env.NODE_ENV === 'production';
+
       // Clean and format phone number
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
       const formattedPhone = cleanedPhone.startsWith('91') && cleanedPhone.length === 12
@@ -37,21 +39,28 @@ export class OTPService {
       const otp = this.generateOTP();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-      // Store OTP with phone number as key
+      // Send SMS via MDSSEND.IN (pass with 91 prefix for API)
+      const smsSent = await this.sendSMS(`91${formattedPhone}`, otp);
+
+      if (!smsSent) {
+        console.error('Failed to send SMS via MDSSEND.IN');
+
+        // In production, treat as hard failure so frontend/user sees error
+        if (isProduction) {
+          return {
+            success: false,
+            message: 'Failed to send OTP to your mobile number. Please try again later.'
+          };
+        }
+      }
+
+      // Only store OTP after attempting to send SMS
       otpStorage.set(formattedPhone, {
         otp,
         email: formattedPhone, // Using email field for phone number
         expiresAt,
         verified: false
       });
-
-      // Send SMS via MDSSEND.IN (pass with 91 prefix for API)
-      const smsSent = await this.sendSMS(`91${formattedPhone}`, otp);
-
-      if (!smsSent) {
-        console.error('Failed to send SMS via MDSSEND.IN');
-        // Still return success for development with console fallback
-      }
 
       // Also log to console for development
       console.log('\n' + '='.repeat(50));
@@ -242,6 +251,8 @@ export class OTPService {
     try {
       console.log('📱 Mobile OTP request for:', phoneNumber);
 
+      const isProduction = process.env.NODE_ENV === 'production';
+
       // API credentials and parameters
       const username = 'Poppik';
       const apikey = 'LpVf1h3SxoZP';
@@ -253,8 +264,8 @@ export class OTPService {
       // Dynamic message with OTP
       const message = `Dear Poppik, your OTP for completing your registration is ${otp}. Please do not share this OTP with anyone. Visit us at www.poppik.in – Team Poppik`;
 
-      // Construct the API URL exactly as specified
-      const apiUrl = `http://13.234.156.238/api.php?username=${username}&apikey=${apikey}&senderid=${senderid}&route=OTP&mobile=${mobile}&text=${encodeURIComponent(message)}&TID=${TID}&PEID=${PEID}`;
+      // Construct the API URL with transactional route
+      const apiUrl = `http://13.234.156.238/api.php?username=${username}&apikey=${apikey}&senderid=${senderid}&route=TRANS&mobile=${mobile}&text=${encodeURIComponent(message)}&TID=${TID}&PEID=${PEID}`;
 
       console.log('🔍 Sending SMS...');
       console.log(`📱 To: ${mobile}`);
@@ -312,32 +323,45 @@ export class OTPService {
         console.log(`⚠️ SMS API unclear response: ${responseText}`);
       }
 
-      // If SMS failed, still show OTP in console for development
-      console.log('🔄 Development mode - OTP will work via console display');
-      console.log('\n' + '='.repeat(60));
-      console.log('📱 SMS FAILED - DEVELOPMENT OTP DISPLAY');
-      console.log('='.repeat(60));
-      console.log(`📱 Phone: ${phoneNumber}`);
-      console.log(`🔐 OTP Code: ${otp}`);
-      console.log(`⏰ Valid for: 5 minutes`);
-      console.log(`📅 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
-      console.log('='.repeat(60) + '\n');
+      // If SMS failed:
+      if (!isProduction) {
+        // In non-production, still allow flow by logging OTP
+        console.log('🔄 Development mode - OTP will work via console display');
+        console.log('\n' + '='.repeat(60));
+        console.log('📱 SMS FAILED - DEVELOPMENT OTP DISPLAY');
+        console.log('='.repeat(60));
+        console.log(`📱 Phone: ${phoneNumber}`);
+        console.log(`🔐 OTP Code: ${otp}`);
+        console.log(`⏰ Valid for: 5 minutes`);
+        console.log(`📅 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+        console.log('='.repeat(60) + '\n');
 
-      return true; // Return true for development to allow OTP verification
+        return true;
+      }
+
+      // In production, treat failure properly so caller can surface error
+      return false;
 
     } catch (error) {
-      console.log('📱 SMS service error:', error.message);
-      console.log('🔄 Development mode - OTP will work via console display');
-      console.log('\n' + '='.repeat(60));
-      console.log('📱 SMS ERROR - DEVELOPMENT OTP DISPLAY');
-      console.log('='.repeat(60));
-      console.log(`📱 Phone: ${phoneNumber}`);
-      console.log(`🔐 OTP Code: ${otp}`);
-      console.log(`⏰ Valid for: 5 minutes`);
-      console.log(`📅 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
-      console.log('='.repeat(60) + '\n');
+      const isProduction = process.env.NODE_ENV === 'production';
+      console.log('📱 SMS service error:', (error as any)?.message || error);
 
-      return true; // Return true for development to allow OTP verification
+      if (!isProduction) {
+        console.log('🔄 Development mode - OTP will work via console display');
+        console.log('\n' + '='.repeat(60));
+        console.log('📱 SMS ERROR - DEVELOPMENT OTP DISPLAY');
+        console.log('='.repeat(60));
+        console.log(`📱 Phone: ${phoneNumber}`);
+        console.log(`🔐 OTP Code: ${otp}`);
+        console.log(`⏰ Valid for: 5 minutes`);
+        console.log(`📅 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+        console.log('='.repeat(60) + '\n');
+
+        return true; // Return true for development to allow OTP verification
+      }
+
+      // In production, bubble up failure
+      return false;
     }
   }
 
