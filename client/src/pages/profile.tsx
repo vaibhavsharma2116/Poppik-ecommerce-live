@@ -82,7 +82,7 @@ export default function Profile() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCountdown, setOtpCountdown] = useState(0);
   const [currentOTP, setCurrentOTP] = useState<string | null>(null);
-  const showDevOTP = true; // show OTP in UI for development/testing
+  const showDevOTP = false; // set to true only in development to show OTP in UI
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const { toast } = useToast();
 
@@ -999,14 +999,14 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {showDevOTP && currentOTP && (
+                {/* {showDevOTP && currentOTP && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                     <p className="text-sm text-yellow-800 text-center">
                       <strong>Development Mode:</strong> Your OTP is{" "}
                       <span className="font-mono font-bold">{currentOTP}</span>
                     </p>
                   </div>
-                )}
+                )} */}
 
                 <div className="flex justify-between items-center">
                   <Button
