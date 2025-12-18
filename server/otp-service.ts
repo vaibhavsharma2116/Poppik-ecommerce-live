@@ -244,17 +244,17 @@ export class OTPService {
 
       // API credentials and parameters
       const username = 'Poppik';
-      const apikey = 'IF2ppgKwK0Mm';
+      const apikey = 'LpVf1h3SxoZP';
       const senderid = 'POPPIK';
       const mobile = phoneNumber; // Use phoneNumber directly without adding 91 prefix
       const TID = '1707175646621729117';
-      const PEID = '1701175575743853955';
+      const PEID = '1701175575743853955'; 
       
       // Dynamic message with OTP
       const message = `Dear Poppik, your OTP for completing your registration is ${otp}. Please do not share this OTP with anyone. Visit us at www.poppik.in – Team Poppik`;
 
       // Construct the API URL exactly as specified
-      const apiUrl = `http://13.234.156.238/api.php?username=Poppik&apikey=IF2ppgKwK0Mm&senderid=POPPIK&route=OTP&mobile=9324976370&text=Dear Poppik, your OTP for completing your registration is 6754. Please do not share this OTP with anyone. Visit us at www.poppik.in – Team Poppik&TID=1707175646621729117&PEID=1701175575743853955`;
+      const apiUrl = `http://13.234.156.238/api.php?username=${username}&apikey=${apikey}&senderid=${senderid}&route=OTP&mobile=${mobile}&text=${encodeURIComponent(message)}&TID=${TID}&PEID=${PEID}`;
 
       console.log('🔍 Sending SMS...');
       console.log(`📱 To: ${mobile}`);
