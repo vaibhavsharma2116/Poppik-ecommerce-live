@@ -82,7 +82,7 @@ export default function Profile() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCountdown, setOtpCountdown] = useState(0);
   const [currentOTP, setCurrentOTP] = useState<string | null>(null);
-  const showDevOTP = false; // set to true only in development to show OTP in UI
+  const showDevOTP = true; // show OTP in UI for development/testing
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const { toast } = useToast();
 
@@ -894,9 +894,6 @@ export default function Profile() {
                     <p className="text-sm text-yellow-800 text-center">
                       <strong>Development Mode:</strong> Your OTP is{" "}
                       <span className="font-mono font-bold">{currentOTP}</span>
-                    </p>
-                    <p className="text-xs text-yellow-600 text-center mt-1">
-                      (Use this code if SMS is delayed or not received)
                     </p>
                   </div>
                 )}
