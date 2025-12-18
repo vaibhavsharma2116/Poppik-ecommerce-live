@@ -242,6 +242,9 @@ export class OTPService {
     try {
       console.log('📱 Mobile OTP request for:', phoneNumber);
 
+      // Treat NODE_ENV=production as live environment
+      const isProduction = process.env.NODE_ENV === 'production';
+
       // API credentials and parameters
       const username = 'Poppik';
       const apikey = 'IF2ppgKwK0Mm';
@@ -312,32 +315,46 @@ export class OTPService {
         console.log(`⚠️ SMS API unclear response: ${responseText}`);
       }
 
-      // If SMS failed, still show OTP in console for development
-      console.log('🔄 Development mode - OTP will work via console display');
-      console.log('\n' + '='.repeat(60));
-      console.log('📱 SMS FAILED - DEVELOPMENT OTP DISPLAY');
-      console.log('='.repeat(60));
-      console.log(`📱 Phone: ${phoneNumber}`);
-      console.log(`🔐 OTP Code: ${otp}`);
-      console.log(`⏰ Valid for: 5 minutes`);
-      console.log(`📅 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
-      console.log('='.repeat(60) + '\n');
+      // If SMS failed:
+      if (!isProduction) {
+        // In non-production, still allow flow by logging OTP
+        console.log('🔄 Development mode - OTP will work via console display');
+        console.log('\n' + '='.repeat(60));
+        console.log('📱 SMS FAILED - DEVELOPMENT OTP DISPLAY');
+        console.log('='.repeat(60));
+        console.log(`📱 Phone: ${phoneNumber}`);
+        console.log(`🔐 OTP Code: ${otp}`);
+        console.log(`⏰ Valid for: 5 minutes`);
+        console.log(`📅 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+        console.log('='.repeat(60) + '\n');
 
-      return true; // Return true for development to allow OTP verification
+        return true;
+      }
+
+      // In production, treat failure properly so frontend sees error
+      return false;
 
     } catch (error) {
-      console.log('📱 SMS service error:', error.message);
-      console.log('🔄 Development mode - OTP will work via console display');
-      console.log('\n' + '='.repeat(60));
-      console.log('📱 SMS ERROR - DEVELOPMENT OTP DISPLAY');
-      console.log('='.repeat(60));
-      console.log(`📱 Phone: ${phoneNumber}`);
-      console.log(`🔐 OTP Code: ${otp}`);
-      console.log(`⏰ Valid for: 5 minutes`);
-      console.log(`📅 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
-      console.log('='.repeat(60) + '\n');
+      console.log('📱 SMS service error:', (error as any)?.message || error);
 
-      return true; // Return true for development to allow OTP verification
+      const isProduction = process.env.NODE_ENV === 'production';
+
+      if (!isProduction) {
+        console.log('🔄 Development mode - OTP will work via console display');
+        console.log('\n' + '='.repeat(60));
+        console.log('📱 SMS ERROR - DEVELOPMENT OTP DISPLAY');
+        console.log('='.repeat(60));
+        console.log(`📱 Phone: ${phoneNumber}`);
+        console.log(`🔐 OTP Code: ${otp}`);
+        console.log(`⏰ Valid for: 5 minutes`);
+        console.log(`📅 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+        console.log('='.repeat(60) + '\n');
+
+        return true; // Return true for development to allow OTP verification
+      }
+
+      // In production, bubble up failure
+      return false;
     }
   }
 
