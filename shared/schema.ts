@@ -123,6 +123,8 @@ export const ordersTable = pgTable("orders", {
   affiliateWalletAmount: integer("affiliate_wallet_amount").default(0),
   isMultiAddress: boolean("is_multi_address").default(false),
   notes: text("notes"),
+  deliveryPartner: varchar("delivery_partner", { length: 50 }),
+  deliveryType: varchar("delivery_type", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -529,14 +529,15 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             productShades.length > 0 ? (
               <Button 
                 size="sm" 
-                className="w-full text-xs sm:text-sm py-2.5 sm:py-3 min-h-[40px] bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
+                className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 touch-target"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   setIsShadeDrawerOpen(true);
                 }}
               >
-                Select Shades
+                <Star className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Select </span>Shades
               </Button>
             ) : (
               <Button 

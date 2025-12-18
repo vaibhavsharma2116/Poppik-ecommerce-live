@@ -15,6 +15,8 @@ import nodemailer from 'nodemailer';
 import { createMasterAdminRoutes } from "./master-admin-routes";
 import webpush from 'web-push';
 import { startNotificationScheduler } from './notificationScheduler';
+import { startExpireScheduler } from './expireScheduler';
+import { runExpirePassOnce } from './expireScheduler';
 import dotenv from "dotenv";
 dotenv.config();
 // Configure web-push with VAPID keys
@@ -188,7 +190,24 @@ const getErrorProperties = (error: unknown) => {
 };
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), "uploads");
+  const uploadsDir = path.join(process.cwd(), "uploads");
+
+  // Helper: normalize Indian mobile numbers to 10-digit form for consistency
+  const normalizePhone = (raw?: string | null) => {
+    if (!raw) return "";
+    const digits = String(raw).replace(/\D/g, "");
+    // Strip country code 91 / +91
+    if (digits.length === 12 && digits.startsWith("91")) {
+      return digits.substring(2);
+    }
+    if (digits.length === 13 && digits.startsWith("091")) {
+      return digits.substring(3);
+    }
+    if (digits.length === 11 && digits.startsWith("0")) {
+      return digits.substring(1);
+    }
+    return digits;
+  };
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -249,7 +268,7 @@ const transporter = nodemailer.createTransport({
 
 // Function to send order notification email
 async function sendOrderNotificationEmail(orderData: any) {
-  const { orderId, customerName, customerEmail, customerPhone, shippingAddress, paymentMethod, totalAmount, items } = orderData;
+  const { orderId, customerName, customerEmail, customerPhone, shippingAddress, paymentMethod, totalAmount, items, deliveryPartner, deliveryType } = orderData;
 
   const emailSubject = `Poppik Lifestyle Order Confirmation - ${orderId}`;
 
@@ -438,6 +457,14 @@ async function sendOrderNotificationEmail(orderData: any) {
                 ${adminItemsHtml}
               </tbody>
             </table>
+
+            <div style="background-color: ${deliveryPartner === 'INDIA_POST' ? '#fff3cd' : '#d1ecf1'}; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid ${deliveryPartner === 'INDIA_POST' ? '#ffc107' : '#0dcaf0'};">
+              <p style="margin: 0; font-size: 14px; font-weight: bold; color: ${deliveryPartner === 'INDIA_POST' ? '#856404' : '#0c5460'};">
+                Delivery Partner: ${deliveryPartner === 'INDIA_POST' ? 'India Post (Manual Delivery)' : 'Shiprocket'}
+              </p>
+              ${deliveryType ? `<p style="margin: 5px 0 0 0; font-size: 13px; color: ${deliveryPartner === 'INDIA_POST' ? '#856404' : '#0c5460'};"><strong>Delivery Type:</strong> ${deliveryType}</p>` : ''}
+              ${deliveryPartner === 'INDIA_POST' ? '<p style="margin: 5px 0 0 0; font-size: 13px; color: #856404;"><strong>⚠️ Manual Processing Required:</strong> This order needs to be processed manually via India Post.</p>' : ''}
+            </div>
 
             <h4 style="color:#d33;">What You Need to Do</h4>
             <p>Pack the order and mark it <strong>Ready to Dispatch</strong> by <strong>${new Date(Date.now() + 24*60*60*1000).toLocaleString()}</strong> to avoid SLA breaches, which may impact your ratings and performance.</p>
@@ -848,11 +875,21 @@ app.get("/api/admin/stores", async (req, res) => {
       }
 
       console.log("Checking if user exists with email:", email);
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(email);
+      // Check if user already exists by email
+      const existingUser = await storage.getUserByEmail(email.trim().toLowerCase());
       if (existingUser) {
         console.log("User already exists with email:", email);
         return res.status(400).json({ error: "User already exists with this email" });
+      }
+
+      // If phone provided, enforce uniqueness as well
+      const normalizedPhone = normalizePhone(phone);
+      if (normalizedPhone) {
+        const existingByPhone = await storage.getUserByPhone(normalizedPhone);
+        if (existingByPhone) {
+          console.log("User already exists with phone:", normalizedPhone);
+          return res.status(400).json({ error: "An account already exists with this mobile number" });
+        }
       }
 
       console.log("Hashing password...");
@@ -865,7 +902,7 @@ app.get("/api/admin/stores", async (req, res) => {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
-        phone: phone ? phone.trim() : null,
+        phone: normalizedPhone || null,
         password: hashedPassword
       };
 
@@ -1543,7 +1580,7 @@ app.get("/api/admin/stores", async (req, res) => {
   // Mobile OTP routes
   app.post("/api/auth/send-mobile-otp", async (req, res) => {
     try {
-      const { phoneNumber } = req.body;
+      const { phoneNumber, forSignup } = req.body;
 
       if (!phoneNumber) {
         return res.status(400).json({ error: "Phone number is required" });
@@ -1551,8 +1588,23 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Basic phone number validation
       const phoneRegex = /^(\+91|91)?[6-9]\d{9}$/;
-      if (!phoneRegex.test(phoneNumber.replace(/\s+/g, ''))) {
-        return res.status(400).json({ error: "Please enter a valid Indian mobile number" });
+      if (!phoneRegex.test(String(phoneNumber).replace(/\s+/g, ""))) {
+        return res
+          .status(400)
+          .json({ error: "Please enter a valid Indian mobile number" });
+      }
+
+      const normalized = normalizePhone(phoneNumber);
+
+      // For signup flow, do not send OTP if phone already mapped to another user
+      if (forSignup) {
+        const existingByPhone = await storage.getUserByPhone(normalized);
+        if (existingByPhone) {
+          return res.status(400).json({
+            error:
+              "An account already exists with this mobile number. Please log in instead.",
+          });
+        }
       }
 
       const result = await OTPService.sendMobileOTP(phoneNumber);
@@ -1560,7 +1612,7 @@ app.get("/api/admin/stores", async (req, res) => {
       if (result.success) {
         res.json({
           success: true,
-          message: result.message
+          message: result.message,
         });
       } else {
         res.status(500).json({ error: result.message });
@@ -2163,6 +2215,45 @@ app.get("/api/admin/stores", async (req, res) => {
         processedAt: null,
         createdAt: new Date()
       });
+
+      // If bank details provided, upsert into affiliate_applications for admin visibility
+      try {
+        const { bankName, branchName, ifscCode, accountNumber } = req.body as any;
+        if (bankName || branchName || ifscCode || accountNumber) {
+          // Check existing application
+          const existing = await db.select().from(schema.affiliateApplications).where(eq(schema.affiliateApplications.userId, parseInt(userId))).limit(1);
+          if (existing && existing.length > 0) {
+            await db.update(schema.affiliateApplications).set({
+              bankName: bankName || existing[0].bankName || null,
+              branchName: branchName || existing[0].branchName || null,
+              ifscCode: ifscCode || existing[0].ifscCode || null,
+              accountNumber: accountNumber || existing[0].accountNumber || null,
+              updatedAt: new Date()
+            }).where(eq(schema.affiliateApplications.userId, parseInt(userId)));
+          } else {
+            await db.insert(schema.affiliateApplications).values({
+              userId: parseInt(userId),
+              firstName: null,
+              lastName: null,
+              email: null,
+              phone: null,
+              address: null,
+              city: null,
+              state: null,
+              pincode: null,
+              landmark: null,
+              country: null,
+              bankName: bankName || null,
+              branchName: branchName || null,
+              ifscCode: ifscCode || null,
+              accountNumber: accountNumber || null,
+              status: 'pending'
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to upsert affiliate bank details:', e);
+      }
 
       res.json({
         success: true,
@@ -3386,11 +3477,27 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(400).json({ error: "Invalid user ID" });
       }
 
+      // If phone is provided, normalize and enforce uniqueness (except for same user)
+      let normalizedPhone: string | null = null;
+      if (phone) {
+        normalizedPhone = normalizePhone(phone);
+        if (normalizedPhone && normalizedPhone.length !== 10) {
+          return res.status(400).json({ error: "Please enter a valid 10-digit mobile number" });
+        }
+
+        if (normalizedPhone) {
+          const existingByPhone = await storage.getUserByPhone(normalizedPhone);
+          if (existingByPhone && existingByPhone.id !== userId) {
+            return res.status(400).json({ error: "Another account already uses this mobile number" });
+          }
+        }
+      }
+
       // Update user in database
       const updatedUser = await storage.updateUser(userId, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        phone: phone ? phone.trim() : null,
+        phone: normalizedPhone || null,
         dateOfBirth: dateOfBirth ? dateOfBirth.trim() : null,
         address: address ? address.trim() : null,
         city: city ? city.trim() : null,
@@ -3453,6 +3560,54 @@ app.get("/api/admin/stores", async (req, res) => {
     } catch (error) {
       console.error("Password change error:", error);
       res.status(500).json({ error: "Failed to change password" });
+    }
+  });
+
+  // Delete account endpoint - soft delete to keep order history and avoid FK issues
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = parseInt(id, 10);
+
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: "Invalid user ID" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Generate safe anonymized values
+      const timestamp = Date.now();
+      const anonymizedEmail = `deleted+${userId}+${timestamp}@poppik.in`;
+
+      // Random strong password so login is impossible
+      const randomPassword = await bcrypt.hash(
+        `deleted-user-${userId}-${timestamp}`,
+        10
+      );
+
+      const updated = await storage.updateUser(userId, {
+        firstName: "Deleted",
+        lastName: "User",
+        email: anonymizedEmail,
+        phone: null,
+        password: randomPassword,
+        address: null,
+        city: null,
+        state: null,
+        pincode: null,
+      } as any);
+
+      if (!updated) {
+        return res.status(500).json({ error: "Failed to anonymize account" });
+      }
+
+      res.json({ success: true, message: "Account deleted successfully" });
+    } catch (error) {
+      console.error("Delete account error:", error);
+      res.status(500).json({ error: "Failed to delete account" });
     }
   });
 
@@ -4750,6 +4905,8 @@ app.get("/api/admin/stores", async (req, res) => {
             userId: order.userId,
             totalAmount: order.totalAmount,
             shippingAddress: formattedShippingAddress,
+            deliveryPartner: order.deliveryPartner || 'SHIPROCKET',
+            deliveryType: order.deliveryType || null,
           };
         })
       );
@@ -5383,6 +5540,10 @@ app.get("/api/admin/stores", async (req, res) => {
         }
       }
 
+      // Determine delivery partner and type from request or default to SHIPROCKET
+      const deliveryPartner = req.body.deliveryPartner || 'SHIPROCKET';
+      const deliveryType = req.body.deliveryType || null;
+
       // Insert the order into database
       const newOrderData = {
         userId: Number(userId),
@@ -5394,6 +5555,8 @@ app.get("/api/admin/stores", async (req, res) => {
         saturdayDelivery: req.body.saturdayDelivery !== undefined ? req.body.saturdayDelivery : true,
         sundayDelivery: req.body.sundayDelivery !== undefined ? req.body.sundayDelivery : true,
         affiliateCode: effectiveAffiliateCode || null,
+        deliveryPartner: deliveryPartner,
+        deliveryType: deliveryType,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
       };
 
@@ -6121,6 +6284,8 @@ app.get("/api/admin/stores", async (req, res) => {
         shippingAddress: shippingAddress,
         paymentMethod: paymentMethod,
         totalAmount: totalAmount,
+        deliveryPartner: newOrder.deliveryPartner || 'SHIPROCKET',
+        deliveryType: newOrder.deliveryType || null,
         items: items.map((item: any) => ({
           productName: item.productName,
           productImage: item.productImage,
@@ -6331,6 +6496,76 @@ app.get("/api/admin/stores", async (req, res) => {
       default: return 0;
     }
   }
+
+  // Check pincode serviceability endpoint
+  app.get("/api/check-pincode", async (req, res) => {
+    try {
+      const { pincode } = req.query;
+
+      if (!pincode || typeof pincode !== 'string' || !/^\d{6}$/.test(pincode)) {
+        return res.status(400).json({
+          error: "Valid 6-digit pincode is required"
+        });
+      }
+
+      const shiprocketService = new ShiprocketService();
+      const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE || "400001";
+      
+      // Default weight for serviceability check (0.5kg)
+      const defaultWeight = 0.5;
+      // Check for COD (default to false for serviceability check)
+      const isCOD = false;
+
+      try {
+        const serviceability = await shiprocketService.getServiceability(
+          pickupPincode,
+          pincode,
+          defaultWeight,
+          isCOD
+        );
+
+        // Check if Shiprocket has at least one available courier
+        const hasAvailableCouriers = serviceability && 
+          serviceability.data && 
+          serviceability.data.available_courier_companies &&
+          Array.isArray(serviceability.data.available_courier_companies) &&
+          serviceability.data.available_courier_companies.length > 0;
+
+        if (hasAvailableCouriers) {
+          return res.json({
+            available: true,
+            deliveryPartner: "SHIPROCKET",
+            message: "Shiprocket delivery available for this pincode"
+          });
+        } else {
+          return res.json({
+            available: false,
+            deliveryPartner: "INDIA_POST",
+            deliveryType: "MANUAL",
+            message: "Shiprocket delivery not available for this pincode. Order will be delivered via India Post."
+          });
+        }
+      } catch (shiprocketError) {
+        // If Shiprocket API fails, default to India Post
+        console.warn("Shiprocket serviceability check failed:", shiprocketError);
+        return res.json({
+          available: false,
+          deliveryPartner: "INDIA_POST",
+          deliveryType: "MANUAL",
+          message: "Shiprocket delivery not available for this pincode. Order will be delivered via India Post."
+        });
+      }
+    } catch (error) {
+      console.error("Error checking pincode serviceability:", error);
+      // On error, default to India Post
+      return res.json({
+        available: false,
+        deliveryPartner: "INDIA_POST",
+        deliveryType: "MANUAL",
+        message: "Shiprocket delivery not available for this pincode. Order will be delivered via India Post."
+      });
+    }
+  });
 
   // Shiprocket serviceability endpoint for shipping cost
   app.get("/api/shiprocket/serviceability", async (req, res) => {
@@ -9387,30 +9622,21 @@ app.get("/api/admin/stores", async (req, res) => {
         }
       }
 
-      const rows = await db.select().from(schema.contests).orderBy(desc(schema.contests.createdAt));
-
+      // Mirror offers behavior: only return contests marked active publicly.
+      // Allow admin preview to see all contests when sending a valid admin JWT.
       if (isAdminPreview) {
+        const rows = await db.select().from(schema.contests).orderBy(desc(schema.contests.createdAt));
         console.log('📣 Admin preview requested for /api/contests - returning all contests');
         return res.json(rows || []);
       }
 
-      // Normal public behavior: only active contests within valid date window
-      const now = new Date();
-      const safeRows = (rows || []).filter(r => {
-        try {
-          if (!r.isActive) return false;
-          const from = r.validFrom ? new Date(r.validFrom) : null;
-          const until = r.validUntil ? new Date(r.validUntil) : null;
-          if (from && until) {
-            return from <= now && now <= until;
-          }
-          return !!r.isActive;
-        } catch (e) {
-          return !!r.isActive;
-        }
-      });
+      const rows = await db
+        .select()
+        .from(schema.contests)
+        .where(eq(schema.contests.isActive, true))
+        .orderBy(desc(schema.contests.createdAt));
 
-      res.json(safeRows);
+      res.json(rows || []);
     } catch (error) {
       console.error('Error fetching public contests:', error);
       res.status(500).json({ error: 'Failed to fetch contests' });
@@ -9420,20 +9646,26 @@ app.get("/api/admin/stores", async (req, res) => {
   app.get('/api/contests/:slug', async (req, res) => {
     try {
       const slug = req.params.slug;
-      const rows = await db.select().from(schema.contests).where(eq(schema.contests.slug, slug)).limit(1);
+      // Allow admins to preview a contest (including inactive/draft) with a valid admin JWT
+      let isAdminPreview = false;
+      const authHeader = req.headers.authorization || '';
+      if (authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+          if (decoded && (decoded.role === 'admin' || decoded.role === 'master_admin')) {
+            isAdminPreview = true;
+          }
+        } catch (e) {
+          // ignore invalid token
+        }
+      }
+
+      const q = db.select().from(schema.contests).where(eq(schema.contests.slug, slug));
+      if (!isAdminPreview) q.where(eq(schema.contests.isActive, true));
+      const rows = await q.limit(1);
       if (!rows || rows.length === 0) return res.status(404).json({ error: 'Contest not found' });
       const c = rows[0];
-      const now = new Date();
-      try {
-        const from = c.validFrom ? new Date(c.validFrom) : null;
-        const until = c.validUntil ? new Date(c.validUntil) : null;
-        if (from && until && !(from <= now && now <= until)) {
-          return res.status(404).json({ error: 'Contest not active' });
-        }
-      } catch (e) {
-        // ignore parse errors and return the contest if it's marked active
-        if (!c.isActive) return res.status(404).json({ error: 'Contest not active' });
-      }
       res.json(c);
     } catch (error) {
       console.error('Error fetching contest by slug:', error);
@@ -9584,6 +9816,17 @@ app.get("/api/admin/stores", async (req, res) => {
     } catch (error) {
       console.error('Error deleting contest:', error);
       res.status(500).json({ error: 'Failed to delete contest' });
+    }
+  });
+
+  // Admin: trigger expire/activate pass manually
+  app.post('/api/admin/expire-pass', adminMiddleware, async (req, res) => {
+    try {
+      await runExpirePassOnce();
+      res.json({ message: 'Expire pass executed' });
+    } catch (err: any) {
+      console.error('Error running expire pass:', err);
+      res.status(500).json({ error: 'Failed to run expire pass' });
     }
   });
 
@@ -10458,7 +10701,7 @@ Poppik Career Portal
       } = req.body;
 
       // Validate required fields
-      if (!userId || !firstName || !lastName || !email || !phone || !address || !country) {
+      if (!userId || !firstName || !lastName || !email || !phone  || !country) {
         return res.status(400).json({ error: 'All required fields must be provided' });
       }
 
@@ -13621,4 +13864,11 @@ app.get('/api/influencer-videos', async (req, res) => {
     console.warn('⚠️ Failed to setup announcements broadcaster:', e);
   }
   return httpServer;
+}
+
+// Start expire scheduler (handles auto-activating/expiring offers & contests)
+try {
+  startExpireScheduler();
+} catch (e) {
+  console.warn('⚠️ Failed to start expire scheduler:', e);
 }

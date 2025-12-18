@@ -392,6 +392,12 @@ export default function CheckoutPage() {
   const [shippingCost, setShippingCost] = useState<number>(99);
   const [loadingShipping, setLoadingShipping] = useState(false);
 
+  // Delivery partner state
+  const [deliveryPartner, setDeliveryPartner] = useState<string>("SHIPROCKET");
+  const [deliveryType, setDeliveryType] = useState<string | null>(null);
+  const [pincodeMessage, setPincodeMessage] = useState<string | null>(null);
+  const [checkingPincode, setCheckingPincode] = useState(false);
+
   // Wallet cashback states - load from localStorage
   const [redeemAmount, setRedeemAmount] = useState(() => {
     const saved = localStorage.getItem('redeemAmount');
@@ -529,7 +535,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                 const profileAddr = (user as any).address || null;
                 const profileCity = (user as any).city || (user as any).town || '';
                 const profileState = (user as any).state || '';
-                const profileZip = (user as any).zipCode || (user as any).zip || '';
+                const profileZip = (user as any).pincode || (user as any).zipCode || (user as any).zip || '';
                 const profilePhone = (user as any).phone || (user as any).mobile || '';
 
                 // Create profile address if we have at least phone number AND (address OR city)
@@ -540,7 +546,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                     address_line1: profileAddr || profileCity || 'Your Address',
                     city: profileCity || 'Not Set',
                     state: profileState || 'Not Set',
-                    pincode: profileZip || '000000',
+                    pincode: profileZip || '',
                     country: 'India',
                     phone_number: profilePhone,
                     is_default: normalized.length === 0, // Only mark as default if no other addresses exist
@@ -711,27 +717,29 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
             // For non-multi-address orders, only load once. For multi-address, always load to ensure form data is populated
             if (!profileDataLoaded || isMultiAddress) {
               // Parse address to extract city, state, zipCode from profile
-              let city = "";
-              let state = "";
-              let zipCode = "";
+              let city = userData.city || "";
+              let state = userData.state || "";
+              let zipCode = userData.pincode || userData.zipCode || "";
               let streetAddress = userData.address || "";
 
-              // Try to extract city, state, zipCode from full address if they exist
-              if (streetAddress) {
+              // Try to extract city, state, zipCode from full address if they exist and not already set
+              if (streetAddress && (!city || !state || !zipCode)) {
                 const addressParts = streetAddress.split(',').map((part: string) => part.trim());
                 if (addressParts.length >= 3) {
                   // Last part might contain state and pin code
                   const lastPart = addressParts[addressParts.length - 1];
                   const pinCodeMatch = lastPart.match(/\d{6}$/);
-                  if (pinCodeMatch) {
+                  if (pinCodeMatch && !zipCode) {
                     zipCode = pinCodeMatch[0];
-                    state = lastPart.replace(/\d{6}$/, '').trim();
-                  } else {
+                    if (!state) {
+                      state = lastPart.replace(/\d{6}$/, '').trim();
+                    }
+                  } else if (!state) {
                     state = lastPart;
                   }
 
                   // Second last part might be city
-                  if (addressParts.length >= 2) {
+                  if (addressParts.length >= 2 && !city) {
                     city = addressParts[addressParts.length - 2];
                   }
 
@@ -739,7 +747,9 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                   streetAddress = addressParts.slice(0, -2).join(', ');
                 } else if (addressParts.length === 2) {
                   // If only 2 parts, assume first is address and second is city
-                  city = addressParts[1];
+                  if (!city) {
+                    city = addressParts[1];
+                  }
                   streetAddress = addressParts[0];
                 } else if (addressParts.length === 1) {
                   // If only 1 part, use it as street address
@@ -751,13 +761,29 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
               setFormData(prev => {
                 const updatedForm = {
                   ...prev,
-                  // Personal/contact/address fields intentionally not overwritten here
+                  // Only update fields if they're empty or if profile has new data
+                  firstName: prev.firstName || userData.firstName || "",
+                  lastName: prev.lastName || userData.lastName || "",
+                  email: prev.email || userData.email || "",
+                  phone: prev.phone || userData.phone || "",
+                  address: prev.address || streetAddress || "",
+                  city: prev.city || city || "",
+                  state: prev.state || state || "",
+                  zipCode: prev.zipCode || zipCode || "",
                   deliveryInstructions: userData.deliveryInstructions?.trim() || prev.deliveryInstructions || "",
                   saturdayDelivery: userData.saturdayDelivery === true ? true : prev.saturdayDelivery,
                   sundayDelivery: userData.sundayDelivery === true ? true : prev.sundayDelivery
                 };
 
-                console.log('📝 Form data auto-populated (partial):', {
+                console.log('📝 Form data auto-populated:', {
+                  firstName: updatedForm.firstName ? '✓' : '✗',
+                  lastName: updatedForm.lastName ? '✓' : '✗',
+                  email: updatedForm.email ? '✓' : '✗',
+                  phone: updatedForm.phone ? '✓' : '✗',
+                  address: updatedForm.address ? '✓' : '✗',
+                  city: updatedForm.city ? '✓' : '✗',
+                  state: updatedForm.state ? '✓' : '✗',
+                  zipCode: updatedForm.zipCode ? '✓' : '✗',
                   deliveryInstructions: updatedForm.deliveryInstructions ? '✓' : '✗',
                   saturdayDelivery: updatedForm.saturdayDelivery ? '✓' : '✗',
                   sundayDelivery: updatedForm.sundayDelivery ? '✓' : '✗'
@@ -898,6 +924,52 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       console.error('Error loading multiAddressMapping from localStorage:', e);
     }
   }, []);
+
+  // Check pincode serviceability when zipCode changes
+  useEffect(() => {
+    const checkPincode = async () => {
+      if (formData.zipCode && formData.zipCode.length === 6 && /^\d{6}$/.test(formData.zipCode)) {
+        setCheckingPincode(true);
+        try {
+          const response = await fetch(`/api/check-pincode?pincode=${formData.zipCode}`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.available) {
+              setDeliveryPartner("SHIPROCKET");
+              setDeliveryType(null);
+              setPincodeMessage(null);
+            } else {
+              setDeliveryPartner("INDIA_POST");
+              setDeliveryType("MANUAL");
+              setPincodeMessage(data.message || "Shiprocket delivery not available for this pincode. Order will be delivered via India Post.");
+            }
+          } else {
+            // On error, default to India Post
+            setDeliveryPartner("INDIA_POST");
+            setDeliveryType("MANUAL");
+            setPincodeMessage("Shiprocket delivery not available for this pincode. Order will be delivered via India Post.");
+          }
+        } catch (error) {
+          console.error("Error checking pincode:", error);
+          // On error, default to India Post
+          setDeliveryPartner("INDIA_POST");
+          setDeliveryType("MANUAL");
+          setPincodeMessage("Shiprocket delivery not available for this pincode. Order will be delivered via India Post.");
+        } finally {
+          setCheckingPincode(false);
+        }
+      } else {
+        // Reset when pincode is invalid or empty
+        setDeliveryPartner("SHIPROCKET");
+        setDeliveryType(null);
+        setPincodeMessage(null);
+      }
+    };
+
+    checkPincode();
+  }, [formData.zipCode]);
 
   // Fetch shipping cost when zipCode or paymentMethod changes
   useEffect(() => {
@@ -1199,32 +1271,40 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
   const handleUseProfileData = () => {
     if (userProfile) {
-      let city = "";
-      let state = "";
-      let zipCode = "";
+      // First try to get from profile fields directly
+      let city = (userProfile as any)?.city || "";
+      let state = (userProfile as any)?.state || "";
+      let zipCode = (userProfile as any)?.pincode || (userProfile as any)?.zipCode || "";
       let streetAddress = (userProfile as any)?.address || "";
 
-      const addressParts = streetAddress.split(',').map((part: string) => part.trim());
-      if (addressParts.length >= 3) {
-        const lastPart = addressParts[addressParts.length - 1];
-        const pinCodeMatch = lastPart.match(/\d{6}$/);
-        if (pinCodeMatch) {
-          zipCode = pinCodeMatch[0];
-          state = lastPart.replace(/\d{6}$/, '').trim();
-        } else {
-          state = lastPart;
-        }
+      // Try to extract from address string if fields are not set directly
+      if (streetAddress && (!city || !state || !zipCode)) {
+        const addressParts = streetAddress.split(',').map((part: string) => part.trim());
+        if (addressParts.length >= 3) {
+          const lastPart = addressParts[addressParts.length - 1];
+          const pinCodeMatch = lastPart.match(/\d{6}$/);
+          if (pinCodeMatch && !zipCode) {
+            zipCode = pinCodeMatch[0];
+            if (!state) {
+              state = lastPart.replace(/\d{6}$/, '').trim();
+            }
+          } else if (!state) {
+            state = lastPart;
+          }
 
-        if (addressParts.length >= 2) {
-          city = addressParts[addressParts.length - 2];
-        }
+          if (addressParts.length >= 2 && !city) {
+            city = addressParts[addressParts.length - 2];
+          }
 
-        streetAddress = addressParts.slice(0, -2).join(', ');
-      } else if (addressParts.length === 2) {
-        city = addressParts[1];
-        streetAddress = addressParts[0];
-      } else if (addressParts.length === 1) {
-        streetAddress = addressParts[0];
+          streetAddress = addressParts.slice(0, -2).join(', ');
+        } else if (addressParts.length === 2) {
+          if (!city) {
+            city = addressParts[1];
+          }
+          streetAddress = addressParts[0];
+        } else if (addressParts.length === 1) {
+          streetAddress = addressParts[0];
+        }
       }
 
         setFormData({
@@ -2185,6 +2265,8 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           deliveryInstructions: formData.deliveryInstructions, // Include general delivery instructions from the main form
           saturdayDelivery: formData.saturdayDelivery, // Include weekend delivery preferences
           sundayDelivery: formData.sundayDelivery,   // Include weekend delivery preferences
+          deliveryPartner: deliveryPartner, // Shiprocket or INDIA_POST
+          deliveryType: deliveryType, // MANUAL for India Post, null for Shiprocket
           items: itemsData,
           customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
           customerEmail: formData.email.trim(),
@@ -2485,6 +2567,23 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Pincode serviceability message */}
+                    {pincodeMessage && formData.zipCode && formData.zipCode.length === 6 && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-0.5">
+                          {checkingPincode ? (
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-600"></div>
+                          ) : (
+                            <MapPin className="h-5 w-5 text-yellow-600" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-yellow-800">
+                            {checkingPincode ? "Checking delivery availability..." : pincodeMessage}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                    {savedAddresses.length === 0 ? (
                       <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                         <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />

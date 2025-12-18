@@ -76,6 +76,10 @@ export default function AffiliateWallet() {
   const [filterType, setFilterType] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("all");
   const [withdrawAmount, setWithdrawAmount] = useState<number>(0);
+  const [bankName, setBankName] = useState<string>('');
+  const [branchName, setBranchName] = useState<string>('');
+  const [ifscCode, setIfscCode] = useState<string>('');
+  const [accountNumber, setAccountNumber] = useState<string>('');
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [isProcessingWithdrawal, setIsProcessingWithdrawal] = useState(false);
   const [showWithdrawalDialog, setShowWithdrawalDialog] = useState(false);
@@ -231,6 +235,10 @@ export default function AffiliateWallet() {
         body: JSON.stringify({
           userId: user.id,
           amount: withdrawAmount,
+          bankName: bankName || undefined,
+          branchName: branchName || undefined,
+          ifscCode: ifscCode || undefined,
+          accountNumber: accountNumber || undefined,
         }),
       });
 
@@ -245,6 +253,11 @@ export default function AffiliateWallet() {
       });
 
       setWithdrawDialogOpen(false);
+      // clear bank details
+      setBankName('');
+      setBranchName('');
+      setIfscCode('');
+      setAccountNumber('');
       setWithdrawAmount(0);
       refetchWallet();
       refetchTransactions();
@@ -491,6 +504,17 @@ export default function AffiliateWallet() {
                 <p className="text-xs text-gray-500">
                   Minimum: ₹2500 | Maximum: ₹{availableCommissionBalance.toFixed(2)}
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Bank Details (for transfer)</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Input placeholder="Bank name" value={bankName} onChange={(e) => setBankName(e.target.value)} />
+                  <Input placeholder="Branch name" value={branchName} onChange={(e) => setBranchName(e.target.value)} />
+                  <Input placeholder="IFSC code" value={ifscCode} onChange={(e) => setIfscCode(e.target.value)} />
+                  <Input placeholder="Account number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
+                </div>
+                <p className="text-xs text-gray-500">Provide bank details where you want the withdrawal to be sent.</p>
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

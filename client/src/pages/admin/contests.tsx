@@ -19,6 +19,8 @@ interface Contest {
   imageUrl?: string;
   bannerImageUrl?: string;
   detailedDescription?: string;
+  validFrom?: string;
+  validUntil?: string;
   isActive?: boolean;
   createdAt?: string;
 }
@@ -28,7 +30,7 @@ export default function AdminContests() {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Contest | null>(null);
-  const [form, setForm] = useState({ title: '', imageUrl: '', isActive: true });
+  const [form, setForm] = useState({ title: '', imageUrl: '', isActive: true, validFrom: '', validUntil: '' });
   const [files, setFiles] = useState<{ image?: File }>({});
 
   const { data: contests = [], isLoading, refetch } = useQuery({
@@ -117,10 +119,23 @@ export default function AdminContests() {
       imageUrl: c.imageUrl || '', 
       isActive: !!c.isActive, 
       // @ts-ignore - Map 'content' from DB to 'detailedDescription' in form
-      detailedDescription: (c as any).content || c.detailedDescription || ''
+      detailedDescription: (c as any).content || c.detailedDescription || '',
+      validFrom: c.validFrom ? formatForInput(c.validFrom) : '',
+      validUntil: c.validUntil ? formatForInput(c.validUntil) : ''
     });
     setShowModal(true);
   };
+
+  function formatForInput(dateStr: string) {
+    try {
+      const d = new Date(dateStr);
+      const tzOffset = d.getTimezoneOffset();
+      const local = new Date(d.getTime() - tzOffset * 60000);
+      return local.toISOString().slice(0,16);
+    } catch (e) {
+      return '';
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,15 +155,29 @@ export default function AdminContests() {
           <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
             {isLoading ? 'Refreshing...' : 'Refresh'}
           </Button>
+          <Button variant="ghost" onClick={async () => {
+            const token = localStorage.getItem('token');
+            if (!token) { toast({ title: 'Auth required', description: 'Please login', variant: 'destructive' }); return; }
+            try {
+              const res = await fetch('/api/admin/expire-pass', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+              if (!res.ok) throw new Error('Failed');
+              toast({ title: 'Done', description: 'Expire pass executed' });
+              await refetch();
+            } catch (e: any) {
+              toast({ title: 'Error', description: e.message || 'Failed to run expire pass', variant: 'destructive' });
+            }
+          }}>Run Expire Pass</Button>
           <Button onClick={() => { 
             setEditing(null); 
-            setForm({ 
-              title: '', 
-              imageUrl: '', 
-              isActive: true, 
-              // @ts-ignore
-              detailedDescription: '' 
-            }); 
+              setForm({ 
+                title: '', 
+                imageUrl: '', 
+                isActive: true, 
+                // @ts-ignore
+                detailedDescription: '',
+                validFrom: '',
+                validUntil: '' 
+              }); 
             setShowModal(true); 
           }}>Add Contest</Button>
         </div>
@@ -170,7 +199,14 @@ export default function AdminContests() {
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.title}</TableCell>
                   <TableCell>{c.isActive ? 'Published' : 'Draft'}</TableCell>
-                  <TableCell>{c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '-'}</TableCell>
+                  <TableCell>
+                    {c.validFrom || c.validUntil ? (
+                      <div className="text-sm">
+                        <div>{c.validFrom ? new Date(c.validFrom).toLocaleString() : '-'}</div>
+                        <div className="text-xs text-muted-foreground">to {c.validUntil ? new Date(c.validUntil).toLocaleString() : '-'}</div>
+                      </div>
+                    ) : (c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '-')}
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button variant="ghost" size="sm" onClick={() => openEdit(c)}>Edit</Button>
@@ -204,6 +240,19 @@ export default function AdminContests() {
                 <Label>Featured Image</Label>
                 <Input type="file" accept="image/*" onChange={(e) => setFiles({ ...files, image: e.target.files?.[0] })} />
                 {form.imageUrl && <div className="text-sm mt-2">Current: {form.imageUrl}</div>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Valid From</Label>
+                <Input type="datetime-local" value={(form as any).validFrom || ''} onChange={(e) => setForm({ ...form, validFrom: e.target.value })} />
+                <p className="text-xs text-muted-foreground mt-1">Start date/time when contest becomes visible</p>
+              </div>
+              <div>
+                <Label>Valid Until</Label>
+                <Input type="datetime-local" value={(form as any).validUntil || ''} onChange={(e) => setForm({ ...form, validUntil: e.target.value })} />
+                <p className="text-xs text-muted-foreground mt-1">End date/time when contest ends</p>
               </div>
             </div>
 

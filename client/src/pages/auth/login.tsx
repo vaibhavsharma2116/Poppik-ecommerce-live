@@ -172,7 +172,10 @@ export default function Login() {
                     className="rounded border-gray-300"
                   />
                 </div>
-                <Link href="/auth/forgot-password" className="text-sm text-red-600 hover:text-red-700">
+                <Link
+                  href={`/auth/forgot-password${formData.email ? `?email=${encodeURIComponent(formData.email)}` : ""}`}
+                  className="text-sm text-red-600 hover:text-red-700"
+                >
                   Forgot password?
                 </Link>
               </div>

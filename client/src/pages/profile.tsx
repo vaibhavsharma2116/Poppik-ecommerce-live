@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { User, Mail, Phone, Calendar, LogOut, Edit, Wallet, Gift } from "lucide-react";
+import { User, Mail, Phone, Calendar, LogOut, Edit, Wallet, Gift, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 // City to State and Pincode mapping
 const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
@@ -73,7 +74,33 @@ export default function Profile() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const [currentOTP, setCurrentOTP] = useState<string | null>(null);
+  const showDevOTP = true; // show OTP in UI for development/testing
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const { toast } = useToast();
+
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    if (otpCountdown > 0) {
+      const timer = setTimeout(() => setOtpCountdown((prev) => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [otpCountdown]);
+
+  const formatPhoneNumber = (phone: string) => {
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.startsWith("91") && cleaned.length === 12) {
+      return cleaned.substring(2);
+    }
+    return cleaned;
+  };
 
   // Fetch wallet data
   const { data: walletData } = useQuery({
@@ -149,16 +176,15 @@ export default function Profile() {
         state: user.state || '',
         pincode: user.pincode || ''
       });
+      setNewPhone(user.phone || "");
       setIsEditModalOpen(true);
     }
   };
 
-  const handleSaveProfile = async () => {
+  const performProfileUpdate = async () => {
     if (!user) return;
 
-    setIsSaving(true);
     try {
-      // First, test if the API is reachable
       console.log('Testing API connection...');
       const healthResponse = await fetch('/api/health');
       if (!healthResponse.ok) {
@@ -169,11 +195,10 @@ export default function Profile() {
 
       console.log('Updating profile for user:', user.id);
       console.log('Profile data:', editFormData);
-      
-      // Prevent multiple simultaneous requests
+
       if (isUpdating) return;
       setIsUpdating(true);
-      
+
       const requestData = {
         firstName: editFormData.firstName,
         lastName: editFormData.lastName,
@@ -200,7 +225,6 @@ export default function Profile() {
       console.log('Response status:', response.status);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
-      // Check if response is JSON
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         const text = await response.text();
@@ -235,8 +259,198 @@ export default function Profile() {
         variant: "destructive",
       });
     } finally {
+      setIsUpdating(false);
       setIsSaving(false);
     }
+  };
+
+  const sendPhoneOTP = async () => {
+    const targetPhone = newPhone || user?.phone || "";
+    const cleanedPhone = formatPhoneNumber(targetPhone);
+
+    if (!cleanedPhone || cleanedPhone.length !== 10) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid 10-digit phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingOtp(true);
+    try {
+      const response = await fetch("/api/auth/send-mobile-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phoneNumber: cleanedPhone }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        toast({
+          title: "OTP Sent",
+          description: "OTP sent to your mobile number.",
+        });
+        setOtpSent(true);
+        setOtpCountdown(60);
+
+        // Fetch OTP for development display (in case SMS gateway fails)
+        if (showDevOTP) {
+          try {
+            const debugResponse = await fetch(`/api/auth/debug-otp/${cleanedPhone}`);
+            const debugResult = await debugResponse.json();
+            if (debugResult.success && debugResult.otp) {
+              setCurrentOTP(debugResult.otp);
+            }
+          } catch (error) {
+            console.log("Could not fetch debug OTP:", error);
+          }
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || result.message || "Failed to send OTP",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Send OTP error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send OTP. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const verifyPhoneOTPAndUpdate = async () => {
+    const cleanedPhone = formatPhoneNumber(newPhone);
+
+    if (!cleanedPhone || cleanedPhone.length !== 10) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid 10-digit phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!otp || otp.length !== 6) {
+      toast({
+        title: "Error",
+        description: "Please enter valid 6-digit OTP",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    try {
+      const response = await fetch("/api/auth/verify-mobile-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phoneNumber: cleanedPhone,
+          otp,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.verified) {
+        // After successful OTP verification, update phone number on server
+        try {
+          if (!user) {
+            throw new Error("User not found");
+          }
+
+          const requestData = {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            phone: cleanedPhone,
+            dateOfBirth: user.dateOfBirth || "",
+            address: user.address || "",
+            city: user.city || "",
+            state: user.state || "",
+            pincode: user.pincode || "",
+          };
+
+          const response = await fetch(`/api/users/${user.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify(requestData),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Failed to update phone number");
+          }
+
+          const data = await response.json();
+          const updatedUser = data.user || data;
+
+          setUser(updatedUser);
+          setEditFormData((prev) => ({
+            ...prev,
+            phone: cleanedPhone,
+          }));
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+
+          toast({
+            title: "Verified",
+            description: "Mobile number updated successfully.",
+          });
+          setIsOtpModalOpen(false);
+          setOtp("");
+          setOtpSent(false);
+          setOtpCountdown(0);
+        } catch (updateError) {
+          console.error("Phone update error:", updateError);
+          toast({
+            title: "Error",
+            description:
+              updateError instanceof Error
+                ? updateError.message
+                : "Failed to update phone number. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || result.message || "Invalid OTP",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Verify OTP error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to verify OTP. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
+    // Phone number cannot be edited directly from this form.
+    // It is updated only via the OTP verification flow.
+    setIsSaving(true);
+    await performProfileUpdate();
   };
 
   if (loading) {
@@ -436,7 +650,7 @@ export default function Profile() {
                       My Wishlist
                     </Button>
                   </Link>
-                  <Link href="/change-password">
+                  <Link href="/auth/forgot-password">
                     <Button variant="outline" className="w-full justify-start">
                       Change Password
                     </Button>
@@ -446,6 +660,13 @@ export default function Profile() {
                       Contact Support
                     </Button>
                   </Link>
+                  <Button
+                    variant="destructive"
+                    className="w-full justify-start bg-red-600 hover:bg-red-700"
+                    onClick={() => setIsDeleteModalOpen(true)}
+                  >
+                    Delete Account
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -481,12 +702,33 @@ export default function Profile() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                value={editFormData.phone}
-                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                placeholder="Enter your phone number"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="phone"
+                  value={editFormData.phone}
+                  readOnly
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                  placeholder="No phone number added"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    setNewPhone(editFormData.phone || user.phone || "");
+                    setOtp("");
+                    setOtpSent(false);
+                    setOtpCountdown(0);
+                    setIsOtpModalOpen(true);
+                  }}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Click the edit icon to change your mobile number using OTP verification.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -590,6 +832,322 @@ export default function Profile() {
             >
               {isSaving ? "Saving..." : "Save Changes"}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* OTP Verification Modal for Phone Change */}
+      <Dialog open={isOtpModalOpen} onOpenChange={setIsOtpModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Verify New Mobile Number</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Enter new phone number */}
+            <div className="space-y-2">
+              <Label htmlFor="newPhone">New Mobile Number</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                <Input
+                  id="newPhone"
+                  type="tel"
+                  placeholder="Enter 10-digit mobile number"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  className="pl-10"
+                  maxLength={10}
+                />
+              </div>
+            </div>
+
+            {/* OTP section: only after OTP is sent */}
+            {otpSent && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Enter the 6-digit OTP sent to{" "}
+                  <span className="font-medium">+91 {formatPhoneNumber(newPhone)}</span>.
+                </p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Enter OTP</Label>
+                  <div className="flex justify-center">
+                    <InputOTP
+                      value={otp}
+                      onChange={(value) => setOtp(value)}
+                      maxLength={6}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                </div>
+
+                {/* Development OTP display (for when SMS doesn't arrive) */}
+                {showDevOTP && currentOTP && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <p className="text-sm text-yellow-800 text-center">
+                      <strong>Development Mode:</strong> Your OTP is{" "}
+                      <span className="font-mono font-bold">{currentOTP}</span>
+                    </p>
+                    <p className="text-xs text-yellow-600 text-center mt-1">
+                      (Use this code if SMS is delayed or not received)
+                    </p>
+                  </div>
+                )}
+
+                {/* Resend OTP */}
+                <div className="flex justify-between items-center">
+                  <Button
+                    variant="outline"
+                    onClick={sendPhoneOTP}
+                    disabled={isSendingOtp || otpCountdown > 0}
+                  >
+                    {isSendingOtp ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : otpCountdown > 0 ? (
+                      `Resend OTP in ${otpCountdown}s`
+                    ) : (
+                      "Resend OTP"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Send OTP button (shown before OTP is sent) */}
+            {!otpSent && (
+              <Button
+                onClick={sendPhoneOTP}
+                className="w-full bg-red-600 hover:bg-red-700"
+                disabled={
+                  isSendingOtp ||
+                  !newPhone ||
+                  formatPhoneNumber(newPhone).length !== 10
+                }
+              >
+                {isSendingOtp ? "Sending OTP..." : "Send OTP"}
+              </Button>
+            )}
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsOtpModalOpen(false)}
+              disabled={isVerifyingOtp}
+            >
+              Cancel
+            </Button>
+            {otpSent && (
+              <Button
+                onClick={verifyPhoneOTPAndUpdate}
+                disabled={isVerifyingOtp || otp.length !== 6}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isVerifyingOtp ? "Verifying..." : "Verify & Update"}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Account Modal (uses same mobile OTP flow) */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Account</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-gray-700">
+              This action will permanently delete your account and cannot be undone.
+              To confirm, we will send a verification OTP to your registered mobile
+              number{" "}
+              <span className="font-medium">
+                +91 {formatPhoneNumber(user.phone || "")}
+              </span>
+              .
+            </p>
+
+            {/* OTP section: only after OTP is sent */}
+            {otpSent && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="delete-otp">Enter OTP</Label>
+                  <div className="flex justify-center">
+                    <InputOTP
+                      value={otp}
+                      onChange={(value) => setOtp(value)}
+                      maxLength={6}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                </div>
+
+                {showDevOTP && currentOTP && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <p className="text-sm text-yellow-800 text-center">
+                      <strong>Development Mode:</strong> Your OTP is{" "}
+                      <span className="font-mono font-bold">{currentOTP}</span>
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center">
+                  <Button
+                    variant="outline"
+                    onClick={sendPhoneOTP}
+                    disabled={isSendingOtp || otpCountdown > 0}
+                  >
+                    {isSendingOtp ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : otpCountdown > 0 ? (
+                      `Resend OTP in ${otpCountdown}s`
+                    ) : (
+                      "Resend OTP"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {!otpSent && (
+              <Button
+                onClick={async () => {
+                  setNewPhone(user.phone || "");
+                  setOtp("");
+                  await sendPhoneOTP();
+                }}
+                className="w-full bg-red-600 hover:bg-red-700"
+                disabled={
+                  isSendingOtp ||
+                  !user.phone ||
+                  formatPhoneNumber(user.phone).length !== 10
+                }
+              >
+                {isSendingOtp ? "Sending OTP..." : "Send OTP"}
+              </Button>
+            )}
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={isVerifyingOtp}
+            >
+              Cancel
+            </Button>
+            {otpSent && (
+              <Button
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700"
+                disabled={isVerifyingOtp || otp.length !== 6}
+                onClick={async () => {
+                  try {
+                    const cleanedPhone = formatPhoneNumber(user.phone || "");
+                    if (!cleanedPhone || cleanedPhone.length !== 10) {
+                      toast({
+                        title: "Error",
+                        description:
+                          "Your registered mobile number is invalid. Please contact support.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+
+                    // First verify OTP
+                    setIsVerifyingOtp(true);
+                    const verifyRes = await fetch(
+                      "/api/auth/verify-mobile-otp",
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                          phoneNumber: cleanedPhone,
+                          otp,
+                        }),
+                      }
+                    );
+                    const verifyData = await verifyRes.json();
+                    if (!verifyRes.ok || !verifyData.verified) {
+                      toast({
+                        title: "Error",
+                        description:
+                          verifyData.error ||
+                          verifyData.message ||
+                          "Invalid OTP",
+                        variant: "destructive",
+                      });
+                      setIsVerifyingOtp(false);
+                      return;
+                    }
+
+                    // OTP ok -> delete account
+                    const deleteRes = await fetch(
+                      `/api/users/${user.id}`,
+                      {
+                        method: "DELETE",
+                        headers: {
+                          "Authorization": `Bearer ${localStorage.getItem(
+                            "token"
+                          )}`,
+                        },
+                      }
+                    );
+                    const deleteData = await deleteRes.json();
+                    if (!deleteRes.ok || !deleteData.success) {
+                      throw new Error(
+                        deleteData.error || "Failed to delete account"
+                      );
+                    }
+
+                    // Clear local auth and redirect
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("user");
+                    toast({
+                      title: "Account Deleted",
+                      description:
+                        "Your account has been deleted successfully.",
+                    });
+                    window.location.href = "/";
+                  } catch (error) {
+                    console.error("Delete account error:", error);
+                    toast({
+                      title: "Error",
+                      description:
+                        error instanceof Error
+                          ? error.message
+                          : "Failed to delete account. Please try again.",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setIsVerifyingOtp(false);
+                  }
+                }}
+              >
+                {isVerifyingOtp ? "Deleting..." : "Confirm Delete"}
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -69,7 +69,7 @@ export default function AffiliateForm() {
     e.preventDefault();
     
     // Validation
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.address) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone ) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields",
@@ -211,7 +211,7 @@ export default function AffiliateForm() {
             </CardContent>
           </Card>
 
-          <Card className="mb-6">
+          {/* <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-purple-600" />
@@ -287,7 +287,7 @@ export default function AffiliateForm() {
                 />
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* <Card className="mb-6">
             <CardHeader>

@@ -180,7 +180,7 @@ export default function Signup() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ phoneNumber: cleanedPhone }),
+        body: JSON.stringify({ phoneNumber: cleanedPhone, forSignup: true }),
       });
 
       const result = await response.json();

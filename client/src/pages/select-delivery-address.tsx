@@ -230,7 +230,7 @@ export default function SelectDeliveryAddress() {
             const profileAddr = (user as any).address || '';
             const profileCity = (user as any).city || (user as any).town || '';
             const profileState = (user as any).state || '';
-            const profileZip = (user as any).zipCode || (user as any).zip || '';
+            const profileZip = (user as any).pincode || (user as any).zipCode || (user as any).zip || '';
             const profilePhone = (user as any).phone || (user as any).mobile || '';
 
             // Create profile address if we have at least phone number AND (address OR city)
@@ -241,7 +241,7 @@ export default function SelectDeliveryAddress() {
                 address_line1: profileAddr || profileCity || 'Your Address',
                 city: profileCity || 'Not Set',
                 state: profileState || 'Not Set',
-                pincode: profileZip || '000000',
+                pincode: profileZip || '',
                 country: 'India',
                 phone_number: profilePhone,
                 is_default: normalized.length === 0, // Only mark as default if no other addresses exist

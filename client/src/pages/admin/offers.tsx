@@ -726,7 +726,7 @@ export default function AdminOffers() {
 
               {/* Listing Page Banner Images Upload */}
               <div className="space-y-2">
-                <Label htmlFor="bannerImages">Listing Page Banner Images</Label>
+                <Label htmlFor="bannerImages">Listing Page Images</Label>
                 
                 {/* Show existing banner images */}
                 {existingBannerImages.length > 0 && (

@@ -61,6 +61,8 @@ interface Order {
   totalAmount?: number;
   shippingAddress?: string;
   awbCode?: string; // Add awbCode for Shiprocket
+  deliveryPartner?: string;
+  deliveryType?: string;
 }
 
 export default function AdminOrders() {
@@ -476,13 +478,17 @@ export default function AdminOrders() {
                   <TableHead className="font-semibold">Items</TableHead>
                   <TableHead className="font-semibold">Total</TableHead>
                   <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="font-semibold">Delivery Partner</TableHead>
                   <TableHead className="font-semibold">Tracking</TableHead>
                   <TableHead className="font-semibold">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredOrders.map((order) => (
-                  <TableRow key={order.id} className="hover:bg-slate-50/60">
+                  <TableRow 
+                    key={order.id} 
+                    className={`hover:bg-slate-50/60 ${order.deliveryPartner === 'INDIA_POST' ? 'bg-yellow-50 border-l-4 border-l-yellow-500' : ''}`}
+                  >
                     <TableCell className="font-medium text-slate-900">{order.id}</TableCell>
                     <TableCell>
                       <div>
@@ -517,6 +523,17 @@ export default function AdminOrders() {
                           <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={order.deliveryPartner === 'INDIA_POST' ? 'destructive' : 'default'}
+                        className={order.deliveryPartner === 'INDIA_POST' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+                      >
+                        {order.deliveryPartner || 'SHIPROCKET'}
+                      </Badge>
+                      {order.deliveryType && (
+                        <span className="ml-2 text-xs text-slate-500">({order.deliveryType})</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {editingTracking === order.id ? (
@@ -666,6 +683,21 @@ export default function AdminOrders() {
                         <div className="flex justify-between">
                           <span className="text-slate-600">AWB Code:</span>
                           <span className="font-medium">{selectedOrder.awbCode}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Delivery Partner:</span>
+                        <Badge 
+                          variant={selectedOrder.deliveryPartner === 'INDIA_POST' ? 'destructive' : 'default'}
+                          className={selectedOrder.deliveryPartner === 'INDIA_POST' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+                        >
+                          {selectedOrder.deliveryPartner || 'SHIPROCKET'}
+                        </Badge>
+                      </div>
+                      {selectedOrder.deliveryType && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Delivery Type:</span>
+                          <span className="font-medium">{selectedOrder.deliveryType}</span>
                         </div>
                       )}
                     </CardContent>
