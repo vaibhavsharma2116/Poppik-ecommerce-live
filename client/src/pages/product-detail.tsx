@@ -1823,7 +1823,6 @@ export default function ProductDetail() {
                             <p className="text-xs text-purple-600 mt-0.5">This product is eligible for affiliate rewards.</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-bold text-purple-800">Affiliate Commission: {Number((product as any).affiliateCommission ?? (product as any).affiliate_commission ?? 0)}%</p>
                             <p className="text-sm font-semibold text-purple-700">Customer Discount: {Number((product as any).affiliateUserDiscount ?? (product as any).affiliate_user_discount ?? 0)}%</p>
                           </div>
                         </div>

@@ -1,26 +1,90 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useLocation } from "wouter";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 export default function ForgotPassword() {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [emailLocked, setEmailLocked] = useState(false);
+  const [identifier, setIdentifier] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error" | "otp_sent" | "verifying">("idle");
+  const [identifierLocked, setIdentifierLocked] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [, setLocation] = useLocation();
+  const otpAutoVerifyTriggeredRef = useRef(false);
 
-  const sendReset = async (targetEmail: string) => {
-    if (!targetEmail) return;
+  const isEmailIdentifier = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+
+  const formatPhoneNumber = (phone: string) => {
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('91') && cleaned.length === 12) return cleaned.substring(2);
+    return cleaned;
+  };
+
+  const sendReset = async (value: string) => {
+    if (!value) return;
     setStatus("sending");
     try {
-      const res = await fetch("/api/auth/forgot-password", {
+      const trimmed = value.trim();
+      if (isEmailIdentifier(trimmed)) {
+        const res = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: trimmed }),
+        });
+
+        if (res.ok) {
+          setStatus("sent");
+        } else {
+          setStatus("error");
+        }
+      } else {
+        const cleanedPhone = formatPhoneNumber(trimmed);
+        const res = await fetch("/api/auth/forgot-password-phone/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phoneNumber: cleanedPhone }),
+        });
+
+        if (res.ok) {
+          setStatus("otp_sent");
+        } else {
+          setStatus("error");
+        }
+      }
+    } catch (err) {
+      setStatus("error");
+    }
+  };
+
+  useEffect(() => {
+    if (status !== "otp_sent") {
+      otpAutoVerifyTriggeredRef.current = false;
+      return;
+    }
+
+    if (otp.length === 6 && !otpAutoVerifyTriggeredRef.current) {
+      otpAutoVerifyTriggeredRef.current = true;
+      verifyOtpAndContinue();
+    }
+  }, [otp, status]);
+
+  const verifyOtpAndContinue = async () => {
+    if (!otp || otp.length !== 6) return;
+
+    setStatus("verifying");
+    try {
+      const cleanedPhone = formatPhoneNumber(identifier.trim());
+      const res = await fetch("/api/auth/forgot-password-phone/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: targetEmail }),
+        body: JSON.stringify({ phoneNumber: cleanedPhone, otp }),
       });
 
-      if (res.ok) {
-        setStatus("sent");
+      const data = await res.json();
+      if (res.ok && data?.token) {
+        setLocation(`/auth/reset-password?token=${encodeURIComponent(data.token)}`);
       } else {
         setStatus("error");
       }
-    } catch (err) {
+    } catch {
       setStatus("error");
     }
   };
@@ -33,23 +97,23 @@ export default function ForgotPassword() {
       const params = new URLSearchParams(window.location.search);
       const emailFromQuery = params.get("email");
 
-      let resolvedEmail = emailFromQuery || "";
+      let resolvedIdentifier = emailFromQuery || "";
 
-      if (!resolvedEmail) {
+      if (!resolvedIdentifier) {
         const storedUser = localStorage.getItem("user");
         if (storedUser) {
           const parsed = JSON.parse(storedUser);
           if (parsed?.email) {
-            resolvedEmail = parsed.email;
+            resolvedIdentifier = parsed.email;
           }
         }
       }
 
-      if (resolvedEmail) {
-        setEmail(resolvedEmail);
-        setEmailLocked(true);
+      if (resolvedIdentifier) {
+        setIdentifier(resolvedIdentifier);
+        setIdentifierLocked(true);
         // Auto-send reset link once email is known
-        sendReset(resolvedEmail);
+        sendReset(resolvedIdentifier);
       }
     } catch {
       // ignore and fall back to manual input
@@ -58,7 +122,7 @@ export default function ForgotPassword() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await sendReset(email);
+    await sendReset(identifier);
   }
 
   return (
@@ -66,48 +130,75 @@ export default function ForgotPassword() {
       <div className="max-w-md w-full bg-white p-8 rounded shadow">
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Forgot Password</h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          {emailLocked
-            ? "We will send reset instructions to your registered email."
-            : "Enter your email to receive reset instructions."}
+          {identifierLocked
+            ? "We will start password reset using your registered email/mobile."
+            : "Enter your email or mobile number to reset your password."}
         </p>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {!emailLocked && (
+          {!identifierLocked && status !== "otp_sent" && status !== "verifying" && (
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
-                <label htmlFor="email" className="sr-only">
-                  Email address
+                <label htmlFor="identifier" className="sr-only">
+                  Email or phone
                 </label>
                 <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
+                  id="identifier"
+                  name="identifier"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500 focus:z-10 sm:text-sm"
-                  placeholder="Email address"
+                  placeholder="Email or phone number"
                 />
               </div>
             </div>
           )}
 
-          {emailLocked && (
+          {identifierLocked && (
             <div className="rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-700">
-              Reset link will be sent to: <span className="font-medium">{email}</span>
+              Reset will be sent to: <span className="font-medium">{identifier}</span>
             </div>
           )}
 
-          <div>
-            <button
-              type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500"
-              disabled={status === "sending" || !email}
-            >
-              {status === "sending" ? "Sending..." : "Send reset link"}
-            </button>
-          </div>
+          {(status === "otp_sent" || status === "verifying") && (
+            <div className="space-y-3">
+              <div className="text-sm text-gray-700">Enter the 6-digit OTP sent to your mobile.</div>
+              <div className="flex justify-center">
+                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              <button
+                type="button"
+                onClick={verifyOtpAndContinue}
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500"
+                disabled={status === "verifying" || otp.length !== 6}
+              >
+                {status === "verifying" ? "Verifying..." : "Verify OTP"}
+              </button>
+            </div>
+          )}
+
+          {status !== "otp_sent" && status !== "verifying" && (
+            <div>
+              <button
+                type="submit"
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500"
+                disabled={status === "sending" || !identifier}
+              >
+                {status === "sending" ? "Sending..." : "Send reset link"}
+              </button>
+            </div>
+          )}
 
           {status === "sent" && (
             <p className="text-sm text-green-600">

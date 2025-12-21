@@ -68,7 +68,7 @@ export default function AdminAffiliateWithdrawals() {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/affiliate/withdrawals/${id}/approve`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
@@ -76,7 +76,7 @@ export default function AdminAffiliateWithdrawals() {
         body: JSON.stringify({ transactionId, notes }),
       });
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to approve withdrawal');
       }
       return response.json();
@@ -89,8 +89,8 @@ export default function AdminAffiliateWithdrawals() {
       toast({ title: 'Success', description: 'Withdrawal approved successfully' });
     },
     onError: (error: any) => {
-      toast({ 
-        title: 'Error', 
+      toast({
+        title: 'Error',
         description: error.message || 'Failed to approve withdrawal',
         variant: 'destructive'
       });
@@ -130,16 +130,6 @@ export default function AdminAffiliateWithdrawals() {
     },
   });
 
-  const handleApprove = () => {
-    if (selectedWithdrawal && transactionId.trim()) {
-      approveWithdrawalMutation.mutate({ 
-        id: selectedWithdrawal.id, 
-        transactionId: transactionId.trim(),
-        notes: notes.trim()
-      });
-    }
-  };
-
   const handleReject = () => {
     if (selectedWithdrawal) {
       rejectWithdrawalMutation.mutate({ 
@@ -147,6 +137,24 @@ export default function AdminAffiliateWithdrawals() {
         notes: notes.trim() || 'Rejected by admin'
       });
     }
+  };
+
+  const handleApprove = () => {
+    if (!selectedWithdrawal) return;
+    const tx = transactionId.trim();
+    if (!tx) {
+      toast({
+        title: 'Transaction ID required',
+        description: 'Please enter the bank transaction/reference number to approve.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    approveWithdrawalMutation.mutate({
+      id: selectedWithdrawal.id,
+      transactionId: tx,
+      notes: notes.trim(),
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -348,30 +356,25 @@ export default function AdminAffiliateWithdrawals() {
               )}
 
               {selectedWithdrawal.status === 'pending' && (
-                <>
-                  <div>
-                    <Label htmlFor="transactionId">Transaction ID / Reference Number *</Label>
-                    <Input
-                      id="transactionId"
-                      value={transactionId}
-                      onChange={(e) => setTransactionId(e.target.value)}
-                      placeholder="Enter bank transaction ID or reference number"
-                      className="mt-1"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Required for approval</p>
-                  </div>
-                  <div>
-                    <Label htmlFor="notes">Notes (Optional)</Label>
-                    <Textarea
-                      id="notes"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Add any notes about this withdrawal..."
-                      rows={3}
-                      className="mt-1"
-                    />
-                  </div>
-                </>
+                <div>
+                  <Label htmlFor="transactionId">Transaction ID / Reference Number</Label>
+                  <Input
+                    id="transactionId"
+                    value={transactionId}
+                    onChange={(e) => setTransactionId(e.target.value)}
+                    placeholder="Enter bank transaction ID or reference number"
+                    className="mt-1"
+                  />
+                  <Label htmlFor="notes" className="mt-3 block">Notes (Optional)</Label>
+                  <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add any notes about this withdrawal..."
+                    rows={3}
+                    className="mt-1"
+                  />
+                </div>
               )}
 
               {selectedWithdrawal.status !== 'pending' && (
@@ -421,7 +424,7 @@ export default function AdminAffiliateWithdrawals() {
                 </Button>
                 <Button
                   onClick={handleApprove}
-                  disabled={approveWithdrawalMutation.isPending || !transactionId.trim()}
+                  disabled={approveWithdrawalMutation.isPending}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   <CheckCircle className="mr-2 h-4 w-4" />

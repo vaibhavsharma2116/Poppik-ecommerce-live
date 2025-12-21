@@ -283,14 +283,14 @@ export class DatabaseStorage implements IStorage {
       });
 
       // Validate required fields
-      if (!userData.firstName || !userData.lastName || !userData.email || !userData.password) {
-        throw new Error("Missing required fields: firstName, lastName, email, and password are required");
+      if (!userData.firstName || !userData.lastName || !userData.password) {
+        throw new Error("Missing required fields: firstName, lastName, and password are required");
       }
 
       const [user] = await this.db.insert(users).values({
         firstName: userData.firstName,
         lastName: userData.lastName,
-        email: userData.email,
+        email: userData.email || null,
         phone: userData.phone || null,
         password: userData.password,
         dateOfBirth: userData.dateOfBirth || null,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { User, Mail, Phone, Calendar, LogOut, Edit, Wallet, Gift, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +59,7 @@ interface UserProfile {
 }
 
 export default function Profile() {
+  const [location, setLocation] = useLocation();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -164,6 +165,18 @@ export default function Profile() {
     });
   };
 
+  useEffect(() => {
+    try {
+      const qs = new URLSearchParams(window.location.search || "");
+      const edit = qs.get('edit');
+      if (edit === '1') {
+        // Wait until user is loaded; effect below will open the modal.
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [location]);
+
   const handleEditProfile = () => {
     if (user) {
       setEditFormData({
@@ -180,6 +193,24 @@ export default function Profile() {
       setIsEditModalOpen(true);
     }
   };
+
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const qs = new URLSearchParams(window.location.search || "");
+      const edit = qs.get('edit');
+      if (edit === '1' && !isEditModalOpen) {
+        handleEditProfile();
+        try {
+          window.history.replaceState(null, '', '/profile');
+        } catch (e) {
+          // ignore
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [user, isEditModalOpen]);
 
   const performProfileUpdate = async () => {
     if (!user) return;
@@ -244,6 +275,16 @@ export default function Profile() {
 
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
+      try {
+        window.dispatchEvent(new Event('userUpdated'));
+      } catch (e) {
+        // ignore
+      }
+      try {
+        window.dispatchEvent(new Event('deliveryAddressesUpdated'));
+      } catch (e) {
+        // ignore
+      }
 
       toast({
         title: "Profile Updated",
@@ -400,20 +441,28 @@ export default function Profile() {
           const updatedUser = data.user || data;
 
           setUser(updatedUser);
-          setEditFormData((prev) => ({
-            ...prev,
-            phone: cleanedPhone,
-          }));
-          localStorage.setItem("user", JSON.stringify(updatedUser));
+          try {
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+          } catch (e) {
+            // ignore
+          }
+          try {
+            window.dispatchEvent(new Event('userUpdated'));
+          } catch (e) {
+            // ignore
+          }
+          try {
+            window.dispatchEvent(new Event('deliveryAddressesUpdated'));
+          } catch (e) {
+            // ignore
+          }
+
+          setIsOtpModalOpen(false);
 
           toast({
             title: "Verified",
-            description: "Mobile number updated successfully.",
+            description: "Your phone number has been updated.",
           });
-          setIsOtpModalOpen(false);
-          setOtp("");
-          setOtpSent(false);
-          setOtpCountdown(0);
         } catch (updateError) {
           console.error("Phone update error:", updateError);
           toast({

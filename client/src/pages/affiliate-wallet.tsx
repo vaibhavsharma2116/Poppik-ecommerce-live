@@ -99,6 +99,20 @@ export default function AffiliateWallet() {
     }
   }, []);
 
+  const { data: affiliateApplication } = useQuery({
+    queryKey: ['/api/affiliate/my-application', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/affiliate/my-application?userId=${user.id}`, {
+        credentials: 'include',
+      });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.id,
+    staleTime: 30000,
+  });
+
   // Fetch affiliate wallet data
   const { data: walletData, isLoading: walletLoading, refetch: refetchWallet } = useQuery<AffiliateWalletData>({
     queryKey: ['/api/affiliate/wallet', user?.id],
@@ -206,6 +220,15 @@ export default function AffiliateWallet() {
   const handleWithdrawal = async () => {
     if (!user?.id) return;
 
+    if (!hasSavedBankDetails && !isBankDetailsValid) {
+      toast({
+        title: 'Invalid Bank Details',
+        description: 'Please enter valid bank details before withdrawing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (withdrawAmount < 2500) {
       toast({
         title: "Invalid Amount",
@@ -273,12 +296,114 @@ export default function AffiliateWallet() {
     }
   };
 
+  const hasSavedBankDetails = !!(
+    affiliateApplication &&
+    (affiliateApplication.bankName || affiliateApplication.branchName || affiliateApplication.ifscCode || affiliateApplication.accountNumber)
+  );
+
+  const normalizedIfsc = String(ifscCode || '').trim().toUpperCase();
+  const normalizedAccountNumber = String(accountNumber || '').replace(/\s+/g, '');
+  const bankNameTrimmed = String(bankName || '').trim();
+  const branchNameTrimmed = String(branchName || '').trim();
+
+  const bankDetailErrors = {
+    bankName:
+      bankNameTrimmed.length === 0
+        ? 'Bank name is required'
+        : !/^[a-zA-Z0-9][a-zA-Z0-9 .\-&,]{1,99}$/.test(bankNameTrimmed)
+        ? 'Enter a valid bank name'
+        : '',
+    branchName:
+      branchNameTrimmed.length === 0
+        ? 'Branch name is required'
+        : !/^[a-zA-Z0-9][a-zA-Z0-9 .\-&,]{1,99}$/.test(branchNameTrimmed)
+        ? 'Enter a valid branch name'
+        : '',
+    ifscCode:
+      normalizedIfsc.length === 0
+        ? 'IFSC code is required'
+        : !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(normalizedIfsc)
+        ? 'IFSC format should be like HDFC0123456'
+        : '',
+    accountNumber:
+      normalizedAccountNumber.length === 0
+        ? 'Account number is required'
+        : !/^\d{9,18}$/.test(normalizedAccountNumber)
+        ? 'Account number should be 9-18 digits'
+        : '',
+  };
+
+  const isBankDetailsValid =
+    !bankDetailErrors.bankName &&
+    !bankDetailErrors.branchName &&
+    !bankDetailErrors.ifscCode &&
+    !bankDetailErrors.accountNumber;
+
+  useEffect(() => {
+    if (!showWithdrawalDialog) return;
+    if (!affiliateApplication) return;
+
+    setBankName(String(affiliateApplication.bankName || ''));
+    setBranchName(String(affiliateApplication.branchName || ''));
+    setIfscCode(String(affiliateApplication.ifscCode || ''));
+    setAccountNumber(String(affiliateApplication.accountNumber || ''));
+  }, [showWithdrawalDialog, affiliateApplication]);
+
+  const exportWithdrawalsCsv = () => {
+    if (!withdrawals || withdrawals.length === 0) {
+      toast({
+        title: 'No data',
+        description: 'No withdrawal history to export',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const escapeCsv = (value: any) => {
+      const str = String(value ?? '');
+      if (/[\",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+      return str;
+    };
+
+    const headers = [
+      'Request ID',
+      'Amount',
+      'Status',
+      'Payment Method',
+      'Requested At',
+      'Processed At',
+    ];
+
+    const rows = withdrawals.map((w) => [
+      `WD${String(w.id).padStart(4, '0')}`,
+      w.amount,
+      w.status,
+      w.paymentMethod,
+      w.requestedAt,
+      w.processedAt || '',
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map(escapeCsv).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `withdrawal-history-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   if (walletLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-purple-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-16 w-16 sm:h-12 sm:w-12 border-4 border-gray-200 border-t-purple-600 mx-auto mb-4"></div>
             <WalletIcon className="h-6 w-6 text-purple-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
           </div>
           <p className="text-gray-600 font-medium">Loading your affiliate wallet...</p>
@@ -424,7 +549,7 @@ export default function AffiliateWallet() {
             <div className="space-y-4 py-4">
               <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-900 font-medium mb-2">
-                  💡 Important Information
+                  Important Information
                 </p>
                 <p className="text-sm text-blue-800">
                   Cashback balance is <strong>only usable on Poppik purchases</strong>.
@@ -460,7 +585,7 @@ export default function AffiliateWallet() {
 
         {/* Withdraw Button - Integrated into Dialog */}
         <Dialog open={showWithdrawalDialog} onOpenChange={setShowWithdrawalDialog}>
-          <DialogContent className="max-w-md w-11/12 sm:w-full">
+          <DialogContent className="max-w-md w-11/12 sm:w-full max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Withdraw Commission Earnings</DialogTitle>
               <DialogDescription>
@@ -496,7 +621,7 @@ export default function AffiliateWallet() {
                     type="button"
                     variant="outline"
                     onClick={() => setWithdrawAmount(availableCommissionBalance)}
-                    className="text-xs sm:text-sm h-9 sm:h-10"
+                    className="text-xs sm:text-sm h-8 sm:h-9"
                   >
                     Max
                   </Button>
@@ -508,13 +633,44 @@ export default function AffiliateWallet() {
 
               <div className="space-y-2">
                 <Label>Bank Details (for transfer)</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <Input placeholder="Bank name" value={bankName} onChange={(e) => setBankName(e.target.value)} />
-                  <Input placeholder="Branch name" value={branchName} onChange={(e) => setBranchName(e.target.value)} />
-                  <Input placeholder="IFSC code" value={ifscCode} onChange={(e) => setIfscCode(e.target.value)} />
-                  <Input placeholder="Account number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
-                </div>
-                <p className="text-xs text-gray-500">Provide bank details where you want the withdrawal to be sent.</p>
+                {hasSavedBankDetails ? (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-xs text-gray-500">Bank name</div>
+                        <div className="font-medium text-gray-800 break-words">{bankName || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Branch name</div>
+                        <div className="font-medium text-gray-800 break-words">{branchName || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">IFSC code</div>
+                        <div className="font-medium text-gray-800 break-words">{ifscCode || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Account number</div>
+                        <div className="font-medium text-gray-800 break-words">{accountNumber ? `XXXXXX${String(accountNumber).slice(-4)}` : '-'}</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <Input placeholder="Bank name" value={bankName} onChange={(e) => setBankName(e.target.value)} />
+                      <Input placeholder="Branch name" value={branchName} onChange={(e) => setBranchName(e.target.value)} />
+                      <Input placeholder="IFSC code" value={ifscCode} onChange={(e) => setIfscCode(e.target.value.toUpperCase())} />
+                      <Input placeholder="Account number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      {!!bankDetailErrors.bankName && <p className="text-xs text-red-500">{bankDetailErrors.bankName}</p>}
+                      {!!bankDetailErrors.branchName && <p className="text-xs text-red-500">{bankDetailErrors.branchName}</p>}
+                      {!!bankDetailErrors.ifscCode && <p className="text-xs text-red-500">{bankDetailErrors.ifscCode}</p>}
+                      {!!bankDetailErrors.accountNumber && <p className="text-xs text-red-500">{bankDetailErrors.accountNumber}</p>}
+                    </div>
+                    <p className="text-xs text-gray-500">Provide bank details where you want the withdrawal to be sent.</p>
+                  </>
+                )}
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -538,7 +694,12 @@ export default function AffiliateWallet() {
                 <Button
                   className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                   onClick={handleWithdrawal}
-                  disabled={isProcessingWithdrawal || withdrawAmount < 2500 || withdrawAmount > availableCommissionBalance}
+                  disabled={
+                    isProcessingWithdrawal ||
+                    withdrawAmount < 2500 ||
+                    withdrawAmount > availableCommissionBalance ||
+                    (!hasSavedBankDetails && !isBankDetailsValid)
+                  }
                 >
                   {isProcessingWithdrawal ? (
                     <>
@@ -553,6 +714,12 @@ export default function AffiliateWallet() {
                   )}
                 </Button>
               </div>
+
+              {!hasSavedBankDetails && !isBankDetailsValid && (
+                <p className="text-xs text-red-500">
+                  Please enter valid bank details to enable withdrawal.
+                </p>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -560,7 +727,7 @@ export default function AffiliateWallet() {
         {/* Transaction History Section */}
         <Card className="shadow-lg border-0">
           <CardHeader className="bg-white border-b p-3 sm:p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
                   <History className="h-5 w-5 text-gray-700" />
@@ -626,7 +793,7 @@ export default function AffiliateWallet() {
                 <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                   <Gift className="h-8 w-8 sm:h-10 sm:w-10 text-gray-300" />
                 </div>
-                <p className="text-gray-500 text-base sm:text-lg font-semibold mb-2">No transactions found</p>
+                <p className="text-gray-500 text-lg font-semibold mt-4 mb-2">No transactions found</p>
                 <p className="text-gray-400 text-sm sm:text-base">
                   {searchQuery || filterType !== "all" || dateRange !== "all"
                     ? "Try adjusting your filters"
@@ -635,21 +802,25 @@ export default function AffiliateWallet() {
               </div>
             ) : (
               <div className="space-y-2 sm:space-y-3">
-                {filteredTransactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 hover:shadow-md hover:border-gray-300 transition-all"
-                  >
-                    {/* Mobile Layout (< 640px) */}
-                    <div className="block sm:hidden">
-                      <div className="flex items-start justify-between gap-3 mb-3">
+                {filteredTransactions.map((transaction) => {
+                  const isCredit = transaction.type === 'commission' || transaction.type === 'cashback';
+                  const status = String(transaction.status || '').toLowerCase();
+
+                  return (
+                    <div
+                      key={transaction.id}
+                      className="bg-white rounded-lg sm:rounded-xl border border-gray-200 p-3 sm:p-4 hover:shadow-md hover:border-gray-300 transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow flex-shrink-0 ${
-                            transaction.type === 'commission' || transaction.type === 'cashback'
-                              ? 'bg-gradient-to-br from-green-400 to-green-500'
-                              : 'bg-gradient-to-br from-red-400 to-red-500'
-                          }`}>
-                            {transaction.type === 'commission' || transaction.type === 'cashback' ? (
+                          <div
+                            className={`w-10 h-10 rounded-lg flex items-center justify-center shadow flex-shrink-0 ${
+                              isCredit
+                                ? 'bg-gradient-to-br from-green-400 to-green-500'
+                                : 'bg-gradient-to-br from-red-400 to-red-500'
+                            }`}
+                          >
+                            {isCredit ? (
                               <ArrowDownRight className="h-5 w-5 text-white" />
                             ) : (
                               <ArrowUpRight className="h-5 w-5 text-white" />
@@ -658,79 +829,12 @@ export default function AffiliateWallet() {
 
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2">{transaction.description}</p>
-                            <Badge variant="outline" className="text-xs">
-                              {transaction.balanceType === 'commission' ? 'Commission' : 'Cashback'}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        <div className="text-right flex-shrink-0">
-                          <p className={`text-lg font-bold mb-1 ${
-                            transaction.type === 'commission' || transaction.type === 'cashback' ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {transaction.type === 'commission' || transaction.type === 'cashback' ? '+' : '-'}₹{parseFloat(transaction.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </p>
-                          <Badge
-                            className="text-xs"
-                            variant={
-                              transaction.status === "completed"
-                                ? "default"
-                                : transaction.status === "pending"
-                                ? "secondary"
-                                : "destructive"
-                            }
-                          >
-                            {transaction.status}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-1.5 text-xs text-gray-500 border-t border-gray-100 pt-2.5">
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="h-3 w-3 flex-shrink-0" />
-                          <span className="truncate">
-                            {new Date(transaction.createdAt).toLocaleDateString('en-IN', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
-                        </span>
-                        {transaction.orderId && (
-                          <span className="text-gray-700 font-medium truncate">Order #{transaction.orderId}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Desktop Layout (>= 640px) */}
-                    <div className="hidden sm:flex items-center justify-between">
-                      <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
-                        <div className={`w-11 h-11 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow flex-shrink-0 ${
-                          transaction.type === 'commission' || transaction.type === 'cashback'
-                            ? 'bg-gradient-to-br from-green-400 to-green-500'
-                            : 'bg-gradient-to-br from-red-400 to-red-500'
-                        }`}>
-                          {transaction.type === 'commission' || transaction.type === 'cashback' ? (
-                            <ArrowDownRight className="h-5 w-5 md:h-6 md:w-6 text-white" />
-                          ) : (
-                            <ArrowUpRight className="h-5 w-5 md:h-6 md:w-6 text-white" />
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-semibold text-gray-900 text-sm md:text-base truncate">{transaction.description}</p>
-                            <Badge variant="outline" className="text-xs flex-shrink-0">
-                              {transaction.balanceType === 'commission' ? 'Commission' : 'Cashback'}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-3 md:gap-4 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3 flex-shrink-0" />
-                              <span className="hidden md:inline">
-                                {new Date(transaction.createdAt).toLocaleDateString('en-IN', {
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-xs">
+                                {transaction.balanceType === 'commission' ? 'Commission' : 'Cashback'}
+                              </Badge>
+                              <span className="text-xs text-gray-500">
+                                {new Date(transaction.createdAt).toLocaleString('en-IN', {
                                   year: 'numeric',
                                   month: 'short',
                                   day: 'numeric',
@@ -738,43 +842,33 @@ export default function AffiliateWallet() {
                                   minute: '2-digit'
                                 })}
                               </span>
-                              <span className="inline md:hidden">
-                                {new Date(transaction.createdAt).toLocaleDateString('en-IN', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </span>
-                            </span>
-                            {transaction.orderId && (
-                              <span className="text-gray-700 font-medium truncate">Order #{transaction.orderId}</span>
-                            )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right flex-shrink-0">
+                          <div className={`text-lg font-bold ${isCredit ? 'text-green-600' : 'text-red-600'}`}>
+                            {isCredit ? '+' : '-'}₹{parseFloat(String(transaction.amount || '0')).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </div>
+                          <div className="mt-1">
+                            <Badge
+                              variant={status === 'completed' ? 'default' : status === 'pending' ? 'secondary' : 'destructive'}
+                              className={
+                                status === 'completed'
+                                  ? 'bg-green-600 text-white border-transparent'
+                                  : status === 'pending'
+                                  ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                  : undefined
+                              }
+                            >
+                              {status}
+                            </Badge>
                           </div>
                         </div>
                       </div>
-
-                      <div className="text-right flex-shrink-0 ml-3">
-                        <p className={`text-lg md:text-xl font-bold mb-1 ${
-                          transaction.type === 'commission' || transaction.type === 'cashback' ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {transaction.type === 'commission' || transaction.type === 'cashback' ? '+' : '-'}₹{parseFloat(transaction.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </p>
-                        <Badge
-                          variant={
-                            transaction.status === "completed"
-                              ? "default"
-                              : transaction.status === "pending"
-                              ? "secondary"
-                              : "destructive"
-                          }
-                        >
-                          {transaction.status}
-                        </Badge>
-                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -788,7 +882,12 @@ export default function AffiliateWallet() {
                 <History className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
                 <CardTitle className="text-base sm:text-lg md:text-xl">Withdrawal History</CardTitle>
               </div>
-              <Button variant="outline" size="sm" className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto text-xs sm:text-sm h-8 sm:h-9"
+                onClick={exportWithdrawalsCsv}
+              >
                 <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                 Export
               </Button>

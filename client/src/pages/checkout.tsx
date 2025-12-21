@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award, ChevronDown, Tag, Check, Plus, ChevronRight } from "lucide-react";
+import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award, ChevronDown, Tag, Check, Plus, ChevronRight, Pencil } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 
 import { Button } from "@/components/ui/button";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -374,7 +375,8 @@ export default function CheckoutPage() {
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
   const [newAddressData, setNewAddressData] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     mobile: "",
     pincode: "",
     flat: "",
@@ -902,11 +904,22 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
       }
     };
 
+    const onUserUpdated = () => {
+      try {
+        // User profile may have changed (profile-based address), so refresh everything
+        initializeCheckout();
+      } catch (e) {
+        console.error('Error refetching after user update event:', e);
+      }
+    };
+
     window.addEventListener('deliveryAddressesUpdated', onAddressesUpdated as EventListener);
+    window.addEventListener('userUpdated', onUserUpdated as EventListener);
 
     // Cleanup listener when component unmounts
     return () => {
       window.removeEventListener('deliveryAddressesUpdated', onAddressesUpdated as EventListener);
+      window.removeEventListener('userUpdated', onUserUpdated as EventListener);
     };
   }, [user?.id, profileDataLoaded]);
 
@@ -1076,11 +1089,11 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         }
         sessionStorage.removeItem('pendingOrder');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Payment verification error:', error);
       toast({
         title: "Verification Error",
-        description: "Could not verify payment status. Please contact support.",
+        description: error.message || "Could not verify payment status. Please contact support.",
         variant: "destructive",
       });
     }
@@ -1488,7 +1501,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
   const handleNewAddressSubmit = async () => {
     // Validate required fields
-    if (!newAddressData.fullName || !newAddressData.mobile || !newAddressData.pincode ||
+    if (!newAddressData.firstName || !newAddressData.lastName || !newAddressData.mobile || !newAddressData.pincode ||
         !newAddressData.flat || !newAddressData.area || !newAddressData.town || !newAddressData.state) {
       toast({
         title: "Missing Information",
@@ -1524,8 +1537,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
     const fullAddress = `${newAddressData.flat}, ${newAddressData.area}${newAddressData.landmark ? ', ' + newAddressData.landmark : ''}`;
 
     // Split name into first and last
-    const [firstName, ...lastNameParts] = newAddressData.fullName.trim().split(' ');
-    const lastName = lastNameParts.join(' ') || firstName;
+    const recipientName = `${newAddressData.firstName} ${newAddressData.lastName}`.trim();
 
     try {
       // Save to database
@@ -1537,7 +1549,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         credentials: 'include',
         body: JSON.stringify({
           userId: user.id,
-          recipientName: newAddressData.fullName,
+          recipientName,
           addressLine1: fullAddress,
           addressLine2: null,
           city: newAddressData.town,
@@ -1594,7 +1606,8 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
       // Reset new address form
       setNewAddressData({
-        fullName: "",
+        firstName: "",
+        lastName: "",
         mobile: "",
         pincode: "",
         flat: "",
@@ -2593,7 +2606,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                           setShowAddAddressDialog(open);
                           if (open) { // Reset form when opening dialog
                             setNewAddressData({
-                              fullName: "", mobile: "", pincode: "", flat: "", area: "", landmark: "",
+                              firstName: "", lastName: "", mobile: "", pincode: "", flat: "", area: "", landmark: "",
                               town: "", state: "", makeDefault: false, deliveryInstructions: '',
                               saturdayDelivery: false, sundayDelivery: false,
                             });
@@ -2622,11 +2635,21 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                               </div>
 
                               <div>
-                                <Label htmlFor="newFullName">Full name (First and Last name) *</Label>
+                                <Label htmlFor="newFirstName">First name *</Label>
                                 <Input
-                                  id="newFullName"
-                                  value={newAddressData.fullName}
-                                  onChange={(e) => setNewAddressData({...newAddressData, fullName: e.target.value})}
+                                  id="newFirstName"
+                                  value={newAddressData.firstName}
+                                  onChange={(e) => setNewAddressData({ ...newAddressData, firstName: e.target.value })}
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="newLastName">Last name *</Label>
+                                <Input
+                                  id="newLastName"
+                                  value={newAddressData.lastName}
+                                  onChange={(e) => setNewAddressData({ ...newAddressData, lastName: e.target.value })}
                                   required
                                 />
                               </div>
@@ -2643,17 +2666,6 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                 />
                               </div>
 
-                              <div>
-                                <Label htmlFor="newPincode">Pincode *</Label>
-                                <Input
-                                  id="newPincode"
-                                  placeholder="6 digits [0-9] PIN code"
-                                  value={newAddressData.pincode}
-                                  onChange={(e) => setNewAddressData({...newAddressData, pincode: e.target.value})}
-                                  maxLength={6}
-                                  required
-                                />
-                              </div>
 
                               <div>
                                 <Label htmlFor="newFlat">Flat, House no., Building, Company, Apartment *</Label>
@@ -2737,12 +2749,23 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                   checked={newAddressData.makeDefault}
                                   onChange={(e) => setNewAddressData({...newAddressData, makeDefault: e.target.checked})}
                                 />
-                                <Label htmlFor="makeDefault" className="text-sm font-normal">
+                                {/* <Label htmlFor="makeDefault" className="text-sm font-normal">
                                   Make this my default address
-                                </Label>
+                                </Label> */}
                               </div>
 
-                              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                              <div>
+                                <Label htmlFor="newPincode">Pincode *</Label>
+                                <Input
+                                  id="newPincode"
+                                  placeholder="6 digits [0-9] PIN code"
+                                  value={newAddressData.pincode}
+                                  onChange={(e) => setNewAddressData({...newAddressData, pincode: e.target.value})}
+                                  maxLength={6}
+                                  required
+                                />
+                              </div>
+                              {/* <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                                 <p className="text-sm font-semibold mb-2">Add delivery instructions (optional)</p>
                                 <Textarea
                                   placeholder="E.g., Leave at door, Ring bell twice, Call before delivery..."
@@ -2753,7 +2776,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                   }}
                                 />
                                 <p className="text-xs text-gray-600 mt-2">Preferences are used to plan your delivery. However, shipments can sometimes arrive early or later than planned.</p>
-                              </div>
+                              </div> */}
 
                               <Button
                                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
@@ -2825,6 +2848,26 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                 <p className="text-sm text-gray-700">{address.city}, {address.state}, {address.pincode}</p>
                                 <p className="text-sm text-gray-600 mt-1">Phone: {address.phoneNumber}</p>
                               </div>
+                              <button
+                                type="button"
+                                className="p-2 rounded-md hover:bg-red-100 text-red-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (Number(address.id) === 999999) {
+                                    setLocation('/profile?edit=1');
+                                    return;
+                                  }
+                                  try {
+                                    localStorage.setItem('editDeliveryAddress', JSON.stringify(address));
+                                  } catch (err) {
+                                    // ignore
+                                  }
+                                  setLocation('/select-delivery-address');
+                                }}
+                                aria-label="Edit address"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -2833,7 +2876,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                           setShowAddAddressDialog(open);
                           if (open) { // Reset form when opening dialog
                             setNewAddressData({
-                              fullName: "", mobile: "", pincode: "", flat: "", area: "", landmark: "",
+                              firstName: "", lastName: "", mobile: "", pincode: "", flat: "", area: "", landmark: "",
                               town: "", state: "", makeDefault: false, deliveryInstructions: '',
                               saturdayDelivery: false, sundayDelivery: false,
                             });
@@ -2862,14 +2905,25 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                 </select>
                               </div>
 
-                              <div>
-                                <Label htmlFor="newFullName">Full name (First and Last name) *</Label>
-                                <Input
-                                  id="newFullName"
-                                  value={newAddressData.fullName}
-                                  onChange={(e) => setNewAddressData({...newAddressData, fullName: e.target.value})}
-                                  required
-                                />
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor="newFirstName">First name *</Label>
+                                  <Input
+                                    id="newFirstName"
+                                    value={newAddressData.firstName}
+                                    onChange={(e) => setNewAddressData({ ...newAddressData, firstName: e.target.value })}
+                                    required
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="newLastName">Last name *</Label>
+                                  <Input
+                                    id="newLastName"
+                                    value={newAddressData.lastName}
+                                    onChange={(e) => setNewAddressData({ ...newAddressData, lastName: e.target.value })}
+                                    required
+                                  />
+                                </div>
                               </div>
 
                               <div>
@@ -2884,17 +2938,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                 />
                               </div>
 
-                              <div>
-                                <Label htmlFor="newPincode">Pincode *</Label>
-                                <Input
-                                  id="newPincode"
-                                  placeholder="6 digits [0-9] PIN code"
-                                  value={newAddressData.pincode}
-                                  onChange={(e) => setNewAddressData({...newAddressData, pincode: e.target.value})}
-                                  maxLength={6}
-                                  required
-                                />
-                              </div>
+                             
 
                               <div>
                                 <Label htmlFor="newFlat">Flat, House no., Building, Company, Apartment *</Label>
@@ -2969,7 +3013,17 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                                   </select>
                                 </div>
                               </div>
-
+ <div>
+                                <Label htmlFor="newPincode">Pincode *</Label>
+                                <Input
+                                  id="newPincode"
+                                  placeholder="6 digits [0-9] PIN code"
+                                  value={newAddressData.pincode}
+                                  onChange={(e) => setNewAddressData({...newAddressData, pincode: e.target.value})}
+                                  maxLength={6}
+                                  required
+                                />
+                              </div>
                               <div className="flex items-center space-x-2">
                                 <input
                                   type="checkbox"
@@ -3406,13 +3460,6 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                       </div>
                     )}
 
-                    {totalAffiliateCommissionFromItems > 0 && localStorage.getItem('affiliateRef') && (
-                      <div className="flex justify-between text-sm bg-blue-50 p-2 rounded">
-                        <span className="text-blue-700 font-medium">Affiliate Commission Earned</span>
-                        <span className="font-bold text-blue-600">+₹{Math.round(totalAffiliateCommissionFromItems).toLocaleString()}</span>
-                      </div>
-                    )}
-
                     {promoDiscount > 0 && (
                       <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
                         <span className="text-green-700 font-medium">Promo Discount</span>
@@ -3481,22 +3528,11 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                         You saved ₹{((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0) + (giftMilestoneDiscount || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}!
                       </div>
                     )}
-
-                    {affiliateCommission > 0 && (
-                      <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <Award className="h-5 w-5 text-purple-600" />
-                            <span className="text-sm font-bold text-purple-800">Affiliate Commission Earned</span>
-                          </div>
-                          <span className="text-lg font-bold text-purple-600">₹{affiliateCommission.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </CardContent>
               </Card>
             </div>
+
           </div>
         </form>
       </div>

@@ -14,10 +14,10 @@ export default function AffiliateForm() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    firstName: user.firstName || "",
+    lastName: user.lastName || "",
     email: user.email || "",
-    phone: "",
+    phone: user.phone || "",
     address: "",
     city: "",
     state: "",

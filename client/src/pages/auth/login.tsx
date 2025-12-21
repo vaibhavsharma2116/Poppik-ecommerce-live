@@ -20,6 +20,8 @@ export default function Login() {
   });
   const { toast } = useToast();
 
+  const isEmailIdentifier = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -77,15 +79,7 @@ export default function Login() {
 
   const handleGoogleSignIn = async () => {
     try {
-      const { user } = await signInWithGoogle();
-
-      toast({
-        title: "Success",
-        description: `Welcome back ${user.firstName}!`,
-      });
-
-      // Redirect to profile
-      window.location.href = "/";
+      await signInWithGoogle();
     } catch (error: any) {
       console.error("Google sign-in error:", error);
       toast({
@@ -121,14 +115,14 @@ export default function Login() {
           <CardContent className="space-y-4">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">Email or Phone Number</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     id="email"
                     name="email"
-                    type="email"
-                    placeholder="Enter your email"
+                    type="text"
+                    placeholder="Enter your email or phone"
                     value={formData.email}
                     onChange={handleInputChange}
                     className="pl-10"
@@ -171,9 +165,10 @@ export default function Login() {
                     onChange={handleInputChange}
                     className="rounded border-gray-300"
                   />
+                  <label htmlFor="rememberMe" className="text-sm text-gray-600">Remember me</label>
                 </div>
                 <Link
-                  href={`/auth/forgot-password${formData.email ? `?email=${encodeURIComponent(formData.email)}` : ""}`}
+                  href={`/auth/forgot-password${isEmailIdentifier(formData.email) ? `?email=${encodeURIComponent(formData.email.trim())}` : ""}`}
                   className="text-sm text-red-600 hover:text-red-700"
                 >
                   Forgot password?

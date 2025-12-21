@@ -852,8 +852,8 @@ app.get("/api/admin/stores", async (req, res) => {
       const { firstName, lastName, email, phone, password, confirmPassword } = req.body;
 
       // Validation
-      if (!firstName || !lastName || !email || !password ) {
-        console.log("Missing required fields:", { firstName: !!firstName, lastName: !!lastName, email: !!email, password: !!password });
+      if (!firstName || !lastName || !phone || !password) {
+        console.log("Missing required fields:", { firstName: !!firstName, lastName: !!lastName, phone: !!phone, password: !!password });
         return res.status(400).json({ error: "All required fields must be provided" });
       }
 
@@ -867,19 +867,23 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(400).json({ error: "Password must be at least 6 characters" });
       }
 
-      // Email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        console.log("Invalid email format:", email);
-        return res.status(400).json({ error: "Please provide a valid email address" });
-      }
+      const normalizedEmail = typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
 
-      console.log("Checking if user exists with email:", email);
-      // Check if user already exists by email
-      const existingUser = await storage.getUserByEmail(email.trim().toLowerCase());
-      if (existingUser) {
-        console.log("User already exists with email:", email);
-        return res.status(400).json({ error: "User already exists with this email" });
+      if (normalizedEmail) {
+        // Email validation (only if email provided)
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(normalizedEmail)) {
+          console.log("Invalid email format:", normalizedEmail);
+          return res.status(400).json({ error: "Please provide a valid email address" });
+        }
+
+        console.log("Checking if user exists with email:", normalizedEmail);
+        // Check if user already exists by email
+        const existingUser = await storage.getUserByEmail(normalizedEmail);
+        if (existingUser) {
+          console.log("User already exists with email:", normalizedEmail);
+          return res.status(400).json({ error: "User already exists with this email" });
+        }
       }
 
       // If phone provided, enforce uniqueness as well
@@ -901,7 +905,7 @@ app.get("/api/admin/stores", async (req, res) => {
       const userData = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         phone: normalizedPhone || null,
         password: hashedPassword
       };
@@ -916,7 +920,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Generate JWT token
       const token = jwt.sign(
-        { userId: user.id, email: user.email, role: user.role },
+        { userId: user.id, email: user.email || null, role: user.role },
         process.env.JWT_SECRET || "your-secret-key",
         { expiresIn: "24h" }
       );
@@ -924,7 +928,7 @@ app.get("/api/admin/stores", async (req, res) => {
       // Return user data (without password) and token
       const { password: _, ...userWithoutPassword } = user;
 
-      console.log("Signup successful for user:", userWithoutPassword.email);
+      console.log("Signup successful for user:", userWithoutPassword.email || userWithoutPassword.phone);
       res.status(201).json({
         message: "User created successfully",
         user: userWithoutPassword,
@@ -971,22 +975,28 @@ app.get("/api/admin/stores", async (req, res) => {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
+      const identifier = typeof email === "string" ? email.trim() : "";
 
       // Validation
-      if (!email || !password) {
-        return res.status(400).json({ error: "Email and password are required" });
+      if (!identifier || !password) {
+        return res.status(400).json({ error: "Email/mobile and password are required" });
       }
 
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+
       // Find user
-      const user = await storage.getUserByEmail(email);
+      const user = isEmail
+        ? await storage.getUserByEmail(identifier.toLowerCase())
+        : await storage.getUserByPhone(normalizePhone(identifier));
+
       if (!user) {
-        return res.status(401).json({ error: "Invalid email or password" });
+        return res.status(401).json({ error: "Invalid credentials" });
       }
 
       // Check password
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
-        return res.status(401).json({ error: "Invalid email or password" });
+        return res.status(401).json({ error: "Invalid credentials" });
       }
 
       // Generate JWT token
@@ -1013,19 +1023,26 @@ app.get("/api/admin/stores", async (req, res) => {
     try {
       const { email, password } = req.body;
 
-      console.log("🔐 Admin login attempt for email:", email);
+      const identifier = typeof email === "string" ? email.trim() : "";
+
+      console.log("🔐 Admin login attempt for identifier:", identifier);
 
       // Validation
-      if (!email || !password) {
-        console.log("❌ Missing email or password");
-        return res.status(400).json({ error: "Email and password are required" });
+      if (!identifier || !password) {
+        console.log("❌ Missing identifier or password");
+        return res.status(400).json({ error: "Email/mobile and password are required" });
       }
 
       // Find user
-      const user = await storage.getUserByEmail(email);
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+
+      const user = isEmail
+        ? await storage.getUserByEmail(identifier.toLowerCase())
+        : await storage.getUserByPhone(normalizePhone(identifier));
+
       if (!user) {
-        console.log("❌ User not found for email:", email);
-        return res.status(401).json({ error: "Invalid email or password" });
+        console.log("❌ User not found for identifier:", identifier);
+        return res.status(401).json({ error: "Invalid credentials" });
       }
 
       console.log("✅ User found:", { id: user.id, email: user.email, role: user.role });
@@ -1041,8 +1058,8 @@ app.get("/api/admin/stores", async (req, res) => {
       console.log("🔑 Password validation result:", isValidPassword);
       
       if (!isValidPassword) {
-        console.log("❌ Invalid password for user:", email);
-        return res.status(401).json({ error: "Invalid email or password" });
+        console.log("❌ Invalid password for user:", identifier);
+        return res.status(401).json({ error: "Invalid credentials" });
       }
 
       console.log("✅ Admin login successful for:", email);
@@ -1120,6 +1137,64 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
+  app.post('/api/auth/forgot-password-phone/send-otp', async (req, res) => {
+    try {
+      const { phoneNumber } = req.body || {};
+      if (!phoneNumber) return res.status(400).json({ error: 'Phone number is required' });
+
+      const normalized = normalizePhone(phoneNumber);
+
+      const messageResponse = { message: "If that mobile number exists, we've sent an OTP." };
+
+      if (!normalized) {
+        return res.json(messageResponse);
+      }
+
+      const user = await storage.getUserByPhone(normalized);
+      if (!user) {
+        return res.json(messageResponse);
+      }
+
+      const result = await OTPService.sendMobileOTP(normalized);
+      if (!result.success) {
+        return res.status(500).json({ error: result.message || 'Failed to send OTP' });
+      }
+
+      return res.json({ success: true, message: messageResponse.message });
+    } catch (err) {
+      console.error('Error in forgot-password-phone/send-otp endpoint:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/auth/forgot-password-phone/verify-otp', async (req, res) => {
+    try {
+      const { phoneNumber, otp } = req.body || {};
+      if (!phoneNumber || !otp) return res.status(400).json({ error: 'Phone number and OTP are required' });
+
+      const normalized = normalizePhone(phoneNumber);
+      if (!normalized) return res.status(400).json({ error: 'Invalid phone number' });
+
+      const user = await storage.getUserByPhone(normalized);
+      if (!user) {
+        return res.status(400).json({ error: 'Invalid OTP' });
+      }
+
+      const result = await OTPService.verifyMobileOTP(normalized, String(otp));
+      if (!result.success) {
+        return res.status(400).json({ error: result.message || 'Invalid OTP' });
+      }
+
+      const secret = process.env.JWT_SECRET || 'your-secret-key';
+      const token = jwt.sign({ uid: user.id, type: 'password_reset' }, secret, { expiresIn: '15m' });
+
+      return res.json({ verified: true, token });
+    } catch (err) {
+      console.error('Error in forgot-password-phone/verify-otp endpoint:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // Reset password - accepts token and new password
   app.post('/api/auth/reset-password', async (req, res) => {
     try {
@@ -1143,13 +1218,20 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Hash and update password
       const hashed = await bcrypt.hash(String(password), 10);
-      const updatedUser = await storage.updateUser(userId, { password: hashed });
+      const updated = await storage.updateUserPassword(userId, hashed);
+      if (!updated) return res.status(500).json({ error: 'Unable to update password' });
 
-      if (!updatedUser) {
-        return res.status(500).json({ error: 'Unable to update password' });
-      }
+      const updatedUser = await storage.getUser(userId);
+      if (!updatedUser) return res.status(500).json({ error: 'Unable to load updated user' });
 
-      return res.json({ message: 'Password updated successfully' });
+      const authToken = jwt.sign(
+        { userId: updatedUser.id, email: updatedUser.email, role: updatedUser.role },
+        secret,
+        { expiresIn: '24h' }
+      );
+
+      const { password: _, ...userWithoutPassword } = updatedUser as any;
+      return res.json({ message: 'Password updated successfully', user: userWithoutPassword, token: authToken });
     } catch (err) {
       console.error('Error in reset-password endpoint:', err);
       return res.status(500).json({ error: 'Internal server error' });
@@ -3460,6 +3542,10 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Set content type to ensure JSON response
       res.setHeader('Content-Type', 'application/json');
+      // Ensure no caching for profile updates
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
 
       const { id } = req.params;
       const { firstName, lastName, phone, dateOfBirth, address, city, state, pincode } = req.body;
@@ -3526,6 +3612,12 @@ app.get("/api/admin/stores", async (req, res) => {
   // Change password endpoint
   app.put("/api/users/:id/password", async (req, res) => {
     try {
+      res.setHeader('Content-Type', 'application/json');
+      // Ensure no caching for password updates
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const { id } = req.params;
       const { currentPassword, newPassword } = req.body;
 
@@ -3854,6 +3946,11 @@ app.get("/api/admin/stores", async (req, res) => {
   // Delivery Address Management Routes
   app.get("/api/delivery-addresses", async (req, res) => {
     try {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const { userId } = req.query;
 
       if (!userId) {
@@ -3875,6 +3972,11 @@ app.get("/api/admin/stores", async (req, res) => {
 
   app.post("/api/delivery-addresses", async (req, res) => {
     try {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const {
         userId,
         recipientName,
@@ -3927,6 +4029,11 @@ app.get("/api/admin/stores", async (req, res) => {
 
   app.put("/api/delivery-addresses/:id", async (req, res) => {
     try {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const addressId = parseInt(req.params.id);
       const {
         recipientName,
@@ -3988,6 +4095,11 @@ app.get("/api/admin/stores", async (req, res) => {
 
   app.delete("/api/delivery-addresses/:id", async (req, res) => {
     try {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const addressId = parseInt(req.params.id);
 
       const [deletedAddress] = await db
@@ -4008,6 +4120,11 @@ app.get("/api/admin/stores", async (req, res) => {
 
   app.put("/api/delivery-addresses/:id/set-default", async (req, res) => {
     try {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const addressId = parseInt(req.params.id);
 
       const address = await db

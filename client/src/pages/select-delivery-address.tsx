@@ -95,7 +95,7 @@ export default function SelectDeliveryAddress() {
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
 
 
-  const [user] = useState(() => {
+  const [user, setUser] = useState(() => {
     try {
       const storedUser = localStorage.getItem('user');
       return storedUser ? JSON.parse(storedUser) : null;
@@ -121,9 +121,55 @@ export default function SelectDeliveryAddress() {
 
     fetchAddresses();
 
-    // Refresh when other pages/components update addresses
+    // If coming from checkout to edit an address, open edit dialog directly
+    try {
+      const raw = localStorage.getItem('editDeliveryAddress');
+      if (raw) {
+        const parsed = normalizeAddress(JSON.parse(raw));
+        if (parsed && parsed.id) {
+          setEditingAddress(parsed as any);
+          setFormData({
+            recipientName: parsed.recipientName || '',
+            addressLine1: parsed.addressLine1 || '',
+            addressLine2: parsed.addressLine2 || '',
+            city: parsed.city || '',
+            state: parsed.state || '',
+            pincode: parsed.pincode || '',
+            country: parsed.country || 'India',
+            phoneNumber: parsed.phoneNumber || '',
+            deliveryInstructions: parsed.deliveryInstructions || '',
+            isDefault: Boolean(parsed.isDefault),
+          });
+          setIsAddDialogOpen(true);
+        }
+        localStorage.removeItem('editDeliveryAddress');
+      }
+    } catch (e) {
+      console.warn('Could not load editDeliveryAddress', e);
+      try {
+        localStorage.removeItem('editDeliveryAddress');
+      } catch (e2) {
+        // ignore
+      }
+    }
+
+    // Refresh when other pages/components update addresses or user profile
     const onAddressesUpdated = () => fetchAddresses();
+    const onUserUpdated = () => {
+      try {
+        const storedUser = localStorage.getItem('user');
+        const parsed = storedUser ? JSON.parse(storedUser) : null;
+        setUser(parsed);
+        // Important: refetch with the freshly parsed user to avoid waiting for state to update.
+        fetchAddresses(parsed);
+        return;
+      } catch (e) {
+        // ignore
+      }
+      fetchAddresses();
+    };
     window.addEventListener('deliveryAddressesUpdated', onAddressesUpdated as EventListener);
+    window.addEventListener('userUpdated', onUserUpdated as EventListener);
 
     // Check if in multiple address mode
     const multipleMode = localStorage.getItem('multipleAddressMode');
@@ -201,18 +247,27 @@ export default function SelectDeliveryAddress() {
 
     return () => {
       window.removeEventListener('deliveryAddressesUpdated', onAddressesUpdated as EventListener);
+      window.removeEventListener('userUpdated', onUserUpdated as EventListener);
     };
   }, []);
 
-  const fetchAddresses = async () => {
-    if (!user || !user.id) {
+  const fetchAddresses = async (overrideUser?: any) => {
+    const effectiveUser = overrideUser ?? user;
+    if (!effectiveUser || !effectiveUser.id) {
       console.error('Cannot fetch addresses: user not found');
       setLoading(false);
       return;
     }
 
     try {
-      const response = await fetch(apiUrl(`/api/delivery-addresses?userId=${user.id}`));
+      const response = await fetch(apiUrl(`/api/delivery-addresses?userId=${effectiveUser.id}`), {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -289,11 +344,47 @@ export default function SelectDeliveryAddress() {
       const response = await fetch(apiUrl(url), {
         method: editingAddress ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
         body: JSON.stringify({ ...formData, userId: user.id })
       });
 
       if (response.ok) {
         const data = await response.json();
+
+        // Update UI immediately (avoid waiting for refetch)
+        try {
+          if (editingAddress) {
+            const merged = normalizeAddress({
+              ...editingAddress,
+              ...formData,
+              ...data,
+              id: editingAddress.id,
+            }) as DeliveryAddress;
+            setAddresses((prev) => {
+              const next = prev.map((a) => (Number(a.id) === Number(editingAddress.id) ? merged : a));
+              if (merged.isDefault) {
+                return next.map((a) => (Number(a.id) === Number(merged.id) ? a : ({ ...a, isDefault: false } as any)));
+              }
+              return next;
+            });
+
+            if (selectedAddressId && Number(selectedAddressId) === Number(editingAddress.id)) {
+              localStorage.setItem('selectedDeliveryAddress', JSON.stringify(merged));
+            }
+          } else {
+            const created = normalizeAddress({ ...formData, ...data }) as DeliveryAddress;
+            setAddresses((prev) => [created, ...prev]);
+          }
+
+          try {
+            window.dispatchEvent(new Event('deliveryAddressesUpdated'));
+          } catch (e) {
+            // ignore
+          }
+        } catch (e) {
+          // ignore optimistic update failures
+        }
+
         toast({
           title: "Success",
           description: editingAddress ? "Address updated successfully" : "Address added successfully"
@@ -301,11 +392,19 @@ export default function SelectDeliveryAddress() {
         setIsAddDialogOpen(false);
         setEditingAddress(null);
         resetForm();
-        await fetchAddresses();
+        // Refresh in background to ensure canonical data
+        fetchAddresses();
 
         // If this was a new address in single mode, select it and go back to checkout
         if (!editingAddress && data.id && !isMultipleAddressMode) {
-          const newAddress = await fetch(apiUrl(`/api/delivery-addresses/${data.id}`)).then(res => res.json());
+          const newAddress = await fetch(apiUrl(`/api/delivery-addresses/${data.id}`), {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0',
+            },
+          }).then(res => res.json());
           localStorage.setItem('selectedDeliveryAddress', JSON.stringify(newAddress));
           setTimeout(() => setLocation('/checkout'), 500);
         }
@@ -322,16 +421,49 @@ export default function SelectDeliveryAddress() {
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this address?')) return;
 
+    // Optimistic UI update
+    const prevAddresses = addresses;
+    setAddresses((prev) => prev.filter((a) => Number(a.id) !== Number(id)));
+    try {
+      if (selectedAddressId && Number(selectedAddressId) === Number(id)) {
+        setSelectedAddressId(null);
+        try {
+          localStorage.removeItem('selectedDeliveryAddress');
+        } catch (e) {
+          // ignore
+        }
+      }
+      try {
+        window.dispatchEvent(new Event('deliveryAddressesUpdated'));
+      } catch (e) {
+        // ignore
+      }
+    } catch (e) {
+      // ignore
+    }
+
     try {
       const response = await fetch(apiUrl(`/api/delivery-addresses/${id}`), {
-        method: 'DELETE'
+        method: 'DELETE',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
       });
 
       if (response.ok) {
         toast({ title: "Success", description: "Address deleted successfully" });
+        // Ensure canonical refresh in background
         fetchAddresses();
+      } else {
+        // revert optimistic update on failure
+        setAddresses(prevAddresses);
       }
     } catch (error) {
+      // revert optimistic update on failure
+      setAddresses(prevAddresses);
       toast({
         title: "Error",
         description: "Failed to delete address",
@@ -835,18 +967,43 @@ export default function SelectDeliveryAddress() {
                           )}
                         </div>
                       </div>
-                      <div className="mt-3 sm:mt-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(address.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </div>
+                      {Number(address.id) === 999999 ? (
+                        <div className="mt-3 sm:mt-0 flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLocation('/profile?edit=1');
+                            }}
+                          >
+                            <Pencil className="h-4 w-4 text-gray-700" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="mt-3 sm:mt-0 flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(address);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4 text-gray-700" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(address.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -938,15 +1095,7 @@ export default function SelectDeliveryAddress() {
                       />
                     </div>
 
-                    <div>
-                      <Label htmlFor="deliveryInstructions">Delivery Instructions</Label>
-                      <Textarea
-                        id="deliveryInstructions"
-                        value={formData.deliveryInstructions}
-                        onChange={(e) => setFormData({...formData, deliveryInstructions: e.target.value})}
-                        rows={3}
-                      />
-                    </div>
+                    
 
                     <div className="flex items-center space-x-2">
                       <input
@@ -956,9 +1105,7 @@ export default function SelectDeliveryAddress() {
                         onChange={(e) => setFormData({...formData, isDefault: e.target.checked})}
                         className="rounded"
                       />
-                      <Label htmlFor="isDefault" className="text-sm font-normal">
-                        Set as default address
-                      </Label>
+                    
                     </div>
 
                     <div className="flex gap-3">

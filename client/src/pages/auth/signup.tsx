@@ -111,10 +111,11 @@ export default function Signup() {
     setIsLoading(true);
     try {
       // Send only the required fields to match server validation
+      const trimmedEmail = formData.email.trim();
       const signupData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        email: formData.email,
+        ...(trimmedEmail ? { email: trimmedEmail } : {}),
         phone: formData.phone,
         password: formData.password,
         confirmPassword: formData.confirmPassword
@@ -216,7 +217,7 @@ export default function Signup() {
     e.preventDefault();
 
     // Basic validation
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password ) {
+    if (!formData.firstName || !formData.lastName || !formData.phone || !formData.password) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -268,10 +269,10 @@ export default function Signup() {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
   };
 
@@ -345,7 +346,6 @@ export default function Signup() {
                         value={formData.email}
                         onChange={handleInputChange}
                         className="pl-10"
-                        required
                       />
                     </div>
                   </div>
