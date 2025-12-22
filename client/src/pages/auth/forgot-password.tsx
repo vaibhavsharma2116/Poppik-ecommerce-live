@@ -7,6 +7,7 @@ export default function ForgotPassword() {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error" | "otp_sent" | "verifying">("idle");
   const [identifierLocked, setIdentifierLocked] = useState(false);
   const [otp, setOtp] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [, setLocation] = useLocation();
   const otpAutoVerifyTriggeredRef = useRef(false);
 
@@ -21,6 +22,7 @@ export default function ForgotPassword() {
   const sendReset = async (value: string) => {
     if (!value) return;
     setStatus("sending");
+    setErrorMessage(null);
     try {
       const trimmed = value.trim();
       if (isEmailIdentifier(trimmed)) {
@@ -33,10 +35,19 @@ export default function ForgotPassword() {
         if (res.ok) {
           setStatus("sent");
         } else {
+          const data = await res.json().catch(() => null);
+          if (res.status === 404) {
+            setErrorMessage("User not found");
+          } else {
+            setErrorMessage(data?.error || "There was an error. Please try again later.");
+          }
           setStatus("error");
         }
       } else {
         const cleanedPhone = formatPhoneNumber(trimmed);
+        // If user is re-sending OTP, clear existing OTP so we don't auto-verify stale code
+        setOtp("");
+        otpAutoVerifyTriggeredRef.current = false;
         const res = await fetch("/api/auth/forgot-password-phone/send-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -46,10 +57,17 @@ export default function ForgotPassword() {
         if (res.ok) {
           setStatus("otp_sent");
         } else {
+          const data = await res.json().catch(() => null);
+          if (res.status === 404) {
+            setErrorMessage("User not found");
+          } else {
+            setErrorMessage(data?.error || "There was an error. Please try again later.");
+          }
           setStatus("error");
         }
       }
     } catch (err) {
+      setErrorMessage("There was an error. Please try again later.");
       setStatus("error");
     }
   };
@@ -70,6 +88,7 @@ export default function ForgotPassword() {
     if (!otp || otp.length !== 6) return;
 
     setStatus("verifying");
+    setErrorMessage(null);
     try {
       const cleanedPhone = formatPhoneNumber(identifier.trim());
       const res = await fetch("/api/auth/forgot-password-phone/verify-otp", {
@@ -82,9 +101,18 @@ export default function ForgotPassword() {
       if (res.ok && data?.token) {
         setLocation(`/auth/reset-password?token=${encodeURIComponent(data.token)}`);
       } else {
-        setStatus("error");
+        if (res.status === 404) {
+          setErrorMessage("User not found");
+          setStatus("error");
+        } else {
+          setErrorMessage(data?.error || "Invalid OTP");
+          // Keep OTP UI visible so user can retry
+          setStatus("otp_sent");
+          otpAutoVerifyTriggeredRef.current = false;
+        }
       }
     } catch {
+      setErrorMessage("There was an error. Please try again later.");
       setStatus("error");
     }
   };
@@ -202,11 +230,11 @@ export default function ForgotPassword() {
 
           {status === "sent" && (
             <p className="text-sm text-green-600">
-              If that email exists, we've sent reset instructions.
+              Reset instructions have been sent to your email.
             </p>
           )}
           {status === "error" && (
-            <p className="text-sm text-red-600">There was an error. Please try again later.</p>
+            <p className="text-sm text-red-600">{errorMessage || "There was an error. Please try again later."}</p>
           )}
         </form>
       </div>

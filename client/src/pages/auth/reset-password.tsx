@@ -35,28 +35,9 @@ export default function ResetPassword() {
       const data = await res.json().catch(() => null);
 
       if (res.ok) {
-        if (data?.token && data?.user) {
-          localStorage.setItem("token", data.token);
-          localStorage.setItem("user", JSON.stringify(data.user));
-        }
-
         setStatus("success");
-
-        const adminRoles = [
-          "admin",
-          "master_admin",
-          "ecommerce",
-          "marketing",
-          "digital_marketing",
-          "hr",
-          "account",
-          "affiliate",
-          "influencer",
-        ];
-        const role = ((data?.user?.role || "") as string).toString().trim().toLowerCase();
-        const redirectTo = adminRoles.includes(role) ? "/admin" : "/";
         setTimeout(() => {
-          window.location.href = redirectTo;
+          setLocation("/auth/login");
         }, 800);
       } else {
         setStatus("error");
@@ -112,7 +93,7 @@ export default function ResetPassword() {
             </button>
           </div>
 
-          {status === "success" && <p className="text-sm text-green-600">Password updated — logging you in...</p>}
+          {status === "success" && <p className="text-sm text-green-600">Password updated — redirecting to login...</p>}
           {status === "error" && <p className="text-sm text-red-600">There was an error. Please try again.</p>}
         </form>
       </div>

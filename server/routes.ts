@@ -976,9 +976,10 @@ app.get("/api/admin/stores", async (req, res) => {
     try {
       const { email, password } = req.body;
       const identifier = typeof email === "string" ? email.trim() : "";
+      const passwordStr = typeof password === "string" ? password : String(password ?? "");
 
       // Validation
-      if (!identifier || !password) {
+      if (!identifier || !passwordStr) {
         return res.status(400).json({ error: "Email/mobile and password are required" });
       }
 
@@ -993,8 +994,36 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      if (!user.password) {
+        console.error("Login error: user record missing password hash", { userId: user.id });
+        return res.status(500).json({ error: "Failed to login" });
+      }
+
       // Check password
-      const isValidPassword = await bcrypt.compare(password, user.password);
+      const storedPassword = String(user.password);
+      const looksLikeBcrypt = /^\$2[aby]\$\d{2}\$/.test(storedPassword);
+      let isValidPassword = false;
+
+      if (looksLikeBcrypt) {
+        isValidPassword = await bcrypt.compare(passwordStr, storedPassword);
+      } else {
+        // Legacy support: some environments may have stored plaintext passwords.
+        // If it matches, migrate to bcrypt so subsequent logins use secure hashes.
+        isValidPassword = passwordStr === storedPassword;
+        if (isValidPassword) {
+          try {
+            const migratedHash = await bcrypt.hash(passwordStr, 10);
+            await storage.updateUser(user.id, { password: migratedHash });
+          } catch (migrateErr) {
+            console.error("Login warning: failed to migrate plaintext password to bcrypt", {
+              userId: user.id,
+              identifier,
+              error: migrateErr,
+            });
+          }
+        }
+      }
+
       if (!isValidPassword) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
@@ -1054,7 +1083,28 @@ app.get("/api/admin/stores", async (req, res) => {
       }
 
       // Check password
-      const isValidPassword = await bcrypt.compare(password, user.password);
+      const storedPassword = String(user.password);
+      const looksLikeBcrypt = /^\$2[aby]\$\d{2}\$/.test(storedPassword);
+      let isValidPassword = false;
+
+      if (looksLikeBcrypt) {
+        isValidPassword = await bcrypt.compare(String(password ?? ""), storedPassword);
+      } else {
+        isValidPassword = String(password ?? "") === storedPassword;
+        if (isValidPassword) {
+          try {
+            const migratedHash = await bcrypt.hash(String(password ?? ""), 10);
+            await storage.updateUser(user.id, { password: migratedHash });
+          } catch (migrateErr) {
+            console.error("Admin login warning: failed to migrate plaintext password to bcrypt", {
+              userId: user.id,
+              identifier,
+              error: migrateErr,
+            });
+          }
+        }
+      }
+
       console.log("🔑 Password validation result:", isValidPassword);
       
       if (!isValidPassword) {
@@ -1097,11 +1147,8 @@ app.get("/api/admin/stores", async (req, res) => {
       // Lookup user
       const user = await storage.getUserByEmail(String(email).toLowerCase());
 
-      // Always respond with success message to avoid leaking whether an email exists
-      const messageResponse = { message: "If that email exists, we've sent password reset instructions." };
-
       if (!user) {
-        return res.json(messageResponse);
+        return res.json({ message: 'If an account exists for this email, password reset instructions have been sent.' });
       }
 
       // Create a short-lived JWT token for password reset
@@ -1127,10 +1174,10 @@ app.get("/api/admin/stores", async (req, res) => {
         });
       } catch (emailErr) {
         console.error('Error sending reset email:', emailErr);
-        // don't expose error; still return generic message
+        return res.status(500).json({ error: 'Failed to send reset email' });
       }
 
-      return res.json(messageResponse);
+      return res.json({ message: 'Password reset instructions sent to your email.' });
     } catch (err) {
       console.error('Error in forgot-password endpoint:', err);
       return res.status(500).json({ error: 'Internal server error' });
@@ -1144,15 +1191,13 @@ app.get("/api/admin/stores", async (req, res) => {
 
       const normalized = normalizePhone(phoneNumber);
 
-      const messageResponse = { message: "If that mobile number exists, we've sent an OTP." };
-
       if (!normalized) {
-        return res.json(messageResponse);
+        return res.status(400).json({ error: 'Invalid phone number' });
       }
 
       const user = await storage.getUserByPhone(normalized);
       if (!user) {
-        return res.json(messageResponse);
+        return res.status(404).json({ error: 'User not found' });
       }
 
       const result = await OTPService.sendMobileOTP(normalized);
@@ -1160,7 +1205,7 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(500).json({ error: result.message || 'Failed to send OTP' });
       }
 
-      return res.json({ success: true, message: messageResponse.message });
+      return res.json({ success: true, message: 'OTP sent successfully' });
     } catch (err) {
       console.error('Error in forgot-password-phone/send-otp endpoint:', err);
       return res.status(500).json({ error: 'Internal server error' });
@@ -1177,7 +1222,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
       const user = await storage.getUserByPhone(normalized);
       if (!user) {
-        return res.status(400).json({ error: 'Invalid OTP' });
+        return res.status(404).json({ error: 'User not found' });
       }
 
       const result = await OTPService.verifyMobileOTP(normalized, String(otp));
@@ -1195,48 +1240,113 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
-  // Reset password - accepts token and new password
-  app.post('/api/auth/reset-password', async (req, res) => {
+  // Change password - requires current password
+  app.put('/api/auth/change-password/:id', async (req, res) => {
     try {
-      const { token, password } = req.body || {};
-      if (!token || !password) return res.status(400).json({ error: 'Token and password are required' });
+      res.setHeader('Content-Type', 'application/json');
+      // Ensure no caching for password updates
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const { id } = req.params;
+      const { currentPassword, newPassword } = req.body;
+
+      // Validation
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Current password and new password are required' });
+      }
+
+      if (String(newPassword).length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      }
+
+      const userId = parseInt(id);
+      if (Number.isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user id' });
+      }
+
+      // Get user
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Check current password
+      const isValidPassword = await bcrypt.compare(String(currentPassword), user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(String(newPassword), 10);
+
+      // Update password
+      await storage.updateUserPassword(userId, hashedNewPassword);
+
+      return res.json({ message: 'Password updated successfully' });
+    } catch (error) {
+      console.error('Password change error:', error);
+      return res.status(500).json({ error: 'Failed to change password' });
+    }
+  });
+
+  const resetPasswordHandler = async (req: any, res: any) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      // Ensure no caching for password updates
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const { token, password, newPassword } = req.body || {};
+      const nextPassword = newPassword ?? password;
+
+      if (!token || !nextPassword) {
+        return res.status(400).json({ error: 'Token and new password are required' });
+      }
+
+      if (String(nextPassword).length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      }
 
       const secret = process.env.JWT_SECRET || 'your-secret-key';
       let payload: any;
       try {
-        payload = jwt.verify(token, secret) as any;
+        payload = jwt.verify(String(token), secret);
       } catch (e) {
         return res.status(400).json({ error: 'Invalid or expired token' });
       }
 
       if (!payload || payload.type !== 'password_reset' || !payload.uid) {
-        return res.status(400).json({ error: 'Invalid token payload' });
+        return res.status(400).json({ error: 'Invalid token' });
       }
 
-      const userId = parseInt(String(payload.uid), 10);
-      if (!userId) return res.status(400).json({ error: 'Invalid user in token' });
+      const userId = parseInt(String(payload.uid));
+      if (Number.isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid token' });
+      }
 
-      // Hash and update password
-      const hashed = await bcrypt.hash(String(password), 10);
-      const updated = await storage.updateUserPassword(userId, hashed);
-      if (!updated) return res.status(500).json({ error: 'Unable to update password' });
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
 
-      const updatedUser = await storage.getUser(userId);
-      if (!updatedUser) return res.status(500).json({ error: 'Unable to load updated user' });
+      const hashedNewPassword = await bcrypt.hash(String(nextPassword), 10);
+      await storage.updateUserPassword(userId, hashedNewPassword);
 
-      const authToken = jwt.sign(
-        { userId: updatedUser.id, email: updatedUser.email, role: updatedUser.role },
-        secret,
-        { expiresIn: '24h' }
-      );
-
-      const { password: _, ...userWithoutPassword } = updatedUser as any;
-      return res.json({ message: 'Password updated successfully', user: userWithoutPassword, token: authToken });
-    } catch (err) {
-      console.error('Error in reset-password endpoint:', err);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.json({ message: 'Password updated successfully' });
+    } catch (error) {
+      console.error('Password reset error:', error);
+      return res.status(500).json({ error: 'Failed to reset password' });
     }
-  });
+  };
+
+  // Reset password - accepts token and new password (matches client)
+  app.post('/api/auth/reset-password', resetPasswordHandler);
+
+  // Backward-compatible alias (some clients may still call PUT)
+  app.put('/api/auth/reset-password', resetPasswordHandler);
 
   // Cashfree Payment Routes
   app.post('/api/payments/cashfree/create-order', async (req, res) => {
