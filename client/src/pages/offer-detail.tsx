@@ -464,10 +464,29 @@ function ProductsList({
   );
 }
 
-async function fetchProductDetailsAndShades(productIds: number[]) {
-  const productShadesPromises = productIds.map(id =>
+async function fetchProductDetailsAndShades(
+  productIds: number[],
+  allowedShadeIdsByProduct?: Record<string, number[]> | Record<number, number[]> | null
+) {
+  const allowedMap = (allowedShadeIdsByProduct && typeof allowedShadeIdsByProduct === 'object')
+    ? (allowedShadeIdsByProduct as any)
+    : null;
+
+  const productShadesPromises = productIds.map((id) =>
     fetch(`/api/products/${id}/shades`)
       .then(res => res.ok ? res.json().then(shades => ({ id, shades })) : Promise.resolve({ id, shades: [] }))
+      .then(({ id, shades }) => {
+        if (!allowedMap) return { id, shades };
+
+        const allowed = allowedMap[id] ?? allowedMap[String(id)];
+        if (!Array.isArray(allowed) || allowed.length === 0) return { id, shades };
+
+        const allowedSet = new Set(allowed.map((n: any) => Number(n)).filter((n: number) => Number.isFinite(n)));
+        const filtered = Array.isArray(shades)
+          ? shades.filter((s: any) => allowedSet.has(Number(s?.id)))
+          : [];
+        return { id, shades: filtered };
+      })
   );
   const shadesData = await Promise.all(productShadesPromises);
 
@@ -481,7 +500,7 @@ async function fetchProductDetailsAndShades(productIds: number[]) {
 
 export default function OfferDetail() {
   const [, params] = useRoute("/offer/:id");
-  const offerId = params?.id || "";
+  const offerId = (params as any)?.id || "";
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [productShadesData, setProductShadesData] = useState<Record<number, Shade[]>>({});
   const [selectedShades, setSelectedShades] = useState<Record<number, string | null>>({});
@@ -719,7 +738,8 @@ export default function OfferDetail() {
 
   useEffect(() => {
     if (offer?.productIds && offer.productIds.length > 0) {
-      fetchProductDetailsAndShades(offer.productIds)
+      const allowed = offer?.productShades || offer?.product_shades || null;
+      fetchProductDetailsAndShades(offer.productIds, allowed)
         .then((productShadesMap) => {
           setProductShadesData(productShadesMap);
         })

@@ -1,4 +1,5 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { and, eq, lt, lte } from 'drizzle-orm';
 import * as schema from '../shared/schema';
 import { pool } from './storage';
 import dotenv from 'dotenv';
@@ -26,27 +27,27 @@ async function expireEntities() {
     const expiredOffers = await db
       .update(schema.offers)
       .set({ isActive: false })
-      .where((schema.offers as any).validUntil.lt(now).and((schema.offers as any).isActive.eq(true)))
+      .where(and(lt(schema.offers.validUntil, now), eq(schema.offers.isActive, true)))
       .returning();
 
     // Expire contests whose validUntil passed and are still active
     const expiredContests = await db
       .update(schema.contests)
       .set({ isActive: false })
-      .where((schema.contests as any).validUntil.lt(now).and((schema.contests as any).isActive.eq(true)))
+      .where(and(lt(schema.contests.validUntil, now), eq(schema.contests.isActive, true)))
       .returning();
 
     // Optionally, activate entities when validFrom has arrived
     const activatedOffers = await db
       .update(schema.offers)
       .set({ isActive: true })
-      .where((schema.offers as any).validFrom.lte(now).and((schema.offers as any).isActive.eq(false)))
+      .where(and(lte(schema.offers.validFrom, now), eq(schema.offers.isActive, false)))
       .returning();
 
     const activatedContests = await db
       .update(schema.contests)
       .set({ isActive: true })
-      .where((schema.contests as any).validFrom.lte(now).and((schema.contests as any).isActive.eq(false)))
+      .where(and(lte(schema.contests.validFrom, now), eq(schema.contests.isActive, false)))
       .returning();
 
     const expiredCount = ((expiredOffers as any) || []).length + ((expiredContests as any) || []).length;

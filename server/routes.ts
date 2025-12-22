@@ -2673,9 +2673,11 @@ app.get("/api/admin/stores", async (req, res) => {
         additionalImages = files.additionalImages.map(file => `/api/images/${file.filename}`);
       }
 
-      // Handle video
+      // Handle video upload
       if (files?.video?.[0]) {
         videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.existingVideoUrl) {
+        videoUrl = req.body.existingVideoUrl;
       }
 
       const offerData: any = {
@@ -2694,6 +2696,33 @@ app.get("/api/admin/stores", async (req, res) => {
         linkUrl: req.body.linkUrl || null,
         buttonText: req.body.buttonText || 'Shop Now',
         productIds: req.body.productIds ? JSON.parse(req.body.productIds) : null,
+        productShades: req.body.productShades
+          ? (() => {
+              try {
+                const parsed = typeof req.body.productShades === 'string'
+                  ? JSON.parse(req.body.productShades)
+                  : req.body.productShades;
+
+                if (!parsed || typeof parsed !== 'object') return null;
+                const normalized: Record<string, number[]> = {};
+                for (const [pid, value] of Object.entries(parsed as Record<string, unknown>)) {
+                  if (Array.isArray(value)) {
+                    const ids = value
+                      .map((v) => Number(v))
+                      .filter((n) => Number.isFinite(n) && n > 0);
+                    if (ids.length > 0) normalized[String(pid)] = ids;
+                  } else {
+                    const id = Number(value);
+                    if (Number.isFinite(id) && id > 0) normalized[String(pid)] = [id];
+                  }
+                }
+                return Object.keys(normalized).length > 0 ? normalized : null;
+              } catch (e) {
+                console.error('Error parsing productShades:', e);
+                return null;
+              }
+            })()
+          : null,
         detailedDescription: req.body.detailedDescription || null,
         productsIncluded: req.body.productsIncluded || null,
         benefits: req.body.benefits || null,
@@ -2701,41 +2730,303 @@ app.get("/api/admin/stores", async (req, res) => {
         sortOrder: parseInt(req.body.sortOrder) || 0
       };
 
-      // Add price fields
-      if (req.body.price) {
-        offerData.price = parseFloat(req.body.price);
-      }
-      if (req.body.originalPrice) {
-        offerData.originalPrice = parseFloat(req.body.originalPrice);
-      }
-      if (req.body.cashbackPercentage) {
-        offerData.cashbackPercentage = parseFloat(req.body.cashbackPercentage);
-      }
-      if (req.body.cashbackPrice) {
-        offerData.cashbackPrice = parseFloat(req.body.cashbackPrice);
-      }
+    // Add price fields
+    if (req.body.price) {
+      offerData.price = parseFloat(req.body.price);
+    }
 
-      console.log("Creating offer with data:", JSON.stringify(offerData, null, 2));
+    if (req.body.originalPrice) {
+      offerData.originalPrice = parseFloat(req.body.originalPrice);
+    }
+    if (req.body.cashbackPercentage) {
+      offerData.cashbackPercentage = parseFloat(req.body.cashbackPercentage);
+    }
+    if (req.body.cashbackPrice) {
+      offerData.cashbackPrice = parseFloat(req.body.cashbackPrice);
+    }
 
-      const [newOffer] = await db.insert(schema.offers).values(offerData).returning();
+    console.log("Creating offer with data:", JSON.stringify(offerData, null, 2));
 
-      console.log("Offer created successfully:", JSON.stringify(newOffer, null, 2));
-     try {
+    const [newOffer] = await db.insert(schema.offers).values(offerData).returning();
+
+    console.log("Offer created successfully:", JSON.stringify(newOffer, null, 2));
+    try {
+      const subscriptions = await db
+        .select()
+        .from(schema.pushSubscriptions)
+        .where(eq(schema.pushSubscriptions.isActive, true));
+
+      if (subscriptions.length > 0) {
+        console.log(`📢 Sending offer notification to ${subscriptions.length} subscribers...`);
+
+        // Prepare offer notification payload
+        const offerNotificationPayload = {
+          title: offerData.title || "🎉 New Offer Available!",
+          body: offerData.discountText || offerData.description || "Check out our latest exclusive offer!",
+          image: offerData.imageUrl || offerData.bannerImageUrl || "",
+          url: offerData.linkUrl || `/offers?highlight=${newOffer.id}`,
+          tag: `poppik-offer-${newOffer.id}`,
+        };
+
+        // Send notification to all subscriptions
+        let sentCount = 0;
+        for (const subscription of subscriptions) {
+          try {
+            const notificationMessage = {
+              title: offerNotificationPayload.title,
+              body: offerNotificationPayload.body,
+              icon: offerNotificationPayload.image || '/poppik-icon.png',
+              badge: '/poppik-badge.png',
+              image: offerNotificationPayload.image,
+              tag: offerNotificationPayload.tag,
+              data: {
+                url: offerNotificationPayload.url,
+                offerId: newOffer.id,
+              },
+            };
+
+            // Create subscription object for web-push
+            const pushSubscription = {
+              endpoint: subscription.endpoint,
+              keys: {
+                auth: subscription.auth,
+                p256dh: subscription.p256dh,
+              },
+            };
+
+            // Send via web-push
+            await webpush.sendNotification(pushSubscription, JSON.stringify(notificationMessage));
+            console.log(`📤 ✅ Offer notification sent to ${subscription.email || subscription.endpoint.substring(0, 50)}`);
+            
+            // Update last used timestamp
+            await db
+              .update(schema.pushSubscriptions)
+              .set({ lastUsedAt: new Date() })
+              .where(eq(schema.pushSubscriptions.id, subscription.id));
+
+            sentCount++;
+          } catch (error: any) {
+            // Handle subscription errors (expired, unsubscribed, etc)
+            if (error.statusCode === 410 || error.statusCode === 404) {
+              // Subscription is invalid, mark as inactive
+              console.warn(`⚠️ Subscription invalid for ${subscription.email || subscription.endpoint.substring(0, 50)}, marking inactive`);
+              await db
+                .update(schema.pushSubscriptions)
+                .set({ isActive: false })
+                .where(eq(schema.pushSubscriptions.id, subscription.id));
+            } else {
+              console.error(`❌ Failed to send offer notification to ${subscription.email || subscription.endpoint.substring(0, 50)}:`, error.message);
+            }
+          }
+        }
+
+        console.log(`✅ Offer notification sent to ${sentCount} subscribers`);
+      } else {
+        console.log("ℹ️ No active subscriptions found for offer notification");
+      }
+    } catch (notificationError) {
+      console.error("⚠️ Error sending offer notifications:", notificationError);
+      // Don't block offer creation if notification fails
+    }
+    res.status(201).json(newOffer);
+  } catch (error) {
+    console.error("Error creating offer:", error);
+    res.status(500).json({ error: "Failed to create offer", details: getErrorMessage(error) });
+  }
+});
+
+// Update offer (admin)
+app.put("/api/admin/offers/:id", upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'bannerImages', maxCount: 10 },
+  { name: 'additionalImages', maxCount: 10 },
+  { name: 'video', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const offerId = parseInt(req.params.id);
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    const updateData: any = {};
+
+    // Handle main image
+    if (files?.image?.[0]) {
+      updateData.imageUrl = `/api/images/${files.image[0].filename}`;
+    } else if (req.body.imageUrl) {
+      updateData.imageUrl = req.body.imageUrl;
+    }
+
+    // Handle banner images - save to bannerImages array
+    let allBannerImages: string[] = [];
+    
+    // Add existing banner images if provided
+    if (req.body.existingBannerImages) {
+      try {
+        const existingImages = JSON.parse(req.body.existingBannerImages);
+        if (Array.isArray(existingImages)) {
+          allBannerImages = [...existingImages];
+        }
+      } catch (e) {
+        console.error('Error parsing existingBannerImages:', e);
+      }
+    }
+    
+    // Add new uploaded banner images
+    if (files?.bannerImages) {
+      const newImages = files.bannerImages.map(file => `/api/images/${file.filename}`);
+      allBannerImages = [...allBannerImages, ...newImages];
+    }
+    
+    // Only update bannerImages array if there are images
+    if (allBannerImages.length > 0) {
+      updateData.bannerImages = allBannerImages;
+    } else if (req.body.existingBannerImages === '[]') {
+      // If explicitly cleared
+      updateData.bannerImages = null;
+    }
+
+    // Handle additional images - these go in the images array, NOT the banner image
+    let allAdditionalImages: string[] = [];
+    
+    // Add existing additional images if provided
+    if (req.body.existingAdditionalImages) {
+      try {
+        const existingImages = JSON.parse(req.body.existingAdditionalImages);
+        if (Array.isArray(existingImages)) {
+          allAdditionalImages = [...existingImages];
+        }
+      } catch (e) {
+        console.error('Error parsing existingAdditionalImages:', e);
+      }
+    }
+    
+    // Add new uploaded additional images (NOT banner image)
+    if (files?.additionalImages) {
+      const newImages = files.additionalImages.map(file => `/api/images/${file.filename}`);
+      allAdditionalImages = [...allAdditionalImages, ...newImages];
+    }
+    
+    // Only update images array with additional images
+    if (allAdditionalImages.length > 0) {
+      updateData.images = allAdditionalImages;
+    } else if (req.body.existingAdditionalImages === '[]') {
+      // If explicitly cleared
+      updateData.images = null;
+    }
+
+    // Handle video
+    if (files?.video?.[0]) {
+      updateData.videoUrl = `/api/images/${files.video[0].filename}`;
+    } else if (req.body.existingVideoUrl) {
+      // Preserve existing video URL if no new video is uploaded
+      updateData.videoUrl = req.body.existingVideoUrl;
+    }
+
+    if (req.body.title) updateData.title = req.body.title;
+    if (req.body.description) updateData.description = req.body.description;
+
+    // Price fields - ensure they are saved properly
+    if (req.body.price !== undefined && req.body.price !== '') {
+      updateData.price = parseFloat(req.body.price);
+    }
+    if (req.body.originalPrice !== undefined && req.body.originalPrice !== '') {
+      updateData.originalPrice = parseFloat(req.body.originalPrice);
+    }
+
+    // Discount fields
+    if (req.body.discountType) updateData.discountType = req.body.discountType;
+    if (req.body.discountValue !== undefined && req.body.discountValue !== '') {
+      updateData.discountValue = parseFloat(req.body.discountValue);
+    }
+    if (req.body.discountText !== undefined) updateData.discountText = req.body.discountText || null;
+
+    // Cashback fields
+    if (req.body.cashbackPercentage !== undefined && req.body.cashbackPercentage !== '') {
+      updateData.cashbackPercentage = parseFloat(req.body.cashbackPercentage);
+    }
+    if (req.body.cashbackPrice !== undefined && req.body.cashbackPrice !== '') {
+      updateData.cashbackPrice = parseFloat(req.body.cashbackPrice);
+    }
+
+    // Other fields
+    if (req.body.validFrom) updateData.validFrom = new Date(req.body.validFrom);
+    if (req.body.validUntil) updateData.validUntil = new Date(req.body.validUntil);
+    if (req.body.linkUrl !== undefined) updateData.linkUrl = req.body.linkUrl || null;
+    if (req.body.buttonText !== undefined) updateData.buttonText = req.body.buttonText || 'Shop Now';
+    if (req.body.productIds !== undefined) {
+      updateData.productIds = req.body.productIds ? JSON.parse(req.body.productIds) : null;
+    }
+
+    if (req.body.productShades !== undefined) {
+      if (!req.body.productShades) {
+        updateData.productShades = null;
+      } else {
+        try {
+          const parsed = typeof req.body.productShades === 'string'
+            ? JSON.parse(req.body.productShades)
+            : req.body.productShades;
+          if (!parsed || typeof parsed !== 'object') {
+            updateData.productShades = null;
+          } else {
+            const normalized: Record<string, number[]> = {};
+            for (const [pid, value] of Object.entries(parsed as Record<string, unknown>)) {
+              if (Array.isArray(value)) {
+                const ids = value
+                  .map((v) => Number(v))
+                  .filter((n) => Number.isFinite(n) && n > 0);
+                if (ids.length > 0) normalized[String(pid)] = ids;
+              } else {
+                const id = Number(value);
+                if (Number.isFinite(id) && id > 0) normalized[String(pid)] = [id];
+              }
+            }
+            updateData.productShades = Object.keys(normalized).length > 0 ? normalized : null;
+          }
+        } catch (e) {
+          console.error('Error parsing productShades:', e);
+          updateData.productShades = null;
+        }
+      }
+    }
+
+    if (req.body.detailedDescription !== undefined) updateData.detailedDescription = req.body.detailedDescription || null;
+    if (req.body.productsIncluded !== undefined) updateData.productsIncluded = req.body.productsIncluded || null;
+    if (req.body.benefits !== undefined) updateData.benefits = req.body.benefits || null;
+    if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive === 'true' || req.body.isActive === true;
+    if (req.body.sortOrder !== undefined) updateData.sortOrder = parseInt(req.body.sortOrder) || 0;
+
+    updateData.updatedAt = new Date();
+
+    console.log("Updating offer with data:", JSON.stringify(updateData, null, 2));
+
+    const [updatedOffer] = await db
+      .update(schema.offers)
+      .set(updateData)
+      .where(eq(schema.offers.id, offerId))
+      .returning();
+
+    if (!updatedOffer) {
+      return res.status(404).json({ error: "Offer not found" });
+    }
+
+    console.log("Offer updated successfully:", JSON.stringify(updatedOffer, null, 2));
+    // Send notification if offer is being activated or updated
+    if (updatedOffer.isActive) {
+      try {
         const subscriptions = await db
           .select()
           .from(schema.pushSubscriptions)
           .where(eq(schema.pushSubscriptions.isActive, true));
 
         if (subscriptions.length > 0) {
-          console.log(`📢 Sending offer notification to ${subscriptions.length} subscribers...`);
+          console.log(`📢 Sending updated offer notification to ${subscriptions.length} subscribers...`);
 
           // Prepare offer notification payload
           const offerNotificationPayload = {
-            title: offerData.title || "🎉 New Offer Available!",
-            body: offerData.discountText || offerData.description || "Check out our latest exclusive offer!",
-            image: offerData.imageUrl || offerData.bannerImageUrl || "",
-            url: offerData.linkUrl || `/offers?highlight=${newOffer.id}`,
-            tag: `poppik-offer-${newOffer.id}`,
+            title: updateData.title || updatedOffer.title || "🔄 Offer Updated!",
+            body: updateData.discountText || updatedOffer.discountText || updateData.description || updatedOffer.description || "Check out the updated offer!",
+            image: updateData.imageUrl || updatedOffer.imageUrl || updateData.bannerImageUrl || updatedOffer.bannerImageUrl || "",
+            url: updateData.linkUrl || updatedOffer.linkUrl || `/offers?highlight=${offerId}`,
+            tag: `poppik-offer-${offerId}`,
           };
 
           // Send notification to all subscriptions
@@ -2751,7 +3042,7 @@ app.get("/api/admin/stores", async (req, res) => {
                 tag: offerNotificationPayload.tag,
                 data: {
                   url: offerNotificationPayload.url,
-                  offerId: newOffer.id,
+                  offerId: offerId,
                 },
               };
 
@@ -2766,7 +3057,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
               // Send via web-push
               await webpush.sendNotification(pushSubscription, JSON.stringify(notificationMessage));
-              console.log(`📤 ✅ Offer notification sent to ${subscription.email || subscription.endpoint.substring(0, 50)}`);
+              console.log(`📤 ✅ Updated offer notification sent to ${subscription.email || subscription.endpoint.substring(0, 50)}`);
               
               // Update last used timestamp
               await db
@@ -2785,345 +3076,25 @@ app.get("/api/admin/stores", async (req, res) => {
                   .set({ isActive: false })
                   .where(eq(schema.pushSubscriptions.id, subscription.id));
               } else {
-                console.error(`❌ Failed to send offer notification to ${subscription.email || subscription.endpoint.substring(0, 50)}:`, error.message);
+                console.error(`❌ Failed to send updated offer notification to ${subscription.email || subscription.endpoint.substring(0, 50)}:`, error.message);
               }
             }
           }
 
-          console.log(`✅ Offer notification sent to ${sentCount} subscribers`);
-        } else {
-          console.log("ℹ️ No active subscriptions found for offer notification");
+          console.log(`✅ Updated offer notification sent to ${sentCount} subscribers`);
         }
       } catch (notificationError) {
-        console.error("⚠️ Error sending offer notifications:", notificationError);
-        // Don't block offer creation if notification fails
+        console.error("⚠️ Error sending updated offer notifications:", notificationError);
+        // Don't block offer update if notification fails
       }
-      res.status(201).json(newOffer);
-    } catch (error) {
-      console.error("Error creating offer:", error);
-      res.status(500).json({ error: "Failed to create offer", details: getErrorMessage(error) });
     }
-  });
 
-  // Admin: send custom notification to all active subscribers
-  app.post('/api/admin/notifications', async (req, res) => {
-    try {
-      const { title, body: messageBody, image, url, recipients } = req.body;
-
-      if (!title || !messageBody) {
-        return res.status(400).json({ error: 'title and body are required' });
-      }
-
-      // If recipients is provided and is an array, send only to those subscriber IDs.
-      let subscriptionsQuery = db.select().from(schema.pushSubscriptions).where(eq(schema.pushSubscriptions.isActive, true));
-
-      if (Array.isArray(recipients) && recipients.length > 0) {
-        // Ensure we only select requested ids that are active
-        subscriptionsQuery = db.select().from(schema.pushSubscriptions).where(and(eq(schema.pushSubscriptions.isActive, true), sql`${schema.pushSubscriptions.id} IN (${sql.raw(recipients.map((r: any) => parseInt(r)).join(','))})`));
-      }
-
-      const subscriptions = await subscriptionsQuery;
-
-      if (!subscriptions || subscriptions.length === 0) {
-        return res.status(200).json({ message: 'No matching active subscribers', sent: 0, total: 0 });
-      }
-
-      const payload = {
-        title,
-        body: messageBody,
-        icon: image || '/poppik-icon.png',
-        badge: '/poppik-badge.png',
-        image: image || undefined,
-        tag: `poppik-admin-${Date.now()}`,
-        data: { url: url || '/offers' },
-      };
-
-      let sentCount = 0;
-      for (const subscription of subscriptions) {
-        try {
-          const pushSub = {
-            endpoint: subscription.endpoint,
-            keys: { auth: subscription.auth, p256dh: subscription.p256dh },
-          };
-
-          await webpush.sendNotification(pushSub, JSON.stringify(payload));
-
-          await db.update(schema.pushSubscriptions)
-            .set({ lastUsedAt: new Date() })
-            .where(eq(schema.pushSubscriptions.id, subscription.id));
-
-          sentCount++;
-        } catch (err: any) {
-          if (err && (err.statusCode === 410 || err.statusCode === 404)) {
-            console.warn(`⚠️ Admin notification: subscription invalid for ${subscription.email || subscription.endpoint}, marking inactive`);
-            await db.update(schema.pushSubscriptions)
-              .set({ isActive: false })
-              .where(eq(schema.pushSubscriptions.id, subscription.id));
-          } else {
-            console.error('❌ Admin notification failed for subscription', subscription.id, err && err.message ? err.message : err);
-          }
-        }
-      }
-
-      console.log(`✅ Admin notification sent to ${sentCount}/${subscriptions.length} subscribers`);
-      res.json({ sent: sentCount, total: subscriptions.length });
-    } catch (error) {
-      console.error('Error sending admin notifications:', error);
-      res.status(500).json({ error: 'Failed to send notifications', details: getErrorMessage(error) });
-    }
-  });
-
-  // Admin: list push subscribers (email, isActive, lastUsedAt) for admin UI
-  app.get('/api/admin/notifications/subscribers', async (req, res) => {
-    try {
-      const rows = await db
-        .select({ id: schema.pushSubscriptions.id, email: schema.pushSubscriptions.email, isActive: schema.pushSubscriptions.isActive, lastUsedAt: schema.pushSubscriptions.lastUsedAt, createdAt: schema.pushSubscriptions.createdAt, endpoint: schema.pushSubscriptions.endpoint })
-        .from(schema.pushSubscriptions)
-        .orderBy(desc(schema.pushSubscriptions.createdAt))
-        .limit(1000);
-
-      // Return a safe representation (truncate endpoint for UI)
-      const safe = rows.map(r => ({
-        id: r.id,
-        email: r.email || null,
-        isActive: r.isActive,
-        lastUsedAt: r.lastUsedAt,
-        createdAt: r.createdAt,
-        endpointPreview: r.endpoint ? r.endpoint.substring(0, 120) : null
-      }));
-
-      res.json(safe);
-    } catch (error) {
-      console.error('Error listing push subscribers for admin:', error);
-      res.status(500).json({ error: 'Failed to list subscribers' });
-    }
-  });
-  // Update offer (admin)
-  app.put("/api/admin/offers/:id", upload.fields([
-    { name: 'image', maxCount: 1 },
-    { name: 'bannerImages', maxCount: 10 },
-    { name: 'additionalImages', maxCount: 10 },
-    { name: 'video', maxCount: 1 }
-  ]), async (req, res) => {
-    try {
-      const offerId = parseInt(req.params.id);
-      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-      const updateData: any = {};
-
-      // Handle main image
-      if (files?.image?.[0]) {
-        updateData.imageUrl = `/api/images/${files.image[0].filename}`;
-      } else if (req.body.imageUrl) {
-        updateData.imageUrl = req.body.imageUrl;
-      }
-
-      // Handle banner images - save to bannerImages array
-      let allBannerImages: string[] = [];
-      
-      // Add existing banner images if provided
-      if (req.body.existingBannerImages) {
-        try {
-          const existingImages = JSON.parse(req.body.existingBannerImages);
-          if (Array.isArray(existingImages)) {
-            allBannerImages = [...existingImages];
-          }
-        } catch (e) {
-          console.error('Error parsing existingBannerImages:', e);
-        }
-      }
-      
-      // Add new uploaded banner images
-      if (files?.bannerImages) {
-        const newImages = files.bannerImages.map(file => `/api/images/${file.filename}`);
-        allBannerImages = [...allBannerImages, ...newImages];
-      }
-      
-      // Only update bannerImages array if there are images
-      if (allBannerImages.length > 0) {
-        updateData.bannerImages = allBannerImages;
-      } else if (req.body.existingBannerImages === '[]') {
-        // If explicitly cleared
-        updateData.bannerImages = null;
-      }
-
-      // Handle additional images - these go in the images array, NOT the banner image
-      let allAdditionalImages: string[] = [];
-      
-      // Add existing additional images if provided
-      if (req.body.existingAdditionalImages) {
-        try {
-          const existingImages = JSON.parse(req.body.existingAdditionalImages);
-          if (Array.isArray(existingImages)) {
-            allAdditionalImages = [...existingImages];
-          }
-        } catch (e) {
-          console.error('Error parsing existingAdditionalImages:', e);
-        }
-      }
-      
-      // Add new uploaded additional images (NOT banner image)
-      if (files?.additionalImages) {
-        const newImages = files.additionalImages.map(file => `/api/images/${file.filename}`);
-        allAdditionalImages = [...allAdditionalImages, ...newImages];
-      }
-      
-      // Only update images array with additional images
-      if (allAdditionalImages.length > 0) {
-        updateData.images = allAdditionalImages;
-      } else if (req.body.existingAdditionalImages === '[]') {
-        // If explicitly cleared
-        updateData.images = null;
-      }
-
-      // Handle video
-      if (files?.video?.[0]) {
-        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
-      } else if (req.body.existingVideoUrl) {
-        // Preserve existing video URL if no new video is uploaded
-        updateData.videoUrl = req.body.existingVideoUrl;
-      }
-
-      if (req.body.title) updateData.title = req.body.title;
-      if (req.body.description) updateData.description = req.body.description;
-
-      // Price fields - ensure they are saved properly
-      if (req.body.price !== undefined && req.body.price !== '') {
-        updateData.price = parseFloat(req.body.price);
-      }
-      if (req.body.originalPrice !== undefined && req.body.originalPrice !== '') {
-        updateData.originalPrice = parseFloat(req.body.originalPrice);
-      }
-
-      // Discount fields
-      if (req.body.discountType) updateData.discountType = req.body.discountType;
-      if (req.body.discountValue !== undefined && req.body.discountValue !== '') {
-        updateData.discountValue = parseFloat(req.body.discountValue);
-      }
-      if (req.body.discountText !== undefined) updateData.discountText = req.body.discountText || null;
-
-      // Cashback fields
-      if (req.body.cashbackPercentage !== undefined && req.body.cashbackPercentage !== '') {
-        updateData.cashbackPercentage = parseFloat(req.body.cashbackPercentage);
-      }
-      if (req.body.cashbackPrice !== undefined && req.body.cashbackPrice !== '') {
-        updateData.cashbackPrice = parseFloat(req.body.cashbackPrice);
-      }
-
-      // Other fields
-      if (req.body.validFrom) updateData.validFrom = new Date(req.body.validFrom);
-      if (req.body.validUntil) updateData.validUntil = new Date(req.body.validUntil);
-      if (req.body.linkUrl !== undefined) updateData.linkUrl = req.body.linkUrl || null;
-      if (req.body.buttonText !== undefined) updateData.buttonText = req.body.buttonText || 'Shop Now';
-      if (req.body.productIds !== undefined) {
-        updateData.productIds = req.body.productIds ? JSON.parse(req.body.productIds) : null;
-      }
-      if (req.body.detailedDescription !== undefined) updateData.detailedDescription = req.body.detailedDescription || null;
-      if (req.body.productsIncluded !== undefined) updateData.productsIncluded = req.body.productsIncluded || null;
-      if (req.body.benefits !== undefined) updateData.benefits = req.body.benefits || null;
-      if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive === 'true' || req.body.isActive === true;
-      if (req.body.sortOrder !== undefined) updateData.sortOrder = parseInt(req.body.sortOrder) || 0;
-
-      updateData.updatedAt = new Date();
-
-      console.log("Updating offer with data:", JSON.stringify(updateData, null, 2));
-
-      const [updatedOffer] = await db
-        .update(schema.offers)
-        .set(updateData)
-        .where(eq(schema.offers.id, offerId))
-        .returning();
-
-      if (!updatedOffer) {
-        return res.status(404).json({ error: "Offer not found" });
-      }
-
-      console.log("Offer updated successfully:", JSON.stringify(updatedOffer, null, 2));
-      // Send notification if offer is being activated or updated
-      if (updatedOffer.isActive) {
-        try {
-          const subscriptions = await db
-            .select()
-            .from(schema.pushSubscriptions)
-            .where(eq(schema.pushSubscriptions.isActive, true));
-
-          if (subscriptions.length > 0) {
-            console.log(`📢 Sending updated offer notification to ${subscriptions.length} subscribers...`);
-
-            // Prepare offer notification payload
-            const offerNotificationPayload = {
-              title: updateData.title || updatedOffer.title || "🔄 Offer Updated!",
-              body: updateData.discountText || updatedOffer.discountText || updateData.description || updatedOffer.description || "Check out the updated offer!",
-              image: updateData.imageUrl || updatedOffer.imageUrl || updateData.bannerImageUrl || updatedOffer.bannerImageUrl || "",
-              url: updateData.linkUrl || updatedOffer.linkUrl || `/offers?highlight=${offerId}`,
-              tag: `poppik-offer-${offerId}`,
-            };
-
-            // Send notification to all subscriptions
-            let sentCount = 0;
-            for (const subscription of subscriptions) {
-              try {
-                const notificationMessage = {
-                  title: offerNotificationPayload.title,
-                  body: offerNotificationPayload.body,
-                  icon: offerNotificationPayload.image || '/poppik-icon.png',
-                  badge: '/poppik-badge.png',
-                  image: offerNotificationPayload.image,
-                  tag: offerNotificationPayload.tag,
-                  data: {
-                    url: offerNotificationPayload.url,
-                    offerId: offerId,
-                  },
-                };
-
-                // Create subscription object for web-push
-                const pushSubscription = {
-                  endpoint: subscription.endpoint,
-                  keys: {
-                    auth: subscription.auth,
-                    p256dh: subscription.p256dh,
-                  },
-                };
-
-                // Send via web-push
-                await webpush.sendNotification(pushSubscription, JSON.stringify(notificationMessage));
-                console.log(`📤 ✅ Updated offer notification sent to ${subscription.email || subscription.endpoint.substring(0, 50)}`);
-                
-                // Update last used timestamp
-                await db
-                  .update(schema.pushSubscriptions)
-                  .set({ lastUsedAt: new Date() })
-                  .where(eq(schema.pushSubscriptions.id, subscription.id));
-
-                sentCount++;
-              } catch (error: any) {
-                // Handle subscription errors (expired, unsubscribed, etc)
-                if (error.statusCode === 410 || error.statusCode === 404) {
-                  // Subscription is invalid, mark as inactive
-                  console.warn(`⚠️ Subscription invalid for ${subscription.email || subscription.endpoint.substring(0, 50)}, marking inactive`);
-                  await db
-                    .update(schema.pushSubscriptions)
-                    .set({ isActive: false })
-                    .where(eq(schema.pushSubscriptions.id, subscription.id));
-                } else {
-                  console.error(`❌ Failed to send updated offer notification to ${subscription.email || subscription.endpoint.substring(0, 50)}:`, error.message);
-                }
-              }
-            }
-
-            console.log(`✅ Updated offer notification sent to ${sentCount} subscribers`);
-          }
-        } catch (notificationError) {
-          console.error("⚠️ Error sending updated offer notifications:", notificationError);
-          // Don't block offer update if notification fails
-        }
-      }
-      res.json(updatedOffer);
-    } catch (error) {
-      console.error("Error updating offer:", error);
-      res.status(500).json({ error: "Failed to update offer", details: getErrorMessage(error) });
-    }
-  });
+    res.json(updatedOffer);
+  } catch (error) {
+    console.error("Error updating offer:", error);
+    res.status(500).json({ error: "Failed to update offer", details: getErrorMessage(error) });
+  }
+});
 
   // Delete offer (admin)
   app.delete("/api/admin/offers/:id", async (req, res) => {
@@ -3160,7 +3131,7 @@ app.get("/api/admin/stores", async (req, res) => {
         .from(schema.offers)
         .where(and(
           eq(schema.offers.id, offerId),
-          eq(schema.offers.isActive, true) // Only return active offers publicly
+          eq(schema.offers.isActive, true)
         ))
         .limit(1);
 
@@ -3179,7 +3150,6 @@ app.get("/api/admin/stores", async (req, res) => {
         additionalImages: offer[0].images || [],
       };
 
-      // Get products with calculated offer prices
       if (offerData.productIds && Array.isArray(offerData.productIds)) {
         const products = await Promise.all(
           offerData.productIds.map(async (productId: number) => {
@@ -3195,7 +3165,6 @@ app.get("/api/admin/stores", async (req, res) => {
               let offerPrice = originalPrice;
               let discountAmount = 0;
 
-              // Calculate offer price based on discount type
               if (offerData.discountType === 'percentage' && offerData.discountValue) {
                 discountAmount = (originalPrice * parseFloat(offerData.discountValue)) / 100;
                 offerPrice = originalPrice - discountAmount;
@@ -3215,7 +3184,6 @@ app.get("/api/admin/stores", async (req, res) => {
           })
         );
 
-        // Filter out null products
         const validProducts = products.filter(p => p !== null);
 
         res.json({

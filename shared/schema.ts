@@ -107,6 +107,7 @@ export const ordersTable = pgTable("orders", {
   shippingAddress: text("shipping_address").notNull(),
   trackingNumber: varchar("tracking_number", { length: 255 }),
   estimatedDelivery: timestamp("estimated_delivery"),
+  deliveredAt: timestamp("delivered_at"),
   deliveryInstructions: text("delivery_instructions"),
   saturdayDelivery: boolean("saturday_delivery").default(true),
   sundayDelivery: boolean("sunday_delivery").default(true),
@@ -356,8 +357,6 @@ export const blogPosts = pgTable('blog_posts', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-
-
 // Blog Categories Table
 export const blogCategories = pgTable('blog_categories', {
   id: serial('id').primaryKey(),
@@ -592,6 +591,7 @@ export const offers = pgTable("offers", {
   linkUrl: text("link_url"),
   buttonText: varchar("button_text", { length: 50 }).default("Shop Now"),
   productIds: jsonb("product_ids").$type<number[]>(),
+  productShades: jsonb("product_shades").$type<Record<string, number[]>>(),
   detailedDescription: text("detailed_description"), // Detailed description for Description tab
   productsIncluded: text("products_included"), // Products included details
   benefits: text("benefits"), // Benefits information
@@ -638,6 +638,7 @@ export const affiliateTransactions = pgTable("affiliate_transactions", {
 
 export type AffiliateTransaction = typeof affiliateTransactions.$inferSelect;
 export type InsertAffiliateTransaction = typeof affiliateTransactions.$inferInsert;
+
 // Affiliate Clicks Table - Track all clicks on affiliate links
 export const affiliateClicks = pgTable("affiliate_clicks", {
   id: serial("id").primaryKey(),
@@ -709,6 +710,7 @@ export const userWalletTransactions = pgTable("user_wallet_transactions", {
   balanceBefore: decimal("balance_before", { precision: 10, scale: 2 }).notNull(),
   balanceAfter: decimal("balance_after", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status", { length: 20 }).default("completed").notNull(), // 'completed', 'pending', 'failed'
+  eligibleAt: timestamp("eligible_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

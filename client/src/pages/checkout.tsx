@@ -3497,6 +3497,12 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
                       </div>
                     )}
 
+                    {totalCashbackEarned > 0 && (
+                      <div className="text-xs text-gray-600 bg-orange-50 p-2 rounded">
+                        Cashback will be credited to your Poppik Wallet within 48–72 business hours after the order is successfully delivered. If an order is cancelled, returned, or refunded, the cashback for that order will be automatically revoked.
+                      </div>
+                    )}
+
                     {safeWalletAmount > 0 && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Cashback Wallet</span>

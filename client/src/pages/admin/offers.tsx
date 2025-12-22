@@ -40,6 +40,8 @@ interface Offer {
   discountText?: string;
   cashbackPercentage?: number;
   cashbackPrice?: number;
+  affiliateCommission?: number;
+  affiliateUserDiscount?: number;
   validFrom: string;
   validUntil: string;
   isActive: boolean;
@@ -54,6 +56,7 @@ interface Offer {
   images?: string[]; // To store URLs of additional images
   videoUrl?: string; // To store URL of the video
   bannerImages?: string[]; // To store URLs of banner images
+  productShades?: Record<number, number[]>; // To store product shades
 }
 
 export default function AdminOffers() {
@@ -69,11 +72,13 @@ export default function AdminOffers() {
   const [existingAdditionalImages, setExistingAdditionalImages] = useState<string[]>([]);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string>('');
+  const [productShades, setProductShades] = useState<Record<number, number[]>>({});
+  const [productShadesData, setProductShadesData] = useState<Record<number, any[]>>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch all products for selection
-  const { data: products } = useQuery({
+  const { data: products = [] } = useQuery<any[]>({
     queryKey: ['/api/products'],
   });
 
@@ -101,7 +106,51 @@ export default function AdminOffers() {
     benefits: "", // Added benefits
     affiliateCommission: "", // Percentage value (0-100)
     affiliateUserDiscount: "", // Percentage value (0-100)
+    productShades: {}, // Added productShades
   });
+
+  React.useEffect(() => {
+    const productIds = formData.productIds || [];
+
+    if (!productIds.length) {
+      setProductShadesData({});
+      setProductShades({});
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const entries = await Promise.all(
+          productIds.map(async (id): Promise<[number, any[]]> => {
+            const res = await fetch(`/api/products/${id}/shades`);
+            if (!res.ok) return [id, [] as any[]];
+            const shades = await res.json().catch(() => []);
+            return [id, Array.isArray(shades) ? shades : []];
+          })
+        );
+        if (cancelled) return;
+
+        const nextMap: Record<number, any[]> = {};
+        for (const [id, shades] of entries) nextMap[id] = shades;
+        setProductShadesData(nextMap);
+
+        setProductShades((prev) => {
+          const next: Record<number, number[]> = {};
+          for (const id of productIds) {
+            if (prev[id]?.length) next[id] = prev[id];
+          }
+          return next;
+        });
+      } catch (e) {
+        console.error('Error fetching product shades:', e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.productIds]);
 
   // Fetch offers with proper authorization and no caching
   const { data: offers, isLoading, error, refetch } = useQuery<Offer[]>({
@@ -455,6 +504,7 @@ export default function AdminOffers() {
     formDataToSend.append('linkUrl', formData.linkUrl || '');
     formDataToSend.append('buttonText', formData.buttonText || 'Shop Now');
     formDataToSend.append('productIds', JSON.stringify(formData.productIds || []));
+    formDataToSend.append('productShades', JSON.stringify(productShades || {}));
 
     // Affiliate fields
     formDataToSend.append('affiliateCommission', formData.affiliateCommission || '0');
@@ -527,6 +577,7 @@ export default function AdminOffers() {
       benefits: "", // Reset new field
       affiliateCommission: "",
       affiliateUserDiscount: "",
+      productShades: {}, // Reset productShades
     });
     setImageFile(null);
     setImagePreview("");
@@ -538,6 +589,8 @@ export default function AdminOffers() {
     setExistingAdditionalImages([]); // Reset existing additional images
     setVideoFile(null); // Reset video file state
     setVideoPreview(''); // Reset video preview
+    setProductShades({});
+    setProductShadesData({});
   };
 
   const handleEdit = (offer: Offer) => {
@@ -592,6 +645,7 @@ export default function AdminOffers() {
       benefits: offer.benefits || "", // Set new field
       affiliateCommission: offer.affiliateCommission ? String(offer.affiliateCommission) : "",
       affiliateUserDiscount: offer.affiliateUserDiscount ? String(offer.affiliateUserDiscount) : "",
+      productShades: offer.productShades || {}, // Set productShades
     });
     setImagePreview(offer.imageUrl);
     
@@ -620,6 +674,24 @@ export default function AdminOffers() {
     } else {
       setVideoPreview('');
     }
+    
+    setProductShades(() => {
+      const anyOffer: any = offer as any;
+      const ps = anyOffer?.productShades;
+      if (!ps || typeof ps !== 'object') return {};
+      const next: Record<number, number[]> = {};
+      for (const [pid, ids] of Object.entries(ps as Record<string, unknown>)) {
+        const key = Number(pid);
+        if (!Number.isFinite(key) || key <= 0) continue;
+        if (Array.isArray(ids)) {
+          const normalized = ids
+            .map((v) => Number(v))
+            .filter((n) => Number.isFinite(n) && n > 0);
+          if (normalized.length) next[key] = normalized;
+        }
+      }
+      return next;
+    });
     
     setIsCreateDialogOpen(true);
   };
@@ -1036,7 +1108,6 @@ export default function AdminOffers() {
                 </div>
               </div>
 
-              {/* Select Products (Multi-select) */}
               <div className="space-y-3">
                 <Label>Select Products (Optional)</Label>
 
@@ -1049,36 +1120,92 @@ export default function AdminOffers() {
                     <div className="space-y-2 max-h-32 overflow-y-auto">
                       {formData.productIds.map((productId) => {
                         const product = products?.find((p: any) => p.id === productId);
-                        return product ? (
-                          <div key={productId} className="flex items-center gap-2 bg-white rounded p-2 shadow-sm">
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-10 h-10 rounded object-cover border"
-                            />
-                            <span className="text-sm font-medium text-gray-800 flex-1">
-                              {product.name}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setFormData({
-                                  ...formData,
-                                  productIds: formData.productIds?.filter(id => id !== productId) || []
-                                });
-                              }}
-                              className="text-red-500 hover:text-red-700 text-xs px-2 py-1"
-                            >
-                              Remove
-                            </button>
+                        const shades = productShadesData[productId] || [];
+                        const selectedShadeIds = productShades[productId] || [];
+
+                        if (!product) return null;
+
+                        return (
+                          <div key={productId} className="bg-white rounded p-2 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="w-10 h-10 rounded object-cover border"
+                              />
+                              <span className="text-sm font-medium text-gray-800 flex-1">
+                                {product.name}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData({
+                                    ...formData,
+                                    productIds: formData.productIds?.filter(id => id !== productId) || []
+                                  });
+                                  setProductShades((prev) => {
+                                    const next = { ...prev };
+                                    delete next[productId];
+                                    return next;
+                                  });
+                                }}
+                                className="text-red-500 hover:text-red-700 text-xs px-2 py-1"
+                              >
+                                Remove
+                              </button>
+                            </div>
+
+                            {Array.isArray(shades) && shades.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-xs text-gray-600 mb-1">Select Shades (Optional):</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {shades.map((shade: any) => {
+                                    const shadeId = Number(shade?.id);
+                                    const isSelected = Number.isFinite(shadeId) && selectedShadeIds.includes(shadeId);
+                                    const shadeName = shade?.name || `Shade ${shadeId}`;
+                                    const shadeImageUrl = shade?.imageUrl || shade?.image_url || '';
+                                    return (
+                                      <button
+                                        key={shade?.id ?? `${productId}-shade`}
+                                        type="button"
+                                        onClick={() => {
+                                          if (!Number.isFinite(shadeId) || shadeId <= 0) return;
+                                          setProductShades((prev) => {
+                                            const current = prev[productId] || [];
+                                            const nextIds = current.includes(shadeId)
+                                              ? current.filter((id) => id !== shadeId)
+                                              : [...current, shadeId];
+                                            return { ...prev, [productId]: nextIds };
+                                          });
+                                        }}
+                                        className={
+                                          `flex items-center gap-2 px-2 py-1 rounded border text-xs transition-colors ` +
+                                          (isSelected
+                                            ? 'bg-purple-600 text-white border-purple-600'
+                                            : 'bg-white text-gray-700 border-gray-200 hover:border-purple-400')
+                                        }
+                                      >
+                                        {shadeImageUrl ? (
+                                          <img
+                                            src={shadeImageUrl}
+                                            alt={shadeName}
+                                            className="w-5 h-5 rounded object-cover border"
+                                          />
+                                        ) : null}
+                                        <span className="whitespace-nowrap">{shadeName}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        ) : null;
+                        );
                       })}
                     </div>
                   </div>
                 )}
 
-                {/* Product Selection List */}
                 <div className="border rounded-md p-3 max-h-64 overflow-y-auto bg-gray-50">
                   {products && products.length > 0 ? (
                     <div className="space-y-2">
@@ -1102,6 +1229,11 @@ export default function AdminOffers() {
                                   setFormData({ ...formData, productIds: [...currentIds, product.id] });
                                 } else {
                                   setFormData({ ...formData, productIds: currentIds.filter(id => id !== product.id) });
+                                  setProductShades((prev) => {
+                                    const next = { ...prev };
+                                    delete next[product.id];
+                                    return next;
+                                  });
                                 }
                               }}
                               className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"

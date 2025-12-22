@@ -1,11 +1,11 @@
 import { Link, useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { ArrowLeft, Shield, Package, CreditCard, Truck, RotateCcw, User, AlertTriangle, Mail, Eye, FileText, Scale, Gift } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default function Terms() {
-  const sections = [
+  const sections: Array<{ id?: string; icon: any; title: string; content: string | ReactNode }> = [
     {
       icon: FileText,
       title: "Introduction",
@@ -14,14 +14,66 @@ export default function Terms() {
     {
       id: "cashback",
       icon: Gift,
-      title: "Cashback, Rewards & Wallet",
-      content: "Cashback is a promotional reward provided by Poppik to eligible users as described below. Cashback is credited to your Poppik Wallet and is subject to these specific terms: \n\n1. Eligibility: Cashback is awarded only on qualifying purchases as communicated in the offer terms. Certain categories, products, coupons, or payment methods may be excluded. \n\n2. Crediting: Cashback may take up to 7 business days to reflect in your Wallet after order delivery/fulfilment and verification. \n\n3. Expiry: Cashback credited to your Wallet expires 180 days from the date it is credited unless a different period is stated in the offer. Expired cashback will be automatically removed and is non-recoverable. \n\n4. Redemption: Cashback can be used as part or full payment on future purchases only on www.poppik.in. Minimum and maximum redemption limits may apply as stated in the offer. Cashback cannot be redeemed for cash and cannot be transferred to other users. \n\n5. Stacking: Cashback usage may be subject to stacking rules with promo codes, discounts, or other offers. Poppik reserves the right to restrict stacking for specific offers. \n\n6. Reversals: If an order is returned, cancelled, or refunded, any cashback earned from that order may be reversed from your Wallet. If you used cashback towards payment and the order is refunded, refund amounts will be credited according to our refund policy and may exclude redeemed cashback. \n\n7. Abuse & Fraud: Any attempt to manipulate, game, or abuse cashback programs (including creating multiple accounts, using false information, or fraudulently triggering offers) will result in forfeiture of cashback, account suspension, and possible legal action. \n\n8. Limits & Changes: Poppik may impose limits on cashback per user, per transaction, or overall. Poppik reserves the right to modify, pause, or terminate cashback programs at any time without prior notice. \n\n9. Disputes: Any disputes related to cashback will be resolved at Poppik's sole discretion after investigation. For questions, contact info@poppik.in."
+      title: "Cashback Terms & Conditions",
+      content: (
+        <div className="space-y-4">
+          <p className="text-gray-700 leading-relaxed text-base">
+            Cashback is applicable only on valid purchases made through the official Poppik Lifestyle website.
+          </p>
+          <div className="rounded-xl border border-red-100 bg-red-50/50 p-4">
+            <ol className="list-decimal pl-5 space-y-4 text-gray-800">
+              <li>
+                <div className="font-semibold">Eligibility</div>
+                <div className="mt-1 text-gray-700">
+                  Certain products or categories may not be eligible for cashback.
+                </div>
+              </li>
+              <li>
+                <div className="font-semibold">Cashback Credit Timeline</div>
+                <div className="mt-1 text-gray-700">
+                  Cashback will be credited to the customer’s Poppik Wallet within 48–72 business hours after the order is successfully delivered. If an order is cancelled, returned, or refunded, the cashback for that order will be automatically revoked.
+                </div>
+              </li>
+              <li>
+                <div className="font-semibold">Usage of Cashback</div>
+                <div className="mt-1 text-gray-700">
+                  Cashback can be redeemed on future purchases only through the Poppik Wallet. Cashback cannot be transferred, withdrawn, or redeemed as cash or bank transfer.
+                </div>
+              </li>
+              <li>
+                <div className="font-semibold">Validity</div>
+                <div className="mt-1 text-gray-700">
+                  Cashback will remain valid for 120 days from the date of credit. Unused cashback after the validity period will automatically expire.
+                </div>
+              </li>
+              <li>
+                <div className="font-semibold">Fraud & Misuse</div>
+                <div className="mt-1 text-gray-700">
+                  Poppik Lifestyle reserves the right to cancel cashback in cases of misuse, multiple account creation, fraudulent transactions, or any suspicious activity.
+                </div>
+              </li>
+              <li>
+                <div className="font-semibold">Modification of Terms</div>
+                <div className="mt-1 text-gray-700">
+                  Poppik Lifestyle reserves the right to modify, update, or discontinue the cashback terms at any time without prior notice. Updated terms will be considered effective immediately once published on the website.
+                </div>
+              </li>
+              <li>
+                <div className="font-semibold">Final Decision</div>
+                <div className="mt-1 text-gray-700">
+                  In case of any disputes regarding cashback, the decision of Poppik Lifestyle will be final and binding.
+                </div>
+              </li>
+            </ol>
+          </div>
+        </div>
+      )
     },
     {
       id: "affiliate",
       icon: User,
       title: "Affiliate, Commission & Wallet",
-      content: "Commission is a promotional earning provided to eligible affiliates for successful referrals and sales as described below. Commission is credited to your Affiliate Wallet and is subject to these specific terms: \n\n1. Eligibility: Commission is awarded only on qualifying sales made through your affiliate link/code as per the offer terms. Certain categories, products, coupons, or payment methods may be excluded. \n\n2. Crediting: Commission may take up to 7 business days to reflect in your Wallet after order delivery/fulfilment and verification. Cancelled or returned orders will not earn commission. \n\n3. Expiry: Commission credited to your Wallet is valid for withdrawal for 180 days from the date it is credited unless a different period is stated in the offer. Expired commission will be automatically removed and is non-recoverable. \n\n4. Withdrawal: Commission can be withdrawn to your bank account once minimum withdrawal threshold is met (e.g., ₹2500). Withdrawal requests are subject to verification and may take up to 7 business days to process. Poppik reserves the right to reject withdrawal requests if fraudulent activity is suspected. \n\n5. Stacking: Commission earnings may be subject to stacking rules with other offers, bonuses, or incentives. Poppik reserves the right to restrict stacking for specific campaigns. \n\n6. Reversals: If an order is returned, cancelled, or refunded, any commission earned from that order may be reversed from your Wallet. Refunds will be processed according to our refund policy and may exclude paid commission. \n\n7. Abuse & Fraud: Any attempt to manipulate, game, or abuse affiliate programs (including creating multiple accounts, using false information, or fraudulently triggering referrals) will result in forfeiture of commission, account suspension, and possible legal action. \n\n8. Limits & Changes: Poppik may impose limits on commission per user, per transaction, or overall. Poppik reserves the right to modify, pause, or terminate affiliate programs at any time without prior notice. \n\n9. Disputes: Any disputes related to commission will be resolved at Poppik's sole discretion after investigation. For questions, contact info@poppik.in."
+      content: "Commission is a promotional earning provided to eligible affiliates for successful referrals and sales as described below. Commission is credited to your Affiliate Wallet and is subject to these specific terms: \n\n1. Eligibility: Commission is awarded only on qualifying sales made through your affiliate link/code as per the offer terms. Certain categories, products, coupons, or payment methods may be excluded. \n\n2. Crediting: Commission may take up to 7 business days to reflect in your Wallet after order delivery/fulfilment and verification. Cancelled or returned orders will not earn commission. \n\n3. Expiry: Commission credited to your Wallet is valid for withdrawal for 180 days from the date it is credited unless a different period is stated in the offer. Expired commission will be automatically removed and is non-recoverable. \n\n4. Withdrawal: Commission can be withdrawn to your bank account once minimum withdrawal threshold is met (e.g., ₹2500). Withdrawal requests are subject to verification and may take up to 7 business days to process. Poppik reserves the right to reject withdrawal requests if fraudulent activity is suspected. \n\n5. Stacking: Commission earnings may be subject to stacking rules with other offers, bonuses, or incentives. Poppik reserves the right to restrict stacking for specific campaigns. \n\n6. Reversals: If an order is returned, cancelled, or refunded, any commission earned from that order may be reversed from your Wallet. Refunds will be processed according to our refund policy and may exclude paid commission. \n\n7. Abuse & Fraud: Any attempt to manipulate, game, or abuse affiliate programs (including creating multiple accounts, using false information, or fraudulently triggering referrals) will result in forfeiture of commission, account suspension, and possible legal action. \n\n8. Limits & Changes: Poppik may impose limits on commission per user, per transaction, or overall. Poppik reserves the right to modify, pause, or terminate affiliate programs at any time without prior notice. \n\n9. Disputes: Any disputes related to commission will be resolved at the sole discretion of Poppik Lifestyle Pvt. Ltd., and its decision will be final and binding."
     },
     {
       icon: User,
@@ -133,9 +185,13 @@ export default function Terms() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-700 leading-relaxed text-base">
-                    {section.content}
-                  </p>
+                  {typeof section.content === "string" ? (
+                    <p className="text-gray-700 leading-relaxed text-base whitespace-pre-line">
+                      {section.content}
+                    </p>
+                  ) : (
+                    section.content
+                  )}
                 </CardContent>
               </Card>
             );
