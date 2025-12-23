@@ -526,12 +526,16 @@ export default function OfferDetail() {
 
   // Set initial selected image to first banner image when offer loads
   useEffect(() => {
-    if (offer?.bannerImages && Array.isArray(offer.bannerImages) && offer.bannerImages.length > 0 && !selectedImage) {
-      setSelectedImage(offer.bannerImages[0]);
-    } else if (!selectedImage && offer?.bannerImageUrl) {
-      setSelectedImage(offer.bannerImageUrl);
-    } else if (!selectedImage && offer?.imageUrl) {
-      setSelectedImage(offer.imageUrl);
+    if (!selectedImage) {
+      if (offer?.bannerImages && Array.isArray(offer.bannerImages) && offer.bannerImages.length > 0) {
+        setSelectedImage(offer.bannerImages[0]);
+      } else if (offer?.videoUrl) {
+        setSelectedImage(offer.videoUrl);
+      } else if (offer?.bannerImageUrl) {
+        setSelectedImage(offer.bannerImageUrl);
+      } else if (offer?.imageUrl) {
+        setSelectedImage(offer.imageUrl);
+      }
     }
   }, [offer]);
 
@@ -753,25 +757,59 @@ export default function OfferDetail() {
     const url = window.location.href;
     const text = `Check out this amazing offer: ${offer?.title}`;
 
+    const openExternal = (shareUrl: string) => {
+      const w = window.open(shareUrl, '_blank', 'noopener,noreferrer');
+      if (!w) {
+        window.location.href = shareUrl;
+      }
+    };
+
     switch (platform) {
       case 'whatsapp':
-        window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank');
+        openExternal(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`);
         break;
       case 'facebook':
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+        openExternal(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`);
         break;
       case 'twitter':
-        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+        openExternal(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`);
         break;
       case 'copy':
-        navigator.clipboard.writeText(url);
-        toast({
-          title: "Link Copied",
-          description: "Offer link has been copied to clipboard",
-        });
-        setShowShareDialog(false);
+        (async () => {
+          try {
+            await navigator.clipboard.writeText(url);
+            toast({
+              title: "Link Copied",
+              description: "Offer link has been copied to clipboard",
+            });
+            setShowShareDialog(false);
+          } catch (e) {
+            toast({
+              title: "Copy Failed",
+              description: "Unable to copy the link. Please copy it manually from the address bar.",
+              variant: "destructive",
+            });
+          }
+        })();
         break;
     }
+  };
+
+  const openShare = async () => {
+    const url = window.location.href;
+    const title = offer?.title || "Offer";
+    const text = `Check out this amazing offer: ${title}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        return;
+      }
+    } catch (e) {
+      // ignore and fallback to dialog
+    }
+
+    setShowShareDialog(true);
   };
 
   const handleSubmitReview = async () => {
@@ -1085,6 +1123,11 @@ export default function OfferDetail() {
   });
 
   const bannerImage = offer.bannerImageUrl || offer.imageUrl;
+  // Products that require shade selection
+  const unselectedProducts = productsWithShades.filter((id: number) => {
+    return !selectedShades[id] || selectedShades[id].trim() === '';
+  });
+  const addButtonDisabled = unselectedProducts.length > 0 || isExpired;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1130,9 +1173,33 @@ export default function OfferDetail() {
                             alt={`Listing ${index + 1}`}
                             className="w-full h-full object-cover"
                           />
-                          
                         </button>
                       ))}
+
+                      {/* Video thumbnail (if a video exists and isn't already in bannerImages) */}
+                      {offer.videoUrl && !(offer.bannerImages || []).includes(offer.videoUrl) && (
+                        <button
+                          key="offer-video-thumb"
+                          onClick={() => setSelectedImage(offer.videoUrl)}
+                          className={`relative aspect-square bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden border-2 transition-all ${
+                            selectedImage === offer.videoUrl ? 'border-purple-500 ring-2 ring-purple-300' : 'border-purple-100 hover:border-purple-300'
+                          }`}
+                          title="Play Video"
+                        >
+                          <img
+                            src={offer.imageUrl || bannerImage}
+                            alt="Video preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="w-12 h-12 rounded-full bg-black bg-opacity-60 flex items-center justify-center">
+                              <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M5 3v18l15-9L5 3z" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </div>
+                          </div>
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
@@ -1173,41 +1240,41 @@ export default function OfferDetail() {
                     />
                   )}
 
-                  {/* Zoom Hint - Only for images */}
-                  {selectedImage !== offer.videoUrl && (
-                    <div className="absolute bottom-4 right-4 bg-black bg-opacity-50 text-white text-sm px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                      </svg>
-                      Click to zoom
-                    </div>
-                  )}
-
-                  {/* Discount Badge */}
-                  {(offer.discountPercentage || offer.discountText) && (
-                    <div className="absolute top-4 right-4 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-lg font-bold text-lg shadow-lg">
-                      {offer.discountPercentage ? `${offer.discountPercentage}% OFF` : offer.discountText}
-                    </div>
-                  )}
+                  {/* (Removed: Zoom hint and discount badge overlays on image per UI request) */}
 
                   {/* Status Badge */}
-                  <div className="absolute top-4 left-4">
-                    {isExpired ? (
-                      <div className="bg-gray-800 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      </div>
-                    ) : (
+                  <div className="absolute top-4 left-4 z-20">
+                    {!isExpired ? (
                       <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
                         <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                         Active
                       </div>
+                    ) : (
+                      <div className="z-20">
+                        <Badge className="bg-gray-600 text-white px-3 py-1 sm:px-3 sm:py-1.5 text-sm font-bold shadow-lg">
+                          ENDED
+                        </Badge>
+                      </div>
                     )}
                   </div>
+
+                  {/* Expired overlay: keep banner visible but show ended overlay */}
+                  {isExpired && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                      <div className="bg-black bg-opacity-40 backdrop-blur-sm w-full h-full"></div>
+                      <div className="absolute text-center z-20">
+                        <div className="inline-block bg-white/10 text-white px-4 py-2 rounded-full text-2xl font-bold tracking-wider">
+                          OFFER ENDED
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {/* Share overlay button (below discount badge) */}
-                  <div className="absolute top-16 right-4 z-30">
+                  <div className="absolute top-6 right-4 z-30">
                     <button
                       type="button"
                       aria-label="Share offer"
-                      onClick={() => setShowShareDialog(true)}
+                      onClick={openShare}
                       className="bg-white/90 backdrop-blur-sm hover:bg-white p-2 rounded-full shadow-lg border border-gray-100 text-purple-600 hover:text-purple-700 transition-colors"
                     >
                       <Share2 className="w-5 h-5" />
@@ -1387,34 +1454,28 @@ export default function OfferDetail() {
                 size="lg"
                 className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 onClick={handleAddAllToCart}
-                disabled={(() => {
-                  const productsWithShades = productIds.filter((id: number) => productShadesData[id]?.length > 0);
-                  const unselectedProducts = productsWithShades.filter((id: number) => {
-                    return !selectedShades[id] || selectedShades[id].trim() === '';
-                  });
-                  return unselectedProducts.length > 0 || isExpired;
-                })()}
+                disabled={addButtonDisabled}
               >
                 <ShoppingCart className="w-5 h-5 mr-2" />
-                {(() => {
-                  const productsWithShades = productIds.filter((id: number) => productShadesData[id]?.length > 0);
-                  const unselectedProducts = productsWithShades.filter((id: number) => {
-                    return !selectedShades[id] || selectedShades[id].trim() === '';
-                  });
-                  return unselectedProducts.length > 0
-                    ? 'Select All Shades First'
-                    : 'Add All to Cart';
-                })()}
+                {isExpired ? 'Offer Ended' : (unselectedProducts.length > 0 ? 'Select All Shades First' : 'Add All to Cart')}
               </Button>
               <Button
                 size="lg"
                 variant="outline"
                 className="border-2 border-purple-200 hover:border-purple-400 rounded-xl p-4 transform hover:scale-105 transition-all duration-200"
                 onClick={toggleWishlist}
+                disabled={isExpired}
+                title={isExpired ? 'Offer has ended' : undefined}
               >
                 <Heart className={`w-6 h-6 ${isInWishlist ? "fill-red-600 text-red-600" : "text-purple-500"}`} />
               </Button>
             </div>
+            {/* Small note when offer expired */}
+            {isExpired && (
+              <div className="mt-3 text-sm text-gray-500">
+                Offer ended on {new Date(offer.validUntil).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}.
+              </div>
+            )}
           </div>
         </div>
 
@@ -1738,6 +1799,36 @@ export default function OfferDetail() {
                 className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
               >
                 Submit Review
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Share</DialogTitle>
+            <DialogDescription>Share this offer with your friends</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-lg border p-3">
+              <div className="text-sm text-gray-700 break-all">{typeof window !== 'undefined' ? window.location.href : ''}</div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button type="button" variant="outline" onClick={() => handleShare('whatsapp')}>
+                WhatsApp
+              </Button>
+              <Button type="button" variant="outline" onClick={() => handleShare('facebook')}>
+                Facebook
+              </Button>
+              <Button type="button" variant="outline" onClick={() => handleShare('twitter')}>
+                Twitter
+              </Button>
+              <Button type="button" onClick={() => handleShare('copy')}>
+                Copy Link
               </Button>
             </div>
           </div>

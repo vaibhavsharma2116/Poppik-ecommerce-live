@@ -32,7 +32,7 @@ interface WalletData {
 
 interface Transaction {
   id: number;
-  type: 'credit' | 'redeem';
+  type: 'credit' | 'redeem' | 'reserve';
   amount: string;
   description: string;
   orderId?: number;
@@ -40,6 +40,7 @@ interface Transaction {
   balanceAfter: string;
   status: string;
   createdAt: string;
+  expiresAt?: string | null;
 }
 
 export default function Wallet() {
@@ -48,6 +49,19 @@ export default function Wallet() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("all");
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const formatCountdown = (ms: number) => {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
   // Fetch wallet data
   const { data: walletData, isLoading: walletLoading, refetch: refetchWallet } = useQuery<WalletData>({
@@ -299,6 +313,7 @@ export default function Wallet() {
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="credit">Credits Only</SelectItem>
                   <SelectItem value="redeem">Debits Only</SelectItem>
+                  <SelectItem value="reserve">Reserved Only</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -346,10 +361,14 @@ export default function Wallet() {
                       <div className="flex items-center gap-4 flex-1">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow ${transaction.type === 'credit'
                             ? 'bg-gradient-to-br from-green-400 to-green-500'
+                            : transaction.type === 'reserve'
+                            ? 'bg-gradient-to-br from-orange-400 to-orange-500'
                             : 'bg-gradient-to-br from-red-400 to-red-500'
                           }`}>
                           {transaction.type === 'credit' ? (
                             <ArrowDownRight className="h-6 w-6 text-white" />
+                          ) : transaction.type === 'reserve' ? (
+                            <ArrowUpRight className="h-6 w-6 text-white" />
                           ) : (
                             <ArrowUpRight className="h-6 w-6 text-white" />
                           )}
@@ -358,7 +377,15 @@ export default function Wallet() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <p className="font-semibold text-gray-900">{transaction.description}</p>
+                            {transaction.type === 'reserve' && transaction.status === 'pending' && (
+                              <Badge className="bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-100">Expiring</Badge>
+                            )}
                           </div>
+                          {transaction.type === 'reserve' && transaction.status === 'pending' && transaction.expiresAt && (
+                            <div className="text-xs text-orange-600 mb-1">
+                              Expires in {formatCountdown(new Date(transaction.expiresAt).getTime() - nowMs)}
+                            </div>
+                          )}
                           <div className="flex items-center gap-4 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />

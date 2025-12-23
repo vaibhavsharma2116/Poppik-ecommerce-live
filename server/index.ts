@@ -1,4 +1,3 @@
-
 import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -7,11 +6,13 @@ import compression from "compression";
 import { config } from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { startCashbackScheduler } from "./cashbackScheduler";
 import { pool } from "./storage";
 import path from "path";
 import { fileURLToPath } from "url";
 import { products, productImages } from "@shared/schema";
 import { eq } from "drizzle-orm";
+
 import fs from "fs";
 import { drizzle } from "drizzle-orm/node-postgres";
 
@@ -170,6 +171,12 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
   // Register API routes FIRST
   const server = await registerRoutes(app);
+
+  try {
+    startCashbackScheduler();
+  } catch (e) {
+    console.warn('⚠️ Failed to start cashback scheduler:', e);
+  }
 
   // Handle product share URLs for social media crawlers
   app.get(["/product/:slug", "/share/product/:slug"], async (req, res, next) => {
@@ -634,10 +641,11 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
       // Append small cache buster for same-origin images to avoid generic thumbnails
       try {
-        const lower = String(blogImage).toLowerCase();
-        if (lower.includes('poppiklifestyle.com')) {
-          const sep = blogImage.includes('?') ? '&' : '?';
-          blogImage = `${blogImage}${sep}og=blog_${post.id}`;
+        const urlLower = String(blogImage).toLowerCase();
+        if (urlLower.includes('poppiklifestyle.com')) {
+          // Don't duplicate query params if already present
+          const separator = blogImage.includes('?') ? '&' : '?';
+          blogImage = `${blogImage}${separator}og=blog_${post.id}`;
         }
       } catch (e) {
         // ignore
@@ -689,6 +697,224 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       res.send(html);
     } catch (err) {
       console.error('Error serving blog OG page:', err);
+      next();
+    }
+  });
+
+  app.get(["/offer/:id", "/share/offer/:id"], async (req, res, next) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isCrawler = /bot|crawler|spider|facebookexternalhit|whatsapp|whatsappbot|twitterbot|linkedinbot|pinterestbot|telegrambot|slackbot|discordbot|google/i.test(userAgent);
+    const isBrowser = /mozilla/i.test(userAgent) && !/bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot/i.test(userAgent);
+    const isHead = req.method === 'HEAD';
+    const forceShare = typeof req.query === 'object' && (req.query.share === '1' || req.query.share === 'true');
+
+    if ((!isCrawler || isBrowser) && !isHead && !forceShare) {
+      return next();
+    }
+
+    try {
+      const { id } = req.params as any;
+      const isNumeric = /^\d+$/.test(String(id));
+      if (!isNumeric) return next();
+
+      const offerRes = await pool.query('SELECT * FROM offers WHERE id = $1 LIMIT 1', [parseInt(String(id))]);
+      const offer = offerRes.rows[0];
+      if (!offer) return next();
+
+      const baseUrl = 'https://poppiklifestyle.com';
+      const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+
+      let offerImage: any = offer.banner_image_url || offer.image_url || null;
+
+      if (!offerImage) {
+        const images = offer.images;
+        if (Array.isArray(images) && images.length > 0) {
+          offerImage = images.find((u: any) => u && !String(u).startsWith('data:')) || images[0];
+        } else if (typeof images === 'string' && images.trim()) {
+          try {
+            const parsed = JSON.parse(images);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              offerImage = parsed.find((u: any) => u && !String(u).startsWith('data:')) || parsed[0];
+            }
+          } catch (e) {
+          }
+        }
+      }
+
+      if (!offerImage) offerImage = fallbackImage;
+
+      let fullImageUrl = String(offerImage || '');
+      if (fullImageUrl && !fullImageUrl.toLowerCase().startsWith('http')) {
+        if (fullImageUrl.startsWith('/api/images/')) {
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
+        } else if (fullImageUrl.startsWith('/api/image/')) {
+          const imageId = fullImageUrl.split('/').pop();
+          fullImageUrl = `${baseUrl}/api/images/${imageId}`;
+        } else if (fullImageUrl.startsWith('/')) {
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
+        } else {
+          fullImageUrl = `${baseUrl}/${fullImageUrl}`;
+        }
+      }
+
+      if (!fullImageUrl) fullImageUrl = fallbackImage;
+
+      try {
+        const lower = String(fullImageUrl).toLowerCase();
+        if (lower.includes('poppiklifestyle.com')) {
+          const sep = fullImageUrl.includes('?') ? '&' : '?';
+          fullImageUrl = `${fullImageUrl}${sep}og=offer_${offer.id}`;
+        }
+      } catch (e) {
+      }
+
+      const offerUrl = `${baseUrl}/offer/${offer.id}`;
+      const title = `${offer.title} | Poppik Lifestyle`;
+      const description = offer.description || offer.detailed_description || 'Explore this offer on Poppik Lifestyle';
+
+      const html = `<!DOCTYPE html>
+<html lang="en" prefix="og: http://ogp.me/ns#">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${String(title).replace(/"/g, '&quot;')}</title>
+  <meta name="description" content="${String(description).replace(/"/g, '&quot;')}">
+  <link rel="canonical" href="${offerUrl}">
+
+  <meta property="og:type" content="product">
+  <meta property="og:site_name" content="Poppik Lifestyle">
+  <meta property="og:url" content="${offerUrl}">
+  <meta property="og:title" content="${String(title).replace(/"/g, '&quot;')}">
+  <meta property="og:description" content="${String(description).replace(/"/g, '&quot;')}">
+  <meta property="og:image" content="${fullImageUrl}">
+  <meta property="og:image:url" content="${fullImageUrl}">
+  <meta property="og:image:secure_url" content="${fullImageUrl}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="${String(offer.title).replace(/"/g, '&quot;')}">
+  <link rel="image_src" href="${fullImageUrl}">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${String(title).replace(/"/g, '&quot;')}">
+  <meta name="twitter:description" content="${String(description).replace(/"/g, '&quot;')}">
+  <meta name="twitter:image" content="${fullImageUrl}">
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; background: white; border-radius: 15px; padding: 40px;">
+    <img src="${fullImageUrl}" alt="${String(offer.title).replace(/"/g, '&quot;')}" style="max-width: 100%; height: auto; border-radius: 10px; margin-bottom: 20px;" onerror="this.src='${fallbackImage}'">
+    <h1 style="color: #333; margin: 20px 0; font-size: 28px;">${String(offer.title).replace(/"/g, '&quot;')}</h1>
+    <p style="color: #555;">${String(description)}</p>
+    <a href="${offerUrl}" style="display: inline-block; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">View Offer on Poppik</a>
+  </div>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+      res.setHeader('X-OG-Image', fullImageUrl);
+      res.send(html);
+    } catch (err) {
+      console.error('Error serving offer OG page:', err);
+      next();
+    }
+  });
+
+  app.get(["/contest/:slug", "/share/contest/:slug"], async (req, res, next) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isCrawler = /bot|crawler|spider|facebookexternalhit|whatsapp|whatsappbot|twitterbot|linkedinbot|pinterestbot|telegrambot|slackbot|discordbot|google/i.test(userAgent);
+    const isBrowser = /mozilla/i.test(userAgent) && !/bot|crawler|spider|facebookexternalhit|whatsapp|twitterbot/i.test(userAgent);
+    const isHead = req.method === 'HEAD';
+    const forceShare = typeof req.query === 'object' && (req.query.share === '1' || req.query.share === 'true');
+
+    if ((!isCrawler || isBrowser) && !isHead && !forceShare) {
+      return next();
+    }
+
+    try {
+      const { slug } = req.params as any;
+      const baseUrl = 'https://poppiklifestyle.com';
+      const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
+
+      const isNumeric = /^\d+$/.test(String(slug));
+      const contestRes = isNumeric
+        ? await pool.query('SELECT * FROM contests WHERE id = $1 LIMIT 1', [parseInt(String(slug))])
+        : await pool.query('SELECT * FROM contests WHERE slug = $1 LIMIT 1', [String(slug)]);
+      const contest = contestRes.rows[0];
+      if (!contest) return next();
+
+      let contestImage: any = contest.banner_image_url || contest.image_url || fallbackImage;
+      let fullImageUrl = String(contestImage || '');
+      if (fullImageUrl && !fullImageUrl.toLowerCase().startsWith('http')) {
+        if (fullImageUrl.startsWith('/api/images/')) {
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
+        } else if (fullImageUrl.startsWith('/api/image/')) {
+          const imageId = fullImageUrl.split('/').pop();
+          fullImageUrl = `${baseUrl}/api/images/${imageId}`;
+        } else if (fullImageUrl.startsWith('/')) {
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
+        } else {
+          fullImageUrl = `${baseUrl}/${fullImageUrl}`;
+        }
+      }
+
+      if (!fullImageUrl) fullImageUrl = fallbackImage;
+
+      try {
+        const lower = String(fullImageUrl).toLowerCase();
+        if (lower.includes('poppiklifestyle.com')) {
+          const sep = fullImageUrl.includes('?') ? '&' : '?';
+          fullImageUrl = `${fullImageUrl}${sep}og=contest_${contest.id}`;
+        }
+      } catch (e) {
+      }
+
+      const contestUrl = `${baseUrl}/contest/${contest.slug || contest.id}`;
+      const title = `${contest.title} | Poppik Lifestyle`;
+      const description = contest.description || 'Join this contest on Poppik Lifestyle';
+
+      const html = `<!DOCTYPE html>
+<html lang="en" prefix="og: http://ogp.me/ns#">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${String(title).replace(/"/g, '&quot;')}</title>
+  <meta name="description" content="${String(description).replace(/"/g, '&quot;')}">
+  <link rel="canonical" href="${contestUrl}">
+
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Poppik Lifestyle">
+  <meta property="og:url" content="${contestUrl}">
+  <meta property="og:title" content="${String(title).replace(/"/g, '&quot;')}">
+  <meta property="og:description" content="${String(description).replace(/"/g, '&quot;')}">
+  <meta property="og:image" content="${fullImageUrl}">
+  <meta property="og:image:url" content="${fullImageUrl}">
+  <meta property="og:image:secure_url" content="${fullImageUrl}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="${String(contest.title).replace(/"/g, '&quot;')}">
+  <link rel="image_src" href="${fullImageUrl}">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${String(title).replace(/"/g, '&quot;')}">
+  <meta name="twitter:description" content="${String(description).replace(/"/g, '&quot;')}">
+  <meta name="twitter:image" content="${fullImageUrl}">
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; background: white; border-radius: 15px; padding: 40px;">
+    <img src="${fullImageUrl}" alt="${String(contest.title).replace(/"/g, '&quot;')}" style="max-width: 100%; height: auto; border-radius: 10px; margin-bottom: 20px;" onerror="this.src='${fallbackImage}'">
+    <h1 style="color: #333; margin: 20px 0; font-size: 28px;">${String(contest.title).replace(/"/g, '&quot;')}</h1>
+    <p style="color: #555;">${String(description)}</p>
+    <a href="${contestUrl}" style="display: inline-block; background: linear-gradient(to right, #ec4899, #8b5cf6); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">View Contest on Poppik</a>
+  </div>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+      res.setHeader('X-OG-Image', fullImageUrl);
+      res.send(html);
+    } catch (err) {
+      console.error('Error serving contest OG page:', err);
       next();
     }
   });

@@ -711,6 +711,7 @@ export const userWalletTransactions = pgTable("user_wallet_transactions", {
   balanceAfter: decimal("balance_after", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status", { length: 20 }).default("completed").notNull(), // 'completed', 'pending', 'failed'
   eligibleAt: timestamp("eligible_at"),
+  expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

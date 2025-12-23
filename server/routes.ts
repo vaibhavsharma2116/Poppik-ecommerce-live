@@ -6031,51 +6031,35 @@ app.put("/api/admin/offers/:id", upload.fields([
               totalEarned: "0.00",
               totalRedeemed: "0.00"
             });
-
-            console.log(`Created new wallet for user ${userId} with ₹${totalCashback.toFixed(2)} cashback`);
-          } else {
-            // Update existing wallet
-            const currentBalance = parseFloat(existingWallet[0].cashbackBalance || '0');
-            const currentEarned = parseFloat(existingWallet[0].totalEarned || '0');
-
-            await db.update(schema.userWallet)
-              .set({
-                cashbackBalance: (currentBalance + totalCashback).toFixed(2),
-                totalEarned: (currentEarned + totalCashback).toFixed(2),
-                updatedAt: new Date()
-              })
-              .where(eq(schema.userWallet.userId, parseInt(userId)));
-
-            console.log(`Updated wallet for user ${userId}: Added ₹${totalCashback.toFixed(2)} cashback`);
           }
+
+          const orderTimestamp = (newOrder as any).createdAt ? new Date((newOrder as any).createdAt) : new Date();
+          const eligibleAt = new Date(orderTimestamp.getTime() + 60 * 1000);
+
+          const walletForBalance = await db
+            .select()
+            .from(schema.userWallet)
+            .where(eq(schema.userWallet.userId, parseInt(userId)))
+            .limit(1);
+
+          const currentBalance = parseFloat(walletForBalance?.[0]?.cashbackBalance || '0');
 
           // Create individual cashback transactions for each item
           for (const cashbackItem of cashbackItems) {
-            // Get current balance for transaction record
-            const walletForBalance = await db
-              .select()
-              .from(schema.userWallet)
-              .where(eq(schema.userWallet.userId, parseInt(userId)))
-              .limit(1);
-
-            const balanceBefore = parseFloat(walletForBalance[0].cashbackBalance || '0') - cashbackItem.amount;
-            const balanceAfter = parseFloat(walletForBalance[0].cashbackBalance || '0');
-
             await db.insert(schema.userWalletTransactions).values({
               userId: parseInt(userId),
               orderId: newOrder.id,
-              type: 'credit',
+              type: 'pending',
               amount: cashbackItem.amount.toFixed(2),
               description: `Cashback from ${cashbackItem.name}`,
-              balanceBefore: balanceBefore.toFixed(2),
-              balanceAfter: balanceAfter.toFixed(2),
-              status: 'completed'
+              balanceBefore: currentBalance.toFixed(2),
+              balanceAfter: currentBalance.toFixed(2),
+              status: 'pending',
+              eligibleAt,
             });
-
-            console.log(`Added cashback transaction: ₹${cashbackItem.amount.toFixed(2)} for ${cashbackItem.name}`);
           }
 
-          console.log(`Total cashback credited: ₹${totalCashback.toFixed(2)} from ${cashbackItems.length} items`);
+          console.log(`Total cashback pending: ₹${totalCashback.toFixed(2)} from ${cashbackItems.length} items`);
         }
       }
 
@@ -7000,7 +6984,7 @@ app.put("/api/admin/offers/:id", upload.fields([
       for (let j = 0; j < numProducts; j++) {
         const product = products[Math.floor(Math.random() * products.length)];
         const quantity = Math.floor(Math.random() * 3) + 1;
-        const price = parseInt(product?.price?.replace(/[₹,]/g, '')) || 0;
+        const price = parseInt(product?.price?.replace(/[₹,]/g, "") || "0");
 
         orderProducts.push({
           ...product,
@@ -7133,15 +7117,11 @@ app.put("/api/admin/offers/:id", upload.fields([
 
   app.get("/api/blog/categories", async (req, res) => {
     try {
-      // Set aggressive no-cache headers
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      
       const categories = await storage.getBlogCategories();
       res.json(categories);
     } catch (error) {
       console.error("Error fetching blog categories:", error);
+      // Return default categories when database is unavailable
       res.json([
         { id: 1, name: "Skincare", slug: "skincare", description: "All about skincare", isActive: true, sortOrder: 1 },
         { id: 2, name: "Makeup", slug: "makeup", description: "All about makeup", isActive: true, sortOrder: 2 },
@@ -7245,7 +7225,10 @@ app.put("/api/admin/offers/:id", upload.fields([
     } catch (error) {
       console.error("Error creating blog category:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to create blog category";
-      res.status(500).json({ error: errorMessage });
+      res.status(500).json({
+        error: errorMessage,
+        details: error.message || "Unknown error"
+      });
     }
   });
 
@@ -7308,21 +7291,10 @@ app.put("/api/admin/offers/:id", upload.fields([
       // Get user details
       const user = await db.select({
         firstName: schema.users.firstName,
-        lastName: schema.users.lastName
+        lastName: schema.users.lastName,
       }).from(schema.users).where(eq(schema.users.id, parseInt(userId))).limit(1);
 
-      if (!user || user.length === 0) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const comment = {
-        id: Date.now(),
-        author: `${user[0].firstName} ${user[0].lastName}`,
-        content: content.trim(),
-        date: new Date().toLocaleDateString(),
-        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        userId: parseInt(userId)
-      };
+      const userData = user[0] || { firstName: 'Customer', lastName: 'Name', email: 'customer@email.com', phone: null };
 
       // Update post comment count
       await db.update(schema.blogPosts)
@@ -7331,7 +7303,14 @@ app.put("/api/admin/offers/:id", upload.fields([
 
       res.json({
         success: true,
-        comment,
+        comment: {
+          id: Date.now(),
+          author: `${userData.firstName} ${userData.lastName}`,
+          content: content.trim(),
+          date: new Date().toLocaleDateString(),
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          userId: parseInt(userId)
+        },
         message: "Comment added successfully"
       });
     } catch (error) {
@@ -7418,7 +7397,7 @@ app.put("/api/admin/offers/:id", upload.fields([
       // Return default categories when database is unavailable
       res.json([
         { id: 1, name: "Skincare", slug: "skincare", description: "All about skincare", isActive: true, sortOrder: 1 },
-        { id: 2, name: "Makeup", slug: "makeup", description: "All about makeup", isActive        : true, sortOrder: 2 },
+        { id: 2, name: "Makeup", slug: "makeup", description: "All about makeup", isActive: true, sortOrder: 2 },
         { id: 3, name: "Haircare", slug: "haircare", description: "All about haircare", isActive: true, sortOrder: 3 }
       ]);
     }
@@ -7775,8 +7754,8 @@ app.put("/api/admin/offers/:id", upload.fields([
       console.error("Error creating blog category:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to create blog category";
       res.status(500).json({
-        error: "Failed to create blog category",
-        details: errorMessage
+        error: errorMessage,
+        details: error.message || "Unknown error"
       });
     }
   });
@@ -7810,8 +7789,8 @@ app.put("/api/admin/offers/:id", upload.fields([
       console.error("Error updating blog category:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to update blog category";
       res.status(500).json({
-        error: "Failed to update blog category",
-        details: errorMessage
+        error: errorMessage,
+        details: error.message || "Unknown error"
       });
     }
   });
@@ -7842,8 +7821,8 @@ app.put("/api/admin/offers/:id", upload.fields([
       console.error("Error deleting blog category:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to delete blog category";
       res.status(500).json({
-        error: "Failed to delete blog category",
-        details: errorMessage
+        error: errorMessage,
+        details: error.message || "Unknown error"
       });
     }
   });
@@ -7925,8 +7904,8 @@ app.put("/api/admin/offers/:id", upload.fields([
       console.error("Error updating blog subcategory:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to update blog subcategory";
       res.status(500).json({
-        error: "Failed to update blog subcategory",
-        details: errorMessage
+        error: errorMessage,
+        details: error.message || "Unknown error"
       });
     }
   });
@@ -7951,8 +7930,8 @@ app.put("/api/admin/offers/:id", upload.fields([
       console.error("Error deleting blog subcategory:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to delete blog subcategory";
       res.status(500).json({
-        error: "Failed to delete blog subcategory",
-        details: errorMessage
+        error: errorMessage,
+        details: error.message || "Unknown error"
       });
     }
   });
@@ -8134,7 +8113,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         .where(eq(schema.users.id, order[0].userId))
         .limit(1);
 
-      const userData = user[0] || { firstName: 'Unknown', lastName: 'Customer', email: 'unknown@email.com', phone: 'N/A' };
+      const userData = user[0] || { firstName: 'Customer', lastName: 'Name', email: 'customer@email.com', phone: null };
 
       // Generate HTML invoice
       const invoiceHtml = generateInvoiceHTML({
@@ -8217,7 +8196,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         }
       } else {
         // plain string
-        shippingHtml = escapeHtml(String(parsed)).replace(/\n/g, '<br>');
+        shippingHtml = escapeHtml(String(parsed || ''));
       }
     } catch (e) {
       shippingHtml = escapeHtml(String(order.shippingAddress || ''));
@@ -8653,7 +8632,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         id: `ORD-${order.id.toString().padStart(3, '0')}`,
         date: new Date(order.createdAt).toLocaleDateString('en-IN'),
         status: order.status,
-        total: `₹${order.totalAmount.toFixed(2)}`
+        total: `₹${order.totalAmount}`
       }));
 
       const customerDetails = {
@@ -8714,7 +8693,6 @@ app.put("/api/admin/offers/:id", upload.fields([
           lastName: schema.users.lastName,
           email: schema.users.email,
           phone: schema.users.phone,
-          createdAt: schema.users.createdAt,
         }).from(schema.users);
 
         customers = allUsers.filter(user =>
@@ -8894,7 +8872,7 @@ app.put("/api/admin/offers/:id", upload.fields([
 
       res.status(statusCode).json({
         error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   });
@@ -8939,7 +8917,7 @@ app.put("/api/admin/offers/:id", upload.fields([
 
       res.status(500).json({
         error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   });
@@ -8961,197 +8939,6 @@ app.put("/api/admin/offers/:id", upload.fields([
     } catch (error) {
       console.error("Error deleting shade:", error);
       res.status(500).json({ error: "Failed to delete shade" });
-    }
-  });
-
-  // Public category sliders endpoint (for frontend display)
-  app.get('/api/categories/slug/:slug/sliders', async (req, res) => {
-    try {
-      const { slug } = req.params;
-      console.log('Fetching sliders for category slug:', slug);
-
-      // First get the category by slug
-      const category = await db
-        .select()
-        .from(schema.categories)
-        .where(eq(schema.categories.slug, slug))
-        .limit(1);
-
-      if (!category || category.length === 0) {
-        console.log('Category not found for slug:', slug);
-        // Return empty array instead of error to prevent UI issues
-        return res.json([]);
-      }
-
-      const categoryId = category[0].id;
-      console.log('Found category ID:', categoryId);
-
-      // Get sliders for this category
-      try {
-        const slidersResult = await db
-          .select()
-          .from(schema.categorySliders)
-          .where(and(
-            eq(schema.categorySliders.categoryId, categoryId),
-            eq(schema.categorySliders.isActive, true)
-          ))
-          .orderBy(asc(schema.categorySliders.sortOrder));
-
-        console.log('Found sliders count:', slidersResult.length);
-        // Always return an array, even if empty
-        res.json(slidersResult || []);
-      } catch (tableError) {
-        console.log('Error querying category sliders, returning empty array:', tableError.message);
-        // Return empty array on any database error
-        res.json([]);
-      }
-    } catch (error) {
-      console.error('Error fetching category sliders by slug:', error);
-      // Return empty array instead of error to prevent UI breakage
-      res.json([]);
-    }
-  });
-
-  // Category slider management routes
-  app.get('/api/admin/categories/:categoryId/sliders', async (req, res) => {
-    try {
-      const categoryId = parseInt(req.params.categoryId);
-      console.log('Fetching sliders for category ID:', categoryId);
-
-      // Check if categorySliders table exists, if not return empty array
-      try {
-        const slidersResult = await db
-          .select()
-          .from(schema.categorySliders)
-          .where(eq(schema.categorySliders.categoryId, categoryId))
-          .orderBy(asc(schema.categorySliders.sortOrder));
-
-        console.log('Found sliders:', slidersResult);
-        res.json(slidersResult);
-      } catch (tableError) {
-        console.log('CategorySliders table may not exist, returning empty array');
-        res.json([]);
-      }
-    } catch (error) {
-      console.error('Error fetching category sliders:', error);
-      res.status(500).json({ error: 'Failed to fetch category sliders', details: error.message });
-    }
-  });
-
-  app.post('/api/admin/categories/:categoryId/sliders', async (req, res) => {
-    try {
-      const categoryId = parseInt(req.params.categoryId);
-      const { imageUrl, title, subtitle, isActive, sortOrder } = req.body;
-
-      console.log('Creating category slider for category:', categoryId);
-      console.log('Slider data:', { imageUrl, title, subtitle, isActive, sortOrder });
-
-      // Validation
-      if (!imageUrl) {
-        return res.status(400).json({ error: 'Image URL is required' });
-      }
-
-      if (isNaN(categoryId)) {
-        return res.status(400).json({ error: 'Invalid category ID' });
-      }
-
-      // Check if category exists
-      const category = await db
-        .select()
-        .from(schema.categories)
-        .where(eq(schema.categories.id, categoryId))
-        .limit(1);
-
-      if (category.length === 0) {
-        return res.status(404).json({ error: 'Category not found' });
-      }
-
-      const sliderData = {
-        categoryId,
-        imageUrl: imageUrl.trim(),
-        title: (title || '').trim(),
-        subtitle: (subtitle || '').trim(),
-        isActive: Boolean(isActive ?? true),
-        sortOrder: parseInt(sortOrder) || 0
-      };
-
-      console.log('Inserting slider data:', sliderData);
-
-      const [newSlider] = await db.insert(schema.categorySliders).values(sliderData).returning();
-
-      console.log('Created slider successfully:', newSlider);
-      res.json(newSlider);
-    } catch (error) {
-      console.error('Error creating category slider:', error);
-      const errorProps = getErrorProperties(error);
-      console.error('Error details:', {
-        message: errorProps.message,
-        code: errorProps.code,
-        constraint: errorProps.constraint,
-        detail: errorProps.detail
-      });
-
-      if (errorProps.code === '23505') { // Unique constraint violation
-        return res.status(400).json({ error: 'A slider with similar data already exists' });
-      }
-
-      if (errorProps.code === '23503') { // Foreign key constraint violation
-        return res.status(400).json({ error: 'Invalid category reference' });
-      }
-
-      res.status(500).json({
-        error: 'Failed to create category slider',
-        details: process.env.NODE_ENV === 'development' ? errorProps.message : undefined
-      });
-    }
-  });
-
-  app.put('/api/admin/categories/:categoryId/sliders/:sliderId', async (req, res) => {
-    try {
-      const sliderId = parseInt(req.params.sliderId);
-      const { imageUrl, title, subtitle, isActive, sortOrder } = req.body;
-
-      const [updatedSlider] = await db
-        .update(schema.categorySliders)
-        .set({
-          imageUrl,
-          title: title || '',
-          subtitle: subtitle || '',
-          isActive: isActive !== false,
-          sortOrder: sortOrder || 0,
-          updatedAt: new Date()
-        })
-        .where(eq(schema.categorySliders.id, sliderId))
-        .returning();
-
-      if (!updatedSlider) {
-        return res.status(404).json({ error: 'Category slider not found' });
-      }
-
-      res.json(updatedSlider);
-    } catch (error) {
-      console.error('Error updating category slider:', error);
-      res.status(500).json({ error: 'Failed to update category slider' });
-    }
-  });
-
-  app.delete('/api/admin/categories/:categoryId/sliders/:sliderId', async (req, res) => {
-    try {
-      const sliderId = parseInt(req.params.sliderId);
-
-      const [deletedSlider] = await db
-        .delete(schema.categorySliders)
-        .where(eq(schema.categorySliders.id, sliderId))
-        .returning();
-
-      if (!deletedSlider) {
-        return res.status(404).json({ error: 'Category slider not found' });
-      }
-
-      res.json({ message: 'Category slider deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting category slider:', error);
-      res.status(500).json({ error: 'Failed to delete category slider' });
     }
   });
 
@@ -9195,10 +8982,6 @@ app.put("/api/admin/offers/:id", upload.fields([
       let imageUrl = '';
       if (req.file) {
         imageUrl = `/api/images/${req.file.filename}`;
-      } else if (req.body.imageUrl) {
-        imageUrl = req.body.imageUrl;
-      } else {
-        return res.status(400).json({ error: 'Image is required' });
       }
 
       const [slider] = await db
@@ -9237,7 +9020,7 @@ app.put("/api/admin/offers/:id", upload.fields([
           subtitle: subtitle?.trim() || null,
           isActive: isActive === 'true' || isActive === true,
           sortOrder: parseInt(sortOrder) || 0,
-          updatedAt: new Date(),
+          updatedAt: new Date()
         })
         .where(eq(schema.comboSliders.id, sliderId))
         .returning();
@@ -9718,7 +9501,7 @@ app.put("/api/admin/offers/:id", upload.fields([
     } catch (error) {
       console.error('Error updating announcement:', error);
       console.error('Error details:', error.message, error.stack);
-      res.status(500).json({ 
+      res.status(500).json({
         error: 'Failed to update announcement',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
@@ -10632,7 +10415,7 @@ Poppik Career Portal
         console.error('Error broadcasting job application update event:', e);
       }
 
-      res.json({ 
+      res.json({
         success: true, 
         message: `Application status updated to ${status}`,
         application: updatedApplication 
@@ -10733,10 +10516,27 @@ Poppik Career Portal
         return res.status(401).json({ error: 'User ID required' });
       }
 
+      const now = new Date();
+
       const transactions = await db
         .select()
         .from(schema.userWalletTransactions)
-        .where(eq(schema.userWalletTransactions.userId, parseInt(userId as string)))
+        .where(
+          and(
+            eq(schema.userWalletTransactions.userId, parseInt(userId as string)),
+            or(
+              eq(schema.userWalletTransactions.status, 'completed'),
+              eq(schema.userWalletTransactions.status, 'failed'),
+              and(
+                eq(schema.userWalletTransactions.status, 'pending'),
+                or(
+                  isNull(schema.userWalletTransactions.eligibleAt),
+                  sql`${schema.userWalletTransactions.eligibleAt} > ${now}`
+                )
+              )
+            )
+          )
+        )
         .orderBy(desc(schema.userWalletTransactions.createdAt));
 
       res.json(transactions);

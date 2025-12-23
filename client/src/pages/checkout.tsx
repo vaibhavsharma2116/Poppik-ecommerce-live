@@ -421,6 +421,11 @@ export default function CheckoutPage() {
     return saved ? parseFloat(saved) : 0;
   });
 
+  const [redeemExpiresAt, setRedeemExpiresAt] = useState(() => {
+    const saved = localStorage.getItem('redeemExpiresAt');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
   // Promo code states
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [hasPromoCode, setHasPromoCode] = useState(false);
@@ -472,6 +477,33 @@ export default function CheckoutPage() {
     setRedeemAmount(walletAmount);
   }, [walletAmount]);
 
+  useEffect(() => {
+    if (!redeemExpiresAt) return;
+
+    const checkExpired = () => {
+      if (Date.now() >= redeemExpiresAt) {
+        setRedeemAmount(0);
+        setWalletAmount(0);
+        setRedeemExpiresAt(0);
+        try {
+          localStorage.removeItem('redeemAmount');
+          localStorage.removeItem('redeemExpiresAt');
+        } catch (e) {
+          /* ignore */
+        }
+
+        toast({
+          title: 'Cashback Expired',
+          description: 'Cashback reservation expired. Please apply cashback again.',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    checkExpired();
+    const intervalId = window.setInterval(checkExpired, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [redeemExpiresAt, toast]);
 
   useEffect(() => {
     // Check if user is logged in when accessing checkout
@@ -486,7 +518,7 @@ export default function CheckoutPage() {
       window.location.href = "/auth/login";
       return;
     }
-const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
+    const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
     const multiAddressMapping = localStorage.getItem('multiAddressMapping');
 
     // If NOT a multi-address order, clean up any leftover multi-address flags from previous orders
@@ -1658,14 +1690,14 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
 
     setIsRedeeming(true);
     try {
-      const res = await fetch(apiUrl('/api/wallet/redeem'), {
+      const res = await fetch(apiUrl('/api/wallet/reserve'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           userId: user.id,
           amount: redeemAmount,
-          description: 'Cashback redeemed at checkout'
+          description: 'Cashback reserved at checkout'
         })
       });
 
@@ -1674,17 +1706,23 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
         throw new Error(error.error || 'Failed to redeem cashback');
       }
 
-      // Update wallet amount in state
-      setWalletAmount((prev: number) => prev - redeemAmount);
-      // Also update the form data's redeemAmount if it's used elsewhere
-      setFormData(prev => ({
-        ...prev,
-        // Assuming redeemAmount in formData is meant to track the amount to be applied, not the balance
-      }));
+      const data = await res.json();
+      const expiresAtMs = data?.expiresAt ? new Date(data.expiresAt).getTime() : 0;
+
+      setWalletAmount(redeemAmount);
+      if (expiresAtMs) {
+        setRedeemExpiresAt(expiresAtMs);
+      }
+      try {
+        localStorage.setItem('redeemAmount', String(redeemAmount));
+        if (expiresAtMs) localStorage.setItem('redeemExpiresAt', String(expiresAtMs));
+      } catch (e) {
+        /* ignore */
+      }
 
       toast({
         title: "Success!",
-        description: `₹${redeemAmount} cashback redeemed successfully`,
+        description: `₹${redeemAmount} cashback reserved for 1 minute`,
       });
 
       // Optionally refetch wallet data to ensure UI reflects the absolute latest balance
@@ -2275,7 +2313,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
           redeemAmount: Math.round(redeemAmount) || 0,
           affiliateWalletAmount: Math.round(affiliateWalletAmount) || 0,
-          deliveryInstructions: formData.deliveryInstructions, // Include general delivery instructions from the main form
+          deliveryInstructions: formData.deliveryInstructions, // Include general delivery instructions
           saturdayDelivery: formData.saturdayDelivery, // Include weekend delivery preferences
           sundayDelivery: formData.sundayDelivery,   // Include weekend delivery preferences
           deliveryPartner: deliveryPartner, // Shiprocket or INDIA_POST
@@ -2291,39 +2329,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           totalAmount: orderData.totalAmount
         });
 
-        if (redeemAmount > 0) {
-          try {
-            const redeemResponse = await fetch(apiUrl('/api/wallet/redeem'), {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                userId: user.id,
-                amount: redeemAmount,
-                description: 'Cashback redeemed during checkout'
-              }),
-            });
-
-            if (!redeemResponse.ok) {
-              const redeemError = await redeemResponse.json();
-              throw new Error(redeemError.error || 'Failed to redeem cashback');
-            }
-
-            console.log('Cashback redeemed successfully:', redeemAmount);
-            window.dispatchEvent(new CustomEvent('walletUpdated'));
-          } catch (redeemError) {
-            console.error('Error redeeming cashback:', redeemError);
-            toast({
-              title: "Cashback Redemption Failed",
-              description: (redeemError as any)?.message || "Failed to redeem cashback. Please try again.",
-              variant: "destructive",
-            });
-            setIsProcessing(false);
-            return;
-          }
-        }
+        // Cashback is reserved for 60 seconds and will be consumed by the server during order creation
 
         let response;
         try {
@@ -2374,6 +2380,7 @@ const isMultiAddress = localStorage.getItem('isMultiAddressOrder') === 'true';
           localStorage.removeItem("affiliateDiscount");
           localStorage.removeItem("promoDiscount");
           localStorage.removeItem("redeemAmount");
+          localStorage.removeItem("redeemExpiresAt");
           localStorage.removeItem("affiliateWalletAmount");
           localStorage.removeItem("isMultiAddressOrder");
           localStorage.removeItem("multiAddressMapping");

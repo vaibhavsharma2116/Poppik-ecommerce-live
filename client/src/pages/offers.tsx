@@ -68,19 +68,21 @@ export default function OffersPage() {
                 >
                   <CardContent className="p-0">
                     <div className="relative overflow-hidden">
-                      {/* Discount Badge - Responsive */}
+                      {/* Status Badge - Active or Ended */}
                       <div className="absolute top-2 left-2 sm:top-3 sm:left-3 md:top-4 md:left-4 z-10">
-                        {/* <Badge className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg">
-                          {discount}
-                        </Badge> */}
+                        {!isExpired ? (
+                          <Badge className="bg-green-500 text-white px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm md:text-base font-bold shadow-lg">
+                            ACTIVE
+                          </Badge>
+                        ) : null}
                       </div>
 
-                      {/* Expired Badge - Responsive */}
+                      {/* Ended badge on top-right when expired */}
                       {isExpired && (
                         <div className="absolute top-2 right-2 sm:top-3 sm:right-3 md:top-4 md:right-4 z-10">
-                          {/* <Badge className="bg-gray-600 text-white px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg">
-                            EXPIRED
-                          </Badge> */}
+                          <Badge className="bg-gray-600 text-white px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm md:text-base font-bold shadow-lg">
+                            ENDED
+                          </Badge>
                         </div>
                       )}
 
