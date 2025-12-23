@@ -5923,7 +5923,7 @@ app.put("/api/admin/offers/:id", upload.fields([
                 transactionId: null,
                 notes: null,
                 processedAt: new Date(),
-                createdAt: new Date()
+                createdAt: new Date(),
               });
 
               console.log(`✅ Affiliate commission credited: ₹${totalOrderCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for order ${newOrder.id}`);
@@ -5937,214 +5937,6 @@ app.put("/api/admin/offers/:id", upload.fields([
         }
       } else {
         console.log(`⏭️ No affiliate code provided for order`);
-      }
-
-      // Create order items in separate table
-      if (items && Array.isArray(items)) {
-        const orderItems = [];
-
-        for (const item of items) {
-          const orderItem: any = {
-            orderId: newOrder.id,
-            productName: item.productName || item.name,
-            productImage: item.productImage || item.image,
-            quantity: Number(item.quantity),
-            price: item.price,
-            cashbackPrice: item.cashbackPrice || null,
-            cashbackPercentage: item.cashbackPercentage || null,
-            // Offer tracking - save complete details
-            offerId: item.offerId || null,
-            offerTitle: item.offerTitle || null,
-            originalPrice: item.originalPrice || null,
-            discountType: item.discountType || null,
-            discountValue: item.discountValue ? String(item.discountValue) : null,
-            discountAmount: item.discountAmount ? String(item.discountAmount) : null,
-            // Multi-address order details
-            deliveryAddress: item.deliveryAddress || null,
-            recipientName: item.recipientName || null,
-            recipientPhone: item.recipientPhone || null,
-          };
-
-          // Determine if this is a combo or regular product
-          if (item.isCombo === true || item.type === 'combo' || item.comboId) {
-            // This is a combo, set productId to null
-            orderItem.productId = null;
-          } else if (item.productId && !isNaN(Number(item.productId))) {
-            // Verify product exists before adding
-            try {
-              const productExists = await db
-                .select({ id: schema.products.id })
-                .from(schema.products)
-                .where(eq(schema.products.id, Number(item.productId)))
-                .limit(1);
-
-              if (productExists && productExists.length > 0) {
-                orderItem.productId = Number(item.productId);
-              } else {
-                // Product doesn't exist, set to null
-                console.warn(`Product ${item.productId} not found, setting productId to null`);
-                orderItem.productId = null;
-              }
-            } catch (error) {
-              console.error(`Error checking product ${item.productId}:`, error);
-              orderItem.productId = null;
-            }
-          } else {
-            // No valid productId, set to null
-            orderItem.productId = null;
-          }
-
-          orderItems.push(orderItem);
-        }
-
-        await db.insert(schema.orderItemsTable).values(orderItems);
-      }
-
-      // Add cashback to user's wallet for items that have cashback
-      if (items && Array.isArray(items)) {
-        let totalCashback = 0;
-        const cashbackItems = [];
-
-        for (const item of items) {
-          if (item.cashbackPrice && item.cashbackPercentage) {
-            const cashbackAmount = Number(item.cashbackPrice) * item.quantity;
-            totalCashback += cashbackAmount;
-            cashbackItems.push({
-              name: item.productName,
-              amount: cashbackAmount
-            });
-          }
-        }
-
-        if (totalCashback > 0) {
-          // Get or create wallet
-          const existingWallet = await db
-            .select()
-            .from(schema.userWallet)
-            .where(eq(schema.userWallet.userId, parseInt(userId)));
-
-          if (existingWallet.length === 0) {
-            // Create new wallet with cashback
-            await db.insert(schema.userWallet).values({
-              userId: parseInt(userId),
-              cashbackBalance: "0.00",
-              totalEarned: "0.00",
-              totalRedeemed: "0.00"
-            });
-          }
-
-          const orderTimestamp = (newOrder as any).createdAt ? new Date((newOrder as any).createdAt) : new Date();
-          const eligibleAt = new Date(orderTimestamp.getTime() + 60 * 1000);
-
-          const walletForBalance = await db
-            .select()
-            .from(schema.userWallet)
-            .where(eq(schema.userWallet.userId, parseInt(userId)))
-            .limit(1);
-
-          const currentBalance = parseFloat(walletForBalance?.[0]?.cashbackBalance || '0');
-
-          // Create individual cashback transactions for each item
-          for (const cashbackItem of cashbackItems) {
-            await db.insert(schema.userWalletTransactions).values({
-              userId: parseInt(userId),
-              orderId: newOrder.id,
-              type: 'pending',
-              amount: cashbackItem.amount.toFixed(2),
-              description: `Cashback from ${cashbackItem.name}`,
-              balanceBefore: currentBalance.toFixed(2),
-              balanceAfter: currentBalance.toFixed(2),
-              status: 'pending',
-              eligibleAt,
-            });
-          }
-
-          console.log(`Total cashback pending: ₹${totalCashback.toFixed(2)} from ${cashbackItems.length} items`);
-        }
-      }
-
-      // Track promo code usage if promo code was used
-      if (req.body.promoCode && req.body.promoDiscount) {
-        try {
-          const promoCodeData = await db
-            .select()
-            .from(schema.promoCodes)
-            .where(eq(schema.promoCodes.code, req.body.promoCode.toUpperCase()))
-            .limit(1);
-
-          if (promoCodeData.length > 0) {
-            const promo = promoCodeData[0];
-
-            // Record promo code usage
-            await db.insert(schema.promoCodeUsage).values({
-              promoCodeId: promo.id,
-              userId: parseInt(userId),
-              orderId: newOrder.id,
-              discountAmount: req.body.promoDiscount.toString()
-            });
-
-            // Increment usage count
-            await db.update(schema.promoCodes)
-              .set({
-                usageCount: sql`${schema.promoCodes.usageCount} + 1`,
-                updatedAt: new Date()
-              })
-              .where(eq(schema.promoCodes.id, promo.id));
-
-            console.log(`Promo code ${req.body.promoCode} used. Total uses: ${promo.usageCount + 1}`);
-          }
-        } catch (promoError) {
-          console.error('Error tracking promo code usage:', promoError);
-          // Continue even if promo tracking fails
-        }
-      }
-
-      // Deduct affiliate wallet amount if used (for both COD and Cashfree)
-      if (affiliateWalletAmount > 0 && userId) {
-        try {
-          console.log(`🔍 Deducting ₹${affiliateWalletAmount} from affiliate wallet for user ${userId}`);
-
-          // Get affiliate wallet
-          const wallet = await db
-            .select()
-            .from(schema.affiliateWallet)
-            .where(eq(schema.affiliateWallet.userId, parseInt(userId)))
-            .limit(1);
-
-          if (wallet && wallet.length > 0) {
-            const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
-            const currentWithdrawn = parseFloat(wallet[0].totalWithdrawn || '0');
-
-            // Update wallet balance
-            await db.update(schema.affiliateWallet)
-              .set({
-                commissionBalance: Math.max(0, currentCommission - affiliateWalletAmount).toFixed(2),
-                totalWithdrawn: (currentWithdrawn + affiliateWalletAmount).toFixed(2),
-                updatedAt: new Date()
-              })
-              .where(eq(schema.affiliateWallet.userId, parseInt(userId)));
-
-            // Create transaction record for wallet deduction
-            await db.insert(schema.affiliateTransactions).values({
-              userId: parseInt(userId),
-              orderId: newOrder.id,
-              type: 'withdrawal',
-              amount: affiliateWalletAmount.toFixed(2),
-              balanceType: commissionBalance >= affiliateWalletAmount ? 'commission' : 'mixed',
-              description: `Commission balance used for order ORD-${newOrder.id.toString().padStart(3, '0')}`,
-              status: 'completed',
-              processedAt: new Date(),
-              createdAt: new Date()
-            });
-
-            console.log(`✅ Affiliate wallet deducted: ₹${affiliateWalletAmount} for order ${newOrder.id}, transaction recorded`);
-          } else {
-            console.error(`❌ Affiliate wallet not found for user ${userId}`);
-          }
-        } catch (walletError) {
-          console.error(`❌ Error deducting affiliate wallet:`, walletError);
-          // Continue with order creation even if wallet deduction fails
-        }
       }
 
       // Credit affiliate commission to wallet if affiliate code was used
@@ -6284,7 +6076,6 @@ app.put("/api/admin/offers/:id", upload.fields([
         }
       }
 
-      // Credit affiliateCommissionEarned to affiliate wallet if provided
       if (affiliateCommissionEarned && Number(affiliateCommissionEarned) > 0 && affiliateCode && affiliateCode.startsWith('POPPIKAP')) {
         const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
         const commissionAmount = Number(affiliateCommissionEarned);
@@ -6293,60 +6084,120 @@ app.put("/api/admin/offers/:id", upload.fields([
 
         if (!isNaN(affiliateUserId)) {
           try {
-            // Get or create affiliate wallet
             let wallet = await db
               .select()
               .from(schema.affiliateWallet)
               .where(eq(schema.affiliateWallet.userId, affiliateUserId))
               .limit(1);
 
-            if (wallet.length === 0) {
-              console.log(`📝 Creating new wallet for affiliate ${affiliateUserId}`);
-              // Create wallet
-              const [newWallet] = await db.insert(schema.affiliateWallet).values({
+            if (!wallet || wallet.length === 0) {
+              await db.insert(schema.affiliateWallet).values({
                 userId: affiliateUserId,
                 cashbackBalance: "0.00",
                 commissionBalance: commissionAmount.toFixed(2),
                 totalEarnings: commissionAmount.toFixed(2),
-                totalWithdrawn: "0.00"
-              }).returning();
-
-              console.log(`✅ Wallet created with commission:`, newWallet);
+                totalWithdrawn: "0.00",
+              });
             } else {
-              console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
-              // Update wallet
               const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
               const currentEarnings = parseFloat(wallet[0].totalEarnings || '0');
 
-              const [updatedWallet] = await db.update(schema.affiliateWallet)
+              await db.update(schema.affiliateWallet)
                 .set({
                   commissionBalance: (currentCommission + commissionAmount).toFixed(2),
                   totalEarnings: (currentEarnings + commissionAmount).toFixed(2),
-                  updatedAt: new Date()
+                  updatedAt: new Date(),
                 })
-                .where(eq(schema.affiliateWallet.userId, affiliateUserId))
-                .returning();
-
-              console.log(`✅ Wallet updated with commission:`, updatedWallet);
+                .where(eq(schema.affiliateWallet.userId, affiliateUserId));
             }
 
-            // Create transaction record for this commission
             await db.insert(schema.affiliateTransactions).values({
               userId: affiliateUserId,
               orderId: newOrder.id,
               type: 'commission',
               amount: commissionAmount.toFixed(2),
               balanceType: 'commission',
-              description: `Commission earned from order ${orderId}`,
+              description: `Commission earned from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
               status: 'completed',
               processedAt: new Date(),
-              createdAt: new Date()
+              createdAt: new Date(),
             });
 
             console.log(`✅ Affiliate commission earned credited: ₹${commissionAmount.toFixed(2)} to affiliate ${affiliateUserId}`);
           } catch (error) {
             console.error(`❌ Error crediting affiliateCommissionEarned:`, error);
             // Continue with order creation even if this fails
+          }
+        }
+      }
+
+      if (items && Array.isArray(items)) {
+        let totalCashback = 0;
+        const cashbackItems: Array<{ name: string; amount: number }> = [];
+
+        for (const item of items) {
+          if (item.cashbackPrice && item.cashbackPercentage) {
+            const cashbackAmount = Number(item.cashbackPrice) * (Number(item.quantity) || 1);
+            totalCashback += cashbackAmount;
+            cashbackItems.push({
+              name: item.productName || item.name,
+              amount: cashbackAmount,
+            });
+          }
+        }
+
+        if (totalCashback > 0) {
+          const existingCashbackTx = await db
+            .select({ id: schema.userWalletTransactions.id })
+            .from(schema.userWalletTransactions)
+            .where(
+              and(
+                eq(schema.userWalletTransactions.userId, parseInt(userId)),
+                eq(schema.userWalletTransactions.orderId, newOrder.id),
+                sql`${schema.userWalletTransactions.description} like ${'Cashback from %'}`
+              )
+            )
+            .limit(1);
+
+          if (!existingCashbackTx || existingCashbackTx.length === 0) {
+            const existingWallet = await db
+              .select()
+              .from(schema.userWallet)
+              .where(eq(schema.userWallet.userId, parseInt(userId)))
+              .limit(1);
+
+            if (!existingWallet || existingWallet.length === 0) {
+              await db.insert(schema.userWallet).values({
+                userId: parseInt(userId),
+                cashbackBalance: "0.00",
+                totalEarned: "0.00",
+                totalRedeemed: "0.00",
+              });
+            }
+
+            const walletForBalance = await db
+              .select()
+              .from(schema.userWallet)
+              .where(eq(schema.userWallet.userId, parseInt(userId)))
+              .limit(1);
+
+            const currentBalance = parseFloat(walletForBalance?.[0]?.cashbackBalance || '0');
+            const orderTimestamp = (newOrder as any).createdAt ? new Date((newOrder as any).createdAt) : new Date();
+            const eligibleAt = new Date(orderTimestamp.getTime() + 60 * 1000);
+
+            for (const cashbackItem of cashbackItems) {
+              await db.insert(schema.userWalletTransactions).values({
+                userId: parseInt(userId),
+                orderId: newOrder.id,
+                type: 'pending',
+                amount: cashbackItem.amount.toFixed(2),
+                description: `Cashback from ${cashbackItem.name}`,
+                balanceBefore: currentBalance.toFixed(2),
+                balanceAfter: currentBalance.toFixed(2),
+                status: 'pending',
+                eligibleAt,
+              });
+            }
           }
         }
       }
