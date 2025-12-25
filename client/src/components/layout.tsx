@@ -345,7 +345,7 @@ export default function Layout({ children }: LayoutProps) {
                   </svg>
                 </a>
                 <a
-                  href="https://www.instagram.com/poppik_official?igsh=M3BidG9jbmJtenZ4"
+                  href="https://www.instagram.com/poppik_lifestyle?igsh=Yzlocmpnc3lobTd5"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-black hover:text-pink-300 transition-colors duration-300 transform hover:scale-110"
@@ -1347,7 +1347,7 @@ export default function Layout({ children }: LayoutProps) {
                 </svg>
               </a>
               <a
-                href="https://www.instagram.com/poppik_official?igsh=M3BidG9jbmJtenZ4"
+                href="https://www.instagram.com/poppik_lifestyle?igsh=Yzlocmpnc3lobTd5"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-pink-300 transition-colors duration-300 transform hover:scale-110"

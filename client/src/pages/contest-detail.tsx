@@ -137,7 +137,7 @@ export default function ContestDetail() {
         <img
           src={contest.bannerImageUrl || contest.imageUrl}
           alt={contest.title}
-          className="w-full h-[160px] sm:h-[320px] md:h-[380px] lg:h-[420px] object-cover object-center"
+          className="block w-full h-auto"
         />
       </div>
 
