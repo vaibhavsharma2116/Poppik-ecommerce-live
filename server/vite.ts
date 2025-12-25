@@ -23,7 +23,7 @@ export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true,
+    allowedHosts: true as const,
   };
 
   const vite = await createViteServer({
@@ -90,9 +90,27 @@ export function serveStatic(app: Express) {
     );
   }
 
+  // Serve hashed build assets with aggressive caching.
+  // IMPORTANT: if an asset is missing, return 404 (do NOT fall back to index.html),
+  // otherwise browsers will try to execute HTML as JS and throw "Failed to fetch dynamically imported module".
+  app.use(
+    "/assets",
+    express.static(path.resolve(distPath, "assets"), {
+      fallthrough: false,
+      maxAge: "365d",
+      immutable: true,
+      etag: true,
+      lastModified: true,
+    }),
+  );
+
   // Static files को भी API routes के conflict से बचाते हैं
   app.use((req, res, next) => {
     if (req.url.startsWith('/api/') || req.url.startsWith('/.well-known/')) {
+      return next();
+    }
+    // Never treat build asset URLs as SPA routes
+    if (req.url.startsWith('/assets/')) {
       return next();
     }
     express.static(distPath)(req, res, next);
@@ -104,6 +122,13 @@ export function serveStatic(app: Express) {
     if (req.originalUrl.startsWith('/api/') || req.originalUrl.startsWith('/.well-known/')) {
       return next();
     }
+    // Never fall back to index.html for build asset URLs
+    if (req.originalUrl.startsWith('/assets/')) {
+      return res.status(404).end();
+    }
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
