@@ -123,7 +123,7 @@ npm run build
 npm run start
 
 # Terminal 3: Test
-curl http://localhost:8085/health
+curl https://poppiklifestyle.com/health
 ```
 
 ## Key Improvements Made

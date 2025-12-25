@@ -658,7 +658,7 @@ export default function AffiliateDashboard() {
   };
 
   const copyAffiliateLink = (product?: any) => {
-    const baseUrl = 'http://localhost:8085';
+    const baseUrl = 'https://poppiklifestyle.com';
 
     const affiliateLink = product
       ? `${baseUrl}/product/${product.slug || product.id}?ref=${affiliateCode}`
@@ -672,7 +672,7 @@ export default function AffiliateDashboard() {
   };
 
   const shareToWhatsApp = () => {
-    const baseUrl = 'http://localhost:8085';
+    const baseUrl = 'https://poppiklifestyle.com';
 
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     const message = `🌟 Check out Poppik Lifestyle! Use my code ${affiliateCode} for amazing beauty products. ${affiliateLink}`;
@@ -680,14 +680,14 @@ export default function AffiliateDashboard() {
   };
 
   const shareToFacebook = () => {
-    const baseUrl = 'http://localhost:8085';
+    const baseUrl = 'https://poppiklifestyle.com';
 
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(affiliateLink)}`, '_blank');
   };
 
   const shareToTwitter = () => {
-    const baseUrl = 'http://localhost:8085';
+    const baseUrl = 'https://poppiklifestyle.com';
 
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     const message = `Check out @PoppikLifestyle! Use code ${affiliateCode} for amazing beauty products.`;
@@ -695,7 +695,7 @@ export default function AffiliateDashboard() {
   };
 
   const shareToInstagram = () => {
-    const baseUrl = 'http://localhost:8085';
+    const baseUrl = 'https://poppiklifestyle.com';
 
     const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
     window.open('https://www.instagram.com/', '_blank');
