@@ -1306,7 +1306,7 @@ export default function OfferDetail() {
               </div>
 
               {/* Main Display Area */}
-              <div className="flex-1 bg-white rounded-lg overflow-hidden shadow-sm sticky top-8">
+              <div className="flex-1 bg-white rounded-lg overflow-hidden shadow-sm self-center lg:self-auto lg:sticky lg:top-8">
                 <div className="relative aspect-square bg-gray-100 group cursor-zoom-in">
                   {selectedImage === offer.videoUrl ? (
                     <video
