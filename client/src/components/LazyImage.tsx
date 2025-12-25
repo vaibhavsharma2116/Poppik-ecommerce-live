@@ -9,6 +9,7 @@ interface LazyImageProps {
   width?: number;
   height?: number;
   priority?: boolean;
+  fit?: 'crop' | 'contain' | 'cover';
 }
 
 export function LazyImage({ 
@@ -17,7 +18,8 @@ export function LazyImage({
   className = '', 
   width = 400, 
   height = 400,
-  priority = false 
+  priority = false,
+  fit
 }: LazyImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(priority);
@@ -46,7 +48,8 @@ export function LazyImage({
   const optimizedSrc = optimizeImageUrl(src, { 
     width, 
     height, 
-    quality: priority ? 85 : 75 
+    quality: priority ? 85 : 75,
+    fit
   });
 
   return (
@@ -60,7 +63,7 @@ export function LazyImage({
         alt={alt}
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
-        fetchpriority={priority ? 'high' : 'auto'}
+        fetchPriority={priority ? 'high' : 'auto'}
         className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
         width={width}
         height={height}

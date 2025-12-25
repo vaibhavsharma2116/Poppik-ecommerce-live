@@ -1,10 +1,10 @@
-import { Button } from "@/components/ui/button";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from "@/components/ui/skeleton";
 import { LazyImage } from "@/components/LazyImage";
+import { useLocation } from "wouter";
 
 interface Slider {
   id: number;
@@ -12,6 +12,23 @@ interface Slider {
   isActive: boolean;
   sortOrder: number;
 }
+
+interface Offer {
+  id: number;
+  isActive: boolean;
+  sortOrder: number;
+  imageUrl?: string | null;
+  bannerImageUrl?: string | null;
+  bannerImages?: string[] | null;
+}
+
+type HeroSlide = {
+  key: string;
+  imageUrl: string;
+  sortOrder: number;
+  type: 'slider' | 'offer';
+  offerId?: number;
+};
 
 interface HeroBannerProps {
   autoplay?: boolean;
@@ -28,13 +45,14 @@ export default function HeroBanner({
   showProgress = true,
   showControls = true,
 }: HeroBannerProps) {
+  const [, setLocation] = useLocation();
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoplay);
   const [progress, setProgress] = useState(0);
 
   // Fetch sliders from API
-  const { data: slidersData = [], isLoading, error } = useQuery<Slider[]>({
+  const { data: slidersData = [], isLoading: slidersLoading, error: slidersError } = useQuery<Slider[]>({
     queryKey: ['sliders'],
     queryFn: async () => {
       const response = await fetch('/api/sliders');
@@ -47,11 +65,47 @@ export default function HeroBanner({
     },
   });
 
+  const { data: offersData = [], isLoading: offersLoading, error: offersError } = useQuery<Offer[]>({
+    queryKey: ['/api/offers'],
+  });
+
   // Filter only active sliders and sort by sortOrder
-  const slides = Array.isArray(slidersData) ? 
-    slidersData.filter(slider => slider.isActive)
-      .sort((a, b) => a.sortOrder - b.sortOrder) : 
-    [];
+  const sliderSlides: HeroSlide[] = Array.isArray(slidersData)
+    ? slidersData
+        .filter((slider) => slider.isActive)
+        .map((slider) => ({
+          key: `slider-${slider.id}`,
+          imageUrl: slider.imageUrl,
+          sortOrder: slider.sortOrder,
+          type: 'slider' as const,
+        }))
+    : [];
+
+  const offerSlides: HeroSlide[] = Array.isArray(offersData)
+    ? offersData
+        .filter((offer) => offer.isActive)
+        .map((offer) => {
+          const imageUrl =
+            offer.imageUrl ||
+            offer.bannerImageUrl ||
+            (Array.isArray(offer.bannerImages) ? offer.bannerImages[0] : null) ||
+            '';
+
+          return {
+            key: `offer-${offer.id}`,
+            imageUrl,
+            sortOrder: offer.sortOrder,
+            type: 'offer' as const,
+            offerId: offer.id,
+          };
+        })
+        .filter((s) => !!s.imageUrl)
+    : [];
+
+  const slides: HeroSlide[] = [...sliderSlides, ...offerSlides].sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const isLoading = slidersLoading || offersLoading;
+  const error = slidersError || offersError;
 
   useEffect(() => {
     if (!api) return;
@@ -117,7 +171,7 @@ export default function HeroBanner({
     );
   }
 
-  if (error) {
+  if (error && !slides.length) {
     return (
       <div className="w-full flex items-center justify-center bg-red-50 py-20">
         <p className="text-red-500">Failed to load hero banner: {(error as Error).message}</p>
@@ -145,8 +199,26 @@ export default function HeroBanner({
       >
         <CarouselContent>
           {slides.map((slide) => (
-            <CarouselItem key={slide.id}>
-              <div className="mobile-slider-container relative w-full overflow-hidden">
+            <CarouselItem key={slide.key}>
+              <div
+                className={
+                  slide.type === 'offer'
+                    ? "mobile-slider-container relative w-full overflow-hidden bg-white"
+                    : "mobile-slider-container relative w-full overflow-hidden"
+                }
+                role={slide.type === 'offer' ? 'button' : undefined}
+                tabIndex={slide.type === 'offer' ? 0 : undefined}
+                onClick={() => {
+                  if (slide.type === 'offer' && slide.offerId) {
+                    setLocation(`/offer/${slide.offerId}`);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && slide.type === 'offer' && slide.offerId) {
+                    setLocation(`/offer/${slide.offerId}`);
+                  }
+                }}
+              >
                 {/* {showProgress && (
                   <div className="absolute top-0 left-0 w-full h-1 bg-gray-200 z-10">
                     <div 
@@ -157,14 +229,36 @@ export default function HeroBanner({
                   </div>
                 )} */}
 
-                <LazyImage
-                  src={slide.imageUrl} 
-                  alt={`Slide ${slide.id}`}
-                  width={1920}
-                  height={600}
-                  priority={slide.sortOrder === 0}
-                  className="w-full object-contain bg-gray-100"
-                />
+                {slide.type === 'offer' ? (
+                  <div className="relative w-full h-full">
+                    <img
+                      src={slide.imageUrl}
+                      alt={`Offer ${slide.offerId ?? ''}`}
+                      className="absolute inset-0 w-full h-full object-cover blur-lg scale-110"
+                      loading={slide.sortOrder === 0 ? 'eager' : 'lazy'}
+                      decoding="async"
+                    />
+                    <div className="absolute inset-0 bg-black/10" />
+                    <div className="relative z-10 w-full h-full flex items-center justify-center">
+                      <img
+                        src={slide.imageUrl}
+                        alt={`Offer ${slide.offerId ?? ''}`}
+                        className="max-w-full max-h-full object-contain"
+                        loading={slide.sortOrder === 0 ? 'eager' : 'lazy'}
+                        decoding="async"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <LazyImage
+                    src={slide.imageUrl} 
+                    alt={slide.key}
+                    width={1920}
+                    height={600}
+                    priority={slide.sortOrder === 0}
+                    className="w-full object-contain bg-gray-100"
+                  />
+                )}
               </div>
             </CarouselItem>
           ))}

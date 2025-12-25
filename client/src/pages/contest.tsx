@@ -46,7 +46,7 @@ export default function ContestsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
       {/* Contests Grid - Responsive Layout */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 md:py-12 lg:py-16">
+      <div className="max-w-[90rem] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 md:py-6 lg:py-8">
         <div className="grid grid-cols-1 gap-4 sm:gap-6 md:gap-8 lg:gap-10">
           {displayContests.map((contest) => {
             const isExpired = new Date(contest.validUntil) < new Date();
@@ -54,7 +54,7 @@ export default function ContestsPage() {
             return (
               <Link href={`/contest/${contest.slug}`} key={contest.id}>
                 <Card 
-                  className="group overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-white cursor-pointer"
+                  className="overflow-hidden border-0 bg-white cursor-pointer"
                 >
                   <CardContent className="p-0">
                     <div className="relative overflow-hidden">
@@ -76,25 +76,16 @@ export default function ContestsPage() {
                       )}
 
                       {/* Image - Responsive Heights */}
-                      <div className="relative h-48 xs:h-56 sm:h-72 md:h-80 lg:h-96 xl:h-[400px] overflow-hidden bg-gradient-to-br from-yellow-100 to-orange-100">
+                      <div className="relative h-40 xs:h-48 sm:h-72 md:h-80 lg:h-96 xl:h-[400px] overflow-hidden bg-gradient-to-br from-yellow-100 to-orange-100">
                         <img
                           src={contest.imageUrl}
                           alt={contest.title}
-                          className="w-full h-full  group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full"
                           loading="lazy"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       </div>
 
-                      {/* Content Overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-3 sm:p-4 md:p-6 lg:p-8">
-                        {/* <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold text-white mb-1 sm:mb-2 line-clamp-2">
-                          {contest.title}
-                        </h3> */}
-                        <p className="text-xs sm:text-sm text-gray-200 line-clamp-2">
-                          {contest.description}
-                        </p>
-                      </div>
+                     
                     </div>
                   </CardContent>
                 </Card>

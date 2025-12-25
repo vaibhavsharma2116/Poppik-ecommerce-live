@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import ProductCard from "@/components/product-card";
 
@@ -1155,55 +1154,156 @@ export default function OfferDetail() {
           <div>
             <div className="flex gap-4">
               {/* Vertical Thumbnail Gallery - Only Listing Images */}
-              <ScrollArea className="h-[500px] w-24">
-                <div className="flex flex-col gap-3">
-                  {/* Banner Images Thumbnails (Listing Images Only) */}
-                  {offer.bannerImages && Array.isArray(offer.bannerImages) && offer.bannerImages.length > 0 && (
-                    <>
-                      {offer.bannerImages.map((bannerUrl: string, index: number) => (
-                        <button
-                          key={index}
-                          onClick={() => setSelectedImage(bannerUrl)}
-                          className={`relative aspect-square bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden border-2 transition-all ${
-                            selectedImage === bannerUrl ? 'border-purple-500 ring-2 ring-purple-300' : 'border-purple-100 hover:border-purple-300'
-                          }`}
-                        >
-                          <img
-                            src={bannerUrl}
-                            alt={`Listing ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </button>
-                      ))}
+              <div className="w-24 flex-shrink-0 relative">
+                <div className="h-[500px] overflow-hidden scroll-smooth" style={{ scrollBehavior: 'smooth' }}>
+                  <div
+                    id="offer-thumbnail-container"
+                    className="flex flex-col gap-3 h-full overflow-y-auto scrollbar-hide touch-pan-y"
+                    style={{
+                      scrollSnapType: 'y mandatory',
+                      scrollBehavior: 'smooth',
+                      WebkitOverflowScrolling: 'touch'
+                    }}
+                  >
+                    {/* Banner Images Thumbnails (Listing Images Only) */}
+                    {offer.bannerImages && Array.isArray(offer.bannerImages) && offer.bannerImages.length > 0 && (
+                      <>
+                        {offer.bannerImages.map((bannerUrl: string, index: number) => (
+                          <button
+                            key={index}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedImage(bannerUrl);
 
-                      {/* Video thumbnail (if a video exists and isn't already in bannerImages) */}
-                      {offer.videoUrl && !(offer.bannerImages || []).includes(offer.videoUrl) && (
-                        <button
-                          key="offer-video-thumb"
-                          onClick={() => setSelectedImage(offer.videoUrl)}
-                          className={`relative aspect-square bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden border-2 transition-all ${
-                            selectedImage === offer.videoUrl ? 'border-purple-500 ring-2 ring-purple-300' : 'border-purple-100 hover:border-purple-300'
-                          }`}
-                          title="Play Video"
-                        >
-                          <img
-                            src={offer.imageUrl || bannerImage}
-                            alt="Video preview"
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-12 h-12 rounded-full bg-black bg-opacity-60 flex items-center justify-center">
-                              <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <path d="M5 3v18l15-9L5 3z" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
+                              const container = document.getElementById('offer-thumbnail-container');
+                              if (container) {
+                                container.scrollTo({
+                                  top: index * 92,
+                                  behavior: 'smooth'
+                                });
+                              }
+                            }}
+                            className={`relative aspect-square bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden border-2 transition-all ${
+                              selectedImage === bannerUrl ? 'border-purple-500 ring-2 ring-purple-300' : 'border-purple-100 hover:border-purple-300'
+                            }`}
+                            style={{ scrollSnapAlign: 'start' }}
+                          >
+                            <img
+                              src={bannerUrl}
+                              alt={`Listing ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </button>
+                        ))}
+
+                        {/* Video thumbnail (if a video exists and isn't already in bannerImages) */}
+                        {offer.videoUrl && !(offer.bannerImages || []).includes(offer.videoUrl) && (
+                          <button
+                            key="offer-video-thumb"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedImage(offer.videoUrl);
+
+                              const container = document.getElementById('offer-thumbnail-container');
+                              if (container) {
+                                container.scrollTo({
+                                  top: container.scrollHeight,
+                                  behavior: 'smooth'
+                                });
+                              }
+                            }}
+                            className={`relative aspect-square bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg overflow-hidden border-2 transition-all ${
+                              selectedImage === offer.videoUrl ? 'border-purple-500 ring-2 ring-purple-300' : 'border-purple-100 hover:border-purple-300'
+                            }`}
+                            title="Play Video"
+                            style={{ scrollSnapAlign: 'start' }}
+                          >
+                            <img
+                              src={offer.imageUrl || bannerImage}
+                              alt="Video preview"
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <div className="w-12 h-12 rounded-full bg-black bg-opacity-60 flex items-center justify-center">
+                                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                  <path d="M5 3v18l15-9L5 3z" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      )}
-                    </>
-                  )}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
-              </ScrollArea>
+
+                {offer.bannerImages && Array.isArray(offer.bannerImages) && (offer.bannerImages.length + (offer.videoUrl && !(offer.bannerImages || []).includes(offer.videoUrl) ? 1 : 0)) > 3 && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+
+                        const thumbnails: string[] = [
+                          ...(offer.bannerImages || []),
+                          ...(offer.videoUrl && !(offer.bannerImages || []).includes(offer.videoUrl) ? [offer.videoUrl] : [])
+                        ];
+
+                        const currentIndex = thumbnails.findIndex((img) => img === selectedImage);
+                        const prevIndex = currentIndex <= 0 ? thumbnails.length - 1 : currentIndex - 1;
+                        setSelectedImage(thumbnails[prevIndex]);
+
+                        const container = document.getElementById('offer-thumbnail-container');
+                        if (container) {
+                          if (currentIndex <= 0) {
+                            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+                          } else {
+                            container.scrollTo({ top: prevIndex * 92, behavior: 'smooth' });
+                          }
+                        }
+                      }}
+                      className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 z-10 hover:bg-white cursor-pointer"
+                    >
+                      <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+
+                        const thumbnails: string[] = [
+                          ...(offer.bannerImages || []),
+                          ...(offer.videoUrl && !(offer.bannerImages || []).includes(offer.videoUrl) ? [offer.videoUrl] : [])
+                        ];
+
+                        const currentIndex = thumbnails.findIndex((img) => img === selectedImage);
+                        const nextIndex = currentIndex >= thumbnails.length - 1 ? 0 : currentIndex + 1;
+
+                        const container = document.getElementById('offer-thumbnail-container');
+                        if (container) {
+                          if (currentIndex >= thumbnails.length - 1) {
+                            container.scrollTo({ top: 0, behavior: 'smooth' });
+                          } else if (nextIndex === thumbnails.length - 1) {
+                            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+                          } else {
+                            container.scrollTo({ top: nextIndex * 92, behavior: 'smooth' });
+                          }
+                        }
+
+                        setSelectedImage(thumbnails[nextIndex]);
+                      }}
+                      className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all duration-200 z-10 hover:bg-white cursor-pointer"
+                    >
+                      <svg className="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
 
               {/* Main Display Area */}
               <div className="flex-1 bg-white rounded-lg overflow-hidden shadow-sm sticky top-8">
@@ -1241,22 +1341,6 @@ export default function OfferDetail() {
                   )}
 
                   {/* (Removed: Zoom hint and discount badge overlays on image per UI request) */}
-
-                  {/* Status Badge */}
-                  <div className="absolute top-4 left-4 z-20">
-                    {!isExpired ? (
-                      <div className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
-                        <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                        Active
-                      </div>
-                    ) : (
-                      <div className="z-20">
-                        <Badge className="bg-gray-600 text-white px-3 py-1 sm:px-3 sm:py-1.5 text-sm font-bold shadow-lg">
-                          ENDED
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
 
                   {/* Expired overlay: keep banner visible but show ended overlay */}
                   {isExpired && (

@@ -27,12 +27,13 @@ export function optimizeImageUrl(
   // Handle Unsplash URLs with aggressive optimization
   if (originalUrl.includes('unsplash.com')) {
     const baseUrl = originalUrl.split('?')[0];
-    return `${baseUrl}?w=${width}&h=${height}&q=${quality}&fit=crop&fm=webp&auto=format,compress&dpr=1`;
+    const unsplashFit = fit === 'contain' ? 'max' : fit === 'cover' ? 'crop' : 'crop';
+    return `${baseUrl}?w=${width}&h=${height}&q=${quality}&fit=${unsplashFit}&fm=webp&auto=format,compress&dpr=1`;
   }
 
   // Handle local images through our API
   if (originalUrl.startsWith('/api/images/')) {
-    return `${originalUrl}?w=${width}&h=${height}&q=${quality}&format=${format}`;
+    return `${originalUrl}?w=${width}&h=${height}&q=${quality}&format=${format}&fit=${fit}`;
   }
 
   // Return original URL for other sources

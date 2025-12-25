@@ -2401,7 +2401,7 @@ app.get("/api/admin/stores", async (req, res) => {
         amount: withdrawAmount.toFixed(2),
         balanceType: commissionBalance >= withdrawAmount ? 'commission' : 'mixed',
         description: `Withdrawal request of ₹${withdrawAmount.toFixed(2)}`,
-        status: 'pending',
+        status: 'completed',
         transactionId: null,
         notes: null,
         processedAt: null,
@@ -3793,7 +3793,7 @@ app.put("/api/admin/offers/:id", upload.fields([
     }
 
     // Parse query parameters for optimization
-    const { w: width, h: height, q: quality, format } = req.query;
+    const { w: width, h: height, q: quality, format, fit } = req.query;
 
     // Set appropriate content type based on format or file extension
     const extension = path.extname(imagePath).toLowerCase();
@@ -3811,7 +3811,7 @@ app.put("/api/admin/offers/:id", upload.fields([
     if (format === 'png') contentType = 'image/png';
 
     // Create cache key based on file and parameters
-    const params = `${width || ''}-${height || ''}-${quality || ''}-${format || ''}`;
+    const params = `${width || ''}-${height || ''}-${quality || ''}-${format || ''}-${fit || ''}`;
     const cacheKey = `${req.path}-${params}`;
     const fileStats = fs.statSync(imagePath);
 
@@ -3835,8 +3835,11 @@ app.put("/api/admin/offers/:id", upload.fields([
       return res.status(304).end();
     }
 
+    const allowedFits = new Set(['cover', 'contain', 'fill', 'inside', 'outside']);
+    const requestedFit = typeof fit === 'string' && allowedFits.has(fit) ? fit : 'cover';
+
     // Process image with Sharp if parameters are provided
-    if (width || height || quality || format) {
+    if (width || height || quality || format || fit) {
       try {
         let pipeline = sharp(imagePath);
 
@@ -3846,7 +3849,7 @@ app.put("/api/admin/offers/:id", upload.fields([
             width ? parseInt(width as string) : undefined,
             height ? parseInt(height as string) : undefined,
             {
-              fit: 'cover',
+              fit: requestedFit as any,
               position: 'center',
               withoutEnlargement: true
             }
@@ -6183,7 +6186,7 @@ app.put("/api/admin/offers/:id", upload.fields([
 
             const currentBalance = parseFloat(walletForBalance?.[0]?.cashbackBalance || '0');
             const orderTimestamp = (newOrder as any).createdAt ? new Date((newOrder as any).createdAt) : new Date();
-            const eligibleAt = new Date(orderTimestamp.getTime() + 60 * 1000);
+            const eligibleAt = new Date(orderTimestamp.getTime() + 120 * 24 * 60 * 60 * 1000);
 
             for (const cashbackItem of cashbackItems) {
               await db.insert(schema.userWalletTransactions).values({
@@ -10344,9 +10347,34 @@ Poppik Career Portal
         wallet = [newWallet];
       }
 
+      const now = new Date();
+
+      const pendingSumRows = await db
+        .select({
+          pendingCashback: sql<number>`coalesce(sum(${schema.userWalletTransactions.amount}), 0)`,
+        })
+        .from(schema.userWalletTransactions)
+        .where(
+          and(
+            eq(schema.userWalletTransactions.userId, parseInt(userId as string)),
+            eq(schema.userWalletTransactions.type, 'pending'),
+            eq(schema.userWalletTransactions.status, 'pending'),
+            or(
+              isNull(schema.userWalletTransactions.eligibleAt),
+              sql`${schema.userWalletTransactions.eligibleAt} > ${now}`
+            )
+          )
+        );
+
+      const pendingCashback = Number(pendingSumRows?.[0]?.pendingCashback || 0);
+      const baseCashbackBalance = parseFloat(wallet[0].cashbackBalance);
+      const displayCashbackBalance = baseCashbackBalance + pendingCashback;
+
       res.json({
         userId: parseInt(userId as string),
-        cashbackBalance: parseFloat(wallet[0].cashbackBalance),
+        cashbackBalance: baseCashbackBalance,
+        pendingCashback,
+        displayCashbackBalance,
         totalEarned: parseFloat(wallet[0].totalEarned),
         totalRedeemed: parseFloat(wallet[0].totalRedeemed),
         createdAt: wallet[0].createdAt,

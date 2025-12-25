@@ -16,6 +16,8 @@ interface WishlistItem {
   inStock: boolean;
   category: string;
   rating: string;
+  cashbackPercentage?: number | string | null;
+  cashbackPrice?: number | string | null;
 }
 
 export default function Wishlist() {
@@ -68,12 +70,15 @@ export default function Wishlist() {
     } else {
       cart.push({
         id: item.id,
+        itemKey: `${item.id}`,
         name: item.name,
         price: item.price,
         originalPrice: item.originalPrice,
         image: item.image,
         quantity: 1,
-        inStock: item.inStock
+        inStock: item.inStock,
+        cashbackPercentage: item.cashbackPercentage ?? undefined,
+        cashbackPrice: item.cashbackPrice ?? undefined,
       });
     }
     

@@ -52,7 +52,7 @@ export default function OffersPage() {
     
 
       {/* Offers Grid - Responsive Layout */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 md:py-12 lg:py-16">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 md:py-6 lg:py-8">
         <div className="grid grid-cols-1 gap-4 sm:gap-6 md:gap-8 lg:gap-10">
           {displayOffers.map((offer) => {
             const discount = offer.discountPercentage 
@@ -64,7 +64,7 @@ export default function OffersPage() {
             return (
               <Link href={`/offer/${offer.id}`} key={offer.id}>
                 <Card 
-                  className="group overflow-hidden border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-white cursor-pointer"
+                  className="overflow-hidden border-0 shadow-md bg-white cursor-pointer"
                 >
                   <CardContent className="p-0">
                     <div className="relative overflow-hidden">
@@ -87,14 +87,13 @@ export default function OffersPage() {
                       )}
 
                       {/* Image - Responsive Heights */}
-                      <div className="relative h-48 xs:h-56 sm:h-72 md:h-80 lg:h-96 xl:h-[400px] overflow-hidden bg-gradient-to-br from-pink-100 to-purple-100">
+                      <div className="relative h-40 xs:h-48 sm:h-72 md:h-80 lg:h-96 xl:h-[400px] overflow-hidden bg-gradient-to-br from-pink-100 to-purple-100">
                         <img
                           src={offer.imageUrl}
                           alt={offer.title}
-                          className="w-full h-full  group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full"
                           loading="lazy"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                       </div>
 
                       {/* Content Overlay - Responsive Padding & Text */}

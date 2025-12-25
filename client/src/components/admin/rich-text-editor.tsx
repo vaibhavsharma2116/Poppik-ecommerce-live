@@ -53,12 +53,82 @@ export default function RichTextEditor({ content, onChange, onPreview }: RichTex
   const [linkText, setLinkText] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [pasteOptions, setPasteOptions] = useState<{
+    open: boolean;
+    html: string;
+    text: string;
+    x: number;
+    y: number;
+  }>({ open: false, html: '', text: '', x: 0, y: 0 });
+  const editorContainerRef = useRef<HTMLDivElement | null>(null);
   const onChangeRef = useRef(onChange);
 
   // Keep onChange ref in sync
   React.useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  const cleanPastedHtml = useCallback((html: string) => {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      const blockedTags = new Set([
+        'meta',
+        'style',
+        'script',
+        'link',
+        'title',
+        'head',
+      ]);
+
+      const unwrapTags = new Set([
+        'span',
+        'font',
+        'div',
+      ]);
+
+      const allowedAttrs = new Set(['href', 'src', 'alt']);
+
+      const walk = (node: Node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as HTMLElement;
+          const tag = el.tagName.toLowerCase();
+
+          if (blockedTags.has(tag)) {
+            el.remove();
+            return;
+          }
+
+          if (unwrapTags.has(tag)) {
+            const parent = el.parentNode;
+            if (parent) {
+              while (el.firstChild) parent.insertBefore(el.firstChild, el);
+              parent.removeChild(el);
+            }
+            return;
+          }
+
+          Array.from(el.attributes).forEach((attr) => {
+            if (!allowedAttrs.has(attr.name.toLowerCase())) {
+              el.removeAttribute(attr.name);
+            }
+          });
+        }
+
+        const children = Array.from(node.childNodes);
+        for (const child of children) {
+          walk(child);
+        }
+      };
+
+      walk(doc.body);
+
+      return doc.body.innerHTML || '';
+    } catch {
+      return '';
+    }
+  }, []);
 
   const editor = useEditor({
     extensions: [
@@ -84,20 +154,79 @@ export default function RichTextEditor({ content, onChange, onPreview }: RichTex
       console.log('🔄 Editor updated, calling onChange with length:', html.length);
       onChangeRef.current(html);
     },
+    editorProps: {
+      handlePaste: (view, event) => {
+        const clipboard = event.clipboardData;
+        if (!clipboard) return false;
+
+        const html = clipboard.getData('text/html') || '';
+        const text = clipboard.getData('text/plain') || '';
+
+        if (!html && !text) return false;
+
+        event.preventDefault();
+
+        const pos = view.state.selection.from;
+        const coords = view.coordsAtPos(pos);
+        const rect = editorContainerRef.current?.getBoundingClientRect();
+
+        setPasteOptions({
+          open: true,
+          html,
+          text,
+          x: rect ? coords.left - rect.left : 0,
+          y: rect ? coords.bottom - rect.top : 0,
+        });
+
+        return true;
+      },
+    },
   });
+
+  React.useEffect(() => {
+    if (!pasteOptions.open) return;
+    const onDown = (e: MouseEvent) => {
+      const container = editorContainerRef.current;
+      if (!container) return;
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (!container.contains(target)) {
+        setPasteOptions((s) => ({ ...s, open: false }));
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [pasteOptions.open]);
 
   // Sync external content prop changes
   React.useEffect(() => {
     if (!editor) return;
     if (content && content !== '<p></p>' && content !== editor.getHTML()) {
       console.log('📌 Syncing content from prop, length:', content.length);
-      editor.commands.setContent(content, false);
+      editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
 
   if (!editor) {
     return null;
   }
+
+  const applyPaste = (mode: 'keep' | 'clean' | 'text') => {
+    const html = pasteOptions.html || '';
+    const text = pasteOptions.text || '';
+
+    let payload = '';
+    if (mode === 'text') {
+      payload = text;
+    } else if (mode === 'clean') {
+      payload = cleanPastedHtml(html) || text;
+    } else {
+      payload = html || text;
+    }
+
+    editor.chain().focus().insertContent(payload).run();
+    setPasteOptions((s) => ({ ...s, open: false, html: '', text: '' }));
+  };
 
   const handleImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -183,7 +312,7 @@ export default function RichTextEditor({ content, onChange, onPreview }: RichTex
   );
 
   return (
-    <div className="border rounded-md">
+    <div ref={editorContainerRef} className="border rounded-md relative">
       {/* Toolbar */}
       <div className="border-b p-2 flex flex-wrap gap-1 bg-muted/50">
         {/* Text Formatting */}
@@ -389,6 +518,24 @@ export default function RichTextEditor({ content, onChange, onPreview }: RichTex
         editor={editor}
         className="prose prose-sm max-w-none p-4 min-h-[300px] focus:outline-none"
       />
+
+      {pasteOptions.open && (
+        <div
+          className="absolute z-50 bg-white border rounded-md shadow-lg p-2 flex items-center gap-2"
+          style={{ left: pasteOptions.x, top: pasteOptions.y }}
+        >
+          <div className="text-xs text-muted-foreground pr-2">Paste Options:</div>
+          <Button type="button" size="sm" variant="outline" onClick={() => applyPaste('keep')}>
+            Keep
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => applyPaste('clean')}>
+            Clean
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => applyPaste('text')}>
+            Text
+          </Button>
+        </div>
+      )}
 
       {/* Image Dialog */}
       <Dialog open={showImageDialog} onOpenChange={(open) => {

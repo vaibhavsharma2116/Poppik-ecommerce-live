@@ -24,6 +24,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface WalletData {
   userId: number;
   cashbackBalance: number;
+  pendingCashback?: number;
+  displayCashbackBalance?: number;
   totalEarned: number;
   totalRedeemed: number;
   createdAt: string;
@@ -32,7 +34,7 @@ interface WalletData {
 
 interface Transaction {
   id: number;
-  type: 'credit' | 'redeem' | 'reserve';
+  type: 'credit' | 'redeem' | 'reserve' | 'pending';
   amount: string;
   description: string;
   orderId?: number;
@@ -40,6 +42,7 @@ interface Transaction {
   balanceAfter: string;
   status: string;
   createdAt: string;
+  eligibleAt?: string | null;
   expiresAt?: string | null;
 }
 
@@ -58,9 +61,13 @@ export default function Wallet() {
 
   const formatCountdown = (ms: number) => {
     const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const totalHours = Math.floor(totalMinutes / 60);
+    const days = Math.floor(totalHours / 24);
+    if (days >= 1) return `${days} day${days === 1 ? '' : 's'}`;
+    const h = totalHours;
+    const m = totalMinutes % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   };
 
   // Fetch wallet data
@@ -114,9 +121,15 @@ export default function Wallet() {
   }, [refetchTransactions, refetchWallet]);
 
   const transactions = Array.isArray(transactionsData) ? transactionsData : [];
+  const visibleTransactions = transactions.filter((t) => {
+    if (t.type !== 'pending') return true;
+    if (!t.eligibleAt) return true;
+    const eligibleAtMs = new Date(t.eligibleAt).getTime();
+    return eligibleAtMs > nowMs;
+  });
 
   // Filter transactions
-  const filteredTransactions = transactions.filter(transaction => {
+  const filteredTransactions = visibleTransactions.filter(transaction => {
     const matchesSearch = transaction.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = filterType === "all" || transaction.type === filterType;
 
@@ -202,7 +215,7 @@ export default function Wallet() {
 
             <div className="mb-8">
               <p className="text-5xl font-bold mb-2">
-                ₹{(walletData?.cashbackBalance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ₹{(walletData?.displayCashbackBalance ?? walletData?.cashbackBalance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
               <p className="text-pink-100 text-sm">Available for redemption on your next purchase</p>
             </div>
@@ -312,6 +325,7 @@ export default function Wallet() {
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="credit">Credits Only</SelectItem>
+                  <SelectItem value="pending">Pending Cashback</SelectItem>
                   <SelectItem value="redeem">Debits Only</SelectItem>
                   <SelectItem value="reserve">Reserved Only</SelectItem>
                 </SelectContent>
@@ -361,11 +375,15 @@ export default function Wallet() {
                       <div className="flex items-center gap-4 flex-1">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow ${transaction.type === 'credit'
                             ? 'bg-gradient-to-br from-green-400 to-green-500'
+                            : transaction.type === 'pending'
+                            ? 'bg-gradient-to-br from-blue-400 to-blue-500'
                             : transaction.type === 'reserve'
                             ? 'bg-gradient-to-br from-orange-400 to-orange-500'
                             : 'bg-gradient-to-br from-red-400 to-red-500'
                           }`}>
                           {transaction.type === 'credit' ? (
+                            <ArrowDownRight className="h-6 w-6 text-white" />
+                          ) : transaction.type === 'pending' ? (
                             <ArrowDownRight className="h-6 w-6 text-white" />
                           ) : transaction.type === 'reserve' ? (
                             <ArrowUpRight className="h-6 w-6 text-white" />
@@ -380,10 +398,18 @@ export default function Wallet() {
                             {transaction.type === 'reserve' && transaction.status === 'pending' && (
                               <Badge className="bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-100">Expiring</Badge>
                             )}
+                            {transaction.type === 'pending' && (
+                              <Badge className="bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-100">Temporary</Badge>
+                            )}
                           </div>
                           {transaction.type === 'reserve' && transaction.status === 'pending' && transaction.expiresAt && (
                             <div className="text-xs text-orange-600 mb-1">
                               Expires in {formatCountdown(new Date(transaction.expiresAt).getTime() - nowMs)}
+                            </div>
+                          )}
+                          {transaction.type === 'pending' && transaction.eligibleAt && (
+                            <div className="text-xs text-blue-600 mb-1">
+                              Disappears in {formatCountdown(new Date(transaction.eligibleAt).getTime() - nowMs)}
                             </div>
                           )}
                           <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -405,9 +431,13 @@ export default function Wallet() {
                       </div>
 
                       <div className="text-right">
-                        <p className={`text-xl font-bold mb-1 ${transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                        <p className={`text-xl font-bold mb-1 ${transaction.type === 'credit'
+                          ? 'text-green-600'
+                          : transaction.type === 'pending'
+                          ? 'text-blue-600'
+                          : 'text-red-600'
                           }`}>
-                          {transaction.type === 'credit' ? '+' : '-'}₹{parseFloat(transaction.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          {transaction.type === 'credit' || transaction.type === 'pending' ? '+' : '-'}₹{parseFloat(transaction.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </p>
                         <p className="text-xs text-gray-500">
                           Balance: <span className="font-semibold text-gray-700">₹{parseFloat(transaction.balanceAfter).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>

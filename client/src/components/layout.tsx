@@ -940,7 +940,7 @@ export default function Layout({ children }: LayoutProps) {
                             </div>
                           </div>
                           <p className="font-bold text-blue-600">
-                            ₹{walletData?.cashbackBalance || "0.00"}
+                            ₹{(walletData as any)?.displayCashbackBalance ?? (walletData as any)?.cashbackBalance ?? "0.00"}
                           </p>
                         </div>
                       </Link>
@@ -979,7 +979,7 @@ export default function Layout({ children }: LayoutProps) {
                         <p className="text-xs font-medium text-gray-600">Total Balance</p>
                         <p className="text-lg font-bold text-gray-900">
                           ₹{(
-                            parseFloat(walletData?.cashbackBalance || "0") +
+                            parseFloat(((walletData as any)?.displayCashbackBalance ?? (walletData as any)?.cashbackBalance ?? "0") as any) +
                             parseFloat(affiliateWallet?.commissionBalance || "0")
                           ).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
@@ -1564,14 +1564,20 @@ export default function Layout({ children }: LayoutProps) {
               <h4 className="font-semibold mb-4 text-white text-sm">Our Initiatives</h4>
               <ul className="space-y-2">
                 <li>
-                  <Link href="/academy" className="text-gray-400 hover:text-white transition-colors text-sm">
+                  <a
+                    href="https://poppikacademy.com/"
+                    className="text-gray-400 hover:text-white transition-colors text-sm"
+                  >
                     Poppik Academy
-                  </Link>
+                  </a>
                 </li>
                 <li>
-                  <Link href="/drop-shipping" className="text-gray-400 hover:text-white transition-colors text-sm">
+                  <a
+                    href="https://poppikdropshipping.com/"
+                    className="text-gray-400 hover:text-white transition-colors text-sm"
+                  >
                     Poppik Dropshipping
-                  </Link>
+                  </a>
                 </li>
                 <li  >
                   <Link href="/makeup-studio"   className="text-gray-400 hover:text-white transition-colors text-sm">

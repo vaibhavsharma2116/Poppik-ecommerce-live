@@ -22,7 +22,7 @@ interface Contest {
 }
 
 export default function ContestDetail() {
-  const { slug } = useParams();
+  const { slug } = useParams<{ slug: string }>();
   const [contest, setContest] = useState<Contest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -137,7 +137,7 @@ export default function ContestDetail() {
         <img
           src={contest.bannerImageUrl || contest.imageUrl}
           alt={contest.title}
-          className="w-full h-[100px] sm:h-[300px] md:h-[300px] lg:h-[300px] "
+          className="w-full h-[160px] sm:h-[320px] md:h-[380px] lg:h-[420px] object-cover object-center"
         />
       </div>
 
@@ -241,7 +241,7 @@ export default function ContestDetail() {
         </div>
 
         {/* Title */}
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-8">
+        <h1 className="text-2sm lg:text-5xl xl:text-3xl text-gray-900 mb-4 sm:mb-6 leading-tight">
           {contest.title}
         </h1>
 
