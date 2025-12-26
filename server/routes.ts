@@ -3224,12 +3224,37 @@ app.put("/api/admin/offers/:id", upload.fields([
       const offerId = parseInt(req.params.id);
       const { rating, title, comment, userName, orderId } = req.body;
 
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+      let userId: number | null = null;
+      if (token) {
+        try {
+          const decoded: any = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+          userId = Number(decoded?.userId ?? decoded?.id ?? null);
+        } catch (e) {
+          userId = null;
+        }
+      }
+      if (!userId) {
+        const qUserId = Number(req.query.userId);
+        if (!Number.isNaN(qUserId) && qUserId > 0) userId = qUserId;
+      }
+
+      if (!userId) {
+        return res.status(401).json({ error: "Please login to submit a review" });
+      }
+
       if (isNaN(offerId)) {
         return res.status(400).json({ error: "Invalid offer ID" });
       }
 
       if (!rating || !title || !comment) {
         return res.status(400).json({ error: "Rating, title, and comment are required" });
+      }
+
+      const eligibility = await storage.checkUserCanReviewOffer(userId, offerId);
+      if (!eligibility.canReview) {
+        return res.status(403).json({ error: eligibility.message || "You must purchase this offer to leave a review" });
       }
 
       // For now, just return success
@@ -3255,15 +3280,27 @@ app.put("/api/admin/offers/:id", upload.fields([
       }
 
       if (!userId) {
-        return res.json({ canReview: false, message: "Please login to review" });
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+        if (!token) {
+          return res.json({ canReview: false, message: "Please login to review" });
+        }
+
+        try {
+          const decoded: any = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+          const tokenUserId = Number(decoded?.userId ?? decoded?.id ?? null);
+          if (!tokenUserId || Number.isNaN(tokenUserId)) {
+            return res.json({ canReview: false, message: "Please login to review" });
+          }
+          const canReview = await storage.checkUserCanReviewOffer(tokenUserId, offerId);
+          return res.json(canReview);
+        } catch (e) {
+          return res.json({ canReview: false, message: "Please login to review" });
+        }
       }
 
-      // Check if user has purchased this offer
-      // For now, allow all logged-in users to review
-      res.json({ 
-        canReview: true, 
-        message: "You can review this offer"
-      });
+      const canReview = await storage.checkUserCanReviewOffer(parseInt(userId as string), offerId);
+      res.json(canReview);
     } catch (error) {
       console.error("Error checking review eligibility:", error);
       res.status(500).json({ error: "Failed to check review eligibility" });

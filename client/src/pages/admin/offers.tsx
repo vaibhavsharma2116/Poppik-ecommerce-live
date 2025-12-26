@@ -1370,7 +1370,6 @@ export default function AdminOffers() {
                     <TableCell>
                       <div>
                         <div className="font-medium">{offer.title}</div>
-                        <div className="text-xs text-slate-500">{offer.description}</div>
                       </div>
                     </TableCell>
                     <TableCell>

@@ -553,7 +553,10 @@ export default function OfferDetail() {
       if (!user) return { canReview: false, message: "Please login to review" };
 
       const userData = JSON.parse(user);
-      const response = await fetch(`/api/offers/${offerId}/can-review?userId=${userData.id}`);
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/offers/${offerId}/can-review?userId=${userData.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       if (!response.ok) {
         return { canReview: false, message: "Unable to check review eligibility" };
       }
@@ -845,7 +848,12 @@ export default function OfferDetail() {
       const userData = JSON.parse(user);
       const response = await fetch(`/api/offers/${offerId}/reviews`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(localStorage.getItem("token")
+            ? { Authorization: `Bearer ${localStorage.getItem("token")}` }
+            : {}),
+        },
         body: JSON.stringify({
           ...newReview,
           userName: newReview.userName || userData.username || "Anonymous",

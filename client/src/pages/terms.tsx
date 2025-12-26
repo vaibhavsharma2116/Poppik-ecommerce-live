@@ -73,7 +73,40 @@ export default function Terms() {
       id: "affiliate",
       icon: User,
       title: "Affiliate, Commission & Wallet",
-      content: "Commission is a promotional earning provided to eligible affiliates for successful referrals and sales as described below. Commission is credited to your Affiliate Wallet and is subject to these specific terms: \n\n1. Eligibility: Commission is awarded only on qualifying sales made through your affiliate link/code as per the offer terms. Certain categories, products, coupons, or payment methods may be excluded. \n\n2. Crediting: Commission may take up to 7 business days to reflect in your Wallet after order delivery/fulfilment and verification. Cancelled or returned orders will not earn commission. \n\n3. Expiry: Commission credited to your Wallet is valid for withdrawal for 180 days from the date it is credited unless a different period is stated in the offer. Expired commission will be automatically removed and is non-recoverable. \n\n4. Withdrawal: Commission can be withdrawn to your bank account once minimum withdrawal threshold is met (e.g., ₹2500). Withdrawal requests are subject to verification and may take up to 7 business days to process. Poppik reserves the right to reject withdrawal requests if fraudulent activity is suspected. \n\n5. Stacking: Commission earnings may be subject to stacking rules with other offers, bonuses, or incentives. Poppik reserves the right to restrict stacking for specific campaigns. \n\n6. Reversals: If an order is returned, cancelled, or refunded, any commission earned from that order may be reversed from your Wallet. Refunds will be processed according to our refund policy and may exclude paid commission. \n\n7. Abuse & Fraud: Any attempt to manipulate, game, or abuse affiliate programs (including creating multiple accounts, using false information, or fraudulently triggering referrals) will result in forfeiture of commission, account suspension, and possible legal action. \n\n8. Limits & Changes: Poppik may impose limits on commission per user, per transaction, or overall. Poppik reserves the right to modify, pause, or terminate affiliate programs at any time without prior notice. \n\n9. Disputes: Any disputes related to commission will be resolved at the sole discretion of Poppik Lifestyle Pvt. Ltd., and its decision will be final and binding."
+      content: (
+        <div className="rounded-xl border border-red-100 bg-red-50/50 p-4">
+          <p className="text-gray-700 leading-relaxed text-base whitespace-pre-line">
+            Commission is a promotional earning provided to eligible affiliates for successful referrals and sales as described below. Commission is credited to your Affiliate Wallet and is subject to these specific terms: 
+            <br />
+            <br />
+            1. Eligibility: Commission is awarded only on qualifying sales made through your affiliate link/code as per the offer terms. Certain categories, products, coupons, or payment methods may be excluded. 
+            <br />
+            <br />
+            2. Crediting: Commission may take up to 7 business days to reflect in your Wallet after order delivery/fulfilment and verification. Cancelled or returned orders will not earn commission. 
+            <br />
+            <br />
+            3. Expiry: Commission credited to your Wallet is valid for withdrawal for 180 days from the date it is credited unless a different period is stated in the offer. Expired commission will be automatically removed and is non-recoverable. 
+            <br />
+            <br />
+            4. Withdrawal: Commission can be withdrawn to your bank account once minimum withdrawal threshold is met (e.g., ₹2500). Withdrawal requests are subject to verification and may take up to 7 business days to process. Poppik reserves the right to reject withdrawal requests if fraudulent activity is suspected. 
+            <br />
+            <br />
+            5. Stacking: Commission earnings may be subject to stacking rules with other offers, bonuses, or incentives. Poppik reserves the right to restrict stacking for specific campaigns. 
+            <br />
+            <br />
+            6. Reversals: If an order is returned, cancelled, or refunded, any commission earned from that order may be reversed from your Wallet. Refunds will be processed according to our refund policy and may exclude paid commission. 
+            <br />
+            <br />
+            7. Abuse & Fraud: Any attempt to manipulate, game, or abuse affiliate programs (including creating multiple accounts, using false information, or fraudulently triggering referrals) will result in forfeiture of commission, account suspension, and possible legal action. 
+            <br />
+            <br />
+            8. Limits & Changes: Poppik may impose limits on commission per user, per transaction, or overall. Poppik reserves the right to modify, pause, or terminate affiliate programs at any time without prior notice. 
+            <br />
+            <br />
+            9. Disputes: Any disputes related to commission will be resolved at the sole discretion of Poppik Lifestyle Pvt. Ltd., and its decision will be final and binding.
+          </p>
+        </div>
+      )
     },
     {
       icon: User,
@@ -186,9 +219,17 @@ export default function Terms() {
                 </CardHeader>
                 <CardContent>
                   {typeof section.content === "string" ? (
-                    <p className="text-gray-700 leading-relaxed text-base whitespace-pre-line">
-                      {section.content}
-                    </p>
+                    section.id === 'affiliate' ? (
+                      <div className="rounded-xl border border-red-100 bg-red-50/50 p-4">
+                        <p className="text-gray-700 leading-relaxed text-base whitespace-pre-line">
+                          {section.content}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-gray-700 leading-relaxed text-base whitespace-pre-line">
+                        {section.content}
+                      </p>
+                    )
                   ) : (
                     section.content
                   )}
