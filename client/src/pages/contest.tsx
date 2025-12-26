@@ -75,12 +75,12 @@ export default function ContestsPage() {
                         </div>
                       )}
 
-                      {/* Image - Responsive Heights */}
-                      <div className="relative h-40 xs:h-48 sm:h-72 md:h-80 lg:h-96 xl:h-[400px] overflow-hidden bg-gradient-to-br from-yellow-100 to-orange-100">
+                      {/* Image */}
+                      <div className="w-full bg-gray-100">
                         <img
                           src={contest.imageUrl}
                           alt={contest.title}
-                          className="w-full h-full"
+                          className="block w-full h-auto"
                           loading="lazy"
                         />
                       </div>
