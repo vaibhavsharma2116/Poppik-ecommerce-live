@@ -207,23 +207,14 @@ export default function ChannelPartnerPage() {
     <div className="min-h-screen bg-white">
     
         <div className="mb-4 xs:mb-5 sm:mb-6 md:mb-8">
-          <a href="https://docs.google.com/forms/d/e/1FAIpQLScXcgR5MUHnlCHsV56rTrLwxvRDYv4bjU96tgxyu5qg-On2bw/viewform?usp=send_form" target="_blank" rel="noopener noreferrer" className="relative w-full overflow-hidden rounded-2xl shadow-2xl block">
+          <a href="https://docs.google.com/forms/d/e/1FAIpQLScXcgR5MUHnlCHsV56rTrLwxvRDYv4bjU96tgxyu5qg-On2bw/viewform?usp=send_form" target="_blank" rel="noopener noreferrer" className="relative w-full overflow-hidden  block">
             <img 
-              src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2000&auto=format&fit=crop"
+              src="/CHANNELPART.jpg"
               alt="Join Our Team at Poppik" 
-              className="w-full h-auto object-cover"
+              className="w-full h-auto "
               style={{ maxHeight: '500px' }}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end">
-              <div className="p-4 xs:p-6 sm:p-8 md:p-10 lg:p-12 w-full">
-                <h2 className="text-white text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 xs:mb-3 sm:mb-4">
-                  Join Our Channel Partner Team At Poppik
-                </h2>
-                <p className="text-white/90 text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl">
-                  Be part of something amazing. Build your career with Poppik Lifestyle.
-                </p>
-              </div>
-            </div>
+            
           </a>
         </div>
 
@@ -584,23 +575,19 @@ export default function ChannelPartnerPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-purple-600 to-pink-600">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Sparkles className="w-12 h-12 text-white mx-auto mb-4" />
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            Ready to Build Your Business Empire?
-          </h2>
-          <p className="text-lg text-white/90 mb-8">
-            Join the Poppik family and unlock unlimited growth potential
-          </p>
-          <Button 
-            onClick={() => window.open('https://forms.gle/FBpJH1oZ1aKaNGhE6', '_blank')}
-            size="lg"
-            className="bg-white text-purple-600 hover:bg-pink-50"
-          >
-            Become a Channel Partner Today
-          </Button>
-        </div>
+      <section className="py-0">
+        <a
+          href="https://forms.gle/FBpJH1oZ1aKaNGhE6"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full"
+        >
+          <img
+            src="/CHANNELPARTNER.jpg"
+            alt="Become a Channel Partner"
+            className="block w-full h-auto object-cover"
+          />
+        </a>
       </section>
     </div>
   );

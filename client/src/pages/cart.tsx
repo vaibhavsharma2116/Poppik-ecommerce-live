@@ -26,6 +26,7 @@ interface CartItem {
   inStock: boolean;
   cashbackPercentage?: string;
   cashbackPrice?: string;
+
   selectedShade?: {
     id: number;
     name: string;
@@ -39,6 +40,10 @@ interface CartItem {
   discountAmount?: number;
   isOfferItem?: boolean;
   itemKey?: string;
+  productNames?: string[];
+  offerTitle?: string;
+  totalProducts?: number;
+  discountValue?: number;
   // Affiliate fields
   affiliate_user_discount?: number;
   affiliate_commission?: number;
@@ -73,6 +78,18 @@ export default function Cart() {
   const [savingToWishlist, setSavingToWishlist] = useState<number | null>(null);
   const { toast } = useToast();
   const [, setLocation] = useLocation(); // Get navigation function from useLocation
+  const [showGiftMilestoneBlast, setShowGiftMilestoneBlast] = useState(false);
+  const [giftMilestoneBlastMessage, setGiftMilestoneBlastMessage] = useState<string | null>(null);
+  const [giftMilestoneBlastConfetti, setGiftMilestoneBlastConfetti] = useState<
+    Array<{ id: number; left: number; delay: number; duration: number; rotate: number; size: number; color: string }>
+  >([]);
+  const [giftMilestoneBlastKey, setGiftMilestoneBlastKey] = useState(0);
+
+  const closeGiftMilestoneBlast = () => {
+    setShowGiftMilestoneBlast(false);
+    setGiftMilestoneBlastMessage(null);
+    setGiftMilestoneBlastConfetti([]);
+  };
 
   // Placeholder for user data, replace with actual user context or hook
   const [user, setUser] = useState<User | null>(null);
@@ -128,6 +145,17 @@ export default function Cart() {
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
+
+  const giftMilestonesSorted = Array.isArray(giftMilestones)
+    ? [...giftMilestones].sort((a: any, b: any) => {
+        const aMin = parseFloat(String(a?.minAmount ?? "0"));
+        const bMin = parseFloat(String(b?.minAmount ?? "0"));
+        if (Number.isNaN(aMin) && Number.isNaN(bMin)) return 0;
+        if (Number.isNaN(aMin)) return 1;
+        if (Number.isNaN(bMin)) return -1;
+        return aMin - bMin;
+      })
+    : [];
 
   // Fetch wallet data
   const { data: walletData } = useQuery({
@@ -197,7 +225,6 @@ export default function Cart() {
       setIsAffiliate(false);
     }
   }, [affiliateApplication]);
-
 
   // Load cart from localStorage on component mount
   useEffect(() => {
@@ -295,288 +322,146 @@ export default function Cart() {
     localStorage.setItem('affiliateWalletAmount', affiliateWalletAmount.toString());
   }, [affiliateWalletAmount]);
 
-
-
-
-  const updateQuantity = (id: number, newQuantity: number, itemIndex?: number) => {
-    if (newQuantity === 0) {
-      removeItem(id, itemIndex);
-      return;
-    }
-
-    if (newQuantity > 10) {
-      toast({
-        title: "Maximum Quantity Reached",
-        description: "You can only add up to 10 items of the same product",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setCartItems(items =>
-      items.map((item, index) =>
-        (itemIndex !== undefined ? index === itemIndex : item.id === id)
-          ? { ...item, quantity: newQuantity }
-          : item
-      )
-    );
-
-    // Dispatch event after state update
-    setTimeout(() => window.dispatchEvent(new Event("cartUpdated")), 0);
-
-    toast({
-      title: "Cart Updated",
-      description: "Item quantity has been updated",
-    });
-  };
-
-  const removeItem = (id: number, itemIndex?: number) => {
-    const item = cartItems.find((item, index) =>
-      itemIndex !== undefined ? index === itemIndex : item.id === id
-    );
-    setCartItems(items =>
-      items.filter((item, index) =>
-        itemIndex !== undefined ? index !== itemIndex : item.id !== id
-      )
-    );
-
-    // Dispatch event after state update
-    setTimeout(() => window.dispatchEvent(new Event("cartUpdated")), 0);
-  };
-
-  const saveForLater = async (id: number) => {
-    setSavingToWishlist(id);
-    const item = cartItems.find(item => item.id === id);
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const existingWishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
-      const wishlistItem = { ...item, dateAdded: new Date().toISOString() };
-      localStorage.setItem("wishlist", JSON.stringify([...existingWishlist, wishlistItem]));
-
-      removeItem(id);
-
-      toast({
-        title: "Saved for Later",
-        description: `${item?.name} has been moved to your wishlist`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Unable to save item for later. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingToWishlist(null);
-    }
-  };
-
-  const clearCart = () => {
-    if (cartItems.length === 0) return;
-
-    setCartItems([]);
-
-    // Dispatch event after state update
-    setTimeout(() => window.dispatchEvent(new Event("cartUpdated")), 0);
-
-    toast({
-      title: "Cart Cleared",
-      description: "All items have been removed from your cart",
-    });
-  };
-
-  // Function to apply affiliate code
-  const applyAffiliateCode = (code: string) => {
-    // Prevent applying affiliate when a promo is already applied
-    if (appliedPromo) {
-      toast({
-        title: "Cannot Apply Affiliate Code",
-        description: `A promo code is already applied (${appliedPromo.code}). Remove the promo code first to use an affiliate code.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Save affiliate code for checkout
-    try {
-      const normalized = code.toUpperCase();
-      setAffiliateCode(normalized);
-      localStorage.setItem('referralCode', normalized);
-      toast({
-        title: "Affiliate Code Saved",
-        description: `Affiliate code ${normalized} will be applied at checkout.`,
-      });
-    } catch (e) {
-      console.error('Error applying affiliate code:', e);
-      toast({
-        title: "Error",
-        description: "Failed to apply affiliate code. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Function to apply promo code
-  const applyPromoCode = async () => {
-    const code = promoCode.trim();
-
-    if (!code) {
-      toast({
-        title: "Empty Promo Code",
-        description: "Please enter a promo code",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      // Check if it's an affiliate code (starts with POPPIKAP)
-      if (code.toUpperCase().startsWith('POPPIKAP')) {
-        applyAffiliateCode(code);
-        return;
-      }
-
-      // General promo code validation
-      // Check if affiliate code is already applied - prevent promo if affiliate exists
-      if (affiliateCode) {
-        toast({
-          title: "Cannot Apply Promo Code",
-          description: `Please remove the affiliate code "${affiliateCode}" first before applying a promo code. You can only use one discount at a time.`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const response = await fetch('/api/promo-codes/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          code: code.toUpperCase(),
-          cartTotal: cartSubtotal,
-          userId: user?.id, // Use user?.id for safety
-          affiliateCode: affiliateCode || localStorage.getItem('referralCode') || null,
-          affiliateWalletAmount: affiliateWalletAmount || 0
-        })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        // Handle non-2xx responses from the API
-        throw new Error(result.error || `API error: ${response.status}`);
-      }
-
-      if (result.valid && result.promoCode) {
-        setAppliedPromo(result.promoCode);
-        setAffiliateCode(null); // Clear affiliate code if a general promo is applied
-        setAffiliateDiscount(0);
-        setPromoDiscount(result.promoCode.discountAmount); // Set the promo discount state
-        // Store promo code in localStorage for checkout
-        localStorage.setItem('appliedPromoCode', JSON.stringify(result.promoCode));
-        // Clear affiliate code from localStorage (use 'affiliateRef')
-        localStorage.removeItem('affiliateRef');
-        localStorage.removeItem('affiliateCode');
-        localStorage.removeItem('affiliateDiscount');
-        toast({
-          title: "Promo Code Applied! 🎉",
-          description: `You saved ₹${result.promoCode.discountAmount.toLocaleString()}`,
-        });
-      } else {
-        // Handle cases where response.ok is true but result.valid is false
-        setAppliedPromo(null);
-        setPromoDiscount(0);
-        localStorage.removeItem('appliedPromoCode');
-        throw new Error(result.message || "The promo code you entered is not valid or has expired.");
-      }
-    } catch (error: any) {
-      console.error("Error validating promo code:", error);
-      setAppliedPromo(null);
-      setAffiliateCode(null);
-      setAffiliateDiscount(0);
-      setPromoDiscount(0);
-      localStorage.removeItem('appliedPromoCode');
-      toast({
-        title: "Error",
-        description: error.message || "Failed to validate promo code. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Function to remove/clear promo code
-  const clearPromoCode = () => {
-    setAppliedPromo(null);
-    setPromoDiscount(0);
-    setPromoCode("");
-    localStorage.removeItem('appliedPromoCode');
-    toast({
-      title: "Promo Code Removed",
-      description: "Your promo code discount has been removed",
-    });
-  };
-
-
-
-  // Calculate subtotal (before product discounts)
-  // Subtotal should reflect the original / MRP totals when available
   const subtotal = cartItems.reduce((sum, item) => {
-    const priceStr = item.originalPrice || item.price;
-    const price = parseFloat(String(priceStr).replace(/[₹,]/g, "")) || 0;
-    return sum + (price * item.quantity);
+    const base = item.originalPrice ?? item.price;
+    const price = parseFloat(String(base ?? "0").replace(/[₹,]/g, ""));
+    if (Number.isNaN(price)) return sum;
+    return sum + price * (item.quantity || 0);
   }, 0);
 
-  // Calculate product discounts
-  const productDiscount = cartItems.reduce((total, item) => {
-    if (item.originalPrice) {
-      const original = parseInt(item.originalPrice.replace(/[₹,]/g, ""));
-      const current = parseInt(item.price.replace(/[₹,]/g, ""));
-      return total + ((original - current) * item.quantity);
-    }
-    return total;
+  const cartSubtotal = cartItems.reduce((sum, item) => {
+    const price = parseFloat(String(item.price ?? "0").replace(/[₹,]/g, ""));
+    if (Number.isNaN(price)) return sum;
+    return sum + price * (item.quantity || 0);
   }, 0);
 
-  // Calculate total affiliate discount and commission from cart items
-  // Only apply these if an affiliate code is actually being used
-  const totalAffiliateDiscountFromItems = affiliateCode ? cartItems.reduce((total, item) => {
+  const productDiscount = Math.max(0, Math.round(subtotal - cartSubtotal));
+
+  const totalAffiliateDiscountFromItems = cartItems.reduce((total, item) => {
     if (item.affiliateUserDiscount) {
-      return total + (Number(item.affiliateUserDiscount) * item.quantity);
+      return total + Number(item.affiliateUserDiscount) * item.quantity;
     }
     return total;
-  }, 0) : 0;
+  }, 0);
 
-  const totalAffiliateCommissionFromItems = affiliateCode ? cartItems.reduce((total, item) => {
+  const totalAffiliateCommissionFromItems = cartItems.reduce((total, item) => {
     if (item.affiliateCommission) {
-      return total + (Number(item.affiliateCommission) * item.quantity);
+      return total + Number(item.affiliateCommission) * item.quantity;
     }
     return total;
-  }, 0) : 0;
+  }, 0);
 
-  // Cart subtotal after product discounts
-  const cartSubtotal = subtotal - productDiscount;
+  const subtotalAfterAffiliate = Math.max(0, cartSubtotal - totalAffiliateDiscountFromItems);
 
-  // Affiliate discount is NOT applied on the cart page totals anymore.
-  // The discount will be shown and deducted on the checkout page.
-  const subtotalAfterAffiliate = cartSubtotal;
+  useEffect(() => {
+    if (giftMilestonesSorted.length === 0) return;
+
+    const storageKey = 'lastCelebratedGiftMilestoneId';
+
+    try {
+      const rawLast = localStorage.getItem(storageKey);
+      const lastId = rawLast ? Number(rawLast) : null;
+      if (lastId) {
+        const lastMilestone = giftMilestonesSorted.find((m: any) => Number(m?.id) === Number(lastId));
+        if (lastMilestone) {
+          const lastMin = parseFloat(String(lastMilestone?.minAmount ?? '0'));
+          if (!Number.isNaN(lastMin) && cartSubtotal < lastMin) {
+            localStorage.removeItem(storageKey);
+          }
+        }
+      }
+    } catch (e) {
+      /* ignore */
+    }
+
+    const highestUnlocked = [...giftMilestonesSorted]
+      .reverse()
+      .find((m: any) => {
+        const minAmount = parseFloat(String(m?.minAmount ?? '0'));
+        return !Number.isNaN(minAmount) && cartSubtotal >= minAmount;
+      });
+
+    if (!highestUnlocked) return;
+
+    const highestId = Number(highestUnlocked?.id);
+    if (!highestId) return;
+
+    let lastCelebratedId: number | null = null;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      lastCelebratedId = raw ? Number(raw) : null;
+    } catch (e) {
+      /* ignore */
+    }
+
+    if (lastCelebratedId === highestId) return;
+
+    try {
+      localStorage.setItem(storageKey, String(highestId));
+    } catch (e) {
+      /* ignore */
+    }
+
+    const gifts = Number(highestUnlocked.giftCount || 0);
+    const msg = `Congratulations! You've unlocked ${gifts} FREE gift${gifts > 1 ? 's' : ''}!`;
+
+    const colors = [
+      "#EC4899",
+      "#A855F7",
+      "#F97316",
+      "#22C55E",
+      "#3B82F6",
+      "#F59E0B",
+    ];
+
+    const pieces = Array.from({ length: 60 }).map((_, i) => {
+      const left = Math.random() * 100;
+      const delay = Math.random() * 0.25;
+      const duration = 1.6 + Math.random() * 1.2;
+      const rotate = Math.random() * 360;
+      const size = 6 + Math.random() * 8;
+      const color = colors[Math.floor(Math.random() * colors.length)] || "#EC4899";
+      return { id: i, left, delay, duration, rotate, size, color };
+    });
+
+    setGiftMilestoneBlastConfetti(pieces);
+    setGiftMilestoneBlastMessage(msg);
+    setGiftMilestoneBlastKey((k) => k + 1);
+    setShowGiftMilestoneBlast(true);
+  }, [cartSubtotal, giftMilestonesSorted, toast]);
+
+  useEffect(() => {
+    if (!showGiftMilestoneBlast) return;
+
+    const t = window.setTimeout(() => {
+      closeGiftMilestoneBlast();
+    }, 1700);
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeGiftMilestoneBlast();
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [showGiftMilestoneBlast]);
 
   // Calculate gift milestone benefits based on cart total
   let giftMilestoneDiscount = 0;
   let giftMilestoneCashback = 0;
   let appliedMilestone: any = null;
 
-  if (giftMilestones && giftMilestones.length > 0) {
-    // Find the applicable milestone based on cart total
-    const applicableMilestone = giftMilestones.find((milestone: any) => {
-      const minAmount = parseFloat(String(milestone.minAmount));
-      const maxAmount = milestone.maxAmount ? parseFloat(String(milestone.maxAmount)) : null;
-
-      if (maxAmount) {
-        return subtotalAfterAffiliate >= minAmount && subtotalAfterAffiliate <= maxAmount;
-      } else {
-        return subtotalAfterAffiliate >= minAmount;
-      }
-    });
+  if (giftMilestonesSorted.length > 0) {
+    // Pick the highest eligible milestone (best match) based on cart total.
+    // NOTE: We intentionally rely only on minAmount threshold.
+    const applicableMilestone = [...giftMilestonesSorted]
+      .reverse()
+      .find((milestone: any) => {
+        const minAmount = parseFloat(String(milestone?.minAmount ?? "0"));
+        return !Number.isNaN(minAmount) && subtotalAfterAffiliate >= minAmount;
+      });
 
     if (applicableMilestone) {
       appliedMilestone = applicableMilestone;
@@ -584,15 +469,24 @@ export default function Cart() {
       // Apply discount if applicable
       if (applicableMilestone.discountType && applicableMilestone.discountType !== "none") {
         if (applicableMilestone.discountType === "percentage") {
-          giftMilestoneDiscount = Math.round((subtotalAfterAffiliate * parseFloat(applicableMilestone.discountValue)) / 100);
+          const percentage = parseFloat(String(applicableMilestone.discountValue ?? "0"));
+          if (!Number.isNaN(percentage) && percentage > 0) {
+            giftMilestoneDiscount = Math.round((subtotalAfterAffiliate * percentage) / 100);
+          }
         } else if (applicableMilestone.discountType === "flat") {
-          giftMilestoneDiscount = Math.round(parseFloat(applicableMilestone.discountValue));
+          const flat = parseFloat(String(applicableMilestone.discountValue ?? "0"));
+          if (!Number.isNaN(flat) && flat > 0) {
+            giftMilestoneDiscount = Math.round(flat);
+          }
         }
       }
 
       // Apply cashback percentage if applicable
       if (applicableMilestone.cashbackPercentage) {
-        giftMilestoneCashback = Math.round((subtotalAfterAffiliate * parseFloat(applicableMilestone.cashbackPercentage)) / 100);
+        const cashbackPercent = parseFloat(String(applicableMilestone.cashbackPercentage ?? "0"));
+        if (!Number.isNaN(cashbackPercent) && cashbackPercent > 0) {
+          giftMilestoneCashback = Math.round((subtotalAfterAffiliate * cashbackPercent) / 100);
+        }
       }
     }
   }
@@ -632,7 +526,6 @@ export default function Cart() {
   // Calculate total including wallet and affiliate wallet redemption
   const total = Math.max(0, totalBeforeRedemption - walletAmount - affiliateWalletAmount);
 
-
   // Calculate total cashback earned (This seems to be for earning cashback, not redeeming it)
   const totalEarnedCashback = cartItems.reduce((sum, item) => {
     if (item.cashbackPrice) {
@@ -640,7 +533,6 @@ export default function Cart() {
     }
     return sum;
   }, 0);
-
 
   // Function to handle wallet cashback redemption
   const handleRedeemCashback = (value: string) => {
@@ -664,6 +556,137 @@ export default function Cart() {
     // Ensure redeemable amount does not exceed total payable amount
     const maxRedeemable = Math.max(0, totalBeforeRedemption - walletAmount); // Consider walletAmount already deducted
     setAffiliateWalletAmount(Math.min(amountToRedeem, maxRedeemable));
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+    localStorage.setItem("cart", JSON.stringify([]));
+    localStorage.setItem("cartCount", "0");
+    window.dispatchEvent(new Event("cartUpdated"));
+    toast({
+      title: "Cart Cleared",
+      description: "All items have been removed from your cart",
+    });
+  };
+
+  const updateQuantity = (id: number, newQuantity: number, index?: number) => {
+    if (newQuantity < 1 || newQuantity > 10) return;
+
+    setCartItems((prev) => {
+      const next = [...prev];
+      const idx = typeof index === "number" ? index : next.findIndex((i) => i.id === id);
+      if (idx < 0 || !next[idx]) return prev;
+      next[idx] = { ...next[idx], quantity: newQuantity };
+      localStorage.setItem("cart", JSON.stringify(next));
+      localStorage.setItem(
+        "cartCount",
+        next.reduce((total, item) => total + item.quantity, 0).toString()
+      );
+      window.dispatchEvent(new Event("cartUpdated"));
+      return next;
+    });
+  };
+
+  const removeItem = (id: number, index?: number) => {
+    setCartItems((prev) => {
+      const next = [...prev];
+      const idx = typeof index === "number" ? index : next.findIndex((i) => i.id === id);
+      if (idx < 0) return prev;
+      next.splice(idx, 1);
+      localStorage.setItem("cart", JSON.stringify(next));
+      localStorage.setItem(
+        "cartCount",
+        next.reduce((total, item) => total + item.quantity, 0).toString()
+      );
+      window.dispatchEvent(new Event("cartUpdated"));
+      return next;
+    });
+  };
+
+  const saveForLater = async (productId: number) => {
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to save items to your wishlist",
+        variant: "destructive",
+      });
+      window.location.href = "/auth/login";
+      return;
+    }
+
+    setSavingToWishlist(productId);
+    try {
+      const res = await fetch(apiUrl("/api/wishlist"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId: user.id, productId }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to add to wishlist");
+      }
+
+      toast({
+        title: "Saved",
+        description: "Item added to your wishlist",
+      });
+
+      removeItem(productId);
+    } catch (e) {
+      toast({
+        title: "Could not save",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingToWishlist(null);
+    }
+  };
+
+  const applyPromoCode = async () => {
+    const code = promoCode.trim();
+    if (!code) return;
+
+    setPromoError("");
+    setIsApplyingPromo(true);
+    try {
+      const res = await fetch(apiUrl("/api/promo-codes/validate"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code, cartTotal: cartSubtotal, userId: user?.id || undefined, affiliateCode: affiliateCode || undefined, affiliateWalletAmount }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setPromoError(data?.message || "Invalid promo code");
+        setAppliedPromo(null);
+        setPromoDiscount(0);
+        setHasPromoCode(false);
+        return;
+      }
+
+      setAppliedPromo(data);
+      setHasPromoCode(true);
+      setPromoDiscount(Number(data?.discountAmount || 0));
+      toast({
+        title: "Promo Applied",
+        description: `Code ${code.toUpperCase()} applied successfully`,
+      });
+    } catch {
+      setPromoError("Unable to apply promo code right now");
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  };
+
+  const clearPromoCode = () => {
+    setAppliedPromo(null);
+    setPromoDiscount(0);
+    setHasPromoCode(false);
+    setPromoCode("");
+    setPromoError("");
   };
 
   // Handler for checkout
@@ -796,39 +819,70 @@ export default function Cart() {
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Gift Milestone Section - Dynamic from Backend */}
+        <style>{`
+          @keyframes giftMilestonePop {
+            0% { transform: translateY(10px) scale(0.96); opacity: 0; }
+            20% { transform: translateY(0px) scale(1); opacity: 1; }
+            80% { transform: translateY(0px) scale(1); opacity: 1; }
+            100% { transform: translateY(-8px) scale(0.98); opacity: 0; }
+          }
+          @keyframes giftMilestoneConfettiFall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+          }
+        `}</style>
 
-
-        <div className="mb-6 sm:mb-8">
-          <Link href="/" className="inline-flex items-center text-red-600 hover:text-red-700 mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Continue Shopping
-          </Link>
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Shopping Cart</h1>
-              <p className="text-gray-600 mt-2">
-                {cartItems.length} item{cartItems.length !== 1 ? 's' : ''} in your cart
-              </p>
+        {showGiftMilestoneBlast && (
+          <div
+            key={giftMilestoneBlastKey}
+            className="fixed inset-0 z-[9999] flex items-center justify-center"
+            style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) closeGiftMilestoneBlast();
+            }}
+          >
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              {giftMilestoneBlastConfetti.map((p) => (
+                <div
+                  key={p.id}
+                  className="absolute top-0 rounded-sm"
+                  style={{
+                    left: `${p.left}vw`,
+                    width: `${p.size}px`,
+                    height: `${Math.max(6, p.size * 1.4)}px`,
+                    backgroundColor: p.color,
+                    transform: `rotate(${p.rotate}deg)`,
+                    animation: `giftMilestoneConfettiFall ${p.duration}s linear ${p.delay}s forwards`,
+                  }}
+                />
+              ))}
             </div>
-            <div className="flex gap-2">
-              {cartItems.length > 0 && (
-                <>
-                  <Button variant="outline" size="sm" onClick={clearCart} className="text-red-600 border-red-600 hover:bg-red-50">
-                    Clear Cart
-                  </Button>
-                </>
-              )}
+
+            <div
+              className="relative mx-4 w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-pink-100 px-6 py-6 text-center"
+              style={{ animation: "giftMilestonePop 2.2s ease forwards" }}
+            >
+              <div className="text-4xl mb-3">🎉</div>
+              <div className="text-xl sm:text-2xl font-extrabold text-gray-900">
+                Milestone Unlocked!
+              </div>
+              <div className="mt-2 text-sm sm:text-base font-semibold text-gray-700">
+                {giftMilestoneBlastMessage}
+              </div>
+              <div className="mt-4 text-xs text-gray-500">Keep shopping to unlock more gifts</div>
             </div>
           </div>
-        </div>
-        {cartItems.length > 0 && giftMilestones.length > 0 && (
+        )}
+
+        {/* Gift Milestone Section - Dynamic from Backend */}
+        {cartItems.length > 0 && giftMilestonesSorted.length > 0 && (
           <div className="mb-6 bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 border-2 border-pink-200 rounded-xl p-4 sm:p-8 shadow-lg">
             <div className="text-center mb-10">
               {(() => {
-                const nextMilestoneLocal = giftMilestones.find((m: any) => cartSubtotal < parseFloat(m.minAmount));
+                const nextMilestoneLocal = giftMilestonesSorted.find((m: any) => cartSubtotal < parseFloat(m.minAmount));
                 if (nextMilestoneLocal) {
                   const remainingLocal = parseFloat(nextMilestoneLocal.minAmount) - cartSubtotal;
+
                   return (
                     <p className="text-lg font-semibold text-gray-800 mb-1 flex items-center justify-center gap-2">
                       <span className="text-xl">🛍️</span>
@@ -846,7 +900,7 @@ export default function Cart() {
 
               <p className="text-xs sm:text-sm text-gray-600">
                 Shop for <span className="font-semibold text-pink-600">
-                  ₹{parseFloat(giftMilestones[0]?.minAmount || '0').toFixed(0)}+
+                  ₹{parseFloat(giftMilestonesSorted[0]?.minAmount || '0').toFixed(0)}+
                 </span> to get <span className="font-semibold text-pink-600">FREE gifts</span>
               </p>
             </div>
@@ -857,16 +911,16 @@ export default function Cart() {
                 <div
                   className="h-full bg-gradient-to-r from-pink-400 to-pink-600 transition-all duration-500 ease-out"
                   style={{
-                    width: `${Math.min((cartSubtotal / parseFloat(giftMilestones[giftMilestones.length - 1]?.minAmount || '2000')) * 100, 100)}%`
+                    width: `${Math.min((cartSubtotal / parseFloat(giftMilestonesSorted[giftMilestonesSorted.length - 1]?.minAmount || '2000')) * 100, 100)}%`
                   }}
                 ></div>
               </div>
 
               {/* Dynamic Milestone Markers (icon + labels placed together so value appears beneath the gift) */}
               <div className="absolute left-0 w-full h-3">
-                {giftMilestones.map((milestone, index) => {
+                {giftMilestonesSorted.map((milestone, index) => {
                   const milestoneAmount = parseFloat(milestone.minAmount);
-                  const maxAmount = parseFloat(giftMilestones[giftMilestones.length - 1]?.minAmount || '2000');
+                  const maxAmount = parseFloat(giftMilestonesSorted[giftMilestonesSorted.length - 1]?.minAmount || '2000');
                   const position = (milestoneAmount / maxAmount) * 100;
 
                   // Check if milestone is unlocked
@@ -903,8 +957,8 @@ export default function Cart() {
             {/* Dynamic Status Message */}
             <div className="mt-4 text-center">
               {(() => {
-                const highestMilestone = [...giftMilestones].reverse().find(m => cartSubtotal >= parseFloat(m.minAmount));
-                const nextMilestone = giftMilestones.find(m => cartSubtotal < parseFloat(m.minAmount));
+                const highestMilestone = [...giftMilestonesSorted].reverse().find(m => cartSubtotal >= parseFloat(m.minAmount));
+                const nextMilestone = giftMilestonesSorted.find(m => cartSubtotal < parseFloat(m.minAmount));
 
                 if (highestMilestone && !nextMilestone) {
                   return (

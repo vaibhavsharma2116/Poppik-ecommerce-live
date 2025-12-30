@@ -472,6 +472,19 @@ export default function CheckoutPage() {
     enabled: !!user?.id,
   });
 
+  // Fetch gift milestones
+  const { data: giftMilestones } = useQuery({
+    queryKey: ['/api/gift-milestones'],
+    queryFn: async () => {
+      const res = await fetch('/api/gift-milestones', {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to fetch gift milestones');
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Sync redeemAmount with walletAmount
   useEffect(() => {
     setRedeemAmount(walletAmount);
@@ -988,20 +1001,20 @@ export default function CheckoutPage() {
             } else {
               setDeliveryPartner("INDIA_POST");
               setDeliveryType("MANUAL");
-              setPincodeMessage(data.message || "Shiprocket delivery not available for this pincode. Order will be delivered via India Post.");
+              setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days.");
             }
           } else {
             // On error, default to India Post
             setDeliveryPartner("INDIA_POST");
             setDeliveryType("MANUAL");
-            setPincodeMessage("Shiprocket delivery not available for this pincode. Order will be delivered via India Post.");
+            setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days.");
           }
         } catch (error) {
           console.error("Error checking pincode:", error);
           // On error, default to India Post
           setDeliveryPartner("INDIA_POST");
           setDeliveryType("MANUAL");
-          setPincodeMessage("Shiprocket delivery not available for this pincode. Order will be delivered via India Post.");
+          setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days.");
         } finally {
           setCheckingPincode(false);
         }
@@ -1073,65 +1086,7 @@ export default function CheckoutPage() {
     fetchShippingCost();
   }, [formData.zipCode, formData.paymentMethod, cartItems]);
 
-
-  const verifyPayment = async (orderIdParam: string) => {
-    try {
-      const response = await fetch(apiUrl('/api/payments/cashfree/verify'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ orderId: orderIdParam }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.verified) {
-        const pendingOrder = sessionStorage.getItem('pendingOrder');
-        if (pendingOrder) {
-          const orderData = JSON.parse(pendingOrder);
-          setOrderId(orderData.orderId);
-          setOrderPlaced(true);
-
-          localStorage.removeItem("cart");
-          localStorage.removeItem("appliedPromoCode");
-          // Clear affiliate discount/commission info saved by cart
-          localStorage.removeItem("affiliateDiscount");
-          localStorage.removeItem("affiliateCommissionEarned");
-          localStorage.removeItem("promoDiscount"); // Remove promo discount from local storage
-          sessionStorage.removeItem('pendingOrder');
-          localStorage.setItem("cartCount", "0");
-          window.dispatchEvent(new Event("cartUpdated"));
-
-          toast({
-            title: "Payment Successful!",
-            description: "Your order has been confirmed",
-          });
-        }
-      } else {
-        toast({
-          title: "Payment Failed",
-          description: "Your payment could not be processed. Please try again.",
-          variant: "destructive",
-        });
-
-        const pendingOrder = sessionStorage.getItem('pendingOrder');
-        if (pendingOrder) {
-          const orderData = JSON.parse(pendingOrder);
-          setCartItems(orderData.cartItems);
-        }
-        sessionStorage.removeItem('pendingOrder');
-      }
-    } catch (error: any) {
-      console.error('Payment verification error:', error);
-      toast({
-        title: "Verification Error",
-        description: error.message || "Could not verify payment status. Please contact support.",
-        variant: "destructive",
-      });
-    }
-    setLoading(false);
-  };
-
+  // Calculate totals
   const calculateSubtotal = () => {
     return cartItems.reduce((total, item) => {
       const priceStr = item.originalPrice || item.price;
@@ -1140,7 +1095,6 @@ export default function CheckoutPage() {
     }, 0);
   };
 
-  // Calculate product discounts - Same as cart
   const productDiscount = cartItems.reduce((total, item) => {
     if (item.originalPrice) {
       const original = parseInt(item.originalPrice.replace(/[₹,]/g, ""));
@@ -1153,7 +1107,6 @@ export default function CheckoutPage() {
   const cartSubtotal = calculateSubtotal();
   const cartSubtotalAfterProductDiscount = cartSubtotal - productDiscount;
 
-  // Calculate total affiliate discount and commission from cart items - Same as cart
   const totalAffiliateDiscountFromItems = cartItems.reduce((total, item) => {
     if (item.affiliateUserDiscount) {
       return total + (Number(item.affiliateUserDiscount) * item.quantity);
@@ -1168,7 +1121,6 @@ export default function CheckoutPage() {
     return total;
   }, 0);
 
-  // Calculate total cashback earned from items
   const totalCashbackEarned = cartItems.reduce((total, item) => {
     if (item.cashbackPrice && item.cashbackPercentage !== undefined && item.cashbackPercentage !== null) {
       return total + (Number(item.cashbackPrice) * item.quantity);
@@ -1176,61 +1128,134 @@ export default function CheckoutPage() {
     return total;
   }, 0);
 
-  // Affiliate discount is NOT applied on the cart page totals.
-  // The discount will be shown and deducted on the checkout page.
   const subtotalAfterAffiliate = cartSubtotalAfterProductDiscount;
 
-  // Read affiliate discount synchronously so it can be shown on initial render
-  const initialAffiliateDiscount = (() => {
+  const affiliateDiscountAmount = (() => {
     try {
-      if (typeof window === 'undefined') return 0;
-
-      // Read previously saved value in localStorage
-      const raw = localStorage.getItem('affiliateCommissionEarned');
-      if (raw) {
-        const parsed = JSON.parse(raw);
+      // First try to get from localStorage (set by cart page)
+      const saved = localStorage.getItem('affiliateCommissionEarned');
+      if (saved) {
+        const parsed = JSON.parse(saved);
         if (parsed && typeof parsed.discount === 'number' && parsed.discount > 0) {
-          return parsed.discount;
+          console.log('✅ Using affiliate discount from localStorage:', parsed.discount);
+          return Math.round(parsed.discount);
         }
       }
     } catch (e) {
-      // ignore and fallback to 0
+      console.error('Error reading affiliate commission from localStorage:', e);
     }
+
+    // Fallback: Calculate from cart items if affiliate code is present
+    if (formData.affiliateCode || passedAffiliateCode) {
+      const calculated = Math.round(
+        cartItems.reduce((sum, item) => {
+          const itemAffiliateCommission = item.affiliateCommission || 0;
+          const itemPrice = parseInt(item.price?.replace(/[₹,]/g, "") || "0");
+          const itemTotal = itemPrice * item.quantity;
+          return sum + (itemTotal * itemAffiliateCommission) / 100;
+        }, 0)
+      );
+      console.log('✅ Calculated affiliate commission from cart items:', calculated);
+      return calculated;
+    }
+
     return 0;
   })();
 
-  // Use affiliate discount from formData (loaded from localStorage or passed value) or the initial value
-  // Calculate the actual discount amount from the percentage ONLY if affiliateRef is in localStorage
-  let affiliateDiscountAmount = 0;
-  const hasAffiliateRef = typeof window !== 'undefined' && localStorage.getItem('affiliateRef');
-  
-  if (hasAffiliateRef) {
-    if (formData.affiliateDiscount && formData.affiliateDiscount > 0) {
-      // formData.affiliateDiscount is a percentage (e.g., 15 or 10)
-      affiliateDiscountAmount = Math.round((cartSubtotalAfterProductDiscount * formData.affiliateDiscount) / 100);
-    } else if (passedAffiliateDiscount && passedAffiliateDiscount > 0) {
-      // passedAffiliateDiscount is a percentage
-      affiliateDiscountAmount = Math.round((cartSubtotalAfterProductDiscount * passedAffiliateDiscount) / 100);
-    } else if (initialAffiliateDiscount && initialAffiliateDiscount > 0) {
-      // initialAffiliateDiscount is already an amount from localStorage
-      affiliateDiscountAmount = initialAffiliateDiscount;
-    } else if (totalAffiliateDiscountFromItems && totalAffiliateDiscountFromItems > 0) {
-      // totalAffiliateDiscountFromItems is already an amount
-      affiliateDiscountAmount = totalAffiliateDiscountFromItems;
-    }
-  }
-
-  // Subtotal for calculating gift milestone (after product discount, before affiliate)
   const subtotalForGiftMilestone = cartSubtotalAfterProductDiscount;
+
+  const giftMilestonesSorted = Array.isArray(giftMilestones)
+    ? [...giftMilestones].sort((a: any, b: any) => {
+        const aMin = parseFloat(String(a?.minAmount ?? '0'));
+        const bMin = parseFloat(String(b?.minAmount ?? '0'));
+        if (Number.isNaN(aMin) && Number.isNaN(bMin)) return 0;
+        if (Number.isNaN(aMin)) return 1;
+        if (Number.isNaN(bMin)) return -1;
+        return aMin - bMin;
+      })
+    : [];
+
+  // Compute gift milestone discount/cashback (highest eligible milestone)
+  useEffect(() => {
+    if (giftMilestonesSorted.length === 0) {
+      setAppliedGiftMilestone(null);
+      setGiftMilestoneDiscount(0);
+      setGiftMilestoneCashback(0);
+      try {
+        localStorage.removeItem('appliedGiftMilestone');
+      } catch (e) {
+        /* ignore */
+      }
+      return;
+    }
+
+    let computedDiscount = 0;
+    let computedCashback = 0;
+    let computedMilestone: any = null;
+
+    const applicableMilestone = [...giftMilestonesSorted]
+      .reverse()
+      .find((milestone: any) => {
+        const minAmount = parseFloat(String(milestone?.minAmount ?? '0'));
+        return !Number.isNaN(minAmount) && subtotalForGiftMilestone >= minAmount;
+      });
+
+    if (applicableMilestone) {
+      computedMilestone = applicableMilestone;
+
+      if (applicableMilestone.discountType && applicableMilestone.discountType !== 'none') {
+        if (applicableMilestone.discountType === 'percentage') {
+          const percentage = parseFloat(String(applicableMilestone.discountValue ?? '0'));
+          if (!Number.isNaN(percentage) && percentage > 0) {
+            computedDiscount = Math.round((subtotalForGiftMilestone * percentage) / 100);
+          }
+        } else if (applicableMilestone.discountType === 'flat') {
+          const flat = parseFloat(String(applicableMilestone.discountValue ?? '0'));
+          if (!Number.isNaN(flat) && flat > 0) {
+            computedDiscount = Math.round(flat);
+          }
+        }
+      }
+
+      if (applicableMilestone.cashbackPercentage) {
+        const cashbackPercent = parseFloat(String(applicableMilestone.cashbackPercentage ?? '0'));
+        if (!Number.isNaN(cashbackPercent) && cashbackPercent > 0) {
+          computedCashback = Math.round((subtotalForGiftMilestone * cashbackPercent) / 100);
+        }
+      }
+    }
+
+    setAppliedGiftMilestone(computedMilestone);
+    setGiftMilestoneDiscount(computedDiscount);
+    setGiftMilestoneCashback(computedCashback);
+
+    try {
+      if (computedMilestone) {
+        localStorage.setItem(
+          'appliedGiftMilestone',
+          JSON.stringify({
+            id: computedMilestone.id,
+            discountType: computedMilestone.discountType,
+            discountValue: computedDiscount,
+            cashbackPercentage: computedMilestone.cashbackPercentage,
+            cashbackAmount: computedCashback,
+            giftCount: computedMilestone.giftCount,
+          })
+        );
+      } else {
+        localStorage.removeItem('appliedGiftMilestone');
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }, [giftMilestonesSorted.length, subtotalForGiftMilestone]);
 
   const subtotalAfterDiscount = cartSubtotalAfterProductDiscount - affiliateDiscountAmount - promoDiscount - giftMilestoneDiscount;
 
-  // Free shipping only if no promo code, no affiliate discount, and subtotal > 599
   const shipping = (promoDiscount > 0 || affiliateDiscountAmount > 0 || giftMilestoneDiscount > 0)
     ? shippingCost
     : (cartSubtotalAfterProductDiscount > 599 ? 0 : shippingCost);
 
-  // Calculate total before redemption (same as cart page)
   const totalBeforeRedemption = subtotalAfterDiscount + shipping;
 
   // Apply wallet deductions at the end (same as cart page) - with NaN safety checks

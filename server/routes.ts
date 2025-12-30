@@ -109,7 +109,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration and error recovery
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -5630,12 +5630,69 @@ app.put("/api/admin/offers/:id", upload.fields([
     }
   });
 
-  // Create new gift milestone
+  // Create new gift milestone (single or batch)
   app.post("/api/admin/gift-milestones", async (req, res) => {
     try {
-      const { minAmount, maxAmount, giftCount, giftDescription, discountType, discountValue, cashbackPercentage, isActive, sortOrder } = req.body;
+      const body: any = req.body;
 
-      if (!minAmount || !giftCount) {
+      // Batch create: { milestones: [...] }
+      if (Array.isArray(body?.milestones)) {
+        const milestones = body.milestones;
+
+        if (milestones.length === 0) {
+          return res.status(400).json({ error: "milestones array cannot be empty" });
+        }
+
+        for (let i = 0; i < milestones.length; i++) {
+          const m = milestones[i];
+          const hasMinAmount = m?.minAmount !== undefined && m?.minAmount !== null && m?.minAmount !== "";
+          const hasGiftCount = m?.giftCount !== undefined && m?.giftCount !== null && m?.giftCount !== "";
+
+          if (!hasMinAmount || !hasGiftCount) {
+            return res.status(400).json({
+              error: "Minimum amount and gift count are required",
+              index: i,
+            });
+          }
+        }
+
+        const created = await db
+          .insert(schema.giftMilestones)
+          .values(
+            milestones.map((m: any) => ({
+              minAmount: m.minAmount.toString(),
+              maxAmount: m.maxAmount ? m.maxAmount.toString() : null,
+              giftCount: parseInt(m.giftCount),
+              giftDescription: m.giftDescription || null,
+              discountType: m.discountType || "none",
+              discountValue: m.discountValue ? m.discountValue.toString() : null,
+              cashbackPercentage: m.cashbackPercentage ? m.cashbackPercentage.toString() : null,
+              isActive: m.isActive !== false && m.isActive !== "false",
+              sortOrder: m.sortOrder ? parseInt(m.sortOrder) : 0,
+            }))
+          )
+          .returning();
+
+        return res.status(201).json(created);
+      }
+
+      // Single create (backward-compatible)
+      const {
+        minAmount,
+        maxAmount,
+        giftCount,
+        giftDescription,
+        discountType,
+        discountValue,
+        cashbackPercentage,
+        isActive,
+        sortOrder,
+      } = body;
+
+      const hasMinAmount = minAmount !== undefined && minAmount !== null && minAmount !== "";
+      const hasGiftCount = giftCount !== undefined && giftCount !== null && giftCount !== "";
+
+      if (!hasMinAmount || !hasGiftCount) {
         return res.status(400).json({ error: "Minimum amount and gift count are required" });
       }
 
@@ -5666,6 +5723,13 @@ app.put("/api/admin/offers/:id", upload.fields([
     try {
       const id = parseInt(req.params.id);
       const { minAmount, maxAmount, giftCount, giftDescription, discountType, discountValue, cashbackPercentage, isActive, sortOrder } = req.body;
+
+      const hasMinAmount = minAmount !== undefined && minAmount !== null && minAmount !== "";
+      const hasGiftCount = giftCount !== undefined && giftCount !== null && giftCount !== "";
+
+      if (!hasMinAmount || !hasGiftCount) {
+        return res.status(400).json({ error: "Minimum amount and gift count are required" });
+      }
 
       const updateData: any = {
         updatedAt: new Date(),
@@ -6612,7 +6676,7 @@ app.put("/api/admin/offers/:id", upload.fields([
             available: false,
             deliveryPartner: "INDIA_POST",
             deliveryType: "MANUAL",
-            message: "Shiprocket delivery not available for this pincode. Order will be delivered via India Post."
+            message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days."
           });
         }
       } catch (shiprocketError) {
@@ -6622,7 +6686,7 @@ app.put("/api/admin/offers/:id", upload.fields([
           available: false,
           deliveryPartner: "INDIA_POST",
           deliveryType: "MANUAL",
-          message: "Shiprocket delivery not available for this pincode. Order will be delivered via India Post."
+          message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days."
         });
       }
     } catch (error) {
@@ -6632,7 +6696,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         available: false,
         deliveryPartner: "INDIA_POST",
         deliveryType: "MANUAL",
-        message: "Shiprocket delivery not available for this pincode. Order will be delivered via India Post."
+        message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days."
       });
     }
   });

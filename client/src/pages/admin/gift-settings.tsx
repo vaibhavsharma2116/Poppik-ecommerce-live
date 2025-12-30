@@ -29,16 +29,25 @@ interface GiftMilestone {
   sortOrder: number;
 }
 
+type GiftMilestoneFormRow = {
+  minAmount: string;
+  giftCount: number;
+  discountType: string;
+  discountValue: string;
+  cashbackPercentage: string;
+  isActive: boolean;
+  sortOrder: number;
+};
+
 export default function GiftSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState<GiftMilestone | null>(null);
-  const [formData, setFormData] = useState({
+
+  const createEmptyRow = (): GiftMilestoneFormRow => ({
     minAmount: "",
-    maxAmount: "",
     giftCount: 1,
-    giftDescription: "",
     discountType: "none",
     discountValue: "",
     cashbackPercentage: "",
@@ -46,12 +55,16 @@ export default function GiftSettings() {
     sortOrder: 0,
   });
 
+  const [milestoneRows, setMilestoneRows] = useState<GiftMilestoneFormRow[]>([
+    createEmptyRow(),
+  ]);
+
   // Fetch gift milestones
   const { data: milestonesData, isLoading } = useQuery({
     queryKey: ["/api/admin/gift-milestones"],
     queryFn: async () => {
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         throw new Error('No authentication token found');
       }
@@ -103,16 +116,29 @@ export default function GiftSettings() {
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_result: any, variables: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/gift-milestones"] });
       queryClient.invalidateQueries({ queryKey: ["/api/gift-milestones"] });
+
+      const createdCount = Array.isArray(_result) ? _result.length : null;
+      const isBatchCreate = !!variables?.milestones && !variables?.id;
+
       toast({
-        title: editingMilestone ? "Milestone Updated" : "Milestone Created",
-        description: "Gift milestone has been saved successfully",
+        title: editingMilestone
+          ? "Milestone Updated"
+          : isBatchCreate
+            ? "Milestones Created"
+            : "Milestone Created",
+        description: editingMilestone
+          ? "Gift milestone has been saved successfully"
+          : isBatchCreate && createdCount !== null
+            ? `${createdCount} gift milestone(s) have been created successfully`
+            : "Gift milestone has been saved successfully",
       });
       setDialogOpen(false);
       resetForm();
     },
+
     onError: (error: any) => {
       toast({
         title: "Error",
@@ -156,39 +182,40 @@ export default function GiftSettings() {
   });
 
   const resetForm = () => {
-    setFormData({
-      minAmount: "",
-      maxAmount: "",
-      giftCount: 1,
-      giftDescription: "",
-      discountType: "none",
-      discountValue: "",
-      cashbackPercentage: "",
-      isActive: true,
-      sortOrder: 0,
-    });
+    setMilestoneRows([createEmptyRow()]);
     setEditingMilestone(null);
   };
 
   const handleEdit = (milestone: GiftMilestone) => {
     setEditingMilestone(milestone);
-    setFormData({
-      minAmount: milestone.minAmount,
-      maxAmount: milestone.maxAmount || "",
-      giftCount: milestone.giftCount,
-      giftDescription: milestone.giftDescription || "",
-      discountType: milestone.discountType || "none",
-      discountValue: milestone.discountValue || "",
-      cashbackPercentage: milestone.cashbackPercentage || "",
-      isActive: milestone.isActive,
-      sortOrder: milestone.sortOrder,
-    });
+    setMilestoneRows([
+      {
+        minAmount: milestone.minAmount,
+        giftCount: milestone.giftCount,
+        discountType: milestone.discountType || "none",
+        discountValue: milestone.discountValue || "",
+        cashbackPercentage: milestone.cashbackPercentage || "",
+        isActive: milestone.isActive,
+        sortOrder: milestone.sortOrder,
+      },
+    ]);
     setDialogOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    saveMutation.mutate(formData);
+
+    if (editingMilestone) {
+      saveMutation.mutate({
+        id: editingMilestone.id,
+        ...milestoneRows[0],
+      });
+      return;
+    }
+
+    saveMutation.mutate({
+      milestones: milestoneRows,
+    });
   };
 
   return (
@@ -214,131 +241,166 @@ export default function GiftSettings() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 overflow-y-auto flex-1 px-1">
-              <div>
-                <Label htmlFor="minAmount">Minimum Amount (₹) *</Label>
-                <Input
-                  id="minAmount"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={formData.minAmount}
-                  onChange={(e) =>
-                    setFormData({ ...formData, minAmount: e.target.value })
-                  }
-                />
-              </div>
 
-              <div>
-                <Label htmlFor="maxAmount">Maximum Amount (₹)</Label>
-                <Input
-                  id="maxAmount"
-                  type="number"
-                  step="0.01"
-                  placeholder="Leave empty for unlimited"
-                  value={formData.maxAmount}
-                  onChange={(e) =>
-                    setFormData({ ...formData, maxAmount: e.target.value })
-                  }
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="giftCount">Number of Gifts *</Label>
-                <Input
-                  id="giftCount"
-                  type="number"
-                  min="1"
-                  required
-                  value={formData.giftCount}
-                  onChange={(e) =>
-                    setFormData({ ...formData, giftCount: parseInt(e.target.value) })
-                  }
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="giftDescription">Description</Label>
-                <Textarea
-                  id="giftDescription"
-                  placeholder="E.g., 1 FREE Gift on orders ₹1000+"
-                  value={formData.giftDescription}
-                  onChange={(e) =>
-                    setFormData({ ...formData, giftDescription: e.target.value })
-                  }
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="discountType">Discount Type</Label>
-                <select
-                  id="discountType"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  value={formData.discountType}
-                  onChange={(e) =>
-                    setFormData({ ...formData, discountType: e.target.value })
-                  }
+              {!editingMilestone && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setMilestoneRows((prev) => [...prev, createEmptyRow()])}
                 >
-                  <option value="none">None</option>
-                  <option value="percentage">Percentage (%)</option>
-                  <option value="flat">Flat Amount (₹)</option>
-                </select>
-              </div>
-
-              {formData.discountType !== "none" && (
-                <div>
-                  <Label htmlFor="discountValue">
-                    Discount Value {formData.discountType === "percentage" ? "(%)" : "(₹)"}
-                  </Label>
-                  <Input
-                    id="discountValue"
-                    type="number"
-                    step="0.01"
-                    placeholder="E.g., 10 or 100"
-                    value={formData.discountValue}
-                    onChange={(e) =>
-                      setFormData({ ...formData, discountValue: e.target.value })
-                    }
-                  />
-                </div>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another Milestone
+                </Button>
               )}
 
-              <div>
-                <Label htmlFor="cashbackPercentage">Cashback Percentage (%)</Label>
-                <Input
-                  id="cashbackPercentage"
-                  type="number"
-                  step="0.01"
-                  placeholder="E.g., 5.5"
-                  value={formData.cashbackPercentage}
-                  onChange={(e) =>
-                    setFormData({ ...formData, cashbackPercentage: e.target.value })
-                  }
-                />
-              </div>
+              {milestoneRows.map((row, index) => (
+                <div key={index} className="border border-gray-200 rounded-md p-3 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium">Milestone {index + 1}</div>
+                    {!editingMilestone && milestoneRows.length > 1 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        onClick={() =>
+                          setMilestoneRows((prev) => prev.filter((_, i) => i !== index))
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
 
-              <div>
-                <Label htmlFor="sortOrder">Sort Order</Label>
-                <Input
-                  id="sortOrder"
-                  type="number"
-                  value={formData.sortOrder}
-                  onChange={(e) =>
-                    setFormData({ ...formData, sortOrder: parseInt(e.target.value) })
-                  }
-                />
-              </div>
+                  <div>
+                    <Label htmlFor={`minAmount-${index}`}>Minimum Amount (₹) *</Label>
+                    <Input
+                      id={`minAmount-${index}`}
+                      type="number"
+                      step="0.01"
+                      required
+                      value={row.minAmount}
+                      onChange={(e) =>
+                        setMilestoneRows((prev) =>
+                          prev.map((r, i) => (i === index ? { ...r, minAmount: e.target.value } : r))
+                        )
+                      }
+                    />
+                  </div>
 
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="isActive"
-                  checked={formData.isActive}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, isActive: checked })
-                  }
-                />
-                <Label htmlFor="isActive">Active</Label>
-              </div>
+                  <div>
+                    <Label htmlFor={`giftCount-${index}`}>Number of Gifts *</Label>
+                    <Input
+                      id={`giftCount-${index}`}
+                      type="number"
+                      min="1"
+                      required
+                      value={row.giftCount}
+                      onChange={(e) =>
+                        setMilestoneRows((prev) =>
+                          prev.map((r, i) =>
+                            i === index ? { ...r, giftCount: parseInt(e.target.value) } : r
+                          )
+                        )
+                      }
+                    />
+                  </div>
 
+                  <div>
+                    <Label htmlFor={`discountType-${index}`}>Discount Type</Label>
+                    <select
+                      id={`discountType-${index}`}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      value={row.discountType}
+                      onChange={(e) =>
+                        setMilestoneRows((prev) =>
+                          prev.map((r, i) =>
+                            i === index
+                              ? {
+                                  ...r,
+                                  discountType: e.target.value,
+                                  discountValue: e.target.value === "none" ? "" : r.discountValue,
+                                }
+                              : r
+                          )
+                        )
+                      }
+                    >
+                      <option value="none">None</option>
+                      <option value="percentage">Percentage (%)</option>
+                      <option value="flat">Flat Amount (₹)</option>
+                    </select>
+                  </div>
+
+                  {row.discountType !== "none" && (
+                    <div>
+                      <Label htmlFor={`discountValue-${index}`}>
+                        Discount Value {row.discountType === "percentage" ? "(%)" : "(₹)"}
+                      </Label>
+                      <Input
+                        id={`discountValue-${index}`}
+                        type="number"
+                        step="0.01"
+                        placeholder="E.g., 10 or 100"
+                        value={row.discountValue}
+                        onChange={(e) =>
+                          setMilestoneRows((prev) =>
+                            prev.map((r, i) =>
+                              i === index ? { ...r, discountValue: e.target.value } : r
+                            )
+                          )
+                        }
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <Label htmlFor={`cashbackPercentage-${index}`}>Cashback Percentage (%)</Label>
+                    <Input
+                      id={`cashbackPercentage-${index}`}
+                      type="number"
+                      step="0.01"
+                      placeholder="E.g., 5.5"
+                      value={row.cashbackPercentage}
+                      onChange={(e) =>
+                        setMilestoneRows((prev) =>
+                          prev.map((r, i) =>
+                            i === index ? { ...r, cashbackPercentage: e.target.value } : r
+                          )
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor={`sortOrder-${index}`}>Sort Order</Label>
+                    <Input
+                      id={`sortOrder-${index}`}
+                      type="number"
+                      value={row.sortOrder}
+                      onChange={(e) =>
+                        setMilestoneRows((prev) =>
+                          prev.map((r, i) =>
+                            i === index ? { ...r, sortOrder: parseInt(e.target.value) } : r
+                          )
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id={`isActive-${index}`}
+                      checked={row.isActive}
+                      onCheckedChange={(checked) =>
+                        setMilestoneRows((prev) =>
+                          prev.map((r, i) => (i === index ? { ...r, isActive: checked } : r))
+                        )
+                      }
+                    />
+                    <Label htmlFor={`isActive-${index}`}>Active</Label>
+                  </div>
+                </div>
+              ))}
               <div className="flex gap-2">
                 <Button type="submit" disabled={saveMutation.isPending}>
                   {saveMutation.isPending ? "Saving..." : "Save Milestone"}
@@ -391,13 +453,8 @@ export default function GiftSettings() {
               <CardContent>
                 <div className="space-y-2">
                   <p className="text-sm">
-                    <strong>Range:</strong> ₹{parseFloat(milestone.minAmount).toFixed(2)}
-                    {milestone.maxAmount && ` - ₹${parseFloat(milestone.maxAmount).toFixed(2)}`}
-                    {!milestone.maxAmount && " and above"}
+                    <strong>Range:</strong> ₹{parseFloat(milestone.minAmount).toFixed(2)} and above
                   </p>
-                  {milestone.giftDescription && (
-                    <p className="text-sm text-gray-600">{milestone.giftDescription}</p>
-                  )}
                   {milestone.discountType && milestone.discountType !== "none" && (
                     <p className="text-sm text-blue-600">
                       <strong>Discount:</strong>{" "}
