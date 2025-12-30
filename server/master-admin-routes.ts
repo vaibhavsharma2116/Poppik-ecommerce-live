@@ -733,7 +733,15 @@ export function createMasterAdminRoutes(pool: Pool) {
 
       // Check system health
       const memUsage = process.memoryUsage();
-      const heapPercentage = memUsage.heapTotal ? (memUsage.heapUsed / memUsage.heapTotal) * 100 : 0;
+      const v8 = await import("v8");
+      const heapStats = v8.getHeapStatistics();
+
+      const heapLimit = Number(heapStats?.heap_size_limit || 0);
+      const heapPercentageOfTotal = memUsage.heapTotal ? (memUsage.heapUsed / memUsage.heapTotal) * 100 : 0;
+      const heapPercentageOfLimit = heapLimit ? (memUsage.heapUsed / heapLimit) * 100 : heapPercentageOfTotal;
+
+      // Use heap limit percentage for health classification (heapTotal can be misleading).
+      const heapPercentage = heapPercentageOfLimit;
       let systemHealth = "Good";
       if (heapPercentage > 90) systemHealth = "Critical";
       else if (heapPercentage > 70) systemHealth = "Warning";
@@ -759,7 +767,11 @@ export function createMasterAdminRoutes(pool: Pool) {
         memoryUsage: {
           heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
           heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
-          percentage: heapPercentage.toFixed(1)
+          rss: Math.round(memUsage.rss / 1024 / 1024),
+          external: Math.round(memUsage.external / 1024 / 1024),
+          heapLimit: heapLimit ? Math.round(heapLimit / 1024 / 1024) : null,
+          percentage: heapPercentage.toFixed(1),
+          percentageOfTotal: heapPercentageOfTotal.toFixed(1)
         },
         uptime: Math.round(process.uptime()),
       });
