@@ -724,22 +724,31 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       const baseUrl = 'https://poppiklifestyle.com';
       const fallbackImage = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=630&q=80';
 
-      let offerImage: any = offer.banner_image_url || offer.image_url || null;
-
-      if (!offerImage) {
-        const images = offer.images;
-        if (Array.isArray(images) && images.length > 0) {
-          offerImage = images.find((u: any) => u && !String(u).startsWith('data:')) || images[0];
-        } else if (typeof images === 'string' && images.trim()) {
+      const pickFirstShareImage = (value: any) => {
+        if (!value) return null;
+        if (Array.isArray(value) && value.length > 0) {
+          return value.find((u: any) => u && !String(u).startsWith('data:')) || value[0];
+        }
+        if (typeof value === 'string' && value.trim()) {
           try {
-            const parsed = JSON.parse(images);
+            const parsed = JSON.parse(value);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              offerImage = parsed.find((u: any) => u && !String(u).startsWith('data:')) || parsed[0];
+              return parsed.find((u: any) => u && !String(u).startsWith('data:')) || parsed[0];
             }
           } catch (e) {
           }
+          return value;
         }
-      }
+        return null;
+      };
+
+      // Prefer Listing Page Images first image (banner_images[0]) for social sharing
+      let offerImage: any =
+        pickFirstShareImage((offer as any).banner_images) ||
+        pickFirstShareImage((offer as any).images) ||
+        (offer as any).banner_image_url ||
+        (offer as any).image_url ||
+        null;
 
       if (!offerImage) offerImage = fallbackImage;
 
@@ -967,20 +976,17 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
     res.status(status).json({ message });
   });
 
-
   // Serve the app on port 5000 (required for Replit web preview)
-  const port = process.env.PORT || 5000;
+  const port = process.env.PORT ? Number(process.env.PORT) : 5000;
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
 
     // Clear cache periodically
     setInterval(() => {
       const now = Date.now();
-      for (const [key, value] of cache.entries()) {
-        if (now - value.timestamp > CACHE_DURATION * 2) {
-          cache.delete(key);
-        }
-      }
+      cache.forEach((value, key) => {
+        if (now - value.timestamp > CACHE_DURATION * 2) cache.delete(key);
+      });
     }, 60000); // Clean every minute
 
     // Optimize garbage collection

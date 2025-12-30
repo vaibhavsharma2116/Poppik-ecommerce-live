@@ -92,7 +92,7 @@ function ChannelPartnerVideos() {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 gap-6">
         {(items || []).length ? ((items.slice(0, showMore ? 9 : 6)).map((v: any) => (
           <div key={v.id} className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
             <div className="relative rounded-t-2xl overflow-hidden">
@@ -303,7 +303,7 @@ export default function ChannelPartnerPage() {
 
       {/* Featured Channel Partner Videos */}
       <section className="py-12 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-8">Channel Partner Videos</h2>
 
           {/* Fetch channel partner videos */}

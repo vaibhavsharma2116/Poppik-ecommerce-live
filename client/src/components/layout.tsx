@@ -652,17 +652,6 @@ export default function Layout({ children }: LayoutProps) {
                                     >
                                       Profile Settings
                                     </Link>
-                                    <button
-                                      className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                      onClick={() => {
-                                        if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-                                          // Add delete account logic here
-                                          console.log('Delete account');
-                                        }
-                                      }}
-                                    >
-                                      Delete Account
-                                    </button>
                                     {/* Cashback Wallet for all users */}
                                     <Link
                                       href="/wallet"
@@ -670,6 +659,13 @@ export default function Layout({ children }: LayoutProps) {
                                       onClick={() => setIsMobileMenuOpen(false)}
                                     >
                                       Cashback Wallet
+                                    </Link>
+                                    <Link
+                                      href="/profile?delete=1"
+                                      className="block px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                      onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                      Delete Account
                                     </Link>
                                     {isApprovedAffiliate && (
                                       <Accordion type="single" collapsible className="w-full">

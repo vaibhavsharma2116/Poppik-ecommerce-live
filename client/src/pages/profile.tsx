@@ -199,8 +199,17 @@ export default function Profile() {
     try {
       const qs = new URLSearchParams(window.location.search || "");
       const edit = qs.get('edit');
+      const del = qs.get('delete');
       if (edit === '1' && !isEditModalOpen) {
         handleEditProfile();
+        try {
+          window.history.replaceState(null, '', '/profile');
+        } catch (e) {
+          // ignore
+        }
+      }
+      if (del === '1' && !isDeleteModalOpen) {
+        setIsDeleteModalOpen(true);
         try {
           window.history.replaceState(null, '', '/profile');
         } catch (e) {
@@ -210,7 +219,7 @@ export default function Profile() {
     } catch (e) {
       // ignore
     }
-  }, [user, isEditModalOpen]);
+  }, [user, isEditModalOpen, isDeleteModalOpen]);
 
   const performProfileUpdate = async () => {
     if (!user) return;
