@@ -12586,8 +12586,8 @@ app.get('/api/influencer-videos', async (req, res) => {
       res.json(review[0]);
     } catch (error) {
       console.error("Error creating combo review:", error);
-      res.status(500).json({ error: "Failed to create combo review"
-      });
+
+      res.status(500).json({ error: "Failed to create combo review" });
     }
   });
 
@@ -12604,87 +12604,85 @@ app.get('/api/influencer-videos', async (req, res) => {
 
       console.log("📥 POST /api/notifications/subscribe called");
       console.log("📧 Email:", email);
-      console.log("🔔 Subscription endpoint:", subscription?.endpoint?.substring(0, 50) + "...");
+      console.log("📅 Timestamp:", timestamp);
+      console.log(
+        "🔔 Subscription endpoint:",
+        subscription?.endpoint ? subscription.endpoint.substring(0, 50) + "..." : "(missing)",
+      );
 
       if (!subscription || !subscription.endpoint) {
         console.error("❌ Invalid subscription data received");
         return res.status(400).json({ error: "Invalid subscription data" });
       }
 
+      const endpoint: string | undefined = subscription?.endpoint;
+      const auth: string | undefined = subscription?.keys?.auth;
+      const p256dh: string | undefined = subscription?.keys?.p256dh;
+
+      if (!endpoint || !auth || !p256dh) {
+        console.error("❌ Invalid subscription keys received", {
+          hasEndpoint: Boolean(endpoint),
+          hasAuth: Boolean(auth),
+          hasP256dh: Boolean(p256dh),
+        });
+        return res.status(400).json({
+          error: "Invalid subscription data",
+          details: "Missing endpoint/auth/p256dh",
+        });
+      }
+
       // Decode JWT to get user info if authenticated
       let userId: number | null = null;
       if (token) {
         try {
-          const decoded: any = jwt.verify(
-            token,
-            process.env.JWT_SECRET || "your-secret-key"
-          );
-          userId = decoded.id;
+          const decoded: any = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+          const decodedUserId = Number(decoded?.userId ?? decoded?.id ?? null);
+          userId = !Number.isNaN(decodedUserId) && decodedUserId > 0 ? decodedUserId : null;
         } catch (error) {
           console.warn("⚠️ Invalid JWT token for push subscription");
         }
       }
 
-      // Check if subscription already exists
-      const existingSubscription = await db
-        .select()
-        .from(schema.pushSubscriptions)
-        .where(eq(schema.pushSubscriptions.endpoint, subscription.endpoint))
-        .limit(1);
+      const userAgent = req.headers["user-agent"] as string;
+      const now = new Date();
 
-      if (existingSubscription.length > 0) {
-        // Update existing subscription
-        const updated = await db
-          .update(schema.pushSubscriptions)
-          .set({
-            auth: subscription.keys.auth,
-            p256dh: subscription.keys.p256dh,
-            isActive: true,
-            updatedAt: new Date(),
-            userAgent: req.headers["user-agent"] as string,
-            email: email || null,
-          })
-          .where(eq(schema.pushSubscriptions.endpoint, subscription.endpoint))
-          .returning();
-
-        console.log(
-          "✅ Push subscription updated:",
-          subscription.endpoint.substring(0, 50) + "...",
-          email ? `| Email: ${email}` : ""
-        );
-        return res.json({
-          success: true,
-          message: "Subscription updated",
-          subscriptionId: updated[0].id,
-        });
-      }
-
-      // Create new subscription
-      console.log("📝 Creating new push subscription for email:", email);
-      const newSubscription = await db
+      const upserted = await db
         .insert(schema.pushSubscriptions)
         .values({
           userId,
-          endpoint: subscription.endpoint,
-          auth: subscription.keys.auth,
-          p256dh: subscription.keys.p256dh,
-          userAgent: req.headers["user-agent"] as string,
+          endpoint,
+          auth,
+          p256dh,
+          userAgent,
           email: email || null,
           isActive: true,
+          updatedAt: now,
+        })
+        .onConflictDoUpdate({
+          target: schema.pushSubscriptions.endpoint,
+          set: {
+            userId,
+            auth,
+            p256dh,
+            userAgent,
+            email: email || null,
+            isActive: true,
+            updatedAt: now,
+          },
         })
         .returning();
 
       console.log(
-        "✅ New push subscription created:",
-        subscription.endpoint.substring(0, 50) + "...",
-        email ? `| Email: ${email}` : ""
+        "✅ Push subscription upserted:",
+        endpoint.substring(0, 50) + "...",
+        email ? `| Email: ${email}` : "",
       );
-      console.log("💾 Saved to DB with ID:", newSubscription[0].id);
+      console.log("💾 Saved to DB with ID:", upserted[0].id);
 
       res.json({
         success: true,
         message: "Subscription saved",
-        subscriptionId: newSubscription[0].id,
+        subscriptionId: upserted[0].id,
       });
     } catch (error) {
       console.error("❌ Error saving push subscription:", error);
@@ -12692,19 +12690,131 @@ app.get('/api/influencer-videos', async (req, res) => {
     }
   });
 
-  /**
-   * POST /api/notifications/send
-   * Send push notifications to users (admin only)
-   * Body: { userId?, title, body, image?, url?, tag? }
-   */
+  app.get(
+    "/api/admin/notifications/subscribers",
+    adminMiddleware,
+    async (req: Request, res: Response) => {
+      try {
+        const rows = await db
+          .select()
+          .from(schema.pushSubscriptions)
+          .orderBy(desc(schema.pushSubscriptions.updatedAt));
+
+        res.json(
+          rows.map((s) => ({
+            ...s,
+            endpointPreview: s.endpoint ? `${s.endpoint.substring(0, 50)}...` : null,
+          }))
+        );
+      } catch (error) {
+        console.error("❌ Failed to load push subscribers:", error);
+        res.status(500).json({ error: "Failed to load subscribers" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/admin/notifications",
+    adminMiddleware,
+    async (req: Request, res: Response) => {
+      try {
+        const { title, body, image, url, recipients } = req.body as {
+          title?: string;
+          body?: string;
+          image?: string;
+          url?: string;
+          recipients?: number[];
+        };
+
+        if (!title || !body) {
+          return res.status(400).json({ error: "Title and body are required" });
+        }
+
+        let subscriptions;
+        if (Array.isArray(recipients) && recipients.length > 0) {
+          subscriptions = await db
+            .select()
+            .from(schema.pushSubscriptions)
+            .where(
+              and(
+                inArray(schema.pushSubscriptions.id, recipients),
+                eq(schema.pushSubscriptions.isActive, true),
+              ),
+            );
+        } else {
+          subscriptions = await db
+            .select()
+            .from(schema.pushSubscriptions)
+            .where(eq(schema.pushSubscriptions.isActive, true));
+        }
+
+        const total = subscriptions.length;
+        if (total === 0) {
+          return res.status(404).json({ error: "No active subscriptions found", sent: 0, total: 0 });
+        }
+
+        const payload = {
+          title,
+          body,
+          image: image || undefined,
+          tag: `admin-${Date.now()}`,
+          icon: "/favicon.png",
+          badge: "/favicon.png",
+          data: {
+            url: url || "/",
+          },
+        };
+
+        let sent = 0;
+        for (const s of subscriptions) {
+          try {
+            const pushSubscription = {
+              endpoint: s.endpoint,
+              keys: { auth: s.auth, p256dh: s.p256dh },
+            };
+
+            await webpush.sendNotification(pushSubscription as any, JSON.stringify(payload));
+
+            await db
+              .update(schema.pushSubscriptions)
+              .set({ lastUsedAt: new Date(), updatedAt: new Date() })
+              .where(eq(schema.pushSubscriptions.id, s.id));
+
+            sent++;
+          } catch (err: any) {
+            if (err && (err.statusCode === 410 || err.statusCode === 404)) {
+              await db
+                .update(schema.pushSubscriptions)
+                .set({ isActive: false, updatedAt: new Date() })
+                .where(eq(schema.pushSubscriptions.id, s.id));
+            } else {
+              console.error(
+                "❌ Failed to send push notification:",
+                s.id,
+                err && err.message ? err.message : err,
+              );
+            }
+          }
+        }
+
+        res.json({ success: true, sent, total });
+      } catch (error) {
+        console.error("❌ Error sending admin notifications:", error);
+        res.status(500).json({ error: "Failed to send notifications" });
+      }
+    },
+  );
+
   app.post("/api/notifications/send", async (req: Request, res: Response) => {
     try {
       // Check admin authentication
       const token = req.headers.authorization?.split(" ")[1];
+
       if (!token) {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
+      // ... (rest of the code remains the same)
       let isAdmin = false;
       try {
         const decoded: any = jwt.verify(
