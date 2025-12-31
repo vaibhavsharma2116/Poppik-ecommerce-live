@@ -162,7 +162,7 @@ export default function AffiliatePage() {
             {/* Image - Shows first on mobile, second on desktop */}
             <div className="relative order-1 md:order-2">
               <img
-                src="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&h=600&fit=crop"
+                src="/attached_assets/AFFILIATEBLOG.jpg"
                 alt="Affiliate Partnership"
                 className="rounded-3xl shadow-2xl w-full"
               />
