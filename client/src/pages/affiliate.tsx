@@ -366,18 +366,18 @@ export default function AffiliatePage() {
             {/* Images - First on mobile */}
             <div className="flex justify-center order-1 md:order-2">
               <img
-                src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop"
+                src="/attached_assets/INFLUENCER_circular.png"
                 alt="Featured Affiliate"
                 className="rounded-full w-48 h-48 sm:w-64 sm:h-64 object-cover shadow-xl border-8 border-white"
               />
               <div className="flex -ml-12 sm:-ml-16 mt-20 sm:mt-24 space-x-2 sm:space-x-4">
                 <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop"
+                  src="/attached_assets/INFLUENCER_circular.png"
                   alt="Affiliate 2"
                   className="rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-4 border-white shadow-lg"
                 />
                 <img
-                  src="https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=100&h=100&fit=crop"
+                  src="/attached_assets/INFLUENCER_circular.png"
                   alt="Affiliate 3"
                   className="rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-4 border-white shadow-lg"
                 />
