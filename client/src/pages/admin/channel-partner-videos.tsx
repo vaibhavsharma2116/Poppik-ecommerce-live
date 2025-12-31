@@ -18,10 +18,6 @@ interface MediaItem {
   redirectUrl?: string;
   category?: string;
   type?: string;
-  clickCount?: number;
-  isActive?: boolean;
-  sortOrder?: number;
-  metadata?: Record<string, any> | string;
 }
 
 export default function AdminChannelPartnerVideos() {
@@ -29,7 +25,7 @@ export default function AdminChannelPartnerVideos() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<MediaItem | null>(null);
-  const [form, setForm] = useState<MediaItem>({ partnerName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'channel-partner', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' });
+  const [form, setForm] = useState<MediaItem>({ title: '', imageUrl: '', videoUrl: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const imageBlobRef = useRef<string | null>(null);
@@ -68,7 +64,7 @@ export default function AdminChannelPartnerVideos() {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ partnerName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'channel-partner', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' });
+    setForm({ title: '', imageUrl: '', videoUrl: '' });
     if (imageBlobRef.current?.startsWith('blob:')) {
       try { URL.revokeObjectURL(imageBlobRef.current); } catch (e) { }
       imageBlobRef.current = null;
@@ -157,15 +153,17 @@ export default function AdminChannelPartnerVideos() {
         }
       }
 
-      let metadataToSend: any = null;
-      try {
-        if (typeof local.metadata === 'string') metadataToSend = JSON.parse(local.metadata || '{}');
-        else metadataToSend = local.metadata || {};
-      } catch (err) {
-        throw new Error('Metadata must be valid JSON');
-      }
-
-      const payload = { ...local, metadata: metadataToSend } as any;
+      const payload = {
+        ...local,
+        partnerName: null,
+        description: null,
+        redirectUrl: null,
+        category: 'channel-partner',
+        type: 'video',
+        isActive: true,
+        sortOrder: 0,
+        metadata: {},
+      } as any;
 
       const url = payload.id
         ? `/api/admin/channel-partner-videos/${payload.id}?t=${Date.now()}`
@@ -308,29 +306,19 @@ export default function AdminChannelPartnerVideos() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Thumbnail</TableHead>
-                  <TableHead>Partner</TableHead>
                   <TableHead>Title</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(Array.isArray(items) ? items : []).map((it) => (
                   <TableRow key={it.id}>
-                      <TableCell>
-                        {it.imageUrl && (
-                          <img src={it.imageUrl} alt={it.title || it.partnerName} className="w-12 h-12 rounded object-cover" />
-                        )}
-                      </TableCell>
-                      <TableCell>{it.partnerName || '-'}</TableCell>
-                      <TableCell>{it.title || '-'}</TableCell>
-                      <TableCell>{it.category}</TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${it.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                        {it.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      {it.imageUrl ? (
+                        <img src={it.imageUrl} alt={it.title || ''} className="w-12 h-12 rounded object-cover" />
+                      ) : null}
                     </TableCell>
+                    <TableCell>{it.title || '-'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -338,7 +326,12 @@ export default function AdminChannelPartnerVideos() {
                           size="sm"
                           onClick={() => {
                             setEditing(it);
-                            setForm(it);
+                            setForm({
+                              id: it.id,
+                              title: it.title || '',
+                              imageUrl: it.imageUrl || '',
+                              videoUrl: it.videoUrl || '',
+                            });
                             setImageFile(null);
                             setVideoFile(null);
                             setIsModalOpen(true);
@@ -377,24 +370,14 @@ export default function AdminChannelPartnerVideos() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-semibold">Partner Name</label>
-              <Input value={form.partnerName} onChange={(e) => setForm({ ...form, partnerName: e.target.value })} />
-            </div>
-
-            <div>
               <label className="block text-sm font-semibold">Title</label>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">Description</label>
-              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded" rows={3} />
+              <Input value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             </div>
 
             <div>
               <label className="block text-sm font-semibold">Thumbnail URL</label>
               <div className="flex gap-2 items-end">
-                <Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
+                <Input value={form.imageUrl || ''} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
                 <input ref={thumbInputRef} id="thumb-upload-cp" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageSelect(e.target.files?.[0] || null)} />
                 <Button variant="outline" size="sm" onClick={() => thumbInputRef.current?.click()}><Upload className="w-4 h-4" /> Upload</Button>
               </div>
@@ -403,52 +386,10 @@ export default function AdminChannelPartnerVideos() {
             <div>
               <label className="block text-sm font-semibold">Video URL</label>
               <div className="flex gap-2 items-end">
-                <Input value={form.videoUrl} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} />
+                <Input value={form.videoUrl || ''} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} />
                 <input ref={videoInputRef} id="video-upload-cp" type="file" accept="video/*" className="hidden" onChange={(e) => handleVideoSelect(e.target.files?.[0] || null)} />
                 <Button variant="outline" size="sm" onClick={() => videoInputRef.current?.click()}><Upload className="w-4 h-4" /> Upload</Button>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">Redirect URL</label>
-              <Input value={form.redirectUrl} onChange={(e) => setForm({ ...form, redirectUrl: e.target.value })} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold">Category</label>
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded">
-                  <option value="channel-partner">Channel Partner</option>
-                  <option value="media">Media</option>
-                  <option value="featured">Featured</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold">Type</label>
-                <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded">
-                  <option value="video">Video</option>
-                  <option value="audio">Audio</option>
-                  <option value="image">Image</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold">Sort Order</label>
-                <Input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold">Active</label>
-                <div className="mt-2">
-                  <input type="checkbox" checked={!!form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">Metadata (JSON)</label>
-              <textarea value={typeof form.metadata === 'string' ? form.metadata : JSON.stringify(form.metadata || {}, null, 2)} onChange={(e) => setForm({ ...form, metadata: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded" rows={4} />
             </div>
 
             <DialogFooter>

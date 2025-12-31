@@ -104,20 +104,20 @@ function ChannelPartnerVideos() {
                   </svg>
                 </div>
               </button>
-              <button onClick={() => handleShare(v)} aria-label="Share" className="absolute right-4 top-4 bg-white p-3 rounded-full shadow-md">
+              {/* <button onClick={() => handleShare(v)} aria-label="Share" className="absolute right-4 top-4 bg-white p-3 rounded-full shadow-md">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v.01M12 12v.01M20 12v.01M4 12a8 8 0 0116 0M4 12a8 8 0 0116 0" />
                 </svg>
-              </button>
-              {v.metadata && typeof v.metadata === 'object' && v.metadata.duration && (
+              </button> */}
+              {/* {v.metadata && typeof v.metadata === 'object' && v.metadata.duration && (
                 <div className="absolute left-4 bottom-4 bg-black bg-opacity-70 text-white text-xs px-3 py-1 rounded">{v.metadata.duration}</div>
-              )}
+              )} */}
             </div>
-            <div className="p-6">
+            {/* <div className="p-6">
               <p className="text-pink-600 text-sm font-medium uppercase mb-1">{v.partnerName || v.affiliateName || v.partner || ''}</p>
               <h3 className="font-extrabold text-2xl leading-tight">{v.title}</h3>
               {v.description && <p className="text-gray-500 mt-3">{v.description}</p>}
-            </div>
+            </div> */}
           </div>
         ))) : (
           <p className="text-center text-gray-500">No channel partner videos available yet.</p>
@@ -143,10 +143,10 @@ function ChannelPartnerVideos() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4">
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-3 border-b">
-              <div>
+              {/* <div>
                 <h4 className="font-semibold">{selectedVideo.title}</h4>
                 <p className="text-sm text-gray-600">{selectedVideo.partnerName}</p>
-              </div>
+              </div> */}
               <div className="flex items-center gap-2">
                 <Button variant="ghost" onClick={() => setSelectedVideo(null)}>Close</Button>
               </div>

@@ -13,8 +13,9 @@ import { Gift, TrendingUp, Users, Sparkles, Award, Target, Star, Zap, Heart, Glo
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { ArrowRight } from "lucide-react";
-import INFLUENCER_Image from "@/assets/INFLUENCER BANNER-02.jpg";
-import INFLUENCER_Image1 from "@/assets/INFLUENCER BANNER-03.jpg";
+
+const INFLUENCER_Image = "/attached_assets/INFLUENCER_BANNER-02.jpg";
+const INFLUENCER_BANNER = "/attached_assets/INFLUENCER_BANNER.jpg";
 
 function VideosList() {
   const { toast } = useToast();
@@ -75,13 +76,9 @@ function VideosList() {
     };
 
     fetchMedia();
-    
-    // Refresh every 5 seconds for fresh data
-    const interval = setInterval(fetchMedia, 5000);
-    
+
     return () => { 
       mounted = false;
-      clearInterval(interval);
     };
   }, []);
 
@@ -167,7 +164,7 @@ function VideosList() {
   return (
     <>
       <div className={isSingleVideo ? "col-span-full" : ""}>
-        <div className={isSingleVideo ? "max-w-2xl mx-auto" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"}>
+        <div className={isSingleVideo ? "max-w-5xl mx-auto w-full" : "grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 gap-6"}>
           {videos.slice(0, expanded ? 9 : 3).map((video, i) => (
             <div key={video.id || i} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
               <div className="relative">
@@ -176,26 +173,14 @@ function VideosList() {
                 {video.metadata?.badge && (
                   <span className="absolute left-4 top-4 bg-pink-600 text-white text-xs font-semibold px-3 py-1 rounded">{video.metadata.badge}</span>
                 )}
-                <button onClick={(e) => handleShare(e, video)} className="absolute right-4 top-4 bg-white bg-opacity-90 rounded-full p-2 shadow hover:bg-opacity-100 transition" title="Share" aria-label="Share video" onMouseDown={(e)=>e.stopPropagation()}>
-                  <Share2 className="w-4 h-4 text-gray-700" />
-                </button>
-                <div className="absolute right-4 bottom-4 bg-black bg-opacity-80 text-white text-sm px-3 py-1 rounded">{video.metadata?.duration || video.duration || '-'}</div>
+              
                 <button onClick={() => handleClick(video)} className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform">
                   <div className="w-16 h-16 bg-white bg-opacity-95 rounded-full flex items-center justify-center shadow-xl">
                     <Play className="w-7 h-7 text-pink-600" />
                   </div>
                 </button>
               </div>
-              <div className={isSingleVideo ? "p-10" : "p-8"}>
-                {video.influencerName ? (
-                  <div className="text-sm text-pink-600 font-medium mb-2">{video.influencerName}</div>
-                ) : null}
-                <h3 className={isSingleVideo ? "text-2xl md:text-3xl font-bold text-gray-900 mb-3" : "text-lg md:text-xl font-semibold text-gray-900 mb-2 line-clamp-2"}>{video.title}</h3>
-                {video.description ? (
-                  <p className={isSingleVideo ? "text-base text-gray-600 mb-4 leading-relaxed" : "text-sm text-gray-600 mb-3 line-clamp-3"}>{video.description}</p>
-                ) : null}
-                <div className={isSingleVideo ? "text-base text-gray-500 font-medium" : "text-sm md:text-base text-gray-500"}>{video.metadata?.author || video.author || video.displayName || ''}</div>
-              </div>
+              
             </div>
           ))}
         </div>
@@ -213,17 +198,10 @@ function VideosList() {
       <Dialog open={modalOpen} onOpenChange={(o) => { setModalOpen(o); if (!o) setModalVideo(null); }}>
         <DialogContent className="max-w-4xl w-full">
           <DialogHeader className="flex items-start justify-between gap-4">
-            <div>
-              <DialogTitle className="flex items-center gap-3">
-                <span>{modalVideo?.title || 'Video'}</span>
-                {modalVideo?.duration ? (
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{modalVideo.duration}</span>
-                ) : null}
-              </DialogTitle>
-            </div>
+            
             <DialogClose />
           </DialogHeader>
-          <div className="mt-4">
+          <div className="">
             {modalVideo ? (
               modalVideo.isIframe ? (
                 <div className="aspect-video">
@@ -398,6 +376,17 @@ export default function InfluencerCollabPage() {
           </Button>
         </div>
       </section>
+      <section className="py-16 md:py-20 bg-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+              Featured Videos
+            </h2>
+          </div>
+
+          <VideosList />
+        </div>
+      </section>
 
       {/* FAQ Section */}
       <section className="py-16 md:py-20 bg-gray-50">
@@ -464,35 +453,22 @@ export default function InfluencerCollabPage() {
       </section>
 
 
-      <section className="py-16 md:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-                Featured Videos
-              </h2>
-              <p className="text-base text-gray-600 mt-2">Curated picks for partners</p>
-            </div>
-          </div>
-
-          <div className="flex justify-center">
-            <VideosList />
-          </div>
-        </div>
+      
+ <section className="py-0">
+        <a
+          href="https://forms.gle/yLGN34wRPc8hKsd29"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full"
+        >
+          <img
+            src={INFLUENCER_BANNER}
+            alt="Become a Channel Partner"
+            className="block w-full h-auto object-cover"
+          />
+        </a>
       </section>
-
-      {/* CTA Section - Removed as it's redundant with the new Apply Button Section */}
-      <section className=" bg-white">
-        <div className="max-w-12xl ">
-          <div className="relative overflow-hidden rounded-lg sm:rounded-xl cursor-pointer" onClick={() => window.open('https://forms.gle/yLGN34wRPc8hKsd29', '_blank')}>
-            <img
-              src={INFLUENCER_Image1}
-              alt="Poppik makeup products showcase"
-              className="w-full h-auto object-contain bg-gray-50"
-            />
-          </div>
-        </div>
-      </section>
+      
     </div>
   );
 }

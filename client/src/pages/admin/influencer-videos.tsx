@@ -18,10 +18,6 @@ interface MediaItem {
   redirectUrl?: string;
   category?: string;
   type?: string;
-  clickCount?: number;
-  isActive?: boolean;
-  sortOrder?: number;
-  metadata?: Record<string, any> | string;
 }
 
 export default function AdminInfluencerVideos() {
@@ -30,7 +26,7 @@ export default function AdminInfluencerVideos() {
   const [loading, setLoading] = useState(false); // keep for fallback while mutating
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<MediaItem | null>(null);
-  const [form, setForm] = useState<MediaItem>({ influencerName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'influencer', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' });
+  const [form, setForm] = useState<MediaItem>({ title: '', imageUrl: '', videoUrl: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const imageBlobRef = useRef<string | null>(null);
@@ -56,7 +52,7 @@ export default function AdminInfluencerVideos() {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ influencerName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'influencer', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' } as MediaItem);
+    setForm({ title: '', imageUrl: '', videoUrl: '' });
     // revoke any created object URLs
     if (imageBlobRef.current && imageBlobRef.current.startsWith('blob:')) {
       try { URL.revokeObjectURL(imageBlobRef.current); } catch (e) { /* ignore */ }
@@ -82,11 +78,19 @@ export default function AdminInfluencerVideos() {
   const createMutation = useMutation({
     mutationFn: async ({ form, imageFile, videoFile }: any) => {
       // Create copy of form
-      const payload: any = { ...form };
+      const payload: any = {
+        ...form,
+        influencerName: null,
+        description: null,
+        redirectUrl: null,
+        category: 'influencer',
+        type: 'video',
+        isActive: true,
+        sortOrder: 0,
+        metadata: {},
+      };
       if (imageFile) payload.imageUrl = await uploadFile(imageFile, 'image');
       if (videoFile) payload.videoUrl = await uploadFile(videoFile, 'video');
-      // parse metadata
-      try { payload.metadata = typeof payload.metadata === 'string' ? JSON.parse(payload.metadata || '{}') : payload.metadata || {}; } catch (err) { payload.metadata = {}; }
       const token = localStorage.getItem('token');
       const res = await fetch('/api/admin/influencer-videos', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) }, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error('Create failed');
@@ -115,10 +119,19 @@ export default function AdminInfluencerVideos() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, payload }: any) => {
       const { form, imageFile, videoFile } = payload;
-      const payloadCopy: any = { ...form };
+      const payloadCopy: any = {
+        ...form,
+        influencerName: null,
+        description: null,
+        redirectUrl: null,
+        category: 'influencer',
+        type: 'video',
+        isActive: true,
+        sortOrder: 0,
+        metadata: {},
+      };
       if (imageFile) payloadCopy.imageUrl = await uploadFile(imageFile, 'image');
       if (videoFile) payloadCopy.videoUrl = await uploadFile(videoFile, 'video');
-      try { payloadCopy.metadata = typeof payloadCopy.metadata === 'string' ? JSON.parse(payloadCopy.metadata || '{}') : payloadCopy.metadata || {}; } catch (err) { payloadCopy.metadata = {}; }
       const token = localStorage.getItem('token');
       const res = await fetch(`/api/admin/influencer-videos/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) }, body: JSON.stringify(payloadCopy) });
       if (!res.ok) throw new Error('Update failed');
@@ -265,8 +278,6 @@ export default function AdminInfluencerVideos() {
                 <TableRow>
                   <TableHead>Thumbnail</TableHead>
                   <TableHead>Title</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -277,14 +288,17 @@ export default function AdminInfluencerVideos() {
                       <img src={it.imageUrl} alt={it.title} className="w-12 h-12 rounded object-cover" />
                     </TableCell>
                     <TableCell>{it.title}</TableCell>
-                    <TableCell>{it.category}</TableCell>
-                    <TableCell>{it.isActive ? 'Active' : 'Inactive'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="sm" onClick={() => { 
                           const formData = { ...it };
                           setEditing(it); 
-                          setForm(formData); 
+                          setForm({
+                            id: it.id,
+                            title: it.title || '',
+                            imageUrl: it.imageUrl || '',
+                            videoUrl: it.videoUrl || '',
+                          });
                           setIsModalOpen(true); 
                         }}>
                           <Edit className="h-4 w-4" />
@@ -309,28 +323,14 @@ export default function AdminInfluencerVideos() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-semibold">Influencer Name</label>
-              <Input 
-                value={form.influencerName || ''} 
-                onChange={(e) => setForm({ ...form, influencerName: e.target.value })}
-                placeholder="Enter influencer name (e.g., bb, aaa)"
-              />
-            </div>
-
-            <div>
               <label className="block text-sm font-semibold">Title</label>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">Description</label>
-              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded" rows={3} />
+              <Input value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             </div>
 
             <div>
               <label className="block text-sm font-semibold">Thumbnail URL</label>
               <div className="flex gap-2 items-end">
-                <Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
+                <Input value={form.imageUrl || ''} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
                 <input ref={thumbInputRef} id="thumb-upload" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageSelect(e.target.files?.[0] || null)} />
                 <Button variant="outline" size="sm" onClick={() => thumbInputRef.current?.click()}><Upload className="w-4 h-4" /> Upload</Button>
               </div>
@@ -339,52 +339,10 @@ export default function AdminInfluencerVideos() {
             <div>
               <label className="block text-sm font-semibold">Video URL</label>
               <div className="flex gap-2 items-end">
-                <Input value={form.videoUrl} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} />
+                <Input value={form.videoUrl || ''} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} />
                 <input ref={videoInputRef} id="video-upload" type="file" accept="video/*" className="hidden" onChange={(e) => handleVideoSelect(e.target.files?.[0] || null)} />
                 <Button variant="outline" size="sm" onClick={() => videoInputRef.current?.click()}><Upload className="w-4 h-4" /> Upload</Button>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">Redirect URL</label>
-              <Input value={form.redirectUrl} onChange={(e) => setForm({ ...form, redirectUrl: e.target.value })} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold">Category</label>
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded">
-                  <option value="influencer">Influencer</option>
-                  <option value="media">Media</option>
-                  <option value="featured">Featured</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold">Type</label>
-                <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded">
-                  <option value="video">Video</option>
-                  <option value="audio">Audio</option>
-                  <option value="image">Image</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold">Sort Order</label>
-                <Input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold">Active</label>
-                <div className="mt-2">
-                  <input type="checkbox" checked={!!form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">Metadata (JSON)</label>
-              <textarea value={typeof form.metadata === 'string' ? form.metadata : JSON.stringify(form.metadata || {}, null, 2)} onChange={(e) => setForm({ ...form, metadata: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded" rows={4} />
             </div>
 
             <div className="flex gap-2 justify-end">

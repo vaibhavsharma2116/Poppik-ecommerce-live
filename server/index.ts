@@ -81,6 +81,27 @@ app.use('/uploads', express.static('uploads', {
   }
 }));
 
+app.use('/attached_assets', express.static(path.resolve(process.cwd(), 'attached_assets'), {
+  maxAge: '365d',
+  immutable: true,
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, p) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+
+    if (p.endsWith('.jpg') || p.endsWith('.jpeg')) {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (p.endsWith('.png')) {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (p.endsWith('.webp')) {
+      res.setHeader('Content-Type', 'image/webp');
+    }
+  }
+}));
+
 // Cache API responses
 app.use((req, res, next) => {
   if (req.method === 'GET' && req.path.startsWith('/api/products')) {

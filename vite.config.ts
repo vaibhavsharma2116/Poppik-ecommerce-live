@@ -49,8 +49,6 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 1500,
     cssCodeSplit: true,
-    // Add rollup cache for faster rebuilds
-    rollupCache: null,
     // Increase chunk size limit and be smarter about splitting
     dynamicImportVarsOptions: {
       warnOnError: true,
@@ -60,6 +58,12 @@ export default defineConfig({
   server: {
     port: 8085,
     strictPort: true,
+    fs: {
+      allow: [
+        path.resolve(__dirname),
+        path.resolve(__dirname, "attached_assets"),
+      ],
+    },
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'wouter'],

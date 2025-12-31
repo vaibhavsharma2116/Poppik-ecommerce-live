@@ -17,10 +17,6 @@ interface MediaItem {
   redirectUrl?: string;
   category?: string;
   type?: string;
-  clickCount?: number;
-  isActive?: boolean;
-  sortOrder?: number;
-  metadata?: Record<string, any> | string;
 }
 
 export default function AdminAffiliateVideos() {
@@ -30,7 +26,7 @@ export default function AdminAffiliateVideos() {
   const [refreshing, setRefreshing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState<MediaItem | null>(null);
-  const [form, setForm] = useState<MediaItem>({ affiliateName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'affiliate', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' });
+  const [form, setForm] = useState<MediaItem>({ title: '', imageUrl: '', videoUrl: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -62,9 +58,9 @@ export default function AdminAffiliateVideos() {
       // Ensure all items have proper types
       const typedItems = items.map((item: any) => ({
         ...item,
-        isActive: item.isActive === true || item.isActive === 'true',
-        clickCount: parseInt(item.clickCount) || 0,
-        sortOrder: parseInt(item.sortOrder) || 0
+        title: item.title || '',
+        imageUrl: item.imageUrl || '',
+        videoUrl: item.videoUrl || '',
       }));
       setItems(typedItems);
     } catch (err) {
@@ -79,7 +75,7 @@ export default function AdminAffiliateVideos() {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ affiliateName: '', title: '', description: '', imageUrl: '', videoUrl: '', redirectUrl: '', category: 'affiliate', type: 'video', clickCount: 0, isActive: true, sortOrder: 0, metadata: '{}' });
+    setForm({ title: '', imageUrl: '', videoUrl: '' });
     if (imageBlobRef.current && imageBlobRef.current.startsWith('blob:')) {
       try { URL.revokeObjectURL(imageBlobRef.current); } catch (e) { }
       imageBlobRef.current = null;
@@ -160,17 +156,17 @@ export default function AdminAffiliateVideos() {
         if (r.ok) { const j = await r.json(); form.videoUrl = j.url; }
       }
 
-      let metadataToSend: any = null;
-      try {
-        if (typeof form.metadata === 'string') metadataToSend = JSON.parse(form.metadata || '{}');
-        else metadataToSend = form.metadata || {};
-      } catch (err) {
-        toast({ title: 'Error', description: 'Metadata must be valid JSON', variant: 'destructive' });
-        setSaving(false);
-        return;
-      }
-
-      const payload = { ...form, metadata: metadataToSend } as any;
+      const payload = {
+        ...form,
+        affiliateName: null,
+        description: null,
+        redirectUrl: null,
+        category: 'affiliate',
+        type: 'video',
+        isActive: true,
+        sortOrder: 0,
+        metadata: {},
+      } as any;
 
       const res = await fetch(url, {
         method,
@@ -285,9 +281,6 @@ export default function AdminAffiliateVideos() {
                     <TableHead>ID</TableHead>
                     <TableHead>Thumbnail</TableHead>
                     <TableHead>Title</TableHead>
-                    <TableHead>Affiliate Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -301,13 +294,6 @@ export default function AdminAffiliateVideos() {
                         )}
                       </TableCell>
                       <TableCell className="font-medium">{it.title}</TableCell>
-                      <TableCell>{it.affiliateName || '-'}</TableCell>
-                      <TableCell>{it.category}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${it.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {it.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -315,7 +301,12 @@ export default function AdminAffiliateVideos() {
                             size="sm"
                             onClick={() => {
                               setEditing(it);
-                              setForm(it);
+                              setForm({
+                                id: it.id,
+                                title: it.title || '',
+                                imageUrl: it.imageUrl || '',
+                                videoUrl: it.videoUrl || '',
+                              });
                               setImageFile(null);
                               setVideoFile(null);
                               setIsModalOpen(true);
@@ -348,35 +339,6 @@ export default function AdminAffiliateVideos() {
         </CardContent>
       </Card>
 
-      {/* Debug: Show items without titles */}
-      {items.filter(it => !it.title || !it.title.trim()).length > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardHeader>
-            <CardTitle className="text-yellow-900">⚠️ Items without titles ({items.filter(it => !it.title || !it.title.trim()).length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {items.filter(it => !it.title || !it.title.trim()).map((it) => (
-                <div key={it.id} className="p-3 bg-white rounded border border-yellow-300 text-sm">
-                  <div><strong>ID:</strong> {it.id}</div>
-                  <div><strong>Affiliate Name:</strong> {it.affiliateName || '(empty)'}</div>
-                  <div><strong>Title:</strong> {it.title ? `"${it.title}"` : '(EMPTY - this is the problem!)'}</div>
-                  <div><strong>Status:</strong> {it.isActive ? 'Active' : 'Inactive'}</div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(it.id)}
-                    className="mt-2 text-red-600 hover:text-red-700"
-                  >
-                    Delete This Item
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <Dialog open={isModalOpen} onOpenChange={(o) => { if (!o) { setIsModalOpen(false); resetForm(); } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-6">
           <DialogHeader>
@@ -384,40 +346,19 @@ export default function AdminAffiliateVideos() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-semibold">Affiliate Name</label>
+              <label className="block text-sm font-semibold">Title</label>
               <Input
-                value={form.affiliateName || ''}
-                onChange={(e) => setForm({ ...form, affiliateName: e.target.value })}
-                placeholder="Enter affiliate name"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">Title *</label>
-              <Input
-                value={form.title}
+                value={form.title || ''}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="Enter title"
-                required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold">Description</label>
-              <textarea
-                value={form.description || ''}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded"
-                rows={3}
-                placeholder="Enter description"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">Thumbnail Image</label>
+              <label className="block text-sm font-semibold">Thumbnail URL</label>
               <div className="flex gap-2 items-end">
                 <Input
-                  value={form.imageUrl}
+                  value={form.imageUrl || ''}
                   onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                   placeholder="Image URL or upload below"
                 />
@@ -465,73 +406,6 @@ export default function AdminAffiliateVideos() {
                   <Upload className="w-4 h-4" /> Upload
                 </Button>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">Redirect URL</label>
-              <Input
-                value={form.redirectUrl || ''}
-                onChange={(e) => setForm({ ...form, redirectUrl: e.target.value })}
-                placeholder="Where to redirect on click"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold">Category</label>
-                <select
-                  value={form.category || 'affiliate'}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                >
-                  <option value="affiliate">Affiliate</option>
-                  <option value="media">Media</option>
-                  <option value="featured">Featured</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold">Type</label>
-                <select
-                  value={form.type || 'video'}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                >
-                  <option value="video">Video</option>
-                  <option value="audio">Audio</option>
-                  <option value="image">Image</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold">Sort Order</label>
-                <Input
-                  type="number"
-                  value={form.sortOrder || 0}
-                  onChange={(e) => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={!!form.isActive}
-                    onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                  />
-                  Active
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold">Metadata (JSON)</label>
-              <textarea
-                value={typeof form.metadata === 'string' ? form.metadata : JSON.stringify(form.metadata || {}, null, 2)}
-                onChange={(e) => setForm({ ...form, metadata: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded font-mono text-xs"
-                rows={4}
-              />
             </div>
 
             <DialogFooter>
