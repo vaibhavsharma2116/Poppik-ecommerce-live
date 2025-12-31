@@ -2085,6 +2085,7 @@ export class DatabaseStorage implements IStorage {
       const [result] = await this.db.insert(testimonials).values({
         customerName: testimonialData.customerName,
         customerImage: testimonialData.customerImage || null,
+        instagramUrl: testimonialData.instagramUrl || null,
         rating: testimonialData.rating || 5,
         reviewText: testimonialData.reviewText,
         isActive: testimonialData.isActive !== false,

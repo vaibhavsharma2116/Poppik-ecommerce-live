@@ -11932,6 +11932,7 @@ app.get('/api/influencer-videos', async (req, res) => {
       const testimonialData = {
         customerName: req.body.customerName,
         customerImage: customerImage || null,
+        instagramUrl: req.body.instagramUrl || null,
         rating: parseInt(req.body.rating) || 5,
         reviewText: req.body.reviewText,
         isActive: req.body.isActive !== 'false',
@@ -11951,6 +11952,7 @@ app.get('/api/influencer-videos', async (req, res) => {
       const id = parseInt(req.params.id);
       let updateData: any = {
         customerName: req.body.customerName,
+        instagramUrl: req.body.instagramUrl || null,
         rating: parseInt(req.body.rating) || 5,
         reviewText: req.body.reviewText,
         isActive: req.body.isActive !== 'false',
