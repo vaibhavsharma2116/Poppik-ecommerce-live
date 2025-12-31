@@ -143,21 +143,16 @@ export default function Careers() {
 
         {/* Career Image Section */}
         <div className="mb-4 xs:mb-5 sm:mb-6 md:mb-8">
-          <div className="relative w-full overflow-hidden rounded-2xl shadow-2xl">
+          <div className="relative w-full overflow-hidden ">
             <img 
-              src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2000&auto=format&fit=crop"
+              src="/attached_assets/carrier.jpg"
               alt="Join Our Team at Poppik" 
               className="w-full h-auto object-cover"
               style={{ maxHeight: '500px' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end">
               <div className="p-4 xs:p-6 sm:p-8 md:p-10 lg:p-12 w-full">
-                <h2 className="text-white text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 xs:mb-3 sm:mb-4">
-                  Join Our Team
-                </h2>
-                <p className="text-white/90 text-xs xs:text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl">
-                  Be part of something amazing. Build your career with Poppik Lifestyle.
-                </p>
+                
               </div>
             </div>
           </div>

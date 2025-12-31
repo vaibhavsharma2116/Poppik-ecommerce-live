@@ -156,20 +156,10 @@ function TestimonialsCarousel() {
                 style={{ opacity }}
               >
                 <img
-                  src={testimonial.customerImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop'}
+                  src={testimonial.customerImageUrl || 'https://images.unsplash.com/photo-1534528741775-1cb2f982d8b?w=150&h=150&fit=crop'}
                   alt={testimonial.customerName}
                   className="w-full h-full"
                 />
-                {testimonial.instagramUrl ? (
-                  <a
-                    href={testimonial.instagramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Open Instagram"
-                    className={`absolute ${isCenter ? 'bottom-1 right-1 p-1 sm:p-1' : 'bottom-1 right-1 p-0.5'} bg-white rounded-full shadow-md text-pink-600 hover:text-pink-700 transition-opacity duration-200`}>
-                    <Instagram className={`${isCenter ? 'w-4 h-4' : 'w-3 h-3 sm:w-3 sm:h-3'}`} />
-                  </a>
-                ) : null}
               </div>
             );
           })}
@@ -210,7 +200,7 @@ function TestimonialsCarousel() {
           — {currentTestimonial.customerName}
           {currentTestimonial.instagramUrl ? (
             <a href={currentTestimonial.instagramUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-pink-600 hover:text-pink-700">
-              <Instagram className="w-3 h-3 sm:w-4 sm:h-4" />
+              <Instagram className="w-5 h-5 sm:w-6 sm:h-6" />
             </a>
           ) : null}
         </p>
@@ -954,7 +944,9 @@ function ComboSection() {
     if (savedWishlist) {
       try {
         const parsedWishlist = JSON.parse(savedWishlist);
-        const wishlistIds = new Set(parsedWishlist.map((item: any) => item.id));
+        const wishlistIds = new Set<number>(
+          (Array.isArray(parsedWishlist) ? parsedWishlist : []).map((item: any) => Number(item.id))
+        );
         setWishlist(wishlistIds);
       } catch (error) {
         console.error("Error loading wishlist:", error);
@@ -1006,7 +998,7 @@ function ComboSection() {
           isCombo: true,
         };
         wishlistData.push(wishlistItem);
-        setWishlist(prev => new Set([...prev, combo.id]));
+        setWishlist(prev => new Set<number>([...Array.from(prev), Number(combo.id)]));
         toast({
           title: "Added to Wishlist",
           description: `${combo.name} has been added to your wishlist`,

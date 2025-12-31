@@ -372,12 +372,12 @@ export default function AffiliatePage() {
               />
               <div className="flex -ml-12 sm:-ml-16 mt-20 sm:mt-24 space-x-2 sm:space-x-4">
                 <img
-                  src="/attached_assets/INFLUENCER_circular.png"
+                  src="/attached_assets/INFLUENCER_IMAGES-02.png?v=20251231"
                   alt="Affiliate 2"
                   className="rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-4 border-white shadow-lg"
                 />
                 <img
-                  src="/attached_assets/INFLUENCER_circular.png"
+                  src="/attached_assets/INFLUENCER_IMAGES-03.png?v=20251231"
                   alt="Affiliate 3"
                   className="rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-4 border-white shadow-lg"
                 />
@@ -406,18 +406,18 @@ export default function AffiliatePage() {
             {/* Images - First on mobile */}
             <div className="flex justify-center order-1">
               <img
-                src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=400&fit=crop"
+                src="/attached_assets/INFLUENCER_IMAGES-04.png?v=20251231"
                 alt="Featured Affiliate"
                 className="rounded-full w-48 h-48 sm:w-64 sm:h-64 object-cover shadow-xl border-8 border-white"
               />
               <div className="flex -ml-12 sm:-ml-16 mt-20 sm:mt-24 space-x-2 sm:space-x-4">
                 <img
-                  src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop"
+                  src="/attached_assets/INFLUENCER_IMAGES-05.png?v=20251231"
                   alt="Affiliate 2"
                   className="rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-4 border-white shadow-lg"
                 />
                 <img
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop"
+                  src="/attached_assets/INFLUENCER_IMAGES-06.png?v=20251231"
                   alt="Affiliate 3"
                   className="rounded-full w-16 h-16 sm:w-20 sm:h-20 object-cover border-4 border-white shadow-lg"
                 />
