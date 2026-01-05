@@ -54,6 +54,13 @@ export default function Wallet() {
   const [dateRange, setDateRange] = useState<string>("all");
   const [nowMs, setNowMs] = useState(() => Date.now());
 
+  const userDisplayName =
+    user?.name ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.email ||
+    user?.phone ||
+    "Valued Customer";
+
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 1000);
     return () => window.clearInterval(id);
@@ -234,11 +241,11 @@ export default function Wallet() {
 
             <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/20">
               <div>
-                <p className="text-pink-100 text-xs mb-1">Card Holder Name</p>
-                <p className="text-white font-semibold">{user?.name || 'Valued Customer'}</p>
+                <p className="text-pink-100 text-xs mb-1">User Name</p>
+                <p className="text-white font-semibold">{userDisplayName}</p>
               </div>
               <div className="text-right">
-                <p className="text-pink-100 text-xs mb-1">Member Since</p>
+                <p className="text-pink-100 text-xs mb-1">User Since</p>
                 <p className="text-white font-semibold">
                   {walletData?.createdAt ? new Date(walletData.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'Nov 2025'}
                 </p>

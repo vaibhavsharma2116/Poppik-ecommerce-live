@@ -1003,7 +1003,7 @@ export default function ProductDetail() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <Skeleton className="h-6 w-64 mb-8" />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             <Skeleton className="aspect-square rounded-3xl" />
@@ -1022,7 +1022,7 @@ export default function ProductDetail() {
   if (!product) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-2xl mx-auto">
             <div className="w-24 h-24 bg-gradient-to-br from-red-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-pink-400 rounded-full"></div>
@@ -1583,18 +1583,7 @@ export default function ProductDetail() {
               <div className="lg:col-span-1 space-y-4 sm:space-y-6">
                 <div className="bg-white p-4 rounded-none shadow-none border-none">
                   {/* Product badges */}
-                  <div className="flex gap-3 mb-6">
-                    {product.bestseller && (
-                      <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-                        #{product.category === 'skincare' ? '1' : product.category === 'haircare' ? '2' : '1'} in {product.category}
-                      </Badge>
-                    )}
-                    {product.newLaunch && (
-                      <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-                        NEW LAUNCH
-                      </Badge>
-                    )}
-                  </div>
+                  <div className="flex gap-3 mb-6"></div>
 
                   <h1 className="product-detail-title sm:text-4xl text-gray-900 mb-3 sm:mb-4">{product.name}</h1>
 
@@ -1777,7 +1766,7 @@ export default function ProductDetail() {
                             ⚠️ Please select at least one shade before adding to cart
                           </p>
                           <p className="text-xs text-gray-500 mt-1">
-                            💡 Not sure about your shade? Our beauty experts can help you find the perfect match!
+                            If you’re facing challenges in selecting the right shade, you can discuss it with our beauty experts and make the perfect choice.
                           </p>
                         </>
                       )}

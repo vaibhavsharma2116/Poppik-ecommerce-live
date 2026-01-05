@@ -570,7 +570,7 @@ export default function Cart() {
   };
 
   const updateQuantity = (id: number, newQuantity: number, index?: number) => {
-    if (newQuantity < 1 || newQuantity > 10) return;
+    if (newQuantity < 1) return;
 
     setCartItems((prev) => {
       const next = [...prev];
@@ -880,29 +880,24 @@ export default function Cart() {
             <div className="text-center mb-10">
               {(() => {
                 const nextMilestoneLocal = giftMilestonesSorted.find((m: any) => cartSubtotal < parseFloat(m.minAmount));
-                if (nextMilestoneLocal) {
-                  const remainingLocal = parseFloat(nextMilestoneLocal.minAmount) - cartSubtotal;
+                if (!nextMilestoneLocal) return null;
 
-                  return (
+                const remainingLocal = parseFloat(nextMilestoneLocal.minAmount) - cartSubtotal;
+
+                return (
+                  <>
                     <p className="text-lg font-semibold text-gray-800 mb-1 flex items-center justify-center gap-2">
                       <span className="text-xl">🛍️</span>
                       Add ₹{Math.max(0, remainingLocal).toFixed(0)} more to unlock {nextMilestoneLocal.giftCount} FREE gift{nextMilestoneLocal.giftCount > 1 ? 's' : ''}!
                     </p>
-                  );
-                }
-
-                return (
-                  <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-1">
-                    Use code <span className="text-pink-600">FLAT15</span> to Get <span className="text-pink-600">FLAT 15% OFF</span>
-                  </h3>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Shop for <span className="font-semibold text-pink-600">
+                        ₹{parseFloat(giftMilestonesSorted[0]?.minAmount || '0').toFixed(0)}+
+                      </span> to get <span className="font-semibold text-pink-600">FREE gifts</span>
+                    </p>
+                  </>
                 );
               })()}
-
-              <p className="text-xs sm:text-sm text-gray-600">
-                Shop for <span className="font-semibold text-pink-600">
-                  ₹{parseFloat(giftMilestonesSorted[0]?.minAmount || '0').toFixed(0)}+
-                </span> to get <span className="font-semibold text-pink-600">FREE gifts</span>
-              </p>
             </div>
 
             {/* Progress Bar */}
@@ -1123,8 +1118,7 @@ export default function Cart() {
                         <span className="px-4 py-2 font-medium min-w-[3rem] text-center">{item.quantity}</span>
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity + 1, index)}
-                          className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={!item.inStock || item.quantity >= 10}
+                          className="p-2 hover:bg-gray-100 transition-colors"
                           aria-label="Increase quantity"
                         >
                           <Plus className="h-4 w-4" />
@@ -1161,7 +1155,7 @@ export default function Cart() {
                 <h2 className="text-xl font-semibold text-gray-900">Order Summary</h2>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Promo Code / Affiliate Code</label>
+                  <label className="text-sm font-medium text-gray-700">Promo Code </label>
                   <div className="flex space-x-2">
                     <Input
                       placeholder="Try SAVE10, FLAT50, or POPPIKAP..."

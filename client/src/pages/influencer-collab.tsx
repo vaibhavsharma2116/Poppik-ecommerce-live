@@ -26,6 +26,30 @@ function VideosList() {
   const [modalVideo, setModalVideo] = useState<any>(null);
   const [expanded, setExpanded] = useState(false);
 
+  const normalizeVideoUrl = (url?: string | null) => {
+    if (!url) return { kind: 'none' as const, src: '' };
+    const raw = String(url).trim();
+    const lower = raw.toLowerCase();
+
+    if (lower.match(/\.(mp4|webm|ogg)(\?|#|$)/)) {
+      return { kind: 'file' as const, src: raw };
+    }
+
+    const youtubeIdMatch =
+      raw.match(/[?&]v=([a-zA-Z0-9_-]{6,})/) ||
+      raw.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/) ||
+      raw.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{6,})/) ||
+      raw.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{6,})/);
+
+    if (youtubeIdMatch?.[1]) {
+      const id = youtubeIdMatch[1];
+      const embed = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&playsinline=1`;
+      return { kind: 'iframe' as const, src: embed };
+    }
+
+    return { kind: 'iframe' as const, src: raw };
+  };
+
   useEffect(() => {
     let mounted = true;
     const fetchMedia = async () => {
@@ -91,18 +115,20 @@ function VideosList() {
         const url = j.redirectUrl || media.videoUrl || media.redirectUrl;
         if (url) {
           // open inside modal instead of redirect
-          const isIframe = isEmbeddable(url);
+          const normalized = normalizeVideoUrl(url);
+          const isIframe = normalized.kind === 'iframe';
           const duration = media.metadata?.duration || media.duration || null;
-          setModalVideo({ url, title: media.title, isIframe, duration });
+          setModalVideo({ url: normalized.src, title: media.title, isIframe, duration });
           setModalOpen(true);
         }
       } else {
         // Fallback: open videoUrl or redirectUrl
         const url = media.videoUrl || media.redirectUrl;
         if (url) {
-          const isIframe = isEmbeddable(url);
+          const normalized = normalizeVideoUrl(url);
+          const isIframe = normalized.kind === 'iframe';
           const duration = media.metadata?.duration || media.duration || null;
-          setModalVideo({ url, title: media.title, isIframe, duration });
+          setModalVideo({ url: normalized.src, title: media.title, isIframe, duration });
           setModalOpen(true);
         }
       }
@@ -110,9 +136,10 @@ function VideosList() {
       console.error('Error on media click:', err);
       const url = media.videoUrl || media.redirectUrl;
       if (url) {
-        const isIframe = isEmbeddable(url);
+        const normalized = normalizeVideoUrl(url);
+        const isIframe = normalized.kind === 'iframe';
         const duration = media.metadata?.duration || media.duration || null;
-        setModalVideo({ url, title: media.title, isIframe, duration });
+        setModalVideo({ url: normalized.src, title: media.title, isIframe, duration });
         setModalOpen(true);
       }
     }
@@ -205,7 +232,15 @@ function VideosList() {
             {modalVideo ? (
               modalVideo.isIframe ? (
                 <div className="aspect-video">
-                  <iframe src={modalVideo.url} title={modalVideo.title} className="w-full h-full" frameBorder="0" allowFullScreen />
+                  <iframe
+                    src={modalVideo.url}
+                    title={modalVideo.title}
+                    className="w-full h-full"
+                    frameBorder="0"
+                    referrerPolicy="origin-when-cross-origin"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
                 </div>
                 ) : (
                 <video
@@ -250,7 +285,7 @@ export default function InfluencerCollabPage() {
 
       {/* Benefits Section */}
       <section id="benefits" className="py-16 md:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Why Partner With Us?
@@ -314,7 +349,7 @@ export default function InfluencerCollabPage() {
 
       {/* How It Works */}
       <section className="py-16 md:py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               How It Works

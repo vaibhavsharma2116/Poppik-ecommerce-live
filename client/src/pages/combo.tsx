@@ -466,7 +466,7 @@ console.log("VCVVVVVV",combo)
 
                   {/* Title */}
                   <h3
-                    className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-3 text-xs sm:text-sm md:text-base break-words"
+                    className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-3 text-sm sm:text-lg md:text-xl break-words"
                     style={{ minHeight: '3.6rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', hyphens: 'auto' }}
                     onClick={() => {
                       React.startTransition(() => {
@@ -485,14 +485,14 @@ console.log("VCVVVVVV",combo)
                           ₹{price.toLocaleString()}
                         </span>
                         {originalPrice > price && (
-                          <>
+                          <React.Fragment>
                             <span className="text-xs sm:text-sm text-gray-500 line-through">
                               ₹{originalPrice.toLocaleString()}
                             </span>
                             <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 sm:px-2 rounded whitespace-nowrap">
                               {discountPercentage}% OFF
                             </span>
-                          </>
+                          </React.Fragment>
                         )}
                       </div>
 
@@ -513,27 +513,27 @@ console.log("VCVVVVVV",combo)
                       </div>
 
                       {/* Stock status and Savings */}
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <div className="flex items-center space-x-1.5 sm:space-x-2">
-                  <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
-                    combo.inStock !== false
-                      ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
-                      : 'bg-gradient-to-r from-red-400 to-rose-400'
-                  }`}></div>
-                  <span className={`font-bold text-xs sm:text-sm ${
-                    combo.inStock !== false ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
-                  </span>
-                </div>
-                {originalPrice > price && (
-                  <span className="text-xs sm:text-sm font-bold text-green-600">
-                    Save ₹{(originalPrice - price).toLocaleString()}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
+                      <div className="flex items-center justify-between mb-3 sm:mb-4">
+                        <div className="flex items-center space-x-1.5 sm:space-x-2">
+                          <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
+                            combo.inStock !== false
+                              ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
+                              : 'bg-gradient-to-r from-red-400 to-rose-400'
+                          }`}></div>
+                          <span className={`font-bold text-xs sm:text-sm ${
+                            combo.inStock !== false ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
+                          </span>
+                        </div>
+                        {originalPrice > price && (
+                          <span className="text-xs sm:text-sm font-bold text-green-600">
+                            Save ₹{(originalPrice - price).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Add to Cart or Select Shades Button */}
                   {(() => {
@@ -545,7 +545,7 @@ console.log("VCVVVVVV",combo)
                       // Single product - always show Add to Cart
                       return (
                         <Button
-                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                           onClick={() => handleAddToCart(combo)}
                         >
                           <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -556,7 +556,7 @@ console.log("VCVVVVVV",combo)
                       // Multiple products but NO shades - show Add to Cart
                       return (
                         <Button
-                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                           onClick={() => handleAddToCart(combo)}
                         >
                           <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -567,7 +567,7 @@ console.log("VCVVVVVV",combo)
                       // Multiple products with shades - show Select Shades
                       return (
                         <Button
-                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                           onClick={() => window.location.href = `/combo/${combo.id}`}
                         >
                           <Star className="h-3 w-3 sm:h-4 sm:w-4" />

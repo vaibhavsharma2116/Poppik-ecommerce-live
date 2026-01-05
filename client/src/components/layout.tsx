@@ -327,7 +327,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Header */}
       <header className="sticky top-0 bg-white shadow-lg z-50">
         {/* Main Header */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Desktop and Tablet Layout */}
             <div className="hidden md:flex items-center justify-between w-full">
@@ -1092,7 +1092,7 @@ export default function Layout({ children }: LayoutProps) {
 
         {/* Navigation - Desktop */}
         <nav className="bg-white hidden md:block shadow-md">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-center h-12">
               <ul className="flex items-center space-x-4">
                 <li>
@@ -1315,7 +1315,7 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Footer */}
       <footer className="bg-gradient-to-b from-gray-900 to-black text-white py-2">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Top Section - Centered Logo and Description */}
           <div className="text-center mb-12">
             <div className="mb-0 flex justify-center">

@@ -1049,7 +1049,7 @@ function ComboSection() {
   if (isLoading) {
     return (
       <section className="py-6  bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-10 md:mb-12">
             <Skeleton className="h-12 w-64 mx-auto mb-4" />
             <Skeleton className="h-6 w-48 mx-auto" />
@@ -1247,7 +1247,7 @@ function ComboSection() {
                       // Single product - always show Add to Cart
                       return (
                         <Button
-                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                           onClick={() => {
                             const cart = JSON.parse(localStorage.getItem("cart") || "[]");
                             const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id);
@@ -1287,7 +1287,7 @@ function ComboSection() {
                       // Multiple products but NO shades - show Add to Cart
                       return (
                         <Button
-                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                           onClick={() => {
                             const cart = JSON.parse(localStorage.getItem("cart") || "[]");
                             const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id);
@@ -1327,7 +1327,7 @@ function ComboSection() {
                       // Multiple products with shades - show Select Shades
                       return (
                         <Button
-                          className="w-full text-xs sm:text-sm py-2 sm:py-2.5 md:py-3 flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                           onClick={() => window.location.href = `/combo/${combo.id}`}
                         >
                           <Star className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -1340,7 +1340,7 @@ function ComboSection() {
               </div>
             );
           })}
-        </div>
+          </div>
 
         <div className="text-center mt-8 sm:mt-10">
           <Link href="/combos">

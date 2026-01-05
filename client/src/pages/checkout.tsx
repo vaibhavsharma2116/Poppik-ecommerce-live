@@ -989,7 +989,7 @@ export default function CheckoutPage() {
       if (formData.zipCode && formData.zipCode.length === 6 && /^\d{6}$/.test(formData.zipCode)) {
         setCheckingPincode(true);
         try {
-          const response = await fetch(`/api/check-pincode?pincode=${formData.zipCode}`);
+          const response = await fetch(apiUrl(`/api/check-pincode?pincode=${formData.zipCode}`));
           
           if (response.ok) {
             const data = await response.json();
@@ -1001,20 +1001,20 @@ export default function CheckoutPage() {
             } else {
               setDeliveryPartner("INDIA_POST");
               setDeliveryType("MANUAL");
-              setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days.");
+              setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days.");
             }
           } else {
             // On error, default to India Post
             setDeliveryPartner("INDIA_POST");
             setDeliveryType("MANUAL");
-            setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days.");
+            setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days.");
           }
         } catch (error) {
           console.error("Error checking pincode:", error);
           // On error, default to India Post
           setDeliveryPartner("INDIA_POST");
           setDeliveryType("MANUAL");
-          setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days.");
+          setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days.");
         } finally {
           setCheckingPincode(false);
         }
@@ -2840,7 +2840,6 @@ export default function CheckoutPage() {
                                   }));
                                   localStorage.setItem('checkoutCartItems', JSON.stringify(minimalCart));
                                   localStorage.setItem('multipleAddressMode', 'true');
-                                  setLocation('/select-delivery-address');
                                 }}
                               >
                                 Deliver to multiple addresses
@@ -3453,7 +3452,7 @@ export default function CheckoutPage() {
                       <Button
                         type="submit"
                         className="bg-red-600 hover:bg-red-700 flex items-center gap-2"
-                        disabled={isProcessing}
+                        disabled={isProcessing || checkingPincode}
                       >
                         {isProcessing ? "Processing..." : `Place Order - ₹${total.toLocaleString()}`}
                       </Button>

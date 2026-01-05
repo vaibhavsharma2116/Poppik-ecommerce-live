@@ -27,6 +27,15 @@ import {
 import { ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
+type MediaItem = {
+  id: number;
+  title?: string | null;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  redirectUrl?: string | null;
+  [key: string]: any;
+};
+
 function ChannelPartnerVideos() {
  const { data: items = [], isLoading, refetch: refetchList } = useQuery<MediaItem[]>({
     queryKey: ['/api/admin/channel-partner-videos'],
@@ -59,6 +68,30 @@ function ChannelPartnerVideos() {
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
   const [showMore, setShowMore] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const normalizeVideoUrl = (url?: string | null) => {
+    if (!url) return { kind: 'none' as const, src: '' };
+    const raw = String(url).trim();
+    const lower = raw.toLowerCase();
+
+    if (lower.match(/\.(mp4|webm|ogg)(\?|#|$)/)) {
+      return { kind: 'file' as const, src: raw };
+    }
+
+    const youtubeIdMatch =
+      raw.match(/[?&]v=([a-zA-Z0-9_-]{6,})/) ||
+      raw.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/) ||
+      raw.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{6,})/) ||
+      raw.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{6,})/);
+
+    if (youtubeIdMatch?.[1]) {
+      const id = youtubeIdMatch[1];
+      const embed = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&playsinline=1`;
+      return { kind: 'iframe' as const, src: embed };
+    }
+
+    return { kind: 'iframe' as const, src: raw };
+  };
 
   useEffect(() => {
     if (selectedVideo && videoRef.current) {
@@ -152,11 +185,36 @@ function ChannelPartnerVideos() {
               </div>
             </div>
             <div className="p-2">
-              {selectedVideo.videoUrl && selectedVideo.videoUrl.includes('youtube') ? (
-                <iframe title={selectedVideo.title} src={selectedVideo.videoUrl} className="w-full h-[60vh]" />
-              ) : (
-                <video ref={videoRef} src={selectedVideo.videoUrl} controls controlsList="nodownload" autoPlay className="w-full max-h-[70vh]" onContextMenu={(e) => e.preventDefault()} />
-              )}
+              {(() => {
+                const normalized = normalizeVideoUrl(selectedVideo.videoUrl);
+                if (normalized.kind === 'iframe') {
+                  return (
+                    <iframe
+                      title={selectedVideo.title}
+                      src={normalized.src}
+                      className="w-full h-[60vh]"
+                      frameBorder={0}
+                      referrerPolicy="origin-when-cross-origin"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  );
+                }
+                if (normalized.kind === 'file') {
+                  return (
+                    <video
+                      ref={videoRef}
+                      src={normalized.src}
+                      controls
+                      controlsList="nodownload"
+                      autoPlay
+                      className="w-full max-h-[70vh]"
+                      onContextMenu={(e) => e.preventDefault()}
+                    />
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
         </div>

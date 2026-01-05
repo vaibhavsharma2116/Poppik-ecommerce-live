@@ -1081,7 +1081,7 @@ export default function OfferDetail() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Skeleton className="h-8 w-48 mb-6" />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Skeleton className="h-96 rounded-lg" />
@@ -1099,7 +1099,7 @@ export default function OfferDetail() {
   if (!offer || error) {
     return (
       <div className="min-h-screen bg-gray-50 py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="bg-white rounded-lg shadow-lg p-12 max-w-2xl mx-auto">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">Offer Not Found</h1>
             <p className="text-gray-600 mb-8">The offer you're looking for doesn't exist or has expired.</p>
@@ -1134,7 +1134,7 @@ export default function OfferDetail() {
     <div className="min-h-screen bg-gray-50">
       {/* Breadcrumb */}
       <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <nav className="flex items-center space-x-2 text-sm">
             <Link href="/" className="text-gray-600 hover:text-gray-900">
               Home
@@ -1149,7 +1149,7 @@ export default function OfferDetail() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Left Column - Image Gallery with Thumbnails */}

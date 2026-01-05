@@ -266,7 +266,6 @@ export default function DynamicFilter({
             ...prev, 
             selectedSubcategories: prev.selectedSubcategories.filter(sub => sub !== value) 
           }));
-        } else {
           setFilters(prev => ({ ...prev, selectedSubcategories: [] }));
         }
         break;
@@ -274,9 +273,8 @@ export default function DynamicFilter({
   };
 
   return (
-    <div className={`space-y-6 ${className}`}>
-      {/* Filter Header */}
-      <div className="flex items-center justify-between">
+    <div className={`flex h-full flex-col ${className}`}>
+      <div className="sticky top-0 z-10 flex items-center justify-between pb-4 bg-white/80 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <Filter className="h-5 w-5" />
           <h3 className="font-semibold">Filters</h3>
@@ -292,200 +290,161 @@ export default function DynamicFilter({
         )}
       </div>
 
-      {/* Active Filters */}
-      {getActiveFilterCount() > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {(filters.priceRange[0] > 0 || filters.priceRange[1] < maxPrice) && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              ₹{filters.priceRange[0]} - ₹{filters.priceRange[1]}
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => removeFilter('price')}
-              />
-            </Badge>
-          )}
-          {filters.rating > 0 && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              {filters.rating}+ Stars
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => removeFilter('rating')}
-              />
-            </Badge>
-          )}
-          {filters.inStock && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              In Stock
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => removeFilter('inStock')}
-              />
-            </Badge>
-          )}
-          {filters.featured && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              Featured
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => removeFilter('featured')}
-              />
-            </Badge>
-          )}
-          {filters.bestseller && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              Bestseller
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => removeFilter('bestseller')}
-              />
-            </Badge>
-          )}
-          {filters.newLaunch && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              New Launch
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => removeFilter('newLaunch')}
-              />
-            </Badge>
-          )}
-          {filters.selectedCategories.map((category) => (
-            <Badge key={category} variant="outline" className="flex items-center gap-1">
-              {category}
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => removeFilter('category', category)}
-              />
-            </Badge>
-          ))}
-          {filters.selectedSubcategories.map((subcategory) => (
-            <Badge key={subcategory} variant="outline" className="flex items-center gap-1">
-              {subcategory}
-              <X 
-                className="h-3 w-3 cursor-pointer" 
-                onClick={() => removeFilter('subcategory', subcategory)}
-              />
-            </Badge>
-          ))}
-        </div>
-      )}
-
-      {/* Price Range Filter */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Price Range</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Slider
-            value={filters.priceRange}
-            onValueChange={handlePriceRangeChange}
-            max={maxPrice}
-            min={0}
-            step={50}
-            className="w-full"
-          />
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>₹{filters.priceRange[0]}</span>
-            <span>₹{filters.priceRange[1]}</span>
+      <div className="flex-1 space-y-6 overflow-y-auto pr-1">
+        {getActiveFilterCount() > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {(filters.priceRange[0] > 0 || filters.priceRange[1] < maxPrice) && (
+              <Badge variant="outline" className="flex items-center gap-1">
+                ₹{filters.priceRange[0]} - ₹{filters.priceRange[1]}
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => removeFilter('price')}
+                />
+              </Badge>
+            )}
+            {filters.rating > 0 && (
+              <Badge variant="outline" className="flex items-center gap-1">
+                {filters.rating}+ Stars
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => removeFilter('rating')}
+                />
+              </Badge>
+            )}
+            {filters.inStock && (
+              <Badge variant="outline" className="flex items-center gap-1">
+                In Stock
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => removeFilter('inStock')}
+                />
+              </Badge>
+            )}
+            {filters.featured && (
+              <Badge variant="outline" className="flex items-center gap-1">
+                Featured
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => removeFilter('featured')}
+                />
+              </Badge>
+            )}
+            {filters.bestseller && (
+              <Badge variant="outline" className="flex items-center gap-1">
+                Bestseller
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => removeFilter('bestseller')}
+                />
+              </Badge>
+            )}
+            {filters.newLaunch && (
+              <Badge variant="outline" className="flex items-center gap-1">
+                New Launch
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => removeFilter('newLaunch')}
+                />
+              </Badge>
+            )}
+            {filters.selectedCategories.map((category) => (
+              <Badge key={category} variant="outline" className="flex items-center gap-1">
+                {category}
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => removeFilter('category', category)}
+                />
+              </Badge>
+            ))}
+            {filters.selectedSubcategories.map((subcategory) => (
+              <Badge key={subcategory} variant="outline" className="flex items-center gap-1">
+                {subcategory}
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => removeFilter('subcategory', subcategory)}
+                />
+              </Badge>
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      {/* Rating Filter */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Rating</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {[4, 3, 2, 1].map(rating => (
-            <div 
-              key={rating}
-              className="flex items-center space-x-2 cursor-pointer"
-              onClick={() => handleRatingChange(rating)}
-            >
-              <Checkbox
-                checked={filters.rating === rating}
-                readOnly
-              />
-              <div className="flex items-center">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <span 
-                    key={i} 
-                    className={`text-sm ${i < rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  >
-                    ★
-                  </span>
-                ))}
-                <span className="text-sm text-gray-600 ml-1">& up</span>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Subcategories Filter - Show when on category page */}
-      {showSubcategories && subcategories.length > 0 ? (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Subcategories</CardTitle>
+            <CardTitle className="text-sm">Price Range</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {subcategories.map((subcategory) => {
-              const productCount = Array.isArray(products)
-                ? products.filter(p => p?.subcategory === subcategory.name).length
-                : 0;
-              return (
-                <div key={subcategory.id} className="flex items-center justify-between space-x-2">
-                  <div className="flex items-center space-x-2 flex-1">
-                    <Checkbox
-                      id={`subcategory-${subcategory.id}`}
-                      checked={filters.selectedSubcategories.includes(subcategory.name)}
-                      onCheckedChange={(checked) => 
-                        handleSubcategoryChange(subcategory.name, checked as boolean)
-                      }
-                      className="h-3.5 w-3.5 scale-75"
-                    />
-                    <label 
-                      htmlFor={`subcategory-${subcategory.id}`} 
-                      className="text-sm font-medium cursor-pointer flex-1"
-                    >
-                      {subcategory.name}
-                    </label>
-                  </div>
-                  {/* <span className="text-xs text-gray-500">({productCount})</span> */}
-                </div>
-              );
-            })}
+          <CardContent className="space-y-4">
+            <Slider
+              value={filters.priceRange}
+              onValueChange={handlePriceRangeChange}
+              max={maxPrice}
+              min={0}
+              step={50}
+              className="w-full"
+            />
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>₹{filters.priceRange[0]}</span>
+              <span>₹{filters.priceRange[1]}</span>
+            </div>
           </CardContent>
         </Card>
-      ) : (
-        /* Categories Filter - Show when not on category page */
-        categories.length > 0 && (
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Rating</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {[4, 3, 2, 1].map(rating => (
+              <div 
+                key={rating}
+                className="flex items-center space-x-2 cursor-pointer"
+                onClick={() => handleRatingChange(rating)}
+              >
+                <Checkbox
+                  checked={filters.rating === rating}
+                  onCheckedChange={() => {}}
+                />
+                <div className="flex items-center">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <span 
+                      key={i} 
+                      className={`text-sm ${i < rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                    >
+                      ★
+                    </span>
+                  ))}
+                  <span className="text-sm text-gray-600 ml-1">& up</span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {showSubcategories && subcategories.length > 0 ? (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Categories</CardTitle>
+              <CardTitle className="text-sm">Subcategories</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {categories.map((category) => {
-                const productCount = Array.isArray(products) 
-                  ? products.filter(p => p?.category === category.name).length 
+              {subcategories.map((subcategory) => {
+                const productCount = Array.isArray(products)
+                  ? products.filter(p => p?.subcategory === subcategory.name).length
                   : 0;
                 return (
-                  <div key={category.id} className="flex items-center justify-between space-x-2">
+                  <div key={subcategory.id} className="flex items-center justify-between space-x-2">
                     <div className="flex items-center space-x-2 flex-1">
                       <Checkbox
-                        id={`category-${category.id}`}
-                        checked={filters.selectedCategories.includes(category.name)}
-                        onCheckedChange={(checked) => 
-                          handleCategoryChange(category.name, checked as boolean)
+                        id={`subcategory-${subcategory.id}`}
+                        checked={filters.selectedSubcategories.includes(subcategory.name)}
+                        onCheckedChange={(checked) =>
+                          handleSubcategoryChange(subcategory.name, checked as boolean)
                         }
                         className="h-3.5 w-3.5 scale-75"
                       />
-                      <label 
-                        htmlFor={`category-${category.id}`} 
+                      <label
+                        htmlFor={`subcategory-${subcategory.id}`}
                         className="text-sm font-medium cursor-pointer flex-1"
                       >
-                        {category.name}
+                        {subcategory.name}
                       </label>
                     </div>
                     {/* <span className="text-xs text-gray-500">({productCount})</span> */}
@@ -494,72 +453,107 @@ export default function DynamicFilter({
               })}
             </CardContent>
           </Card>
-        )
-      )}
+        ) : (
+          categories.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Categories</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {categories.map((category) => {
+                  const productCount = Array.isArray(products)
+                    ? products.filter(p => p?.category === category.name).length
+                    : 0;
+                  return (
+                    <div key={category.id} className="flex items-center justify-between space-x-2">
+                      <div className="flex items-center space-x-2 flex-1">
+                        <Checkbox
+                          id={`category-${category.id}`}
+                          checked={filters.selectedCategories.includes(category.name)}
+                          onCheckedChange={(checked) =>
+                            handleCategoryChange(category.name, checked as boolean)
+                          }
+                          className="h-3.5 w-3.5 scale-75"
+                        />
+                        <label
+                          htmlFor={`category-${category.id}`}
+                          className="text-sm font-medium cursor-pointer flex-1"
+                        >
+                          {category.name}
+                        </label>
+                      </div>
+                      {/* <span className="text-xs text-gray-500">({productCount})</span> */}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )
+        )}
 
-      {/* Product Status Filters */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Product Status</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="inStock"
-              checked={filters.inStock}
-              onCheckedChange={(checked) => 
-                setFilters(prev => ({ ...prev, inStock: checked as boolean }))
-              }
-              className="h-3.5 w-3.5 scale-75"
-            />
-            <label htmlFor="inStock" className="text-sm font-medium cursor-pointer">
-              In Stock Only
-            </label>
-          </div>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Product Status</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="inStock"
+                checked={filters.inStock}
+                onCheckedChange={(checked) =>
+                  setFilters(prev => ({ ...prev, inStock: checked as boolean }))
+                }
+                className="h-3.5 w-3.5 scale-75"
+              />
+              <label htmlFor="inStock" className="text-sm font-medium cursor-pointer">
+                In Stock Only
+              </label>
+            </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="featured"
-              checked={filters.featured}
-              onCheckedChange={(checked) => 
-                setFilters(prev => ({ ...prev, featured: checked as boolean }))
-              }
-              className="h-3.5 w-3.5 scale-75"
-            />
-            <label htmlFor="featured" className="text-sm font-medium cursor-pointer">
-              Featured Products
-            </label>
-          </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="featured"
+                checked={filters.featured}
+                onCheckedChange={(checked) =>
+                  setFilters(prev => ({ ...prev, featured: checked as boolean }))
+                }
+                className="h-3.5 w-3.5 scale-75"
+              />
+              <label htmlFor="featured" className="text-sm font-medium cursor-pointer">
+                Featured Products
+              </label>
+            </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="bestseller"
-              checked={filters.bestseller}
-              onCheckedChange={(checked) => 
-                setFilters(prev => ({ ...prev, bestseller: checked as boolean }))
-              }
-              className="h-3.5 w-3.5 scale-75"
-            />
-            <label htmlFor="bestseller" className="text-sm font-medium cursor-pointer">
-              Bestsellers
-            </label>
-          </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="bestseller"
+                checked={filters.bestseller}
+                onCheckedChange={(checked) =>
+                  setFilters(prev => ({ ...prev, bestseller: checked as boolean }))
+                }
+                className="h-3.5 w-3.5 scale-75"
+              />
+              <label htmlFor="bestseller" className="text-sm font-medium cursor-pointer">
+                Bestsellers
+              </label>
+            </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="newLaunch"
-              checked={filters.newLaunch}
-              onCheckedChange={(checked) => 
-                setFilters(prev => ({ ...prev, newLaunch: checked as boolean }))
-              }
-              className="h-3.5 w-3.5 scale-75"
-            />
-            <label htmlFor="newLaunch" className="text-sm font-medium cursor-pointer">
-              New Launches
-            </label>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="newLaunch"
+                checked={filters.newLaunch}
+                onCheckedChange={(checked) =>
+                  setFilters(prev => ({ ...prev, newLaunch: checked as boolean }))
+                }
+                className="h-3.5 w-3.5 scale-75"
+              />
+              <label htmlFor="newLaunch" className="text-sm font-medium cursor-pointer">
+                New Launches
+              </label>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -291,7 +291,7 @@ export default function AdminTestimonials() {
 
       {/* Add/Edit Modal */}
       <Dialog open={isAddModalOpen || isEditModalOpen} onOpenChange={(open) => { if (!open) { resetForm(); setIsAddModalOpen(false); setIsEditModalOpen(false); } }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-visible flex flex-col">
           <DialogHeader>
             <DialogTitle>{selectedTestimonial ? 'Edit' : 'Add'} Testimonial</DialogTitle>
             <DialogDescription>{selectedTestimonial ? 'Update' : 'Create a new'} customer testimonial</DialogDescription>

@@ -109,7 +109,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration and error recovery
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -5236,6 +5236,29 @@ app.put("/api/admin/offers/:id", upload.fields([
             .from(schema.orderItemsTable)
             .where(eq(schema.orderItemsTable.orderId, order.id));
 
+          // Fallback: if items are missing (older orders), try extracting from shippingAddress payload
+          let resolvedItems: any[] = items as any[];
+          if (!resolvedItems || resolvedItems.length === 0) {
+            try {
+              const raw = order.shippingAddress;
+              const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+              if (parsed && parsed.multi && Array.isArray(parsed.items)) {
+                resolvedItems = parsed.items.map((it: any, idx: number) => ({
+                  id: idx + 1,
+                  name: it.productName || it.name || 'Item',
+                  quantity: Number(it.quantity || 1),
+                  price: it.price || '₹0',
+                  image: it.productImage || it.image || '',
+                  deliveryAddress: it.deliveryAddress || null,
+                  recipientName: it.recipientName || null,
+                  recipientPhone: it.recipientPhone || null,
+                }));
+              }
+            } catch (e) {
+              // ignore
+            }
+          }
+
           // Also provide formatted shipping address for user-facing orders list
           let formattedShipping = order.shippingAddress;
           try {
@@ -5252,7 +5275,7 @@ app.put("/api/admin/offers/:id", upload.fields([
             date: order.createdAt.toISOString().split('T')[0],
             status: order.status,
             total: `₹${order.totalAmount}`,
-            items,
+            items: resolvedItems,
             trackingNumber: order.trackingNumber,
             estimatedDelivery: order.estimatedDelivery?.toISOString().split('T')[0],
             shippingAddress: formattedShipping,
@@ -5297,6 +5320,29 @@ app.put("/api/admin/offers/:id", upload.fields([
         .from(schema.orderItemsTable)
         .where(eq(schema.orderItemsTable.orderId, order[0].id));
 
+      // Fallback: if items are missing (older orders), try extracting from shippingAddress payload
+      let resolvedItems: any[] = items as any[];
+      if (!resolvedItems || resolvedItems.length === 0) {
+        try {
+          const raw = order[0].shippingAddress;
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if (parsed && parsed.multi && Array.isArray(parsed.items)) {
+            resolvedItems = parsed.items.map((it: any, idx: number) => ({
+              id: idx + 1,
+              name: it.productName || it.name || 'Item',
+              quantity: Number(it.quantity || 1),
+              price: it.price || '₹0',
+              image: it.productImage || it.image || '',
+              deliveryAddress: it.deliveryAddress || null,
+              recipientName: it.recipientName || null,
+              recipientPhone: it.recipientPhone || null,
+            }));
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
       // Format shippingAddress if it's a multi-address JSON payload
       let formattedShippingForSingle = order[0].shippingAddress;
       try {
@@ -5313,7 +5359,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         date: order[0].createdAt.toISOString().split('T')[0],
         status: order[0].status,
         total: `₹${order[0].totalAmount}`,
-        items,
+        items: resolvedItems,
         trackingNumber: order[0].trackingNumber,
         estimatedDelivery: order[0].estimatedDelivery?.toISOString().split('T')[0],
         shippingAddress: formattedShippingForSingle,
@@ -5840,8 +5886,84 @@ app.put("/api/admin/offers/:id", upload.fields([
       }
 
       // Determine delivery partner and type from request or default to SHIPROCKET
-      const deliveryPartner = req.body.deliveryPartner || 'SHIPROCKET';
-      const deliveryType = req.body.deliveryType || null;
+      let deliveryPartner = req.body.deliveryPartner || 'SHIPROCKET';
+      let deliveryType = req.body.deliveryType || null;
+
+      // Re-check pincode serviceability on the server so order/email stays consistent
+      const extractPincodesFromAddressText = (text: string): string[] => {
+        if (!text) return [];
+        const matches = text.match(/\b\d{6}\b/g);
+        return Array.from(new Set((matches || []).map(m => String(m))));
+      };
+
+      const extractPincodes = (): string[] => {
+        const pincodes = new Set<string>();
+
+        try {
+          if (typeof shippingAddress === 'string') {
+            const trimmed = shippingAddress.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+              const parsed = JSON.parse(trimmed);
+              if (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) {
+                for (const it of (parsed as any).items) {
+                  if (typeof it?.deliveryAddress === 'string') {
+                    for (const pc of extractPincodesFromAddressText(it.deliveryAddress)) pincodes.add(pc);
+                  }
+                }
+              }
+            } else {
+              for (const pc of extractPincodesFromAddressText(trimmed)) pincodes.add(pc);
+            }
+          }
+        } catch (e) {
+          // ignore parse errors and fall back to regex extraction below
+        }
+
+        if (pincodes.size === 0 && typeof shippingAddress === 'string') {
+          for (const pc of extractPincodesFromAddressText(shippingAddress)) pincodes.add(pc);
+        }
+
+        if (pincodes.size === 0 && Array.isArray(items)) {
+          for (const it of items) {
+            if (typeof it?.deliveryAddress === 'string') {
+              for (const pc of extractPincodesFromAddressText(it.deliveryAddress)) pincodes.add(pc);
+            }
+          }
+        }
+
+        return Array.from(pincodes);
+      };
+
+      const pincodes = extractPincodes();
+      let isServiceable = true;
+      if (pincodes.length > 0) {
+        try {
+          const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE || "400001";
+          const weight = Array.isArray(items)
+            ? Math.max(0.5, items.reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0))
+            : 0.5;
+          const cod = String(paymentMethod || '').toLowerCase().includes('cod') || String(paymentMethod || '').toLowerCase().includes('cash');
+
+          for (const pc of pincodes) {
+            const serviceability = await shiprocketService.getServiceability(pickupPincode, pc, weight, cod);
+            const hasAvailableCouriers = serviceability &&
+              (serviceability as any).data &&
+              Array.isArray((serviceability as any).data.available_courier_companies) &&
+              (serviceability as any).data.available_courier_companies.length > 0;
+            if (!hasAvailableCouriers) {
+              isServiceable = false;
+              break;
+            }
+          }
+        } catch (e) {
+          isServiceable = false;
+        }
+      }
+
+      if (!isServiceable) {
+        deliveryPartner = 'INDIA_POST';
+        deliveryType = 'MANUAL';
+      }
 
       // Insert the order into database
       const newOrderData = {
@@ -5864,6 +5986,29 @@ app.put("/api/admin/offers/:id", upload.fields([
       const [newOrder] = await db.insert(ordersTable).values(newOrderData).returning();
 
       console.log('✅ Order created successfully:', newOrder.id);
+
+      // Create order items (critical for order history + invoice)
+      try {
+        if (items && Array.isArray(items) && items.length > 0) {
+          const orderItems = items.map((item: any, idx: number) => ({
+            orderId: newOrder.id,
+            productId: item.productId ? Number(item.productId) : null,
+            comboId: item.comboId ? Number(item.comboId) : null,
+            productName: item.productName || item.name || `Item ${idx + 1}`,
+            productImage: item.productImage || item.image || '',
+            quantity: Number(item.quantity || 1),
+            price: item.price || `₹${Number(item.unitPrice || item.amount || 0)}`,
+            deliveryAddress: item.deliveryAddress || null,
+            recipientName: item.recipientName || null,
+            recipientPhone: item.recipientPhone || null,
+          }));
+
+          await db.insert(schema.orderItemsTable).values(orderItems);
+          console.log(`✅ Inserted ${orderItems.length} order items for order ${newOrder.id}`);
+        }
+      } catch (e) {
+        console.error('❌ Failed to insert order items:', e);
+      }
 
       // 🔒 SINGLE UNIFIED AFFILIATE COMMISSION PROCESSING
       // Only process commission once per order - avoid duplicate entries
@@ -5940,7 +6085,7 @@ app.put("/api/admin/offers/:id", upload.fields([
 
                 // Calculate commission for this item
                 const itemPrice = parseFloat(String(item.price).replace(/[₹,]/g, '') || '0');
-                const itemQuantity = Number(item.quantity) || 1;
+                const itemQuantity = Number(item.quantity || 1);
                 const itemTotal = itemPrice * itemQuantity;
                 const itemCommission = (itemTotal * itemCommissionRate) / 100;
                 
@@ -6132,7 +6277,7 @@ app.put("/api/admin/offers/:id", upload.fields([
                 .where(eq(schema.users.id, Number(userId)))
                 .limit(1);
 
-              const userData = orderUser[0] || { firstName: 'Customer', lastName: '', email: 'customer@email.com', phone: null };
+              const userData = orderUser[0] || { firstName: 'Customer', lastName: 'Name', email: 'customer@email.com', phone: null };
 
               // Record affiliate sale in database
               const [saleRecord] = await db.insert(schema.affiliateSales).values({
@@ -6200,7 +6345,7 @@ app.put("/api/admin/offers/:id", upload.fields([
                 cashbackBalance: "0.00",
                 commissionBalance: commissionAmount.toFixed(2),
                 totalEarnings: commissionAmount.toFixed(2),
-                totalWithdrawn: "0.00",
+                totalWithdrawn: "0.00"
               });
             } else {
               const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
@@ -6317,7 +6462,7 @@ app.put("/api/admin/offers/:id", upload.fields([
       let user: any = [];
 
       // Check if Shiprocket is configured
-      if (process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
+      if (deliveryPartner === 'SHIPROCKET' && process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
         try {
           console.log('Starting Shiprocket order creation for:', orderId);
 
@@ -6405,8 +6550,10 @@ app.put("/api/admin/offers/:id", upload.fields([
             .where(eq(schema.ordersTable.id, newOrder.id));
         }
       } else {
-        shiprocketError = 'Shiprocket credentials not configured';
-        console.warn('Shiprocket not configured - skipping integration');
+        shiprocketError = deliveryPartner !== 'SHIPROCKET'
+          ? 'Manual dispatch (India Post) - Shiprocket integration skipped'
+          : 'Shiprocket credentials not configured';
+        console.warn('Skipping Shiprocket integration:', shiprocketError);
       }
 
       // Send order notification email to info@poppik.in
@@ -6418,8 +6565,8 @@ app.put("/api/admin/offers/:id", upload.fields([
         shippingAddress: shippingAddress,
         paymentMethod: paymentMethod,
         totalAmount: totalAmount,
-        deliveryPartner: newOrder.deliveryPartner || 'SHIPROCKET',
-        deliveryType: newOrder.deliveryType || null,
+        deliveryPartner: deliveryPartner,
+        deliveryType: deliveryType,
         items: items.map((item: any) => ({
           productName: item.productName,
           productImage: item.productImage,
@@ -6676,7 +6823,7 @@ app.put("/api/admin/offers/:id", upload.fields([
             available: false,
             deliveryPartner: "INDIA_POST",
             deliveryType: "MANUAL",
-            message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days."
+            message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days."
           });
         }
       } catch (shiprocketError) {
@@ -6686,7 +6833,7 @@ app.put("/api/admin/offers/:id", upload.fields([
           available: false,
           deliveryPartner: "INDIA_POST",
           deliveryType: "MANUAL",
-          message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days."
+          message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days."
         });
       }
     } catch (error) {
@@ -6696,7 +6843,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         available: false,
         deliveryPartner: "INDIA_POST",
         deliveryType: "MANUAL",
-        message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 7–10 days."
+        message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days."
       });
     }
   });
@@ -6822,7 +6969,6 @@ app.put("/api/admin/offers/:id", upload.fields([
       if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD) {
         // Fallback to basic tracking if Shiprocket not configured
         const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
-
         res.json({
           orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
           shiprocketOrderId: orderData.shiprocket_order_id,
@@ -8056,6 +8202,26 @@ app.put("/api/admin/offers/:id", upload.fields([
         .from(schema.orderItemsTable)
         .where(eq(schema.orderItemsTable.orderId, order[0].id));
 
+      // Fallback: if items are missing (older orders), try extracting from shippingAddress payload
+      let resolvedItems: any[] = items as any[];
+      if (!resolvedItems || resolvedItems.length === 0) {
+        try {
+          const raw = order[0].shippingAddress;
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if (parsed && parsed.multi && Array.isArray(parsed.items)) {
+            resolvedItems = parsed.items.map((it: any, idx: number) => ({
+              id: idx + 1,
+              name: it.productName || it.name || 'Item',
+              quantity: Number(it.quantity || 1),
+              price: it.price || '₹0',
+              image: it.productImage || it.image || '',
+            }));
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
       // Get user info
       const user = await db
         .select({
@@ -8073,7 +8239,7 @@ app.put("/api/admin/offers/:id", upload.fields([
       // Generate HTML invoice
       const invoiceHtml = generateInvoiceHTML({
         order: order[0],
-        items,
+        items: resolvedItems,
         customer: userData,
         orderId: `ORD-${order[0].id.toString().padStart(3, '0')}`
       });
@@ -8091,6 +8257,18 @@ app.put("/api/admin/offers/:id", upload.fields([
 
   // Helper function to generate invoice HTML
   function generateInvoiceHTML({ order, items, customer, orderId }: any) {
+    // Embed logo if present (so invoice works as a standalone HTML file)
+    let logoDataUri = '';
+    try {
+      const logoPath = path.join(process.cwd(), 'attached_assets', 'logo.png');
+      if (fs.existsSync(logoPath)) {
+        const buf = fs.readFileSync(logoPath);
+        logoDataUri = `data:image/png;base64,${buf.toString('base64')}`;
+      }
+    } catch (e) {
+      // ignore
+    }
+
     const subtotal = items.reduce((sum: number, item: any) => {
       const price = parseInt(item.price.replace(/[₹,]/g, ""));
       return sum + (price * item.quantity);
@@ -8336,6 +8514,7 @@ app.put("/api/admin/offers/:id", upload.fields([
 <body>
     <div class="invoice-container">
         <div class="header">
+            ${logoDataUri ? `<img src="${logoDataUri}" alt="Poppik Logo" style="width: 140px; display:block; margin: 0 auto 10px auto;" />` : ''}
             <div class="company-name">Poppik Lifestyle Private Limited</div>
             <div class="company-details">
                 Premium Beauty & Skincare Products<br>

@@ -14,6 +14,33 @@ export default function AffiliatePage() {
   const [, setLocation] = useLocation();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+  const normalizeVideoUrl = (url?: string | null) => {
+    if (!url) return { kind: 'none' as const, src: '' };
+    const raw = String(url).trim();
+    const lower = raw.toLowerCase();
+
+    // Direct video files
+    if (lower.match(/\.(mp4|webm|ogg)(\?|#|$)/)) {
+      return { kind: 'file' as const, src: raw };
+    }
+
+    // YouTube -> embed inside site
+    const youtubeIdMatch =
+      raw.match(/[?&]v=([a-zA-Z0-9_-]{6,})/) ||
+      raw.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/) ||
+      raw.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{6,})/) ||
+      raw.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{6,})/);
+
+    if (youtubeIdMatch?.[1]) {
+      const id = youtubeIdMatch[1];
+      const embed = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&playsinline=1`;
+      return { kind: 'iframe' as const, src: embed };
+    }
+
+    // Default: render as iframe in a modal 
+    return { kind: 'iframe' as const, src: raw };
+  };
+
   // Check if user has approved affiliate application
   const { data: application, isLoading } = useQuery({
     queryKey: ["/api/affiliate/my-application", user.id],
@@ -296,11 +323,36 @@ export default function AffiliatePage() {
               </div>
             </div>
             <div className="p-2">
-              {selectedVideo.videoUrl && selectedVideo.videoUrl.includes('youtube') ? (
-                <iframe title={selectedVideo.title} src={selectedVideo.videoUrl} className="w-full h-[60vh]" />
-              ) : (
-                <video ref={videoRef} src={selectedVideo.videoUrl} controls controlsList="nodownload" autoPlay className="w-full max-h-[70vh]" onContextMenu={(e) => e.preventDefault()} />
-              )}
+              {(() => {
+                const normalized = normalizeVideoUrl(selectedVideo.videoUrl);
+                if (normalized.kind === 'iframe') {
+                  return (
+                    <iframe
+                      title={selectedVideo.title}
+                      src={normalized.src}
+                      className="w-full h-[60vh]"
+                      frameBorder={0}
+                      referrerPolicy="origin-when-cross-origin"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  );
+                }
+                if (normalized.kind === 'file') {
+                  return (
+                    <video
+                      ref={videoRef}
+                      src={normalized.src}
+                      controls
+                      controlsList="nodownload"
+                      autoPlay
+                      className="w-full max-h-[70vh]"
+                      onContextMenu={(e) => e.preventDefault()}
+                    />
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
         </div>

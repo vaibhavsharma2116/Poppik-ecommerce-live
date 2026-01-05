@@ -43,7 +43,10 @@ const app = express();
 // Security headers with performance optimizations
 app.use(helmet({
   contentSecurityPolicy: false, // Configure as needed
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  referrerPolicy: {
+    policy: 'origin-when-cross-origin'
+  }
 }));
 
 app.use(cors());

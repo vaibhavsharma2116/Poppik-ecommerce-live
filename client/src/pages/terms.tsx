@@ -163,7 +163,9 @@ export default function Terms() {
     setTimeout(() => {
       const el = document.getElementById(hash);
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const y = el.getBoundingClientRect().top + window.scrollY;
+        const offset = 120;
+        window.scrollTo({ top: Math.max(0, y - offset), behavior: 'smooth' });
       }
     }, 50);
   }, [location]);
@@ -204,7 +206,7 @@ export default function Terms() {
           {sections.map((section, index) => {
             const IconComponent = section.icon;
             return (
-              <Card id={section.id ?? undefined} key={index} className="shadow-lg border-0 hover:shadow-xl transition-all duration-300 group">
+              <Card id={section.id ?? undefined} key={index} className="shadow-lg border-0 hover:shadow-xl transition-all duration-300 group scroll-mt-28">
                 <CardHeader className="pb-4">
                   <div className="flex items-center space-x-4">
                     <div className="p-3 bg-red-100 rounded-full group-hover:bg-red-200 transition-colors">

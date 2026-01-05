@@ -875,7 +875,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                 <div className="flex items-center gap-1.5 sm:gap-2 bg-white/20 backdrop-blur-sm rounded-md sm:rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 md:px-4">
                   <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="text-xs sm:text-sm font-medium">
-                    Member since {application?.createdAt
+                    Partner since {application?.createdAt
                       ? new Date(application.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
                       : new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
                   </span>
@@ -1211,13 +1211,11 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                     // Export sales data as CSV
                     if (sales && sales.length > 0) {
                       const csvContent = [
-                        ['Order ID', 'Product', 'Customer Name', 'Customer Email', 'Customer Phone', 'Sale Amount', 'Commission', 'Date', 'Status'].join(','),
+                        ['Order ID', 'Product', 'Customer Name', 'Sale Amount', 'Commission', 'Date', 'Status'].join(','),
                         ...sales.map(sale => [
                           sale.orderId || 'N/A',
                           `"${sale.productName || 'N/A'}"`,
                           `"${sale.customerName || 'N/A'}"`,
-                          `"${sale.customerEmail || 'N/A'}"`,
-                          `"${sale.customerPhone || 'N/A'}"`,
                           sale.saleAmount || '0',
                           sale.commissionAmount || '0',
                           new Date(sale.createdAt).toLocaleDateString('en-IN'),
@@ -1259,7 +1257,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                           <TableRow>
                             <TableHead className="font-semibold">Order ID</TableHead>
                             <TableHead className="font-semibold">Product</TableHead>
-                            <TableHead className="font-semibold">Customer Details</TableHead>
+                            <TableHead className="font-semibold">Customer Name</TableHead>
                             <TableHead className="text-right font-semibold">Sale Amount</TableHead>
                             <TableHead className="text-right font-semibold">Commission</TableHead>
                             <TableHead className="font-semibold">Date</TableHead>
@@ -1297,12 +1295,6 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                                     </div>
                                     <div>
                                       <p className="font-semibold text-gray-900">{sale.customerName || 'N/A'}</p>
-                                      <p className="text-xs text-gray-600">{sale.customerEmail || 'N/A'}</p>
-                                      {sale.customerPhone && (
-                                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                                          <span>📱</span> {sale.customerPhone}
-                                        </p>
-                                      )}
                                     </div>
                                   </div>
                                 </div>

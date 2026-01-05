@@ -518,7 +518,7 @@ export default function SelectDeliveryAddress() {
   };
 
   const updateQuantity = (itemKeyOrId: string | number, newQuantity: number) => {
-    if (newQuantity < 1 || newQuantity > 10) return;
+    if (newQuantity < 1) return;
 
     setCartItems(items =>
       items.map(item => {
@@ -768,8 +768,7 @@ export default function SelectDeliveryAddress() {
                               <span className="px-4 py-2 font-medium min-w-[3rem] text-center">{item.quantity}</span>
                               <button
                                 onClick={() => updateQuantity((item as any).itemKey || item.id, item.quantity + 1)}
-                                className="p-2 hover:bg-gray-100 transition-colors disabled:opacity-50"
-                                disabled={item.quantity >= 10}
+                                className="p-2 hover:bg-gray-100 transition-colors"
                                 aria-label="Increase quantity"
                               >
                                 <Plus className="h-4 w-4" />
