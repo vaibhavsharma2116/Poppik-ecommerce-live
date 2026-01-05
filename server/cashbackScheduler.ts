@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { and, eq, lte, isNull } from 'drizzle-orm';
+import { and, eq, lte, isNotNull } from 'drizzle-orm';
 import * as schema from '../shared/schema';
 import { pool } from './storage';
 import dotenv from 'dotenv';
@@ -45,6 +45,8 @@ async function processEligibleCashbacks() {
       .where(
         and(
           eq((schema.userWalletTransactions as any).status, 'pending'),
+          // Only process scheduler-managed cashbacks (eligibleAt is set). Delivered-based pending cashbacks keep eligibleAt NULL.
+          isNotNull((schema.userWalletTransactions as any).eligibleAt),
           lte((schema.userWalletTransactions as any).eligibleAt, now)
         )
       )

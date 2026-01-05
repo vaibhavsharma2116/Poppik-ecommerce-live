@@ -5965,10 +5965,28 @@ app.put("/api/admin/offers/:id", upload.fields([
         deliveryType = 'MANUAL';
       }
 
+      // orders.redeem_amount is an integer column in DB schema
+      const redeemToApply = Math.round(Math.max(0, Number(redeemAmount || 0)));
+
+      // Validate wallet balance before creating the order (so we can fail fast)
+      if (redeemToApply > 0) {
+        const walletRows = await db
+          .select()
+          .from(schema.userWallet)
+          .where(eq(schema.userWallet.userId, Number(userId)))
+          .limit(1);
+
+        const currentBalance = parseFloat(walletRows?.[0]?.cashbackBalance || '0');
+        if (currentBalance < redeemToApply) {
+          return res.status(400).json({ error: 'Insufficient cashback balance' });
+        }
+      }
+
       // Insert the order into database
       const newOrderData = {
         userId: Number(userId),
         totalAmount: Number(totalAmount),
+
         status: 'pending', // Default to 'pending' for COD, will be updated by webhook/payment confirmation
         paymentMethod: paymentMethod || 'Cash on Delivery',
         shippingAddress: shippingAddress,
@@ -5978,6 +5996,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         affiliateCode: effectiveAffiliateCode || null,
         deliveryPartner: deliveryPartner,
         deliveryType: deliveryType,
+        redeemAmount: redeemToApply > 0 ? redeemToApply : 0,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
       };
 
@@ -5986,6 +6005,72 @@ app.put("/api/admin/offers/:id", upload.fields([
       const [newOrder] = await db.insert(ordersTable).values(newOrderData).returning();
 
       console.log('✅ Order created successfully:', newOrder.id);
+
+      // Deduct redeemed cashback from user wallet (if applied)
+      if (redeemToApply > 0) {
+        const existingRedeemTx = await db
+          .select({ id: schema.userWalletTransactions.id })
+          .from(schema.userWalletTransactions)
+          .where(
+            and(
+              eq(schema.userWalletTransactions.userId, Number(userId)),
+              eq(schema.userWalletTransactions.orderId, newOrder.id),
+              eq(schema.userWalletTransactions.type, 'redeem'),
+              eq(schema.userWalletTransactions.status, 'completed')
+            )
+          )
+          .limit(1);
+
+        if (!existingRedeemTx || existingRedeemTx.length === 0) {
+          let walletRows = await db
+            .select()
+            .from(schema.userWallet)
+            .where(eq(schema.userWallet.userId, Number(userId)))
+            .limit(1);
+
+          if (!walletRows || walletRows.length === 0) {
+            const [newWallet] = await db
+              .insert(schema.userWallet)
+              .values({
+                userId: Number(userId),
+                cashbackBalance: '0.00',
+                totalEarned: '0.00',
+                totalRedeemed: '0.00',
+              })
+              .returning();
+            walletRows = [newWallet];
+          }
+
+          const currentBalance = parseFloat(walletRows?.[0]?.cashbackBalance || '0');
+          const currentRedeemed = parseFloat(walletRows?.[0]?.totalRedeemed || '0');
+
+          if (currentBalance < redeemToApply) {
+            return res.status(400).json({ error: 'Insufficient cashback balance' });
+          }
+
+          const newBalance = currentBalance - redeemToApply;
+
+          await db
+            .update(schema.userWallet)
+            .set({
+              cashbackBalance: newBalance.toFixed(2),
+              totalRedeemed: (currentRedeemed + redeemToApply).toFixed(2),
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.userWallet.userId, Number(userId)));
+
+          await db.insert(schema.userWalletTransactions).values({
+            userId: Number(userId),
+            orderId: newOrder.id,
+            type: 'redeem',
+            amount: redeemToApply.toFixed(2),
+            description: `Cashback redeemed for order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+            balanceBefore: currentBalance.toFixed(2),
+            balanceAfter: newBalance.toFixed(2),
+            status: 'completed',
+          });
+        }
+      }
 
       // Create order items (critical for order history + invoice)
       try {
@@ -6431,8 +6516,6 @@ app.put("/api/admin/offers/:id", upload.fields([
               .limit(1);
 
             const currentBalance = parseFloat(walletForBalance?.[0]?.cashbackBalance || '0');
-            const orderTimestamp = (newOrder as any).createdAt ? new Date((newOrder as any).createdAt) : new Date();
-            const eligibleAt = new Date(orderTimestamp.getTime() + 120 * 24 * 60 * 60 * 1000);
 
             for (const cashbackItem of cashbackItems) {
               await db.insert(schema.userWalletTransactions).values({
@@ -6444,7 +6527,7 @@ app.put("/api/admin/offers/:id", upload.fields([
                 balanceBefore: currentBalance.toFixed(2),
                 balanceAfter: currentBalance.toFixed(2),
                 status: 'pending',
-                eligibleAt,
+                eligibleAt: null,
               });
             }
           }
@@ -6620,6 +6703,92 @@ app.put("/api/admin/offers/:id", upload.fields([
         .update(schema.ordersTable)
         .set(updateData)
         .where(eq(schema.ordersTable.id, Number(orderId)));
+
+      if (status === 'delivered') {
+        const order = await db
+          .select({ id: schema.ordersTable.id, userId: schema.ordersTable.userId })
+          .from(schema.ordersTable)
+          .where(eq(schema.ordersTable.id, Number(orderId)))
+          .limit(1);
+
+        if (order && order.length > 0) {
+          const userId = order[0].userId;
+
+          let wallet = await db
+            .select()
+            .from(schema.userWallet)
+            .where(eq(schema.userWallet.userId, userId))
+            .limit(1);
+
+          if (!wallet || wallet.length === 0) {
+            const [newWallet] = await db
+              .insert(schema.userWallet)
+              .values({
+                userId,
+                cashbackBalance: '0.00',
+                totalEarned: '0.00',
+                totalRedeemed: '0.00',
+              })
+              .returning();
+            wallet = [newWallet];
+          }
+
+          const pendingCashbacks = await db
+            .select()
+            .from(schema.userWalletTransactions)
+            .where(
+              and(
+                eq(schema.userWalletTransactions.orderId, Number(orderId)),
+                eq(schema.userWalletTransactions.userId, userId),
+                eq(schema.userWalletTransactions.status, 'pending')
+              )
+            )
+            .orderBy(asc(schema.userWalletTransactions.id));
+
+          let runningBalance = parseFloat(wallet[0].cashbackBalance || '0');
+          let runningTotalEarned = parseFloat(wallet[0].totalEarned || '0');
+
+          for (const tx of pendingCashbacks) {
+            const creditAmount = parseFloat(tx.amount as any);
+            const newBalance = runningBalance + creditAmount;
+            const newTotalEarned = runningTotalEarned + creditAmount;
+
+            await db
+              .update(schema.userWallet)
+              .set({
+                cashbackBalance: newBalance.toFixed(2),
+                totalEarned: newTotalEarned.toFixed(2),
+                updatedAt: new Date(),
+              })
+              .where(eq(schema.userWallet.userId, userId));
+
+            await db
+              .update(schema.userWalletTransactions)
+              .set({
+                status: 'completed',
+                type: 'credit',
+                balanceBefore: runningBalance.toFixed(2),
+                balanceAfter: newBalance.toFixed(2),
+              })
+              .where(eq(schema.userWalletTransactions.id, tx.id));
+
+            runningBalance = newBalance;
+            runningTotalEarned = newTotalEarned;
+          }
+        }
+      }
+
+      if (status === 'cancelled' || status === 'returned' || status === 'refunded') {
+        await db
+          .update(schema.userWalletTransactions)
+          .set({ status: 'failed' })
+          .where(
+            and(
+              eq(schema.userWalletTransactions.orderId, Number(orderId)),
+              eq(schema.userWalletTransactions.status, 'pending')
+            )
+          );
+      }
 
       res.json({ message: "Order status updated successfully" });
     } catch (error) {
@@ -10639,8 +10808,8 @@ Poppik Career Portal
             eq(schema.userWalletTransactions.userId, parseInt(userId as string)),
             eq(schema.userWalletTransactions.type, 'pending'),
             eq(schema.userWalletTransactions.status, 'pending'),
-            or(
-              isNull(schema.userWalletTransactions.eligibleAt),
+            and(
+              sql`${schema.userWalletTransactions.eligibleAt} is not null`,
               sql`${schema.userWalletTransactions.eligibleAt} > ${now}`
             )
           )
