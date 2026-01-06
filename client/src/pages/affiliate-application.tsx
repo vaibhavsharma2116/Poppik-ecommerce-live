@@ -23,7 +23,7 @@ import {
 import {
   TrendingUp,
   Package,
-  DollarSign,
+  IndianRupee,
   Users,
   Copy,
   Share2,
@@ -556,9 +556,9 @@ export default function AffiliateDashboard() {
                   </span>
                 </div>
                 {stats?.monthlyGrowth !== undefined && stats?.monthlyGrowth !== 0 && (
-                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
-                    {stats.monthlyGrowth > 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                    <span className="text-sm font-medium">{stats.monthlyGrowth > 0 ? '+' : ''}{stats.monthlyGrowth}% this month</span>
+                  <div className={`flex items-center gap-1 font-semibold text-sm ${stats.monthlyGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {stats.monthlyGrowth > 0 ? <ArrowUpRight className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                    <span>{stats.monthlyGrowth > 0 ? '+' : ''}{stats.monthlyGrowth}% this month</span>
                   </div>
                 )}
               </div>
@@ -712,7 +712,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <DollarSign className="h-7 w-7 text-white" />
+                  <IndianRupee className="h-7 w-7 text-white" />
                 </div>
                 <Badge className="bg-blue-100 text-blue-700 border-blue-200">
                   Cashback
@@ -733,7 +733,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <DollarSign className="h-7 w-7 text-white" />
+                  <IndianRupee className="h-7 w-7 text-white" />
                 </div>
                 <Badge className="bg-purple-100 text-purple-700 border-purple-200">
                   Commission
@@ -753,7 +753,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <DollarSign className="h-7 w-7 text-white" />
+                  <IndianRupee className="h-7 w-7 text-white" />
                 </div>
                 {stats?.earningsGrowth !== undefined && stats?.earningsGrowth !== 0 && (
                   <div className={`flex items-center gap-1 font-semibold text-sm ${stats.earningsGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -1081,7 +1081,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                     <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200">
                       <div className="flex items-center justify-between mb-4">
                         <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-                          <DollarSign className="h-6 w-6 text-white" />
+                          <IndianRupee className="h-6 w-6 text-white" />
                         </div>
                         <Badge className="bg-blue-100 text-blue-700 border-blue-200">
                           Average
@@ -1155,7 +1155,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                       <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200 hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center shadow-md">
-                            <DollarSign className="h-6 w-6 text-white" />
+                            <IndianRupee className="h-6 w-6 text-white" />
                           </div>
                           <div>
                             <p className="font-bold text-gray-900 text-lg">Lifetime Earnings</p>
@@ -1218,7 +1218,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                   {(application.bankName || application.accountNumber) && (
                     <div className="border-t pt-6">
                       <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <DollarSign className="h-5 w-5 text-purple-600" />
+                        <IndianRupee className="h-6 w-6 text-green-600" />
                         Bank Details
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

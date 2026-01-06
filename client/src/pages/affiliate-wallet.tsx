@@ -14,7 +14,7 @@ import {
   Filter,
   Search,
   Wallet as WalletIcon,
-  DollarSign,
+  IndianRupee,
   ArrowLeft,
   Download,
   CheckCircle,
@@ -482,7 +482,7 @@ export default function AffiliateWallet() {
             <CardContent className="p-3 sm:p-4 md:p-6">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-600 rounded-lg flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                  <IndianRupee className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-xs sm:text-sm">Commission</Badge>
               </div>

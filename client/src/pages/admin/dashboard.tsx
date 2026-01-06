@@ -13,7 +13,7 @@ import {
   TrendingUp, 
   ArrowUpRight, 
   ArrowDownRight,
-  DollarSign,
+  IndianRupee,
   Eye,
   Heart,
   Star,
@@ -29,15 +29,15 @@ export default function AdminDashboard() {
   const [dateRange, setDateRange] = useState('Last 30 days');
 
   // Fetch real data from APIs
-  const { data: customers = [], isLoading: customersLoading } = useQuery({
+  const { data: customers = [], isLoading: customersLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/customers'],
   });
 
-  const { data: orders = [], isLoading: ordersLoading } = useQuery({
+  const { data: orders = [], isLoading: ordersLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/orders'],
   });
 
-  const { data: products = [], isLoading: productsLoading } = useQuery({
+  const { data: products = [], isLoading: productsLoading } = useQuery<any[]>({
     queryKey: ['/api/products'],
   });
 
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
       value: `₹${stats.totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
       change: stats.revenueChange,
       trend: "up",
-      icon: DollarSign,
+      icon: IndianRupee,
       color: "from-emerald-500 to-green-600",
       onClick: handleViewAllOrders
     },
@@ -162,10 +162,10 @@ export default function AdminDashboard() {
       }));
   };
 
-  const calculateTimeAgo = (dateString) => {
+  const calculateTimeAgo = (dateString: any) => {
     const orderDate = new Date(dateString);
     const now = new Date();
-    const diffInMinutes = Math.floor((now - orderDate) / (1000 * 60));
+    const diffInMinutes = Math.floor((now.getTime() - orderDate.getTime()) / (1000 * 60));
     
     if (diffInMinutes < 60) {
       return `${diffInMinutes} min ago`;
@@ -202,12 +202,12 @@ export default function AdminDashboard() {
       }
     });
 
-    return Object.values(productSales)
-      .sort((a, b) => b.sales - a.sales)
+    return (Object.values(productSales) as any[])
+      .sort((a: any, b: any) => (b.sales || 0) - (a.sales || 0))
       .slice(0, 4)
-      .map(product => ({
+      .map((product: any) => ({
         ...product,
-        revenue: `₹${product.revenue.toLocaleString('en-IN')}`,
+        revenue: `₹${Number(product.revenue || 0).toLocaleString('en-IN')}`,
         trend: Math.floor(Math.random() * 30) + 5 // Mock trend for now
       }));
   };

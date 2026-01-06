@@ -31,7 +31,7 @@ import {
 import {
   TrendingUp,
   Package,
-  DollarSign,
+  IndianRupee,
   Users,
   Copy,
   Share2,
@@ -735,7 +735,7 @@ export default function AffiliateDashboard() {
                 <Award className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white" />
               </div>
               <div className="hidden sm:block">
-                <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-gray-900">Affiliate Partner Portal</h1>
+                <h1 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold">Affiliate Partner Portal</h1>
                 <p className="text-xs sm:text-sm text-gray-500 hidden md:block">Manage your partnerships</p>
               </div>
               <div className="block sm:hidden">
@@ -786,7 +786,7 @@ export default function AffiliateDashboard() {
                   </DropdownMenuItem>
 
                   <DropdownMenuItem onClick={() => setLocation("/affiliate-wallet")}>
-                    <DollarSign className="h-4 w-4 mr-3 text-green-600" />
+                    <IndianRupee className="h-4 w-4 mr-3 text-green-600" />
                     <div>
                       <p className="font-semibold">My Wallet</p>
                       <p className="text-xs text-gray-500">View earnings</p>
@@ -797,110 +797,6 @@ export default function AffiliateDashboard() {
 
                   <DropdownMenuItem onClick={() => {
                     const affiliateKit = `
-POPPIK AFFILIATE MARKETING KIT
-================================
-
-Welcome ${application?.firstName || 'Affiliate'}!
-
-Your Unique Affiliate Code: ${affiliateCode}
-
-QUICK LINKS:
-------------
-🔗 Your Affiliate Link: ${window.location.origin}/?ref=${affiliateCode}
-📊 Dashboard: ${window.location.origin}/affiliate-dashboard
-
-SAMPLE PROMOTIONAL MESSAGES:
-----------------------------
-
-Instagram Caption:
-"✨ Discover amazing beauty products at Poppik! Use my code ${affiliateCode} for exclusive deals! 💄💅
-Shop now: ${window.location.origin}/?ref=${affiliateCode}
-#PoppikBeauty #BeautyAffiliate #SkincareLover"
-
-Generated on: ${new Date().toLocaleDateString('en-IN')}
-                    `;
-
-                    const blob = new Blob([affiliateKit], { type: 'text/plain' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `Poppik_Affiliate_Kit_${affiliateCode}.txt`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-
-                    toast({
-                      title: "Resources Downloaded!",
-                      description: "Your affiliate marketing kit has been downloaded.",
-                    });
-                  }}>
-                    <Download className="h-4 w-4 mr-3 text-orange-600" />
-                    <div>
-                      <p className="font-semibold">Download Kit</p>
-                      <p className="text-xs text-gray-500">Marketing resources</p>
-                    </div>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  <div className="px-2 py-3 bg-purple-50 rounded-md mx-2 my-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs font-medium text-purple-700">Total Earnings</p>
-                    </div>
-                    <p className="text-lg font-bold text-purple-900">
-                      ₹{(parseFloat(wallet?.cashbackBalance || "0") + parseFloat(wallet?.commissionBalance || "0")).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
-        {/* Welcome Banner - Fully Responsive */}
-        <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-purple-600 via-purple-700 to-pink-600 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-white shadow-xl">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6">
-            <div className="flex-1 w-full">
-              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
-                <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold">Welcome back, {application.firstName}!</h2>
-              </div>
-              <p className="text-purple-100 text-xs sm:text-sm md:text-base lg:text-lg mb-3 sm:mb-4">
-                Track your performance and grow your earnings with Poppik
-              </p>
-              <div className="flex flex-wrap gap-2 sm:gap-3">
-                <div className="flex items-center gap-1.5 sm:gap-2 bg-white/20 backdrop-blur-sm rounded-md sm:rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 md:px-4">
-                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="text-xs sm:text-sm font-medium">
-                    Partner since {application?.createdAt
-                      ? new Date(application.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
-                      : new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
-                  </span>
-                </div>
-                {stats?.monthlyGrowth !== undefined && stats?.monthlyGrowth !== 0 && (
-                  <div className="flex items-center gap-1.5 sm:gap-2 bg-white/20 backdrop-blur-sm rounded-md sm:rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 md:px-4">
-                    {stats.monthlyGrowth > 0 ? <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" /> : <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4" />}
-                    <span className="text-xs sm:text-sm font-medium">{stats.monthlyGrowth > 0 ? '+' : ''}{stats.monthlyGrowth}% this month</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row lg:flex-col gap-2 sm:gap-3 w-full lg:w-auto">
-              <Button
-                onClick={() => setShowShareDialog(true)}
-                size="lg"
-                className="bg-white text-purple-700 hover:bg-gray-100 shadow-lg font-semibold text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11 w-full sm:w-auto"
-              >
-                <Share2 className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
-                Share Your Link
-              </Button>
-              <Button
-                onClick={() => {
-                  // Create affiliate marketing kit download
-                  const affiliateKit = `
 POPPIK AFFILIATE MARKETING KIT
 ================================
 
@@ -966,163 +862,243 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
 
                   toast({
                     title: "Resources Downloaded!",
-                    description: "Your affiliate marketing kit has been downloaded successfully.",
+                    description: "Your affiliate marketing kit has been downloaded.",
                   });
-                }}
-                variant="outline"
-                className="border-white/30 text-purple-700 hover:bg-white/10 backdrop-blur-sm font-semibold"
-              >
-                <Download className="h-5 w-5 mr-2" />
-                Download Resources
-              </Button>
+                }}>
+                    <Download className="h-4 w-4 mr-3 text-orange-600" />
+                    <div>
+                      <p className="font-semibold">Download Kit</p>
+                      <p className="text-xs text-gray-500">Marketing resources</p>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <div className="px-2 py-3 bg-purple-50 rounded-md mx-2 my-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-medium text-purple-700">Total Earnings</p>
+                    </div>
+                    <p className="text-lg font-bold text-purple-900">
+                      ₹{(parseFloat(wallet?.cashbackBalance || "0") + parseFloat(wallet?.commissionBalance || "0")).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Affiliate Code Card - Fully Responsive */}
-        <Card className="mb-4 sm:mb-6 md:mb-8 overflow-hidden border-2 border-purple-200 shadow-lg">
-          <CardContent className="p-4 sm:p-6 md:p-8">
-            <div className="flex flex-col lg:flex-row items-center gap-4 sm:gap-6 md:gap-8">
-              <div className="flex-1 w-full">
-                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-                  </div>
-                  <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-900">Your Unique Code</h3>
-                </div>
-                <p className="text-gray-600 mb-4 sm:mb-5 md:mb-6 text-xs sm:text-sm md:text-base">
-                  Use this code to track all your referrals and earn commissions
-                </p>
-                <div className="relative">
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg sm:rounded-xl p-4 sm:p-5 md:p-6 text-center">
-                    <code className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-purple-700 tracking-wide sm:tracking-wider md:tracking-widest select-all break-all">
-                      {affiliateCode}
-                    </code>
-                  </div>
-                  <div className="absolute -top-2 -right-2 sm:-top-3 sm:-right-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                      <Award className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col sm:flex-row lg:flex-col gap-2 sm:gap-3 w-full lg:w-auto">
-                <Button
-                  onClick={copyAffiliateCode}
-                  size="lg"
-                  className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg w-full lg:w-auto text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11"
-                >
-                  <Copy className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
-                  Copy Code
-                </Button>
-                <Button
-                  onClick={() => setShowShareDialog(true)}
-                  size="lg"
-                  variant="outline"
-                  className="border-2 border-purple-200 text-purple-700 hover:bg-purple-50 w-full lg:w-auto text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11"
-                >
-                  <Share2 className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
-                  Get Shareable Link
-                </Button>
-              </div>
+      {/* Welcome Banner - Fully Responsive */}
+      <div className="mb-4 sm:mb-6 md:mb-8 bg-gradient-to-r from-purple-600 via-purple-700 to-pink-600 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-white shadow-xl">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6">
+          <div className="flex-1 w-full">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
+              <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold">Welcome back, {application.firstName}!</h2>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Wallet Summary Card - Fully Responsive */}
-        <Card className="mb-4 sm:mb-6 md:mb-8 border-2 border-purple-200 shadow-xl overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-600 via-purple-700 to-pink-600 p-4 sm:p-5 md:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-white gap-3 sm:gap-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-white/20 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center">
-                  <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold">Wallet Balance</h3>
-                  <p className="text-purple-100 text-xs sm:text-sm">Your affiliate earnings</p>
-                </div>
+            <p className="text-purple-100 text-xs sm:text-sm md:text-base lg:text-lg mb-3 sm:mb-4">
+              Track your performance and grow your earnings with Poppik
+            </p>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              <div className="flex items-center gap-1.5 sm:gap-2 bg-white/20 backdrop-blur-sm rounded-md sm:rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 md:px-4">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm font-medium">
+                  Partner since {application?.createdAt
+                      ? new Date(application.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+                      : new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+                </span>
               </div>
-              <div className="text-left sm:text-right w-full sm:w-auto">
-                <p className="text-xs sm:text-sm text-purple-100 mb-1">Total Available</p>
-                <p className="text-2xl sm:text-3xl md:text-4xl font-bold">
-                  ₹{(parseFloat(wallet?.cashbackBalance || "0") + parseFloat(wallet?.commissionBalance || "0")).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
+              {stats?.monthlyGrowth !== undefined && stats?.monthlyGrowth !== 0 && (
+                <div className="flex items-center gap-1.5 sm:gap-2 bg-white/20 backdrop-blur-sm rounded-md sm:rounded-lg px-2 py-1.5 sm:px-3 sm:py-2 md:px-4">
+                  {stats.monthlyGrowth > 0 ? <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" /> : <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4" />}
+                  <span className="text-xs sm:text-sm font-medium">{stats.monthlyGrowth > 0 ? '+' : ''}{stats.monthlyGrowth}% this month</span>
+                </div>
+              )}
             </div>
           </div>
-          <CardContent className="p-4 sm:p-5 md:p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
-              {/* Cashback Balance */}
-              <div className="text-center p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
-                <div className="flex items-center justify-center gap-2 mb-3">
-                  <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <DollarSign className="h-6 w-6 text-white" />
+          <div className="flex flex-col sm:flex-row lg:flex-col gap-2 sm:gap-3 w-full lg:w-auto">
+            <Button
+              onClick={() => setShowShareDialog(true)}
+              size="lg"
+              className="bg-white text-purple-700 hover:bg-gray-100 shadow-lg font-semibold text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11 w-full sm:w-auto"
+            >
+              <Share2 className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+              Share Your Link
+            </Button>
+            <Button
+              onClick={() => {
+                // Create affiliate marketing kit download
+                const affiliateKit = `
+POPPIK AFFILIATE MARKETING KIT
+================================
+
+Welcome ${application?.firstName || 'Affiliate'}!
+
+Your Unique Affiliate Code: ${affiliateCode}
+
+QUICK LINKS:
+------------
+🔗 Your Affiliate Link: ${window.location.origin}/?ref=${affiliateCode}
+📊 Dashboard: ${window.location.origin}/affiliate-dashboard
+
+SAMPLE PROMOTIONAL MESSAGES:
+----------------------------
+
+Instagram Caption:
+"✨ Discover amazing beauty products at Poppik! Use my code ${affiliateCode} for exclusive deals! 💄💅
+Shop now: ${window.location.origin}/?ref=${affiliateCode}
+#PoppikBeauty #BeautyAffiliate #SkincareLover"
+
+Generated on: ${new Date().toLocaleDateString('en-IN')}
+                `;
+
+                const blob = new Blob([affiliateKit], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Poppik_Affiliate_Kit_${affiliateCode}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                toast({
+                  title: "Resources Downloaded!",
+                  description: "Your affiliate marketing kit has been downloaded.",
+                });
+              }}
+              variant="outline"
+              className="border-white/30 text-purple-700 hover:bg-purple-50 backdrop-blur-sm font-semibold"
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Download Resources
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Affiliate Code Card - Fully Responsive */}
+      <Card className="mb-4 sm:mb-6 md:mb-8 overflow-hidden border-2 border-purple-200 shadow-lg">
+        <CardContent className="p-4 sm:p-6 md:p-8">
+          <div className="flex flex-col lg:flex-row items-center gap-4 sm:gap-6 md:gap-8">
+            <div className="flex-1 w-full">
+              <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-purple-100 rounded-lg md:rounded-xl flex items-center justify-center">
+                  <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-purple-600" />
+                </div>
+                <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold">Your Unique Code</h3>
+              </div>
+              <p className="text-gray-600 mb-4 sm:mb-5 md:mb-6 text-xs sm:text-sm md:text-base">
+                Use this code to track all your referrals and earn commissions
+              </p>
+              <div className="relative">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg sm:rounded-xl p-4 sm:p-5 md:p-6 text-center">
+                  <code className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-purple-700 tracking-wide sm:tracking-wider md:tracking-widest select-all break-all">
+                    {affiliateCode}
+                  </code>
+                </div>
+                <div className="absolute -top-2 -right-2 sm:-top-3 sm:-right-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                    <Award className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-white" />
                   </div>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-transparent">
-                        <Info className="h-4 w-4 text-blue-500 cursor-pointer hover:text-blue-700" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-64 p-3 bg-blue-50 border-blue-200">
-                      <p className="text-sm text-blue-800 font-medium">
-                        Cashback only usable on Poppik purchases, no cash withdrawal.
-                      </p>
-                    </PopoverContent>
-                  </Popover>
                 </div>
-                <p className="text-sm text-gray-600 font-medium mb-1">Cashback Balance</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  ₹{parseFloat(wallet?.cashbackBalance || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-
-              {/* Commission Balance */}
-              <div className="text-center p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
-                <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <DollarSign className="h-6 w-6 text-white" />
-                </div>
-                <p className="text-sm text-gray-600 font-medium mb-1">Affilate Commission Balance</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  ₹{parseFloat(wallet?.commissionBalance || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-
-              {/* Total Earnings */}
-              <div className="text-center p-4 bg-green-50 rounded-xl border-2 border-green-200">
-                <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <TrendingUp className="h-6 w-6 text-white" />
-                </div>
-                <p className="text-sm text-gray-600 font-medium mb-1">Total Earnings</p>
-                <p className="text-2xl font-bold text-green-600">
-                  ₹{parseFloat(wallet?.totalEarnings || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-
-              {/* Total Withdrawn */}
-              <div className="text-center p-4 bg-amber-50 rounded-xl border-2 border-amber-200">
-                <div className="w-12 h-12 bg-amber-600 rounded-lg flex items-center justify-center mx-auto mb-3">
-                  <Download className="h-6 w-6 text-white" />
-                </div>
-                <p className="text-sm text-gray-600 font-medium mb-1">Total Withdrawn</p>
-                <p className="text-2xl font-bold text-amber-600">
-                  ₹{parseFloat(wallet?.totalWithdrawn || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
               </div>
             </div>
+            <div className="flex flex-col sm:flex-row lg:flex-col gap-2 sm:gap-3 w-full lg:w-auto">
+              <Button
+                onClick={copyAffiliateCode}
+                size="lg"
+                className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg w-full lg:w-auto text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11"
+              >
+                <Copy className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+                Copy Code
+              </Button>
+              <Button
+                onClick={() => setShowShareDialog(true)}
+                size="lg"
+                variant="outline"
+                className="border-2 border-purple-200 text-purple-700 hover:bg-purple-50 w-full lg:w-auto text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11"
+              >
+                <Share2 className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+                Get Shareable Link
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
+      <Card className="mb-4 sm:mb-6 md:mb-8 border-2 border-purple-200 shadow-xl overflow-hidden">
+        <CardContent className="p-4 sm:p-5 md:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
+            {/* Cashback Balance */}
+            <div className="text-center p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <IndianRupee className="h-6 w-6 text-white" />
+                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-5 w-5 p-0 hover:bg-transparent">
+                      <Info className="h-4 w-4 text-blue-500 cursor-pointer hover:text-blue-700" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-3 bg-blue-50 border-blue-200">
+                    <p className="text-sm text-blue-800 font-medium">
+                      Cashback only usable on Poppik purchases, no cash withdrawal.
+                    </p>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <p className="text-sm text-gray-600 font-medium mb-1">Cashback Balance</p>
+              <p className="text-2xl font-bold text-blue-600">
+                ₹{parseFloat(wallet?.cashbackBalance || "0").toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
 
-          </CardContent>
-        </Card>
+            {/* Commission Balance */}
+            <div className="text-center p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+              <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <IndianRupee className="h-6 w-6 text-white" />
+              </div>
+              <p className="text-sm text-gray-600 font-medium mb-1">Affilate Commission Balance</p>
+              <p className="text-2xl font-bold text-purple-600">
+                ₹{parseFloat(wallet?.commissionBalance || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            {/* Total Earnings */}
+            <div className="text-center p-4 bg-green-50 rounded-xl border-2 border-green-200">
+              <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
+              <p className="text-sm text-gray-600 font-medium mb-1">Total Earnings</p>
+              <p className="text-2xl font-bold text-green-600">
+                ₹{parseFloat(wallet?.totalEarnings || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            {/* Total Withdrawn */}
+            <div className="text-center p-4 bg-amber-50 rounded-xl border-2 border-amber-200">
+              <div className="w-12 h-12 bg-amber-600 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <Download className="h-6 w-6 text-white" />
+              </div>
+              <p className="text-sm text-gray-600 font-medium mb-1">Total Withdrawn</p>
+              <p className="text-2xl font-bold text-amber-600">
+                ₹{parseFloat(wallet?.totalWithdrawn || "0").toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
         {/* Stats Grid - Professional Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-
           <Card className="border-0 shadow-md hover:shadow-xl transition-all duration-300 bg-white overflow-hidden group">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <DollarSign className="h-7 w-7 text-white" />
+                  <IndianRupee className="h-7 w-7 text-white" />
                 </div>
                 {stats?.clicksGrowth !== undefined && stats?.clicksGrowth !== 0 && (
                   <div className={`flex items-center gap-1 font-semibold text-sm ${stats.clicksGrowth > 0 ? 'text-blue-600' : 'text-red-600'}`}>
@@ -1477,7 +1453,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                     <div className="text-center p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
                       <div className="flex items-center justify-between mb-4">
                         <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-                          <DollarSign className="h-6 w-6 text-white" />
+                          <IndianRupee className="h-6 w-6 text-white" />
                         </div>
                         <Badge className="bg-blue-100 text-blue-700 border-blue-200">
                           Average
@@ -1552,7 +1528,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                       <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200 hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center shadow-md">
-                            <DollarSign className="h-6 w-6 text-white" />
+                            <IndianRupee className="h-6 w-6 text-white" />
                           </div>
                           <div>
                             <p className="font-bold text-gray-900 text-lg">Lifetime Earnings</p>
@@ -1635,7 +1611,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                   {(application.bankName || application.accountNumber) && (
                     <div className="border-t pt-6">
                       <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <DollarSign className="h-5 w-5 text-purple-600" />
+                        <IndianRupee className="h-5 w-5 text-purple-600" />
                         Bank Details
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1671,87 +1647,85 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
 
-      {/* Share Dialog */}
-      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Share Your Affiliate Link
-            </DialogTitle>
-            <DialogDescription>
-              Share your link and start earning commissions
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-4">
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-12 hover:bg-green-50 hover:border-green-300 transition-colors"
-              onClick={shareToWhatsApp}
-            >
-              <svg className="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-              </svg>
-              WhatsApp
-            </Button>
+        <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Share Your Affiliate Link
+              </DialogTitle>
+              <DialogDescription>
+                Share your link and start earning commissions
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-12 hover:bg-green-50 hover:border-green-300 transition-colors"
+                onClick={shareToWhatsApp}
+              >
+                <svg className="h-6 w-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+                WhatsApp
+              </Button>
 
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-12 hover:bg-blue-50 hover:border-blue-300 transition-colors"
-              onClick={shareToFacebook}
-            >
-              <svg className="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-              </svg>
-              Facebook
-            </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-12 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                onClick={shareToFacebook}
+              >
+                <svg className="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+                Facebook
+              </Button>
 
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-12 hover:bg-sky-50 hover:border-sky-300 transition-colors"
-              onClick={shareToTwitter}
-            >
-              <svg className="h-6 w-6 text-sky-500" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-              </svg>
-              Twitter
-            </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-12 hover:bg-sky-50 hover:border-sky-300 transition-colors"
+                onClick={shareToTwitter}
+              >
+                <svg className="h-6 w-6 text-sky-500" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
+                </svg>
+                Twitter
+              </Button>
 
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-12 hover:bg-pink-50 hover:border-pink-300 transition-colors"
-              onClick={shareToInstagram}
-            >
-              <svg className="h-6 w-6 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419-.419-.824-.679-1.38-.896-.42-.164-1.065-.36-2.235-.413-1.274-.045-1.649-.06-4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z"/>
-              </svg>
-              Instagram
-            </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-12 hover:bg-pink-50 hover:border-pink-300 transition-colors"
+                onClick={shareToInstagram}
+              >
+                <svg className="h-6 w-6 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419-.419-.824-.679-1.38-.896-.42-.164-1.065-.36-2.235-.413-1.274-.045-1.649-.06-4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z" />
+                </svg>
+                Instagram
+              </Button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-500">Or</span>
+                </div>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-500">Or</span>
-              </div>
+
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-12 hover:bg-purple-50 hover:border-purple-300 transition-colors"
+                onClick={() => {
+                  copyAffiliateLink();
+                  setShowShareDialog(false);
+                }}
+              >
+                <Copy className="h-5 w-5 text-purple-600" />
+                Copy Link
+              </Button>
             </div>
-
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 h-12 hover:bg-purple-50 hover:border-purple-300 transition-colors"
-              onClick={() => {
-                copyAffiliateLink();
-                setShowShareDialog(false);
-              }}
-            >
-              <Copy className="h-5 w-5 text-purple-600" />
-              Copy Link
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }

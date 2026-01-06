@@ -2,9 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "wouter";
 import { Link } from "wouter";
-import { ChevronRight, Grid3X3, List } from "lucide-react";
+import { ChevronRight, Grid3X3, List, ShoppingCart } from "lucide-react";
 import ProductCard from "@/components/product-card";
-
 import DynamicFilter from "@/components/dynamic-filter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { SlidersHorizontal } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import type { Product, Category } from "@/lib/types";
 
 export default function ProductsPage() {
@@ -20,6 +20,7 @@ export default function ProductsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [activeFilters, setActiveFilters] = useState<any>({});
+  const { toast } = useToast();
 
   const { data: allProducts, isLoading: productsLoading, refetch: refetchProducts } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -192,6 +193,63 @@ export default function ProductsPage() {
     return sorted;
   }, [filteredProducts, sortBy]);
 
+  // Add all filtered products to cart
+  const addAllToCart = () => {
+    if (filteredProducts.length === 0) {
+      toast({
+        title: "No products to add",
+        description: "Please select some products first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+      let addedCount = 0;
+
+      filteredProducts.forEach((product) => {
+        const itemKey = `${product.id}`;
+        const existingItem = cart.find((cartItem: any) => cartItem.itemKey === itemKey);
+
+        if (existingItem) {
+          existingItem.quantity += 1;
+        } else {
+          cart.push({
+            id: product.id,
+            itemKey,
+            name: product.name,
+            price: `₹${product.price}`,
+            originalPrice: product.originalPrice ? `₹${product.originalPrice}` : undefined,
+            image: product.imageUrl || (product.images && Array.isArray(product.images) && product.images.length > 0 ? product.images[0].url || product.images[0].imageUrl : ''),
+            quantity: 1,
+            inStock: product.inStock !== false,
+            selectedShade: null,
+            cashbackPercentage: product.cashbackPercentage ? parseFloat(String(product.cashbackPercentage)) : undefined,
+            cashbackPrice: product.cashbackPrice ? parseFloat(String(product.cashbackPrice)) : undefined,
+          });
+          addedCount++;
+        }
+      });
+
+      localStorage.setItem("cart", JSON.stringify(cart));
+      localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
+      window.dispatchEvent(new Event("cartUpdated"));
+
+      toast({
+        title: "✅ Added to Cart",
+        description: `${addedCount} product${addedCount !== 1 ? 's' : ''} added successfully! You now have ${cart.length} items in your cart.`,
+      });
+    } catch (error) {
+      console.error("Error adding all products to cart:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add products to cart",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="mobile-page-container min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 py-16">
       <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -252,7 +310,7 @@ export default function ProductsPage() {
                 products={allProducts || []}
                 categories={categories || []}
                 onFilterChange={handleFilterChange}
-                className="bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20 p-4 max-h-[calc(100vh-2rem)] overflow-y-auto"
+                className="bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20"
               />
             </div>
           </div>
@@ -273,7 +331,7 @@ export default function ProductsPage() {
                     Filter products by category, price, and more.
                   </SheetDescription>
                 </SheetHeader>
-                <div className="mt-6 max-h-[calc(100vh-8rem)] overflow-y-auto pr-2">
+                <div className="mt-6">
                   <DynamicFilter
                     products={allProducts || []}
                     categories={categories || []}
@@ -308,6 +366,18 @@ export default function ProductsPage() {
                       {filteredProducts.length} Products Found
                     </h2>
                   </div>
+                  
+                  {/* Add All to Cart Button */}
+                  {filteredProducts.length > 0 && (
+                    <Button
+                      onClick={addAllToCart}
+                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+                    >
+                      <ShoppingCart className="h-5 w-5" />
+                      <span className="hidden sm:inline">Add All to Cart</span>
+                      <span className="sm:hidden">Add All</span>
+                    </Button>
+                  )}
                 </div>
 
                 {/* Products Grid/List */}

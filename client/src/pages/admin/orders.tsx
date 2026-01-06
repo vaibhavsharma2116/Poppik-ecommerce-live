@@ -21,7 +21,7 @@ import {
   XCircle,
   AlertCircle,
   Truck,
-  DollarSign,
+  IndianRupee,
   Calendar,
   User,
   Phone,
@@ -204,7 +204,7 @@ export default function AdminOrders() {
     { label: "Total Orders", value: totalOrders.toString(), icon: Package, color: "from-blue-500 to-cyan-500" },
     { label: "Pending", value: pendingOrders.toString(), icon: Clock, color: "from-yellow-500 to-orange-500" },
     { label: "Processing", value: processingOrders.toString(), icon: AlertCircle, color: "from-purple-500 to-pink-500" },
-    { label: "Revenue", value: `₹${totalRevenue.toFixed(2)}`, icon: DollarSign, color: "from-green-500 to-emerald-500" },
+    { label: "Revenue", value: `₹${totalRevenue.toFixed(2)}`, icon: IndianRupee, color: "from-green-500 to-emerald-500" },
   ];
 
   const getStatusIcon = (status: string) => {

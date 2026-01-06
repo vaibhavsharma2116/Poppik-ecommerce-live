@@ -19,7 +19,7 @@ import {
   Users, 
   BadgeCheck,
   Store,
-  DollarSign,
+  IndianRupee,
   Globe,
   Rocket,
   Shield
@@ -310,7 +310,7 @@ export default function ChannelPartnerPage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
-                icon: DollarSign,
+                icon: IndianRupee,
                 title: "High Profit Margins",
                 description: "Earn attractive margins on every product sold through your channel"
               },

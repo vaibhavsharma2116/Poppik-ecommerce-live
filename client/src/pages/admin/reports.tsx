@@ -26,7 +26,7 @@ import {
   TrendingUp,
   TrendingDown,
   Calendar,
-  DollarSign,
+  IndianRupee,
   Package,
   Users,
   ShoppingCart,
@@ -95,15 +95,15 @@ export default function AdminReports() {
   };
 
   // Fetch data from APIs
-  const { data: orders = [], isLoading: ordersLoading } = useQuery({
+  const { data: orders = [], isLoading: ordersLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/orders'],
   });
 
-  const { data: customers = [], isLoading: customersLoading } = useQuery({
+  const { data: customers = [], isLoading: customersLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/customers'],
   });
 
-  const { data: products = [], isLoading: productsLoading } = useQuery({
+  const { data: products = [], isLoading: productsLoading } = useQuery<any[]>({
     queryKey: ['/api/products'],
   });
 
@@ -137,13 +137,14 @@ export default function AdminReports() {
       revenueByDate[date] += amount;
     });
 
-    const revenueData = Object.entries(revenueByDate)
+    const revenueData = (Object.entries(revenueByDate) as any[])
       .map(([date, revenue]) => ({
+        ts: new Date(date).getTime(),
         date: new Date(date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
-        revenue: revenue,
-        orders: filteredOrders.filter(o => o.date === date).length
+        revenue: revenue as any,
+        orders: filteredOrders.filter((o: any) => o.date === date).length
       }))
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
+      .sort((a: any, b: any) => a.ts - b.ts);
 
     // Order status distribution
     const statusCounts = {};
@@ -151,7 +152,7 @@ export default function AdminReports() {
       statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
     });
 
-    const statusData = Object.entries(statusCounts).map(([status, count]) => ({
+    const statusData = (Object.entries(statusCounts) as any[]).map(([status, count]) => ({
       status: status.charAt(0).toUpperCase() + status.slice(1),
       count,
       percentage: Math.round((count / filteredOrders.length) * 100)
@@ -175,8 +176,8 @@ export default function AdminReports() {
       }
     });
 
-    const topProducts = Object.values(productSales)
-      .sort((a, b) => b.revenue - a.revenue)
+    const topProducts = (Object.values(productSales) as any[])
+      .sort((a: any, b: any) => (b.revenue || 0) - (a.revenue || 0))
       .slice(0, 10);
 
     // Customer metrics
@@ -281,7 +282,7 @@ export default function AdminReports() {
         <Card className="border-0 shadow-xl bg-white/70 backdrop-blur-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-slate-600">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-emerald-600" />
+            <IndianRupee className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-slate-900">

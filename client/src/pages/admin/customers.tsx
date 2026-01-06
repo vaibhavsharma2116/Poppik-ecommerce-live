@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mail, Phone, Users, UserCheck, UserX, DollarSign, RefreshCw, Eye } from "lucide-react";
+import { Search, Mail, Phone, Users, UserCheck, UserX, IndianRupee, RefreshCw, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
@@ -95,7 +95,7 @@ export default function AdminCustomers() {
     { label: "Total Customers", value: totalCustomers.toString(), icon: Users, color: "from-blue-500 to-cyan-500" },
     { label: "Active Customers", value: activeCustomers.toString(), icon: UserCheck, color: "from-green-500 to-emerald-500" },
     { label: "VIP Customers", value: vipCustomers.toString(), icon: UserX, color: "from-purple-500 to-pink-500" },
-    { label: "Total Revenue", value: `₹${totalRevenue.toFixed(2)}`, icon: DollarSign, color: "from-yellow-500 to-orange-500" },
+    { label: "Total Revenue", value: `₹${totalRevenue.toFixed(2)}`, icon: IndianRupee, color: "from-yellow-500 to-orange-500" },
   ];
 
   const getStatusBadgeVariant = (status: string) => {

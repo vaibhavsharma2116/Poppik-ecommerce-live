@@ -109,7 +109,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration and error recovery
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
+ connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -272,20 +272,20 @@ async function sendOrderNotificationEmail(orderData: any) {
 
   const emailSubject = `Poppik Lifestyle Order Confirmation - ${orderId}`;
 
+  const formatRupee = (value: any) => {
+    const s = String(value ?? '').trim();
+    const n = parseFloat(s.replace(/[₹,\s]/g, ''));
+    if (Number.isFinite(n)) return `₹${n.toFixed(2)}`;
+    if (!s) return '';
+    if (s.includes('₹')) return s.replace(/₹+/g, '₹');
+    return `₹${s}`;
+  };
+
   // Ensure images in emails are absolute URLs or inline attachments (CID).
   const baseUrl = (process.env.APP_BASE_URL || process.env.APP_URL || process.env.SITE_URL || 'https://poppik.in').replace(/\/$/, '');
 
-  // Prepare attachments array (logo + inline product images if available locally)
-  const attachments: any[] = [];
-
-  // Attach logo from repository if present, fallback to remote URL in HTML
-  const logoLocalPath = path.join(process.cwd(), 'attached_assets', 'logo.png');
-  const logoCid = 'poppik-logo@poppik';
-  let logoHtmlSrc = 'https://poppik.in/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fpoppik-logo.31d60553.png&w=256&q=75';
-  if (fs.existsSync(logoLocalPath)) {
-    attachments.push({ filename: 'logo.png', path: logoLocalPath, cid: logoCid });
-    logoHtmlSrc = `cid:${logoCid}`;
-  }
+  // Use remote logo URL to avoid sending logo.png as an email attachment
+  const logoHtmlSrc = 'https://poppik.in/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fpoppik-logo.31d60553.png&w=256&q=75';
 
   let itemHtml = '';
   items.forEach((item: any, idx: number) => {
@@ -325,12 +325,15 @@ async function sendOrderNotificationEmail(orderData: any) {
       imageSrc = `${baseUrl}/images/placeholder.png`;
     }
 
+    const unitPrice = formatRupee(item.price);
+    const totalPrice = formatRupee(parseFloat(String(item.price).replace(/[₹,]/g, "")) * item.quantity);
+
     itemHtml += `
       <tr style="border-bottom: 1px solid #ddd;">
         <td style="padding: 10px 0; text-align: left;">${item.productName}</td>
         <td style="padding: 10px 0; text-align: right;">${item.quantity}</td>
-        <td style="padding: 10px 0; text-align: right;">₹${item.price}</td>
-        <td style="padding: 10px 0; text-align: right;">₹${(parseFloat(String(item.price).replace(/[₹,]/g, "")) * item.quantity).toFixed(2)}</td>
+        <td style="padding: 10px 0; text-align: right;">${unitPrice}</td>
+        <td style="padding: 10px 0; text-align: right;">${totalPrice}</td>
       </tr>
     `;
   });
@@ -378,7 +381,7 @@ async function sendOrderNotificationEmail(orderData: any) {
           <div>
             <h4 style="color: #555; margin-bottom: 10px;">Order Info:</h4>
             <p style="margin: 0; font-size: 14px;"><strong>Payment Method:</strong> ${paymentMethod}</p>
-            <p style="margin: 0; font-size: 14px;"><strong>Total Amount:</strong> ₹${totalAmount.toFixed(2)}</p>
+            <p style="margin: 0; font-size: 14px;"><strong>Total Amount:</strong> ${formatRupee(totalAmount)}</p>
             <p style="margin: 0; font-size: 14px;"><strong>Order Status:</strong> Confirmed</p>
             ${orderData.saturdayDelivery !== undefined || orderData.sundayDelivery !== undefined ? `
             <div style="margin-top: 10px;">
@@ -399,7 +402,7 @@ async function sendOrderNotificationEmail(orderData: any) {
           You'll receive another email when your order ships. For any questions, please contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
         </p>
         <p style="color: #888; font-size: 13px; margin-top: 10px;">
-          © 2024 Poppik Lifestyle Private Limited. All rights reserved.
+          2024 Poppik Lifestyle Private Limited. All rights reserved.
         </p>
       </div>
     </div>
@@ -413,21 +416,15 @@ async function sendOrderNotificationEmail(orderData: any) {
       html: emailHtml,
     };
 
-    if (attachments && attachments.length > 0) mailOptions.attachments = attachments;
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('📎 Order email attachments prepared:', attachments.map(a => ({ filename: a.filename, path: a.path, cid: a.cid })));
-    }
-
     await transporter.sendMail(mailOptions);
-    console.log(`✅ Order notification email sent successfully to ${mailOptions.to} for order ${orderId}`);
+    console.log(` Order notification email sent successfully to ${mailOptions.to} for order ${orderId}`);
       // Send a separate detailed email to internal/admin address with action required
       try {
         const adminTo = process.env.INTERNAL_ORDER_TO || 'info@poppik.in';
         const adminSubject = `New Order Received - ${orderId}`;
 
         const adminItemsHtml = items.map((it: any) => {
-          const unitPrice = (it.price !== undefined && it.price !== null) ? `₹${it.price}` : 'N/A';
+          const unitPrice = (it.price !== undefined && it.price !== null) ? formatRupee(it.price) : 'N/A';
           return `
             <tr>
               <td style="padding:8px 0;">${it.productName}</td>
@@ -463,7 +460,7 @@ async function sendOrderNotificationEmail(orderData: any) {
                 Delivery Partner: ${deliveryPartner === 'INDIA_POST' ? 'India Post (Manual Delivery)' : 'Shiprocket'}
               </p>
               ${deliveryType ? `<p style="margin: 5px 0 0 0; font-size: 13px; color: ${deliveryPartner === 'INDIA_POST' ? '#856404' : '#0c5460'};"><strong>Delivery Type:</strong> ${deliveryType}</p>` : ''}
-              ${deliveryPartner === 'INDIA_POST' ? '<p style="margin: 5px 0 0 0; font-size: 13px; color: #856404;"><strong>⚠️ Manual Processing Required:</strong> This order needs to be processed manually via India Post.</p>' : ''}
+              ${deliveryPartner === 'INDIA_POST' ? '<p style="margin: 5px 0 0 0; font-size: 13px; color: #856404;"><strong> Manual Processing Required:</strong> This order needs to be processed manually via India Post.</p>' : ''}
             </div>
 
             <h4 style="color:#d33;">What You Need to Do</h4>
@@ -482,15 +479,14 @@ async function sendOrderNotificationEmail(orderData: any) {
           subject: adminSubject,
           html: adminHtml,
         };
-        if (attachments && attachments.length > 0) adminMailOptions.attachments = attachments;
 
         await transporter.sendMail(adminMailOptions);
-        console.log(`✅ Admin order email sent to ${adminTo} for order ${orderId}`);
+        console.log(` Admin order email sent to ${adminTo} for order ${orderId}`);
       } catch (adminEmailError) {
-        console.error(`❌ Failed to send admin order email for order ${orderId}:`, adminEmailError);
+        console.error(` Failed to send admin order email for order ${orderId}:`, adminEmailError);
       }
   } catch (emailError) {
-    console.error(`❌ Failed to send order notification email for order ${orderId}:`, emailError);
+    console.error(` Failed to send order notification email for order ${orderId}:`, emailError);
   }
 }
 
@@ -1640,7 +1636,7 @@ app.get("/api/admin/stores", async (req, res) => {
                     if (affiliateApp && affiliateApp.length > 0) {
                       // Calculate commission dynamically from order items
                       let calculatedCommission = 0;
-                      
+
                       if (orderData.items && Array.isArray(orderData.items)) {
                         calculatedCommission = Math.round(
                           orderData.items.reduce((sum: number, item: any) => {
@@ -1651,56 +1647,29 @@ app.get("/api/admin/stores", async (req, res) => {
                           }, 0)
                         );
                       }
-                      
-                      const commissionRate = calculatedCommission > 0 && Number(payment.amount) > 0 
-                        ? (calculatedCommission / Number(payment.amount)) * 100 
+
+                      const commissionRate = calculatedCommission > 0 && Number(payment.amount) > 0
+                        ? (calculatedCommission / Number(payment.amount)) * 100
                         : 0;
 
                       console.log(`💰 Calculated commission: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${payment.amount})`);
 
-                      // Get or create affiliate wallet
-                      let wallet = await db
-                        .select()
+                      // Ensure affiliate wallet exists (do NOT credit until delivered)
+                      const existingAffiliateWallet = await db
+                        .select({ id: schema.affiliateWallet.id })
                         .from(schema.affiliateWallet)
                         .where(eq(schema.affiliateWallet.userId, affiliateUserId))
                         .limit(1);
 
-                      if (wallet.length === 0) {
-                        console.log(`📝 Creating new wallet for affiliate ${affiliateUserId}`);
+                      if (!existingAffiliateWallet || existingAffiliateWallet.length === 0) {
                         await db.insert(schema.affiliateWallet).values({
                           userId: affiliateUserId,
                           cashbackBalance: "0.00",
-                          commissionBalance: calculatedCommission.toFixed(2),
-                          totalEarnings: calculatedCommission.toFixed(2),
+                          commissionBalance: "0.00",
+                          totalEarnings: "0.00",
                           totalWithdrawn: "0.00"
                         });
-                      } else {
-                        console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
-                        const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
-                        const currentEarnings = parseFloat(wallet[0].totalEarnings || '0');
-
-                        await db.update(schema.affiliateWallet)
-                          .set({
-                            commissionBalance: (currentCommission + calculatedCommission).toFixed(2),
-                            totalEarnings: (currentEarnings + calculatedCommission).toFixed(2),
-                            updatedAt: new Date()
-                          })
-                          .where(eq(schema.affiliateWallet.userId, affiliateUserId));
                       }
-
-                      // Get customer details
-                      const orderUser = await db
-                        .select({
-                          firstName: schema.users.firstName,
-                          lastName: schema.users.lastName,
-                          email: schema.users.email,
-                          phone: schema.users.phone,
-                        })
-                        .from(schema.users)
-                        .where(eq(schema.users.id, Number(payment.userId)))
-                        .limit(1);
-
-                      const userData = orderUser[0] || { firstName: 'Customer', lastName: '', email: 'customer@email.com', phone: null };
 
                       // Record affiliate sale
                       await db.insert(schema.affiliateSales).values({
@@ -1715,25 +1684,25 @@ app.get("/api/admin/stores", async (req, res) => {
                         saleAmount: Number(payment.amount).toFixed(2),
                         commissionAmount: calculatedCommission.toFixed(2),
                         commissionRate: commissionRate.toFixed(2),
-                        status: 'confirmed'
+                        status: 'pending'
                       });
 
-                      // Add transaction record
+                      // Add pending transaction record (credit on delivered)
                       await db.insert(schema.affiliateTransactions).values({
-                        userId: affiliateUserId,
+                        userId: affiliateUserId, 
                         orderId: newOrder.id,
                         type: 'commission',
                         amount: calculatedCommission.toFixed(2),
                         balanceType: 'commission',
                         description: `Commission (${commissionRate}%) from Cashfree order ORD-${newOrder.id.toString().padStart(3, '0')}`,
-                        status: 'completed',
+                        status: 'pending',
                         transactionId: null,
                         notes: null,
-                        processedAt: new Date(),
+                        processedAt: null,
                         createdAt: new Date()
                       });
 
-                      console.log(`✅ Affiliate commission credited: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for Cashfree order ${newOrder.id}`);
+                      console.log(`✅ Affiliate commission pending: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) for affiliate ${affiliateUserId} (Cashfree order ${newOrder.id})`);
                     } else {
                       console.error(`❌ Affiliate not found or not approved for user ${affiliateUserId}`);
                     }
@@ -5253,6 +5222,34 @@ app.put("/api/admin/offers/:id", upload.fields([
                   recipientName: it.recipientName || null,
                   recipientPhone: it.recipientPhone || null,
                 }));
+              } else if (Array.isArray(parsed)) {
+                const extracted = parsed
+                  .filter((it: any) => it && (it.productName || it.name))
+                  .map((it: any, idx: number) => ({
+                    id: idx + 1,
+                    name: it.productName || it.name || 'Item',
+                    quantity: Number(it.quantity || 1),
+                    price: it.price || `₹${order.totalAmount || 0}`,
+                    image: it.productImage || it.image || '',
+                    deliveryAddress: it.deliveryAddress || it.address || null,
+                    recipientName: it.recipientName || it.name || null,
+                    recipientPhone: it.recipientPhone || it.phone || null,
+                  }));
+                if (extracted.length > 0) resolvedItems = extracted;
+              } else if (parsed && typeof parsed === 'object') {
+                const pName = (parsed as any).productName || (parsed as any).name;
+                if (pName) {
+                  resolvedItems = [{
+                    id: 1,
+                    name: pName,
+                    quantity: Number((parsed as any).quantity || 1),
+                    price: (parsed as any).price || `₹${order.totalAmount || 0}`,
+                    image: (parsed as any).productImage || (parsed as any).image || '',
+                    deliveryAddress: (parsed as any).deliveryAddress || (parsed as any).address || null,
+                    recipientName: (parsed as any).recipientName || (parsed as any).name || null,
+                    recipientPhone: (parsed as any).recipientPhone || (parsed as any).phone || null,
+                  }];
+                }
               }
             } catch (e) {
               // ignore
@@ -5337,6 +5334,34 @@ app.put("/api/admin/offers/:id", upload.fields([
               recipientName: it.recipientName || null,
               recipientPhone: it.recipientPhone || null,
             }));
+          } else if (Array.isArray(parsed)) {
+            const extracted = parsed
+              .filter((it: any) => it && (it.productName || it.name))
+              .map((it: any, idx: number) => ({
+                id: idx + 1,
+                name: it.productName || it.name || 'Item',
+                quantity: Number(it.quantity || 1),
+                price: it.price || `₹${order[0].totalAmount || 0}`,
+                image: it.productImage || it.image || '',
+                deliveryAddress: it.deliveryAddress || it.address || null,
+                recipientName: it.recipientName || it.name || null,
+                recipientPhone: it.recipientPhone || it.phone || null,
+              }));
+            if (extracted.length > 0) resolvedItems = extracted;
+          } else if (parsed && typeof parsed === 'object') {
+            const pName = (parsed as any).productName || (parsed as any).name;
+            if (pName) {
+              resolvedItems = [{
+                id: 1,
+                name: pName,
+                quantity: Number((parsed as any).quantity || 1),
+                price: (parsed as any).price || `₹${order[0].totalAmount || 0}`,
+                image: (parsed as any).productImage || (parsed as any).image || '',
+                deliveryAddress: (parsed as any).deliveryAddress || (parsed as any).address || null,
+                recipientName: (parsed as any).recipientName || (parsed as any).name || null,
+                recipientPhone: (parsed as any).recipientPhone || (parsed as any).phone || null,
+              }];
+            }
           }
         } catch (e) {
           // ignore
@@ -6004,7 +6029,9 @@ app.put("/api/admin/offers/:id", upload.fields([
 
       const [newOrder] = await db.insert(ordersTable).values(newOrderData).returning();
 
-      console.log('✅ Order created successfully:', newOrder.id);
+      const orderId = newOrder.id;
+
+      console.log('✅ Order created successfully:', orderId);
 
       // Deduct redeemed cashback from user wallet (if applied)
       if (redeemToApply > 0) {
@@ -6014,7 +6041,7 @@ app.put("/api/admin/offers/:id", upload.fields([
           .where(
             and(
               eq(schema.userWalletTransactions.userId, Number(userId)),
-              eq(schema.userWalletTransactions.orderId, newOrder.id),
+              eq(schema.userWalletTransactions.orderId, orderId),
               eq(schema.userWalletTransactions.type, 'redeem'),
               eq(schema.userWalletTransactions.status, 'completed')
             )
@@ -6122,8 +6149,7 @@ app.put("/api/admin/offers/:id", upload.fields([
 
               for (const item of items) {
                 let itemCommissionRate = 0;
-                
-                // Get the actual product/combo/offer to find the configured commission rate
+
                 if (item.productId && !isNaN(Number(item.productId))) {
                   try {
                     const product = await db
@@ -6131,7 +6157,7 @@ app.put("/api/admin/offers/:id", upload.fields([
                       .from(schema.products)
                       .where(eq(schema.products.id, Number(item.productId)))
                       .limit(1);
-                    
+
                     if (product.length > 0) {
                       itemCommissionRate = parseFloat(String(product[0].affiliateCommission || 0));
                     }
@@ -6145,7 +6171,7 @@ app.put("/api/admin/offers/:id", upload.fields([
                       .from(schema.combos)
                       .where(eq(schema.combos.id, Number(item.comboId)))
                       .limit(1);
-                    
+
                     if (combo.length > 0) {
                       itemCommissionRate = parseFloat(String(combo[0].affiliateCommission || 0));
                     }
@@ -6159,7 +6185,7 @@ app.put("/api/admin/offers/:id", upload.fields([
                       .from(schema.offers)
                       .where(eq(schema.offers.id, Number(item.offerId)))
                       .limit(1);
-                    
+
                     if (offer.length > 0) {
                       itemCommissionRate = parseFloat(String(offer[0].affiliateCommission || 0));
                     }
@@ -6168,12 +6194,11 @@ app.put("/api/admin/offers/:id", upload.fields([
                   }
                 }
 
-                // Calculate commission for this item
                 const itemPrice = parseFloat(String(item.price).replace(/[₹,]/g, '') || '0');
                 const itemQuantity = Number(item.quantity || 1);
                 const itemTotal = itemPrice * itemQuantity;
                 const itemCommission = (itemTotal * itemCommissionRate) / 100;
-                
+
                 totalOrderCommission += itemCommission;
                 commissionBreakdown.push({
                   product: item.productName || item.name,
@@ -6191,339 +6216,116 @@ app.put("/api/admin/offers/:id", upload.fields([
               console.log(`💰 Calculated commission from product settings: ₹${totalOrderCommission.toFixed(2)} (${commissionRate}%)`, commissionBreakdown);
 
               if (totalOrderCommission > 0) {
-                // Get or create affiliate wallet
-                let wallet = await db
-                  .select()
+                const existingAffiliateWallet = await db
+                  .select({ id: schema.affiliateWallet.id })
                   .from(schema.affiliateWallet)
                   .where(eq(schema.affiliateWallet.userId, affiliateUserId))
                   .limit(1);
 
-                if (wallet.length === 0) {
-                  console.log(`📝 Creating new wallet for affiliate ${affiliateUserId}`);
+                if (!existingAffiliateWallet || existingAffiliateWallet.length === 0) {
                   await db.insert(schema.affiliateWallet).values({
                     userId: affiliateUserId,
                     cashbackBalance: "0.00",
-                    commissionBalance: totalOrderCommission.toFixed(2),
-                    totalEarnings: totalOrderCommission.toFixed(2),
+                    commissionBalance: "0.00",
+                    totalEarnings: "0.00",
                     totalWithdrawn: "0.00"
                   });
-                  console.log(`✅ Wallet created for affiliate ${affiliateUserId} with commission: ₹${totalOrderCommission.toFixed(2)}`);
-                } else {
-                  console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
-                  const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
-                  const currentEarnings = parseFloat(wallet[0].totalEarnings || '0');
-                  const newCommission = currentCommission + totalOrderCommission;
-                  const newEarnings = currentEarnings + totalOrderCommission;
-
-                  console.log(`Current commission: ₹${currentCommission}, Adding: ₹${totalOrderCommission.toFixed(2)}, New total: ₹${newCommission.toFixed(2)}`);
-
-                  await db.update(schema.affiliateWallet)
-                    .set({
-                      commissionBalance: newCommission.toFixed(2),
-                      totalEarnings: newEarnings.toFixed(2),
-                      updatedAt: new Date()
-                    })
-                    .where(eq(schema.affiliateWallet.userId, affiliateUserId));
-
-                  console.log(`✅ Wallet updated for affiliate ${affiliateUserId}: Commission ₹${newCommission.toFixed(2)}, Total Earnings ₹${newEarnings.toFixed(2)}`);
                 }
-              }
 
-              // Record affiliate sale - SINGLE ENTRY per order
-              await db.insert(schema.affiliateSales).values({
-                affiliateUserId,
-                affiliateCode: effectiveAffiliateCode,
-                orderId: newOrder.id,
-                customerId: Number(userId),
-                customerName: customerName,
-                customerEmail: customerEmail,
-                customerPhone: customerPhone || null,
-                productName: items.map((item: any) => item.productName || item.name).join(', '),
-                saleAmount: Number(totalAmount).toFixed(2),
-                commissionAmount: totalOrderCommission.toFixed(2),
-                commissionRate: commissionRate,
-                status: 'confirmed'
-              });
+                await db.insert(schema.affiliateSales).values({
+                  affiliateUserId,
+                  affiliateCode: effectiveAffiliateCode,
+                  orderId: newOrder.id,
+                  customerId: Number(userId),
+                  customerName: customerName,
+                  customerEmail: customerEmail,
+                  customerPhone: customerPhone || null,
+                  productName: items.map((it: any) => it.productName || it.name).join(', '),
+                  saleAmount: Number(totalAmount).toFixed(2),
+                  commissionAmount: totalOrderCommission.toFixed(2),
+                  commissionRate: commissionRate,
+                  status: 'pending'
+                });
 
-              // Add transaction record - SINGLE ENTRY per order
-              await db.insert(schema.affiliateTransactions).values({
-                userId: affiliateUserId,
-                orderId: newOrder.id,
-                type: 'commission',
-                amount: totalOrderCommission.toFixed(2),
-                balanceType: 'commission',
-                description: `Commission (${commissionRate}%) from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
-                status: 'completed',
-                transactionId: null,
-                notes: null,
-                processedAt: new Date(),
-                createdAt: new Date(),
-              });
-
-              console.log(`✅ Affiliate commission credited: ₹${totalOrderCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for order ${newOrder.id}`);
-            } else {
-              console.error(`❌ Affiliate not found or not approved for user ${affiliateUserId}`);
-            }
-          } catch (affiliateError) {
-            console.error(`❌ Error processing affiliate commission:`, affiliateError);
-            // Continue with order creation even if affiliate is invalid
-          }
-        }
-      } else {
-        console.log(`⏭️ No affiliate code provided for order`);
-      }
-
-      // Credit affiliate commission to wallet if affiliate code was used
-      if (affiliateCode && affiliateCode.startsWith('POPPIKAP') && paymentMethod !== 'Cash on Delivery') {
-        const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
-
-        console.log(`🔍 Processing affiliate commission for code: ${affiliateCode}, userId: ${affiliateUserId}`);
-
-        if (!isNaN(affiliateUserId)) {
-          try {
-            // Verify affiliate exists and is approved
-            const affiliateApp = await db
-              .select()
-              .from(schema.affiliateApplications)
-              .where(and(
-                eq(schema.affiliateApplications.userId, affiliateUserId),
-                eq(schema.affiliateApplications.status, 'approved')
-              ))
-              .limit(1);
-
-            if (!affiliateApp || affiliateApp.length === 0) {
-              console.error(`❌ Affiliate application not found or not approved for user ${affiliateUserId}`);
-              // Continue with order creation even if affiliate is invalid
-            } else {
-              // Use affiliateCommission from request body if provided, otherwise calculate from items
-              let calculatedCommission = affiliateCommission ? Number(affiliateCommission) : 0;
-              
-              if (calculatedCommission === 0 && items && Array.isArray(items)) {
-                calculatedCommission = items.reduce((sum: number, item: any) => {
-                  const itemAffiliateCommission = item.affiliateCommission || 0;
-                  const itemPrice = parseInt(item.price?.replace(/[₹,]/g, "") || "0");
-                  const itemTotal = itemPrice * (item.quantity || 1);
-                  return sum + (itemTotal * itemAffiliateCommission) / 100;
-                }, 0);
-              }
-              
-              const commissionRate = calculatedCommission > 0 && Number(totalAmount) > 0 
-                ? (calculatedCommission / Number(totalAmount)) * 100 
-                : 0;
-
-              console.log(`💰 Commission to credit: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${totalAmount})`);
-
-              // Get or create affiliate wallet
-              let wallet = await db
-                .select()
-                .from(schema.affiliateWallet)
-                .where(eq(schema.affiliateWallet.userId, affiliateUserId))
-                .limit(1);
-
-              if (wallet.length === 0) {
-                console.log(`📝 Creating new wallet for affiliate ${affiliateUserId}`);
-                // Create wallet
-                const [newWallet] = await db.insert(schema.affiliateWallet).values({
+                await db.insert(schema.affiliateTransactions).values({
                   userId: affiliateUserId,
-                  cashbackBalance: "0.00",
-                  commissionBalance: calculatedCommission.toFixed(2),
-                  totalEarnings: calculatedCommission.toFixed(2),
-                  totalWithdrawn: "0.00"
-                }).returning();
+                  orderId: newOrder.id,
+                  type: 'commission',
+                  amount: totalOrderCommission.toFixed(2),
+                  balanceType: 'commission',
+                  description: `Commission (${commissionRate}%) from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+                  status: 'pending',
+                  transactionId: null,
+                  notes: null,
+                  processedAt: null,
+                  createdAt: new Date(),
+                });
 
-                console.log(`✅ Wallet created:`, newWallet);
-              } else {
-                console.log(`📝 Updating existing wallet for affiliate ${affiliateUserId}`);
-                // Update wallet
-                const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
-                const currentEarnings = parseFloat(wallet[0].totalEarnings || '0');
-
-                const [updatedWallet] = await db.update(schema.affiliateWallet)
-                  .set({
-                    commissionBalance: (currentCommission + calculatedCommission).toFixed(2),
-                    totalEarnings: (currentEarnings + calculatedCommission).toFixed(2),
-                    updatedAt: new Date()
-                  })
-                  .where(eq(schema.affiliateWallet.userId, affiliateUserId))
-                  .returning();
-
-                console.log(`✅ Wallet updated:`, updatedWallet);
+                console.log(`✅ Affiliate commission pending: ₹${totalOrderCommission.toFixed(2)} (${commissionRate}%) for affiliate ${affiliateUserId} (order ${newOrder.id})`);
               }
-
-              // Get user details for sale record
-              const orderUser = await db
-                .select({
-                  firstName: schema.users.firstName,
-                  lastName: schema.users.lastName,
-                  email: schema.users.email,
-                  phone: schema.users.phone,
-                })
-                .from(schema.users)
-                .where(eq(schema.users.id, Number(userId)))
-                .limit(1);
-
-              const userData = orderUser[0] || { firstName: 'Customer', lastName: 'Name', email: 'customer@email.com', phone: null };
-
-              // Record affiliate sale in database
-              const [saleRecord] = await db.insert(schema.affiliateSales).values({
-                affiliateUserId,
-                affiliateCode,
-                orderId: newOrder.id,
-                customerId: Number(userId),
-                customerName: customerName || `${userData.firstName} ${userData.lastName}`,
-                customerEmail: customerEmail || userData.email,
-                customerPhone: customerPhone || userData.phone || null,
-                productName: items.map((item: any) => item.productName || item.name).join(', '),
-                saleAmount: Number(totalAmount).toFixed(2),
-                commissionAmount: calculatedCommission.toFixed(2),
-                commissionRate: commissionRate.toFixed(2),
-                status: 'confirmed'
-              }).returning();
-
-              console.log(`✅ Sale record created:`, saleRecord);
-
-              // Add transaction record
-              const [transactionRecord] = await db.insert(schema.affiliateTransactions).values({
-                userId: affiliateUserId,
-                orderId: newOrder.id,
-                type: 'commission',
-                amount: calculatedCommission.toFixed(2),
-                balanceType: 'commission',
-                description: `Commission (${commissionRate}%) from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
-                status: 'completed',
-                transactionId: null,
-                notes: null,
-                processedAt: new Date(),
-                createdAt: new Date()
-              }).returning();
-
-              console.log(`✅ Transaction record created:`, transactionRecord);
-
-              console.log(`✅ Affiliate commission credited: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) to affiliate ${affiliateUserId} for order ${newOrder.id}`);
             }
-          } catch (affiliateError) {
-            console.error(`❌ Error processing affiliate commission:`, affiliateError);
-            // Continue with order creation even if affiliate tracking fails
+          } catch (err) {
+            console.error(`Failed to process affiliate commission for order ${newOrder.id}:`, err);
           }
-        } else {
-          console.error(`❌ Invalid affiliate user ID from code: ${affiliateCode}`);
         }
       }
 
-      if (affiliateCommissionEarned && Number(affiliateCommissionEarned) > 0 && affiliateCode && affiliateCode.startsWith('POPPIKAP')) {
-        const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
-        const commissionAmount = Number(affiliateCommissionEarned);
-
-        console.log(`💳 Processing affiliateCommissionEarned: ₹${commissionAmount} for affiliate ${affiliateUserId}`);
-
-        if (!isNaN(affiliateUserId)) {
-          try {
-            let wallet = await db
-              .select()
-              .from(schema.affiliateWallet)
-              .where(eq(schema.affiliateWallet.userId, affiliateUserId))
-              .limit(1);
-
-            if (!wallet || wallet.length === 0) {
-              await db.insert(schema.affiliateWallet).values({
-                userId: affiliateUserId,
-                cashbackBalance: "0.00",
-                commissionBalance: commissionAmount.toFixed(2),
-                totalEarnings: commissionAmount.toFixed(2),
-                totalWithdrawn: "0.00"
+      try {
+        const cashbackRows: { name: string; amount: number }[] = [];
+        for (const it of items || []) {
+          if (it?.cashbackPrice && it?.cashbackPercentage) {
+            const cashbackAmount = Number(it.cashbackPrice) * (Number(it.quantity) || 1);
+            if (cashbackAmount > 0) {
+              cashbackRows.push({
+                name: it.productName || it.name || 'Item',
+                amount: cashbackAmount,
               });
-            } else {
-              const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
-              const currentEarnings = parseFloat(wallet[0].totalEarnings || '0');
-
-              await db.update(schema.affiliateWallet)
-                .set({
-                  commissionBalance: (currentCommission + commissionAmount).toFixed(2),
-                  totalEarnings: (currentEarnings + commissionAmount).toFixed(2),
-                  updatedAt: new Date(),
-                })
-                .where(eq(schema.affiliateWallet.userId, affiliateUserId));
             }
-
-            await db.insert(schema.affiliateTransactions).values({
-              userId: affiliateUserId,
-              orderId: newOrder.id,
-              type: 'commission',
-              amount: commissionAmount.toFixed(2),
-              balanceType: 'commission',
-              description: `Commission earned from order ORD-${newOrder.id.toString().padStart(3, '0')}`,
-              status: 'completed',
-              processedAt: new Date(),
-              createdAt: new Date(),
-            });
-
-            console.log(`✅ Affiliate commission earned credited: ₹${commissionAmount.toFixed(2)} to affiliate ${affiliateUserId}`);
-          } catch (error) {
-            console.error(`❌ Error crediting affiliateCommissionEarned:`, error);
-            // Continue with order creation even if this fails
-          }
-        }
-      }
-
-      if (items && Array.isArray(items)) {
-        let totalCashback = 0;
-        const cashbackItems: Array<{ name: string; amount: number }> = [];
-
-        for (const item of items) {
-          if (item.cashbackPrice && item.cashbackPercentage) {
-            const cashbackAmount = Number(item.cashbackPrice) * (Number(item.quantity) || 1);
-            totalCashback += cashbackAmount;
-            cashbackItems.push({
-              name: item.productName || item.name,
-              amount: cashbackAmount,
-            });
           }
         }
 
-        if (totalCashback > 0) {
+        if (cashbackRows.length > 0) {
           const existingCashbackTx = await db
             .select({ id: schema.userWalletTransactions.id })
             .from(schema.userWalletTransactions)
             .where(
               and(
-                eq(schema.userWalletTransactions.userId, parseInt(userId)),
+                eq(schema.userWalletTransactions.userId, Number(userId)),
                 eq(schema.userWalletTransactions.orderId, newOrder.id),
-                sql`${schema.userWalletTransactions.description} like ${'Cashback from %'}`
+                eq(schema.userWalletTransactions.status, 'pending')
               )
             )
             .limit(1);
 
           if (!existingCashbackTx || existingCashbackTx.length === 0) {
-            const existingWallet = await db
+            let walletRows = await db
               .select()
               .from(schema.userWallet)
-              .where(eq(schema.userWallet.userId, parseInt(userId)))
+              .where(eq(schema.userWallet.userId, Number(userId)))
               .limit(1);
 
-            if (!existingWallet || existingWallet.length === 0) {
-              await db.insert(schema.userWallet).values({
-                userId: parseInt(userId),
-                cashbackBalance: "0.00",
-                totalEarned: "0.00",
-                totalRedeemed: "0.00",
-              });
+            if (!walletRows || walletRows.length === 0) {
+              const [newWallet] = await db
+                .insert(schema.userWallet)
+                .values({
+                  userId: Number(userId),
+                  cashbackBalance: '0.00',
+                  totalEarned: '0.00',
+                  totalRedeemed: '0.00',
+                })
+                .returning();
+              walletRows = [newWallet];
             }
 
-            const walletForBalance = await db
-              .select()
-              .from(schema.userWallet)
-              .where(eq(schema.userWallet.userId, parseInt(userId)))
-              .limit(1);
+            const currentBalance = parseFloat(walletRows?.[0]?.cashbackBalance || '0');
 
-            const currentBalance = parseFloat(walletForBalance?.[0]?.cashbackBalance || '0');
-
-            for (const cashbackItem of cashbackItems) {
+            for (const row of cashbackRows) {
               await db.insert(schema.userWalletTransactions).values({
-                userId: parseInt(userId),
+                userId: Number(userId),
                 orderId: newOrder.id,
                 type: 'pending',
-                amount: cashbackItem.amount.toFixed(2),
-                description: `Cashback from ${cashbackItem.name}`,
+                amount: row.amount.toFixed(2),
+                description: `Cashback from ${row.name}`,
                 balanceBefore: currentBalance.toFixed(2),
                 balanceAfter: currentBalance.toFixed(2),
                 status: 'pending',
@@ -6532,13 +6334,12 @@ app.put("/api/admin/offers/:id", upload.fields([
             }
           }
         }
+      } catch (e) {
+        console.error('Failed to create pending cashback transactions:', e);
       }
 
-      const orderId = `ORD-${newOrder.id.toString().padStart(3, '0')}`;
-
-      // Always try to create Shiprocket order for all new orders
-      let shiprocketOrderId = null;
       let shiprocketAwb = null;
+      let shiprocketOrderId = null;
       let shiprocketError = null;
 
       // Prepare a user placeholder so it's available outside the Shiprocket block
@@ -6775,6 +6576,76 @@ app.put("/api/admin/offers/:id", upload.fields([
             runningBalance = newBalance;
             runningTotalEarned = newTotalEarned;
           }
+
+          const pendingAffiliateTxs = await db
+            .select()
+            .from(schema.affiliateTransactions)
+            .where(
+              and(
+                eq(schema.affiliateTransactions.orderId, Number(orderId)),
+                eq(schema.affiliateTransactions.type, 'commission'),
+                eq(schema.affiliateTransactions.status, 'pending')
+              )
+            )
+            .orderBy(asc(schema.affiliateTransactions.id));
+
+          for (const tx of pendingAffiliateTxs) {
+            const affiliateUserId = Number(tx.userId);
+            const creditAmount = parseFloat(tx.amount as any);
+            if (!affiliateUserId || isNaN(creditAmount) || creditAmount <= 0) continue;
+
+            let affiliateWallet = await db
+              .select()
+              .from(schema.affiliateWallet)
+              .where(eq(schema.affiliateWallet.userId, affiliateUserId))
+              .limit(1);
+
+            if (!affiliateWallet || affiliateWallet.length === 0) {
+              const [newWallet] = await db.insert(schema.affiliateWallet).values({
+                userId: affiliateUserId,
+                cashbackBalance: '0.00',
+                commissionBalance: '0.00',
+                totalEarnings: '0.00',
+                totalWithdrawn: '0.00'
+              }).returning();
+              affiliateWallet = [newWallet];
+            }
+
+            const currentCommission = parseFloat(affiliateWallet[0].commissionBalance || '0');
+            const currentEarnings = parseFloat(affiliateWallet[0].totalEarnings || '0');
+            const newCommission = currentCommission + creditAmount;
+            const newEarnings = currentEarnings + creditAmount;
+
+            await db
+              .update(schema.affiliateWallet)
+              .set({
+                commissionBalance: newCommission.toFixed(2),
+                totalEarnings: newEarnings.toFixed(2),
+                updatedAt: new Date(),
+              })
+              .where(eq(schema.affiliateWallet.userId, affiliateUserId));
+
+            await db
+              .update(schema.affiliateTransactions)
+              .set({
+                status: 'completed',
+                processedAt: new Date(),
+              })
+              .where(eq(schema.affiliateTransactions.id, tx.id));
+          }
+
+          await db
+            .update(schema.affiliateSales)
+            .set({
+              status: 'paid',
+              paidAt: new Date(),
+            })
+            .where(
+              and(
+                eq(schema.affiliateSales.orderId, Number(orderId)),
+                eq(schema.affiliateSales.status, 'pending')
+              )
+            );
         }
       }
 
@@ -6786,6 +6657,27 @@ app.put("/api/admin/offers/:id", upload.fields([
             and(
               eq(schema.userWalletTransactions.orderId, Number(orderId)),
               eq(schema.userWalletTransactions.status, 'pending')
+            )
+          );
+
+        await db
+          .update(schema.affiliateTransactions)
+          .set({ status: 'failed', processedAt: new Date() })
+          .where(
+            and(
+              eq(schema.affiliateTransactions.orderId, Number(orderId)),
+              eq(schema.affiliateTransactions.type, 'commission'),
+              eq(schema.affiliateTransactions.status, 'pending')
+            )
+          );
+
+        await db
+          .update(schema.affiliateSales)
+          .set({ status: 'failed' })
+          .where(
+            and(
+              eq(schema.affiliateSales.orderId, Number(orderId)),
+              eq(schema.affiliateSales.status, 'pending')
             )
           );
       }
@@ -7094,229 +6986,333 @@ app.put("/api/admin/offers/:id", upload.fields([
   app.get("/api/orders/:orderId/track-shiprocket", async (req, res) => {
     try {
       const orderId = req.params.orderId.replace('ORD-', '');
-
-      // Extract numeric ID from order ID (e.g., "ORD-001" -> 1)
-      const numericId = parseInt(orderId.replace(/\D/g, ''));
+      const numericId = parseInt(orderId.replace(/\D/g, ''), 10);
 
       if (isNaN(numericId)) {
-        return res.status(400).json({ error: "Invalid order ID format" });
+        return res.status(400).json({ error: "Invalid order ID" });
       }
 
-      // Fetch order from database
-      const result = await pool.query(
-        'SELECT * FROM orders WHERE id = $1',
-        [numericId]
-      );
+      const order = await db
+        .select()
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.id, numericId))
+        .limit(1);
 
-      if (result.rows.length === 0) {
+      if (!order || order.length === 0) {
         return res.status(404).json({ error: "Order not found" });
       }
 
-      const orderData = result.rows[0];
+      const orderData: any = order[0];
 
-      // Check if order has Shiprocket integration
-      if (!orderData.shiprocket_order_id) {
-        // Generate basic timeline for non-Shiprocket orders
-        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
-
+      if (!orderData.shiprocketOrderId) {
         return res.json({
-          error: "This order is not shipped through Shiprocket",
+          orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
+          shiprocketOrderId: null,
+          status: orderData.status,
+          trackingNumber: orderData.trackingNumber,
+          estimatedDelivery: orderData.estimatedDelivery?.toISOString?.().split('T')[0],
           hasShiprocketTracking: false,
-          orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-          status: orderData.status,
-          trackingNumber: orderData.tracking_number,
-          estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
-          timeline: basicTimeline,
           realTimeTracking: false,
-          totalAmount: orderData.total_amount,
-          shippingAddress: orderData.shipping_address,
-          createdAt: orderData.created_at.toISOString().split('T')[0]
         });
       }
 
-      // Check if Shiprocket is configured
-      if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD) {
-        // Fallback to basic tracking if Shiprocket not configured
-        const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
-        res.json({
-          orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-          shiprocketOrderId: orderData.shiprocket_order_id,
-          status: orderData.status,
-          trackingNumber: orderData.tracking_number,
-          estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
-          timeline: basicTimeline,
-          realTimeTracking: false,
-          totalAmount: orderData.total_amount,
-          shippingAddress: orderData.shipping_address,
-          createdAt: orderData.created_at.toISOString().split('T')[0],
-          hasShiprocketTracking: true,
-          configured: true,
-          error: "Unable to fetch real-time tracking data from Shiprocket. Using standard tracking."
-        });
-      } else {
-        // Fetch real-time tracking from Shiprocket
-        try {
-          const trackingDetails = await shiprocketService.getTrackingDetails(orderData.shiprocket_order_id);
-          console.log("Shiprocket tracking details:", JSON.stringify(trackingDetails, null, 2));
+      const shiprocketService = new ShiprocketService();
+      const trackingDetails = await shiprocketService.trackOrder(String(orderData.shiprocketOrderId));
+      const currentStatus =
+        trackingDetails?.tracking_data?.shipment_track?.[0]?.current_status ||
+        trackingDetails?.tracking_data?.shipment_track?.[0]?.shipment_status ||
+        null;
 
-          // Extract necessary information and format timeline
-          const timeline = trackingDetails.tracking_data?.track?.map((track: any) => ({
-            step: track.description,
-            status: track.status, // Assuming Shiprocket status maps directly
-            date: new Date(track.shipment_date).toLocaleDateString('en-IN'),
-            time: new Date(track.shipment_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            description: track.location || track.status // Use location if available, otherwise status
-          })) || [];
+      const statusText = String(currentStatus || '').toLowerCase();
+      let finalStatus = orderData.status;
+      if (statusText.includes('deliver')) finalStatus = 'delivered';
+      else if (statusText.includes('ship') || statusText.includes('out for delivery') || statusText.includes('in transit')) finalStatus = 'shipped';
 
-          // Ensure 'Order Placed' is the first step if not present
-          if (timeline.length === 0 || timeline[0].step !== 'Order Placed') {
-            timeline.unshift({
-              step: "Order Placed",
-              status: "completed",
-              date: new Date(orderData.created_at).toLocaleDateString('en-IN'),
-              time: new Date(orderData.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-              description: "Your order has been placed successfully"
-            });
-          }
-
-          // Ensure 'Delivered' status is handled correctly
-          let finalStatus = orderData.status;
-          if (trackingDetails.tracking_data?.track?.some((t: any) => t.status === 'Delivered')) {
-            finalStatus = 'delivered';
-          } else if (trackingDetails.tracking_data?.track?.some((t: any) => t.status === 'Shipped')) {
-            finalStatus = 'shipped';
-          } else if (trackingDetails.tracking_data?.track?.some((t: any) => t.status === 'Out For Delivery')) {
-            finalStatus = 'shipped'; // Map 'Out For Delivery' to 'shipped' for simplicity
-          }
-
-          res.json({
-            orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-            shiprocketOrderId: orderData.shiprocket_order_id,
-            status: finalStatus,
-            trackingNumber: trackingDetails.tracking_number || orderData.tracking_number,
-            estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
-            timeline: timeline,
-            currentStep: getCurrentStep(finalStatus),
-            totalAmount: orderData.total_amount,
-            shippingAddress: orderData.shipping_address,
-            createdAt: orderData.created_at.toISOString().split('T')[0],
-            hasShiprocketTracking: true,
-            realTimeTracking: true
-          });
-
-        } catch (shiprocketTrackingError) {
-          console.error("Error fetching Shiprocket tracking details:", shiprocketTrackingError);
-          // Fallback to basic timeline if Shiprocket API fails
-          const basicTimeline = generateTrackingTimeline(orderData.status, new Date(orderData.created_at), orderData.estimated_delivery);
-          res.json({
-            orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-            shiprocketOrderId: orderData.shiprocket_order_id,
-            status: orderData.status,
-            trackingNumber: orderData.tracking_number,
-            estimatedDelivery: orderData.estimated_delivery?.toISOString().split('T')[0],
-            timeline: basicTimeline,
-            currentStep: getCurrentStep(orderData.status),
-            totalAmount: orderData.total_amount,
-            shippingAddress: orderData.shipping_address,
-            createdAt: orderData.created_at.toISOString().split('T')[0],
-            hasShiprocketTracking: true,
-            realTimeTracking: false,
-            error: "Failed to fetch real-time tracking from Shiprocket. Displaying standard tracking."
-          });
-        }
-      }
+      res.json({
+        orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
+        shiprocketOrderId: orderData.shiprocketOrderId,
+        status: finalStatus,
+        trackingNumber: orderData.trackingNumber,
+        estimatedDelivery: orderData.estimatedDelivery?.toISOString?.().split('T')[0],
+        hasShiprocketTracking: true,
+        realTimeTracking: true,
+        shiprocketStatus: currentStatus,
+      });
     } catch (error) {
       console.error("Error fetching Shiprocket tracking:", error);
       res.status(500).json({ error: "Failed to fetch tracking information" });
     }
   });
 
-  // Generate sample orders for development
-  function generateSampleOrders() {
-    const statuses = ['pending', 'processing', 'shipped', 'delivered'];
-    const orders = [];
-    const now = new Date();
+  app.post('/api/webhooks/shiprocket', async (req, res) => {
+    try {
+      const configuredSecret = process.env.SHIPROCKET_WEBHOOK_SECRET;
+      if (configuredSecret) {
+        const providedSecret =
+          (req.headers['x-api-key'] as string) ||
+          (req.headers['x-shiprocket-webhook-secret'] as string) ||
+          (req.headers['x-webhook-secret'] as string) ||
+          (req.query.secret as string);
 
-    // If either customers or products is empty, return empty orders
-    if (!customers.length || !products.length) {
-      return [];
-    }
-
-    for (let i = 0; i < 50; i++) {
-      const customer = customers[Math.floor(Math.random() * customers.length)];
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
-      const orderDate = new Date(now.getTime() - Math.random() * 365 * 24 * 60 * 60 * 1000);
-
-      const orderProducts = [];
-      const numProducts = Math.floor(Math.random() * 3) + 1;
-      let totalAmount = 0;
-
-      for (let j = 0; j < numProducts; j++) {
-        const product = products[Math.floor(Math.random() * products.length)];
-        const quantity = Math.floor(Math.random() * 3) + 1;
-        const price = parseInt(product?.price?.replace(/[₹,]/g, "") || "0");
-
-        orderProducts.push({
-          ...product,
-          quantity,
-        });
-
-        totalAmount += price * quantity;
+        if (!providedSecret || providedSecret !== configuredSecret) {
+          return res.status(401).json({ error: 'Unauthorized' });
+        }
       }
 
-      orders.push({
-        id: `ORD-${(i + 1).toString().padStart(3, '0')}`,
-        customer: {
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          address: `${customer.name}, ${Math.floor(Math.random() * 999) + 1} Sample Street, Mumbai, Maharashtra 400001`,
-        },
-        date: orderDate.toISOString().split('T')[0],
-        total: `₹${totalAmount}`,
-        totalAmount,
-        status,
-        items: orderItems.length,
-        paymentMethod: ['Credit Card', 'UPI', 'Net Banking'][Math.floor(Math.random() * 3)],
-        trackingNumber:
-          status === 'shipped' || status === 'delivered'
-            ? `TRK${Math.random().toString(36).substring(7).toUpperCase()}`
-            : null,
-        estimatedDelivery:
-          status === 'shipped'
-            ? new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-            : null,
-        products: orderProducts,
-        userId: Math.floor(Math.random() * 5) + 1,
-        shippingAddress: `${customer.name}, ${Math.floor(Math.random() * 999) + 1} Sample Street, Mumbai, Maharashtra 400001`,
-      });
+      const payload: any = req.body || {};
+
+      const rawShiprocketOrderId =
+        payload.order_id ||
+        payload.orderId ||
+        payload.shiprocket_order_id ||
+        payload.shiprocketOrderId ||
+        payload?.tracking_data?.shipment_track?.[0]?.order_id;
+
+      let orderRow: any = null;
+
+      if (rawShiprocketOrderId !== undefined && rawShiprocketOrderId !== null && String(rawShiprocketOrderId).trim() !== '') {
+        const shiprocketOrderId = parseInt(String(rawShiprocketOrderId).replace(/\D/g, ''), 10);
+        if (!isNaN(shiprocketOrderId)) {
+          const rows = await db
+            .select({ id: schema.ordersTable.id, userId: schema.ordersTable.userId })
+            .from(schema.ordersTable)
+            .where(eq(schema.ordersTable.shiprocketOrderId, shiprocketOrderId))
+            .limit(1);
+          orderRow = rows?.[0] || null;
+        }
+      }
+
+      if (!orderRow) {
+        const merchantOrderId =
+          payload.channel_order_id ||
+          payload.channelOrderId ||
+          payload.order_code ||
+          payload.orderCode ||
+          payload?.tracking_data?.shipment_track?.[0]?.channel_order_id;
+
+        if (merchantOrderId) {
+          const numericId = parseInt(String(merchantOrderId).replace(/\D/g, ''), 10);
+          if (!isNaN(numericId)) {
+            const rows = await db
+              .select({ id: schema.ordersTable.id, userId: schema.ordersTable.userId })
+              .from(schema.ordersTable)
+              .where(eq(schema.ordersTable.id, numericId))
+              .limit(1);
+            orderRow = rows?.[0] || null;
+          }
+        }
+      }
+
+      if (!orderRow) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      const rawStatus =
+        payload.current_status ||
+        payload.status ||
+        payload.shipment_status ||
+        payload?.tracking_data?.shipment_track?.[0]?.current_status ||
+        payload?.tracking_data?.shipment_track?.[0]?.shipment_status;
+
+      const statusText = String(rawStatus || '').toLowerCase();
+
+      let newStatus: string | null = null;
+      if (statusText.includes('deliver')) newStatus = 'delivered';
+      else if (statusText.includes('ship') || statusText.includes('in transit') || statusText.includes('out for delivery')) newStatus = 'shipped';
+      else if (statusText.includes('pick') || statusText.includes('process') || statusText.includes('manifest')) newStatus = 'processing';
+      else if (statusText.includes('cancel')) newStatus = 'cancelled';
+      else if (statusText.includes('return') || statusText.includes('rto')) newStatus = 'returned';
+      else if (statusText.includes('refund')) newStatus = 'refunded';
+
+      if (!newStatus) {
+        return res.json({ success: true, message: 'Ignored (unmapped status)' });
+      }
+
+      const updateData: any = { status: newStatus, updatedAt: new Date() };
+      if (newStatus === 'delivered') {
+        updateData.deliveredAt = new Date();
+      }
+
+      await db
+        .update(schema.ordersTable)
+        .set(updateData)
+        .where(eq(schema.ordersTable.id, orderRow.id));
+
+      if (newStatus === 'delivered') {
+        const userId = orderRow.userId;
+
+        let wallet = await db
+          .select()
+          .from(schema.userWallet)
+          .where(eq(schema.userWallet.userId, userId))
+          .limit(1);
+
+        if (!wallet || wallet.length === 0) {
+          const [newWallet] = await db
+            .insert(schema.userWallet)
+            .values({
+              userId,
+              cashbackBalance: '0.00',
+              totalEarned: '0.00',
+              totalRedeemed: '0.00',
+            })
+            .returning();
+          wallet = [newWallet];
+        }
+
+        const pendingCashbacks = await db
+          .select()
+          .from(schema.userWalletTransactions)
+          .where(
+            and(
+              eq(schema.userWalletTransactions.orderId, orderRow.id),
+              eq(schema.userWalletTransactions.userId, userId),
+              eq(schema.userWalletTransactions.status, 'pending')
+            )
+          )
+          .orderBy(asc(schema.userWalletTransactions.id));
+
+        let runningBalance = parseFloat(wallet[0].cashbackBalance || '0');
+        let runningTotalEarned = parseFloat(wallet[0].totalEarned || '0');
+
+        for (const tx of pendingCashbacks) {
+          const creditAmount = parseFloat(tx.amount as any);
+          const newBalance = runningBalance + creditAmount;
+          const newTotalEarned = runningTotalEarned + creditAmount;
+
+          await db
+            .update(schema.userWallet)
+            .set({
+              cashbackBalance: newBalance.toFixed(2),
+              totalEarned: newTotalEarned.toFixed(2),
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.userWallet.userId, userId));
+
+          await db
+            .update(schema.userWalletTransactions)
+            .set({
+              status: 'completed',
+              type: 'credit',
+              balanceBefore: runningBalance.toFixed(2),
+              balanceAfter: newBalance.toFixed(2),
+            })
+            .where(eq(schema.userWalletTransactions.id, tx.id));
+
+          runningBalance = newBalance;
+          runningTotalEarned = newTotalEarned;
+        }
+
+        const pendingAffiliateTxs = await db
+          .select()
+          .from(schema.affiliateTransactions)
+          .where(
+            and(
+              eq(schema.affiliateTransactions.orderId, orderRow.id),
+              eq(schema.affiliateTransactions.type, 'commission'),
+              eq(schema.affiliateTransactions.status, 'pending')
+            )
+          )
+          .orderBy(asc(schema.affiliateTransactions.id));
+
+        for (const tx of pendingAffiliateTxs) {
+          const affiliateUserId = Number(tx.userId);
+          const creditAmount = parseFloat(tx.amount as any);
+          if (!affiliateUserId || isNaN(creditAmount) || creditAmount <= 0) continue;
+
+          let affiliateWallet = await db
+            .select()
+            .from(schema.affiliateWallet)
+            .where(eq(schema.affiliateWallet.userId, affiliateUserId))
+            .limit(1);
+
+          if (!affiliateWallet || affiliateWallet.length === 0) {
+            const [newWallet] = await db.insert(schema.affiliateWallet).values({
+              userId: affiliateUserId,
+              cashbackBalance: '0.00',
+              commissionBalance: '0.00',
+              totalEarnings: '0.00',
+              totalWithdrawn: '0.00'
+            }).returning();
+            affiliateWallet = [newWallet];
+          }
+
+          const currentCommission = parseFloat(affiliateWallet[0].commissionBalance || '0');
+          const currentEarnings = parseFloat(affiliateWallet[0].totalEarnings || '0');
+          const newCommission = currentCommission + creditAmount;
+          const newEarnings = currentEarnings + creditAmount;
+
+          await db
+            .update(schema.affiliateWallet)
+            .set({
+              commissionBalance: newCommission.toFixed(2),
+              totalEarnings: newEarnings.toFixed(2),
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.affiliateWallet.userId, affiliateUserId));
+
+          await db
+            .update(schema.affiliateTransactions)
+            .set({
+              status: 'completed',
+              processedAt: new Date(),
+            })
+            .where(eq(schema.affiliateTransactions.id, tx.id));
+        }
+
+        await db
+          .update(schema.affiliateSales)
+          .set({
+            status: 'paid',
+            paidAt: new Date(),
+          })
+          .where(
+            and(
+              eq(schema.affiliateSales.orderId, orderRow.id),
+              eq(schema.affiliateSales.status, 'pending')
+            )
+          );
+      }
+
+      if (newStatus === 'cancelled' || newStatus === 'returned' || newStatus === 'refunded') {
+        await db
+          .update(schema.userWalletTransactions)
+          .set({ status: 'failed' })
+          .where(
+            and(
+              eq(schema.userWalletTransactions.orderId, orderRow.id),
+              eq(schema.userWalletTransactions.status, 'pending')
+            )
+          );
+
+        await db
+          .update(schema.affiliateTransactions)
+          .set({ status: 'failed', processedAt: new Date() })
+          .where(
+            and(
+              eq(schema.affiliateTransactions.orderId, orderRow.id),
+              eq(schema.affiliateTransactions.type, 'commission'),
+              eq(schema.affiliateTransactions.status, 'pending')
+            )
+          );
+
+        await db
+          .update(schema.affiliateSales)
+          .set({ status: 'failed' })
+          .where(
+            and(
+              eq(schema.affiliateSales.orderId, orderRow.id),
+              eq(schema.affiliateSales.status, 'pending')
+            )
+          );
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Shiprocket webhook error:', error);
+      res.status(500).json({ error: 'Failed to process webhook' });
     }
-
-    return orders.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }
-
-
-  // Generate sample subcategories for development
-  function generateSampleSubcategories() {
-    return [
-
-    ];
-  }
-
-  // Generate sample subcategories for a specific category
-  function generateSampleSubcategoriesForCategory(categorySlug: string) {
-    const allSubcategories = generateSampleSubcategories();
-
-    // Map category slugs to subcategories
-    const categorySubcategoryMap: Record<string, string[]> = {
-
-    };
-
-    const subcategorySlugs = categorySubcategoryMap[categorySlug] || [];
-    return allSubcategories.filter(sub => subcategorySlugs.includes(sub.slug));
-  }
-
-
+  });
 
   // Blog API Routes
 
@@ -8385,6 +8381,30 @@ app.put("/api/admin/offers/:id", upload.fields([
               price: it.price || '₹0',
               image: it.productImage || it.image || '',
             }));
+          } else if (Array.isArray(parsed)) {
+            // Some older orders stored an array of address objects with product fields
+            const extracted = parsed
+              .filter((it: any) => it && (it.productName || it.name))
+              .map((it: any, idx: number) => ({
+                id: idx + 1,
+                name: it.productName || it.name || 'Item',
+                quantity: Number(it.quantity || 1),
+                price: it.price || `₹${order[0].totalAmount || 0}`,
+                image: it.productImage || it.image || '',
+              }));
+            if (extracted.length > 0) resolvedItems = extracted;
+          } else if (parsed && typeof parsed === 'object') {
+            // Single-address JSON payload may contain product fields
+            const pName = (parsed as any).productName || (parsed as any).name;
+            if (pName) {
+              resolvedItems = [{
+                id: 1,
+                name: pName,
+                quantity: Number((parsed as any).quantity || 1),
+                price: (parsed as any).price || `₹${order[0].totalAmount || 0}`,
+                image: (parsed as any).productImage || (parsed as any).image || '',
+              }];
+            }
           }
         } catch (e) {
           // ignore
@@ -10883,29 +10903,123 @@ Poppik Career Portal
         return res.status(400).json({ error: 'User ID and amount required' });
       }
 
-      // Get current wallet
+      const parsedUserId = parseInt(userId);
+      const parsedOrderId = orderId ? parseInt(orderId) : null;
+      const creditAmount = parseFloat(amount);
+
+      if (parsedOrderId) {
+        const orderRows = await db
+          .select({ id: schema.ordersTable.id, userId: schema.ordersTable.userId, status: schema.ordersTable.status })
+          .from(schema.ordersTable)
+          .where(eq(schema.ordersTable.id, parsedOrderId))
+          .limit(1);
+
+        if (!orderRows || orderRows.length === 0) {
+          return res.status(404).json({ error: 'Order not found' });
+        }
+
+        if (orderRows[0].userId !== parsedUserId) {
+          return res.status(400).json({ error: 'Order does not belong to user' });
+        }
+
+        const orderStatus = String(orderRows[0].status || '').toLowerCase();
+        if (orderStatus !== 'delivered') {
+          const existingTx = await db
+            .select({ id: schema.userWalletTransactions.id })
+            .from(schema.userWalletTransactions)
+            .where(
+              and(
+                eq(schema.userWalletTransactions.userId, parsedUserId),
+                eq(schema.userWalletTransactions.orderId, parsedOrderId),
+                eq(schema.userWalletTransactions.amount, creditAmount.toFixed(2)),
+                or(
+                  eq(schema.userWalletTransactions.status, 'pending'),
+                  eq(schema.userWalletTransactions.status, 'completed')
+                )
+              )
+            )
+            .limit(1);
+
+          if (!existingTx || existingTx.length === 0) {
+            let wallet = await db
+              .select()
+              .from(schema.userWallet)
+              .where(eq(schema.userWallet.userId, parsedUserId))
+              .limit(1);
+
+            if (!wallet || wallet.length === 0) {
+              const [newWallet] = await db.insert(schema.userWallet).values({
+                userId: parsedUserId,
+                cashbackBalance: '0.00',
+                totalEarned: '0.00',
+                totalRedeemed: '0.00'
+              }).returning();
+              wallet = [newWallet];
+            }
+
+            const currentBalance = parseFloat(wallet[0].cashbackBalance);
+            await db.insert(schema.userWalletTransactions).values({
+              userId: parsedUserId,
+              type: 'pending',
+              amount: creditAmount.toFixed(2),
+              description: description || 'Cashback pending (order not delivered)',
+              orderId: parsedOrderId,
+              balanceBefore: currentBalance.toFixed(2),
+              balanceAfter: currentBalance.toFixed(2),
+              status: 'pending'
+            });
+          }
+
+          return res.json({
+            success: true,
+            status: 'pending',
+            message: 'Cashback will be credited after order is delivered'
+          });
+        }
+      }
+
       let wallet = await db
         .select()
         .from(schema.userWallet)
-        .where(eq(schema.userWallet.userId, parseInt(userId)))
+        .where(eq(schema.userWallet.userId, parsedUserId))
         .limit(1);
 
       if (!wallet || wallet.length === 0) {
-        // Create wallet if doesn't exist
         const [newWallet] = await db.insert(schema.userWallet).values({
-          userId: parseInt(userId),
-          cashbackBalance: "0.00",
-          totalEarned: "0.00",
-          totalRedeemed: "0.00"
+          userId: parsedUserId,
+          cashbackBalance: '0.00',
+          totalEarned: '0.00',
+          totalRedeemed: '0.00'
         }).returning();
         wallet = [newWallet];
       }
 
       const currentBalance = parseFloat(wallet[0].cashbackBalance);
-      const creditAmount = parseFloat(amount);
       const newBalance = currentBalance + creditAmount;
 
-      // Update wallet
+      if (parsedOrderId) {
+        const existingCompletedTx = await db
+          .select({ id: schema.userWalletTransactions.id })
+          .from(schema.userWalletTransactions)
+          .where(
+            and(
+              eq(schema.userWalletTransactions.userId, parsedUserId),
+              eq(schema.userWalletTransactions.orderId, parsedOrderId),
+              eq(schema.userWalletTransactions.amount, creditAmount.toFixed(2)),
+              eq(schema.userWalletTransactions.status, 'completed')
+            )
+          )
+          .limit(1);
+
+        if (existingCompletedTx && existingCompletedTx.length > 0) {
+          return res.json({
+            success: true,
+            message: 'Cashback already credited for this order',
+            newBalance: currentBalance.toFixed(2)
+          });
+        }
+      }
+
       await db
         .update(schema.userWallet)
         .set({
@@ -10913,15 +11027,14 @@ Poppik Career Portal
           totalEarned: (parseFloat(wallet[0].totalEarned) + creditAmount).toFixed(2),
           updatedAt: new Date()
         })
-        .where(eq(schema.userWallet.userId, parseInt(userId)));
+        .where(eq(schema.userWallet.userId, parsedUserId));
 
-      // Create transaction record
       await db.insert(schema.userWalletTransactions).values({
-        userId: parseInt(userId),
+        userId: parsedUserId,
         type: 'credit',
         amount: creditAmount.toFixed(2),
         description: description || 'Cashback credited',
-        orderId: orderId ? parseInt(orderId) : null,
+        orderId: parsedOrderId,
         balanceBefore: currentBalance.toFixed(2),
         balanceAfter: newBalance.toFixed(2),
         status: 'completed'

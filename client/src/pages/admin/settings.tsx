@@ -17,7 +17,7 @@ export default function AdminSettings() {
     storeName: 'Poppik Lifestyle Private Limited',
     contactEmail: 'info@poppik.in',
     storeDescription: 'Your one-stop destination for premium beauty and cosmetic products',
-    currency: 'USD',
+    currency: 'INR',
     taxRate: '8.5'
   });
   const [notifications, setNotifications] = useState({
