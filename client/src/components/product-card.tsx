@@ -650,6 +650,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               </div>
               <div className="grid grid-cols-4 gap-3">
                 {productShades.map((shade) => {
+                  const hasSelection = selectedShades.length > 0;
                   const isSelected = selectedShades.some(s => s.id === shade.id);
                   return (
                     <div
@@ -661,10 +662,12 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                           setSelectedShades([...selectedShades, shade]);
                         }
                       }}
-                      className={`cursor-pointer group relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 hover:shadow-lg ${
-                        isSelected
-                          ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md scale-105'
-                          : 'border-purple-300 hover:border-purple-400 hover:bg-purple-25'
+                      className={`cursor-pointer relative flex flex-col items-center gap-2 p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
+                        !hasSelection
+                          ? 'bg-white'
+                          : isSelected
+                            ? 'border-2 border-purple-600 ring-2 ring-purple-300 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md scale-105'
+                            : 'border-2 border-purple-200 hover:border-purple-400 bg-white'
                       }`}
                     >
                       {shade.imageUrl ? (
@@ -672,8 +675,12 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                           <img
                             src={shade.imageUrl}
                             alt={shade.name}
-                            className={`w-12 h-12 rounded-full object-cover border-2 shadow-md transition-all ${
-                              isSelected ? 'border-purple-500' : 'border-gray-300'
+                            className={`w-12 h-12 rounded-full object-cover shadow-md transition-all ${
+                              !hasSelection
+                                ? ''
+                                : isSelected
+                                  ? 'border-2 border-purple-600'
+                                  : 'border-2 border-purple-200'
                             }`}
                           />
                           {isSelected && (
@@ -683,8 +690,12 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                       ) : (
                         <div className="relative">
                           <div
-                            className={`w-12 h-12 rounded-full border-2 shadow-md transition-all ${
-                              isSelected ? 'border-purple-500 scale-110' : 'border-gray-300'
+                            className={`w-12 h-12 rounded-full shadow-md transition-all ${
+                              !hasSelection
+                                ? ''
+                                : isSelected
+                                  ? 'border-2 border-purple-600 scale-110'
+                                  : 'border-2 border-purple-200'
                             }`}
                             style={{ backgroundColor: shade.colorCode }}
                           />

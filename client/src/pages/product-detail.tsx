@@ -1663,43 +1663,48 @@ export default function ProductDetail() {
                               <div className="grid grid-cols-5 gap-3">
                                 {visibleShades.map((shade: any) => {
                                   const isSelected = selectedShades.some((s: any) => s.id === shade.id);
+                                  const hasSelection = selectedShades.length > 0;
+                                  const swatchWrapperClass = `w-12 h-12 rounded-full border-2 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${isSelected
+                                    ? 'border-4 border-purple-600 ring-2 ring-purple-300 ring-offset-2 scale-105'
+                                    : hasSelection
+                                      ? 'border-2 border-purple-200 ring-1 ring-purple-200 ring-offset-2 hover:border-purple-400'
+                                      : 'border-2 border-gray-300 hover:border-purple-400'
+                                    }`;
                                   return (
                                     <div
                                       key={shade.value}
-                                      className="flex flex-col items-center group cursor-pointer"
+                                      className="flex flex-col items-center cursor-pointer"
                                       onClick={() => handleShadeSelect(shade)}
                                     >
                                       <div className="relative">
+
                                         {isSelected && (
                                           <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-1 shadow-lg z-20">
                                             <Check className="w-3 h-3 text-white" />
                                           </div>
                                         )}
                                         {shade.imageUrl ? (
-                                          <img
-                                            src={shade.imageUrl}
-                                            alt={shade.name}
-                                            className={`w-12 h-12 rounded-full border-3 object-cover transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${isSelected
-                                                ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
-                                                : 'border-gray-300 hover:border-purple-400'
-                                              }`}
-                                            title={shade.name}
-                                          />
+                                          <div className={swatchWrapperClass} title={shade.name}>
+                                            <img
+                                              src={shade.imageUrl}
+                                              alt={shade.name}
+                                              className="w-full h-full rounded-full object-cover block"
+                                            />
+                                          </div>
                                         ) : (
-                                          <div
-                                            className={`w-12 h-12 rounded-full border-3 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${isSelected
-                                                ? 'border-purple-500 ring-2 ring-purple-300 ring-offset-2 scale-105'
-                                                : 'border-gray-300 hover:border-purple-400'
-                                              }`}
-                                            style={{ backgroundColor: shade.colorCode }}
-                                            title={shade.name}
-                                          ></div>
+                                          <div className={swatchWrapperClass} title={shade.name}>
+                                            <div
+                                              className="w-full h-full rounded-full"
+                                              style={{ backgroundColor: shade.colorCode }}
+                                            ></div>
+                                          </div>
                                         )}
                                       </div>
                                       <span className={`text-xs mt-2 text-center leading-tight transition-colors ${isSelected
                                           ? 'text-purple-700 font-semibold'
-                                          : 'text-gray-600 group-hover:text-purple-600'
+                                          : 'text-gray-600 hover:text-purple-600'
                                         }`}>
+
                                         {shade.name.split(' ').slice(0, 2).join(' ')}
                                       </span>
                                     </div>
