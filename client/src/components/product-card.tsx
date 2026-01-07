@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Star, Heart, ShoppingCart, X, Plus, Minus, Check } from "lucide-react";
+import { Star, Heart, ShoppingCart, X, Plus, Minus, Check, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+
 import type { Product } from "@/lib/types";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { LazyImage } from "@/components/LazyImage";
@@ -40,6 +41,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   const [quantity, setQuantity] = useState(1);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  const getShadeKey = (shade: any) => String(shade?.id ?? shade?.value ?? shade?.name ?? "");
 
 
   // Fetch product shades
@@ -617,7 +620,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                   <span className="text-sm text-gray-600">Selected Shades:</span>
                   <div className="flex flex-wrap gap-2">
                     {selectedShades.map(shade => (
-                      <div key={shade.id} className="flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-purple-200">
+                      <div key={getShadeKey(shade)} className="flex items-center gap-1 bg-white px-2 py-1 rounded-full border border-purple-200">
                         <div 
                           className="w-3 h-3 rounded-full border border-white shadow-sm"
                           style={{ backgroundColor: shade.colorCode }}
@@ -651,13 +654,14 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               <div className="grid grid-cols-4 gap-3">
                 {productShades.map((shade) => {
                   const hasSelection = selectedShades.length > 0;
-                  const isSelected = selectedShades.some(s => s.id === shade.id);
+                  const shadeKey = getShadeKey(shade);
+                  const isSelected = selectedShades.some(s => getShadeKey(s) === shadeKey);
                   return (
                     <div
-                      key={shade.id}
+                      key={shadeKey}
                       onClick={() => {
                         if (isSelected) {
-                          setSelectedShades(selectedShades.filter(s => s.id !== shade.id));
+                          setSelectedShades(selectedShades.filter(s => getShadeKey(s) !== shadeKey));
                         } else {
                           setSelectedShades([...selectedShades, shade]);
                         }
@@ -684,7 +688,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                             }`}
                           />
                           {isSelected && (
-                            <div className="absolute inset-0 rounded-full bg-purple-500/20 animate-pulse" />
+                            <div className="absolute inset-0 rounded-full bg-white/30 animate-pulse" />
                           )}
                         </div>
                       ) : (
@@ -709,9 +713,18 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                       }`}>
                         {shade.name}
                       </span>
-                      {isSelected && (
-                        <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-1 shadow-lg">
-                          <Check className="w-3 h-3 text-white" />
+                      {hasSelection && (
+                        <div
+                          className={`absolute -top-1 -right-1 rounded-full p-1 shadow-lg transition-colors ${isSelected
+                            ? 'bg-gradient-to-r from-purple-600 to-pink-600'
+                            : 'bg-white border border-purple-300'
+                            }`}
+                        >
+                          {isSelected ? (
+                            <Check className="w-3 h-3 text-white" />
+                          ) : (
+                            <Circle className="w-3 h-3 text-gray-300" />
+                          )}
                         </div>
                       )}
                     </div>

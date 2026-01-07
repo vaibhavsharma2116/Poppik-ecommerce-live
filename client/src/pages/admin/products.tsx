@@ -35,19 +35,21 @@ import {
 
 interface Product {
   id: number;
-  name?: string;
+  name: string;
   slug?: string;
   description?: string;
   shortDescription?: string;
   price?: number;
   originalPrice?: number;
+  discount?: number;
   cashbackPercentage?: number;
   cashbackPrice?: number;
   category?: string;
   subcategory?: string;
   imageUrl?: string;
   images?: { url: string }[]; // Added for multiple images
-  rating?: number;
+  videoUrl?: string;
+  rating?: string;
   reviewCount?: number;
   inStock?: boolean;
   featured?: boolean;
@@ -94,11 +96,11 @@ interface Shade {
 export default function AdminProducts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid');
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [shades, setShades] = useState<Shade[]>([]); // State for shades
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -359,7 +361,11 @@ export default function AdminProducts() {
     if (selectedProduct) {
       try {
         // Upload new images if any
-        let finalImages = editImagePreviews;
+        const existingImageUrls = (editImagePreviews || []).filter((url: any) => {
+          return typeof url === 'string' && !url.startsWith('data:image');
+        });
+
+        let finalImages = existingImageUrls;
 
         if (editImages.length > 0) {
           const uploadPromises = editImages.map(async (image) => {
@@ -380,11 +386,13 @@ export default function AdminProducts() {
           });
 
           const newImageUrls = await Promise.all(uploadPromises);
-          finalImages = [...editImagePreviews, ...newImageUrls];
+          finalImages = [...existingImageUrls, ...newImageUrls];
         }
 
         // Upload new video if selected
-        let finalVideoUrl = editVideoPreview;
+        let finalVideoUrl = (typeof editVideoPreview === 'string' && !editVideoPreview.startsWith('data:video'))
+          ? editVideoPreview
+          : '';
         if (editVideo) {
           const videoFormData = new FormData();
           videoFormData.append('video', editVideo);
@@ -406,6 +414,11 @@ export default function AdminProducts() {
         const selectedCategory = categories.find(cat => cat.id === parseInt(editFormData.category));
         const categoryName = selectedCategory ? selectedCategory.name : editFormData.category;
 
+        const safeLegacyImageUrl =
+          typeof editFormData.imageUrl === 'string' && !editFormData.imageUrl.startsWith('data:image')
+            ? editFormData.imageUrl
+            : '';
+
         const updateData = {
           ...editFormData,
           category: categoryName, // Use the category name, not the ID
@@ -426,7 +439,7 @@ export default function AdminProducts() {
           tags: editFormData.tags || null,
           skinType: editFormData.skinType || null,
           images: finalImages,
-          imageUrl: finalImages[0] || editFormData.imageUrl,
+          imageUrl: finalImages[0] || safeLegacyImageUrl,
           videoUrl: finalVideoUrl || null,
           shadeIds: editFormData.shadeIds, // Include shadeIds in updateData
           affiliateCommission: editFormData.affiliateCommission ? parseFloat(editFormData.affiliateCommission) : 0,
@@ -619,7 +632,7 @@ export default function AdminProducts() {
   const [isDynamicFilterActive, setIsDynamicFilterActive] = useState(false);
 
   // Handle dynamic filter changes
-  const handleFilterChange = useCallback((filteredProducts: Product[], activeFilters: any) => {
+  const handleFilterChange = useCallback((filteredProducts: any[], activeFilters: any) => {
     console.log("Filter change:", {
       filteredCount: filteredProducts.length,
       activeFilters
@@ -841,7 +854,7 @@ export default function AdminProducts() {
         {/* Dynamic Filter Sidebar */}
         <div className="lg:col-span-1">
           <DynamicFilter
-            products={products}
+            products={products as any}
             categories={categories}
             onFilterChange={handleFilterChange}
             className="sticky top-4"
@@ -1748,7 +1761,7 @@ export default function AdminProducts() {
                 <Input
                   id="edit-imageUrl"
                   value={editFormData.imageUrl}
-                  onChange={(e) => setEditFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                  readOnly
                   placeholder="Product image URL"
                 />
               </div>

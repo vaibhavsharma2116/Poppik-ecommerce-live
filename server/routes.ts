@@ -109,7 +109,7 @@ const shiprocketService = new ShiprocketService();
 
 // Database connection with enhanced configuration and error recovery
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
+ connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -173,6 +173,35 @@ const getErrorMessage = (error: unknown): string => {
     return error;
   }
   return 'An unexpected error occurred';
+};
+
+const isDataUrl = (value: unknown) => {
+  if (typeof value !== 'string') return false;
+  const v = value.trim().toLowerCase();
+  return v.startsWith('data:image') || v.startsWith('data:video');
+};
+
+const assertNoDataUrls = (
+  res: Response,
+  fields: Array<{ key: string; value: unknown }>
+) => {
+  for (const field of fields) {
+    const { key, value } = field;
+    if (Array.isArray(value)) {
+      if (value.some((v) => isDataUrl(v))) {
+        res.status(400).json({
+          error: `Invalid ${key}: data URLs are not allowed. Please upload the file and use the returned URL instead.`,
+        });
+        return false;
+      }
+    } else if (isDataUrl(value)) {
+      res.status(400).json({
+        error: `Invalid ${key}: data URLs are not allowed. Please upload the file and use the returned URL instead.`,
+      });
+      return false;
+    }
+  }
+  return true;
 };
 
 // Helper function to safely get error properties
@@ -5993,6 +6022,9 @@ app.put("/api/admin/offers/:id", upload.fields([
       // orders.redeem_amount is an integer column in DB schema
       const redeemToApply = Math.round(Math.max(0, Number(redeemAmount || 0)));
 
+      // Affiliate wallet redemption (commission balance)
+      const affiliateWalletToApply = Math.round(Math.max(0, Number(affiliateWalletAmount || 0)));
+
       // Validate wallet balance before creating the order (so we can fail fast)
       if (redeemToApply > 0) {
         const walletRows = await db
@@ -6004,6 +6036,31 @@ app.put("/api/admin/offers/:id", upload.fields([
         const currentBalance = parseFloat(walletRows?.[0]?.cashbackBalance || '0');
         if (currentBalance < redeemToApply) {
           return res.status(400).json({ error: 'Insufficient cashback balance' });
+        }
+      }
+
+      // Validate affiliate wallet balance before creating the order (so we can fail fast)
+      if (affiliateWalletToApply > 0) {
+        let walletRows = await db
+          .select()
+          .from(schema.affiliateWallet)
+          .where(eq(schema.affiliateWallet.userId, Number(userId)))
+          .limit(1);
+
+        if (!walletRows || walletRows.length === 0) {
+          const [newWallet] = await db.insert(schema.affiliateWallet).values({
+            userId: Number(userId),
+            cashbackBalance: '0.00',
+            commissionBalance: '0.00',
+            totalEarnings: '0.00',
+            totalWithdrawn: '0.00',
+          }).returning();
+          walletRows = [newWallet];
+        }
+
+        const currentCommission = parseFloat(walletRows?.[0]?.commissionBalance || '0');
+        if (currentCommission < affiliateWalletToApply) {
+          return res.status(400).json({ error: 'Insufficient affiliate commission balance' });
         }
       }
 
@@ -6060,9 +6117,9 @@ app.put("/api/admin/offers/:id", upload.fields([
               .insert(schema.userWallet)
               .values({
                 userId: Number(userId),
-                cashbackBalance: '0.00',
-                totalEarned: '0.00',
-                totalRedeemed: '0.00',
+                cashbackBalance: "0.00",
+                totalEarned: "0.00",
+                totalRedeemed: "0.00",
               })
               .returning();
             walletRows = [newWallet];
@@ -6095,6 +6152,70 @@ app.put("/api/admin/offers/:id", upload.fields([
             balanceBefore: currentBalance.toFixed(2),
             balanceAfter: newBalance.toFixed(2),
             status: 'completed',
+          });
+        }
+      }
+
+      // Deduct affiliate wallet commission (if applied)
+      if (affiliateWalletToApply > 0) {
+        const existingAffiliateRedeemTx = await db
+          .select({ id: schema.affiliateTransactions.id })
+          .from(schema.affiliateTransactions)
+          .where(
+            and(
+              eq(schema.affiliateTransactions.userId, Number(userId)),
+              eq(schema.affiliateTransactions.orderId, orderId),
+              eq(schema.affiliateTransactions.type, 'redemption'),
+              eq(schema.affiliateTransactions.status, 'completed')
+            )
+          )
+          .limit(1);
+
+        if (!existingAffiliateRedeemTx || existingAffiliateRedeemTx.length === 0) {
+          let affiliateWalletRows = await db
+            .select()
+            .from(schema.affiliateWallet)
+            .where(eq(schema.affiliateWallet.userId, Number(userId)))
+            .limit(1);
+
+          if (!affiliateWalletRows || affiliateWalletRows.length === 0) {
+            const [newWallet] = await db.insert(schema.affiliateWallet).values({
+              userId: Number(userId),
+              cashbackBalance: '0.00',
+              commissionBalance: '0.00',
+              totalEarnings: '0.00',
+              totalWithdrawn: '0.00',
+            }).returning();
+            affiliateWalletRows = [newWallet];
+          }
+
+          const currentCommission = parseFloat(affiliateWalletRows?.[0]?.commissionBalance || '0');
+          if (currentCommission < affiliateWalletToApply) {
+            return res.status(400).json({ error: 'Insufficient affiliate commission balance' });
+          }
+
+          const newCommissionBalance = currentCommission - affiliateWalletToApply;
+
+          await db
+            .update(schema.affiliateWallet)
+            .set({
+              commissionBalance: newCommissionBalance.toFixed(2),
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.affiliateWallet.userId, Number(userId)));
+
+          await db.insert(schema.affiliateTransactions).values({
+            userId: Number(userId),
+            type: 'redemption',
+            amount: affiliateWalletToApply.toFixed(2),
+            balanceType: 'commission',
+            description: `Affiliate wallet redeemed for order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+            orderId: newOrder.id,
+            status: 'completed',
+            transactionId: null,
+            notes: null,
+            processedAt: null,
+            createdAt: new Date(),
           });
         }
       }

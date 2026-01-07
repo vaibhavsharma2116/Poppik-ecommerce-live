@@ -124,12 +124,12 @@ function ShadeSelectorSheet({
               const shadeKey = String(shade.id || shade.name);
               const isSelected = selectedShades.has(shadeKey);
               return (
-                <button key={shade.id} onClick={() => handleShadeToggle(shade)} className={`group flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${isSelected ? 'border-purple-600 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg scale-105 ring-2 ring-purple-300' : 'border-gray-200 hover:border-purple-400 hover:bg-gradient-to-br hover:from-purple-50 hover:to-pink-50 hover:shadow-md hover:scale-102'}`}>
+                <button key={shade.id} onClick={() => handleShadeToggle(shade)} className={`flex flex-col items-center gap-3 p-4 rounded-2xl transition-all duration-300 ${isSelected ? 'bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg scale-105' : 'bg-white hover:bg-gradient-to-br hover:from-purple-50 hover:to-pink-50 hover:shadow-md hover:scale-102'}`}>
                   <div className="relative">
                     {shade.imageUrl ? (
-                      <img src={normalizeImageUrl(shade.imageUrl)} alt={shade.name} className={`w-16 h-16 rounded-xl shadow-md border-4 border-white object-cover transition-transform ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`} />
+                      <img src={normalizeImageUrl(shade.imageUrl)} alt={shade.name} className={`w-16 h-16 rounded-xl shadow-md object-cover transition-transform ${isSelected ? 'scale-110' : 'hover:scale-105'}`} />
                     ) : (
-                      <div className={`w-16 h-16 rounded-xl shadow-md border-4 border-white transition-transform ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`} style={{ backgroundColor: shade.colorCode || getShadeColor(shade.name) }} />
+                      <div className={`w-16 h-16 rounded-xl shadow-md transition-transform ${isSelected ? 'scale-110' : 'hover:scale-105'}`} style={{ backgroundColor: shade.colorCode || getShadeColor(shade.name) }} />
                     )}
                     {isSelected && (
                       <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 text-white flex items-center justify-center shadow-lg ring-2 ring-white">
@@ -137,7 +137,7 @@ function ShadeSelectorSheet({
                       </div>
                     )}
                   </div>
-                  <span className={`text-xs font-semibold text-center line-clamp-2 capitalize transition-colors ${isSelected ? 'text-purple-700' : 'text-gray-700 group-hover:text-purple-600'}`}>{shade.name}</span>
+                  <span className={`text-xs font-semibold text-center line-clamp-2 capitalize transition-colors ${isSelected ? 'text-purple-700' : 'text-gray-700 hover:text-purple-600'}`}>{shade.name}</span>
                 </button>
               );
             })}

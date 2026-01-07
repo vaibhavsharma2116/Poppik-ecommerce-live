@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import { ArrowLeft, CreditCard, MapPin, User, Package, CheckCircle, Gift, Award, ChevronDown, Tag, Check, Plus, ChevronRight, Pencil } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -270,6 +270,41 @@ const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
   medininagar: { state: "jharkhand", pincodes: ["822101"] }
 };
 
+function normalizeCityValue(raw: any) {
+  const value = String(raw ?? "").trim();
+  if (!value) return "";
+
+  const cleaned = value
+    .toLowerCase()
+    .replace(/\./g, "")
+    .replace(/\s+/g, "_")
+    .replace(/__+/g, "_");
+
+  if (cityLocationMap[cleaned]) return cleaned;
+  if (cityLocationMap[value.toLowerCase()]) return value.toLowerCase();
+  return cleaned;
+}
+
+function toTitleLabel(raw: string) {
+  return String(raw)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function getCitiesForState(stateValue: string) {
+  const st = String(stateValue || "").trim();
+  if (!st) return [] as string[];
+
+  return Object.keys(cityLocationMap)
+    .filter((cityKey) => String(cityLocationMap[cityKey]?.state || "") === st)
+    .sort((a, b) => toTitleLabel(a).localeCompare(toTitleLabel(b)));
+}
+
+function getPincodesForCity(cityKeyRaw: string) {
+  const key = normalizeCityValue(cityKeyRaw);
+  return cityLocationMap[key]?.pincodes || [];
+}
+
 // Helper to build API URLs that respect VITE_API_BASE when frontend runs separately
 const apiUrl = (path: string) => {
   const base = (import.meta as any).env?.VITE_API_BASE || "";
@@ -390,6 +425,14 @@ export default function CheckoutPage() {
     sundayDelivery: false,
   });
 
+  const newAddressAvailableCities = useMemo(() => {
+    return getCitiesForState(newAddressData.state);
+  }, [newAddressData.state]);
+
+  const newAddressAvailablePincodes = useMemo(() => {
+    return getPincodesForCity(newAddressData.town);
+  }, [newAddressData.town]);
+
   // Initialize shipping cost state and loading indicator
   const [shippingCost, setShippingCost] = useState<number>(99);
   const [loadingShipping, setLoadingShipping] = useState(false);
@@ -443,6 +486,12 @@ export default function CheckoutPage() {
   };
 
   const user = getCurrentUser();
+
+  const getUserPrefillMobile = () => {
+    const raw = (user as any)?.phone || (user as any)?.mobile || "";
+    const digits = String(raw).replace(/\D/g, "");
+    return digits.length > 10 ? digits.slice(-10) : digits;
+  };
 
   // Fetch wallet data
   const { data: walletData, refetch: refetchWalletData } = useQuery({
@@ -790,7 +839,6 @@ export default function CheckoutPage() {
                     city = addressParts[addressParts.length - 2];
                   }
 
-                  // Remove city and state from full address to get street address
                   streetAddress = addressParts.slice(0, -2).join(', ');
                 } else if (addressParts.length === 2) {
                   // If only 2 parts, assume first is address and second is city
@@ -1351,6 +1399,7 @@ export default function CheckoutPage() {
       if (streetAddress && (!city || !state || !zipCode)) {
         const addressParts = streetAddress.split(',').map((part: string) => part.trim());
         if (addressParts.length >= 3) {
+          // Last part might contain state and pin code
           const lastPart = addressParts[addressParts.length - 1];
           const pinCodeMatch = lastPart.match(/\d{6}$/);
           if (pinCodeMatch && !zipCode) {
@@ -1362,6 +1411,7 @@ export default function CheckoutPage() {
             state = lastPart;
           }
 
+          // Second last part might be city
           if (addressParts.length >= 2 && !city) {
             city = addressParts[addressParts.length - 2];
           }
@@ -1456,7 +1506,7 @@ export default function CheckoutPage() {
           // Update form fields
           setNewAddressData(prev => ({
             ...prev,
-            town: city,
+            town: normalizeCityValue(city),
             state: String(state || '').toLowerCase().replace(/ /g, '_'),
             pincode: pincode,
             area: area,
@@ -1765,7 +1815,8 @@ export default function CheckoutPage() {
 
   const processCashfreePayment = async () => {
     try {
-      const user = getCurrentUser();
+      console.log("Processing Cashfree payment");
+
       if (!user) {
         toast({
           title: "Authentication Required",
@@ -1814,9 +1865,15 @@ export default function CheckoutPage() {
       
       // Prepare items for Cashfree with delivery addresses
       // Default to Step 1 address for regular orders
+      const getOrderItemDisplayName = (item: any) => {
+        const baseName = String(item?.name || item?.productName || '');
+        const shadeName = String(item?.selectedShade?.name || '').trim();
+        return shadeName ? `${baseName} (Shade: ${shadeName})` : baseName;
+      };
+
       let cashfreeItems = cartItems.map((item: any) => ({
         productId: item.id,
-        productName: item.name,
+        productName: getOrderItemDisplayName(item),
         productImage: item.image,
         quantity: item.quantity,
         price: item.price,
@@ -1854,7 +1911,7 @@ export default function CheckoutPage() {
 
               expanded.push({
                 productId: item.id,
-                productName: item.name,
+                productName: getOrderItemDisplayName(item),
                 productImage: item.image,
                 quantity: 1,
                 price: item.price,
@@ -2224,6 +2281,11 @@ export default function CheckoutPage() {
       const finalTotal = total;
       const fullAddress = `${formData.address.trim()}, ${formData.city.trim()}, ${formData.state.trim()} ${formData.zipCode.trim()}`;
 
+      const getOrderItemDisplayName = (item: any) => {
+        const baseName = String(item?.name || item?.productName || '');
+        const shadeName = String(item?.selectedShade?.name || '').trim();
+        return shadeName ? `${baseName} (Shade: ${shadeName})` : baseName;
+      };
 
       if (formData.paymentMethod === 'cashfree') {
         toast({
@@ -2245,7 +2307,7 @@ export default function CheckoutPage() {
           productId: item.isCombo ? null : (item.id || null),
           comboId: item.isCombo ? item.id : null,
           offerId: item.isOfferItem ? item.offerId : null,
-          productName: item.name,
+          productName: getOrderItemDisplayName(item),
           productImage: item.image,
           quantity: item.quantity,
           price: item.price,
@@ -2280,7 +2342,7 @@ export default function CheckoutPage() {
 
                 expandedItems.push({
                   productId: item.id,
-                  productName: item.name,
+                  productName: getOrderItemDisplayName(item),
                   productImage: item.image,
                   quantity: 1,
                   price: item.price,
@@ -2472,7 +2534,7 @@ export default function CheckoutPage() {
             </p>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600">Estimated delivery</p>
-              <p className="font-semibold">3-5 business days</p>
+              <p className="font-semibold">5-7 business days</p>
             </div>
             <div className="space-y-3 pt-4">
               <Link href={`/track-order?orderId=${orderId}`}>
@@ -2533,7 +2595,7 @@ export default function CheckoutPage() {
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-16">
-            <Package className="mx-auto h-24 w-24 text-gray-300 mb-6" />
+            <Package className="mx-auto h-24 w-24 text-gray-400 mb-6" />
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
             <p className="text-gray-600 mb-8">Add some items to your cart before checking out.</p>
             <Link href="/">
@@ -2638,7 +2700,7 @@ export default function CheckoutPage() {
                           setShowAddAddressDialog(open);
                           if (open) { // Reset form when opening dialog
                             setNewAddressData({
-                              firstName: "", lastName: "", mobile: "", pincode: "", flat: "", area: "", landmark: "",
+                              firstName: (user as any)?.firstName || "", lastName: (user as any)?.lastName || "", mobile: getUserPrefillMobile(), pincode: "", flat: "", area: "", landmark: "",
                               town: "", state: "", makeDefault: false, deliveryInstructions: '',
                               saturdayDelivery: false, sundayDelivery: false,
                             });
@@ -2723,12 +2785,24 @@ export default function CheckoutPage() {
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <Label htmlFor="newTown">Town/City *</Label>
-                                  <Input
+                                  <select
                                     id="newTown"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                     value={newAddressData.town}
-                                    onChange={(e) => setNewAddressData({...newAddressData, town: e.target.value})}
+                                    onChange={(e) => {
+                                      const nextCity = e.target.value;
+                                      setNewAddressData({ ...newAddressData, town: nextCity, pincode: "" });
+                                    }}
                                     required
-                                  />
+                                    disabled={!newAddressData.state}
+                                  >
+                                    <option value="">{newAddressData.state ? "Select City" : "Select State first"}</option>
+                                    {newAddressAvailableCities.map((cityKey) => (
+                                      <option key={cityKey} value={cityKey}>
+                                        {toTitleLabel(cityKey)}
+                                      </option>
+                                    ))}
+                                  </select>
                                 </div>
                                 <div>
                                   <Label htmlFor="newState">State *</Label>
@@ -2736,7 +2810,7 @@ export default function CheckoutPage() {
                                     id="newState"
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                     value={newAddressData.state}
-                                    onChange={(e) => setNewAddressData({...newAddressData, state: e.target.value})}
+                                    onChange={(e) => setNewAddressData({ ...newAddressData, state: e.target.value, town: "", pincode: "" })}
                                     required
                                   >
                                     <option value="">Select State</option>
@@ -2788,14 +2862,21 @@ export default function CheckoutPage() {
 
                               <div>
                                 <Label htmlFor="newPincode">Pincode *</Label>
-                                <Input
+                                <select
                                   id="newPincode"
-                                  placeholder="6 digits [0-9] PIN code"
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                   value={newAddressData.pincode}
-                                  onChange={(e) => setNewAddressData({...newAddressData, pincode: e.target.value})}
-                                  maxLength={6}
+                                  onChange={(e) => setNewAddressData({ ...newAddressData, pincode: e.target.value })}
                                   required
-                                />
+                                  disabled={!newAddressData.town}
+                                >
+                                  <option value="">{newAddressData.town ? "Select Pincode" : "Select City first"}</option>
+                                  {newAddressAvailablePincodes.map((pin) => (
+                                    <option key={pin} value={pin}>
+                                      {pin}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
                               {/* <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                                 <p className="text-sm font-semibold mb-2">Add delivery instructions (optional)</p>
@@ -2905,9 +2986,9 @@ export default function CheckoutPage() {
 
                         <Dialog open={showAddAddressDialog} onOpenChange={(open) => {
                           setShowAddAddressDialog(open);
-                          if (open) { // Reset form when opening dialog
+                          if (open) { // Prefill form when opening dialog
                             setNewAddressData({
-                              firstName: "", lastName: "", mobile: "", pincode: "", flat: "", area: "", landmark: "",
+                              firstName: (user as any)?.firstName || "", lastName: (user as any)?.lastName || "", mobile: getUserPrefillMobile(), pincode: "", flat: "", area: "", landmark: "",
                               town: "", state: "", makeDefault: false, deliveryInstructions: '',
                               saturdayDelivery: false, sundayDelivery: false,
                             });
@@ -2995,12 +3076,24 @@ export default function CheckoutPage() {
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <Label htmlFor="newTown">Town/City *</Label>
-                                  <Input
+                                  <select
                                     id="newTown"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                     value={newAddressData.town}
-                                    onChange={(e) => setNewAddressData({...newAddressData, town: e.target.value})}
+                                    onChange={(e) => {
+                                      const nextCity = e.target.value;
+                                      setNewAddressData({ ...newAddressData, town: nextCity, pincode: "" });
+                                    }}
                                     required
-                                  />
+                                    disabled={!newAddressData.state}
+                                  >
+                                    <option value="">{newAddressData.state ? "Select City" : "Select State first"}</option>
+                                    {newAddressAvailableCities.map((cityKey) => (
+                                      <option key={cityKey} value={cityKey}>
+                                        {toTitleLabel(cityKey)}
+                                      </option>
+                                    ))}
+                                  </select>
                                 </div>
                                 <div>
                                   <Label htmlFor="newState">State *</Label>
@@ -3008,7 +3101,7 @@ export default function CheckoutPage() {
                                     id="newState"
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                     value={newAddressData.state}
-                                    onChange={(e) => setNewAddressData({...newAddressData, state: e.target.value})}
+                                    onChange={(e) => setNewAddressData({ ...newAddressData, state: e.target.value, town: "", pincode: "" })}
                                     required
                                   >
                                     <option value="">Select State</option>
@@ -3044,16 +3137,23 @@ export default function CheckoutPage() {
                                   </select>
                                 </div>
                               </div>
- <div>
+                              <div>
                                 <Label htmlFor="newPincode">Pincode *</Label>
-                                <Input
+                                <select
                                   id="newPincode"
-                                  placeholder="6 digits [0-9] PIN code"
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                   value={newAddressData.pincode}
-                                  onChange={(e) => setNewAddressData({...newAddressData, pincode: e.target.value})}
-                                  maxLength={6}
+                                  onChange={(e) => setNewAddressData({ ...newAddressData, pincode: e.target.value })}
                                   required
-                                />
+                                  disabled={!newAddressData.town}
+                                >
+                                  <option value="">{newAddressData.town ? "Select Pincode" : "Select City first"}</option>
+                                  {newAddressAvailablePincodes.map((pin) => (
+                                    <option key={pin} value={pin}>
+                                      {pin}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
                               <div className="flex items-center space-x-2">
                                 <input

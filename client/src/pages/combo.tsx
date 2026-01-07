@@ -477,105 +477,107 @@ console.log("VCVVVVVV",combo)
                     {combo.name}
                   </h3>
 
-                  {/* Price Section */}
-                  <div className="space-y-1 sm:space-y-1.5 md:space-y-2 mt-auto">
-                    <div className="flex flex-col space-y-1">
-                      <div className="flex items-baseline space-x-1 sm:space-x-2 min-h-[24px]">
-                        <span className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
-                          ₹{price.toLocaleString()}
-                        </span>
-                        {originalPrice > price && (
-                          <React.Fragment>
-                            <span className="text-xs sm:text-sm text-gray-500 line-through">
-                              ₹{originalPrice.toLocaleString()}
-                            </span>
-                            <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 sm:px-2 rounded whitespace-nowrap">
-                              {discountPercentage}% OFF
-                            </span>
-                          </React.Fragment>
-                        )}
-                      </div>
-
-                      {/* Cashback Badge - Fixed height container */}
-                      <div className="mt-1" style={{ minHeight: '28px', display: 'flex', alignItems: 'center' }}>
-                        {combo.cashbackPercentage && combo.cashbackPrice ? (
-                          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5 w-full">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] sm:text-xs font-semibold text-orange-700">Cashback</span>
-                              <span className="text-[10px] sm:text-xs bg-orange-200 text-orange-800 px-1.5 sm:px-2 py-0.5 rounded-full font-bold">
-                                {combo.cashbackPercentage}%
+                  <div className="mt-auto space-y-2 pb-2 sm:pb-3">
+                    {/* Price Section */}
+                    <div className="space-y-1 sm:space-y-1.5 md:space-y-2">
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex items-baseline space-x-1 sm:space-x-2 min-h-[24px]">
+                          <span className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
+                            ₹{price.toLocaleString()}
+                          </span>
+                          {originalPrice > price && (
+                            <React.Fragment>
+                              <span className="text-xs sm:text-sm text-gray-500 line-through">
+                                ₹{originalPrice.toLocaleString()}
                               </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ minHeight: '28px' }}></div>
-                        )}
-                      </div>
-
-                      {/* Stock status and Savings */}
-                      <div className="flex items-center justify-between mb-3 sm:mb-4">
-                        <div className="flex items-center space-x-1.5 sm:space-x-2">
-                          <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
-                            combo.inStock !== false
-                              ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
-                              : 'bg-gradient-to-r from-red-400 to-rose-400'
-                          }`}></div>
-                          <span className={`font-bold text-xs sm:text-sm ${
-                            combo.inStock !== false ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
-                          </span>
+                              <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 sm:px-2 rounded whitespace-nowrap">
+                                {discountPercentage}% OFF
+                              </span>
+                            </React.Fragment>
+                          )}
                         </div>
-                        {originalPrice > price && (
-                          <span className="text-xs sm:text-sm font-bold text-green-600">
-                            Save ₹{(originalPrice - price).toLocaleString()}
-                          </span>
-                        )}
+
+                        {/* Cashback Badge - Fixed height container */}
+                        <div className="mt-1" style={{ minHeight: '28px', display: 'flex', alignItems: 'center' }}>
+                          {combo.cashbackPercentage && combo.cashbackPrice ? (
+                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5 w-full">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] sm:text-xs font-semibold text-orange-700">Cashback</span>
+                                <span className="text-[10px] sm:text-xs bg-orange-200 text-orange-800 px-1.5 sm:px-2 py-0.5 rounded-full font-bold">
+                                  {combo.cashbackPercentage}%
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ minHeight: '28px' }}></div>
+                          )}
+                        </div>
+
+                        {/* Stock status and Savings */}
+                        <div className="flex items-center justify-between mb-3 sm:mb-4">
+                          <div className="flex items-center space-x-1.5 sm:space-x-2">
+                            <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
+                              combo.inStock !== false
+                                ? 'bg-gradient-to-r from-green-400 to-emerald-400' 
+                                : 'bg-gradient-to-r from-red-400 to-rose-400'
+                            }`}></div>
+                            <span className={`font-bold text-xs sm:text-sm ${
+                              combo.inStock !== false ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
+                            </span>
+                          </div>
+                          {originalPrice > price && (
+                            <span className="text-xs sm:text-sm font-bold text-green-600">
+                              Save ₹{(originalPrice - price).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+
+                    {/* Add to Cart or Select Shades Button */}
+                    {(() => {
+                      const info = comboProductInfo.get(combo.id);
+                      const isSingleProduct = info?.isSingleProduct ?? false;
+                      const hasShades = info?.hasShades ?? false;
+
+                      if (isSingleProduct) {
+                        // Single product - always show Add to Cart
+                        return (
+                          <Button
+                            className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                            onClick={() => handleAddToCart(combo)}
+                          >
+                            <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="hidden xs:inline">Add to </span>Cart
+                          </Button>
+                        );
+                      } else if (!hasShades) {
+                        // Multiple products but NO shades - show Add to Cart
+                        return (
+                          <Button
+                            className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                            onClick={() => handleAddToCart(combo)}
+                          >
+                            <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="hidden xs:inline">Add to </span>Cart
+                          </Button>
+                        );
+                      } else {
+                        // Multiple products with shades - show Select Shades
+                        return (
+                          <Button
+                            className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                            onClick={() => window.location.href = `/combo/${combo.id}`}
+                          >
+                            <Star className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="hidden xs:inline">Select </span>Shades
+                          </Button>
+                        );
+                      }
+                    })()}
                   </div>
-
-                  {/* Add to Cart or Select Shades Button */}
-                  {(() => {
-                    const info = comboProductInfo.get(combo.id);
-                    const isSingleProduct = info?.isSingleProduct ?? false;
-                    const hasShades = info?.hasShades ?? false;
-
-                    if (isSingleProduct) {
-                      // Single product - always show Add to Cart
-                      return (
-                        <Button
-                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                          onClick={() => handleAddToCart(combo)}
-                        >
-                          <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden xs:inline">Add to </span>Cart
-                        </Button>
-                      );
-                    } else if (!hasShades) {
-                      // Multiple products but NO shades - show Add to Cart
-                      return (
-                        <Button
-                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                          onClick={() => handleAddToCart(combo)}
-                        >
-                          <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden xs:inline">Add to </span>Cart
-                        </Button>
-                      );
-                    } else {
-                      // Multiple products with shades - show Select Shades
-                      return (
-                        <Button
-                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                          onClick={() => window.location.href = `/combo/${combo.id}`}
-                        >
-                          <Star className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden xs:inline">Select </span>Shades
-                        </Button>
-                      );
-                    }
-                  })()}
                 </div>
               </div>
             );

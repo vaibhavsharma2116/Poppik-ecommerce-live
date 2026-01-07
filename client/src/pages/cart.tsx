@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiUrl } from '@/lib/api';
 import { Link, useLocation } from "wouter";
-import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Heart } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Heart, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -916,6 +916,7 @@ export default function Cart() {
                 {giftMilestonesSorted.map((milestone, index) => {
                   const milestoneAmount = parseFloat(milestone.minAmount);
                   const maxAmount = parseFloat(giftMilestonesSorted[giftMilestonesSorted.length - 1]?.minAmount || '2000');
+
                   const position = (milestoneAmount / maxAmount) * 100;
 
                   // Check if milestone is unlocked
@@ -944,6 +945,11 @@ export default function Cart() {
                     </div>
                   );
                 })}
+              </div>
+
+              <div className="absolute left-0 -bottom-10 flex items-center gap-1 rounded-full bg-pink-50 px-2.5 py-1 text-xs font-semibold text-pink-700 border border-pink-200 shadow">
+                <MapPin className="h-3.5 w-3.5 text-pink-600" />
+                Start Here
               </div>
             </div>
 

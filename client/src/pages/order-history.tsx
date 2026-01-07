@@ -560,132 +560,162 @@ export default function OrderHistory() {
                 <Package className="h-5 w-5" />
                 Order Details - {selectedOrder?.id}
               </DialogTitle>
-              <DialogDescription>
-                Complete information about your order
-              </DialogDescription>
             </DialogHeader>
-            
-            {selectedOrder && (
+
+            {selectedOrder ? (
               <div className="space-y-6">
-                {/* Order Info */}
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Order Information</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Order Date:</span>
-                      <p className="font-medium">{new Date(selectedOrder.date).toLocaleDateString('en-IN')}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Status:</span>
-                      <Badge className={`${getStatusColor(selectedOrder.status)} px-2 py-1 border mt-1`}>
-                        {getStatusIcon(selectedOrder.status)}
-                        <span className="ml-1">{selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}</span>
-                      </Badge>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Payment Method:</span>
-                      <p className="font-medium">{selectedOrder.paymentMethod}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Total Amount:</span>
-                      <p className="font-bold text-lg">{selectedOrder.total}</p>
-                    </div>
-                  </div>
-                </div>
+                {(() => {
+                  const deliveryInfoItems = selectedOrder.items.filter(
+                    (it) => it.deliveryAddress || it.recipientName || it.recipientPhone
+                  );
 
-                <Separator />
+                  const normalize = (v?: string) => (v ?? "").trim();
 
-                {/* Items */}
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Order Items</h4>
-                  <div className="space-y-3">
-                    {selectedOrder.items.map((item) => (
-                      <div key={item.id} className="p-3 border border-gray-200 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                              <Package className="h-6 w-6 text-gray-400" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{item.name}</p>
-                              <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                            </div>
+                  const uniqueAddresses = new Set(
+                    deliveryInfoItems.map((it) => normalize(it.deliveryAddress)).filter(Boolean)
+                  );
+                  const uniqueNames = new Set(
+                    deliveryInfoItems.map((it) => normalize(it.recipientName)).filter(Boolean)
+                  );
+                  const uniquePhones = new Set(
+                    deliveryInfoItems.map((it) => normalize(it.recipientPhone)).filter(Boolean)
+                  );
+
+                  const showCommonDeliveryDetails =
+                    deliveryInfoItems.length > 0 &&
+                    uniqueAddresses.size <= 1 &&
+                    uniqueNames.size <= 1 &&
+                    uniquePhones.size <= 1;
+
+                  const commonDeliveryAddress = deliveryInfoItems.find((it) => normalize(it.deliveryAddress))?.deliveryAddress;
+                  const commonRecipientName = deliveryInfoItems.find((it) => normalize(it.recipientName))?.recipientName;
+                  const commonRecipientPhone = deliveryInfoItems.find((it) => normalize(it.recipientPhone))?.recipientPhone;
+
+                  return (
+                    <>
+                      {showCommonDeliveryDetails && (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+                          <p className="font-medium text-blue-900 mb-1">Delivery Details:</p>
+                          {commonRecipientName && (
+                            <p className="text-gray-700"><span className="font-medium">Recipient:</span> {commonRecipientName}</p>
+                          )}
+                          {commonRecipientPhone && (
+                            <p className="text-gray-700"><span className="font-medium">Phone:</span> {commonRecipientPhone}</p>
+                          )}
+                          {commonDeliveryAddress && (
+                            <p className="text-gray-700"><span className="font-medium">Address:</span> {commonDeliveryAddress}</p>
+                          )}
+                        </div>
+                      )}
+
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-3">Order Information</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="text-gray-600">Order Date:</p>
+                            <p className="font-medium">{new Date(selectedOrder.date).toLocaleDateString('en-IN')}</p>
                           </div>
-                          <div className="text-right">
-                            <p className="font-medium">{item.price}</p>
+                          <div>
+                            <p className="text-gray-600">Status:</p>
+                            <Badge className={`${getStatusColor(selectedOrder.status)} px-3 py-1 border inline-flex items-center w-fit`}>
+                              {getStatusIcon(selectedOrder.status)}
+                              <span className="ml-1">{selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}</span>
+                            </Badge>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Payment Method:</p>
+                            <p className="font-medium">{selectedOrder.paymentMethod}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">Total Amount:</p>
+                            <p className="font-medium">{selectedOrder.total}</p>
                           </div>
                         </div>
-                        
-                        {/* Per-item delivery address */}
-                        {(item.deliveryAddress || item.recipientName || item.recipientPhone) && (
-                          <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
-                            <p className="font-medium text-blue-900 mb-1">Delivery Details:</p>
-                            {item.recipientName && (
-                              <p className="text-gray-700"><span className="font-medium">Recipient:</span> {item.recipientName}</p>
-                            )}
-                            {item.recipientPhone && (
-                              <p className="text-gray-700"><span className="font-medium">Phone:</span> {item.recipientPhone}</p>
-                            )}
-                            {item.deliveryAddress && (
-                              <p className="text-gray-700"><span className="font-medium">Address:</span> {item.deliveryAddress}</p>
-                            )}
-                          </div>
-                        )}
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                <Separator />
+                      <Separator />
 
-                {/* Shipping Info */}
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Shipping Information</h4>
-                  <p className="text-sm text-gray-600">{selectedOrder.shippingAddress}</p>
-                  {selectedOrder.trackingNumber && (
-                    <div className="mt-2">
-                      <span className="text-sm text-gray-600">Tracking Number: </span>
-                      <span className="font-mono text-sm font-medium">{selectedOrder.trackingNumber}</span>
-                    </div>
-                  )}
-                  {selectedOrder.estimatedDelivery && (
-                    <div className="mt-1">
-                      <span className="text-sm text-gray-600">Expected Delivery: </span>
-                      <span className="text-sm font-medium">{new Date(selectedOrder.estimatedDelivery).toLocaleDateString('en-IN')}</span>
-                    </div>
-                  )}
-                </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-3">Order Items</h4>
+                        <div className="space-y-3">
+                          {selectedOrder.items.map((item) => (
+                            <div key={item.id} className="p-3 border border-gray-200 rounded-lg">
+                              <div className="flex items-start gap-3">
+                                <img
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="w-12 h-12 object-cover rounded"
+                                />
+                                <div className="flex-1">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <p className="font-medium text-gray-900">{item.name}</p>
+                                      <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                                    </div>
+                                    <p className="font-medium text-gray-900">{item.price}</p>
+                                  </div>
+                                </div>
+                              </div>
 
-                {/* Actions */}
-                <div className="flex gap-3 pt-4">
-                  {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && (
-                    <Link href={`/track-order?orderId=${selectedOrder.id}`}>
-                      <Button className="bg-red-600 hover:bg-red-700">
-                        <Truck className="h-4 w-4 mr-2" />
-                        Track Order
-                      </Button>
-                    </Link>
-                  )}
-                  <Button 
-                    variant="outline"
-                    onClick={() => {
-                      if (!selectedOrder) return;
-                      const link = document.createElement('a');
-                      link.href = `/api/orders/${selectedOrder.id}/invoice`;
-                      link.download = `Invoice-${selectedOrder.id}.html`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                    }}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Invoice
-                  </Button>
-                  <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
-                    Close
-                  </Button>
-                </div>
+                              {!showCommonDeliveryDetails && (item.deliveryAddress || item.recipientName || item.recipientPhone) && (
+                                <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
+                                  <p className="font-medium text-blue-900 mb-1">Delivery Details:</p>
+                                  {item.recipientName && (
+                                    <p className="text-gray-700"><span className="font-medium">Recipient:</span> {item.recipientName}</p>
+                                  )}
+                                  {item.recipientPhone && (
+                                    <p className="text-gray-700"><span className="font-medium">Phone:</span> {item.recipientPhone}</p>
+                                  )}
+                                  {item.deliveryAddress && (
+                                    <p className="text-gray-700"><span className="font-medium">Address:</span> {item.deliveryAddress}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">Shipping Address</h4>
+                        <p className="text-sm text-gray-600 whitespace-pre-line">{selectedOrder.shippingAddress}</p>
+                      </div>
+
+                      <div className="flex gap-3 pt-2">
+                        {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && (
+                          <Link href={`/track-order?orderId=${selectedOrder.id}`}>
+                            <Button className="bg-red-600 hover:bg-red-700">
+                              <Truck className="h-4 w-4 mr-2" />
+                              Track Order
+                            </Button>
+                          </Link>
+                        )}
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = `/api/orders/${selectedOrder.id}/invoice`;
+                            link.download = `Invoice-${selectedOrder.id}.html`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download Invoice
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
+                          Close
+                        </Button>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
+            ) : (
+              <div className="py-8 text-center text-gray-600">No order selected.</div>
             )}
           </DialogContent>
         </Dialog>

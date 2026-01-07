@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import React from "react";
-import { ChevronLeft, ChevronRight, Play, X, ShoppingCart, Plus, Minus, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, X, ShoppingCart, Plus, Minus, Check, Circle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -531,6 +531,7 @@ export default function VideoTestimonials() {
                 {productShades.length > 0 ? (
                   productShades.map((shade) => {
                     const isSelected = selectedShades.some(s => s.id === shade.id);
+                    const hasSelection = selectedShades.length > 0;
                     return (
                       <div
                         key={shade.id}
@@ -552,9 +553,18 @@ export default function VideoTestimonials() {
                           </div>
                         )}
                         <span className={`text-xs text-center font-medium ${isSelected ? 'text-purple-700' : 'text-gray-700'}`}>{shade.name}</span>
-                        {isSelected && (
-                          <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-1 shadow-lg">
-                            <Check className="w-3 h-3 text-white" />
+                        {hasSelection && (
+                          <div
+                            className={`absolute -top-1 -right-1 rounded-full p-1 shadow-lg transition-colors ${isSelected
+                              ? 'bg-gradient-to-r from-purple-600 to-pink-600'
+                              : 'bg-white border border-purple-300'
+                              }`}
+                          >
+                            {isSelected ? (
+                              <Check className="w-3 h-3 text-white" />
+                            ) : (
+                              <Circle className="w-3 h-3 text-gray-300" />
+                            )}
                           </div>
                         )}
                       </div>

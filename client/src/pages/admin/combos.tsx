@@ -527,11 +527,20 @@ export default function AdminCombos() {
         formDataToSend.append("images", image);
       });
     } else if (editingCombo?.imageUrl) {
+      const existingImageUrls = Array.isArray(editingCombo.imageUrl)
+        ? editingCombo.imageUrl
+            .filter((u: any) => typeof u === 'string' && !u.startsWith('data:image'))
+        : (typeof editingCombo.imageUrl === 'string' && !editingCombo.imageUrl.startsWith('data:image'))
+        ? editingCombo.imageUrl
+        : null;
+
       // Append as JSON string if array to preserve array type server-side
-      if (Array.isArray(editingCombo.imageUrl)) {
-        formDataToSend.append("imageUrl", JSON.stringify(editingCombo.imageUrl));
-      } else {
-        formDataToSend.append("imageUrl", editingCombo.imageUrl);
+      if (Array.isArray(existingImageUrls)) {
+        if (existingImageUrls.length > 0) {
+          formDataToSend.append("imageUrl", JSON.stringify(existingImageUrls));
+        }
+      } else if (typeof existingImageUrls === 'string' && existingImageUrls.trim() !== '') {
+        formDataToSend.append("imageUrl", existingImageUrls);
       }
     }
 
@@ -539,7 +548,9 @@ export default function AdminCombos() {
     if (selectedVideo) {
       formDataToSend.append("video", selectedVideo);
     } else if (editingCombo?.videoUrl) {
-      formDataToSend.append("videoUrl", editingCombo.videoUrl);
+      if (typeof editingCombo.videoUrl === 'string' && !editingCombo.videoUrl.startsWith('data:video')) {
+        formDataToSend.append("videoUrl", editingCombo.videoUrl);
+      }
     }
 
     console.log("FormData being sent:", {

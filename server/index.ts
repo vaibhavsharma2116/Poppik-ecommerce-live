@@ -120,6 +120,42 @@ app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
+const isDataUrl = (value: unknown) => {
+  if (typeof value !== 'string') return false;
+  const v = value.trim().toLowerCase();
+  return v.startsWith('data:image') || v.startsWith('data:video');
+};
+
+app.use((req, res, next) => {
+  if (
+    (req.method === 'POST' && req.path === '/api/products') ||
+    (req.method === 'PUT' && /^\/api\/products\/[0-9]+$/.test(req.path))
+  ) {
+    const body: any = req.body || {};
+    const candidates: Array<{ key: string; value: unknown }> = [
+      { key: 'imageUrl', value: body.imageUrl },
+      { key: 'images', value: body.images },
+      { key: 'videoUrl', value: body.videoUrl },
+    ];
+
+    for (const { key, value } of candidates) {
+      if (Array.isArray(value)) {
+        if (value.some((v) => isDataUrl(v))) {
+          return res.status(400).json({
+            error: `Invalid ${key}: data URLs are not allowed. Please upload the file and use the returned URL instead.`,
+          });
+        }
+      } else if (isDataUrl(value)) {
+        return res.status(400).json({
+          error: `Invalid ${key}: data URLs are not allowed. Please upload the file and use the returned URL instead.`,
+        });
+      }
+    }
+  }
+
+  next();
+});
+
 // Disable X-Powered-By header for security
 app.disable('x-powered-by');
 

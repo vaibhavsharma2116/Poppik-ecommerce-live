@@ -23,6 +23,7 @@ interface TrackingInfo {
   status: string;
   trackingNumber?: string;
   estimatedDelivery?: string;
+  realTimeTracking?: boolean;
   timeline: TrackingStep[];
   currentStep: number;
   totalAmount: number;
@@ -49,6 +50,25 @@ export default function TrackOrderPage() {
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
+
+  const normalizeTrackingInfo = (data: any): TrackingInfo => {
+    const timeline = Array.isArray(data?.timeline) ? data.timeline : [];
+
+    return {
+      orderId: String(data?.orderId || ""),
+      status: String(data?.status || "pending"),
+      trackingNumber: data?.trackingNumber || undefined,
+      estimatedDelivery: data?.estimatedDelivery || undefined,
+      realTimeTracking: typeof data?.realTimeTracking === 'boolean' ? data.realTimeTracking : undefined,
+      timeline,
+      currentStep: typeof data?.currentStep === 'number' ? data.currentStep : 0,
+      totalAmount: typeof data?.totalAmount === 'number' ? data.totalAmount : 0,
+      shippingAddress: String(data?.shippingAddress || ""),
+      createdAt: String(data?.createdAt || new Date().toISOString()),
+      customerInfo: data?.customerInfo,
+      items: Array.isArray(data?.items) ? data.items : undefined,
+    };
+  };
 
   // Get order ID from URL params if present
   useEffect(() => {
@@ -91,7 +111,7 @@ export default function TrackOrderPage() {
           
           if (response.ok) {
             const regularData = await response.json();
-            setTrackingInfo(regularData);
+            setTrackingInfo(normalizeTrackingInfo(regularData));
             toast({
               title: "Order Found",
               description: `Using standard tracking for order ${regularData.orderId}`,
@@ -100,7 +120,7 @@ export default function TrackOrderPage() {
             throw new Error('Failed to fetch tracking information');
           }
         } else {
-          setTrackingInfo(data);
+          setTrackingInfo(normalizeTrackingInfo(data));
           
           if (data.realTimeTracking) {
             toast({
@@ -122,7 +142,7 @@ export default function TrackOrderPage() {
       
       if (response.ok) {
         const data = await response.json();
-        setTrackingInfo(data);
+        setTrackingInfo(normalizeTrackingInfo(data));
         toast({
           title: "Order Found",
           description: `Tracking information loaded for order ${data.orderId}`,
@@ -152,7 +172,7 @@ export default function TrackOrderPage() {
       
       if (response.ok) {
         const data = await response.json();
-        setTrackingInfo(data);
+        setTrackingInfo(normalizeTrackingInfo(data));
         toast({
           title: "Updated",
           description: data.realTimeTracking ? "Real-time tracking refreshed" : "Tracking information refreshed",
@@ -164,7 +184,7 @@ export default function TrackOrderPage() {
       response = await fetch(`/api/orders/${trackingInfo.orderId}/tracking`);
       if (response.ok) {
         const data = await response.json();
-        setTrackingInfo(data);
+        setTrackingInfo(normalizeTrackingInfo(data));
         toast({
           title: "Updated",
           description: "Tracking information refreshed",
@@ -253,8 +273,10 @@ export default function TrackOrderPage() {
 
   const getProgressPercentage = () => {
     if (!trackingInfo) return 0;
-    const completedSteps = trackingInfo.timeline.filter(step => step.status === 'completed').length;
-    return (completedSteps / trackingInfo.timeline.length) * 100;
+    const timeline = Array.isArray(trackingInfo.timeline) ? trackingInfo.timeline : [];
+    if (timeline.length === 0) return 0;
+    const completedSteps = timeline.filter(step => step.status === 'completed').length;
+    return (completedSteps / timeline.length) * 100;
   };
 
   return (

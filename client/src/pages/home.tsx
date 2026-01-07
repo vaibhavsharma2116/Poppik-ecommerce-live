@@ -1091,265 +1091,219 @@ function ComboSection() {
 
         <div>
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4 lg:gap-6">
-          {activeComboProducts.map((combo) => {
-            const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products;
-            const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
-            const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice) : combo.originalPrice;
-            const rating = typeof combo.rating === 'string' ? parseFloat(combo.rating) : combo.rating;
-            const discountPercentage = originalPrice > 0 ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-            const isHovered = hoveredCard === combo.id;
+            {activeComboProducts.map((combo) => {
+              const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products;
+              const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
+              const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice) : combo.originalPrice;
+              const rating = typeof combo.rating === 'string' ? parseFloat(combo.rating) : combo.rating;
+              const discountPercentage = originalPrice > 0 ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+              const isHovered = hoveredCard === combo.id;
 
-            return (
-              <div
-                key={combo.id}
-                className="group transition-all duration-300 overflow-hidden bg-white rounded-lg sm:rounded-xl shadow-sm hover:shadow-md cursor-pointer flex flex-col"
-                onMouseEnter={() => setHoveredCard(combo.id)}
-                onMouseLeave={() => setHoveredCard(null)}
-              >
-                {/* Image Section */}
+              return (
                 <div
-                  className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300"
-                  onClick={() => {
-                    React.startTransition(() => {
-                      window.location.href = `/combo/${combo.id}`;
-                    });
-                  }}
+                  key={combo.id}
+                  className="group transition-all duration-300 overflow-hidden bg-white rounded-lg sm:rounded-xl shadow-sm hover:shadow-md cursor-pointer flex flex-col"
+                  onMouseEnter={() => setHoveredCard(combo.id)}
+                  onMouseLeave={() => setHoveredCard(null)}
                 >
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleWishlist(combo, e);
-                    }}
-                    className="absolute top-1 right-1 sm:top-2 sm:right-2 p-1.5 sm:p-2 hover:scale-110 transition-all duration-300 z-10 bg-white/80 backdrop-blur-sm rounded-full shadow-md"
-                  >
-                    <Heart
-                      className={`h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-all duration-300 ${
-                        wishlist.has(combo.id)
-                          ? "text-red-500 fill-current"
-                          : "text-gray-400 hover:text-pink-500"
-                      }`}
-                    />
-                  </button>
-                  <div className="relative overflow-hidden bg-white">
-                    <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
-                      {getPrimaryImage(combo) ? (
-                        <img
-                          src={getPrimaryImage(combo)!}
-                          alt={combo.name}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
-                          }}
-                        />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center">
-                          <Package className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-gray-400" />
-                        </div>
-                      )}
-                    </div>
-                    <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
-                    <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
-                  </div>
-                </div>
-
-                {/* Content Section */}
-                <div className="p-2 sm:p-3 md:p-4 lg:p-5 space-y-2 sm:space-y-2.5 md:space-y-3 bg-white flex-1 flex flex-col">
-                  {/* Rating */}
-                  <div className="flex items-center justify-between bg-white rounded-lg p-1 sm:p-1.5 md:p-2">
-                    <div className="flex items-center gap-0.5">
-                      {renderStars(rating)}
-                    </div>
-                    <span className="text-gray-700 text-xs sm:text-sm font-bold bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
-                      {rating}
-                    </span>
-                  </div>
-
-                  {/* Title */}
-                  <h3
-                    className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-3 text-xs sm:text-sm md:text-base break-words"
-                    style={{ minHeight: '3.6rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', hyphens: 'auto' }}
+                  <div
+                    className="relative overflow-hidden group-hover:scale-105 transition-transform duration-300"
                     onClick={() => {
                       React.startTransition(() => {
                         window.location.href = `/combo/${combo.id}`;
                       });
                     }}
                   >
-                    {combo.name}
-                  </h3>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleWishlist(combo, e);
+                      }}
+                      className="absolute top-1 right-1 sm:top-2 sm:right-2 p-1.5 sm:p-2 hover:scale-110 transition-all duration-300 z-10 bg-white/80 backdrop-blur-sm rounded-full shadow-md"
+                    >
+                      <Heart
+                        className={`h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-all duration-300 ${
+                          wishlist.has(combo.id)
+                            ? "text-red-500 fill-current"
+                            : "text-gray-400 hover:text-pink-500"
+                          }`}
+                      />
+                    </button>
 
-                  {/* Price Section */}
-                  <div className="space-y-1 sm:space-y-1.5 md:space-y-2 mt-auto">
-                    <div className="flex flex-col space-y-1">
-                      <div className="flex items-baseline space-x-1 sm:space-x-2 min-h-[24px]">
-                        <span className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
-                          ₹{price.toLocaleString()}
-                        </span>
-                        {originalPrice > price && (
-                          <>
-                            <span className="text-xs sm:text-sm text-gray-500 line-through">
-                              ₹{originalPrice.toLocaleString()}
-                            </span>
-                            <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 sm:px-2 rounded whitespace-nowrap">
-                              {discountPercentage}% OFF
-                            </span>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Cashback Badge - Fixed height container */}
-                      <div className="mt-1" style={{ minHeight: '28px', display: 'flex', alignItems: 'center' }}>
-                        {combo.cashbackPercentage && combo.cashbackPrice ? (
-                          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5 w-full">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] sm:text-xs font-semibold text-orange-700">Cashback</span>
-                              <span className="text-[10px] sm:text-xs bg-orange-200 text-orange-800 px-1.5 sm:px-2 py-0.5 rounded-full font-bold">
-                                {combo.cashbackPercentage}%
-                              </span>
-                            </div>
-                          </div>
+                    <div className="relative overflow-hidden bg-white">
+                      <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
+                        {getPrimaryImage(combo) ? (
+                          <img
+                            src={getPrimaryImage(combo)!}
+                            alt={combo.name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
+                            }}
+                          />
                         ) : (
-                          <div style={{ minHeight: '28px' }}></div>
+                          <div className="h-full w-full flex items-center justify-center">
+                            <Package className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-gray-400" />
+                          </div>
                         )}
                       </div>
-
-                      {/* Stock status and Savings */}
-                      <div className="flex items-center justify-between mb-3 sm:mb-4">
-                        <div className="flex items-center space-x-1.5 sm:space-x-2">
-                          <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
-                            combo.inStock !== false
-                              ? 'bg-gradient-to-r from-green-400 to-emerald-400'
-                              : 'bg-gradient-to-r from-red-400 to-rose-400'
-                          }`}></div>
-                          <span className={`font-bold text-xs sm:text-sm ${
-                            combo.inStock !== false ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
-                          </span>
-                        </div>
-                        {originalPrice > price && (
-                          <span className="text-xs sm:text-sm font-bold text-green-600">
-                            Save ₹{(originalPrice - price).toLocaleString()}
-                          </span>
-                        )}
-                      </div>
+                      <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
+                      <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
                     </div>
                   </div>
 
-                  {/* Add to Cart or Select Shades Button */}
-                  {(() => {
-                    const info = comboProductInfo.get(combo.id);
-                    const isSingleProduct = info?.isSingleProduct ?? false;
-                    const hasShades = info?.hasShades ?? false;
+                  <div className="p-2 sm:p-3 md:p-4 lg:p-5 space-y-2 sm:space-y-2.5 md:space-y-3 bg-white flex-1 flex flex-col">
+                    <div className="flex items-center justify-between bg-white rounded-lg p-1 sm:p-1.5 md:p-2">
+                      <div className="flex items-center gap-0.5">
+                        {renderStars(rating)}
+                      </div>
+                      <span className="text-gray-700 text-xs sm:text-sm font-bold bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
+                        {rating}
+                      </span>
+                    </div>
 
-                    if (isSingleProduct) {
-                      // Single product - always show Add to Cart
-                      return (
-                        <Button
-                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                          onClick={() => {
-                            const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-                            const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id);
-                            const price = typeof combo.price === 'string' ? parseFloat(combo.price.replace(/[^0-9.-]+/g,"")) : combo.price;
-                            const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice.replace(/[^0-9.-]+/g,"")) : combo.originalPrice;
-                            
-                            if (existingItem) {
-                              existingItem.quantity += 1;
-                            } else {
-                              cart.push({
-                                id: combo.id,
-                                name: combo.name,
-                                price: `₹${price}`,
-                                originalPrice: combo.originalPrice ? `₹${originalPrice}` : undefined,
-                                image: typeof combo.imageUrl === 'string' ? combo.imageUrl : Array.isArray(combo.imageUrl) ? combo.imageUrl[0] : undefined,
-                                quantity: 1,
-                                inStock: true,
-                                isCombo: true,
-                                cashbackPercentage: combo.cashbackPercentage ? parseFloat(String(combo.cashbackPercentage)) : undefined,
-                                cashbackPrice: combo.cashbackPrice ? parseFloat(String(combo.cashbackPrice)) : undefined,
-                              });
-                            }
-                            localStorage.setItem("cart", JSON.stringify(cart));
-                            localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
-                            window.dispatchEvent(new Event("cartUpdated"));
-                            toast({
-                              title: "Added to Cart",
-                              description: `${combo.name} has been added to your cart.`,
-                            });
-                          }}
-                        >
-                          <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden xs:inline">Add to </span>Cart
-                        </Button>
-                      );
-                    } else if (!hasShades) {
-                      // Multiple products but NO shades - show Add to Cart
-                      return (
-                        <Button
-                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                          onClick={() => {
-                            const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-                            const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id);
-                            const price = typeof combo.price === 'string' ? parseFloat(combo.price.replace(/[^0-9.-]+/g,"")) : combo.price;
-                            const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice.replace(/[^0-9.-]+/g,"")) : combo.originalPrice;
-                            
-                            if (existingItem) {
-                              existingItem.quantity += 1;
-                            } else {
-                              cart.push({
-                                id: combo.id,
-                                name: combo.name,
-                                price: `₹${price}`,
-                                originalPrice: combo.originalPrice ? `₹${originalPrice}` : undefined,
-                                image: typeof combo.imageUrl === 'string' ? combo.imageUrl : Array.isArray(combo.imageUrl) ? combo.imageUrl[0] : undefined,
-                                quantity: 1,
-                                inStock: true,
-                                isCombo: true,
-                                cashbackPercentage: combo.cashbackPercentage ? parseFloat(String(combo.cashbackPercentage)) : undefined,
-                                cashbackPrice: combo.cashbackPrice ? parseFloat(String(combo.cashbackPrice)) : undefined,
-                              });
-                            }
-                            localStorage.setItem("cart", JSON.stringify(cart));
-                            localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
-                            window.dispatchEvent(new Event("cartUpdated"));
-                            toast({
-                              title: "Added to Cart",
-                              description: `${combo.name} has been added to your cart.`,
-                            });
-                          }}
-                        >
-                          <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden xs:inline">Add to </span>Cart
-                        </Button>
-                      );
-                    } else {
-                      // Multiple products with shades - show Select Shades
-                      return (
-                        <Button
-                          className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                          onClick={() => window.location.href = `/combo/${combo.id}`}
-                        >
-                          <Star className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden xs:inline">Select </span>Shades
-                        </Button>
-                      );
-                    }
-                  })()}
+                    <h3
+                      className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-3 text-xs sm:text-sm md:text-base break-words"
+                      style={{ minHeight: '3.6rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', hyphens: 'auto' }}
+                      onClick={() => {
+                        React.startTransition(() => {
+                          window.location.href = `/combo/${combo.id}`;
+                        });
+                      }}
+                    >
+                      {combo.name}
+                    </h3>
+
+                    <div className="mt-auto space-y-2 pb-2 sm:pb-3">
+                      <div className="space-y-1 sm:space-y-1.5 md:space-y-2">
+                        <div className="flex flex-col space-y-1">
+                          <div className="flex items-baseline space-x-1 sm:space-x-2 min-h-[24px]">
+                            <span className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
+                              ₹{price.toLocaleString()}
+                            </span>
+                            {originalPrice > price && (
+                              <>
+                                <span className="text-xs sm:text-sm text-gray-500 line-through">
+                                  ₹{originalPrice.toLocaleString()}
+                                </span>
+                                <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 sm:px-2 rounded whitespace-nowrap">
+                                  {discountPercentage}% OFF
+                                </span>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="mt-1" style={{ minHeight: '28px', display: 'flex', alignItems: 'center' }}>
+                            {combo.cashbackPercentage && combo.cashbackPrice ? (
+                              <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-1.5 w-full">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] sm:text-xs font-semibold text-orange-700">Cashback</span>
+                                  <span className="text-[10px] sm:text-xs bg-orange-200 text-orange-800 px-1.5 sm:px-2 py-0.5 rounded-full font-bold">
+                                    {combo.cashbackPercentage}%
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ minHeight: '28px' }}></div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between mb-3 sm:mb-4">
+                            <div className="flex items-center space-x-1.5 sm:space-x-2">
+                              <div className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full animate-pulse ${
+                                combo.inStock !== false
+                                  ? 'bg-gradient-to-r from-green-400 to-emerald-400'
+                                  : 'bg-gradient-to-r from-red-400 to-rose-400'
+                              }`}></div>
+                              <span className={`font-bold text-xs sm:text-sm ${
+                                combo.inStock !== false ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {combo.inStock !== false ? 'In Stock' : 'Out of Stock'}
+                              </span>
+                            </div>
+                            {originalPrice > price && (
+                              <span className="text-xs sm:text-sm font-bold text-green-600">
+                                Save ₹{(originalPrice - price).toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {(() => {
+                        const info = comboProductInfo.get(combo.id);
+                        const isSingleProduct = info?.isSingleProduct ?? false;
+                        const hasShades = info?.hasShades ?? false;
+
+                        if (isSingleProduct || !hasShades) {
+                          return (
+                            <Button
+                              className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                              onClick={() => {
+                                const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+                                const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id);
+                                const price = typeof combo.price === 'string' ? parseFloat(combo.price.replace(/[^0-9.-]+/g,"")) : combo.price;
+                                const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice.replace(/[^0-9.-]+/g,"")) : combo.originalPrice;
+
+                                if (existingItem) {
+                                  existingItem.quantity += 1;
+                                } else {
+                                  cart.push({
+                                    id: combo.id,
+                                    name: combo.name,
+                                    price: `₹${price}`,
+                                    originalPrice: combo.originalPrice ? `₹${originalPrice}` : undefined,
+                                    image: typeof combo.imageUrl === 'string' ? combo.imageUrl : Array.isArray(combo.imageUrl) ? combo.imageUrl[0] : undefined,
+                                    quantity: 1,
+                                    inStock: true,
+                                    isCombo: true,
+                                    cashbackPercentage: combo.cashbackPercentage ? parseFloat(String(combo.cashbackPercentage)) : undefined,
+                                    cashbackPrice: combo.cashbackPrice ? parseFloat(String(combo.cashbackPrice)) : undefined,
+                                  });
+                                }
+
+                                localStorage.setItem("cart", JSON.stringify(cart));
+                                localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
+                                window.dispatchEvent(new Event("cartUpdated"));
+                                toast({
+                                  title: "Added to Cart",
+                                  description: `${combo.name} has been added to your cart.`,
+                                });
+                              }}
+                            >
+                              <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4" />
+                              <span className="hidden xs:inline">Add to </span>Cart
+                            </Button>
+                          );
+                        }
+
+                        return (
+                          <Button
+                            className="w-full text-xs sm:text-sm py-2.5 sm:py-3 md:py-3 min-h-[40px] flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                            onClick={() => window.location.href = `/combo/${combo.id}`}
+                          >
+                            <Star className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="hidden xs:inline">Select </span>Shades
+                          </Button>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
 
-        <div className="text-center mt-8 sm:mt-10">
-          <Link href="/combos">
-            <Button className="font-poppins bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-              <span>View All Combos</span>
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
+          <div className="text-center mt-8 sm:mt-10">
+            <Link href="/combos">
+              <Button className="font-poppins bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-6 sm:px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+                <span>View All Combos</span>
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </section>

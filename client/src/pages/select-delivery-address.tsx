@@ -25,8 +25,8 @@ const normalizeAddress = (addr: any) => {
     recipientName: addr.recipientName ?? addr.recipient_name ?? addr.name ?? addr.recipient,
     addressLine1: addr.addressLine1 ?? addr.address_line1 ?? addr.line1 ?? addr.address1,
     addressLine2: addr.addressLine2 ?? addr.address_line2 ?? addr.line2 ?? addr.address2,
-    city: addr.city ?? addr.town ?? addr.city_name,
-    state: addr.state ?? addr.state_name,
+    city: normalizeCityValue(addr.city ?? addr.town ?? addr.city_name),
+    state: normalizeStateValue(addr.state ?? addr.state_name),
     pincode: addr.pincode ?? addr.pin ?? addr.postcode ?? addr.postal_code,
     country: addr.country ?? 'India',
     phoneNumber: addr.phoneNumber ?? addr.phone_number ?? addr.phone,
@@ -34,6 +34,104 @@ const normalizeAddress = (addr: any) => {
     isDefault: addr.isDefault ?? addr.is_default ?? false,
   };
 };
+
+const INDIAN_STATES = [
+  { value: 'andhra_pradesh', label: 'Andhra Pradesh' },
+  { value: 'arunachal_pradesh', label: 'Arunachal Pradesh' },
+  { value: 'assam', label: 'Assam' },
+  { value: 'bihar', label: 'Bihar' },
+  { value: 'chhattisgarh', label: 'Chhattisgarh' },
+  { value: 'goa', label: 'Goa' },
+  { value: 'gujarat', label: 'Gujarat' },
+  { value: 'haryana', label: 'Haryana' },
+  { value: 'himachal_pradesh', label: 'Himachal Pradesh' },
+  { value: 'jharkhand', label: 'Jharkhand' },
+  { value: 'karnataka', label: 'Karnataka' },
+  { value: 'kerala', label: 'Kerala' },
+  { value: 'madhya_pradesh', label: 'Madhya Pradesh' },
+  { value: 'maharashtra', label: 'Maharashtra' },
+  { value: 'manipur', label: 'Manipur' },
+  { value: 'meghalaya', label: 'Meghalaya' },
+  { value: 'mizoram', label: 'Mizoram' },
+  { value: 'nagaland', label: 'Nagaland' },
+  { value: 'odisha', label: 'Odisha' },
+  { value: 'punjab', label: 'Punjab' },
+  { value: 'rajasthan', label: 'Rajasthan' },
+  { value: 'sikkim', label: 'Sikkim' },
+  { value: 'tamil_nadu', label: 'Tamil Nadu' },
+  { value: 'telangana', label: 'Telangana' },
+  { value: 'tripura', label: 'Tripura' },
+  { value: 'uttar_pradesh', label: 'Uttar Pradesh' },
+  { value: 'uttarakhand', label: 'Uttarakhand' },
+  { value: 'west_bengal', label: 'West Bengal' },
+  { value: 'delhi', label: 'Delhi' },
+];
+
+const CITY_LOCATION_MAP: Record<string, { state: string; pincodes: string[] }> = {
+  mumbai: { state: "maharashtra", pincodes: ["400001", "400002", "400003", "400004", "400005", "400006", "400007", "400008", "400009", "400010"] },
+  delhi: { state: "delhi", pincodes: ["110001", "110002", "110003", "110004", "110005", "110006", "110007", "110008", "110009", "110010"] },
+  bangalore: { state: "karnataka", pincodes: ["560001", "560002", "560003", "560004", "560005", "560006", "560007", "560008", "560009", "560010"] },
+  hyderabad: { state: "telangana", pincodes: ["500001", "500002", "500003", "500004", "500005", "500006", "500007", "500008", "500009", "500010"] },
+  ahmedabad: { state: "gujarat", pincodes: ["380001", "380002", "380003", "380004", "380005", "380006", "380007", "380008", "380009", "380010"] },
+  chennai: { state: "tamil_nadu", pincodes: ["600001", "600002", "600003", "600004", "600005", "600006", "600007", "600008", "600009", "600010"] },
+  kolkata: { state: "west_bengal", pincodes: ["700001", "700002", "700003", "700004", "700005", "700006", "700007", "700008", "700009", "700010"] },
+  pune: { state: "maharashtra", pincodes: ["411001", "411002", "411003", "411004", "411005", "411006", "411007", "411008", "411009", "411010"] },
+  jaipur: { state: "rajasthan", pincodes: ["302001", "302002", "302003", "302004", "302005", "302006", "302007", "302008", "302009", "302010"] },
+  surat: { state: "gujarat", pincodes: ["395001", "395002", "395003", "395004", "395005", "395006", "395007", "395008", "395009", "395010"] },
+  lucknow: { state: "uttar_pradesh", pincodes: ["226001", "226002", "226003", "226004", "226005"] },
+  kanpur: { state: "uttar_pradesh", pincodes: ["208001", "208002", "208003", "208004", "208005"] },
+  nagpur: { state: "maharashtra", pincodes: ["440001", "440002", "440003", "440004", "440005"] },
+  indore: { state: "madhya_pradesh", pincodes: ["452001", "452002", "452003", "452004", "452005"] },
+  thane: { state: "maharashtra", pincodes: ["400601", "400602", "400603", "400604", "400605"] },
+  bhopal: { state: "madhya_pradesh", pincodes: ["462001", "462002", "462003", "462004", "462005"] },
+  visakhapatnam: { state: "andhra_pradesh", pincodes: ["530001", "530002", "530003", "530004", "530005"] },
+  pimpri: { state: "maharashtra", pincodes: ["411017", "411018", "411019", "411020", "411021"] },
+  patna: { state: "bihar", pincodes: ["800001", "800002", "800003", "800004", "800005"] },
+  vadodara: { state: "gujarat", pincodes: ["390001", "390002", "390003", "390004", "390005"] },
+};
+
+function normalizeStateValue(raw: any) {
+  const value = String(raw ?? '').trim();
+  if (!value) return '';
+
+  const direct = INDIAN_STATES.find((s) => s.value === value);
+  if (direct) return direct.value;
+
+  const cleaned = value
+    .toLowerCase()
+    .replace(/\./g, '')
+    .replace(/\s+/g, '_')
+    .replace(/__+/g, '_');
+
+  const byValue = INDIAN_STATES.find((s) => s.value === cleaned);
+  if (byValue) return byValue.value;
+
+  const byLabel = INDIAN_STATES.find((s) => s.label.toLowerCase() === value.toLowerCase());
+  if (byLabel) return byLabel.value;
+
+  return value;
+}
+
+function normalizeCityValue(raw: any) {
+  const value = String(raw ?? '').trim();
+  if (!value) return '';
+
+  const cleaned = value
+    .toLowerCase()
+    .replace(/\./g, '')
+    .replace(/\s+/g, '_')
+    .replace(/__+/g, '_');
+
+  if (CITY_LOCATION_MAP[cleaned]) return cleaned;
+  if (CITY_LOCATION_MAP[value.toLowerCase()]) return value.toLowerCase();
+  return cleaned;
+}
+
+function toTitleLabel(raw: string) {
+  return String(raw)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 interface DeliveryAddress {
   id: number;
@@ -71,6 +169,7 @@ interface ItemAddressMapping {
 export default function SelectDeliveryAddress() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
   const [addresses, setAddresses] = useState<DeliveryAddress[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -92,8 +191,54 @@ export default function SelectDeliveryAddress() {
     deliveryInstructions: '',
     isDefault: false
   });
+  const [nameData, setNameData] = useState({
+    firstName: '',
+    lastName: ''
+  });
   const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null);
 
+  const availableCities = React.useMemo(() => {
+    const selectedState = normalizeStateValue(formData.state);
+    if (!selectedState) return [] as string[];
+    return Object.keys(CITY_LOCATION_MAP)
+      .filter((cityKey) => normalizeStateValue(CITY_LOCATION_MAP[cityKey]?.state) === selectedState)
+      .sort((a, b) => toTitleLabel(a).localeCompare(toTitleLabel(b)));
+  }, [formData.state]);
+
+  const availablePincodes = React.useMemo(() => {
+    const cityKey = normalizeCityValue(formData.city);
+    const entry = CITY_LOCATION_MAP[cityKey];
+    return entry?.pincodes || [];
+  }, [formData.city]);
+
+  useEffect(() => {
+    const selectedState = normalizeStateValue(formData.state);
+    const cityKey = normalizeCityValue(formData.city);
+    if (!selectedState) {
+      if (formData.city || formData.pincode) {
+        setFormData((prev) => ({ ...prev, city: '', pincode: '' }));
+      }
+      return;
+    }
+
+    const cityIsValidForState = cityKey ? CITY_LOCATION_MAP[cityKey]?.state === selectedState : true;
+    if (!cityIsValidForState) {
+      setFormData((prev) => ({ ...prev, city: '', pincode: '' }));
+      return;
+    }
+
+    if (formData.pincode && availablePincodes.length > 0 && !availablePincodes.includes(String(formData.pincode))) {
+      setFormData((prev) => ({ ...prev, pincode: '' }));
+    }
+  }, [formData.state, formData.city, formData.pincode, availablePincodes]);
+
+  const splitRecipientName = (full: string) => {
+    const cleaned = (full || '').trim();
+    if (!cleaned) return { firstName: '', lastName: '' };
+    const parts = cleaned.split(/\s+/);
+    if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+    return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+  };
 
   const [user, setUser] = useState(() => {
     try {
@@ -128,12 +273,14 @@ export default function SelectDeliveryAddress() {
         const parsed = normalizeAddress(JSON.parse(raw));
         if (parsed && parsed.id) {
           setEditingAddress(parsed as any);
+          const np = splitRecipientName(parsed.recipientName || '');
+          setNameData({ firstName: np.firstName, lastName: np.lastName });
           setFormData({
             recipientName: parsed.recipientName || '',
             addressLine1: parsed.addressLine1 || '',
             addressLine2: parsed.addressLine2 || '',
-            city: parsed.city || '',
-            state: parsed.state || '',
+            city: normalizeCityValue(parsed.city || ''),
+            state: normalizeStateValue(parsed.state || ''),
             pincode: parsed.pincode || '',
             country: parsed.country || 'India',
             phoneNumber: parsed.phoneNumber || '',
@@ -325,7 +472,7 @@ export default function SelectDeliveryAddress() {
       toast({
         title: "Error Loading Addresses",
         description: error instanceof Error ? error.message : "Failed to fetch delivery addresses. Please try again.",
-        variant: "destructive",
+        variant: "destructive"
       });
       setAddresses([]);
     } finally {
@@ -336,6 +483,8 @@ export default function SelectDeliveryAddress() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const recipientName = `${nameData.firstName} ${nameData.lastName}`.trim();
+
     try {
       const url = editingAddress
         ? `/api/delivery-addresses/${editingAddress.id}`
@@ -345,18 +494,19 @@ export default function SelectDeliveryAddress() {
         method: editingAddress ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
-        body: JSON.stringify({ ...formData, userId: user.id })
+        body: JSON.stringify({ ...formData, recipientName, userId: user.id })
       });
 
       if (response.ok) {
         const data = await response.json();
 
         // Update UI immediately (avoid waiting for refetch)
-        try {
+        {
           if (editingAddress) {
             const merged = normalizeAddress({
               ...editingAddress,
               ...formData,
+              recipientName,
               ...data,
               id: editingAddress.id,
             }) as DeliveryAddress;
@@ -372,7 +522,7 @@ export default function SelectDeliveryAddress() {
               localStorage.setItem('selectedDeliveryAddress', JSON.stringify(merged));
             }
           } else {
-            const created = normalizeAddress({ ...formData, ...data }) as DeliveryAddress;
+            const created = normalizeAddress({ ...formData, recipientName, ...data }) as DeliveryAddress;
             setAddresses((prev) => [created, ...prev]);
           }
 
@@ -381,32 +531,30 @@ export default function SelectDeliveryAddress() {
           } catch (e) {
             // ignore
           }
-        } catch (e) {
-          // ignore optimistic update failures
-        }
 
-        toast({
-          title: "Success",
-          description: editingAddress ? "Address updated successfully" : "Address added successfully"
-        });
-        setIsAddDialogOpen(false);
-        setEditingAddress(null);
-        resetForm();
-        // Refresh in background to ensure canonical data
-        fetchAddresses();
+          toast({
+            title: "Success",
+            description: editingAddress ? "Address updated successfully" : "Address added successfully"
+          });
+          setIsAddDialogOpen(false);
+          setEditingAddress(null);
+          resetForm();
+          // Refresh in background to ensure canonical data
+          fetchAddresses();
 
-        // If this was a new address in single mode, select it and go back to checkout
-        if (!editingAddress && data.id && !isMultipleAddressMode) {
-          const newAddress = await fetch(apiUrl(`/api/delivery-addresses/${data.id}`), {
-            cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0',
-            },
-          }).then(res => res.json());
-          localStorage.setItem('selectedDeliveryAddress', JSON.stringify(newAddress));
-          setTimeout(() => setLocation('/checkout'), 500);
+          // If this was a new address in single mode, select it and go back to checkout
+          if (!editingAddress && data.id && !isMultipleAddressMode) {
+            const newAddress = await fetch(apiUrl(`/api/delivery-addresses/${data.id}`), {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+              },
+            }).then(res => res.json());
+            localStorage.setItem('selectedDeliveryAddress', JSON.stringify(newAddress));
+            setTimeout(() => setLocation('/checkout'), 500);
+          }
         }
       }
     } catch (error) {
@@ -474,22 +622,25 @@ export default function SelectDeliveryAddress() {
 
   const handleEdit = (address: DeliveryAddress) => {
     setEditingAddress(address);
+    const np = splitRecipientName(address.recipientName || '');
+    setNameData({ firstName: np.firstName, lastName: np.lastName });
     setFormData({
       recipientName: address.recipientName,
       addressLine1: address.addressLine1,
       addressLine2: address.addressLine2 || '',
-      city: address.city,
-      state: address.state,
+      city: normalizeCityValue(address.city),
+      state: normalizeStateValue(address.state),
       pincode: address.pincode,
-      country: address.country,
+      country: address.country || 'India',
       phoneNumber: address.phoneNumber,
       deliveryInstructions: address.deliveryInstructions || '',
-      isDefault: address.isDefault
+      isDefault: Boolean(address.isDefault),
     });
     setIsAddDialogOpen(true);
   };
 
   const resetForm = () => {
+    setNameData({ firstName: '', lastName: '' });
     setFormData({
       recipientName: '',
       addressLine1: '',
@@ -1022,14 +1173,34 @@ export default function SelectDeliveryAddress() {
                     </DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="recipientName">Full Name *</Label>
-                      <Input
-                        id="recipientName"
-                        value={formData.recipientName}
-                        onChange={(e) => setFormData({...formData, recipientName: e.target.value})}
-                        required
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="firstName">First Name *</Label>
+                        <Input
+                          id="firstName"
+                          value={nameData.firstName}
+                          onChange={(e) => {
+                            const firstName = e.target.value;
+                            const recipientName = `${firstName} ${nameData.lastName}`.trim();
+                            setNameData({ ...nameData, firstName });
+                            setFormData({ ...formData, recipientName });
+                          }}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="lastName">Last Name</Label>
+                        <Input
+                          id="lastName"
+                          value={nameData.lastName}
+                          onChange={(e) => {
+                            const lastName = e.target.value;
+                            const recipientName = `${nameData.firstName} ${lastName}`.trim();
+                            setNameData({ ...nameData, lastName });
+                            setFormData({ ...formData, recipientName });
+                          }}
+                        />
+                      </div>
                     </div>
 
                     <div>
@@ -1065,36 +1236,65 @@ export default function SelectDeliveryAddress() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="city">City *</Label>
-                        <Input
+                        <select
                           id="city"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                           value={formData.city}
-                          onChange={(e) => setFormData({...formData, city: e.target.value})}
+                          onChange={(e) => {
+                            const nextCity = e.target.value;
+                            setFormData({ ...formData, city: nextCity, pincode: '' });
+                          }}
                           required
-                        />
+                          disabled={!formData.state}
+                        >
+                          <option value="">{formData.state ? 'Select City' : 'Select State first'}</option>
+                          {availableCities.map((cityKey) => (
+                            <option key={cityKey} value={cityKey}>
+                              {toTitleLabel(cityKey)}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <Label htmlFor="state">State *</Label>
-                        <Input
+                        <select
                           id="state"
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                           value={formData.state}
-                          onChange={(e) => setFormData({...formData, state: e.target.value})}
+                          onChange={(e) => {
+                            const nextState = e.target.value;
+                            setFormData({ ...formData, state: nextState, city: '', pincode: '' });
+                          }}
                           required
-                        />
+                        >
+                          <option value="">Select State</option>
+                          {INDIAN_STATES.map((st) => (
+                            <option key={st.value} value={st.value}>
+                              {st.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 
                     <div>
                       <Label htmlFor="pincode">Pincode *</Label>
-                      <Input
+                      <select
                         id="pincode"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         value={formData.pincode}
-                        onChange={(e) => setFormData({...formData, pincode: e.target.value})}
-                        maxLength={6}
+                        onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
                         required
-                      />
+                        disabled={!formData.city}
+                      >
+                        <option value="">{formData.city ? 'Select Pincode' : 'Select City first'}</option>
+                        {availablePincodes.map((pin) => (
+                          <option key={pin} value={pin}>
+                            {pin}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-
-                    
 
                     <div className="flex items-center space-x-2">
                       <input

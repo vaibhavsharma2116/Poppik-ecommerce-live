@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet";
-import { ChevronRight, Star, ShoppingCart, Heart, ChevronDown, ChevronUp, CheckCircle, Badge, Video, Share2, Copy, Check, Minus, Plus } from "lucide-react";
+import { ChevronRight, Star, ShoppingCart, Heart, ChevronDown, ChevronUp, CheckCircle, Badge, Video, Share2, Copy, Check, Circle, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -172,7 +172,7 @@ const requestManager = new RequestManager();
 
 export default function ProductDetail() {
   const [, params] = useRoute("/product/:slug");
-  const productSlugOrId = params?.slug || "";
+  const productSlugOrId = params?.slug ?? "";
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [showAllShades, setShowAllShades] = useState(false);
   const [selectedShades, setSelectedShades] = useState<Shade[]>([]);
@@ -194,7 +194,7 @@ export default function ProductDetail() {
   const { toast } = useToast();
 
   // Memoize the product slug to prevent unnecessary re-fetches
-  const productSlug = useMemo(() => params?.slug, [params?.slug]);
+  const productSlug = useMemo(() => params?.slug ?? null, [params?.slug]);
 
   const { data: product, isLoading } = useQuery<Product>({
     queryKey: [`/api/products/${productSlug}`],
@@ -298,9 +298,11 @@ export default function ProductDetail() {
     }
     return resolved;
   };
- const { data: recommendedProducts = [] } = useQuery({
+
+  const { data: recommendedProducts = [] } = useQuery({
     queryKey: ['/api/products', { limit: 12 }],
   });
+
   // Choose best image for meta tags / social sharing.
   // Priority when a shade is selected: shade image.
   // When no shade selected: 1) first non-base64 DB image, 2) product.imageUrl if non-base64,
@@ -351,7 +353,6 @@ export default function ProductDetail() {
       setSelectedImageUrl(imageUrls[0]);
     }
   }, [imageUrls.length, selectedImageUrl]); // Only depend on length and current selection
-
 
   // Fetch related products - memoized
   const { data: relatedProducts = [] } = useQuery<Product[]>({
@@ -579,6 +580,7 @@ export default function ProductDetail() {
     }
   }, [shadesFromAPI, product?.id, shadeIdFromUrl]);
 
+  const getShadeKey = (shade: any) => String(shade?.id ?? shade?.value ?? shade?.name ?? "");
 
   const toggleWishlist = useCallback(() => {
     if (!product) return;
@@ -637,7 +639,6 @@ export default function ProductDetail() {
       });
     }
   }, [product, toast]);
-
 
   const addToCart = useCallback(() => {
     if (!product) return;
@@ -738,13 +739,13 @@ export default function ProductDetail() {
     });
   }, [product, quantity, selectedShades, toast, shades.length]);
 
-
   const handleShadeSelect = (shade: Shade) => {
-    const isSelected = selectedShades.some(s => s.id === shade.id);
+    const shadeKey = getShadeKey(shade);
+    const isSelected = selectedShades.some(s => getShadeKey(s) === shadeKey);
 
     if (isSelected) {
       // Remove shade from selection
-      const remainingShades = selectedShades.filter(s => s.id !== shade.id);
+      const remainingShades = selectedShades.filter(s => getShadeKey(s) !== shadeKey);
       setSelectedShades(remainingShades);
 
       // If there are remaining shades, show the first remaining shade's image
@@ -760,7 +761,11 @@ export default function ProductDetail() {
       // Update URL - only keep shade param if shades remain
       const newUrl = new URL(window.location.toString());
       if (remainingShades.length > 0) {
-        newUrl.searchParams.set('shade', remainingShades[0].id.toString());
+        if ((remainingShades as any)[0]?.id !== undefined && (remainingShades as any)[0]?.id !== null) {
+          newUrl.searchParams.set('shade', (remainingShades as any)[0].id.toString());
+        } else {
+          newUrl.searchParams.delete('shade');
+        }
       } else {
         newUrl.searchParams.delete('shade');
       }
@@ -783,7 +788,9 @@ export default function ProductDetail() {
 
       // Update URL to include shade parameter
       const newUrl = new URL(window.location.toString());
-      newUrl.searchParams.set('shade', shade.id.toString());
+      if ((shade as any)?.id !== undefined && (shade as any)?.id !== null) {
+        newUrl.searchParams.set('shade', (shade as any).id.toString());
+      }
       window.history.replaceState({}, '', newUrl.toString());
     }
   };
@@ -990,7 +997,6 @@ export default function ProductDetail() {
       setSelectedImageUrl(displayableImages.length > 0 ? displayableImages[0] : '');
     }
   }, [imageUrls, allDisplayableImages, selectedImageUrl]);
-
 
   if (!productSlug) {
     return (
@@ -1264,7 +1270,7 @@ export default function ProductDetail() {
                                           />
                                           {/* Video play icon overlay */}
                                           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded-lg">
-                                            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
                                               <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                                             </svg>
                                           </div>
@@ -1273,7 +1279,7 @@ export default function ProductDetail() {
                                         <img
                                           src={imageUrl}
                                           alt={`${product.name} view ${index + 1}`}
-                                          className="w-full h-full hover:scale-110 transition-transform duration-200"
+                                          className="w-full h-full object-contain rounded-lg hover:scale-110 transition-transform duration-200"
                                           width={80}
                                           height={80}
                                           style={{
@@ -1662,8 +1668,10 @@ export default function ProductDetail() {
                               <div className="text-sm font-semibold text-gray-700 mb-2">{g.series}</div>
                               <div className="grid grid-cols-5 gap-3">
                                 {visibleShades.map((shade: any) => {
-                                  const isSelected = selectedShades.some((s: any) => s.id === shade.id);
+                                  const shadeKey = getShadeKey(shade);
+                                  const isSelected = selectedShades.some((s: any) => getShadeKey(s) === shadeKey);
                                   const hasSelection = selectedShades.length > 0;
+
                                   const swatchWrapperClass = `w-12 h-12 rounded-full border-2 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl ${isSelected
                                     ? 'border-4 border-purple-600 ring-2 ring-purple-300 ring-offset-2 scale-105'
                                     : hasSelection
@@ -1672,15 +1680,24 @@ export default function ProductDetail() {
                                     }`;
                                   return (
                                     <div
-                                      key={shade.value}
+                                      key={shadeKey}
                                       className="flex flex-col items-center cursor-pointer"
                                       onClick={() => handleShadeSelect(shade)}
                                     >
                                       <div className="relative">
 
-                                        {isSelected && (
-                                          <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-1 shadow-lg z-20">
-                                            <Check className="w-3 h-3 text-white" />
+                                        {hasSelection && (
+                                          <div
+                                            className={`absolute -top-1 -right-1 rounded-full p-1 shadow-lg z-20 transition-colors ${isSelected
+                                              ? 'bg-gradient-to-r from-purple-600 to-pink-600'
+                                              : 'bg-white border border-purple-300'
+                                              }`}
+                                          >
+                                            {isSelected ? (
+                                              <Check className="w-3 h-3 text-white" />
+                                            ) : (
+                                              <Circle className="w-3 h-3 text-gray-300" />
+                                            )}
                                           </div>
                                         )}
                                         {shade.imageUrl ? (
