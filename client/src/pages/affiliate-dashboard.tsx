@@ -540,7 +540,11 @@ export default function AffiliateDashboard() {
       pendingEarnings: 0,
       totalClicks: 0,
       totalSales: 0,
+      totalOrders: 0,
+      deliveredOrders: 0,
       conversionRate: 0,
+      conversionRateAll: 0,
+      conversionRateDelivered: 0,
       monthlyGrowth: 0,
       avgCommission: 0, // Added avgCommission to initialData
     }
@@ -1336,13 +1340,11 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
           <TabsContent value="products" className="space-y-6">
             <Card className="border-0 shadow-lg">
               <CardHeader className="border-b bg-gradient-to-r from-purple-50 to-pink-50">
-                <div>
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    <Package className="h-5 w-5 text-purple-600" />
-                    Top Products to Promote
-                  </CardTitle>
-                  <CardDescription className="mt-1">Generate affiliate links for our bestselling products</CardDescription>
-                </div>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Package className="h-5 w-5 text-purple-600" />
+                  Top Products to Promote
+                </CardTitle>
+                <CardDescription className="mt-1">Generate affiliate links for our bestselling products</CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
                 <ProductsList affiliateCode={affiliateCode} onShareProduct={openProductShareDialog} />
@@ -1473,7 +1475,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-3xl font-bold text-blue-600">{clicksData?.total?.toLocaleString('en-IN') || 0}</p>
+                          <p className="text-3xl font-bold text-blue-600">{(stats?.totalClicks || 0).toLocaleString('en-IN')}</p>
                           {stats?.clicksGrowth !== undefined && stats?.clicksGrowth !== 0 && (
                             <p className={`text-sm font-semibold text-emerald-600 mt-1 ${stats.clicksGrowth > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                               {stats.clicksGrowth > 0 ? '↑' : '↓'} {Math.abs(stats.clicksGrowth)}% this month
@@ -1482,23 +1484,47 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border border-emerald-200 hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-emerald-600 rounded-lg flex items-center justify-center shadow-md">
-                            <ShoppingBag className="h-6 w-6 text-white" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border border-amber-200 hover:shadow-md transition-shadow">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-amber-600 rounded-lg flex items-center justify-center shadow-md">
+                              <ShoppingBag className="h-6 w-6 text-white" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-900 text-lg">Orders Placed</p>
+                              <p className="text-sm text-gray-600">Not delivered yet</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-bold text-gray-900 text-lg">Total Conversions</p>
-                            <p className="text-sm text-gray-600">Successful sales</p>
+                          <div className="text-right">
+                            <p className="text-3xl font-bold text-amber-700">{Math.max(0, (stats?.totalOrders || 0) - (stats?.deliveredOrders || 0)).toLocaleString('en-IN')}</p>
+                            {(stats?.totalClicks || 0) > 0 && Math.max(0, (stats?.totalOrders || 0) - (stats?.deliveredOrders || 0)) > 0 && (
+                              <p className="text-sm font-semibold text-amber-700 mt-1">
+                                {((Math.max(0, (stats?.totalOrders || 0) - (stats?.deliveredOrders || 0)) / (stats?.totalClicks || 1)) * 100).toFixed(1)} orders per 100 clicks
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-600 mt-1">Pending / Processing / Shipped / Cancelled</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-3xl font-bold text-emerald-600">{sales?.length?.toLocaleString('en-IN') || 0}</p>
-                          {clicksData?.total > 0 && sales?.length > 0 && (
-                            <p className="text-sm font-semibold text-emerald-600 mt-1">
-                              {((sales.length / clicksData.total) * 100).toFixed(1)}% conversion rate
-                            </p>
-                          )}
+
+                        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg border border-emerald-200 hover:shadow-md transition-shadow">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-emerald-600 rounded-lg flex items-center justify-center shadow-md">
+                              <CheckCircle className="h-6 w-6 text-white" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-900 text-lg">Successful Sales</p>
+                              <p className="text-sm text-gray-600">Delivered orders</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-3xl font-bold text-emerald-600">{(stats?.deliveredOrders || 0).toLocaleString('en-IN')}</p>
+                            {(stats?.totalClicks || 0) > 0 && (stats?.deliveredOrders || 0) > 0 && (
+                              <p className="text-sm font-semibold text-emerald-600 mt-1">
+                                {(((stats?.deliveredOrders || 0) / (stats?.totalClicks || 1)) * 100).toFixed(1)} orders per 100 clicks
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-600 mt-1">Delivered only</p>
+                          </div>
                         </div>
                       </div>
 

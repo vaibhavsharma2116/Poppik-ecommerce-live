@@ -1928,7 +1928,7 @@ app.get("/api/admin/stores", async (req, res) => {
   });
 
   // Get Affiliate Clicks - Get all clicks for an affiliate
-  app.get("/api/affiliate/clicks", async (req, res) => {
+  app.get("/api/affiliate/clicks/overview", async (req, res) => {
     try {
       const { userId } = req.query;
 
@@ -2542,6 +2542,14 @@ app.get("/api/admin/stores", async (req, res) => {
       res.setHeader('Expires', '0');
       res.setHeader('Surrogate-Control', 'no-store');
       res.setHeader('X-Content-Type-Options', 'nosniff');
+
+      const token = req.headers.authorization?.substring(7);
+  
+
+      const decoded = jwt.verify(token || "", process.env.JWT_SECRET || "your-secret-key") as any;
+      if (decoded.role !== 'admin' && decoded.role !== 'master_admin') {
+        return res.status(403).json({ error: "Access denied. Admin privileges required." });
+      }
 
       const offers = await db
         .select()
@@ -3306,7 +3314,7 @@ app.put("/api/admin/offers/:id", upload.fields([
   });
 
   // Affiliate Stats - Overview stats
-  app.get("/api/affiliate/stats", async (req, res) => {
+  app.get("/api/affiliate/stats/overview", async (req, res) => {
     try {
       const { userId } = req.query;
 
@@ -11629,15 +11637,57 @@ Poppik Affiliate Portal
       const totalConversions = sales.length;
       const totalEarnings = wallet && wallet[0] ? parseFloat(wallet[0].totalEarnings || '0') : 0;
       const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
+      const totalSales = totalConversions;
       const avgCommission = totalConversions > 0 ? totalEarnings / totalConversions : 0;
+
+      // Orders placed via affiliate link (all statuses)
+      const affiliateOrders = await db
+        .select({ id: schema.ordersTable.id, status: schema.ordersTable.status })
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.affiliateCode, affiliateCode));
+
+      const totalOrders = affiliateOrders.length;
+      const deliveredOrders = affiliateOrders.filter(o => String(o.status || '').toLowerCase() === 'delivered').length;
+
+      const conversionRateAll = totalClicks > 0 ? (totalOrders / totalClicks) * 100 : 0;
+      const conversionRateDelivered = totalClicks > 0 ? (deliveredOrders / totalClicks) * 100 : 0;
+
+      // Monthly growth based on affiliate sales earnings (commission amounts)
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const startOfLastMonth = new Date(startOfMonth);
+      startOfLastMonth.setMonth(startOfLastMonth.getMonth() - 1);
+
+      const thisMonthEarnings = sales
+        .filter(sale => new Date(sale.createdAt) >= startOfMonth)
+        .reduce((sum, sale) => sum + parseFloat(sale.commissionAmount || '0'), 0);
+
+      const lastMonthEarnings = sales
+        .filter(sale => {
+          const saleDate = new Date(sale.createdAt);
+          return saleDate >= startOfLastMonth && saleDate < startOfMonth;
+        })
+        .reduce((sum, sale) => sum + parseFloat(sale.commissionAmount || '0'), 0);
+
+      const monthlyGrowth = lastMonthEarnings > 0
+        ? ((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings) * 100
+        : thisMonthEarnings > 0 ? 100 : 0;
 
       res.json({
         affiliateCode,
         totalClicks,
+        totalSales,
         totalConversions,
+        totalOrders,
+        deliveredOrders,
         totalEarnings,
         conversionRate,
+        conversionRateAll,
+        conversionRateDelivered,
         avgCommission,
+        monthlyGrowth: parseFloat(monthlyGrowth.toFixed(1)),
         pendingAmount: wallet && wallet.length > 0 ? parseFloat(wallet[0].pendingBalance?.toString() || '0') : 0,
       });
     } catch (error) {
@@ -11705,15 +11755,20 @@ Poppik Affiliate Portal
         return res.status(401).json({ error: 'User ID required' });
       }
 
-      // Fetch total clicks and recent clicks
+      const totalResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.affiliateClicks)
+        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)));
+
+      const totalClicks = Number(totalResult?.[0]?.count || 0);
+
+      // Fetch recent clicks
       const clicks = await db
         .select()
         .from(schema.affiliateClicks)
         .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)))
         .orderBy(desc(schema.affiliateClicks.createdAt))
         .limit(50);
-
-      const totalClicks = clicks.length;
 
       res.json({
         total: totalClicks,
