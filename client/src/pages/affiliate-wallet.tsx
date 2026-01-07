@@ -229,10 +229,10 @@ export default function AffiliateWallet() {
       return;
     }
 
-    if (withdrawAmount < 2500) {
+    if (withdrawAmount < 500) {
       toast({
         title: "Invalid Amount",
-        description: "Minimum withdrawal amount is ₹2500",
+        description: "Minimum withdrawal amount is ₹500",
         variant: "destructive",
       });
       return;
@@ -492,14 +492,14 @@ export default function AffiliateWallet() {
               </p>
               <Button
                 onClick={() => setShowWithdrawalDialog(true)}
-                disabled={availableCommissionBalance < 2500}
+                disabled={availableCommissionBalance < 500}
                 className="w-full mt-3 sm:mt-4 bg-purple-600 hover:bg-purple-700 text-xs sm:text-sm h-8 sm:h-9"
               >
                 <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                 Request Withdrawal
               </Button>
-              {availableCommissionBalance < 2500 && (
-                <p className="text-xs text-red-500 mt-1 sm:mt-2 text-center">Minimum withdrawal: ₹2500</p>
+              {availableCommissionBalance < 500 && (
+                <p className="text-xs text-red-500 mt-1 sm:mt-2 text-center">Minimum withdrawal: ₹500</p>
               )}
             </CardContent>
           </Card>
@@ -589,7 +589,7 @@ export default function AffiliateWallet() {
             <DialogHeader>
               <DialogTitle>Withdraw Commission Earnings</DialogTitle>
               <DialogDescription>
-                Enter the amount you want to withdraw from your Commission Balance only. Minimum withdrawal is ₹2500. Cashback balance cannot be withdrawn.
+                Enter the amount you want to withdraw from your Commission Balance only. Minimum withdrawal is ₹500. Cashback balance cannot be withdrawn.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -609,11 +609,11 @@ export default function AffiliateWallet() {
                       id="withdrawAmount"
                       type="number"
                       step="0.01"
-                      min="2500"
+                      min="500"
                       max={availableCommissionBalance}
                       value={withdrawAmount || ''}
                       onChange={(e) => setWithdrawAmount(parseFloat(e.target.value) || 0)}
-                      placeholder="2500.00"
+                      placeholder="500.00"
                       className="pl-8"
                     />
                   </div>
@@ -627,7 +627,7 @@ export default function AffiliateWallet() {
                   </Button>
                 </div>
                 <p className="text-xs text-gray-500">
-                  Minimum: ₹2500 | Maximum: ₹{availableCommissionBalance.toFixed(2)}
+                  Minimum: ₹500 | Maximum: ₹{availableCommissionBalance.toFixed(2)}
                 </p>
               </div>
 
@@ -696,7 +696,7 @@ export default function AffiliateWallet() {
                   onClick={handleWithdrawal}
                   disabled={
                     isProcessingWithdrawal ||
-                    withdrawAmount < 2500 ||
+                    withdrawAmount < 500 ||
                     withdrawAmount > availableCommissionBalance ||
                     (!hasSavedBankDetails && !isBankDetailsValid)
                   }

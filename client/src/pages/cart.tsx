@@ -1194,11 +1194,12 @@ export default function Cart() {
                     min="0"
                     max={parseFloat(walletData?.cashbackBalance || '0')}
                     step="0.01"
-                    value={walletAmount}
+                    value={walletAmount === 0 ? '' : walletAmount}
                     onChange={(e) => {
-                      const value = parseFloat(e.target.value) || 0;
+                      const raw = e.target.value;
+                      const value = raw === '' ? 0 : parseFloat(raw);
                       const maxCashback = parseFloat(walletData?.cashbackBalance || '0');
-                      setWalletAmount(Math.min(value, maxCashback));
+                      setWalletAmount(Math.min(isNaN(value) ? 0 : value, maxCashback));
                     }}
                     placeholder="0"
                     className="text-lg pl-3 pr-16 h-12 border-2 border-gray-300 focus:border-purple-500"
@@ -1229,11 +1230,12 @@ export default function Cart() {
                         min="0"
                         max={parseFloat(affiliateWalletData?.commissionBalance || '0')}
                         step="0.01"
-                        value={affiliateWalletAmount}
+                        value={affiliateWalletAmount === 0 ? '' : affiliateWalletAmount}
                         onChange={(e) => {
-                          const value = parseFloat(e.target.value) || 0;
+                          const raw = e.target.value;
+                          const value = raw === '' ? 0 : parseFloat(raw);
                           const maxCommission = parseFloat(affiliateWalletData?.commissionBalance || '0');
-                          setAffiliateWalletAmount(Math.min(value, maxCommission));
+                          setAffiliateWalletAmount(Math.min(isNaN(value) ? 0 : value, maxCommission));
                         }}
                         placeholder="0"
                         className="text-lg pl-3 pr-16 h-12 border-2 border-purple-300 focus:border-purple-500"

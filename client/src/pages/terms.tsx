@@ -88,7 +88,7 @@ export default function Terms() {
             3. Expiry: Commission credited to your Wallet is valid for withdrawal for 180 days from the date it is credited unless a different period is stated in the offer. Expired commission will be automatically removed and is non-recoverable. 
             <br />
             <br />
-            4. Withdrawal: Commission can be withdrawn to your bank account once minimum withdrawal threshold is met (e.g., ₹2500). Withdrawal requests are subject to verification and may take up to 7 business days to process. Poppik reserves the right to reject withdrawal requests if fraudulent activity is suspected. 
+            4. Withdrawal: Commission can be withdrawn to your bank account once minimum withdrawal threshold is met (e.g., ₹500). Withdrawal requests are subject to verification and may take up to 7 business days to process. Poppik reserves the right to reject withdrawal requests if fraudulent activity is suspected. 
             <br />
             <br />
             5. Stacking: Commission earnings may be subject to stacking rules with other offers, bonuses, or incentives. Poppik reserves the right to restrict stacking for specific campaigns. 

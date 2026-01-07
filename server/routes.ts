@@ -2344,8 +2344,8 @@ app.get("/api/admin/stores", async (req, res) => {
 
       const withdrawAmount = parseFloat(amount);
 
-      if (withdrawAmount < 2500) {
-        return res.status(400).json({ error: 'Minimum withdrawal amount is ₹2500' });
+      if (withdrawAmount < 500) {
+        return res.status(400).json({ error: 'Minimum withdrawal amount is ₹500' });
       }
 
       // Get current wallet
