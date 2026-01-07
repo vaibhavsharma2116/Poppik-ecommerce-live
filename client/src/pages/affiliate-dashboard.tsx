@@ -61,7 +61,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label"; // Added Label import
 
 // Offers List Component
-function OffersList({ affiliateCode, copyAffiliateLink }: { affiliateCode: string; copyAffiliateLink: (offerId?: number) => void }) {
+function OffersList({ affiliateCode, onShareItem }: { affiliateCode: string; onShareItem: (item: any) => void }) {
   const [showAllOffers, setShowAllOffers] = useState(false);
 
   const { data: offers, isLoading } = useQuery({
@@ -139,9 +139,7 @@ function OffersList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
                   </div>
                   <Button
                     onClick={() => {
-                      const link = `${window.location.origin}/offer/${offer.id}?ref=${affiliateCode}`;
-                      navigator.clipboard.writeText(link);
-                      // Show toast notification
+                      onShareItem({ ...offer, type: 'offer' });
                     }}
                     className="w-full bg-orange-600 hover:bg-orange-700"
                     size="sm"
@@ -182,7 +180,7 @@ function OffersList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
 }
 
 // Combos List Component
-function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: string; copyAffiliateLink: (comboId?: number) => void }) {
+function CombosList({ affiliateCode, onShareItem }: { affiliateCode: string; onShareItem: (item: any) => void }) {
   const [showAllCombos, setShowAllCombos] = useState(false);
 
   const { data: combos, isLoading } = useQuery({
@@ -269,9 +267,7 @@ function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
                   </div>
                   <Button
                     onClick={() => {
-                      const link = `${window.location.origin}/combo/${combo.id}?ref=${affiliateCode}`;
-                      navigator.clipboard.writeText(link);
-                      // Show toast notification
+                      onShareItem({ ...combo, type: 'combo' });
                     }}
                     className="w-full bg-pink-600 hover:bg-pink-700"
                     size="sm"
@@ -312,7 +308,7 @@ function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
 }
 
 // Beauty Kits List Component
-function BeautyKitsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: string; copyAffiliateLink: (kitId?: string) => void }) {
+function BeautyKitsList({ affiliateCode, onShareItem }: { affiliateCode: string; onShareItem: (item: any) => void }) {
   const beautyKits = [
     {
       id: 'micro',
@@ -371,9 +367,7 @@ function BeautyKitsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: s
               <p className="text-sm text-gray-600 mb-4 line-clamp-2">{kit.description}</p>
               <Button
                 onClick={() => {
-                  const link = `${window.location.origin}${kit.path}?ref=${affiliateCode}`;
-                  navigator.clipboard.writeText(link);
-                  // Show toast notification
+                  onShareItem({ ...kit, type: 'kit' });
                 }}
                 className={`w-full bg-gradient-to-r ${kit.color} hover:opacity-90`}
                 size="sm"
@@ -390,7 +384,7 @@ function BeautyKitsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: s
 }
 
 // Products List Component
-function ProductsList({ affiliateCode, onShareProduct }: { affiliateCode: string; onShareProduct: (product: any) => void }) {
+function ProductsList({ affiliateCode, onShareItem }: { affiliateCode: string; onShareItem: (item: any) => void }) {
   const [showAllProducts, setShowAllProducts] = useState(false);
 
   const { data: products, isLoading } = useQuery({
@@ -460,7 +454,7 @@ function ProductsList({ affiliateCode, onShareProduct }: { affiliateCode: string
                   )}
                 </div>
                 <Button
-                  onClick={() => onShareProduct(product)}
+                  onClick={() => onShareItem({ ...product, type: 'product' })}
                   className="w-full bg-purple-600 hover:bg-purple-700"
                   size="sm"
                 >
@@ -504,7 +498,7 @@ export default function AffiliateDashboard() {
   const [affiliateCode, setAffiliateCode] = useState<string>("");
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [selectedShareProduct, setSelectedShareProduct] = useState<any>(null);
-  const [sales, setSales] = useState([]);
+  const [sales, setSales] = useState<any[]>([]);
   const [loadingSales, setLoadingSales] = useState(true);
 
   // Get user from localStorage
@@ -667,17 +661,43 @@ export default function AffiliateDashboard() {
     setShowShareDialog(true);
   };
 
-  const openProductShareDialog = (product: any) => {
-    setSelectedShareProduct(product);
+  const openItemShareDialog = (item: any) => {
+    setSelectedShareProduct(item);
     setShowShareDialog(true);
   };
 
-  const copyAffiliateLink = (product?: any) => {
+  const openProductShareDialog = (product: any) => {
+    openItemShareDialog({ ...product, type: 'product' });
+  };
+
+  const getAffiliateLinkForItem = (item?: any) => {
     const baseUrl = 'https://poppiklifestyle.com';
 
-    const affiliateLink = product
-      ? `${baseUrl}/product/${product.slug || product.id}?ref=${affiliateCode}`
-      : `${baseUrl}/?ref=${affiliateCode}`;
+    if (!item) {
+      return `${baseUrl}/?ref=${affiliateCode}`;
+    }
+
+    if (item.type === 'kit' && item.path) {
+      return `${baseUrl}${item.path}?ref=${affiliateCode}`;
+    }
+
+    if (item.type === 'offer') {
+      return `${baseUrl}/offer/${item.slug || item.id}?ref=${affiliateCode}`;
+    }
+
+    if (item.type === 'combo') {
+      return `${baseUrl}/combo/${item.slug || item.id}?ref=${affiliateCode}`;
+    }
+
+    if (item.type === 'product') {
+      return `${baseUrl}/product/${item.slug || item.id}?ref=${affiliateCode}`;
+    }
+
+    return `${baseUrl}/?ref=${affiliateCode}`;
+  };
+
+  const copyAffiliateLink = (product?: any) => {
+    const affiliateLink = getAffiliateLinkForItem(product);
     navigator.clipboard.writeText(affiliateLink);
     toast({
       title: "Copied!",
@@ -686,46 +706,30 @@ export default function AffiliateDashboard() {
   };
 
   const shareToWhatsApp = () => {
-    const baseUrl = 'https://poppiklifestyle.com';
-
     const p = selectedShareProduct;
-    const affiliateLink = p
-      ? `${baseUrl}/product/${p.slug || p.id}?ref=${affiliateCode}`
-      : `${baseUrl}/?ref=${affiliateCode}`;
+    const affiliateLink = getAffiliateLinkForItem(p);
     const productName = p?.name ? `: ${p.name}` : '';
     const message = `🌟 Check out Poppik Lifestyle${productName}! Use my code ${affiliateCode} for amazing beauty products. ${affiliateLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const shareToFacebook = () => {
-    const baseUrl = 'https://poppiklifestyle.com';
-
     const p = selectedShareProduct;
-    const affiliateLink = p
-      ? `${baseUrl}/product/${p.slug || p.id}?ref=${affiliateCode}`
-      : `${baseUrl}/?ref=${affiliateCode}`;
+    const affiliateLink = getAffiliateLinkForItem(p);
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(affiliateLink)}`, '_blank');
   };
 
   const shareToTwitter = () => {
-    const baseUrl = 'https://poppiklifestyle.com';
-
     const p = selectedShareProduct;
-    const affiliateLink = p
-      ? `${baseUrl}/product/${p.slug || p.id}?ref=${affiliateCode}`
-      : `${baseUrl}/?ref=${affiliateCode}`;
+    const affiliateLink = getAffiliateLinkForItem(p);
     const productName = p?.name ? `: ${p.name}` : '';
     const message = `Check out @PoppikLifestyle${productName}! Use code ${affiliateCode} for amazing beauty products.`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(affiliateLink)}`, '_blank');
   };
 
   const shareToInstagram = () => {
-    const baseUrl = 'https://poppiklifestyle.com';
-
     const p = selectedShareProduct;
-    const affiliateLink = p
-      ? `${baseUrl}/product/${p.slug || p.id}?ref=${affiliateCode}`
-      : `${baseUrl}/?ref=${affiliateCode}`;
+    const affiliateLink = getAffiliateLinkForItem(p);
     window.open('https://www.instagram.com/', '_blank');
     toast({
       title: "Instagram",
@@ -1347,7 +1351,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                 <CardDescription className="mt-1">Generate affiliate links for our bestselling products</CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
-                <ProductsList affiliateCode={affiliateCode} onShareProduct={openProductShareDialog} />
+                <ProductsList affiliateCode={affiliateCode} onShareItem={openItemShareDialog} />
               </CardContent>
             </Card>
 
@@ -1363,7 +1367,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
-                <OffersList affiliateCode={affiliateCode} copyAffiliateLink={copyAffiliateLink} />
+                <OffersList affiliateCode={affiliateCode} onShareItem={openItemShareDialog} />
               </CardContent>
             </Card>
 
@@ -1379,7 +1383,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
-                <CombosList affiliateCode={affiliateCode} copyAffiliateLink={copyAffiliateLink} />
+                <CombosList affiliateCode={affiliateCode} onShareItem={openItemShareDialog} />
               </CardContent>
             </Card>
 
@@ -1395,7 +1399,7 @@ Generated on: ${new Date().toLocaleDateString('en-IN')}
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
-                <BeautyKitsList affiliateCode={affiliateCode} copyAffiliateLink={copyAffiliateLink} />
+                <BeautyKitsList affiliateCode={affiliateCode} onShareItem={openItemShareDialog} />
               </CardContent>
             </Card>
           </TabsContent>
