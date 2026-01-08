@@ -1054,6 +1054,24 @@ export default function Cart() {
                           </Badge>
                         </div>
                       )}
+
+                      {(item as any).isCombo && (item as any).selectedShades && !item.isOfferItem && (
+                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
+                          {Object.values((item as any).selectedShades as Record<string, any>)
+                            .filter((s: any) => s && s.name)
+                            .map((s: any, idx: number) => (
+                              <Badge key={`${s.id || s.name || idx}`} variant="secondary" className="flex items-center gap-1.5">
+                                {s.imageUrl ? (
+                                  <img src={s.imageUrl} alt={s.name} className="w-4 h-4 rounded-full object-cover" />
+                                ) : null}
+                                <span>
+                                  {s.productName ? `${s.productName}: ` : 'Shade: '}
+                                  {s.name}
+                                </span>
+                              </Badge>
+                            ))}
+                        </div>
+                      )}
                       {item.variant && (
                         <Badge variant="secondary" className="mb-2">
                           Size: {item.variant}

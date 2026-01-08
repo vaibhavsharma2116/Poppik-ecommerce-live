@@ -2230,26 +2230,69 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(400).json({ error: 'Transaction ID is required' });
       }
 
-      // Update transaction status
+      const withdrawal = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .limit(1);
+
+      if (!withdrawal || withdrawal.length === 0) {
+        return res.status(404).json({ error: 'Withdrawal request not found' });
+      }
+
+      const w = withdrawal[0];
+      if (w.type !== 'withdrawal') {
+        return res.status(400).json({ error: 'Invalid withdrawal request' });
+      }
+
+      if (w.status !== 'pending') {
+        return res.status(400).json({ error: `Only pending withdrawals can be approved (current: ${w.status})` });
+      }
+
+      const withdrawAmount = parseFloat(w.amount);
+      if (!Number.isFinite(withdrawAmount) || withdrawAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid withdrawal amount' });
+      }
+
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, w.userId))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        return res.status(404).json({ error: 'Wallet not found' });
+      }
+
+      const commissionBalance = parseFloat(wallet[0].commissionBalance || '0');
+      if (commissionBalance < withdrawAmount) {
+        return res.status(400).json({ error: 'Insufficient commission balance' });
+      }
+
+      await db
+        .update(schema.affiliateWallet)
+        .set({
+          commissionBalance: (commissionBalance - withdrawAmount).toFixed(2),
+          totalWithdrawn: (parseFloat(wallet[0].totalWithdrawn || '0') + withdrawAmount).toFixed(2),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.affiliateWallet.userId, w.userId));
+
       const [updatedTransaction] = await db
         .update(schema.affiliateTransactions)
         .set({
           status: 'completed',
           transactionId,
           notes: notes || null,
-          processedAt: new Date()
+          processedAt: new Date(),
         })
         .where(eq(schema.affiliateTransactions.id, id))
         .returning();
 
-      if (!updatedTransaction) {
-        return res.status(404).json({ error: 'Withdrawal request not found' });
-      }
-
       res.json({
         success: true,
         message: 'Withdrawal approved successfully',
-        transaction: updatedTransaction
+        transaction: updatedTransaction,
       });
     } catch (error) {
       console.error('Error approving withdrawal:', error);
@@ -2263,7 +2306,6 @@ app.get("/api/admin/stores", async (req, res) => {
       const id = parseInt(req.params.id);
       const { notes } = req.body;
 
-      // Get the transaction to refund the amount
       const transaction = await db
         .select()
         .from(schema.affiliateTransactions)
@@ -2274,58 +2316,28 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(404).json({ error: 'Withdrawal request not found' });
       }
 
-      const withdrawalAmount = parseFloat(transaction[0].amount);
-      const userId = transaction[0].userId;
-      const balanceType = transaction[0].balanceType;
+      if (transaction[0].type !== 'withdrawal') {
+        return res.status(400).json({ error: 'Invalid withdrawal request' });
+      }
 
-      // Update transaction status
+      if (transaction[0].status !== 'pending') {
+        return res.status(400).json({ error: `Only pending withdrawals can be rejected (current: ${transaction[0].status})` });
+      }
+
       const [updatedTransaction] = await db
         .update(schema.affiliateTransactions)
         .set({
           status: 'rejected',
           notes: notes || 'Rejected by admin',
-          processedAt: new Date()
+          processedAt: new Date(),
         })
         .where(eq(schema.affiliateTransactions.id, id))
         .returning();
 
-      // Refund the amount to the wallet
-      const wallet = await db
-        .select()
-        .from(schema.affiliateWallet)
-        .where(eq(schema.affiliateWallet.userId, userId))
-        .limit(1);
-
-      if (wallet && wallet.length > 0) {
-        const currentCashback = parseFloat(wallet[0].cashbackBalance || '0');
-        const currentCommission = parseFloat(wallet[0].commissionBalance || '0');
-        const currentWithdrawn = parseFloat(wallet[0].totalWithdrawn || '0');
-
-        if (balanceType === 'cashback') {
-          await db
-            .update(schema.affiliateWallet)
-            .set({
-              cashbackBalance: (currentCashback + withdrawalAmount).toFixed(2),
-              totalWithdrawn: Math.max(0, currentWithdrawn - withdrawalAmount).toFixed(2),
-              updatedAt: new Date()
-            })
-            .where(eq(schema.affiliateWallet.userId, userId));
-        } else {
-          await db
-            .update(schema.affiliateWallet)
-            .set({
-              commissionBalance: (currentCommission + withdrawalAmount).toFixed(2),
-              totalWithdrawn: Math.max(0, currentWithdrawn - withdrawalAmount).toFixed(2),
-              updatedAt: new Date()
-            })
-            .where(eq(schema.affiliateWallet.userId, userId));
-        }
-      }
-
       res.json({
         success: true,
-        message: 'Withdrawal rejected and amount refunded',
-        transaction: updatedTransaction
+        message: 'Withdrawal rejected',
+        transaction: updatedTransaction,
       });
     } catch (error) {
       console.error('Error rejecting withdrawal:', error);
@@ -2333,7 +2345,7 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
-  // Process affiliate wallet withdrawal
+  // Process affiliate wallet withdrawal (creates pending request; deduction happens on admin approval)
   app.post('/api/affiliate/wallet/withdraw', async (req, res) => {
     try {
       const { userId, amount } = req.body;
@@ -2348,7 +2360,6 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(400).json({ error: 'Minimum withdrawal amount is ₹500' });
       }
 
-      // Get current wallet
       const wallet = await db
         .select()
         .from(schema.affiliateWallet)
@@ -2359,67 +2370,45 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(404).json({ error: 'Wallet not found' });
       }
 
-      const cashbackBalance = parseFloat(wallet[0].cashbackBalance);
-      const commissionBalance = parseFloat(wallet[0].commissionBalance);
-      const totalBalance = cashbackBalance + commissionBalance;
-
-      if (totalBalance < withdrawAmount) {
-        return res.status(400).json({ error: 'Insufficient balance' });
+      const commissionBalance = parseFloat(wallet[0].commissionBalance || '0');
+      if (commissionBalance < withdrawAmount) {
+        return res.status(400).json({ error: 'Insufficient commission balance' });
       }
 
-      // Deduct from balances (prioritize commission first, then cashback)
-      let remainingAmount = withdrawAmount;
-      let newCommissionBalance = commissionBalance;
-      let newCashbackBalance = cashbackBalance;
-
-      if (commissionBalance >= remainingAmount) {
-        newCommissionBalance = commissionBalance - remainingAmount;
-        remainingAmount = 0;
-      } else {
-        remainingAmount -= commissionBalance;
-        newCommissionBalance = 0;
-        newCashbackBalance = cashbackBalance - remainingAmount;
-      }
-
-      // Update wallet
-      await db
-        .update(schema.affiliateWallet)
-        .set({
-          cashbackBalance: newCashbackBalance.toFixed(2),
-          commissionBalance: newCommissionBalance.toFixed(2),
-          totalWithdrawn: (parseFloat(wallet[0].totalWithdrawn) + withdrawAmount).toFixed(2),
-          updatedAt: new Date()
-        })
-        .where(eq(schema.affiliateWallet.userId, parseInt(userId)));
-
-      // Create withdrawal transaction
       await db.insert(schema.affiliateTransactions).values({
         userId: parseInt(userId),
         type: 'withdrawal',
         amount: withdrawAmount.toFixed(2),
-        balanceType: commissionBalance >= withdrawAmount ? 'commission' : 'mixed',
+        balanceType: 'commission',
         description: `Withdrawal request of ₹${withdrawAmount.toFixed(2)}`,
-        status: 'completed',
+        status: 'pending',
         transactionId: null,
         notes: null,
         processedAt: null,
-        createdAt: new Date()
+        createdAt: new Date(),
       });
 
       // If bank details provided, upsert into affiliate_applications for admin visibility
       try {
         const { bankName, branchName, ifscCode, accountNumber } = req.body as any;
         if (bankName || branchName || ifscCode || accountNumber) {
-          // Check existing application
-          const existing = await db.select().from(schema.affiliateApplications).where(eq(schema.affiliateApplications.userId, parseInt(userId))).limit(1);
+          const existing = await db
+            .select()
+            .from(schema.affiliateApplications)
+            .where(eq(schema.affiliateApplications.userId, parseInt(userId)))
+            .limit(1);
+
           if (existing && existing.length > 0) {
-            await db.update(schema.affiliateApplications).set({
-              bankName: bankName || existing[0].bankName || null,
-              branchName: branchName || existing[0].branchName || null,
-              ifscCode: ifscCode || existing[0].ifscCode || null,
-              accountNumber: accountNumber || existing[0].accountNumber || null,
-              updatedAt: new Date()
-            }).where(eq(schema.affiliateApplications.userId, parseInt(userId)));
+            await db
+              .update(schema.affiliateApplications)
+              .set({
+                bankName: bankName || existing[0].bankName || null,
+                branchName: branchName || existing[0].branchName || null,
+                ifscCode: ifscCode || existing[0].ifscCode || null,
+                accountNumber: accountNumber || existing[0].accountNumber || null,
+                updatedAt: new Date(),
+              })
+              .where(eq(schema.affiliateApplications.userId, parseInt(userId)));
           } else {
             await db.insert(schema.affiliateApplications).values({
               userId: parseInt(userId),
@@ -2437,7 +2426,7 @@ app.get("/api/admin/stores", async (req, res) => {
               branchName: branchName || null,
               ifscCode: ifscCode || null,
               accountNumber: accountNumber || null,
-              status: 'pending'
+              status: 'pending',
             });
           }
         }
@@ -2448,7 +2437,7 @@ app.get("/api/admin/stores", async (req, res) => {
       res.json({
         success: true,
         message: 'Withdrawal request submitted successfully',
-        newBalance: (newCashbackBalance + newCommissionBalance).toFixed(2)
+        newBalance: commissionBalance.toFixed(2),
       });
     } catch (error) {
       console.error('Error processing withdrawal:', error);
@@ -6231,24 +6220,294 @@ app.put("/api/admin/offers/:id", upload.fields([
       // Create order items (critical for order history + invoice)
       try {
         if (items && Array.isArray(items) && items.length > 0) {
-          const orderItems = items.map((item: any, idx: number) => ({
-            orderId: newOrder.id,
-            productId: item.productId ? Number(item.productId) : null,
-            comboId: item.comboId ? Number(item.comboId) : null,
-            productName: item.productName || item.name || `Item ${idx + 1}`,
-            productImage: item.productImage || item.image || '',
-            quantity: Number(item.quantity || 1),
-            price: item.price || `₹${Number(item.unitPrice || item.amount || 0)}`,
-            deliveryAddress: item.deliveryAddress || null,
-            recipientName: item.recipientName || null,
-            recipientPhone: item.recipientPhone || null,
-          }));
+          const orderItems: any[] = [];
+
+          const toSafeQuantity = (v: any) => {
+            const n = Number(v);
+            return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+          };
+
+          const toSafePrice = (v: any, fallback: any) => {
+            const raw = v ?? fallback;
+            const s = String(raw ?? '').trim();
+            return s.length > 0 ? s : '₹0';
+          };
+
+          const toSafeText = (v: any, fallback: any) => {
+            const s = String(v ?? fallback ?? '').trim();
+            return s.length > 0 ? s : String(fallback ?? '');
+          };
+
+          for (let idx = 0; idx < items.length; idx++) {
+            const item: any = items[idx];
+
+            const isComboItem = !!(item?.comboId || item?.isCombo);
+            const comboId = item?.comboId ? Number(item.comboId) : null;
+
+            if (isComboItem && comboId) {
+              try {
+                const comboRows = await db
+                  .select({
+                    name: schema.combos.name,
+                    products: schema.combos.products,
+                    imageUrl: schema.combos.imageUrl,
+                  })
+                  .from(schema.combos)
+                  .where(eq(schema.combos.id, comboId))
+                  .limit(1);
+
+                const comboProductsRaw = comboRows?.[0]?.products;
+                const parsedIds = (() => {
+                  const raw = comboProductsRaw;
+                  if (!raw) return [];
+                  const rawStr = String(raw).trim();
+
+                  // JSON array (either [1,2] or [{id:1}, ...])
+                  if (rawStr.startsWith('[') || rawStr.startsWith('{')) {
+                    try {
+                      const v = JSON.parse(rawStr);
+                      if (Array.isArray(v)) {
+                        if (v.every((x: any) => typeof x === 'object' && 'id' in x)) {
+                          return v.map((x: any) => x.id);
+                        }
+                        return v;
+                      }
+                      if (v && typeof v === 'object' && Array.isArray((v as any).products)) {
+                        return (v as any).products.map((x: any) => x.id);
+                      }
+                      if (Array.isArray(v)) return v;
+                      if (v && typeof v === 'object' && Array.isArray((v as any).products)) return (v as any).products;
+                    } catch {
+                      // fall through
+                    }
+                  }
+
+                  // Comma-separated list: "1,2,3"
+                  if (rawStr.includes(',')) {
+                    return rawStr.split(',').map((s) => s.trim()).filter(Boolean);
+                  }
+
+                  // Single id
+                  return [rawStr];
+                })();
+
+                // Normalize IDs from common shapes
+                const normalizedParsedIds = parsedIds.map((x: any) =>
+                  x && typeof x === 'object' ? (x.id ?? x.productId ?? x.value) : x,
+                );
+
+                let productIds = Array.from(
+                  new Set(
+                    normalizedParsedIds
+                      .map((x: any) => Number(x))
+                      .filter((n: any) => Number.isFinite(n) && n > 0),
+                  ),
+                );
+
+                // Fallback: If combo.products is malformed/missing, derive product ids from selectedShades keys
+                if (productIds.length === 0 && item?.selectedShades && typeof item.selectedShades === 'object') {
+                  const fromSelected = Object.keys(item.selectedShades)
+                    .map((k: any) => Number(k))
+                    .filter((n: any) => Number.isFinite(n) && n > 0);
+                  if (fromSelected.length > 0) {
+                    productIds = Array.from(new Set(fromSelected));
+                  }
+                }
+
+                if (productIds.length > 0) {
+                  const comboName = toSafeText(comboRows?.[0]?.name || item.productName || item.name, `Combo ${comboId}`);
+                  const comboImage = (() => {
+                    const fromDb = comboRows?.[0]?.imageUrl as any;
+                    if (Array.isArray(fromDb) && fromDb.length > 0) return String(fromDb[0] || '');
+                    return '';
+                  })();
+
+                  // Header row so UI shows combo name in order items
+                  orderItems.push({
+                    orderId: newOrder.id,
+                    productId: null,
+                    comboId: null,
+                    productName: comboName,
+                    productImage: toSafeText(comboImage || item.productImage || item.image || '', ''),
+                    quantity: toSafeQuantity(item.quantity),
+                    price: toSafePrice(item.price, `₹${Number(item.unitPrice || item.amount || 0)}`),
+                    deliveryAddress: item.deliveryAddress || null,
+                    recipientName: item.recipientName || null,
+                    recipientPhone: item.recipientPhone || null,
+                  });
+
+                  const dbProducts = await db
+                    .select({
+                      id: schema.products.id,
+                      name: schema.products.name,
+                      imageUrl: schema.products.imageUrl,
+                    })
+                    .from(schema.products)
+                    .where(inArray(schema.products.id, productIds));
+
+                  const productById = new Map<number, any>(dbProducts.map((p: any) => [Number(p.id), p]));
+
+                  for (const pid of productIds) {
+                    const p = productById.get(pid);
+                    const baseName = String(p?.name || `Item ${idx + 1}`).trim();
+
+                    const shadeObj =
+                      (item.selectedShades && typeof item.selectedShades === 'object'
+                        ? (item.selectedShades[String(pid)] ?? item.selectedShades[pid])
+                        : null) || null;
+                    const shadeName = String(shadeObj?.name || '').trim();
+                    const productName = shadeName ? `${baseName} (Shade: ${shadeName})` : baseName;
+
+                    orderItems.push({
+                      orderId: newOrder.id,
+                      productId: pid,
+                      comboId: null,
+                      productName: toSafeText(productName, `Item ${idx + 1}`),
+                      productImage: toSafeText(p?.imageUrl || item.productImage || item.image || '', ''),
+                      quantity: toSafeQuantity(item.quantity),
+                      price: toSafePrice(item.price, `₹${Number(item.unitPrice || item.amount || 0)}`),
+                      deliveryAddress: item.deliveryAddress || null,
+                      recipientName: item.recipientName || null,
+                      recipientPhone: item.recipientPhone || null,
+                    });
+                  }
+
+                  continue;
+                }
+              } catch (err) {
+                console.warn('⚠️ Failed to expand combo order item, falling back to combo row insert:', err);
+              }
+            }
+
+            // Default (single product / non-expandable combo): insert as-is
+            orderItems.push({
+              orderId: newOrder.id,
+              productId: item.productId ? Number(item.productId) : null,
+              comboId: null,
+              productName: toSafeText(item.productName || item.name, `Item ${idx + 1}`),
+              productImage: toSafeText(item.productImage || item.image || '', ''),
+              quantity: toSafeQuantity(item.quantity),
+              price: toSafePrice(item.price, `₹${Number(item.unitPrice || item.amount || 0)}`),
+              deliveryAddress: item.deliveryAddress || null,
+              recipientName: item.recipientName || null,
+              recipientPhone: item.recipientPhone || null,
+            });
+          }
 
           await db.insert(schema.orderItemsTable).values(orderItems);
           console.log(`✅ Inserted ${orderItems.length} order items for order ${newOrder.id}`);
         }
       } catch (e) {
         console.error('❌ Failed to insert order items:', e);
+        // Fail-safe: do not allow an order to exist without order items.
+        // Roll back the created order so user/admin/order-history/invoice don't show empty items.
+        try {
+          await db.delete(schema.ordersTable).where(eq(schema.ordersTable.id, newOrder.id));
+        } catch (rollbackErr) {
+          console.error('❌ Failed to rollback order after order_items insert failure:', rollbackErr);
+        }
+        const errAny = e as any;
+
+        let schemaDebug: any = null;
+        try {
+          const orderIdCols = await db.execute(sql`
+            select column_name, data_type, udt_name
+            from information_schema.columns
+            where table_schema = 'public'
+              and table_name = 'orders'
+              and column_name in ('id')
+          `);
+          const orderItemsCols = await db.execute(sql`
+            select column_name, data_type, udt_name
+            from information_schema.columns
+            where table_schema = 'public'
+              and table_name = 'order_items'
+              and column_name in ('order_id')
+          `);
+
+          // Cross-check using pg_catalog (more authoritative than information_schema)
+          const pgTypeCheck = await db.execute(sql`
+            select
+              c.relname as table_name,
+              a.attname as column_name,
+              t.typname as pg_type
+            from pg_attribute a
+            join pg_class c on c.oid = a.attrelid
+            join pg_type t on t.oid = a.atttypid
+            join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'public'
+              and c.relname in ('orders', 'order_items')
+              and a.attname in ('id', 'order_id')
+              and a.attnum > 0
+              and not a.attisdropped
+            order by c.relname, a.attname
+          `);
+
+          const uuidColumns = await db.execute(sql`
+            select
+              c.relname as table_name,
+              a.attname as column_name
+            from pg_attribute a
+            join pg_class c on c.oid = a.attrelid
+            join pg_type t on t.oid = a.atttypid
+            join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'public'
+              and t.typname = 'uuid'
+              and a.attnum > 0
+              and not a.attisdropped
+            order by c.relname, a.attname
+          `);
+
+          let errorColumnType: any = null;
+          if (errAny?.table && errAny?.column) {
+            try {
+              const rows = await db.execute(sql`
+                select
+                  c.relname as table_name,
+                  a.attname as column_name,
+                  t.typname as pg_type
+                from pg_attribute a
+                join pg_class c on c.oid = a.attrelid
+                join pg_type t on t.oid = a.atttypid
+                join pg_namespace n on n.oid = c.relnamespace
+                where n.nspname = 'public'
+                  and c.relname = ${String(errAny.table)}
+                  and a.attname = ${String(errAny.column)}
+                  and a.attnum > 0
+                  and not a.attisdropped
+                limit 1
+              `);
+              errorColumnType = (rows as any)?.rows?.[0] ?? (Array.isArray(rows) ? rows[0] : rows);
+            } catch {}
+          }
+
+          schemaDebug = {
+            orders: (orderIdCols as any)?.rows ?? orderIdCols,
+            order_items: (orderItemsCols as any)?.rows ?? orderItemsCols,
+            pg_catalog: (pgTypeCheck as any)?.rows ?? pgTypeCheck,
+            uuid_columns: (uuidColumns as any)?.rows ?? uuidColumns,
+            error_column_type: errorColumnType,
+          };
+        } catch (schemaErr) {
+          console.error('❌ Failed to read DB schema for debug:', schemaErr);
+        }
+
+        const debug = {
+          message: errAny?.message,
+          code: errAny?.code,
+          detail: errAny?.detail,
+          constraint: errAny?.constraint,
+          table: errAny?.table,
+          column: errAny?.column,
+          dataType: errAny?.dataType,
+          where: errAny?.where,
+          schema: schemaDebug,
+        };
+
+        return res.status(500).json({
+          error: 'Failed to create order items',
+          ...(process.env.NODE_ENV !== 'production' ? { debug } : {}),
+        });
       }
 
       // 🔒 SINGLE UNIFIED AFFILIATE COMMISSION PROCESSING
@@ -8835,7 +9094,7 @@ app.put("/api/admin/offers/:id", upload.fields([
             ${logoDataUri ? `<img src="${logoDataUri}" alt="Poppik Logo" style="width: 140px; display:block; margin: 0 auto 10px auto;" />` : ''}
             <div class="company-name">Poppik Lifestyle Private Limited</div>
             <div class="company-details">
-                Premium Beauty & Skincare Products<br>
+                Pure, Premium, Perfect for Your Skin.<br>
                 Office No.- 213, A- Wing, Skylark Building, <br>
                 Plot No.- 63, Sector No.- 11, C.B.D. Belapur,<br>
                  Navi Mumbai- 400614 INDIA.o

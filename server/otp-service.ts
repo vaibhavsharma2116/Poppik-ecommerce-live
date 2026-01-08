@@ -437,7 +437,7 @@ Your OTP Code: ${otp}
 This code is valid for 5 minutes only.
 Generated at: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
 
-Beauty Store - Premium Beauty & Skincare Products
+Beauty Store - Pure, Premium, Perfect for Your Skin.
         `
       };
 

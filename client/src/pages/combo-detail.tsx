@@ -118,7 +118,7 @@ function ShadeSelectorSheet({
           </div>
         </SheetHeader>
 
-        <div className="overflow-y-auto h-[calc(100%-180px)] pb-4 -mx-6 px-6">
+        <div className="overflow-y-auto h-[calc(100%-180px)] pb-28 -mx-6 px-6">
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
             {shades.map((shade: any) => {
               const shadeKey = String(shade.id || shade.name);
@@ -147,7 +147,16 @@ function ShadeSelectorSheet({
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 flex items-center justify-between shadow-2xl">
           <div className="flex items-center gap-2">
             <Check className="w-5 h-5" />
-            <span className="font-semibold">{selectedShades.size > 0 ? `${selectedShades.size} shade selected` : 'Select 1 shade'}</span>
+            <span className="font-semibold">
+              {selectedShades.size > 0
+                ? (() => {
+                    const selectedKey = Array.from(selectedShades)[0];
+                    const selectedShadeObj = shades.find((s: any) => String(s.id || s.name) === selectedKey) || null;
+                    const name = String(selectedShadeObj?.name || '').trim();
+                    return name ? `Selected: ${name}` : `${selectedShades.size} shade selected`;
+                  })()
+                : 'Select 1 shade'}
+            </span>
           </div>
           <Button onClick={handleConfirm} variant="secondary" size="sm" disabled={selectedShades.size === 0} className="bg-white text-purple-700 hover:bg-gray-100 font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
             {selectedShades.size > 0 ? 'Confirm Selection' : 'Select Shade'}
@@ -582,14 +591,44 @@ export default function ComboDetail() {
       // Update selected shades if any
       if (Object.keys(effectiveSelectedShades).length > 0) {
         existingItem.selectedShades = Object.fromEntries(
-          Object.entries(effectiveSelectedShades).map(([k, v]) => [k, v ? { id: v.id, name: v.name, imageUrl: v.imageUrl } : null])
+          Object.entries(effectiveSelectedShades).map(([k, v]) => {
+            const pid = Number(k);
+            const product = products.find((p: any) => Number(p?.id) === pid);
+            const productName = product?.name || '';
+            return [
+              k,
+              v
+                ? {
+                    id: v.id,
+                    name: v.name,
+                    imageUrl: v.imageUrl,
+                    productName,
+                  }
+                : null,
+            ];
+          })
         );
       }
     } else {
       // Normalize selected shades for storage: keep id, name, imageUrl only
       const selectedShadesForCart = Object.keys(effectiveSelectedShades).length > 0
         ? Object.fromEntries(
-            Object.entries(effectiveSelectedShades).map(([k, v]) => [k, v ? { id: v.id, name: v.name, imageUrl: v.imageUrl } : null])
+            Object.entries(effectiveSelectedShades).map(([k, v]) => {
+              const pid = Number(k);
+              const product = products.find((p: any) => Number(p?.id) === pid);
+              const productName = product?.name || '';
+              return [
+                k,
+                v
+                  ? {
+                      id: v.id,
+                      name: v.name,
+                      imageUrl: v.imageUrl,
+                      productName,
+                    }
+                  : null,
+              ];
+            })
           )
         : undefined;
       const cartItem = {

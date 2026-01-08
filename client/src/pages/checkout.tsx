@@ -1868,7 +1868,21 @@ export default function CheckoutPage() {
       const getOrderItemDisplayName = (item: any) => {
         const baseName = String(item?.name || item?.productName || '');
         const shadeName = String(item?.selectedShade?.name || '').trim();
-        return shadeName ? `${baseName} (Shade: ${shadeName})` : baseName;
+
+        if (shadeName) return `${baseName} (Shade: ${shadeName})`;
+
+        if (item?.isCombo && item?.selectedShades && typeof item.selectedShades === 'object') {
+          try {
+            const names = Object.values(item.selectedShades as Record<string, any>)
+              .map((s: any) => String(s?.name || '').trim())
+              .filter(Boolean);
+            if (names.length > 0) return `${baseName} (Shades: ${names.join(', ')})`;
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        return baseName;
       };
 
       let cashfreeItems = cartItems.map((item: any) => ({
@@ -2284,7 +2298,21 @@ export default function CheckoutPage() {
       const getOrderItemDisplayName = (item: any) => {
         const baseName = String(item?.name || item?.productName || '');
         const shadeName = String(item?.selectedShade?.name || '').trim();
-        return shadeName ? `${baseName} (Shade: ${shadeName})` : baseName;
+
+        if (shadeName) return `${baseName} (Shade: ${shadeName})`;
+
+        if (item?.isCombo && item?.selectedShades && typeof item.selectedShades === 'object') {
+          try {
+            const names = Object.values(item.selectedShades as Record<string, any>)
+              .map((s: any) => String(s?.name || '').trim())
+              .filter(Boolean);
+            if (names.length > 0) return `${baseName} (Shades: ${names.join(', ')})`;
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        return baseName;
       };
 
       if (formData.paymentMethod === 'cashfree') {
@@ -2307,6 +2335,8 @@ export default function CheckoutPage() {
           productId: item.isCombo ? null : (item.id || null),
           comboId: item.isCombo ? item.id : null,
           offerId: item.isOfferItem ? item.offerId : null,
+          isCombo: item.isCombo || false,
+          selectedShades: (item as any).selectedShades || null,
           productName: getOrderItemDisplayName(item),
           productImage: item.image,
           quantity: item.quantity,
@@ -2341,7 +2371,11 @@ export default function CheckoutPage() {
                 const address = addressId ? savedAddresses.find(addr => Number(addr.id) === Number(addressId)) : null;
 
                 expandedItems.push({
-                  productId: item.id,
+                  productId: item.isCombo ? null : item.id,
+                  comboId: item.isCombo ? item.id : null,
+                  offerId: item.isOfferItem ? item.offerId : null,
+                  isCombo: item.isCombo || false,
+                  selectedShades: (item as any).selectedShades || null,
                   productName: getOrderItemDisplayName(item),
                   productImage: item.image,
                   quantity: 1,
@@ -3332,6 +3366,20 @@ export default function CheckoutPage() {
                                     {item.selectedShade && (
                                       <span className="inline-block mt-1 px-2 py-0.5 bg-gray-200 text-xs rounded">{item.selectedShade.name}</span>
                                     )}
+                                    {(item as any).isCombo && (item as any).selectedShades && typeof (item as any).selectedShades === 'object' && (
+                                      <div className="mt-1 flex flex-wrap gap-1">
+                                        {Object.values((item as any).selectedShades as Record<string, any>)
+                                          .filter((s: any) => s && String(s?.name || '').trim())
+                                          .map((s: any) => {
+                                            const shadeName = String(s?.name || '').trim();
+                                            const productName = String(s?.productName || '').trim();
+                                            const label = productName ? `${productName}: ${shadeName}` : shadeName;
+                                            return (
+                                              <span key={label} className="inline-block px-2 py-0.5 bg-gray-200 text-xs rounded">{label}</span>
+                                            );
+                                          })}
+                                      </div>
+                                    )}
                                     <div className="mt-1 flex items-center justify-between text-xs">
                                       <span className="text-gray-600">Qty: <span className="font-semibold">{item.quantity}</span></span>
                                       <span className="font-semibold text-red-600">{item.price}</span>
@@ -3404,6 +3452,20 @@ export default function CheckoutPage() {
                                   <h4 className="font-medium text-sm text-gray-900 line-clamp-1">{item.name}</h4>
                                   {item.selectedShade && (
                                     <span className="inline-block mt-1 px-2 py-0.5 bg-gray-200 text-xs rounded">{item.selectedShade.name}</span>
+                                  )}
+                                  {(item as any).isCombo && (item as any).selectedShades && typeof (item as any).selectedShades === 'object' && (
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {Object.values((item as any).selectedShades as Record<string, any>)
+                                        .filter((s: any) => s && String(s?.name || '').trim())
+                                        .map((s: any) => {
+                                          const shadeName = String(s?.name || '').trim();
+                                          const productName = String(s?.productName || '').trim();
+                                          const label = productName ? `${productName}: ${shadeName}` : shadeName;
+                                          return (
+                                            <span key={label} className="inline-block px-2 py-0.5 bg-gray-200 text-xs rounded">{label}</span>
+                                          );
+                                        })}
+                                    </div>
                                   )}
                                   <div className="mt-1 flex items-center justify-between text-xs">
                                     <span className="text-gray-600">Qty: <span className="font-semibold">{item.quantity}</span></span>

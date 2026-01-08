@@ -860,57 +860,127 @@ export default function AdminOrders() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {selectedOrder.products.map((product, index) => (
-                        <div key={index} className="p-4 border border-slate-200 rounded-lg space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
-                                <Package className="h-6 w-6 text-slate-400" />
+                      {(() => {
+                        const deliveryInfoItems = (selectedOrder.products || []).filter(
+                          (p) => p.deliveryAddress || p.recipientName || p.recipientPhone
+                        );
+
+                        const normalize = (v?: string) => (v ?? "").trim();
+
+                        const uniqueAddresses = new Set(
+                          deliveryInfoItems.map((p) => normalize(p.deliveryAddress)).filter(Boolean)
+                        );
+                        const uniqueNames = new Set(
+                          deliveryInfoItems.map((p) => normalize(p.recipientName)).filter(Boolean)
+                        );
+                        const uniquePhones = new Set(
+                          deliveryInfoItems.map((p) => normalize(p.recipientPhone)).filter(Boolean)
+                        );
+
+                        const showCommonDeliveryDetails =
+                          deliveryInfoItems.length > 0 &&
+                          uniqueAddresses.size <= 1 &&
+                          uniqueNames.size <= 1 &&
+                          uniquePhones.size <= 1;
+
+                        const commonDeliveryAddress = deliveryInfoItems.find((p) => normalize(p.deliveryAddress))
+                          ?.deliveryAddress;
+                        const commonRecipientName = deliveryInfoItems.find((p) => normalize(p.recipientName))
+                          ?.recipientName;
+                        const commonRecipientPhone = deliveryInfoItems.find((p) => normalize(p.recipientPhone))
+                          ?.recipientPhone;
+
+                        return (
+                          <>
+                            {showCommonDeliveryDetails && (
+                              <div className="p-4 border border-slate-200 rounded-lg space-y-3 bg-slate-50">
+                                <p className="font-medium text-slate-800">Delivery Details</p>
+                                <div className="space-y-2">
+                                  {commonRecipientName && (
+                                    <div className="flex items-start gap-2">
+                                      <User className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                                      <div>
+                                        <p className="text-xs text-slate-500">Recipient Name</p>
+                                        <p className="text-sm font-medium">{commonRecipientName}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {commonRecipientPhone && (
+                                    <div className="flex items-start gap-2">
+                                      <Phone className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                                      <div>
+                                        <p className="text-xs text-slate-500">Phone</p>
+                                        <p className="text-sm font-medium">{commonRecipientPhone}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {commonDeliveryAddress && (
+                                    <div className="flex items-start gap-2">
+                                      <MapPin className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                                      <div>
+                                        <p className="text-xs text-slate-500">Delivery Address</p>
+                                        <p className="text-sm font-medium whitespace-pre-wrap">{commonDeliveryAddress}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-medium">{product.name}</p>
-                                <p className="text-sm text-slate-600">Quantity: {product.quantity}</p>
+                            )}
+
+                            {selectedOrder.products.map((product, index) => (
+                              <div key={index} className="p-4 border border-slate-200 rounded-lg space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
+                                      <Package className="h-6 w-6 text-slate-400" />
+                                    </div>
+                                    <div>
+                                      <p className="font-medium">{product.name || (product as any).productName}</p>
+                                      <p className="text-sm text-slate-600">Quantity: {product.quantity}</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-medium">{product.price}</p>
+                                  </div>
+                                </div>
+                                
+                                {/* Show delivery address info if available */}
+                                {!showCommonDeliveryDetails && (product.deliveryAddress || product.recipientName || product.recipientPhone) && (
+                                  <div className="pt-3 border-t border-slate-100 space-y-2 bg-slate-50 p-3 rounded-md">
+                                    {product.recipientName && (
+                                      <div className="flex items-start gap-2">
+                                        <User className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <p className="text-xs text-slate-500">Recipient Name</p>
+                                          <p className="text-sm font-medium">{product.recipientName}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {product.recipientPhone && (
+                                      <div className="flex items-start gap-2">
+                                        <Phone className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <p className="text-xs text-slate-500">Phone</p>
+                                          <p className="text-sm font-medium">{product.recipientPhone}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {product.deliveryAddress && (
+                                      <div className="flex items-start gap-2">
+                                        <MapPin className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <p className="text-xs text-slate-500">Delivery Address</p>
+                                          <p className="text-sm font-medium whitespace-pre-wrap">{product.deliveryAddress}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-medium">{product.price}</p>
-                            </div>
-                          </div>
-                          
-                          {/* Show delivery address info if available */}
-                          {(product.deliveryAddress || product.recipientName || product.recipientPhone) && (
-                            <div className="pt-3 border-t border-slate-100 space-y-2 bg-slate-50 p-3 rounded-md">
-                              {product.recipientName && (
-                                <div className="flex items-start gap-2">
-                                  <User className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
-                                  <div>
-                                    <p className="text-xs text-slate-500">Recipient Name</p>
-                                    <p className="text-sm font-medium">{product.recipientName}</p>
-                                  </div>
-                                </div>
-                              )}
-                              {product.recipientPhone && (
-                                <div className="flex items-start gap-2">
-                                  <Phone className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
-                                  <div>
-                                    <p className="text-xs text-slate-500">Phone</p>
-                                    <p className="text-sm font-medium">{product.recipientPhone}</p>
-                                  </div>
-                                </div>
-                              )}
-                              {product.deliveryAddress && (
-                                <div className="flex items-start gap-2">
-                                  <MapPin className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
-                                  <div>
-                                    <p className="text-xs text-slate-500">Delivery Address</p>
-                                    <p className="text-sm font-medium whitespace-pre-wrap">{product.deliveryAddress}</p>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                            ))}
+                          </>
+                        );
+                      })()}
                     </div>
                   </CardContent>
                 </Card>

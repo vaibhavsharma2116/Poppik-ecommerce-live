@@ -643,13 +643,13 @@ export default function OrderHistory() {
                               <div className="flex items-start gap-3">
                                 <img
                                   src={item.image}
-                                  alt={item.name}
+                                  alt={item.name || (item as any).productName}
                                   className="w-12 h-12 object-cover rounded"
                                 />
                                 <div className="flex-1">
                                   <div className="flex justify-between items-start">
                                     <div>
-                                      <p className="font-medium text-gray-900">{item.name}</p>
+                                      <p className="font-medium text-gray-900">{item.name || (item as any).productName}</p>
                                       <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
                                     </div>
                                     <p className="font-medium text-gray-900">{item.price}</p>
