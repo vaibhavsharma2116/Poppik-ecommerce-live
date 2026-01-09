@@ -425,6 +425,11 @@ export default function CheckoutPage() {
     sundayDelivery: false,
   });
 
+  const [newPincodeChecking, setNewPincodeChecking] = useState(false);
+  const [newPincodeValid, setNewPincodeValid] = useState<boolean | null>(null);
+  const [newPincodeError, setNewPincodeError] = useState<string | null>(null);
+  const [newPincodeServiceError, setNewPincodeServiceError] = useState<string | null>(null);
+
   const newAddressAvailableCities = useMemo(() => {
     return getCitiesForState(newAddressData.state);
   }, [newAddressData.state]);
@@ -841,13 +846,11 @@ export default function CheckoutPage() {
 
                   streetAddress = addressParts.slice(0, -2).join(', ');
                 } else if (addressParts.length === 2) {
-                  // If only 2 parts, assume first is address and second is city
                   if (!city) {
                     city = addressParts[1];
                   }
                   streetAddress = addressParts[0];
                 } else if (addressParts.length === 1) {
-                  // If only 1 part, use it as street address
                   streetAddress = addressParts[0];
                 }
               }
@@ -1030,6 +1033,75 @@ export default function CheckoutPage() {
       console.error('Error loading multiAddressMapping from localStorage:', e);
     }
   }, []);
+
+  useEffect(() => {
+    const raw = String(newAddressData.pincode || '');
+    const cleaned = raw.replace(/\D/g, '').slice(0, 6);
+    if (raw !== cleaned) {
+      setNewAddressData((prev) => ({ ...prev, pincode: cleaned }));
+      return;
+    }
+
+    if (cleaned.length !== 6) {
+      setNewPincodeChecking(false);
+      setNewPincodeValid(null);
+      setNewPincodeError(null);
+      setNewPincodeServiceError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setNewPincodeChecking(true);
+    setNewPincodeError(null);
+    setNewPincodeServiceError(null);
+
+    const t = setTimeout(async () => {
+      try {
+        const resp = await fetch(apiUrl(`/api/pincode/validate?pincode=${cleaned}`));
+        const data = await resp.json().catch(() => ({}));
+        if (cancelled) return;
+
+        if (!resp.ok) {
+          // If backend is down/unavailable, don't mark as invalid.
+          // We'll show a separate message and allow user to try saving.
+          setNewPincodeValid(null);
+          setNewPincodeError(null);
+          setNewPincodeServiceError('Pincode validation service unavailable. Please try again.');
+          return;
+        }
+
+        if (data?.status === 'invalid' || data?.pincode_valid === false) {
+          setNewPincodeValid(false);
+          setNewPincodeError('Enter valid pincode');
+          setNewPincodeServiceError(null);
+          return;
+        }
+
+        if (data?.status === 'success') {
+          setNewPincodeValid(true);
+          setNewPincodeError(null);
+          setNewPincodeServiceError(null);
+          return;
+        }
+
+        setNewPincodeValid(null);
+        setNewPincodeError(null);
+        setNewPincodeServiceError('Pincode validation service unavailable. Please try again.');
+      } catch (e) {
+        if (cancelled) return;
+        setNewPincodeValid(null);
+        setNewPincodeError(null);
+        setNewPincodeServiceError('Pincode validation service unavailable. Please try again.');
+      } finally {
+        if (!cancelled) setNewPincodeChecking(false);
+      }
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [newAddressData.pincode]);
 
   // Check pincode serviceability when zipCode changes
   useEffect(() => {
@@ -1886,7 +1958,11 @@ export default function CheckoutPage() {
       };
 
       let cashfreeItems = cartItems.map((item: any) => ({
-        productId: item.id,
+        productId: item.isCombo ? null : (item.id || null),
+        comboId: item.isCombo ? item.id : null,
+        offerId: item.isOfferItem ? item.offerId : null,
+        isCombo: item.isCombo || false,
+        selectedShades: (item as any).selectedShades || null,
         productName: getOrderItemDisplayName(item),
         productImage: item.image,
         quantity: item.quantity,
@@ -1904,7 +1980,7 @@ export default function CheckoutPage() {
       if (isMultiAddress && multiAddressMapping && savedAddresses.length > 0) {
           try {
           const mapping = JSON.parse(multiAddressMapping);
-          // Expand items into per-unit entries so each unit can be assigned a separate address
+
           const expanded: any[] = [];
           cartItems.forEach((item: any) => {
             const mapKeyBase = (item as any).itemKey || item.id;
@@ -1924,7 +2000,11 @@ export default function CheckoutPage() {
               const address = addressId ? savedAddresses.find((addr: any) => Number(addr.id) === Number(addressId)) : null;
 
               expanded.push({
-                productId: item.id,
+                productId: item.isCombo ? null : item.id,
+                comboId: item.isCombo ? item.id : null,
+                offerId: item.isOfferItem ? item.offerId : null,
+                isCombo: item.isCombo || false,
+                selectedShades: (item as any).selectedShades || null,
                 productName: getOrderItemDisplayName(item),
                 productImage: item.image,
                 quantity: 1,
@@ -2355,22 +2435,25 @@ export default function CheckoutPage() {
           try {
             const mapping = JSON.parse(multiAddressMapping);
 
-            const expandedItems: any[] = [];
+            const expanded: any[] = [];
             cartItems.forEach((item: any) => {
               const mapKeyBase = (item as any).itemKey || item.id;
               for (let idx = 0; idx < item.quantity; idx++) {
+                // Try per-instance keys first, then fall back to base key
                 const instanceKey1 = `${mapKeyBase}-${idx}`;
                 const instanceKey2 = `${idx}-${mapKeyBase}`;
                 const baseKey = String(mapKeyBase);
 
                 let addressId = mapping[instanceKey1] ?? mapping[instanceKey2] ?? mapping[baseKey];
+
+                // Also allow numeric keys
                 if (addressId === undefined && mapping[Number(instanceKey1)]) {
                   addressId = mapping[Number(instanceKey1)];
                 }
 
-                const address = addressId ? savedAddresses.find(addr => Number(addr.id) === Number(addressId)) : null;
+                const address = addressId ? savedAddresses.find((addr: any) => Number(addr.id) === Number(addressId)) : null;
 
-                expandedItems.push({
+                expanded.push({
                   productId: item.isCombo ? null : item.id,
                   comboId: item.isCombo ? item.id : null,
                   offerId: item.isOfferItem ? item.offerId : null,
@@ -2392,25 +2475,20 @@ export default function CheckoutPage() {
               }
             });
 
-            itemsData = expandedItems;
-            // For multi-address orders, include a JSON summary of per-item delivery addresses
-            try {
-              shippingAddressData = JSON.stringify({
-                multi: true,
-                items: itemsData.map((it: any) => ({
-                  productId: it.productId,
-                  productName: it.productName,
-                  quantity: it.quantity,
-                  deliveryAddress: it.deliveryAddress,
-                  recipientName: it.recipientName,
-                  recipientPhone: it.recipientPhone,
-                  deliveryInstructions: it.deliveryInstructions
-                }))
-              });
-            } catch (e) {
-              console.error('Error serializing multi-address shipping data:', e);
-              shippingAddressData = "Multiple Delivery Addresses - See individual items";
-            }
+            itemsData = expanded;
+
+            shippingAddressData = JSON.stringify({
+              multi: true,
+              items: itemsData.map((it: any) => ({
+                productId: it.productId,
+                productName: it.productName,
+                quantity: it.quantity,
+                deliveryAddress: it.deliveryAddress,
+                recipientName: it.recipientName,
+                recipientPhone: it.recipientPhone,
+                deliveryInstructions: it.deliveryInstructions
+              }))
+            });
           } catch (error) {
             console.error('Error parsing multi-address mapping:', error);
           }
@@ -2708,6 +2786,20 @@ export default function CheckoutPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="zipCode">Pincode *</Label>
+                      <Input
+                        id="zipCode"
+                        name="zipCode"
+                        value={formData.zipCode}
+                        onChange={handleInputChange}
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="Enter 6-digit pincode"
+                        required
+                      />
+                    </div>
+
                     {/* Pincode serviceability message */}
                     {pincodeMessage && formData.zipCode && formData.zipCode.length === 6 && (
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
@@ -2819,24 +2911,12 @@ export default function CheckoutPage() {
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <Label htmlFor="newTown">Town/City *</Label>
-                                  <select
+                                  <Input
                                     id="newTown"
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                     value={newAddressData.town}
-                                    onChange={(e) => {
-                                      const nextCity = e.target.value;
-                                      setNewAddressData({ ...newAddressData, town: nextCity, pincode: "" });
-                                    }}
+                                    onChange={(e) => setNewAddressData({ ...newAddressData, town: e.target.value })}
                                     required
-                                    disabled={!newAddressData.state}
-                                  >
-                                    <option value="">{newAddressData.state ? "Select City" : "Select State first"}</option>
-                                    {newAddressAvailableCities.map((cityKey) => (
-                                      <option key={cityKey} value={cityKey}>
-                                        {toTitleLabel(cityKey)}
-                                      </option>
-                                    ))}
-                                  </select>
+                                  />
                                 </div>
                                 <div>
                                   <Label htmlFor="newState">State *</Label>
@@ -2896,22 +2976,24 @@ export default function CheckoutPage() {
 
                               <div>
                                 <Label htmlFor="newPincode">Pincode *</Label>
-                                <select
+                                <Input
                                   id="newPincode"
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                   value={newAddressData.pincode}
-                                  onChange={(e) => setNewAddressData({ ...newAddressData, pincode: e.target.value })}
+                                  onChange={(e) => {
+                                    const next = String(e.target.value || '').replace(/\D/g, '').slice(0, 6);
+                                    setNewAddressData({ ...newAddressData, pincode: next });
+                                  }}
+                                  maxLength={6}
                                   required
-                                  disabled={!newAddressData.town}
-                                >
-                                  <option value="">{newAddressData.town ? "Select Pincode" : "Select City first"}</option>
-                                  {newAddressAvailablePincodes.map((pin) => (
-                                    <option key={pin} value={pin}>
-                                      {pin}
-                                    </option>
-                                  ))}
-                                </select>
+                                />
+                                {newPincodeError && (
+                                  <p className="mt-1 text-xs text-red-600">{newPincodeError}</p>
+                                )}
+                                {!newPincodeError && newPincodeServiceError && (
+                                  <p className="mt-1 text-xs text-gray-600">{newPincodeServiceError}</p>
+                                )}
                               </div>
+
                               {/* <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                                 <p className="text-sm font-semibold mb-2">Add delivery instructions (optional)</p>
                                 <Textarea
@@ -2929,6 +3011,7 @@ export default function CheckoutPage() {
                                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
                                 type="button"
                                 onClick={handleNewAddressSubmit}
+                                disabled={newPincodeChecking || newPincodeValid !== true}
                               >
                                 Use this address
                               </Button>
@@ -3110,24 +3193,12 @@ export default function CheckoutPage() {
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <Label htmlFor="newTown">Town/City *</Label>
-                                  <select
+                                  <Input
                                     id="newTown"
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                     value={newAddressData.town}
-                                    onChange={(e) => {
-                                      const nextCity = e.target.value;
-                                      setNewAddressData({ ...newAddressData, town: nextCity, pincode: "" });
-                                    }}
+                                    onChange={(e) => setNewAddressData({ ...newAddressData, town: e.target.value })}
                                     required
-                                    disabled={!newAddressData.state}
-                                  >
-                                    <option value="">{newAddressData.state ? "Select City" : "Select State first"}</option>
-                                    {newAddressAvailableCities.map((cityKey) => (
-                                      <option key={cityKey} value={cityKey}>
-                                        {toTitleLabel(cityKey)}
-                                      </option>
-                                    ))}
-                                  </select>
+                                  />
                                 </div>
                                 <div>
                                   <Label htmlFor="newState">State *</Label>
@@ -3173,22 +3244,15 @@ export default function CheckoutPage() {
                               </div>
                               <div>
                                 <Label htmlFor="newPincode">Pincode *</Label>
-                                <select
+                                <Input
                                   id="newPincode"
-                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                   value={newAddressData.pincode}
                                   onChange={(e) => setNewAddressData({ ...newAddressData, pincode: e.target.value })}
+                                  maxLength={6}
                                   required
-                                  disabled={!newAddressData.town}
-                                >
-                                  <option value="">{newAddressData.town ? "Select Pincode" : "Select City first"}</option>
-                                  {newAddressAvailablePincodes.map((pin) => (
-                                    <option key={pin} value={pin}>
-                                      {pin}
-                                    </option>
-                                  ))}
-                                </select>
+                                />
                               </div>
+
                               <div className="flex items-center space-x-2">
                                 <input
                                   type="checkbox"

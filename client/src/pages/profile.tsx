@@ -10,39 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-
-// City to State and Pincode mapping
-const cityLocationMap: Record<string, { state: string; pincodes: string[] }> = {
-  mumbai: { state: "maharashtra", pincodes: ["400001", "400002", "400003", "400004", "400005", "400006", "400007", "400008", "400009", "400010"] },
-  delhi: { state: "delhi", pincodes: ["110001", "110002", "110003", "110004", "110005", "110006", "110007", "110008", "110009", "110010"] },
-  bangalore: { state: "karnataka", pincodes: ["560001", "560002", "560003", "560004", "560005", "560006", "560007", "560008", "560009", "560010"] },
-  hyderabad: { state: "telangana", pincodes: ["500001", "500002", "500003", "500004", "500005", "500006", "500007", "500008", "500009", "500010"] },
-  ahmedabad: { state: "gujarat", pincodes: ["380001", "380002", "380003", "380004", "380005", "380006", "380007", "380008", "380009", "380010"] },
-  chennai: { state: "tamil_nadu", pincodes: ["600001", "600002", "600003", "600004", "600005", "600006", "600007", "600008", "600009", "600010"] },
-  kolkata: { state: "west_bengal", pincodes: ["700001", "700002", "700003", "700004", "700005", "700006", "700007", "700008", "700009", "700010"] },
-  pune: { state: "maharashtra", pincodes: ["411001", "411002", "411003", "411004", "411005", "411006", "411007", "411008", "411009", "411010"] },
-  jaipur: { state: "rajasthan", pincodes: ["302001", "302002", "302003", "302004", "302005", "302006", "302007", "302008", "302009", "302010"] },
-  surat: { state: "gujarat", pincodes: ["395001", "395002", "395003", "395004", "395005", "395006", "395007", "395008", "395009", "395010"] },
-  lucknow: { state: "uttar_pradesh", pincodes: ["226001", "226002", "226003", "226004", "226005"] },
-  kanpur: { state: "uttar_pradesh", pincodes: ["208001", "208002", "208003", "208004", "208005"] },
-  nagpur: { state: "maharashtra", pincodes: ["440001", "440002", "440003", "440004", "440005"] },
-  indore: { state: "madhya_pradesh", pincodes: ["452001", "452002", "452003", "452004", "452005"] },
-  thane: { state: "maharashtra", pincodes: ["400601", "400602", "400603", "400604", "400605"] },
-  bhopal: { state: "madhya_pradesh", pincodes: ["462001", "462002", "462003", "462004", "462005"] },
-  visakhapatnam: { state: "andhra_pradesh", pincodes: ["530001", "530002", "530003", "530004", "530005"] },
-  pimpri: { state: "maharashtra", pincodes: ["411017", "411018", "411019", "411020", "411021"] },
-  patna: { state: "bihar", pincodes: ["800001", "800002", "800003", "800004", "800005"] },
-  vadodara: { state: "gujarat", pincodes: ["390001", "390002", "390003", "390004", "390005"] },
-};
 
 interface UserProfile {
   id: number;
@@ -57,6 +26,14 @@ interface UserProfile {
   state?: string;
   pincode?: string;
 }
+
+const formatPhoneNumber = (phone: string) => {
+  const cleaned = String(phone || '').replace(/\D/g, '');
+  if (cleaned.startsWith("91") && cleaned.length === 12) {
+    return cleaned.substring(2);
+  }
+  return cleaned;
+};
 
 export default function Profile() {
   const [location, setLocation] = useLocation();
@@ -85,6 +62,10 @@ export default function Profile() {
   const [currentOTP, setCurrentOTP] = useState<string | null>(null);
   const showDevOTP = true; // show OTP in UI for development/testing
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [pincodeChecking, setPincodeChecking] = useState(false);
+  const [pincodeValid, setPincodeValid] = useState<boolean | null>(null);
+  const [pincodeError, setPincodeError] = useState<string | null>(null);
+  const [pincodeServiceError, setPincodeServiceError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Countdown timer for OTP resend
@@ -95,13 +76,95 @@ export default function Profile() {
     }
   }, [otpCountdown]);
 
-  const formatPhoneNumber = (phone: string) => {
-    const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.startsWith("91") && cleaned.length === 12) {
-      return cleaned.substring(2);
+  const handleEditProfile = () => {
+    if (user) {
+      setEditFormData({
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone || '',
+        dateOfBirth: user.dateOfBirth || '',
+        address: user.address || '',
+        city: user.city || '',
+        state: user.state || '',
+        pincode: user.pincode || ''
+      });
+      setPincodeChecking(false);
+      setPincodeValid(null);
+      setPincodeError(null);
+      setPincodeServiceError(null);
+      setNewPhone(user.phone || "");
+      setIsEditModalOpen(true);
     }
-    return cleaned;
   };
+
+  useEffect(() => {
+    if (!isEditModalOpen) return;
+
+    const raw = String(editFormData.pincode || '');
+    const cleaned = raw.replace(/\D/g, '').slice(0, 6);
+    if (raw !== cleaned) {
+      setEditFormData((prev) => ({ ...prev, pincode: cleaned }));
+      return;
+    }
+
+    if (cleaned.length !== 6) {
+      setPincodeChecking(false);
+      setPincodeValid(null);
+      setPincodeError(null);
+      setPincodeServiceError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setPincodeChecking(true);
+    setPincodeError(null);
+    setPincodeServiceError(null);
+
+    const t = setTimeout(async () => {
+      try {
+        const resp = await fetch(`/api/pincode/validate?pincode=${cleaned}`);
+        const data = await resp.json().catch(() => ({}));
+        if (cancelled) return;
+
+        if (!resp.ok) {
+          setPincodeValid(null);
+          setPincodeError(null);
+          setPincodeServiceError('Pincode validation service unavailable. Please try again.');
+          return;
+        }
+
+        if (data?.status === 'invalid' || data?.pincode_valid === false) {
+          setPincodeValid(false);
+          setPincodeError('Enter valid pincode');
+          setPincodeServiceError(null);
+          return;
+        }
+
+        if (data?.status === 'success') {
+          setPincodeValid(true);
+          setPincodeError(null);
+          setPincodeServiceError(null);
+          return;
+        }
+
+        setPincodeValid(null);
+        setPincodeError(null);
+        setPincodeServiceError('Pincode validation service unavailable. Please try again.');
+      } catch (e) {
+        if (cancelled) return;
+        setPincodeValid(null);
+        setPincodeError(null);
+        setPincodeServiceError('Pincode validation service unavailable. Please try again.');
+      } finally {
+        if (!cancelled) setPincodeChecking(false);
+      }
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [isEditModalOpen, editFormData.pincode]);
 
   // Fetch wallet data
   const { data: walletData } = useQuery({
@@ -176,23 +239,6 @@ export default function Profile() {
       // ignore
     }
   }, [location]);
-
-  const handleEditProfile = () => {
-    if (user) {
-      setEditFormData({
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone || '',
-        dateOfBirth: user.dateOfBirth || '',
-        address: user.address || '',
-        city: user.city || '',
-        state: user.state || '',
-        pincode: user.pincode || ''
-      });
-      setNewPhone(user.phone || "");
-      setIsEditModalOpen(true);
-    }
-  };
 
   useEffect(() => {
     if (!user) return;
@@ -555,8 +601,6 @@ export default function Profile() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Wallet Card */}
           <div className="lg:col-span-1">
-           
-
             {/* Profile Card */}
             <Card className="shadow-lg">
               <CardHeader className="text-center">
@@ -569,7 +613,6 @@ export default function Profile() {
                   {user.firstName} {user.lastName}
                 </CardTitle>
                 <CardDescription>{user.email}</CardDescription>
-                
               </CardHeader>
               <CardContent className="space-y-4">
                 <Button
@@ -590,7 +633,6 @@ export default function Profile() {
                 </Button>
               </CardContent>
             </Card>
-             
           </div>
 
           {/* Account Details */}
@@ -739,141 +781,118 @@ export default function Profile() {
             <DialogTitle>Edit Profile</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input
-                id="firstName"
-                value={editFormData.firstName}
-                onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })}
-                placeholder="Enter your first name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input
-                id="lastName"
-                value={editFormData.lastName}
-                onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
-                placeholder="Enter your last name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <div className="flex gap-2">
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
                 <Input
-                  id="phone"
-                  value={editFormData.phone}
-                  readOnly
-                  disabled
-                  className="bg-gray-100 cursor-not-allowed"
-                  placeholder="No phone number added"
+                  id="firstName"
+                  value={editFormData.firstName}
+                  onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                  placeholder="Enter your first name"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    setNewPhone(editFormData.phone || user.phone || "");
-                    setOtp("");
-                    setOtpSent(false);
-                    setOtpCountdown(0);
-                    setIsOtpModalOpen(true);
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={editFormData.lastName}
+                  onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                  placeholder="Enter your last name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="phone"
+                    value={editFormData.phone}
+                    readOnly
+                    disabled
+                    className="bg-gray-100 cursor-not-allowed"
+                    placeholder="No phone number added"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      setNewPhone(editFormData.phone || user.phone || "");
+                      setOtp("");
+                      setOtpSent(false);
+                      setOtpCountdown(0);
+                      setIsOtpModalOpen(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Click the edit icon to change your mobile number using OTP verification.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                <Input
+                  id="dateOfBirth"
+                  type="date"
+                  value={editFormData.dateOfBirth}
+                  onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
+                  placeholder="Select your date of birth"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  value={editFormData.address}
+                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                  placeholder="Enter your address"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  value={editFormData.city}
+                  onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                  placeholder="Enter city"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="state">State</Label>
+                <Input
+                  id="state"
+                  value={editFormData.state}
+                  onChange={(e) => setEditFormData({ ...editFormData, state: e.target.value })}
+                  placeholder="Enter state"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pincode">PIN Code</Label>
+                <Input
+                  id="pincode"
+                  value={editFormData.pincode}
+                  onChange={(e) => {
+                    const next = String(e.target.value || '').replace(/\D/g, '').slice(0, 6);
+                    setEditFormData({ ...editFormData, pincode: next });
                   }}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-xs text-gray-500">
-                Click the edit icon to change your mobile number using OTP verification.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="dateOfBirth">Date of Birth</Label>
-              <Input
-                id="dateOfBirth"
-                type="date"
-                value={editFormData.dateOfBirth}
-                onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
-                placeholder="Select your date of birth"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={editFormData.address}
-                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                placeholder="Enter your address"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Select
-                value={editFormData.city}
-                onValueChange={(value) => {
-                  const cityData = cityLocationMap[value.toLowerCase()];
-                  if (cityData) {
-                    setEditFormData({ 
-                      ...editFormData, 
-                      city: value,
-                      state: cityData.state,
-                      pincode: cityData.pincodes[0] || ''
-                    });
-                  } else {
-                    setEditFormData({ ...editFormData, city: value });
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select City" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {Object.keys(cityLocationMap).sort().map((city) => (
-                    <SelectItem key={city} value={city}>
-                      {city.charAt(0).toUpperCase() + city.slice(1).replace(/_/g, ' ')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="state">State</Label>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <span className="text-gray-900">
-                  {editFormData.state 
-                    ? editFormData.state.charAt(0).toUpperCase() + editFormData.state.slice(1).replace(/_/g, ' ')
-                    : 'Auto-filled based on city'}
-                </span>
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="Enter 6-digit pincode"
+                />
+                {pincodeError && (
+                  <p className="mt-1 text-xs text-red-600">{pincodeError}</p>
+                )}
+                {!pincodeError && pincodeServiceError && (
+                  <p className="mt-1 text-xs text-gray-600">{pincodeServiceError}</p>
+                )}
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="pincode">PIN Code</Label>
-              <Select
-                value={editFormData.pincode}
-                onValueChange={(value) => setEditFormData({ ...editFormData, pincode: value })}
-                disabled={!editFormData.city || !cityLocationMap[editFormData.city.toLowerCase()]}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={editFormData.city ? "Select PIN Code" : "Select city first"} />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {editFormData.city && cityLocationMap[editFormData.city.toLowerCase()] ? (
-                    cityLocationMap[editFormData.city.toLowerCase()].pincodes.map((pincode) => (
-                      <SelectItem key={pincode} value={pincode}>
-                        {pincode}
-                      </SelectItem>
-                    ))
-                  ) : null}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
           </ScrollArea>
           <div className="flex justify-end space-x-2">
             <Button
@@ -885,7 +904,7 @@ export default function Profile() {
             </Button>
             <Button
               onClick={handleSaveProfile}
-              disabled={isSaving}
+              disabled={isSaving || pincodeChecking || pincodeValid !== true}
               className="bg-red-600 hover:bg-red-700"
             >
               {isSaving ? "Saving..." : "Save Changes"}

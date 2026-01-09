@@ -191,6 +191,11 @@ export default function SelectDeliveryAddress() {
     deliveryInstructions: '',
     isDefault: false
   });
+  const [pincodeChecking, setPincodeChecking] = useState(false);
+  const [pincodeValid, setPincodeValid] = useState<boolean | null>(null);
+  const [pincodeError, setPincodeError] = useState<string | null>(null);
+  const [pincodeServiceError, setPincodeServiceError] = useState<string | null>(null);
+
   const [nameData, setNameData] = useState({
     firstName: '',
     lastName: ''
@@ -212,25 +217,76 @@ export default function SelectDeliveryAddress() {
   }, [formData.city]);
 
   useEffect(() => {
-    const selectedState = normalizeStateValue(formData.state);
-    const cityKey = normalizeCityValue(formData.city);
-    if (!selectedState) {
-      if (formData.city || formData.pincode) {
-        setFormData((prev) => ({ ...prev, city: '', pincode: '' }));
-      }
-      return;
-    }
-
-    const cityIsValidForState = cityKey ? CITY_LOCATION_MAP[cityKey]?.state === selectedState : true;
-    if (!cityIsValidForState) {
-      setFormData((prev) => ({ ...prev, city: '', pincode: '' }));
-      return;
-    }
-
-    if (formData.pincode && availablePincodes.length > 0 && !availablePincodes.includes(String(formData.pincode))) {
-      setFormData((prev) => ({ ...prev, pincode: '' }));
+    // City & pincode are now manual inputs. Do not auto-clear them based on CITY_LOCATION_MAP.
+    // Only sanitize pincode to digits and max length 6.
+    const cleaned = String(formData.pincode || '').replace(/\D/g, '').slice(0, 6);
+    if (String(formData.pincode || '') !== cleaned) {
+      setFormData((prev) => ({ ...prev, pincode: cleaned }));
     }
   }, [formData.state, formData.city, formData.pincode, availablePincodes]);
+
+  useEffect(() => {
+    const cleaned = String(formData.pincode || '').replace(/\D/g, '').slice(0, 6);
+    if (cleaned.length !== 6) {
+      setPincodeChecking(false);
+      setPincodeValid(null);
+      setPincodeError(null);
+      setPincodeServiceError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setPincodeChecking(true);
+    setPincodeError(null);
+    setPincodeServiceError(null);
+
+    const t = setTimeout(async () => {
+      try {
+        const resp = await fetch(apiUrl(`/api/pincode/validate?pincode=${cleaned}`));
+        const data = await resp.json().catch(() => ({}));
+        if (cancelled) return;
+
+        if (!resp.ok) {
+          // If backend is down/unavailable, don't mark as invalid.
+          // We'll show a separate message and allow user to try saving.
+          setPincodeValid(null);
+          setPincodeError(null);
+          setPincodeServiceError('Pincode validation service unavailable. Please try again.');
+          return;
+        }
+
+        if (data?.status === 'invalid' || data?.pincode_valid === false) {
+          setPincodeValid(false);
+          setPincodeError('Enter valid pincode');
+          setPincodeServiceError(null);
+          return;
+        }
+
+        if (data?.status === 'success') {
+          setPincodeValid(true);
+          setPincodeError(null);
+          setPincodeServiceError(null);
+          return;
+        }
+
+        setPincodeValid(null);
+        setPincodeError(null);
+        setPincodeServiceError('Pincode validation service unavailable. Please try again.');
+      } catch (e) {
+        if (cancelled) return;
+        setPincodeValid(null);
+        setPincodeError(null);
+        setPincodeServiceError('Pincode validation service unavailable. Please try again.');
+      } finally {
+        if (!cancelled) setPincodeChecking(false);
+      }
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [formData.pincode]);
 
   const splitRecipientName = (full: string) => {
     const cleaned = (full || '').trim();
@@ -780,7 +836,7 @@ export default function SelectDeliveryAddress() {
         
         if (isExpanded && item.quantity > 1) {
           // Save individual instance mappings for expanded items
-          for (let i = 0; i < item.quantity; i++) {
+          for (let i = 0; i <item.quantity; i++) {
             const instanceKey = `${keyBase}-${i}`;
             if (itemInstanceMapping[String(instanceKey)]) {
               minimalMapping[String(instanceKey)] = itemInstanceMapping[String(instanceKey)];
@@ -1236,24 +1292,12 @@ export default function SelectDeliveryAddress() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="city">City *</Label>
-                        <select
+                        <Input
                           id="city"
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                           value={formData.city}
-                          onChange={(e) => {
-                            const nextCity = e.target.value;
-                            setFormData({ ...formData, city: nextCity, pincode: '' });
-                          }}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                           required
-                          disabled={!formData.state}
-                        >
-                          <option value="">{formData.state ? 'Select City' : 'Select State first'}</option>
-                          {availableCities.map((cityKey) => (
-                            <option key={cityKey} value={cityKey}>
-                              {toTitleLabel(cityKey)}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       </div>
                       <div>
                         <Label htmlFor="state">State *</Label>
@@ -1279,21 +1323,22 @@ export default function SelectDeliveryAddress() {
 
                     <div>
                       <Label htmlFor="pincode">Pincode *</Label>
-                      <select
+                      <Input
                         id="pincode"
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         value={formData.pincode}
-                        onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                        onChange={(e) => {
+                          const next = String(e.target.value || '').replace(/\D/g, '').slice(0, 6);
+                          setFormData({ ...formData, pincode: next });
+                        }}
+                        maxLength={6}
                         required
-                        disabled={!formData.city}
-                      >
-                        <option value="">{formData.city ? 'Select Pincode' : 'Select City first'}</option>
-                        {availablePincodes.map((pin) => (
-                          <option key={pin} value={pin}>
-                            {pin}
-                          </option>
-                        ))}
-                      </select>
+                      />
+                      {pincodeError && (
+                        <p className="mt-1 text-xs text-red-600">{pincodeError}</p>
+                      )}
+                      {!pincodeError && pincodeServiceError && (
+                        <p className="mt-1 text-xs text-gray-600">{pincodeServiceError}</p>
+                      )}
                     </div>
 
                     <div className="flex items-center space-x-2">
@@ -1308,7 +1353,7 @@ export default function SelectDeliveryAddress() {
                     </div>
 
                     <div className="flex gap-3">
-                      <Button type="submit" className="flex-1">
+                      <Button type="submit" className="flex-1" disabled={pincodeChecking || pincodeValid !== true}>
                         {editingAddress ? 'Update Address' : 'Save Address'}
                       </Button>
                       <Button

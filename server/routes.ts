@@ -53,6 +53,12 @@ const ADMIN_RATE_LIMIT_MAX = 1000; // 1000 requests per minute for admin
 // repeated computations on hot product pages. Entries expire after a short TTL.
 const shadesCache: Map<string, { expires: number; data: any }> = new Map();
 
+const pincodeExistsCache: Map<string, { expires: number; exists: boolean }> = new Map();
+
+const pincodeValidateInFlight: Map<string, Promise<any>> = new Map();
+
+let dataGovRateLimitUntil = 0;
+
 function rateLimit(req: any, res: any, next: any) {
   // Use higher limit for admin routes
   const isAdminRoute = req.path.startsWith('/admin/');
@@ -93,6 +99,7 @@ function rateLimit(req: any, res: any, next: any) {
 
   next();
 }
+
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, and, sql, or, like, isNull, asc, inArray } from "drizzle-orm";
 import { desc } from "drizzle-orm";
@@ -106,10 +113,189 @@ import type { Request, Response } from 'express'; // Import Request and Response
 
 // Initialize Shiprocket service
 const shiprocketService = new ShiprocketService();
+async function fetchWithTimeout(url: string, init: any, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...(init || {}), signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function validatePincodeViaPostalApi(pincode: string) {
+  const normalized = String(pincode || '').trim();
+  const url = `https://api.postalpincode.in/pincode/${normalized}`;
+  const resp = await fetchWithTimeout(url, { method: 'GET' }, 10000);
+  if (!resp.ok) {
+    throw new Error(`postalpincode.in HTTP ${resp.status}`);
+  }
+  const json: any = await resp.json();
+  const first = Array.isArray(json) ? json[0] : null;
+  const ok = first && String(first.Status || '').toLowerCase() === 'success';
+  const offices = first && Array.isArray(first.PostOffice) ? first.PostOffice : [];
+  return ok && offices.length > 0;
+}
+
+async function validatePincodeBackend(pincode: string) {
+  const isDev = process.env.NODE_ENV !== 'production';
+  const debug: any = isDev ? { pincode: String(pincode || '').trim() } : undefined;
+
+  const normalized = String(pincode || '').trim();
+  if (!/^\d{6}$/.test(normalized)) {
+    return { status: 'error', message: 'Invalid pincode format', pincode_valid: false, ...(isDev ? { debug: { ...debug, reason: 'format' } } : {}) };
+  }
+
+  const inFlight = pincodeValidateInFlight.get(normalized);
+  if (inFlight) {
+    try {
+      return await inFlight;
+    } catch (e) {
+      return {
+        status: 'error',
+        message: 'Pincode validation service unavailable',
+        pincode_valid: false,
+        ...(isDev ? { debug: { ...debug, reason: 'inflight_failed' } } : {}),
+      };
+    }
+  }
+
+  const task = (async () => {
+
+  if (dataGovRateLimitUntil && Date.now() < dataGovRateLimitUntil) {
+    try {
+      const remainingMs = dataGovRateLimitUntil - Date.now();
+      console.warn('[pincode-validate] datagov cooldown active', { remainingMs });
+    } catch {}
+
+    try {
+      const postalExists = await validatePincodeViaPostalApi(normalized);
+      const exists = postalExists === true;
+      pincodeExistsCache.set(normalized, { exists, expires: Date.now() + (exists ? 24*60*60*1000 : 6*60*60*1000) });
+      return exists
+        ? { status: 'success', message: 'Pincode is valid', pincode_valid: true, ...(isDev ? { debug: { ...debug, reason: 'cooldown_fallback', fallback: 'postalpincode_in' } } : {}) }
+        : { status: 'invalid', message: 'Pincode does not exist', pincode_valid: false, ...(isDev ? { debug: { ...debug, reason: 'cooldown_fallback_not_found', fallback: 'postalpincode_in' } } : {}) };
+    } catch (fallbackErr) {
+      return {
+        status: 'error',
+        message: 'Pincode validation service unavailable',
+        pincode_valid: false,
+        ...(isDev ? { debug: { ...debug, reason: 'cooldown', remainingMs: Math.max(0, dataGovRateLimitUntil - Date.now()), fallback: 'postalpincode_in_failed', fallbackError: (fallbackErr as any)?.message || String(fallbackErr) } } : {}),
+      };
+    }
+  }
+
+  const cached = pincodeExistsCache.get(normalized);
+  let exists = false;
+  if (cached && cached.expires > Date.now()) {
+    exists = cached.exists === true;
+  } else {
+    const apiKey = process.env.DATA_GOV_API_KEY || process.env.DATAGOV_API_KEY;
+    if (!apiKey) {
+      console.warn('[pincode-validate] missing api key', {
+        has_DATA_GOV_API_KEY: !!process.env.DATA_GOV_API_KEY,
+        has_DATAGOV_API_KEY: !!process.env.DATAGOV_API_KEY,
+      });
+      return {
+        status: 'error',
+        message: 'Pincode validation service unavailable',
+        pincode_valid: false,
+        ...(isDev ? { debug: { ...debug, reason: 'missing_api_key', has_DATA_GOV_API_KEY: !!process.env.DATA_GOV_API_KEY, has_DATAGOV_API_KEY: !!process.env.DATAGOV_API_KEY } } : {}),
+      };
+    }
+
+    const RESOURCE_ID = process.env.DATAGOV_RESOURCE_ID || '5c2f62fe-5afa-4119-a499-fec9d604d5bd';
+    const baseUrl = process.env.DATAGOV_BASE_URL || 'https://api.data.gov.in/resource';
+
+    const u = new URL(String(baseUrl).replace(/\/$/, '') + '/' + RESOURCE_ID);
+    u.searchParams.set('api-key', apiKey);
+    u.searchParams.set('format', 'json');
+    u.searchParams.set('filters[pincode]', normalized);
+    u.searchParams.set('limit', '1');
+
+    try {
+      const resp = await fetchWithTimeout(u.toString(), { method: 'GET' }, 10000);
+      if (!resp.ok) {
+        let bodyText: string | null = null;
+        try {
+          bodyText = await resp.text();
+        } catch {}
+
+        console.warn('[pincode-validate] datagov non-200', {
+          status: resp.status,
+          statusText: resp.statusText,
+          body: bodyText ? bodyText.slice(0, 300) : null,
+        });
+
+        if (isDev) {
+          debug.reason = 'datagov_non_200';
+          debug.httpStatus = resp.status;
+          debug.httpStatusText = resp.statusText;
+        }
+
+        if (resp.status === 429) {
+          const retryAfter = resp.headers.get('retry-after');
+          const retrySeconds = retryAfter ? Number(retryAfter) : NaN;
+          const backoffMs = Number.isFinite(retrySeconds) && retrySeconds > 0 ? retrySeconds * 1000 : 5 * 60 * 1000;
+          dataGovRateLimitUntil = Date.now() + backoffMs;
+
+          try {
+            const postalExists = await validatePincodeViaPostalApi(normalized);
+            exists = postalExists === true;
+            if (isDev) {
+              debug.fallback = 'postalpincode_in';
+              debug.fallbackExists = exists;
+            }
+          } catch (fallbackErr) {
+            if (isDev) {
+              debug.fallback = 'postalpincode_in_failed';
+              debug.fallbackError = (fallbackErr as any)?.message || String(fallbackErr);
+            }
+            throw new Error('data.gov.in HTTP 429');
+          }
+        } else {
+          throw new Error('data.gov.in HTTP ' + resp.status);
+        }
+      } else {
+        const json: any = await resp.json();
+        const records = json && Array.isArray(json.records) ? json.records : [];
+        exists = Array.isArray(records) && records.length > 0;
+      }
+    } catch (e) {
+      console.error('data.gov.in pincode validation failed:', e);
+      return {
+        status: 'error',
+        message: 'Pincode validation service unavailable',
+        pincode_valid: false,
+        ...(isDev ? { debug } : {}),
+      };
+    }
+
+    if (exists) {
+      pincodeExistsCache.set(normalized, { exists: true, expires: Date.now() + 24*60*60*1000 });
+    } else {
+      pincodeExistsCache.set(normalized, { exists: false, expires: Date.now() + 6*60*60*1000 });
+    }
+  }
+
+  if (!exists) {
+    return { status: 'invalid', message: 'Pincode does not exist', pincode_valid: false, ...(isDev ? { debug: { ...debug, reason: 'not_found' } } : {}) };
+  }
+
+  return { status: 'success', message: 'Pincode is valid', pincode_valid: true, ...(isDev ? { debug: { ...debug, reason: 'ok' } } : {}) };
+  })();
+
+  pincodeValidateInFlight.set(normalized, task);
+  try {
+    return await task;
+  } finally {
+    pincodeValidateInFlight.delete(normalized);
+  }
+}
 
 // Database connection with enhanced configuration and error recovery
 const pool = new Pool({
- connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -4108,6 +4294,14 @@ app.put("/api/admin/offers/:id", upload.fields([
         return res.status(400).json({ error: "Required fields are missing" });
       }
 
+      const pinResult = await validatePincodeBackend(String(pincode));
+      if (pinResult.status === 'error') {
+        return res.status(503).json({ error: pinResult.message || 'Pincode validation service unavailable' });
+      }
+      if (pinResult.status !== 'success') {
+        return res.status(400).json({ error: 'Enter valid pincode' });
+      }
+
       // If this is set as default, unset other default addresses
       if (isDefault) {
         await db
@@ -4160,6 +4354,17 @@ app.put("/api/admin/offers/:id", upload.fields([
         deliveryInstructions,
         isDefault
       } = req.body;
+
+      if (pincode) {
+        const pinResult = await validatePincodeBackend(String(pincode));
+        if (pinResult.status === 'error') {
+          return res.status(503).json({ error: pinResult.message || 'Pincode validation service unavailable' });
+        }
+        if (pinResult.status !== 'success') {
+          return res.status(400).json({ error: 'Enter valid pincode' });
+        }
+      }
+
 
       // If setting as default, unset other defaults for this user
       if (isDefault) {
@@ -7295,6 +7500,25 @@ app.put("/api/admin/offers/:id", upload.fields([
         message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days."
       });
     }
+  });
+
+  app.get('/api/pincode/validate', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
+    const pincode = String((req.query as any)?.pincode ?? '').trim();
+    const result = await validatePincodeBackend(pincode);
+    if (result.status === 'error') {
+      if (result.message === 'Invalid pincode format') {
+        return res.status(400).json({ status: 'error', message: result.message });
+      }
+      return res.status(503).json({ status: 'error', message: result.message || 'Pincode validation service unavailable' });
+    }
+    if (result.status === 'invalid') {
+      return res.json({ status: 'invalid', pincode_valid: false });
+    }
+    return res.json({ status: 'success', pincode_valid: true });
   });
 
   // Shiprocket serviceability endpoint for shipping cost

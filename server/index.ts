@@ -40,6 +40,9 @@ process.on('SIGINT', () => {
 
 const app = express();
 
+// Avoid 304 responses for API JSON routes (some clients send If-None-Match and 304 has no body)
+app.set('etag', false);
+
 // Security headers with performance optimizations
 app.use(helmet({
   contentSecurityPolicy: false, // Configure as needed
@@ -1036,9 +1039,10 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
     res.status(status).json({ message });
   });
 
-  // Serve the app on port 5000 (required for Replit web preview)
-  const port = process.env.PORT ? Number(process.env.PORT) : 5000;
-  server.listen(port, "0.0.0.0", () => {
+  // Serve the app on configured port (local dev expects 8085)
+  const port = process.env.PORT ? Number(process.env.PORT) : 8085;
+  const host = app.get("env") === "development" ? "127.0.0.1" : "0.0.0.0";
+  server.listen(port, host, () => {
     log(`serving on port ${port}`);
 
     // Clear cache periodically
