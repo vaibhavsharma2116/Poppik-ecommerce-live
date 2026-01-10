@@ -106,6 +106,7 @@ export const ordersTable = pgTable("orders", {
   status: text("status").notNull().default("pending"),
   paymentMethod: text("payment_method").notNull(),
   shippingAddress: text("shipping_address").notNull(),
+  shippingCharge: integer("shipping_charge").default(0),
   trackingNumber: varchar("tracking_number", { length: 255 }),
   estimatedDelivery: timestamp("estimated_delivery"),
   deliveredAt: timestamp("delivered_at"),

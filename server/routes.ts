@@ -6324,6 +6324,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         totalAmount, 
         paymentMethod, 
         shippingAddress, 
+        shippingCharge,
         items,
         customerName,
         customerEmail,
@@ -6452,6 +6453,15 @@ app.put("/api/admin/offers/:id", upload.fields([
       // Affiliate wallet redemption (commission balance)
       const affiliateWalletToApply = Math.round(Math.max(0, Number(affiliateWalletAmount || 0)));
 
+      // Persist shipping charge as integer (DB column orders.shipping_charge)
+      const shippingChargeFromBody =
+        shippingCharge ??
+        (req.body as any)?.shipping ??
+        (req.body as any)?.shipping_cost ??
+        (req.body as any)?.shippingCost ??
+        0;
+      const shippingChargeToApply = Math.round(Math.max(0, Number(shippingChargeFromBody || 0)));
+
       // Validate wallet balance before creating the order (so we can fail fast)
       if (redeemToApply > 0) {
         const walletRows = await db
@@ -6499,6 +6509,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         status: 'pending', // Default to 'pending' for COD, will be updated by webhook/payment confirmation
         paymentMethod: paymentMethod || 'Cash on Delivery',
         shippingAddress: shippingAddress,
+        shippingCharge: shippingChargeToApply,
         deliveryInstructions: req.body.deliveryInstructions || null,
         saturdayDelivery: req.body.saturdayDelivery !== undefined ? req.body.saturdayDelivery : true,
         sundayDelivery: req.body.sundayDelivery !== undefined ? req.body.sundayDelivery : true,
@@ -9288,6 +9299,7 @@ app.put("/api/admin/offers/:id", upload.fields([
 
   // Helper function to generate invoice HTML
   function generateInvoiceHTML({ order, items, customer, orderId }: any) {
+
     // Embed logo if present (so invoice works as a standalone HTML file)
     let logoDataUri = '';
     try {
@@ -9305,8 +9317,12 @@ app.put("/api/admin/offers/:id", upload.fields([
       return sum + (price * item.quantity);
     }, 0);
 
-    const tax = Math.round(subtotal * 0.18); // 18% GST
-    const total = subtotal + tax;
+    // IMPORTANT:
+    // Checkout payable total is stored as orders.total_amount. Invoice should follow it
+    // (otherwise GST/discounts get double-counted).
+    const shipping = Math.round(Math.max(0, Number(order?.shippingCharge ?? (order as any)?.shipping_charge ?? 0)));
+    const paidTotal = Math.round(Math.max(0, Number(order?.totalAmount ?? (order as any)?.total_amount ?? 0)));
+    const discount = Math.max(0, Math.round(subtotal + shipping - paidTotal));
 
     // Prepare readable shipping address HTML (handles JSON, arrays or plain strings)
     function escapeHtml(str: any) {
@@ -9611,16 +9627,18 @@ app.put("/api/admin/offers/:id", upload.fields([
                     <td class="text-right">₹${subtotal.toLocaleString('en-IN')}</td>
                 </tr>
                 <tr>
-                    <td>GST (18%):</td>
-                    <td class="text-right">₹${tax.toLocaleString('en-IN')}</td>
-                </tr>
-                <tr>
                     <td>Shipping:</td>
-                    <td class="text-right">Free</td>
+                    <td class="text-right">${shipping === 0 ? 'Free' : `₹${shipping.toLocaleString('en-IN')}`}</td>
                 </tr>
+                ${discount > 0 ? `
+                <tr>
+                    <td>Discount:</td>
+                    <td class="text-right">-₹${discount.toLocaleString('en-IN')}</td>
+                </tr>
+                ` : ''}
                 <tr class="grand-total">
                     <td><strong>Grand Total:</strong></td>
-                    <td class="text-right"><strong>₹${total.toLocaleString('en-IN')}</strong></td>
+                    <td class="text-right"><strong>₹${paidTotal.toLocaleString('en-IN')}</strong></td>
                 </tr>
             </table>
         </div>

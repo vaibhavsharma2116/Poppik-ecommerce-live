@@ -371,6 +371,24 @@ export default function CheckoutPage() {
   const [location, setLocation] = useLocation();
   const { items = [], walletAmount: passedWalletAmount = 0, affiliateWalletAmount: passedAffiliateWalletAmount = 0, promoCode = null, promoDiscount: passedPromoDiscount = 0, affiliateCode: passedAffiliateCode = "", affiliateDiscount: passedAffiliateDiscount = 0, affiliateDiscountFromItems: passedAffiliateDiscountFromItems = 0, affiliateCommissionFromItems: passedAffiliateCommissionFromItems = 0 } = (location as any).state || {};
 
+  const localStorageAffiliateRef = (() => {
+    try {
+      const setAtRaw = localStorage.getItem('affiliateRefSetAt');
+      const setAt = setAtRaw ? Number(setAtRaw) : 0;
+      const maxAgeMs = 24 * 60 * 60 * 1000;
+      const ref = setAt && !Number.isNaN(setAt) && (Date.now() - setAt) <= maxAgeMs
+        ? localStorage.getItem('affiliateRef')
+        : null;
+      if (!ref) {
+        localStorage.removeItem('affiliateRef');
+        localStorage.removeItem('affiliateRefSetAt');
+      }
+      return ref || '';
+    } catch {
+      return '';
+    }
+  })();
+
   // Step navigation
   const [currentStep, setCurrentStep] = useState(1);
   const [multiAddressMapping, setMultiAddressMapping] = useState<Record<string, number>>({});
@@ -397,7 +415,7 @@ export default function CheckoutPage() {
     zipCode: "",
     phone: "",
     paymentMethod: "cashfree",
-    affiliateCode: passedAffiliateCode || localStorage.getItem('affiliateRef') || "",
+    affiliateCode: passedAffiliateCode || localStorageAffiliateRef || "",
     affiliateDiscount: passedAffiliateDiscount || passedAffiliateDiscountFromItems || 0,
     deliveryInstructions: "",
     saturdayDelivery: false,

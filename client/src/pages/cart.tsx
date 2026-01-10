@@ -244,6 +244,7 @@ export default function Cart() {
     if (refCode && refCode.toUpperCase().startsWith('POPPIKAP')) {
       // Store affiliate code in localStorage for later use (use existing key 'affiliateRef')
       localStorage.setItem('affiliateRef', refCode.toUpperCase());
+      localStorage.setItem('affiliateRefSetAt', String(Date.now()));
 
       // Also set it in state so it can be applied
       setAffiliateCode(refCode.toUpperCase());
@@ -253,9 +254,18 @@ export default function Cart() {
         description: `Affiliate code ${refCode.toUpperCase()} has been saved. Apply it in your cart to get the discount!`,
       });
     } else if (localStorage.getItem('affiliateRef')) {
-      // Load saved affiliate code from previous visit
+      // Load saved affiliate code from previous visit (time-bound to avoid stale discounts)
       const savedRefCode = localStorage.getItem('affiliateRef');
-      if (savedRefCode) {
+      const savedSetAtRaw = localStorage.getItem('affiliateRefSetAt');
+      const savedSetAt = savedSetAtRaw ? Number(savedSetAtRaw) : 0;
+      const maxAgeMs = 24 * 60 * 60 * 1000; // 24 hours
+
+      if (!savedRefCode) {
+        // nothing
+      } else if (!savedSetAt || Number.isNaN(savedSetAt) || Date.now() - savedSetAt > maxAgeMs) {
+        localStorage.removeItem('affiliateRef');
+        localStorage.removeItem('affiliateRefSetAt');
+      } else {
         setAffiliateCode(savedRefCode);
       }
     }
@@ -337,19 +347,23 @@ export default function Cart() {
 
   const productDiscount = Math.max(0, Math.round(subtotal - cartSubtotal));
 
-  const totalAffiliateDiscountFromItems = cartItems.reduce((total, item) => {
-    if (item.affiliateUserDiscount) {
-      return total + Number(item.affiliateUserDiscount) * item.quantity;
-    }
-    return total;
-  }, 0);
+  const totalAffiliateDiscountFromItems = affiliateCode
+    ? cartItems.reduce((total, item) => {
+        if (item.affiliateUserDiscount) {
+          return total + Number(item.affiliateUserDiscount) * item.quantity;
+        }
+        return total;
+      }, 0)
+    : 0;
 
-  const totalAffiliateCommissionFromItems = cartItems.reduce((total, item) => {
-    if (item.affiliateCommission) {
-      return total + Number(item.affiliateCommission) * item.quantity;
-    }
-    return total;
-  }, 0);
+  const totalAffiliateCommissionFromItems = affiliateCode
+    ? cartItems.reduce((total, item) => {
+        if (item.affiliateCommission) {
+          return total + Number(item.affiliateCommission) * item.quantity;
+        }
+        return total;
+      }, 0)
+    : 0;
 
   const subtotalAfterAffiliate = Math.max(0, cartSubtotal - totalAffiliateDiscountFromItems);
 
@@ -750,8 +764,18 @@ export default function Cart() {
       localStorage.removeItem('affiliateCommissionEarned');
     }
 
-    // Get affiliate code from localStorage if it exists (set when visiting product page with affiliate link)
-    const affiliateRef = localStorage.getItem('affiliateRef') || affiliateCode;
+    // Get affiliate code from localStorage if it exists (time-bound to avoid stale discounts)
+    const affiliateRefSetAtRaw = localStorage.getItem('affiliateRefSetAt');
+    const affiliateRefSetAt = affiliateRefSetAtRaw ? Number(affiliateRefSetAtRaw) : 0;
+    const affiliateMaxAgeMs = 24 * 60 * 60 * 1000; // 24 hours
+    const affiliateRefFromStorage = affiliateRefSetAt && !Number.isNaN(affiliateRefSetAt) && (Date.now() - affiliateRefSetAt) <= affiliateMaxAgeMs
+      ? localStorage.getItem('affiliateRef')
+      : null;
+    if (!affiliateRefFromStorage) {
+      localStorage.removeItem('affiliateRef');
+      localStorage.removeItem('affiliateRefSetAt');
+    }
+    const affiliateRef = affiliateRefFromStorage || affiliateCode;
 
     // Remove old static affiliate discount logic - everything is now dynamic
     localStorage.removeItem('affiliateCode');
