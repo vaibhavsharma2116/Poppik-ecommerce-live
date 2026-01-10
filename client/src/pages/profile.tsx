@@ -21,6 +21,7 @@ interface UserProfile {
   phone?: string;
   createdAt: string;
   address?: string;
+  landmark?: string;
   dateOfBirth?: string;
   city?: string;
   state?: string;
@@ -46,6 +47,7 @@ export default function Profile() {
     phone: '',
     dateOfBirth: '',
     address: '',
+    landmark: '',
     city: '',
     state: '',
     pincode: ''
@@ -84,10 +86,12 @@ export default function Profile() {
         phone: user.phone || '',
         dateOfBirth: user.dateOfBirth || '',
         address: user.address || '',
+        landmark: user.landmark || '',
         city: user.city || '',
         state: user.state || '',
         pincode: user.pincode || ''
       });
+
       setPincodeChecking(false);
       setPincodeValid(null);
       setPincodeError(null);
@@ -192,6 +196,7 @@ export default function Profile() {
           phone: parsedUser.phone || '',
           dateOfBirth: parsedUser.dateOfBirth || '',
           address: parsedUser.address || '',
+          landmark: parsedUser.landmark || '',
           city: parsedUser.city || '',
           state: parsedUser.state || '',
           pincode: parsedUser.pincode || ''
@@ -291,6 +296,7 @@ export default function Profile() {
         phone: editFormData.phone,
         dateOfBirth: editFormData.dateOfBirth,
         address: editFormData.address,
+        landmark: editFormData.landmark,
         city: editFormData.city,
         state: editFormData.state,
         pincode: editFormData.pincode
@@ -473,6 +479,7 @@ export default function Profile() {
             phone: cleanedPhone,
             dateOfBirth: user.dateOfBirth || "",
             address: user.address || "",
+            landmark: user.landmark || "",
             city: user.city || "",
             state: user.state || "",
             pincode: user.pincode || "",
@@ -695,6 +702,13 @@ export default function Profile() {
                     </div>
                   </div>
 
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-medium text-gray-700">Landmark</label>
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <span className="text-gray-900">{user.landmark || 'Not provided'}</span>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">City</label>
                     <div className="p-3 bg-gray-50 rounded-lg">
@@ -849,6 +863,16 @@ export default function Profile() {
                   value={editFormData.address}
                   onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
                   placeholder="Enter your address"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="landmark">Landmark (optional)</Label>
+                <Input
+                  id="landmark"
+                  value={editFormData.landmark}
+                  onChange={(e) => setEditFormData({ ...editFormData, landmark: e.target.value })}
+                  placeholder="Enter landmark"
                 />
               </div>
 

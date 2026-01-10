@@ -25,6 +25,7 @@ const normalizeAddress = (addr: any) => {
     recipientName: addr.recipientName ?? addr.recipient_name ?? addr.name ?? addr.recipient,
     addressLine1: addr.addressLine1 ?? addr.address_line1 ?? addr.line1 ?? addr.address1,
     addressLine2: addr.addressLine2 ?? addr.address_line2 ?? addr.line2 ?? addr.address2,
+    landmark: addr.landmark ?? addr.landmark_name ?? null,
     city: normalizeCityValue(addr.city ?? addr.town ?? addr.city_name),
     state: normalizeStateValue(addr.state ?? addr.state_name),
     pincode: addr.pincode ?? addr.pin ?? addr.postcode ?? addr.postal_code,
@@ -138,6 +139,7 @@ interface DeliveryAddress {
   recipientName: string;
   addressLine1: string;
   addressLine2?: string;
+  landmark?: string | null;
   city: string;
   state: string;
   pincode: string;
@@ -183,6 +185,7 @@ export default function SelectDeliveryAddress() {
     recipientName: '',
     addressLine1: '',
     addressLine2: '',
+    landmark: '',
     city: '',
     state: '',
     pincode: '',
@@ -335,6 +338,7 @@ export default function SelectDeliveryAddress() {
             recipientName: parsed.recipientName || '',
             addressLine1: parsed.addressLine1 || '',
             addressLine2: parsed.addressLine2 || '',
+            landmark: (parsed as any).landmark || '',
             city: normalizeCityValue(parsed.city || ''),
             state: normalizeStateValue(parsed.state || ''),
             pincode: parsed.pincode || '',
@@ -684,6 +688,7 @@ export default function SelectDeliveryAddress() {
       recipientName: address.recipientName,
       addressLine1: address.addressLine1,
       addressLine2: address.addressLine2 || '',
+      landmark: (address as any).landmark || '',
       city: normalizeCityValue(address.city),
       state: normalizeStateValue(address.state),
       pincode: address.pincode,
@@ -701,6 +706,7 @@ export default function SelectDeliveryAddress() {
       recipientName: '',
       addressLine1: '',
       addressLine2: '',
+      landmark: '',
       city: '',
       state: '',
       pincode: '',
@@ -1160,6 +1166,11 @@ export default function SelectDeliveryAddress() {
                             {address.addressLine1}
                             {address.addressLine2 && `, ${address.addressLine2}`}
                           </p>
+                          {(address as any).landmark && (
+                            <p className="text-sm text-gray-600 mb-1">
+                              {(address as any).landmark}
+                            </p>
+                          )}
                           <p className="text-sm text-gray-600 mb-1">
                             {address.city}, {address.state} - {address.pincode}
                           </p>
@@ -1286,6 +1297,15 @@ export default function SelectDeliveryAddress() {
                         id="addressLine2"
                         value={formData.addressLine2}
                         onChange={(e) => setFormData({...formData, addressLine2: e.target.value})}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="landmark">Landmark (optional)</Label>
+                      <Input
+                        id="landmark"
+                        value={(formData as any).landmark}
+                        onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
                       />
                     </div>
 

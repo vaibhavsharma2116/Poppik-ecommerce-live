@@ -321,6 +321,7 @@ const normalizeAddress = (addr: any) => {
     recipientName: addr.recipientName ?? addr.recipient_name ?? addr.name ?? addr.recipient,
     addressLine1: addr.addressLine1 ?? addr.address_line1 ?? addr.line1 ?? addr.address1,
     addressLine2: addr.addressLine2 ?? addr.address_line2 ?? addr.line2 ?? addr.address2,
+    landmark: addr.landmark ?? addr.landmark_name ?? null,
     city: addr.city ?? addr.town ?? addr.city_name,
     state: addr.state ?? addr.state_name,
     pincode: addr.pincode ?? addr.pin ?? addr.postcode ?? addr.postal_code,
@@ -636,7 +637,7 @@ export default function CheckoutPage() {
                 const profileAddr = (user as any).address || null;
                 const profileCity = (user as any).city || (user as any).town || '';
                 const profileState = (user as any).state || '';
-                const profileZip = (user as any).pincode || (user as any).zipCode || (user as any).zip || '';
+                const profileZip = (user as any).pincode || (user as any).zipCode || '';
                 const profilePhone = (user as any).phone || (user as any).mobile || '';
 
                 // Create profile address if we have at least phone number AND (address OR city)
@@ -1629,12 +1630,14 @@ export default function CheckoutPage() {
     const cleanedPhone = address.phoneNumber ? String(address.phoneNumber).replace(/[^0-9]/g, '') : '';
     const cleanedPincode = address.pincode ? String(address.pincode).replace(/[^0-9]/g, '').substring(0, 6) : '';
 
+    const addressText = `${address.addressLine1 || ''}${address.addressLine2 ? ', ' + address.addressLine2 : ''}${address.landmark ? ', ' + address.landmark : ''}`;
+
     setFormData(prev => ({
       ...prev,
       firstName: address.recipientName?.split(' ')[0] || "",
       lastName: address.recipientName?.split(' ').slice(1).join(' ') || "",
       phone: cleanedPhone,
-      address: address.addressLine1 || "",
+      address: addressText || "",
       city: address.city || "",
       state: address.state || "",
       zipCode: cleanedPincode,
@@ -1731,6 +1734,7 @@ export default function CheckoutPage() {
           recipientName,
           addressLine1: fullAddress,
           addressLine2: null,
+          landmark: newAddressData.landmark || null,
           city: newAddressData.town,
           state: newAddressData.state,
           pincode: newAddressData.pincode,
@@ -2011,7 +2015,7 @@ export default function CheckoutPage() {
                 price: item.price,
                 cashbackPrice: item.cashbackPrice || null,
                 cashbackPercentage: item.cashbackPercentage || null,
-                deliveryAddress: address ? `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}` : cashfreeShippingAddress,
+                deliveryAddress: address ? `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}${address.landmark ? ', ' + address.landmark : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}` : cashfreeShippingAddress,
                 recipientName: address?.recipientName || `${formData.firstName.trim()} ${formData.lastName.trim()}`,
                 recipientPhone: address?.phoneNumber || formData.phone?.trim() || '9999999999',
                 deliveryInstructions: address?.deliveryInstructions || formData.deliveryInstructions || null,
@@ -2465,7 +2469,7 @@ export default function CheckoutPage() {
                   price: item.price,
                   cashbackPrice: item.cashbackPrice || null,
                   cashbackPercentage: item.cashbackPercentage || null,
-                  deliveryAddress: address ? `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}` : fullAddress,
+                  deliveryAddress: address ? `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}${address.landmark ? ', ' + address.landmark : ''}, ${address.city}, ${address.state} - ${address.pincode}, ${address.country}` : fullAddress,
                   recipientName: address?.recipientName || `${formData.firstName.trim()} ${formData.lastName.trim()}`,
                   recipientPhone: address?.phoneNumber || formData.phone.trim(),
                   deliveryInstructions: address?.deliveryInstructions || formData.deliveryInstructions || null,
@@ -2908,6 +2912,16 @@ export default function CheckoutPage() {
                                 />
                               </div>
 
+                              <div>
+                                <Label htmlFor="newLandmark">Landmark (optional)</Label>
+                                <Input
+                                  id="newLandmark"
+                                  placeholder="e.g., near temple, opposite school"
+                                  value={newAddressData.landmark}
+                                  onChange={(e) => setNewAddressData({ ...newAddressData, landmark: e.target.value })}
+                                />
+                              </div>
+
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <Label htmlFor="newTown">Town/City *</Label>
@@ -3167,8 +3181,6 @@ export default function CheckoutPage() {
                                 />
                               </div>
 
-                             
-
                               <div>
                                 <Label htmlFor="newFlat">Flat, House no., Building, Company, Apartment *</Label>
                                 <Input
@@ -3187,6 +3199,16 @@ export default function CheckoutPage() {
                                   value={newAddressData.area}
                                   onChange={(e) => setNewAddressData({...newAddressData, area: e.target.value})}
                                   required
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor="newLandmark">Landmark (optional)</Label>
+                                <Input
+                                  id="newLandmark"
+                                  placeholder="e.g., near temple, opposite school"
+                                  value={newAddressData.landmark}
+                                  onChange={(e) => setNewAddressData({ ...newAddressData, landmark: e.target.value })}
                                 />
                               </div>
 
@@ -3266,23 +3288,11 @@ export default function CheckoutPage() {
                                 </Label> */}
                               </div>
 
-                              {/* <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                <p className="text-sm font-semibold mb-2">Add delivery instructions (optional)</p>
-                                <Textarea
-                                  placeholder="E.g., Leave at door, Ring bell twice, Call before delivery..."
-                                  rows={3}
-                                  className="mt-2 resize-none"
-                                  onChange={(e) => {
-                                    setNewAddressData({...newAddressData, deliveryInstructions: e.target.value});
-                                  }}
-                                />
-                                <p className="text-xs text-gray-600 mt-2">Preferences are used to plan your delivery. However, shipments can sometimes arrive early or later than planned.</p>
-                              </div> */}
-
                               <Button
                                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
                                 type="button"
                                 onClick={handleNewAddressSubmit}
+                                disabled={newPincodeChecking || newPincodeValid !== true}
                               >
                                 Use this address
                               </Button>
@@ -3473,6 +3483,7 @@ export default function CheckoutPage() {
                                           <div>
                                             <p className="font-semibold text-gray-900">{address?.recipientName}</p>
                                             <p className="text-gray-600 leading-relaxed">{address?.addressLine1}</p>
+                                            {address?.landmark && <p className="text-gray-600">{address?.landmark}</p>}
                                             <p className="text-gray-600">{address?.city}, {address?.state.replace(/_/g, ' ').toUpperCase()} - {address?.pincode}</p>
                                           </div>
                                           {address?.phoneNumber && <p className="text-gray-500">📱 {address.phoneNumber}</p>}
@@ -3556,6 +3567,7 @@ export default function CheckoutPage() {
                                         <div>
                                           <p className="font-semibold text-gray-900">{itemAddress.recipientName}</p>
                                           <p className="text-gray-600 leading-relaxed">{itemAddress.addressLine1}</p>
+                                          {itemAddress.landmark && <p className="text-gray-600">{itemAddress.landmark}</p>}
                                           <p className="text-gray-600">{itemAddress.city}, {itemAddress.state.replace(/_/g, ' ').toUpperCase()} - {itemAddress.pincode}</p>
                                         </div>
                                         {itemAddress.phoneNumber && <p className="text-gray-500">📱 {itemAddress.phoneNumber}</p>}
@@ -3591,7 +3603,7 @@ export default function CheckoutPage() {
                             <div>
                               <p className="font-semibold text-gray-900">Deliver to</p>
                               <p className="text-sm text-gray-700 mt-1">{addr.recipientName}</p>
-                              <p className="text-sm text-gray-700">{addr.addressLine1}{addr.addressLine2 ? ', ' + addr.addressLine2 : ''}</p>
+                              <p className="text-sm text-gray-700">{addr.addressLine1}{addr.addressLine2 ? ', ' + addr.addressLine2 : ''}{addr.landmark ? ', ' + addr.landmark : ''}</p>
                               <p className="text-sm text-gray-700">{addr.city}, {String(addr.state || '').replace(/_/g, ' ').toUpperCase()} - {addr.pincode}</p>
                               {addr.phoneNumber && <p className="text-sm text-gray-600 mt-1">Phone: {addr.phoneNumber}</p>}
                             </div>

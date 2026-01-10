@@ -201,12 +201,22 @@ async function validatePincodeBackend(pincode: string) {
         has_DATA_GOV_API_KEY: !!process.env.DATA_GOV_API_KEY,
         has_DATAGOV_API_KEY: !!process.env.DATAGOV_API_KEY,
       });
-      return {
-        status: 'error',
-        message: 'Pincode validation service unavailable',
-        pincode_valid: false,
-        ...(isDev ? { debug: { ...debug, reason: 'missing_api_key', has_DATA_GOV_API_KEY: !!process.env.DATA_GOV_API_KEY, has_DATAGOV_API_KEY: !!process.env.DATAGOV_API_KEY } } : {}),
-      };
+
+      try {
+        const postalExists = await validatePincodeViaPostalApi(normalized);
+        exists = postalExists === true;
+        pincodeExistsCache.set(normalized, { exists, expires: Date.now() + (exists ? 24*60*60*1000 : 6*60*60*1000) });
+        return exists
+          ? { status: 'success', message: 'Pincode is valid', pincode_valid: true, ...(isDev ? { debug: { ...debug, reason: 'missing_api_key_fallback', fallback: 'postalpincode_in' } } : {}) }
+          : { status: 'invalid', message: 'Pincode does not exist', pincode_valid: false, ...(isDev ? { debug: { ...debug, reason: 'missing_api_key_fallback_not_found', fallback: 'postalpincode_in' } } : {}) };
+      } catch (fallbackErr) {
+        return {
+          status: 'error',
+          message: 'Pincode validation service unavailable',
+          pincode_valid: false,
+          ...(isDev ? { debug: { ...debug, reason: 'missing_api_key', has_DATA_GOV_API_KEY: !!process.env.DATA_GOV_API_KEY, has_DATAGOV_API_KEY: !!process.env.DATAGOV_API_KEY, fallback: 'postalpincode_in_failed', fallbackError: (fallbackErr as any)?.message || String(fallbackErr) } } : {}),
+        };
+      }
     }
 
     const RESOURCE_ID = process.env.DATAGOV_RESOURCE_ID || '5c2f62fe-5afa-4119-a499-fec9d604d5bd';
@@ -3849,7 +3859,7 @@ app.put("/api/admin/offers/:id", upload.fields([
       res.setHeader('Expires', '0');
 
       const { id } = req.params;
-      const { firstName, lastName, phone, dateOfBirth, address, city, state, pincode } = req.body;
+      const { firstName, lastName, phone, dateOfBirth, address, landmark, city, state, pincode } = req.body;
 
       console.log(`Updating user ${id} with:`, { firstName, lastName, phone, city, state, pincode });
 
@@ -3887,6 +3897,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         phone: normalizedPhone || null,
         dateOfBirth: dateOfBirth ? dateOfBirth.trim() : null,
         address: address ? address.trim() : null,
+        landmark: landmark ? String(landmark).trim() : null,
         city: city ? city.trim() : null,
         state: state ? state.trim() : null,
         pincode: pincode ? pincode.trim() : null
@@ -4004,8 +4015,6 @@ app.put("/api/admin/offers/:id", upload.fields([
     }
   });
 
-
-
   // Serve uploaded images with optimization
   app.use("/api/images", (req, res, next) => {
     const imagePath = path.join(uploadsDir, req.path.split('?')[0].substring(1));
@@ -4100,7 +4109,8 @@ app.put("/api/admin/offers/:id", upload.fields([
       res.sendFile(imagePath);
     }
   });
- app.post("/api/upload/video", upload.single("video"), async (req, res) => {
+
+  app.post("/api/upload/video", upload.single("video"), async (req, res) => {
     try {
       console.log("Video upload request received");
 
@@ -4134,6 +4144,7 @@ app.put("/api/admin/offers/:id", upload.fields([
       });
     }
   });
+
   // Image upload API
   app.post("/api/upload/image", upload.single("image"), async (req, res) => {
     try {
@@ -4274,6 +4285,35 @@ app.put("/api/admin/offers/:id", upload.fields([
     }
   });
 
+  app.get("/api/delivery-addresses/:id", async (req, res) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const addressId = parseInt(req.params.id);
+      if (isNaN(addressId)) {
+        return res.status(400).json({ error: "Invalid address ID" });
+      }
+
+      const address = await db
+        .select()
+        .from(schema.deliveryAddresses)
+        .where(eq(schema.deliveryAddresses.id, addressId))
+        .limit(1);
+
+      if (address.length === 0) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      res.json(address[0]);
+    } catch (error) {
+      console.error("Error fetching delivery address:", error);
+      res.status(500).json({ error: "Failed to fetch delivery address" });
+    }
+  });
+
   app.post("/api/delivery-addresses", async (req, res) => {
     try {
       res.setHeader('Content-Type', 'application/json');
@@ -4286,6 +4326,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         recipientName,
         addressLine1,
         addressLine2,
+        landmark,
         city,
         state,
         pincode,
@@ -4322,6 +4363,7 @@ app.put("/api/admin/offers/:id", upload.fields([
           recipientName: recipientName.trim(),
           addressLine1: addressLine1.trim(),
           addressLine2: addressLine2 ? addressLine2.trim() : null,
+          landmark: landmark ? String(landmark).trim() : null,
           city: city.trim(),
           state: state.trim(),
           pincode: pincode.trim(),
@@ -4351,6 +4393,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         recipientName,
         addressLine1,
         addressLine2,
+        landmark,
         city,
         state,
         pincode,
@@ -4369,7 +4412,6 @@ app.put("/api/admin/offers/:id", upload.fields([
           return res.status(400).json({ error: 'Enter valid pincode' });
         }
       }
-
 
       // If setting as default, unset other defaults for this user
       if (isDefault) {
@@ -4393,6 +4435,7 @@ app.put("/api/admin/offers/:id", upload.fields([
           recipientName: recipientName?.trim(),
           addressLine1: addressLine1?.trim(),
           addressLine2: addressLine2 ? addressLine2.trim() : null,
+          landmark: landmark !== undefined ? (landmark ? String(landmark).trim() : null) : undefined,
           city: city?.trim(),
           state: state?.trim(),
           pincode: pincode?.trim(),

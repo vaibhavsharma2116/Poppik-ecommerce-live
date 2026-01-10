@@ -1,0 +1,5 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS landmark TEXT;
+
+ALTER TABLE delivery_addresses
+  ADD COLUMN IF NOT EXISTS landmark TEXT;
