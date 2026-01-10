@@ -44,17 +44,12 @@ export default function About() {
             <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
             <div className="space-y-4 text-gray-600 leading-relaxed">
               <p>
-               <h4 className="text-xl font-medium text-gray-900 ">* Who We Are</h4> 
-               
-               Poppik is a new-age cosmetic brand designed for women who live boldly, break barriers, and inspire others – our very own Boss Babes.<br></br>
+               <h4 className="text-xl font-medium text-gray-900 ">Vision</h4>
+               To become India’s most trusted and trendsetting beauty brand, delivering high-quality, inclusive, and affordable cosmetic and personal care products that celebrate every skin tone, every story and every individual.
                <br></br>
-
-              <h4 className="text-xl font-medium text-gray-900 ">* What We Do</h4> 
-             From transfer-proof lipsticks to radiant blushes and everyday essentials, every Poppik product is crafted with care, trend-driven, and made for all skin tones.<br></br>
-              <br></br>
-
-              <h4 className="text-xl font-medium text-gray-900 ">* Our Vision</h4> 
-             To create a Beauty, Lifestyle & Wellness community where every woman shines her way – confident, unstoppable, and always fresh with Poppik
+               <br></br>
+               <h4 className="text-xl font-medium text-gray-900 ">Mission</h4>
+               Our mission is to create innovative, safe, and high-performance beauty products thoughtfully tailored to the needs of Indian consumers. By blending modern beauty trends with traditional Indian values and time-tested ingredients, we empower self-expression through colour, care and confidence. Committed to sustainability and ethics, we support local manufacturing, create employment opportunities and promote responsible beauty to make a meaningful impact on both people and the planet.
               </p>
               {/* <p>
                 Today, we're proud to offer a comprehensive range of skincare, haircare, makeup, and body care 

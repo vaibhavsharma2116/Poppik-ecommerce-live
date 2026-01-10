@@ -310,7 +310,7 @@ async function validatePincodeBackend(pincode: string) {
 
 // Database connection with enhanced configuration and error recovery
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/poppik_local",
+  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,  // force disable SSL
   max: 20,
   min: 2,
@@ -7104,6 +7104,7 @@ app.put("/api/admin/offers/:id", upload.fields([
         for (const it of items || []) {
           if (it?.cashbackPrice && it?.cashbackPercentage) {
             const cashbackAmount = Number(it.cashbackPrice) * (Number(it.quantity) || 1);
+
             if (cashbackAmount > 0) {
               cashbackRows.push({
                 name: it.productName || it.name || 'Item',
@@ -7113,54 +7114,70 @@ app.put("/api/admin/offers/:id", upload.fields([
           }
         }
 
+        const giftMilestoneCashbackFromBody = Math.round(
+          Math.max(0, Number((req.body as any)?.giftMilestoneCashback || 0))
+        );
+        if (giftMilestoneCashbackFromBody > 0) {
+          cashbackRows.push({
+            name: 'Gift Milestone Cashback',
+            amount: giftMilestoneCashbackFromBody,
+          });
+        }
+
         if (cashbackRows.length > 0) {
-          const existingCashbackTx = await db
-            .select({ id: schema.userWalletTransactions.id })
-            .from(schema.userWalletTransactions)
-            .where(
-              and(
-                eq(schema.userWalletTransactions.userId, Number(userId)),
-                eq(schema.userWalletTransactions.orderId, newOrder.id),
-                eq(schema.userWalletTransactions.status, 'pending')
-              )
-            )
+          let walletRows = await db
+            .select()
+            .from(schema.userWallet)
+            .where(eq(schema.userWallet.userId, Number(userId)))
             .limit(1);
 
-          if (!existingCashbackTx || existingCashbackTx.length === 0) {
-            let walletRows = await db
-              .select()
-              .from(schema.userWallet)
-              .where(eq(schema.userWallet.userId, Number(userId)))
+          if (!walletRows || walletRows.length === 0) {
+            const [newWallet] = await db
+              .insert(schema.userWallet)
+              .values({
+                userId: Number(userId),
+                cashbackBalance: '0.00',
+                totalEarned: '0.00',
+                totalRedeemed: '0.00',
+              })
+              .returning();
+            walletRows = [newWallet];
+          }
+
+          const currentBalance = parseFloat(walletRows?.[0]?.cashbackBalance || '0');
+
+          for (const row of cashbackRows) {
+            const description = `Cashback from ${row.name}`;
+            const existingRow = await db
+              .select({ id: schema.userWalletTransactions.id })
+              .from(schema.userWalletTransactions)
+              .where(
+                and(
+                  eq(schema.userWalletTransactions.userId, Number(userId)),
+                  eq(schema.userWalletTransactions.orderId, newOrder.id),
+                  eq(schema.userWalletTransactions.amount, row.amount.toFixed(2)),
+                  eq(schema.userWalletTransactions.description, description),
+                  or(
+                    eq(schema.userWalletTransactions.status, 'pending'),
+                    eq(schema.userWalletTransactions.status, 'completed')
+                  )
+                )
+              )
               .limit(1);
 
-            if (!walletRows || walletRows.length === 0) {
-              const [newWallet] = await db
-                .insert(schema.userWallet)
-                .values({
-                  userId: Number(userId),
-                  cashbackBalance: '0.00',
-                  totalEarned: '0.00',
-                  totalRedeemed: '0.00',
-                })
-                .returning();
-              walletRows = [newWallet];
-            }
+            if (existingRow && existingRow.length > 0) continue;
 
-            const currentBalance = parseFloat(walletRows?.[0]?.cashbackBalance || '0');
-
-            for (const row of cashbackRows) {
-              await db.insert(schema.userWalletTransactions).values({
-                userId: Number(userId),
-                orderId: newOrder.id,
-                type: 'pending',
-                amount: row.amount.toFixed(2),
-                description: `Cashback from ${row.name}`,
-                balanceBefore: currentBalance.toFixed(2),
-                balanceAfter: currentBalance.toFixed(2),
-                status: 'pending',
-                eligibleAt: null,
-              });
-            }
+            await db.insert(schema.userWalletTransactions).values({
+              userId: Number(userId),
+              orderId: newOrder.id,
+              type: 'pending',
+              amount: row.amount.toFixed(2),
+              description,
+              balanceBefore: currentBalance.toFixed(2),
+              balanceAfter: currentBalance.toFixed(2),
+              status: 'pending',
+              eligibleAt: null,
+            });
           }
         }
       } catch (e) {
@@ -9625,6 +9642,10 @@ app.put("/api/admin/offers/:id", upload.fields([
                 <tr>
                     <td>Subtotal:</td>
                     <td class="text-right">₹${subtotal.toLocaleString('en-IN')}</td>
+                </tr>
+                <tr>
+                    <td>GST (18%):</td>
+                    <td class="text-right">Included</td>
                 </tr>
                 <tr>
                     <td>Shipping:</td>

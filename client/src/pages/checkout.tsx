@@ -2516,10 +2516,7 @@ export default function CheckoutPage() {
           }
         }
 
-        // Only include affiliate commission if there's an actual affiliate code
         const effectiveAffiliateCode = formData.affiliateCode || passedAffiliateCode || null;
-        // Don't calculate commission on client - let server calculate from product settings
-        // This ensures the exact admin-configured rates are used
         const shouldIncludeAffiliateCode = effectiveAffiliateCode ? true : false;
 
         const orderData = {
@@ -2529,11 +2526,12 @@ export default function CheckoutPage() {
           shippingAddress: shippingAddressData,
           isMultiAddress: isMultiAddress,
           affiliateCode: shouldIncludeAffiliateCode ? effectiveAffiliateCode : null,
-          // Don't send affiliateCommission or affiliateCommissionEarned - let server calculate from products
           promoCode: appliedPromo?.code || null,
           promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
           redeemAmount: Math.round(redeemAmount) || 0,
           affiliateWalletAmount: Math.round(affiliateWalletAmount) || 0,
+          giftMilestoneId: appliedGiftMilestone?.id || null,
+          giftMilestoneCashback: Math.round(giftMilestoneCashback) || 0,
           deliveryInstructions: formData.deliveryInstructions, // Include general delivery instructions
           saturdayDelivery: formData.saturdayDelivery, // Include weekend delivery preferences
           sundayDelivery: formData.sundayDelivery,   // Include weekend delivery preferences
@@ -2544,13 +2542,6 @@ export default function CheckoutPage() {
           customerEmail: formData.email.trim(),
           customerPhone: formData.phone.trim(),
         };
-
-        console.log('📦 Order Data being sent:', {
-          affiliateCode: orderData.affiliateCode,
-          totalAmount: orderData.totalAmount
-        });
-
-        // Cashback is reserved for 60 seconds and will be consumed by the server during order creation
 
         let response;
         try {

@@ -286,6 +286,7 @@ export default function AdminThermalInvoice() {
             <div style={{ borderTop: '1px dashed #000', margin: '6px 0' }} />
 
             <ReceiptLine left={'Subtotal'} right={displaySubtotal} />
+            <ReceiptLine left={'GST (18%)'} right={'Included'} />
             <ReceiptLine left={'Shipping'} right={displayShipping} />
             <ReceiptLine left={<strong>Total</strong>} right={<strong>{displayTotal}</strong>} />
 

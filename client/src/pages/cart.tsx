@@ -908,16 +908,24 @@ export default function Cart() {
 
                 const remainingLocal = parseFloat(nextMilestoneLocal.minAmount) - cartSubtotal;
 
+                const nextMilestoneBenefitText = (() => {
+                  if (nextMilestoneLocal?.discountType === 'percentage' && nextMilestoneLocal?.discountValue) {
+                    return `${Number(nextMilestoneLocal.discountValue)}% Discount`;
+                  }
+                  if (nextMilestoneLocal?.discountType === 'fixed' && nextMilestoneLocal?.discountValue) {
+                    return `₹${Number(nextMilestoneLocal.discountValue)} Discount`;
+                  }
+                  if (nextMilestoneLocal?.cashbackPercentage) {
+                    return `${Number(nextMilestoneLocal.cashbackPercentage)}% Cashback`;
+                  }
+                  return `${nextMilestoneLocal?.giftCount || 0} FREE gift${(nextMilestoneLocal?.giftCount || 0) > 1 ? 's' : ''}`;
+                })();
+
                 return (
                   <>
                     <p className="text-lg font-semibold text-gray-800 mb-1 flex items-center justify-center gap-2">
                       <span className="text-xl">🛍️</span>
-                      Add ₹{Math.max(0, remainingLocal).toFixed(0)} more to unlock {nextMilestoneLocal.giftCount} FREE gift{nextMilestoneLocal.giftCount > 1 ? 's' : ''}!
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600">
-                      Shop for <span className="font-semibold text-pink-600">
-                        ₹{parseFloat(giftMilestonesSorted[0]?.minAmount || '0').toFixed(0)}+
-                      </span> to get <span className="font-semibold text-pink-600">FREE gifts</span>
+                      Add Rs {Math.max(0, remainingLocal).toFixed(0)} more to unlock extra {nextMilestoneBenefitText}!
                     </p>
                   </>
                 );
