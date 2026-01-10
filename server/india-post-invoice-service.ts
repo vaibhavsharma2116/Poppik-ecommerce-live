@@ -103,10 +103,8 @@ export class IndiaPostInvoiceService {
     doc.rect(margin, bottomY, innerW, bottomBoxH).stroke();
     doc.fontSize(12).text("Poppik Lifestyle Private Limited", margin, bottomY + 8, { width: innerW, align: "center" });
     doc.fontSize(9);
-    doc.text("Shop No - 06, Haari Complex, CTS", margin, bottomY + 26, { width: innerW, align: "center" });
-    doc.text("Sector No - 11, CBD Belapur, Navi Mumbai", margin, bottomY + 40, { width: innerW, align: "center" });
-    doc.text("Contact Details - www.poppik.in", margin, bottomY + 56, { width: innerW, align: "center" });
-    doc.text("info@poppik.in / 8976262644", margin, bottomY + 70, { width: innerW, align: "center" });
+    doc.text("Shop No. - 06 , Gauri Complex CHS , Sector No. - 11 ,CBD Belapur Navi Mumbai , Mn , India - 400614", margin, bottomY + 26, { width: innerW, align: "center", lineGap: 0 });
+    doc.text("Contact Details - www.poppiklifestyle.com /info@poppik.in / 8976261444", margin, doc.y + 2, { width: innerW, align: "center", lineGap: 0 });
     doc.fontSize(7).text(`Order: ${ctx.orderId}`, margin, bottomY - 10, { width: innerW, align: "left" });
 
     doc.end();
