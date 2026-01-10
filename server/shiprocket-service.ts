@@ -9,7 +9,7 @@ interface ShiprocketOrder {
   order_id: string;
   order_date: string;
   pickup_location: string;
-  channel_id: string;
+  channel_id?: string;
   comment: string;
   billing_customer_name: string;
   billing_last_name: string;
@@ -301,7 +301,13 @@ class ShiprocketService {
           throw new Error('Shiprocket rate limit exceeded - please try again later');
         }
 
-        throw new Error(`Shiprocket API error: ${response.statusText} - ${JSON.stringify(jsonData)}`);
+        const err: any = new Error(`Shiprocket API error: ${response.statusText} - ${JSON.stringify(jsonData)}`);
+        err.status = response.status;
+        err.statusText = response.statusText;
+        err.response = jsonData;
+        err.endpoint = endpoint;
+        err.method = method;
+        throw err;
       }
 
       return jsonData;
@@ -321,6 +327,24 @@ class ShiprocketService {
         return await this.makeRequest('/external/orders/create/adhoc', 'POST', orderData);
       } catch (error: any) {
         attempts++;
+
+        // If Shiprocket reports invalid pickup location, pick a valid one and retry once
+        const msg = String(error?.response?.message || error?.message || '');
+        const pickupList = error?.response?.data?.data;
+        if (
+          attempts < maxAttempts &&
+          msg.toLowerCase().includes('wrong pickup location') &&
+          Array.isArray(pickupList) &&
+          pickupList.length > 0
+        ) {
+          const active = pickupList.find((p: any) => Number(p?.status) === 1) || pickupList[0];
+          const suggested = String(active?.pickup_location || '').trim();
+          if (suggested && suggested !== orderData.pickup_location) {
+            console.warn(`⚠️ Shiprocket pickup_location '${orderData.pickup_location}' invalid. Retrying with '${suggested}'.`);
+            orderData = { ...orderData, pickup_location: suggested };
+            continue;
+          }
+        }
 
         // If it's an auth error and we haven't maxed out retries, try again with fresh token
         if (attempts < maxAttempts && (error.message.includes('401') || error.message.includes('authentication'))) {
@@ -400,6 +424,47 @@ class ShiprocketService {
     }
   }
 
+  async generateInvoicePdfResponse(shiprocketOrderId: string | number) {
+    // Shiprocket API (apiv2) uses this endpoint to print invoice and returns a PDF URL.
+    // Ref: https://support.shiprocket.in/support/solutions/articles/43000337456-shiprocket-api-document-helpsheet
+    const data = await this.makeRequest('/external/orders/print/invoice', 'POST', {
+      ids: [String(shiprocketOrderId)],
+    });
+
+    const url =
+      (data && (data.invoice_url || data.invoiceUrl || data.url)) ||
+      (data && Array.isArray(data.invoice_url) ? data.invoice_url[0] : null) ||
+      (data && Array.isArray(data.invoiceUrl) ? data.invoiceUrl[0] : null) ||
+      (data && Array.isArray(data.url) ? data.url[0] : null);
+
+    if (!url) {
+      throw new Error('Shiprocket invoice URL missing in response');
+    }
+
+    return await fetch(String(url), {
+      method: 'GET',
+    });
+  }
+
+  async generateLabelPdfResponse(shipmentId: number) {
+    const data = await this.makeRequest('/external/courier/generate/label', 'POST', {
+      shipment_id: [shipmentId],
+    });
+
+    const url =
+      (data && (data.label_url || data.labelUrl)) ||
+      (data && Array.isArray(data.label_url) ? data.label_url[0] : null) ||
+      (data && Array.isArray(data.labelUrl) ? data.labelUrl[0] : null);
+
+    if (!url) {
+      throw new Error('Shiprocket label URL missing in response');
+    }
+
+    return await fetch(String(url), {
+      method: 'GET',
+    });
+  }
+
   async cancelOrder(orderId: string) {
     try {
       await this.authenticate();
@@ -418,13 +483,37 @@ class ShiprocketService {
     const { firstName, lastName, email, phone } = order.customer || {};
     const { shippingAddress, totalAmount, paymentMethod, createdAt } = order;
 
+    const normalizeAddressText = (raw: any): string => {
+      if (!raw) return '';
+      if (typeof raw !== 'string') return String(raw);
+      const trimmed = raw.trim();
+      // If address is JSON/multi-address payload, pick the first concrete address string
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed && typeof parsed === 'object') {
+            if (Array.isArray((parsed as any).items) && (parsed as any).items.length > 0) {
+              const first = (parsed as any).items[0];
+              return String(first?.deliveryAddress || first?.address || '').trim();
+            }
+            return String((parsed as any).shippingAddress || (parsed as any).address || '').trim();
+          }
+        } catch {
+          // fall back to raw string below
+        }
+      }
+      return trimmed;
+    };
+
+    const shippingAddressText = normalizeAddressText(shippingAddress);
+
     let street = '';
     let city = '';
     let state = '';
     let pincode = '';
 
-    if (shippingAddress && typeof shippingAddress === 'string') {
-      const parts = shippingAddress.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    if (shippingAddressText && typeof shippingAddressText === 'string') {
+      const parts = shippingAddressText.split(',').map(p => p.trim()).filter(p => p.length > 0);
       
       console.log('📍 Parsing address parts:', parts);
       
@@ -456,7 +545,7 @@ class ShiprocketService {
     street = street.trim();
     if (!street || street.length < 3) {
       console.error('❌ Invalid street address:', street);
-      street = shippingAddress || 'Address Not Provided';
+      street = shippingAddressText || 'Address Not Provided';
     }
     street = street.substring(0, 100);
     
@@ -508,10 +597,10 @@ class ShiprocketService {
     const formattedDate = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}-${String(orderDate.getDate()).padStart(2, '0')} ${String(orderDate.getHours()).padStart(2, '0')}:${String(orderDate.getMinutes()).padStart(2, '0')}`;
 
     const shiprocketData = {
-      order_id: order.id,
+      order_id: String(order.id),
       order_date: formattedDate,
       pickup_location: pickupLocation,
-      channel_id: "",
+      ...(process.env.SHIPROCKET_CHANNEL_ID ? { channel_id: String(process.env.SHIPROCKET_CHANNEL_ID) } : {}),
       comment: "Poppik Beauty Store Order",
       billing_customer_name: billingFirstName,
       billing_last_name: billingLastName,
@@ -524,21 +613,79 @@ class ShiprocketService {
       billing_email: billingEmail,
       billing_phone: formattedPhone,
       shipping_is_billing: true,
-      order_items: items.map((item: any, index: number) => {
+      order_items: (() => {
+        const usedSkus = new Set<string>();
+
+        const slugify = (v: any) =>
+          String(v || '')
+            .trim()
+            .toUpperCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^A-Z0-9\-]/g, '')
+            .slice(0, 18);
+
+        const extractShade = (item: any): string | undefined => {
+          // 1) from explicit selectedShades / variants
+          const ss = (item as any).selectedShades;
+          if (typeof ss === 'string' && ss.trim()) return ss.trim();
+          if (ss && typeof ss === 'object') {
+            if (Array.isArray(ss) && ss.length > 0) {
+              const first = ss[0];
+              if (typeof first === 'string') return first;
+              if (first && typeof first === 'object') return (first.name || first.shade || first.value || first.label) as any;
+            }
+            return (ss.name || ss.shade || ss.value || ss.label) as any;
+          }
+
+          // 2) from product name "(Shade: xxx)" pattern
+          const name = String(item?.productName || item?.name || '');
+          const m = name.match(/\(\s*shade\s*:\s*([^\)]+)\)/i);
+          if (m && m[1]) return m[1].trim();
+          return undefined;
+        };
+
+        const makeUniqueSku = (baseSku: string, shade?: string, index?: number) => {
+          let sku = baseSku;
+          const shadeSlug = shade ? slugify(shade) : '';
+          if (shadeSlug) sku = `${baseSku}-${shadeSlug}`;
+
+          if (!usedSkus.has(sku)) {
+            usedSkus.add(sku);
+            return sku;
+          }
+
+          // final fallback: append incremental suffix
+          const seed = String(index ?? 0).padStart(2, '0');
+          let attempt = `${sku}-${seed}`;
+          let ctr = 0;
+          while (usedSkus.has(attempt) && ctr < 50) {
+            ctr += 1;
+            attempt = `${sku}-${seed}-${ctr}`;
+          }
+          usedSkus.add(attempt);
+          return attempt;
+        };
+
+        return items.map((item: any, index: number) => {
         const price = typeof item.price === 'string'
           ? parseFloat(item.price.replace(/[₹,]/g, ''))
           : Number(item.price);
 
+        const baseId = item.productId || item.comboId || item.offerId || (Date.now() + index);
+        const baseSku = `SKU${baseId}`;
+        const shade = extractShade(item);
+
         return {
           name: (item.productName || item.name || 'Product').substring(0, 50),
-          sku: `SKU${item.productId || (Date.now() + index)}`,
+          sku: makeUniqueSku(baseSku, shade, index),
           units: Number(item.quantity) || 1,
           selling_price: price,
           discount: 0,
           tax: 0,
           hsn: 610910,
         };
-      }),
+        });
+      })(),
       payment_method: paymentMethod === 'Cash on Delivery' ? 'COD' : 'Prepaid',
       shipping_charges: 0,
       giftwrap_charges: 0,

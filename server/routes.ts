@@ -11,6 +11,8 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import sharp from "sharp";
 import { adminAuthMiddleware as adminMiddleware } from "./admin-middleware";
+import { ShiprocketInvoiceService } from "./shiprocket-invoice-service";
+import { IndiaPostInvoiceService } from "./india-post-invoice-service";
 import nodemailer from 'nodemailer';
 import { createMasterAdminRoutes } from "./master-admin-routes";
 import webpush from 'web-push';
@@ -113,6 +115,9 @@ import type { Request, Response } from 'express'; // Import Request and Response
 
 // Initialize Shiprocket service
 const shiprocketService = new ShiprocketService();
+const shiprocketInvoiceService = new ShiprocketInvoiceService(shiprocketService);
+const indiaPostInvoiceService = new IndiaPostInvoiceService();
+
 async function fetchWithTimeout(url: string, init: any, timeoutMs: number) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -5175,104 +5180,337 @@ app.put("/api/admin/offers/:id", upload.fields([
       console.error("Error syncing orders with Shiprocket:", error);
       res.status(500).json({
         error: "Failed to sync orders with Shiprocket",
-        details: error.message
+        details: (error as any)?.message
       });
     }
   });
 
-  // Sync Cashfree orders to ordersTable
   app.post("/api/admin/sync-cashfree-orders", async (req, res) => {
     try {
-      console.log("Syncing Cashfree orders to ordersTable...");
-
-      // Get all completed Cashfree payments
-      const completedPayments = await db
-        .select()
-        .from(schema.cashfreePayments)
-        .where(eq(schema.cashfreePayments.status, 'completed'));
-
-      let syncedCount = 0;
-
-      for (const payment of completedPayments) {
-        // Check if order already exists in ordersTable
-        const existingOrder = await db
-          .select()
-          .from(schema.ordersTable)
-          .where(eq(schema.ordersTable.cashfreeOrderId, payment.cashfreeOrderId))
-          .limit(1);
-
-        if (existingOrder.length === 0) {
-          try {
-            const orderData = payment.orderData;
-
-            // Create order in ordersTable
-            const [newOrder] = await db.insert(schema.ordersTable).values({
-              userId: payment.userId,
-              totalAmount: payment.amount,
-              status: 'processing',
-              paymentMethod: 'Cashfree',
-              shippingAddress: orderData.shippingAddress,
-              cashfreeOrderId: payment.cashfreeOrderId,
-              paymentId: payment.paymentId,
-              estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-              createdAt: payment.createdAt || new Date(),
-            }).returning();
-
-            // Create order items
-            if (orderData.items && Array.isArray(orderData.items)) {
-              const orderItems = orderData.items.map((item: any) => ({
-                orderId: newOrder.id,
-                productId: Number(item.productId) || null,
-                productName: item.productName,
-                productImage: item.productImage,
-                quantity: Number(item.quantity),
-                price: item.price,
-                // Multi-address order details
-                deliveryAddress: item.deliveryAddress || null,
-                recipientName: item.recipientName || null,
-                recipientPhone: item.recipientPhone || null,
-              }));
-
-              await db.insert(schema.orderItemsTable).values(orderItems);
-            }
-
-            syncedCount++;
-            console.log(`Synced order: ${payment.cashfreeOrderId}`);
-          } catch (error) {
-            console.error(`Failed to sync order ${payment.cashfreeOrderId}:`, error);
-          }
-        }
-      }
-
-      res.json({
-        message: `Successfully synced ${syncedCount} Cashfree orders`,
-        syncedCount,
-        totalPayments: completedPayments.length
-      });
+      res.status(501).json({ error: "Not implemented" });
     } catch (error) {
-      console.error("Error syncing Cashfree orders:", error);
       res.status(500).json({ error: "Failed to sync Cashfree orders" });
     }
   });
 
-  // Admin Orders endpoints
-  app.get("/api/admin/orders", async (req, res) => {
+  app.get("/api/admin/print-thermal-invoice/:orderId", adminMiddleware, async (req, res) => {
     try {
-      // Get all orders from database
-      let orders;
-      try {
-        orders = await db
-          .select()
-          .from(schema.ordersTable)
-          .orderBy(desc(schema.ordersTable.createdAt));
-      } catch (dbError) {
-        // Fallback sample data when database is unavailable
-        console.log("Database unavailable, using sample data");
-        const sampleOrders = generateSampleOrders();
-        return res.json(sampleOrders);
+      const rawOrderId = String(req.params.orderId || "").trim();
+      const normalized = rawOrderId.startsWith("ORD-") ? rawOrderId : `ORD-${rawOrderId}`;
+      const orderIdNum = Number(normalized.replace("ORD-", ""));
+      if (!Number.isFinite(orderIdNum) || orderIdNum <= 0) {
+        return res.status(400).json({ error: "Invalid orderId" });
       }
 
-      // Get order items for each order
+      const orderRows = await db.select().from(schema.ordersTable).where(eq(schema.ordersTable.id, orderIdNum)).limit(1);
+      if (!orderRows || orderRows.length === 0) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      const order: any = orderRows[0];
+
+      const items = await db
+        .select()
+        .from(schema.orderItemsTable)
+        .where(eq(schema.orderItemsTable.orderId, orderIdNum));
+
+      const userRows = await db
+        .select({
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          email: schema.users.email,
+          phone: schema.users.phone,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.id, order.userId))
+        .limit(1);
+      const user = userRows?.[0];
+
+      const hasShiprocketRef =
+        Number((order as any).shiprocketShipmentId) > 0 ||
+        Number((order as any).shiprocketOrderId) > 0 ||
+        Number((order as any).shiprocket_order_id) > 0 ||
+        Number((order as any).shiprocket_shipment_id) > 0;
+      const deliveryPartner = String(order.deliveryPartner || (hasShiprocketRef ? "SHIPROCKET" : "INDIA_POST")).toUpperCase();
+      const filename = `${normalized}-thermal-invoice.pdf`;
+
+      if (deliveryPartner === "SHIPROCKET") {
+        const shipmentId = Number((order as any).shiprocketShipmentId || (order as any).shiprocket_shipment_id);
+        if (!Number.isFinite(shipmentId) || shipmentId <= 0) {
+          return res.status(400).json({ error: "Shiprocket shipmentId missing for this order" });
+        }
+
+        const shiprocketOrderId = (order as any).shiprocketOrderId || (order as any).shiprocket_order_id;
+        if (!shiprocketOrderId) {
+          return res.status(400).json({ error: "Shiprocket orderId missing for this order" });
+        }
+
+        let awbNow = String((order as any).trackingNumber || (order as any).tracking_number || "").trim();
+        console.log("[thermal-invoice][shiprocket] initial awbNow=", awbNow || "<empty>");
+        if (!awbNow) {
+
+          const addrText = String((order as any).shippingAddress || (order as any).shipping_address || "");
+          const pincodeMatch = addrText.match(/\b\d{6}\b/);
+          const deliveryPincode = pincodeMatch ? String(pincodeMatch[0]) : "";
+          if (!deliveryPincode) {
+            return res.status(400).json({ error: "Delivery pincode missing; cannot generate AWB" });
+          }
+
+          const pickupPincode = String(process.env.SHIPROCKET_PICKUP_PINCODE || "400001");
+          const weight = Math.max(
+            0.5,
+            (items || []).reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0)
+          );
+          const pm = String((order as any).paymentMethod || (order as any).payment_method || "");
+          const cod = pm.toLowerCase().includes("cod") || pm.toLowerCase().includes("cash");
+
+          const serviceability: any = await shiprocketService.getServiceability(pickupPincode, deliveryPincode, weight, cod);
+          const couriers: any[] = serviceability?.data?.available_courier_companies;
+          if (!Array.isArray(couriers) || couriers.length === 0) {
+            return res.status(400).json({ error: "No Shiprocket couriers available to generate AWB" });
+          }
+
+          const courierId = Number(
+            couriers.find((c: any) => Number(c?.courier_company_id) > 0)?.courier_company_id || couriers[0]?.courier_company_id
+          );
+          if (!Number.isFinite(courierId) || courierId <= 0) {
+            return res.status(400).json({ error: "Invalid courier_company_id returned by Shiprocket" });
+          }
+
+          const awbResp: any = await shiprocketService.generateAWB(shipmentId, courierId);
+          console.log("[thermal-invoice][shiprocket] generateAWB raw response:", JSON.stringify(awbResp || {}, null, 2));
+          const awb = String(
+            awbResp?.awb_code ||
+              awbResp?.awb ||
+              awbResp?.data?.awb_code ||
+              awbResp?.data?.awb ||
+              awbResp?.data?.awb_number ||
+              awbResp?.data?.data?.awb_code ||
+              awbResp?.data?.data?.awb ||
+              awbResp?.data?.data?.awb_number ||
+              awbResp?.response?.awb_code ||
+              awbResp?.response?.awb ||
+              awbResp?.response?.data?.awb_code ||
+              awbResp?.response?.data?.awb ||
+              ""
+          ).trim();
+          if (awb) {
+            awbNow = awb;
+            await db.update(schema.ordersTable).set({ trackingNumber: awb }).where(eq(schema.ordersTable.id, orderIdNum));
+          }
+
+          console.log("[thermal-invoice][shiprocket] awb after generateAWB=", awbNow || "<empty>");
+        }
+
+        // Fallback: if AWB is still missing, try fetching it from Shiprocket order details.
+        if (!awbNow) {
+          try {
+            const details: any = await shiprocketService.getOrderDetails(String(shiprocketOrderId));
+            const awbFromDetails = String(
+              details?.data?.awb_code ||
+                details?.data?.awb ||
+                details?.data?.tracking_number ||
+                details?.data?.shipment?.awb ||
+                details?.data?.shipment?.awb_code ||
+                details?.data?.shipments?.[0]?.awb ||
+                details?.data?.shipments?.[0]?.awb_code ||
+                details?.awb_code ||
+                details?.awb ||
+                ""
+            ).trim();
+
+            if (awbFromDetails) {
+              awbNow = awbFromDetails;
+              await db.update(schema.ordersTable).set({ trackingNumber: awbFromDetails }).where(eq(schema.ordersTable.id, orderIdNum));
+            }
+
+            console.log("[thermal-invoice][shiprocket] awb after getOrderDetails fallback=", awbNow || "<empty>");
+          } catch (e) {
+            console.warn("Shiprocket AWB fallback fetch failed:", (e as any)?.message || e);
+          }
+        }
+
+        // Fallback 2: Shiprocket tracking endpoint often contains the AWB even if order details don't.
+        if (!awbNow) {
+          try {
+            const track: any = await shiprocketService.trackOrder(String(shiprocketOrderId));
+            const awbFromTrack = String(
+              track?.awb_code ||
+                track?.awb ||
+                track?.data?.awb_code ||
+                track?.data?.awb ||
+                track?.tracking_data?.shipment_track?.[0]?.awb_code ||
+                track?.tracking_data?.shipment_track?.[0]?.awb ||
+                track?.tracking_data?.shipment_track?.[0]?.awb_number ||
+                track?.tracking_data?.shipment_track?.[0]?.tracking_number ||
+                ""
+            ).trim();
+
+            if (awbFromTrack) {
+              awbNow = awbFromTrack;
+              await db.update(schema.ordersTable).set({ trackingNumber: awbFromTrack }).where(eq(schema.ordersTable.id, orderIdNum));
+            }
+
+            console.log("[thermal-invoice][shiprocket] awb after trackOrder fallback=", awbNow || "<empty>");
+          } catch (e) {
+            console.warn("Shiprocket trackOrder AWB fallback failed:", (e as any)?.message || e);
+          }
+        }
+
+        console.log("[thermal-invoice][shiprocket] final awb passed to PDF overlay=", awbNow || "<empty>");
+        await shiprocketInvoiceService.streamThermalInvoicePdf(res, shiprocketOrderId, normalized, awbNow || null, filename);
+        return;
+      }
+
+      if (deliveryPartner === "INDIA_POST") {
+        await indiaPostInvoiceService.streamThermalInvoicePdf(
+          res,
+          {
+            orderId: normalized,
+            createdAt: (order as any).createdAt,
+            paymentMethod: (order as any).paymentMethod,
+            totalAmount: (order as any).totalAmount,
+            trackingNumber: String((order as any).trackingNumber || (order as any).tracking_number || "").trim() || null,
+            deliveryPartner: "INDIA_POST",
+            shippingAddress: (order as any).shippingAddress,
+            customerName: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : null,
+            customerPhone: (user as any)?.phone || null,
+            customerEmail: (user as any)?.email || null,
+            items: (items || []).map((it: any) => ({ productName: it.productName, quantity: it.quantity, price: it.price })),
+          },
+          filename
+        );
+        return;
+      }
+
+      return res.status(400).json({ error: `Unsupported delivery partner: ${deliveryPartner}` });
+    } catch (error: any) {
+      const status = Number(error?.httpStatus) || 500;
+      console.error("Error printing thermal invoice:", error);
+      res.status(status).json({ error: "Failed to generate invoice" });
+    }
+  });
+
+  app.get("/api/admin/print-thermal-label/:orderId", adminMiddleware, async (req, res) => {
+    try {
+      const rawOrderId = String(req.params.orderId || "").trim();
+      const normalized = rawOrderId.startsWith("ORD-") ? rawOrderId : `ORD-${rawOrderId}`;
+      const orderIdNum = Number(normalized.replace("ORD-", ""));
+      if (!Number.isFinite(orderIdNum) || orderIdNum <= 0) {
+        return res.status(400).json({ error: "Invalid orderId" });
+      }
+
+      const orderRows = await db.select().from(schema.ordersTable).where(eq(schema.ordersTable.id, orderIdNum)).limit(1);
+      if (!orderRows || orderRows.length === 0) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      const order: any = orderRows[0];
+
+      const items = await db
+        .select()
+        .from(schema.orderItemsTable)
+        .where(eq(schema.orderItemsTable.orderId, orderIdNum));
+
+      const userRows = await db
+        .select({
+          firstName: schema.users.firstName,
+          lastName: schema.users.lastName,
+          email: schema.users.email,
+          phone: schema.users.phone,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.id, order.userId))
+        .limit(1);
+      const user = userRows?.[0];
+
+      const hasShiprocketRef =
+        Number((order as any).shiprocketShipmentId) > 0 ||
+        Number((order as any).shiprocketOrderId) > 0 ||
+        Number((order as any).shiprocket_order_id) > 0 ||
+        Number((order as any).shiprocket_shipment_id) > 0;
+      const deliveryPartner = String(order.deliveryPartner || (hasShiprocketRef ? "SHIPROCKET" : "INDIA_POST")).toUpperCase();
+      const filename = `${normalized}-thermal-label.pdf`;
+
+      if (deliveryPartner === "SHIPROCKET") {
+        const shipmentId = Number((order as any).shiprocketShipmentId || (order as any).shiprocket_shipment_id);
+        if (!Number.isFinite(shipmentId) || shipmentId <= 0) {
+          return res.status(400).json({ error: "Shiprocket shipmentId missing for this order" });
+        }
+
+        const existingTracking = String((order as any).trackingNumber || (order as any).tracking_number || "").trim();
+        if (!existingTracking) {
+          const addrText = String((order as any).shippingAddress || (order as any).shipping_address || "");
+          const pincodeMatch = addrText.match(/\b\d{6}\b/);
+          const deliveryPincode = pincodeMatch ? String(pincodeMatch[0]) : "";
+          if (!deliveryPincode) {
+            return res.status(400).json({ error: "Delivery pincode missing; cannot generate AWB" });
+          }
+
+          const pickupPincode = String(process.env.SHIPROCKET_PICKUP_PINCODE || "400001");
+          const weight = Math.max(
+            0.5,
+            (items || []).reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0)
+          );
+          const pm = String((order as any).paymentMethod || (order as any).payment_method || "");
+          const cod = pm.toLowerCase().includes("cod") || pm.toLowerCase().includes("cash");
+
+          const serviceability: any = await shiprocketService.getServiceability(pickupPincode, deliveryPincode, weight, cod);
+          const couriers: any[] = serviceability?.data?.available_courier_companies;
+          if (!Array.isArray(couriers) || couriers.length === 0) {
+            return res.status(400).json({ error: "No Shiprocket couriers available to generate AWB" });
+          }
+
+          const courierId = Number(
+            couriers.find((c: any) => Number(c?.courier_company_id) > 0)?.courier_company_id || couriers[0]?.courier_company_id
+          );
+          if (!Number.isFinite(courierId) || courierId <= 0) {
+            return res.status(400).json({ error: "Invalid courier_company_id returned by Shiprocket" });
+          }
+
+          const awbResp: any = await shiprocketService.generateAWB(shipmentId, courierId);
+          const awb = String(awbResp?.awb_code || awbResp?.data?.awb_code || awbResp?.data?.awb || awbResp?.awb || "").trim();
+          if (awb) {
+            await db.update(schema.ordersTable).set({ trackingNumber: awb }).where(eq(schema.ordersTable.id, orderIdNum));
+          }
+        }
+
+        await shiprocketInvoiceService.streamThermalLabelPdf(res, shipmentId, filename);
+        return;
+      }
+
+      if (deliveryPartner === "INDIA_POST") {
+        await indiaPostInvoiceService.streamThermalLabelPdf(
+          res,
+          {
+            orderId: normalized,
+            createdAt: (order as any).createdAt,
+            paymentMethod: (order as any).paymentMethod,
+            totalAmount: (order as any).totalAmount,
+            shippingAddress: (order as any).shippingAddress,
+            customerName: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : null,
+            customerPhone: (user as any)?.phone || null,
+            customerEmail: (user as any)?.email || null,
+            items: (items || []).map((it: any) => ({ productName: it.productName, quantity: it.quantity, price: it.price })),
+          },
+          filename
+        );
+        return;
+      }
+
+      return res.status(400).json({ error: `Unsupported delivery partner: ${deliveryPartner}` });
+    } catch (error: any) {
+      const status = Number(error?.httpStatus) || 500;
+      console.error("Error printing thermal label:", error);
+      res.status(status).json({ error: "Failed to generate label" });
+    }
+  });
+
+  app.get("/api/admin/orders", adminMiddleware, async (req, res) => {
+    try {
+      const orders = await db
+        .select()
+        .from(schema.ordersTable)
+        .orderBy(desc(schema.ordersTable.createdAt));
+
       const ordersWithDetails = await Promise.all(
         orders.map(async (order) => {
           const items = await db
@@ -5289,7 +5527,6 @@ app.put("/api/admin/offers/:id", upload.fields([
             .from(schema.orderItemsTable)
             .where(eq(schema.orderItemsTable.orderId, order.id));
 
-          // Get user info
           const user = await db
             .select({
               firstName: schema.users.firstName,
@@ -5301,47 +5538,42 @@ app.put("/api/admin/offers/:id", upload.fields([
             .where(eq(schema.users.id, order.userId))
             .limit(1);
 
-          const userData = user[0] || { firstName: 'Unknown', lastName: 'Customer', email: 'unknown@email.com', phone: 'N/A' };
-
-          // Format shipping address: if client sent JSON for multi-address orders, parse and create readable string
-          let formattedShippingAddress = order.shippingAddress;
-          try {
-            const parsed = typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress) : order.shippingAddress;
-            if (parsed && parsed.multi && Array.isArray(parsed.items)) {
-              formattedShippingAddress = parsed.items.map((it: any, idx: number) => {
-                const header = it.productName ? `${idx + 1}. ${it.productName}` : `${idx + 1}. Item`;
-                const addr = it.deliveryAddress || 'No address provided';
-                const recip = it.recipientName ? ` (Recipient: ${it.recipientName}` : '';
-                const phone = it.recipientPhone ? `${it.recipientName ? ', ' : ' (Recipient: '}Phone: ${it.recipientPhone}` : '';
-                const closing = (it.recipientName || it.recipientPhone) ? ')' : '';
-                return `${header} → ${addr}${recip}${phone}${closing}`;
-              }).join('\n');
-            }
-          } catch (e) {
-            // leave raw shippingAddress if parse fails
-          }
+          const userData = user[0] || {
+            firstName: "Unknown",
+            lastName: "Customer",
+            email: "unknown@email.com",
+            phone: "N/A",
+          };
 
           return {
-            id: `ORD-${order.id.toString().padStart(3, '0')}`,
+            id: `ORD-${order.id.toString().padStart(3, "0")}`,
             customer: {
-              name: `${userData.firstName} ${userData.lastName}`,
+              name: `${userData.firstName} ${userData.lastName}`.trim(),
               email: userData.email,
-              phone: userData.phone || 'N/A',
-              address: formattedShippingAddress,
+              phone: userData.phone || "N/A",
+              address: order.shippingAddress,
             },
-            date: order.createdAt.toISOString().split('T')[0],
+            date: order.createdAt ? order.createdAt.toISOString().split("T")[0] : "",
             total: `₹${order.totalAmount}`,
             status: order.status,
             items: items.length,
             paymentMethod: order.paymentMethod,
             trackingNumber: order.trackingNumber,
-            estimatedDelivery: order.estimatedDelivery?.toISOString().split('T')[0],
+            awbCode: (order as any).awbCode || order.trackingNumber || null,
+            estimatedDelivery: (order as any).estimatedDelivery?.toISOString?.().split("T")[0],
             products: items,
             userId: order.userId,
             totalAmount: order.totalAmount,
-            shippingAddress: formattedShippingAddress,
-            deliveryPartner: order.deliveryPartner || 'SHIPROCKET',
-            deliveryType: order.deliveryType || null,
+            shippingAddress: order.shippingAddress,
+            deliveryPartner:
+              (order as any).deliveryPartner ||
+              ((Number((order as any).shiprocketShipmentId) > 0 ||
+                Number((order as any).shiprocketOrderId) > 0 ||
+                Number((order as any).shiprocket_order_id) > 0 ||
+                Number((order as any).shiprocket_shipment_id) > 0)
+                ? "SHIPROCKET"
+                : "INDIA_POST"),
+            deliveryType: (order as any).deliveryType || null,
           };
         })
       );
@@ -5350,56 +5582,6 @@ app.put("/api/admin/offers/:id", upload.fields([
     } catch (error) {
       console.error("Error fetching admin orders:", error);
       res.status(500).json({ error: "Failed to fetch orders" });
-    }
-  });
-
-  // Send order notification
-  app.post("/api/orders/:id/notify", async (req, res) => {
-    try {
-      const orderId = req.params.id.replace('ORD-', '');
-      const { status } = req.body;
-
-      // Get order and user info
-      const order = await db
-        .select()
-        .from(schema.ordersTable)
-        .where(eq(schema.ordersTable.id, Number(orderId)));
-
-      if (order.length === 0) {
-        return res.status(404).json({ error: "Order not found" });
-      }
-
-      const user = await db
-        .select()
-        .from(schema.users)
-        .where(eq(schema.users.id, order[0].userId))
-        .limit(1);
-
-      if (user.length === 0) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      // Here you would typically send an email notification
-      // For now, we'll just log it
-      console.log(`Sending ${status} notification to ${user[0].email} for order ORD-${orderId}`);
-
-      // You can integrate with email services like SendGrid, Mailgun, etc.
-      // Example notification content based on status
-      const notifications = {
-        pending: "Your order has been received and is being processed.",
-        processing: "Your order is being prepared for shipment.",
-        shipped: "Your order has been shipped and is on its way!",
-        delivered: "Your order has been delivered successfully.",
-        cancelled: "Your order has been cancelled."
-      };
-
-      res.json({
-        message: "Notification sent successfully",
-        notification: notifications[status] || "Order status updated"
-      });
-    } catch (error) {
-      console.error("Error sending notification:", error);
-      res.status(500).json({ error: "Failed to send notification" });
     }
   });
 
@@ -6933,6 +7115,7 @@ app.put("/api/admin/offers/:id", upload.fields([
 
       let shiprocketAwb = null;
       let shiprocketOrderId = null;
+      let shiprocketShipmentId = null;
       let shiprocketError = null;
 
       // Prepare a user placeholder so it's available outside the Shiprocket block
@@ -6975,6 +7158,8 @@ app.put("/api/admin/offers/:id", upload.fields([
           console.log('Full shipping address:', shippingAddress);
 
           // Prepare Shiprocket order with correct pickup location
+          // NOTE: If env is missing, default to 'Office' since many Shiprocket accounts use it
+          const pickupLocation = String(process.env.SHIPROCKET_PICKUP_LOCATION || 'Office');
           const shiprocketOrderData = shiprocketService.convertToShiprocketFormat({
             id: orderId,
             createdAt: newOrder.createdAt,
@@ -6983,7 +7168,7 @@ app.put("/api/admin/offers/:id", upload.fields([
             shippingAddress: shippingAddress,
             items: items,
             customer: customerData
-          }, "Office"); // Use "Office" as pickup location instead of "Primary"
+          }, pickupLocation);
 
           console.log('Shiprocket order payload:', JSON.stringify(shiprocketOrderData, null, 2));
 
@@ -6993,15 +7178,17 @@ app.put("/api/admin/offers/:id", upload.fields([
 
           if (shiprocketResponse && shiprocketResponse.order_id) {
             shiprocketOrderId = shiprocketResponse.order_id;
-            shiprocketAwb = shiprocketResponse.awb_code || shiprocketResponse.shipment_id || null;
+            shiprocketShipmentId = shiprocketResponse.shipment_id || null;
+            shiprocketAwb = shiprocketResponse.awb_code || null;
 
-            console.log(`Shiprocket order created: ${shiprocketOrderId} with AWB: ${shiprocketAwb || 'Pending'}`);
+            console.log(`Shiprocket order created: ${shiprocketOrderId} shipment_id=${shiprocketShipmentId || 'Pending'} awb=${shiprocketAwb || 'Pending'}`);
 
             // Update order with Shiprocket details immediately
             await db.update(schema.ordersTable)
               .set({
                 shiprocketOrderId: shiprocketOrderId,
-                shiprocketShipmentId: shiprocketAwb,
+                shiprocketShipmentId: shiprocketShipmentId,
+                trackingNumber: shiprocketAwb || undefined,
                 status: 'processing' // Set status to processing since it's now with Shiprocket
               })
               .where(eq(schema.ordersTable.id, newOrder.id));
@@ -7063,7 +7250,7 @@ app.put("/api/admin/offers/:id", upload.fields([
           id: orderId,
           ...newOrder,
           shiprocketOrderId: shiprocketOrderId || null,
-          shiprocketShipmentId: shiprocketAwb || null
+          shiprocketShipmentId: shiprocketShipmentId || null
         }
       });
 

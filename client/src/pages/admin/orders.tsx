@@ -81,7 +81,10 @@ export default function AdminOrders() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/orders');
+      const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+      const response = await fetch('/api/admin/orders', {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       if (response.ok) {
         const data = await response.json();
         setOrders(Array.isArray(data) ? data : []);
@@ -735,7 +738,11 @@ export default function AdminOrders() {
                       <Button 
                         className="w-full justify-start" 
                         variant="outline"
-                        onClick={() => window.open(`/admin/orders/thermal-invoice?orderId=${selectedOrder.id}`, '_blank')}
+                        onClick={() => {
+                          const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+                          const qs = token ? `?token=${encodeURIComponent(token)}` : '';
+                          window.open(`/api/admin/print-thermal-invoice/${selectedOrder.id}${qs}`, '_blank');
+                        }}
                       >
                         <Download className="h-4 w-4 mr-2" />
                         Thermal Print

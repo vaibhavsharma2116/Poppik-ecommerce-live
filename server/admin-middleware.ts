@@ -23,6 +23,20 @@ export const adminAuthMiddleware = (req: AuthenticatedRequest, res: Response, ne
 
     let token: string | undefined;
 
+    const normalizeToken = (raw: any) => {
+      if (!raw) return undefined;
+      let t = String(raw).trim();
+      // Some clients accidentally send quotes in querystring or headers
+      if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+        t = t.slice(1, -1).trim();
+      }
+      // Some clients send "Bearer <token>" even when using query params
+      if (t.toLowerCase().startsWith('bearer ')) {
+        t = t.slice(7).trim();
+      }
+      return t || undefined;
+    };
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7);
     } else if (xAdminToken) {
@@ -34,6 +48,8 @@ export const adminAuthMiddleware = (req: AuthenticatedRequest, res: Response, ne
     } else if (queryToken) {
       token = queryToken;
     }
+
+    token = normalizeToken(token);
 
     if (!token) {
       return res.status(401).json({ error: "Access denied. No token provided." });
