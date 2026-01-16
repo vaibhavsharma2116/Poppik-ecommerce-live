@@ -1391,9 +1391,8 @@ export default function CheckoutPage() {
 
   const subtotalAfterDiscount = cartSubtotalAfterProductDiscount - affiliateDiscountAmount - promoDiscount - giftMilestoneDiscount;
 
-  const shipping = (promoDiscount > 0 || affiliateDiscountAmount > 0 || giftMilestoneDiscount > 0)
-    ? shippingCost
-    : (cartSubtotalAfterProductDiscount > 599 ? 0 : shippingCost);
+  const freeShippingThreshold = 500;
+  const shipping = cartSubtotalAfterProductDiscount >= freeShippingThreshold ? 0 : shippingCost;
 
   const totalBeforeRedemption = subtotalAfterDiscount + shipping;
 

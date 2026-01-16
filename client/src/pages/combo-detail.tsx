@@ -389,7 +389,12 @@ export default function ComboDetail() {
           body: JSON.stringify({ affiliateCode: affiliateRef, comboId: combo.id }),
         }).catch(err => console.error('Error tracking affiliate click:', err));
 
-        try { localStorage.setItem('affiliateRef', affiliateRef); } catch (e) { }
+        try {
+          localStorage.setItem('affiliateRef', affiliateRef);
+          localStorage.setItem('affiliateRefSetAt', String(Date.now()));
+        } catch (e) {
+          // ignore localStorage failures
+        }
       } catch (err) {
         console.error('Error validating affiliate code:', err);
       }

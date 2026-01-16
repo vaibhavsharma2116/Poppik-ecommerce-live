@@ -536,6 +536,7 @@ export default function ProductDetail() {
 
         // Store in localStorage for checkout
         localStorage.setItem('affiliateRef', affiliateRef);
+        localStorage.setItem('affiliateRefSetAt', String(Date.now()));
       } catch (err) {
         console.error('Error validating/tracking affiliate click:', err);
       }

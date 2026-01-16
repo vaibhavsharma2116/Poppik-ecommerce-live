@@ -667,6 +667,7 @@ export default function OfferDetail() {
 
         try {
           localStorage.setItem('affiliateRef', affiliateRef);
+          localStorage.setItem('affiliateRefSetAt', String(Date.now()));
         } catch (e) {
           // ignore localStorage failures
         }

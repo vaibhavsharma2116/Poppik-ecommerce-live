@@ -508,13 +508,13 @@ export default function Cart() {
   // Dynamic discount calculation based on announcements
   let dynamicDiscount = 0;
   let appliedOffers: string[] = [];
-  const freeShippingThreshold = 599;
+  const freeShippingThreshold = 500;
   let freeShippingApplied = false;
 
   // Check for free shipping (only if subtotal after affiliate discount is above threshold and NO promo code is applied)
-  if (subtotalAfterAffiliate > freeShippingThreshold && !appliedPromo) {
+  if (subtotalAfterAffiliate >= freeShippingThreshold && !appliedPromo) {
     freeShippingApplied = true;
-    appliedOffers.push('Free Shipping on orders above ₹599');
+    appliedOffers.push('Free Shipping on orders above ₹500');
   }
 
   // Apply dynamic benefits from announcements only if no promo code is applied
@@ -532,7 +532,7 @@ export default function Cart() {
   const totalDiscount = productDiscount + dynamicDiscount + generalPromoDiscount + giftMilestoneDiscount;
 
   // Use cartSubtotal for total calculation before considering redemption
-  const subtotalAfterDiscount = cartSubtotal - dynamicDiscount - generalPromoDiscount - giftMilestoneDiscount;
+  const subtotalAfterDiscount = cartSubtotal - totalAffiliateDiscountFromItems - dynamicDiscount - generalPromoDiscount - giftMilestoneDiscount;
 
   // Calculate total before redemption
   const totalBeforeRedemption = subtotalAfterDiscount; // Shipping is calculated at checkout, so not included here for now
