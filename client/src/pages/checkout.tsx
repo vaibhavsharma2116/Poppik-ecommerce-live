@@ -324,7 +324,7 @@ const normalizeAddress = (addr: any) => {
     landmark: addr.landmark ?? addr.landmark_name ?? null,
     city: addr.city ?? addr.town ?? addr.city_name,
     state: addr.state ?? addr.state_name,
-    pincode: addr.pincode ?? addr.pin ?? addr.postcode ?? addr.postal_code,
+    pincode: addr.pincode ?? addr.pin ?? addr.postcode ?? addr.postal_code ?? addr.zipCode ?? addr.zip_code ?? addr.pinCode ?? addr.pin_code,
     country: addr.country ?? 'India',
     phoneNumber: addr.phoneNumber ?? addr.phone_number ?? addr.phone,
     deliveryInstructions: addr.deliveryInstructions ?? addr.delivery_instructions ?? addr.instructions ?? null,
@@ -466,6 +466,11 @@ export default function CheckoutPage() {
   const [deliveryType, setDeliveryType] = useState<string | null>(null);
   const [pincodeMessage, setPincodeMessage] = useState<string | null>(null);
   const [checkingPincode, setCheckingPincode] = useState(false);
+
+  const isManualDelivery = useMemo(() => {
+    return String(deliveryPartner).toUpperCase() === 'INDIA_POST' && String(deliveryType || '').toUpperCase() === 'MANUAL';
+  }, [deliveryPartner, deliveryType]);
+
 
   // Wallet cashback states - load from localStorage
   const [redeemAmount, setRedeemAmount] = useState(() => {
@@ -1391,7 +1396,7 @@ export default function CheckoutPage() {
 
   const subtotalAfterDiscount = cartSubtotalAfterProductDiscount - affiliateDiscountAmount - promoDiscount - giftMilestoneDiscount;
 
-  const freeShippingThreshold = 500;
+  const freeShippingThreshold = 499;
   const shipping = cartSubtotalAfterProductDiscount >= freeShippingThreshold ? 0 : shippingCost;
 
   const totalBeforeRedemption = subtotalAfterDiscount + shipping;
@@ -2983,19 +2988,6 @@ export default function CheckoutPage() {
                                 </div>
                               </div>
 
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  id="makeDefault"
-                                  className="rounded"
-                                  checked={newAddressData.makeDefault}
-                                  onChange={(e) => setNewAddressData({...newAddressData, makeDefault: e.target.checked})}
-                                />
-                                {/* <Label htmlFor="makeDefault" className="text-sm font-normal">
-                                  Make this my default address
-                                </Label> */}
-                              </div>
-
                               <div>
                                 <Label htmlFor="newPincode">Pincode *</Label>
                                 <Input
@@ -3657,7 +3649,19 @@ export default function CheckoutPage() {
                       <h3 className="font-semibold text-gray-900 mb-3">Payment Method</h3>
                       <RadioGroup
                         value={formData.paymentMethod}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
+
+                        onValueChange={(value) => {
+                          if (isManualDelivery && value === 'cod') {
+                            toast({
+                              title: "Cash on Delivery Unavailable",
+                              description: "Cash on Delivery is not available for manual dispatch orders. Please use Online Payment.",
+                              variant: "destructive",
+                            });
+                            setFormData(prev => ({ ...prev, paymentMethod: 'cashfree' }));
+                            return;
+                          }
+                          setFormData(prev => ({ ...prev, paymentMethod: value }));
+                        }}
                         className="space-y-3"
                       >
                         <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-gray-50">
@@ -3672,9 +3676,9 @@ export default function CheckoutPage() {
                             </div>
                           </Label>
                         </div>
-                        <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-gray-50">
-                          <RadioGroupItem value="cod" id="cod" />
-                          <Label htmlFor="cod" className="flex-1 cursor-pointer">
+                        <div className={`flex items-center space-x-2 p-4 border rounded-lg ${isManualDelivery ? 'opacity-70 blur-[1px] cursor-not-allowed bg-gray-50' : 'hover:bg-gray-50'}`}>
+                          <RadioGroupItem value="cod" id="cod" disabled={isManualDelivery} />
+                          <Label htmlFor="cod" className={`flex-1 ${isManualDelivery ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="font-medium">Cash on Delivery</p>
@@ -3798,6 +3802,12 @@ export default function CheckoutPage() {
                       <span className="text-gray-600">Shipping</span>
                       <span className="font-medium">{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
                     </div>
+
+                    {cartSubtotalAfterProductDiscount >= freeShippingThreshold && (
+                      <div className="text-xs text-green-700 bg-green-50 p-2 rounded">
+                        Free shipping on all orders above Rs. 499.
+                      </div>
+                    )}
 
                     <Separator />
 

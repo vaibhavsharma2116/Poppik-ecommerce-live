@@ -1819,6 +1819,7 @@ app.get("/api/admin/stores", async (req, res) => {
                 status: 'processing',
                 paymentMethod: 'Cashfree',
                 shippingAddress: orderData.shippingAddress,
+                shippingCharge: Math.round(Number(orderData?.shippingCharge || 0)),
                 cashfreeOrderId: orderId,
                 paymentSessionId: statusResult.payment_session_id || null,
                 paymentId: statusResult.cf_order_id || null,
@@ -6492,6 +6493,16 @@ app.put("/api/admin/offers/:id", upload.fields([
         deliveryType = 'MANUAL';
       }
 
+      // Disallow COD for manual dispatch orders (India Post). Enforce on server as well.
+      if (String(deliveryPartner).toUpperCase() === 'INDIA_POST' && String(deliveryType || '').toUpperCase() === 'MANUAL') {
+        const pm = String(paymentMethod || '').toLowerCase();
+        const isCod = pm.includes('cod') || pm.includes('cash');
+        if (isCod) {
+          const msg = 'Cash on Delivery is not available for manual dispatch orders. Please use Online Payment.';
+          return res.status(400).json({ error: msg, message: msg });
+        }
+      }
+
       // orders.redeem_amount is an integer column in DB schema
       const redeemToApply = Math.round(Math.max(0, Number(redeemAmount || 0)));
 
@@ -6505,7 +6516,36 @@ app.put("/api/admin/offers/:id", upload.fields([
         (req.body as any)?.shipping_cost ??
         (req.body as any)?.shippingCost ??
         0;
-      const shippingChargeToApply = Math.round(Math.max(0, Number(shippingChargeFromBody || 0)));
+      let shippingChargeToApply = Math.round(Math.max(0, Number(shippingChargeFromBody || 0)));
+
+      // If COD shipping differs from prepaid for this pincode/weight, persist the COD rate.
+      // Only apply this when client sent a non-zero shippingCharge, so free-shipping orders
+      // are not accidentally charged due to serviceability rates.
+      try {
+        const pm = String(paymentMethod || '').toLowerCase();
+        const isCod = pm.includes('cod') || pm.includes('cash');
+        if (isCod && shippingChargeToApply > 0) {
+          const pickupPincode = String(process.env.SHIPROCKET_PICKUP_PINCODE || "400001");
+          const weight = Array.isArray(items)
+            ? Math.max(0.5, items.reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0))
+            : 0.5;
+          const deliveryPincode = Array.isArray(pincodes) && pincodes.length > 0 ? String(pincodes[0]) : "";
+
+          if (deliveryPincode && /^\d{6}$/.test(deliveryPincode)) {
+            const serviceability: any = await shiprocketService.getServiceability(pickupPincode, deliveryPincode, weight, true);
+            const couriers: any[] = serviceability?.data?.available_courier_companies;
+            if (Array.isArray(couriers) && couriers.length > 0) {
+              const cheapest = couriers.reduce((prev: any, curr: any) => (Number(curr?.rate) < Number(prev?.rate) ? curr : prev));
+              const codRate = Math.round(Math.max(0, Number(cheapest?.rate || 0)));
+              if (Number.isFinite(codRate) && codRate > 0) {
+                shippingChargeToApply = Math.max(shippingChargeToApply, codRate);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // ignore and fall back to client shippingCharge
+      }
 
       // Validate wallet balance before creating the order (so we can fail fast)
       if (redeemToApply > 0) {
@@ -7855,6 +7895,9 @@ app.put("/api/admin/offers/:id", upload.fields([
           // Return fallback if no courier companies available
           console.warn("No courier companies available from Shiprocket, using fallback");
           res.json({
+            isServiceable: false,
+            deliveryPartner: "INDIA_POST",
+            deliveryType: "MANUAL",
             data: {
               available_courier_companies: [{
                 courier_company_id: 0,
@@ -7874,6 +7917,9 @@ app.put("/api/admin/offers/:id", upload.fields([
         console.warn("Shiprocket serviceability check failed, using fallback:", shiprocketError);
 
         res.json({
+          isServiceable: false,
+          deliveryPartner: "INDIA_POST",
+          deliveryType: "MANUAL",
           data: {
             available_courier_companies: [{
               courier_company_id: 0,
