@@ -733,12 +733,7 @@ export default function ProductDetail() {
     const shadeText = selectedShades.length > 0
       ? ` (${selectedShades.map(s => s.name).join(', ')})`
       : '';
-
-    toast({
-      title: "Added to Cart",
-      description: `${product.name}${shadeText} (${quantity} each) has been added to your cart`,
-    });
-  }, [product, quantity, selectedShades, toast, shades.length]);
+  }, [product, quantity, selectedShades, shades.length]);
 
   const handleShadeSelect = (shade: Shade) => {
     const shadeKey = getShadeKey(shade);

@@ -163,10 +163,6 @@ export default function VideoTestimonials() {
 
     if (existingItem) {
       existingItem.quantity += 1;
-      toast({
-        title: "Cart Updated",
-        description: `${product.name} quantity increased to ${existingItem.quantity}`,
-      });
     } else {
       cart.push({
         id: product.id,
@@ -178,10 +174,6 @@ export default function VideoTestimonials() {
         inStock: true,
         cashbackPercentage: product.cashbackPercentage ? parseFloat(String(product.cashbackPercentage)) : undefined,
         cashbackPrice: product.cashbackPrice ? parseFloat(String(product.cashbackPrice)) : undefined,
-      });
-      toast({
-        title: "Added to Cart",
-        description: `${product.name} has been successfully added to your cart`,
       });
     }
 
@@ -281,7 +273,6 @@ export default function VideoTestimonials() {
     localStorage.setItem("cart", JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
-    toast({ title: "Added to Cart", description: `${product.name} added to cart` });
     setIsShadeDrawerOpen(false);
     setCurrentProductForShades(null);
   };

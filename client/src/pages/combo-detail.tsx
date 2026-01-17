@@ -656,11 +656,6 @@ export default function ComboDetail() {
     localStorage.setItem("cart", JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
-
-    toast({
-      title: "Added to Cart",
-      description: `${combo.name} has been added to your cart.`,
-    });
   };
 
   // Build canonical share URL that points to server share endpoint so crawlers see OG tags

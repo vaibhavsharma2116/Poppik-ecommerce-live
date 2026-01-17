@@ -617,7 +617,9 @@ export default function Cart() {
     });
   };
 
-  const saveForLater = async (productId: number) => {
+  const saveForLater = async (item: CartItem, index?: number) => {
+    const resolvedProductId = Number(item.productId ?? item.id);
+    if (!resolvedProductId || Number.isNaN(resolvedProductId)) return;
     if (!user) {
       toast({
         title: "Login Required",
@@ -628,25 +630,38 @@ export default function Cart() {
       return;
     }
 
-    setSavingToWishlist(productId);
+    setSavingToWishlist(resolvedProductId);
     try {
-      const res = await fetch(apiUrl("/api/wishlist"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ userId: user.id, productId }),
-      });
+      const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
+      const existingIndex = Array.isArray(wishlist)
+        ? wishlist.findIndex((w: any) => Number(w?.id) === resolvedProductId)
+        : -1;
 
-      if (!res.ok) {
-        throw new Error("Failed to add to wishlist");
+      if (existingIndex < 0) {
+        const wishlistItem = {
+          id: resolvedProductId,
+          name: String(item.name || "").substring(0, 100),
+          price: item.price,
+          originalPrice: item.originalPrice,
+          image: String(item.image || "").substring(0, 200),
+          inStock: !!item.inStock,
+          category: "",
+          rating: "0",
+          cashbackPercentage: item.cashbackPercentage ?? undefined,
+          cashbackPrice: item.cashbackPrice ?? undefined,
+        };
+        wishlist.push(wishlistItem);
       }
+
+      localStorage.setItem("wishlist", JSON.stringify(wishlist));
+      window.dispatchEvent(new Event("wishlistUpdated"));
 
       toast({
         title: "Saved",
         description: "Item added to your wishlist",
       });
 
-      removeItem(productId);
+      removeItem(item.id, index);
     } catch (e) {
       toast({
         title: "Could not save",
@@ -1183,8 +1198,8 @@ export default function Cart() {
 
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => saveForLater(item.id)}
-                          disabled={savingToWishlist === item.id}
+                          onClick={() => saveForLater(item, index)}
+                          disabled={savingToWishlist === Number(item.productId ?? item.id) || !!item.isOfferItem || (item as any).isCombo}
                           className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
                           aria-label="Save for later"
                         >

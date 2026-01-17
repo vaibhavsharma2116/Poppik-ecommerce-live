@@ -1063,11 +1063,6 @@ export default function OfferDetail() {
       localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
       window.dispatchEvent(new Event("cartUpdated"));
 
-      toast({
-        title: "Added to Cart! 🎉",
-        description: `${productIds.length} product(s) from "${offer.title}" added with ₹${totalDiscountAmount.toFixed(2)} discount`,
-      });
-
       setSelectedShades({});
     } catch (error) {
       console.error('Error adding to cart:', error);
