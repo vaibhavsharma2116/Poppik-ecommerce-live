@@ -2124,6 +2124,7 @@ export default function CheckoutPage() {
           orderData: {
             userId: user.id,
             totalAmount: Math.round(total),
+            shippingCharge: Math.round(shipping),
             shippingAddress: cashfreeShippingAddress,
             isMultiAddress: isMultiAddress,
             multiAddressMapping: multiAddressMapping ? multiAddressMapping : null,
@@ -2528,6 +2529,7 @@ export default function CheckoutPage() {
           totalAmount: Math.round(total), // Round to integer
           paymentMethod: paymentMethod,
           shippingAddress: shippingAddressData,
+          shippingCharge: Math.round(shipping),
           isMultiAddress: isMultiAddress,
           affiliateCode: shouldIncludeAffiliateCode ? effectiveAffiliateCode : null,
           promoCode: appliedPromo?.code || null,

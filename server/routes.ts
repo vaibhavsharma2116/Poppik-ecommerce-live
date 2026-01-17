@@ -5653,6 +5653,7 @@ app.put("/api/admin/offers/:id", upload.fields([
             products: items,
             userId: order.userId,
             totalAmount: order.totalAmount,
+            shippingCharge: (order as any).shippingCharge ?? (order as any).shipping_charge ?? 0,
             shippingAddress: order.shippingAddress,
             deliveryPartner:
               (order as any).deliveryPartner ||
@@ -5778,6 +5779,7 @@ app.put("/api/admin/offers/:id", upload.fields([
             trackingNumber: order.trackingNumber,
             estimatedDelivery: order.estimatedDelivery?.toISOString().split('T')[0],
             shippingAddress: formattedShipping,
+            shippingCharge: (order as any).shippingCharge ?? (order as any).shipping_charge ?? 0,
             paymentMethod: order.paymentMethod,
             userId: order.userId,
           };
