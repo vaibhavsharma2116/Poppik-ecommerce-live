@@ -35,10 +35,20 @@ export class IndiaPostInvoiceService {
 
     const innerW = pageWidth - margin * 2;
 
-    const badgeH = 38;
-    doc.rect(margin, margin, innerW, badgeH).stroke();
-    doc.font("Helvetica-Bold").fontSize(11).text("BNPL Account SPPED POST", margin, margin + 7, { width: innerW, align: "center" });
-    doc.font("Helvetica").fontSize(10).text("NM/ROA-NM/1203/25-28", margin, margin + 20, { width: innerW, align: "center" });
+    const badgeH = 30;
+    const badgeLine1 = "BNPL Account SPPED POST";
+    const badgeLine2 = "NM/ROA-NM/1203/25-28";
+    doc.font("Helvetica-Bold").fontSize(11);
+    const w1 = doc.widthOfString(badgeLine1);
+    doc.font("Helvetica").fontSize(10);
+    const w2 = doc.widthOfString(badgeLine2);
+    const badgePaddingX = 12;
+    const badgeW = Math.min(innerW, Math.ceil(Math.max(w1, w2) + badgePaddingX * 2));
+    const badgeX = margin + (innerW - badgeW) / 2;
+
+    doc.rect(badgeX, margin, badgeW, badgeH).stroke();
+    doc.font("Helvetica-Bold").fontSize(11).text(badgeLine1, badgeX, margin + 5, { width: badgeW, align: "center" });
+    doc.font("Helvetica").fontSize(10).text(badgeLine2, badgeX, margin + 17, { width: badgeW, align: "center" });
 
     // Ship To (match reference: lots of whitespace, lighter label, dynamic value)
     const shipTop = margin + badgeH + 58;
@@ -66,9 +76,6 @@ export class IndiaPostInvoiceService {
     );
     doc.font("Helvetica-Bold").fontSize(9).fillColor("#000").text("Contact Details:", margin, doc.y + 8, { width: innerW, align: "center", lineGap: 0 });
     doc.font("Helvetica").fontSize(9).fillColor("#666").text("www.poppiklifestyle.com / info@poppik.in / 8976261444", margin, doc.y + 2, { width: innerW, align: "center", lineGap: 0 });
-
-    // Keep order id tiny (helps debugging but doesn't change the design much)
-    doc.font("Helvetica").fontSize(7).fillColor("#999").text(`Order: ${ctx.orderId}`, margin, 432 - margin - 10, { width: innerW, align: "left" });
 
     doc.end();
   }
