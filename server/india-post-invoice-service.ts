@@ -37,75 +37,38 @@ export class IndiaPostInvoiceService {
 
     const badgeH = 38;
     doc.rect(margin, margin, innerW, badgeH).stroke();
-    doc.fontSize(11).text("BNPL Account  SPEED POST", margin, margin + 7, { width: innerW, align: "center" });
-    doc.fontSize(10).text("NMR/OA-NM/1203/25-28", margin, margin + 20, { width: innerW, align: "center" });
+    doc.font("Helvetica-Bold").fontSize(11).text("BNPL Account SPPED POST", margin, margin + 7, { width: innerW, align: "center" });
+    doc.font("Helvetica").fontSize(10).text("NM/ROA-NM/1203/25-28", margin, margin + 20, { width: innerW, align: "center" });
 
-    const companyTop = margin + badgeH + 10;
-    doc.fontSize(12).text("POPPiK LIFESTYLE PRIVATE LIMITED", margin, companyTop, { width: innerW, align: "center" });
+    // Ship To (match reference: lots of whitespace, lighter label, dynamic value)
+    const shipTop = margin + badgeH + 58;
+    const shipLabelW = 58;
+    const shipValueX = margin + shipLabelW;
+    const shipValueW = innerW - shipLabelW;
 
-    const shipTop = doc.y + 10;
-    doc.fontSize(12).text("Ship To", margin, shipTop, { width: innerW, align: "left" });
-    const fieldTop = shipTop + 20;
-    const lineStartX = margin + 60;
-    const lineW = innerW - 60;
-    doc.fontSize(10).text("Name", margin, fieldTop, { width: 56, align: "left" });
-    const lineY1 = fieldTop + 12;
-    doc.moveTo(lineStartX, lineY1).lineTo(lineStartX + lineW, lineY1).stroke();
-
-    const addrLabelY = fieldTop + 24;
-    doc.fontSize(10).text("Address", margin, addrLabelY, { width: 56, align: "left" });
-    const addrValueY1 = addrLabelY;
-    const addrLineY1 = addrValueY1 + 12;
-    const addrLineY2 = addrLineY1 + 12;
-    const addrLineY3 = addrLineY2 + 12;
-    doc.moveTo(lineStartX, addrLineY1).lineTo(lineStartX + lineW, addrLineY1).stroke();
-    doc.moveTo(lineStartX, addrLineY2).lineTo(lineStartX + lineW, addrLineY2).stroke();
-    doc.moveTo(lineStartX, addrLineY3).lineTo(lineStartX + lineW, addrLineY3).stroke();
-    const lineY3 = addrLineY3 + 12;
-    doc.moveTo(lineStartX, lineY3).lineTo(lineStartX + lineW, lineY3).stroke();
-
-    const mobLabelY = lineY3 + 18;
-    doc.fontSize(10).text("Mob No", margin, mobLabelY, { width: 56, align: "left" });
-    const lineY4 = mobLabelY + 12;
-    doc.moveTo(lineStartX, lineY4).lineTo(lineStartX + lineW, lineY4).stroke();
-
-    doc.fontSize(9);
     const nameText = String(ctx.customerName || "").trim();
     const phoneText = String(ctx.customerPhone || "").trim();
     const addrText = String(ctx.shippingAddress || "").trim();
-    if (nameText) doc.text(nameText, lineStartX + 2, lineY1 - 12, { width: lineW - 4, align: "left" });
-    if (addrText) {
-      const normalizedAddr = addrText.replace(/\s+/g, " ").trim();
-      const words = normalizedAddr.split(" ").filter(Boolean);
-      const addrLines: string[] = [];
-      let current = "";
-      const maxWidth = lineW - 4;
-      for (const w of words) {
-        const next = current ? `${current} ${w}` : w;
-        if (doc.widthOfString(next) <= maxWidth) {
-          current = next;
-          continue;
-        }
-        if (current) addrLines.push(current);
-        current = w;
-        if (addrLines.length >= 3) break;
-      }
-      if (addrLines.length < 3 && current) addrLines.push(current);
-      const rendered = addrLines.slice(0, 3);
-      if (rendered[0]) doc.text(rendered[0], lineStartX + 2, addrValueY1, { width: maxWidth, align: "left" });
-      if (rendered[1]) doc.text(rendered[1], lineStartX + 2, addrValueY1 + 12, { width: maxWidth, align: "left" });
-      if (rendered[2]) doc.text(rendered[2], lineStartX + 2, addrValueY1 + 24, { width: maxWidth, align: "left" });
-    }
-    if (phoneText) doc.text(phoneText, lineStartX + 2, lineY4 - 12, { width: lineW - 4, align: "left" });
+    const normalizedAddr = addrText.replace(/\s+/g, " ").trim();
+    const shipToValue = [nameText, normalizedAddr, phoneText].filter(Boolean).join("\n");
 
-    const bottomBoxH = 88;
-    const bottomY = 432 - margin - bottomBoxH;
-    doc.rect(margin, bottomY, innerW, bottomBoxH).stroke();
-    doc.fontSize(12).text("Poppik Lifestyle Private Limited", margin, bottomY + 8, { width: innerW, align: "center" });
-    doc.fontSize(9);
-    doc.text("Shop No. - 06 , Gauri Complex CHS , Sector No. - 11 ,CBD Belapur Navi Mumbai , Mn , India - 400614", margin, bottomY + 26, { width: innerW, align: "center", lineGap: 0 });
-    doc.text("Contact Details - www.poppiklifestyle.com /info@poppik.in / 8976261444", margin, doc.y + 2, { width: innerW, align: "center", lineGap: 0 });
-    doc.fontSize(7).text(`Order: ${ctx.orderId}`, margin, bottomY - 10, { width: innerW, align: "left" });
+    doc.font("Helvetica").fontSize(12).fillColor("#666").text("Ship To:", margin, shipTop, { width: shipLabelW, align: "left" });
+    doc.font("Helvetica").fontSize(11).fillColor("#000").text(shipToValue || "-", shipValueX, shipTop, { width: shipValueW, align: "left" });
+
+    // Footer (match reference: no box, light address, bold label)
+    const footerY = 432 - margin - 92;
+    doc.font("Helvetica-Bold").fontSize(12).fillColor("#000").text("Poppik Lifestyle Private Limited", margin, footerY, { width: innerW, align: "center" });
+    doc.font("Helvetica").fontSize(9).fillColor("#666").text(
+      "Shop No. 06, Gauri Complex CHS, Sector No. 11, CBD Belapur,\nNavi Mumbai, MH, India - 400614",
+      margin,
+      doc.y + 6,
+      { width: innerW, align: "center", lineGap: 0 }
+    );
+    doc.font("Helvetica-Bold").fontSize(9).fillColor("#000").text("Contact Details:", margin, doc.y + 8, { width: innerW, align: "center", lineGap: 0 });
+    doc.font("Helvetica").fontSize(9).fillColor("#666").text("www.poppiklifestyle.com / info@poppik.in / 8976261444", margin, doc.y + 2, { width: innerW, align: "center", lineGap: 0 });
+
+    // Keep order id tiny (helps debugging but doesn't change the design much)
+    doc.font("Helvetica").fontSize(7).fillColor("#999").text(`Order: ${ctx.orderId}`, margin, 432 - margin - 10, { width: innerW, align: "left" });
 
     doc.end();
   }
