@@ -229,91 +229,93 @@ export default function HeroBanner({
           />
         </Helmet>
       ) : null}
-      <Carousel
-        setApi={setApi}
-        className="w-full"
-        opts={{
-          align: "start",
-          loop: true,
-        }}
-      >
-        <CarouselContent>
-          {slides.map((slide) => (
-            <CarouselItem key={slide.key}>
-              <div
-                className={
-                  slide.type === 'offer'
-                    ? "mobile-slider-container relative w-full overflow-hidden bg-white"
-                    : "mobile-slider-container relative w-full overflow-hidden"
-                }
-                style={{ aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}` }}
-                role={slide.type === 'offer' ? 'button' : undefined}
-                tabIndex={slide.type === 'offer' ? 0 : undefined}
-                onClick={() => {
-                  if (slide.type === 'offer' && slide.offerId) {
-                    setLocation(`/offer/${slide.offerId}`);
+      <div className="max-w-[90rem] mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+        <Carousel
+          setApi={setApi}
+          className="w-full"
+          opts={{
+            align: "start",
+            loop: true,
+          }}
+        >
+          <CarouselContent>
+            {slides.map((slide) => (
+              <CarouselItem key={slide.key}>
+                <div
+                  className={
+                    slide.type === 'offer'
+                      ? "mobile-slider-container relative w-full overflow-hidden bg-white"
+                      : "mobile-slider-container relative w-full overflow-hidden"
                   }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && slide.type === 'offer' && slide.offerId) {
-                    setLocation(`/offer/${slide.offerId}`);
-                  }
-                }}
+                  style={{ aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}` }}
+                  role={slide.type === 'offer' ? 'button' : undefined}
+                  tabIndex={slide.type === 'offer' ? 0 : undefined}
+                  onClick={() => {
+                    if (slide.type === 'offer' && slide.offerId) {
+                      setLocation(`/offer/${slide.offerId}`);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && slide.type === 'offer' && slide.offerId) {
+                      setLocation(`/offer/${slide.offerId}`);
+                    }
+                  }}
+                >
+                  {slide.type === 'offer' ? (
+                    <img
+                      src={slide.imageUrl}
+                      alt={`Offer ${slide.offerId ?? ''}`}
+                      className="w-full h-full object-cover bg-gray-100"
+                      loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
+                      decoding="async"
+                      fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
+                      width={HERO_WIDTH}
+                      height={HERO_HEIGHT}
+                    />
+                  ) : (
+                    <img
+                      src={slide.imageUrl}
+                      alt={slide.key}
+                      className="w-full h-full object-cover bg-gray-100"
+                      loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
+                      decoding="async"
+                      fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
+                      width={HERO_WIDTH}
+                      height={HERO_HEIGHT}
+                    />
+                  )}
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+
+          {showControls && (
+            <>
+              <button
+                onClick={prevSlide}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-20  rounded-full p-2  transition-all"
+                aria-label="Previous slide"
               >
-                {slide.type === 'offer' ? (
-                  <img
-                    src={slide.imageUrl}
-                    alt={`Offer ${slide.offerId ?? ''}`}
-                    className="w-full h-full object-cover bg-gray-100"
-                    loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
-                    decoding="async"
-                    fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
-                    width={HERO_WIDTH}
-                    height={HERO_HEIGHT}
-                  />
-                ) : (
-                  <img
-                    src={slide.imageUrl}
-                    alt={slide.key}
-                    className="w-full h-full object-cover bg-gray-100"
-                    loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
-                    decoding="async"
-                    fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
-                    width={HERO_WIDTH}
-                    height={HERO_HEIGHT}
-                  />
-                )}
-              </div>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
+                <ChevronLeft className="w-6 h-6 text-gray-800" />
+              </button>
 
-        {showControls && (
-          <>
-            <button
-              onClick={prevSlide}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-20  rounded-full p-2  transition-all"
-              aria-label="Previous slide"
-            >
-              <ChevronLeft className="w-6 h-6 text-gray-800" />
-            </button>
+              <button
+                onClick={nextSlide}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-20  rounded-full p-2  transition-all"
+                aria-label="Next slide"
+              >
+                <ChevronRight className="w-6 h-6 text-gray-800" />
+              </button>
+            </>
+          )}
 
-            <button
-              onClick={nextSlide}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-20  rounded-full p-2  transition-all"
-              aria-label="Next slide"
-            >
-              <ChevronRight className="w-6 h-6 text-gray-800" />
-            </button>
-          </>
-        )}
+          
 
-        
-
-        {/* <div className="absolute top-6 right-6 z-20 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-white text-sm font-medium">
-          {current + 1} / {slides.length}
-        </div> */}
-      </Carousel>
+          {/* <div className="absolute top-6 right-6 z-20 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-white text-sm font-medium">
+            {current + 1} / {slides.length}
+          </div> */}
+        </Carousel>
+      </div>
     </section>
   );
 }
