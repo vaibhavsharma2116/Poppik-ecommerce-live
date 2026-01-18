@@ -115,10 +115,10 @@ const AdminBlog = lazy(() => import("./pages/admin/blog"));
 const AdminReports = lazy(() => import("./pages/admin/reports"));
 const AdminMedia = lazy(() => import("./pages/admin/media"));
 const MediaLinks = lazy(() => import("@/pages/media-links"));
-import OffersPage from "@/pages/offers";
-import OfferDetail from "@/pages/offer-detail";
-import AdminPromoCodeUsage from "./pages/admin/promo-code-usage";
-import AdminGiftSettings from "./pages/admin/gift-settings";
+const OffersPage = lazy(() => import("@/pages/offers"));
+const OfferDetail = lazy(() => import("@/pages/offer-detail"));
+const AdminPromoCodeUsage = lazy(() => import("./pages/admin/promo-code-usage"));
+const AdminGiftSettings = lazy(() => import("./pages/admin/gift-settings"));
 
 // Loading component for better UX
 const LoadingSpinner = () => (
@@ -200,42 +200,41 @@ function Router() {
       <Route path="/admin" nest>
         <AdminLayout>
           <Switch>
-            <Route path="/" component={AdminDashboard} />
-            <Route path="/" component={AdminDashboard} />
-            <Route path="/products" component={AdminProducts} />
-            <Route path="/categories" component={AdminCategories} />
-            <Route path="/orders" component={AdminOrders} />
+            <Route path="/" component={() => <LazyRoute component={AdminDashboard} />} />
+            <Route path="/products" component={() => <LazyRoute component={AdminProducts} />} />
+            <Route path="/categories" component={() => <LazyRoute component={AdminCategories} />} />
+            <Route path="/orders" component={() => <LazyRoute component={AdminOrders} />} />
             <Route path="/orders/thermal-invoice" component={() => <LazyRoute component={AdminThermalInvoice} />} />
-            <Route path="/customers" component={AdminCustomers} />
+            <Route path="/customers" component={() => <LazyRoute component={AdminCustomers} />} />
 <Route path="/influencer-videos" component={() => <LazyRoute component={AdminInfluencerVideos} />} />
             <Route path="/affiliate-videos" component={() => <LazyRoute component={AdminAffiliateVideos} />} />
             <Route path="/channel-partner-videos" component={() => <LazyRoute component={AdminChannelPartnerVideos} />} />
             <Route path="/sliders" component={() => <LazyRoute component={lazy(() => import("@/pages/admin/sliders"))} />} />
             <Route path="/combo-sliders" component={() => <LazyRoute component={lazy(() => import("@/pages/admin/combo-sliders"))} />} />
-            <Route path="/job-applications" component={JobApplications} />
+            <Route path="/job-applications" component={() => <LazyRoute component={JobApplications} />} />
             {/* <Route path="/influencer-applications" component={AdminInfluencerApplications} /> */}
-            <Route path="/affiliate-applications" component={AdminAffiliateApplications} />
-            <Route path="/affiliate-withdrawals" component={AdminAffiliateWithdrawals} />
-            <Route path="/promo-codes" component={lazy(() => import("./pages/admin/promo-codes"))} />
-            <Route path="/promo-code-usage" component={AdminPromoCodeUsage} />
-            <Route path="/gift-settings" component={AdminGiftSettings} />
-            <Route path="/offers" component={lazy(() => import("@/pages/admin/offers"))} />
-            <Route path="/contests" component={lazy(() => import("./pages/admin/contests"))} />
+            <Route path="/affiliate-applications" component={() => <LazyRoute component={AdminAffiliateApplications} />} />
+            <Route path="/affiliate-withdrawals" component={() => <LazyRoute component={AdminAffiliateWithdrawals} />} />
+            <Route path="/promo-codes" component={() => <LazyRoute component={lazy(() => import("./pages/admin/promo-codes"))} />} />
+            <Route path="/promo-code-usage" component={() => <LazyRoute component={AdminPromoCodeUsage} />} />
+            <Route path="/gift-settings" component={() => <LazyRoute component={AdminGiftSettings} />} />
+            <Route path="/offers" component={() => <LazyRoute component={lazy(() => import("@/pages/admin/offers"))} />} />
+            <Route path="/contests" component={() => <LazyRoute component={lazy(() => import("./pages/admin/contests"))} />} />
             <Route path="/job-positions" component={() => <LazyRoute component={lazy(() => import("./pages/admin/job-positions"))} />} />
-            <Route path="/stores" component={AdminStores} />
-              <Route path="/notifications" component={AdminNotifications} />
-            <Route path="/settings" component={AdminSettings} />
+            <Route path="/stores" component={() => <LazyRoute component={AdminStores} />} />
+              <Route path="/notifications" component={() => <LazyRoute component={AdminNotifications} />} />
+            <Route path="/settings" component={() => <LazyRoute component={AdminSettings} />} />
             <Route path="/affiliate-settings" component={() => <LazyRoute component={lazy(() => import("./pages/admin/affiliate-settings"))} />} />
-            <Route path="/profile" component={AdminProfile} />
-            <Route path="/change-password" component={AdminChangePassword} />
-             <Route path="/contact-submissions" component={AdminContactSubmissions} />
-            <Route path="/testimonials" component={AdminTestimonials} />
-            <Route path="/video-testimonials" component={AdminVideoTestimonials} />
+            <Route path="/profile" component={() => <LazyRoute component={AdminProfile} />} />
+            <Route path="/change-password" component={() => <LazyRoute component={AdminChangePassword} />} />
+             <Route path="/contact-submissions" component={() => <LazyRoute component={AdminContactSubmissions} />} />
+            <Route path="/testimonials" component={() => <LazyRoute component={AdminTestimonials} />} />
+            <Route path="/video-testimonials" component={() => <LazyRoute component={AdminVideoTestimonials} />} />
             <Route path="/blog" component={() => <LazyRoute component={lazy(() => import("./pages/admin/blog"))} />} />
-            <Route path="/combos" component={AdminCombos} />
-            <Route path="/announcements" component={AdminAnnouncements} />
-            <Route path="/shades" component={AdminShades} />
-            <Route path="/featured-sections" component={AdminFeaturedSections} />
+            <Route path="/combos" component={() => <LazyRoute component={AdminCombos} />} />
+            <Route path="/announcements" component={() => <LazyRoute component={AdminAnnouncements} />} />
+            <Route path="/shades" component={() => <LazyRoute component={AdminShades} />} />
+            <Route path="/featured-sections" component={() => <LazyRoute component={AdminFeaturedSections} />} />
             
             {/* Master Admin Routes */}
             <Route path="/master" component={() => <LazyRoute component={lazy(() => import("./pages/admin/master-admin-dashboard"))} />} />
@@ -244,7 +243,7 @@ function Router() {
             <Route path="/master/logs" component={() => <LazyRoute component={lazy(() => import("./pages/admin/master-admin-activity-logs"))} />} />
             <Route path="/reports" component={() => <LazyRoute component={AdminReports} />} />
             <Route path="/media" component={() => <LazyRoute component={AdminMedia} />} />
-            <Route component={NotFound} />
+            <Route component={() => <LazyRoute component={NotFound} />} />
           </Switch>
         </AdminLayout>
       </Route>
@@ -253,60 +252,58 @@ function Router() {
       <Route>
         <Layout>
           <Switch>
-            <Route path="/" component={Home} />
-            <Route path="/combos" component={ComboPage} />
+            <Route path="/" component={() => <LazyRoute component={Home} />} />
+            <Route path="/combos" component={() => <LazyRoute component={ComboPage} />} />
             <Route path="/combo/:id" component={() => <LazyRoute component={lazy(() => import("./pages/combo-detail"))} />} />
-            <Route path="/offers" component={OffersPage} />
-            <Route path="/offer/:id" component={OfferDetail} />
+            <Route path="/offers" component={() => <LazyRoute component={OffersPage} />} />
+            <Route path="/offer/:id" component={() => <LazyRoute component={OfferDetail} />} />
             <Route path="/academy" component={() => <LazyRoute component={AcademyPage} />} />
             <Route path="/drop-shipping" component={() => <LazyRoute component={DropShippingPage} />} />
             <Route path="/contest" component={() => <LazyRoute component={ContestPage} />} />
             <Route path="/contest/:slug" component={() => <LazyRoute component={lazy(() => import("./pages/contest-detail"))} />} />
-            <Route path="/channel-partner" component={ChannelPartnerPage} />
+            <Route path="/channel-partner" component={() => <LazyRoute component={ChannelPartnerPage} />} />
             <Route path="/beauty-kit/micro" component={() => <LazyRoute component={lazy(() => import("./pages/beauty-kit-micro"))} />} />
             <Route path="/beauty-kit/small" component={() => <LazyRoute component={lazy(() => import("./pages/beauty-kit-small"))} />} />
             <Route path="/beauty-kit/medium" component={() => <LazyRoute component={lazy(() => import("./pages/beauty-kit-medium"))} />} />
             <Route path="/beauty-kit/large" component={() => <LazyRoute component={lazy(() => import("./pages/beauty-kit-large"))} />} />
             <Route path="/makeup-studio" component={() => <LazyRoute component={MakeupStudio} />} />
             <Route path="/fashion-show" component={() => <LazyRoute component={FashionShow} />} />
-            <Route path="/products" component={ProductsPage} />
-            <Route path="/category/:slug" component={Category} />
-            <Route path="/product/:slug" component={ProductDetail} />
-            <Route path="/about" component={About} />
-            <Route path="/combo" component={ComboPage} />
-
-
-            <Route path="/blog" component={Blog} />
-          <Route path="/blog/:slug" component={BlogPost} />
-            <Route path="/contact" component={Contact} />
-            <Route path="/auth/login" component={Login} />
-            <Route path="/auth/signup" component={Signup} />
-            <Route path="/auth/forgot-password" component={ForgotPassword} />
+            <Route path="/products" component={() => <LazyRoute component={ProductsPage} />} />
+            <Route path="/category/:slug" component={() => <LazyRoute component={Category} />} />
+            <Route path="/product/:slug" component={() => <LazyRoute component={ProductDetail} />} />
+            <Route path="/about" component={() => <LazyRoute component={About} />} />
+            <Route path="/combo" component={() => <LazyRoute component={ComboPage} />} />
+            <Route path="/blog" component={() => <LazyRoute component={Blog} />} />
+            <Route path="/blog/:slug" component={() => <LazyRoute component={BlogPost} />} />
+            <Route path="/contact" component={() => <LazyRoute component={Contact} />} />
+            <Route path="/auth/login" component={() => <LazyRoute component={Login} />} />
+            <Route path="/auth/signup" component={() => <LazyRoute component={Signup} />} />
+            <Route path="/auth/forgot-password" component={() => <LazyRoute component={ForgotPassword} />} />
             <Route path="/auth/reset-password" component={() => <LazyRoute component={ResetPassword} />} />
             <Route path="/auth/otp-verification" component={() => <LazyRoute component={OTPVerification} />} />
-            <Route path="/profile" component={Profile} />
-            <Route path="/cart" component={CartPage} />
-            <Route path="/checkout" component={Checkout} />
-          <Route path="/select-delivery-address" component={SelectDeliveryAddress} />
-            <Route path="/wishlist" component={Wishlist} />
-            <Route path="/wallet" component={Wallet} />
-            <Route path="/order-history" component={OrderHistory} />
-            <Route path="/track-order" component={TrackOrder} />
-            <Route path="/change-password" component={ChangePassword} />
-             <Route path="/terms" component={Terms} />
-            <Route path="/privacy" component={Privacy} />
+            <Route path="/profile" component={() => <LazyRoute component={Profile} />} />
+            <Route path="/cart" component={() => <LazyRoute component={CartPage} />} />
+            <Route path="/checkout" component={() => <LazyRoute component={Checkout} />} />
+            <Route path="/select-delivery-address" component={() => <LazyRoute component={SelectDeliveryAddress} />} />
+            <Route path="/wishlist" component={() => <LazyRoute component={Wishlist} />} />
+            <Route path="/wallet" component={() => <LazyRoute component={Wallet} />} />
+            <Route path="/order-history" component={() => <LazyRoute component={OrderHistory} />} />
+            <Route path="/track-order" component={() => <LazyRoute component={TrackOrder} />} />
+            <Route path="/change-password" component={() => <LazyRoute component={ChangePassword} />} />
+            <Route path="/terms" component={() => <LazyRoute component={Terms} />} />
+            <Route path="/privacy" component={() => <LazyRoute component={Privacy} />} />
             <Route path="/store-locator" component={() => <LazyRoute component={lazy(() => import("./pages/store-locator"))} />} />
-            <Route path="/careers" component={Careers} />
+            <Route path="/careers" component={() => <LazyRoute component={Careers} />} />
             <Route path="/careers/:position" component={() => <LazyRoute component={lazy(() => import("./pages/careers-detail"))} />} />
             <Route path="/careers/apply/:position?" component={() => <LazyRoute component={lazy(() => import("./pages/careers-apply"))} />} />
-            <Route path="/influencer-collab" component={InfluencerCollab} />
+            <Route path="/influencer-collab" component={() => <LazyRoute component={InfluencerCollab} />} />
             <Route path="/affiliate" component={() => <LazyRoute component={lazy(() => import("./pages/affiliate"))} />} />
-            <Route path="/affiliate-application" component={AffiliateApplicationPage} />
-            <Route path="/affiliate-form" component={AffiliateForm} />
+            <Route path="/affiliate-application" component={() => <LazyRoute component={AffiliateApplicationPage} />} />
+            <Route path="/affiliate-form" component={() => <LazyRoute component={AffiliateForm} />} />
             <Route path="/affiliate-dashboard" component={() => <LazyRoute component={lazy(() => import("./pages/affiliate-dashboard"))} />} />
             <Route path="/affiliate-wallet" component={() => <LazyRoute component={lazy(() => import("./pages/affiliate-wallet"))} />} />
-            <Route path="/media-links" component={MediaLinks} />
-            <Route component={NotFound} />
+            <Route path="/media-links" component={() => <LazyRoute component={MediaLinks} />} />
+            <Route component={() => <LazyRoute component={NotFound} />} />
           </Switch>
         </Layout>
       </Route>

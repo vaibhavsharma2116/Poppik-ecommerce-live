@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from "@/components/ui/skeleton";
 import { LazyImage } from "@/components/LazyImage";
 import { useLocation } from "wouter";
+import { Helmet } from "react-helmet";
 
 interface Slider {
   id: number;
@@ -104,6 +105,14 @@ export default function HeroBanner({
 
   const slides: HeroSlide[] = [...sliderSlides, ...offerSlides].sort((a, b) => a.sortOrder - b.sortOrder);
 
+  const lcpSlide = slides[0];
+  const lcpImageUrl = lcpSlide?.imageUrl;
+  const isLcpSlide = (slide: HeroSlide) => slide.key === lcpSlide?.key;
+
+  // Reserve space for hero images (reduces CLS)
+  const HERO_WIDTH = 1920;
+  const HERO_HEIGHT = 600;
+
   const isLoading = slidersLoading || offersLoading;
   const error = slidersError || offersError;
 
@@ -189,6 +198,18 @@ export default function HeroBanner({
 
   return (
     <section className="relative w-full" aria-label="Hero banner carousel">
+      {lcpImageUrl ? (
+        <Helmet>
+          <link
+            {...({
+              rel: 'preload',
+              as: 'image',
+              href: lcpImageUrl,
+              fetchpriority: 'high',
+            } as any)}
+          />
+        </Helmet>
+      ) : null}
       <Carousel
         setApi={setApi}
         className="w-full"
@@ -206,6 +227,7 @@ export default function HeroBanner({
                     ? "mobile-slider-container relative w-full overflow-hidden bg-white"
                     : "mobile-slider-container relative w-full overflow-hidden"
                 }
+                style={{ aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}` }}
                 role={slide.type === 'offer' ? 'button' : undefined}
                 tabIndex={slide.type === 'offer' ? 0 : undefined}
                 onClick={() => {
@@ -219,24 +241,17 @@ export default function HeroBanner({
                   }
                 }}
               >
-                {/* {showProgress && (
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gray-200 z-10">
-                    <div 
-                      className="h-full bg-red-500 transition-all duration-100 ease-linear"
-                      style={{ width: `${progress}%` }}
-                      aria-hidden="true"
-                    />
-                  </div>
-                )} */}
-
                 {slide.type === 'offer' ? (
                   <div className="relative w-full h-full">
                     <img
                       src={slide.imageUrl}
                       alt={`Offer ${slide.offerId ?? ''}`}
                       className="absolute inset-0 w-full h-full object-cover blur-lg scale-110"
-                      loading={slide.sortOrder === 0 ? 'eager' : 'lazy'}
+                      loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
                       decoding="async"
+                      fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
+                      width={HERO_WIDTH}
+                      height={HERO_HEIGHT}
                     />
                     <div className="absolute inset-0 bg-black/10" />
                     <div className="relative z-10 w-full h-full flex items-center justify-center">
@@ -244,8 +259,11 @@ export default function HeroBanner({
                         src={slide.imageUrl}
                         alt={`Offer ${slide.offerId ?? ''}`}
                         className="max-w-full max-h-full object-contain"
-                        loading={slide.sortOrder === 0 ? 'eager' : 'lazy'}
+                        loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
                         decoding="async"
+                        fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
+                        width={HERO_WIDTH}
+                        height={HERO_HEIGHT}
                       />
                     </div>
                   </div>
@@ -253,9 +271,9 @@ export default function HeroBanner({
                   <LazyImage
                     src={slide.imageUrl} 
                     alt={slide.key}
-                    width={1920}
-                    height={600}
-                    priority={slide.sortOrder === 0}
+                    width={HERO_WIDTH}
+                    height={HERO_HEIGHT}
+                    priority={isLcpSlide(slide)}
                     className="w-full object-contain bg-gray-100"
                   />
                 )}

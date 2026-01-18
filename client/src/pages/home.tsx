@@ -159,6 +159,8 @@ function TestimonialsCarousel() {
                   src={testimonial.customerImageUrl || 'https://images.unsplash.com/photo-1534528741775-1cb2f982d8b?w=150&h=150&fit=crop'}
                   alt={testimonial.customerName}
                   className="w-full h-full"
+                  width={150}
+                  height={150}
                 />
               </div>
             );
@@ -462,6 +464,8 @@ console.log("featured",featured)
                               }
                               alt={category.name}
                               className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 bg-white"
+                              width={400}
+                              height={400}
                               style={{
                                 width: '100%',
                                 height: '100%',
@@ -1137,6 +1141,8 @@ function ComboSection() {
                             src={getPrimaryImage(combo)!}
                             alt={combo.name}
                             className="h-full w-full object-cover"
+                            width={400}
+                            height={400}
                             loading="lazy"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
@@ -1387,6 +1393,8 @@ function LatestBlogPostsPerCategory() {
                   src={post.imageUrl}
                   alt={post.title}
                   className="absolute inset-0 w-full h-full  group-hover:scale-105 transition-transform duration-500"
+                  width={600}
+                  height={400}
                 />
                 {post.videoUrl && (
                   <div className="absolute inset-0">

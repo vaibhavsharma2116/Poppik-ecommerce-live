@@ -19,6 +19,22 @@ interface Offer {
   buttonText?: string;
 }
 
+function getImageDimensionsFromUrl(src: string): { width?: number; height?: number } {
+  try {
+    const url = new URL(src, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+    const wRaw = url.searchParams.get('w') || url.searchParams.get('width');
+    const hRaw = url.searchParams.get('h') || url.searchParams.get('height');
+    const width = wRaw ? Number(wRaw) : undefined;
+    const height = hRaw ? Number(hRaw) : undefined;
+    if (!width || !height || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return {};
+    }
+    return { width, height };
+  } catch {
+    return {};
+  }
+}
+
 export default function OffersPage() {
   const { data: offers = [], isLoading, error } = useQuery<Offer[]>({
     queryKey: ['/api/offers'],
@@ -49,8 +65,6 @@ export default function OffersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
-    
-
       {/* Offers Grid - Responsive Layout */}
       <div className="max-w-[90rem] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 md:py-6 lg:py-8">
         <div className="grid grid-cols-1 gap-4 sm:gap-6 md:gap-8 lg:gap-10">
@@ -60,6 +74,7 @@ export default function OffersPage() {
               : offer.discountText || 'SPECIAL OFFER';
             
             const isExpired = new Date(offer.validUntil) < new Date();
+            const { width: offerImgWidth, height: offerImgHeight } = getImageDimensionsFromUrl(offer.imageUrl);
             
             return (
               <Link href={`/offer/${offer.id}`} key={offer.id}>
@@ -92,6 +107,8 @@ export default function OffersPage() {
                           src={offer.imageUrl}
                           alt={offer.title}
                           className="block w-full h-auto"
+                          width={offerImgWidth}
+                          height={offerImgHeight}
                           loading="lazy"
                         />
                       </div>

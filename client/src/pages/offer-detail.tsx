@@ -120,6 +120,8 @@ function ProductListItem({
                 src={productImage}
                 alt={product.name}
                 className="w-full h-full object-contain hover:scale-110 transition-transform duration-300"
+                width={128}
+                height={128}
               />
             </div>
           </div>
@@ -163,6 +165,8 @@ function ProductListItem({
                         src={shade.imageUrl}
                         alt={shade.name}
                         className="w-full aspect-square rounded-lg object-cover border-2 border-gray-200 hover:border-purple-400 hover:scale-105 transition-all shadow-sm"
+                        width={64}
+                        height={64}
                       />
                     ) : (
                       <div
@@ -1191,6 +1195,8 @@ export default function OfferDetail() {
                               src={bannerUrl}
                               alt={`Listing ${index + 1}`}
                               className="w-full h-full object-cover"
+                              width={96}
+                              height={96}
                             />
                           </button>
                         ))}
@@ -1222,6 +1228,8 @@ export default function OfferDetail() {
                               src={offer.imageUrl || bannerImage}
                               alt="Video preview"
                               className="w-full h-full object-cover"
+                              width={96}
+                              height={96}
                             />
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                               <div className="w-12 h-12 rounded-full bg-black bg-opacity-60 flex items-center justify-center">
@@ -1321,6 +1329,8 @@ export default function OfferDetail() {
                       src={selectedImage}
                       alt={offer.title}
                       className="w-full h-full object-cover transition-transform duration-300"
+                      width={800}
+                      height={800}
                       onClick={() => {
                         // Create zoom modal
                         const modal = document.createElement('div');
@@ -1422,6 +1432,8 @@ export default function OfferDetail() {
                             src={productImage}
                             alt={product.name}
                             className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
+                            width={64}
+                            height={64}
                           />
                         </div>
 

@@ -1702,6 +1702,8 @@ export default function ProductDetail() {
                                               src={shade.imageUrl}
                                               alt={shade.name}
                                               className="w-full h-full rounded-full object-cover block"
+                                              width={48}
+                                              height={48}
                                             />
                                           </div>
                                         ) : (
@@ -1766,7 +1768,7 @@ export default function ProductDetail() {
                             {selectedShades.map(shade => (
                               <div key={shade.id} className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-full border border-purple-300 shadow-sm">
                                 {shade.imageUrl ? (
-                                  <img src={shade.imageUrl} alt={shade.name} className="w-4 h-4 rounded-full object-cover" />
+                                  <img src={shade.imageUrl} alt={shade.name} className="w-4 h-4 rounded-full object-cover" width={16} height={16} />
                                 ) : (
                                   <div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: shade.colorCode }} />
                                 )}
