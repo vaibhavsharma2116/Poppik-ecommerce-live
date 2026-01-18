@@ -265,7 +265,7 @@ export default function HeroBanner({
                   <img
                     src={slide.imageUrl}
                     alt={`Offer ${slide.offerId ?? ''}`}
-                    className="w-full h-full object-cover bg-gray-100"
+                    className="w-full h-full  bg-gray-100"
                     loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
                     decoding="async"
                     fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
@@ -279,7 +279,7 @@ export default function HeroBanner({
                     width={HERO_WIDTH}
                     height={HERO_HEIGHT}
                     priority={isLcpSlide(slide)}
-                    className="w-full object-contain bg-gray-100"
+                    className="w-full h-full object-cover bg-gray-100"
                   />
                 )}
               </div>
