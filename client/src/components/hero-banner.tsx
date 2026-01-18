@@ -279,7 +279,7 @@ export default function HeroBanner({
                     width={HERO_WIDTH}
                     height={HERO_HEIGHT}
                     priority={isLcpSlide(slide)}
-                    className="w-full h-full object-cover bg-gray-100"
+                    className="w-full h-full bg-gray-100"
                   />
                 )}
               </div>
