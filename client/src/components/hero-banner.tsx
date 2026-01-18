@@ -242,31 +242,16 @@ export default function HeroBanner({
                 }}
               >
                 {slide.type === 'offer' ? (
-                  <div className="relative w-full h-full">
-                    <img
-                      src={slide.imageUrl}
-                      alt={`Offer ${slide.offerId ?? ''}`}
-                      className="absolute inset-0 w-full h-full object-cover blur-lg scale-110"
-                      loading="lazy"
-                      decoding="async"
-                      fetchPriority="auto"
-                      width={HERO_WIDTH}
-                      height={HERO_HEIGHT}
-                    />
-                    <div className="absolute inset-0 bg-black/10" />
-                    <div className="relative z-10 w-full h-full flex items-center justify-center">
-                      <img
-                        src={slide.imageUrl}
-                        alt={`Offer ${slide.offerId ?? ''}`}
-                        className="max-w-full max-h-full object-contain"
-                        loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
-                        decoding="async"
-                        fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
-                        width={HERO_WIDTH}
-                        height={HERO_HEIGHT}
-                      />
-                    </div>
-                  </div>
+                  <img
+                    src={slide.imageUrl}
+                    alt={`Offer ${slide.offerId ?? ''}`}
+                    className="w-full h-full object-cover bg-gray-100"
+                    loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
+                    decoding="async"
+                    fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
+                    width={HERO_WIDTH}
+                    height={HERO_HEIGHT}
+                  />
                 ) : (
                   <LazyImage
                     src={slide.imageUrl} 
