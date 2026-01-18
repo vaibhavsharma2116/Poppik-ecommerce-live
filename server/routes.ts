@@ -11485,7 +11485,7 @@ app.put("/api/admin/offers/:id", upload.fields([
       }
 
       // HR Manager's email
-      const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
+      const HR_EMAIL = process.env.HR_EMAIL || 'talent@poppik.in';
 
       // Prepare email content
       const experienceInfo = isFresher === 'true' 
@@ -12264,7 +12264,7 @@ Poppik Career Portal
 
       // TODO: Send email notification to applicant
       // For now, just send email notification to admin
-      const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
+      const HR_EMAIL = process.env.HR_EMAIL || 'talent@poppik.in';
 
       const emailSubject = `New Affiliate Application - ${firstName} ${lastName}`;
       const emailBody = `
