@@ -424,6 +424,7 @@ export default function Layout({ children }: LayoutProps) {
                     src={headerLogo}
                     alt="POPPIK LIFESTYLE"
                     className="h-8 w-auto md:h-10 lg:h-12 xl:h-14 object-contain mt-2"
+                    style={{ aspectRatio: '240 / 56' }}
                     width={240}
                     height={56}
                   />
