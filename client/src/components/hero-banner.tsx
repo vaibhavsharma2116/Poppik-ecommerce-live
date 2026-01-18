@@ -246,7 +246,7 @@ export default function HeroBanner({
                     <img
                       src={slide.imageUrl}
                       alt={`Offer ${slide.offerId ?? ''}`}
-                      className="absolute inset-0 w-full h-full object-cover blur-lg scale-110"
+                      className="w-full object-contain bg-gray-100 opacity-100 transition-opacity duration-300"
                       loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
                       decoding="async"
                       fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
