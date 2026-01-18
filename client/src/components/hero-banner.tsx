@@ -160,7 +160,7 @@ export default function HeroBanner({
 
         const offersContainerW = Math.min(vw, maxW) - 2 * px;
         const ratio = HERO_HEIGHT / HERO_WIDTH;
-        const nextH = Math.max(0, Math.round(offersContainerW * ratio));
+        const nextH = Math.max(0, Math.round(offersContainerW * ratio) - 20);
         setHeroHeightPx(nextH);
       } catch {
         // ignore
