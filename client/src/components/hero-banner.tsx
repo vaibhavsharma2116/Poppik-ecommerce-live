@@ -39,6 +39,23 @@ interface HeroBannerProps {
   showControls?: boolean;
 }
 
+function getImageDimensionsFromUrl(src?: string | null): { width?: number; height?: number } {
+  if (!src) return {};
+  try {
+    const url = new URL(src, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+    const wRaw = url.searchParams.get('w') || url.searchParams.get('width');
+    const hRaw = url.searchParams.get('h') || url.searchParams.get('height');
+    const width = wRaw ? Number(wRaw) : undefined;
+    const height = hRaw ? Number(hRaw) : undefined;
+    if (!width || !height || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return {};
+    }
+    return { width, height };
+  } catch {
+    return {};
+  }
+}
+
 export default function HeroBanner({
   autoplay = true,
   autoplayDelay = 8000,
@@ -110,8 +127,11 @@ export default function HeroBanner({
   const isLcpSlide = (slide: HeroSlide) => slide.key === lcpSlide?.key;
 
   // Reserve space for hero images (reduces CLS)
-  const HERO_WIDTH = 1920;
-  const HERO_HEIGHT = 600;
+  const firstOfferSlide = slides.find((s) => s.type === 'offer');
+  const heroBaseUrl = firstOfferSlide?.imageUrl || lcpImageUrl;
+  const { width: heroWFromUrl, height: heroHFromUrl } = getImageDimensionsFromUrl(heroBaseUrl);
+  const HERO_WIDTH = heroWFromUrl || 1920;
+  const HERO_HEIGHT = heroHFromUrl || 600;
 
   const isLoading = slidersLoading || offersLoading;
   const error = slidersError || offersError;
@@ -245,7 +265,7 @@ export default function HeroBanner({
                   <img
                     src={slide.imageUrl}
                     alt={`Offer ${slide.offerId ?? ''}`}
-                    className="w-full h-full object-cover bg-gray-100"
+                    className="w-full h-full object-contain bg-gray-100"
                     loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
                     decoding="async"
                     fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
