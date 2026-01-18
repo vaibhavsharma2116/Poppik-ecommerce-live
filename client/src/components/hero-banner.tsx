@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from "@/components/ui/skeleton";
-import { LazyImage } from "@/components/LazyImage";
 import { useLocation } from "wouter";
 import { Helmet } from "react-helmet";
 
@@ -273,13 +272,15 @@ export default function HeroBanner({
                     height={HERO_HEIGHT}
                   />
                 ) : (
-                  <LazyImage
-                    src={slide.imageUrl} 
+                  <img
+                    src={slide.imageUrl}
                     alt={slide.key}
+                    className="w-full h-full object-cover bg-gray-100"
+                    loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
+                    decoding="async"
+                    fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
                     width={HERO_WIDTH}
                     height={HERO_HEIGHT}
-                    priority={isLcpSlide(slide)}
-                    className="w-full h-full object-cover bg-gray-100"
                   />
                 )}
               </div>
