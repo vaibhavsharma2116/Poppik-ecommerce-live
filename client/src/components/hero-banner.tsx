@@ -221,8 +221,8 @@ export default function HeroBanner({
 
   if (isLoading) {
     return (
-      <div className="w-full relative">
-        <Skeleton className="w-full aspect-video" />
+      <div className="w-full relative" style={{ aspectRatio: "1920/600" }}>
+        <Skeleton className="w-full h-full" />
       </div>
     );
   }

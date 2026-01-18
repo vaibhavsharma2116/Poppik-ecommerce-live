@@ -1108,7 +1108,7 @@ export default function Layout({ children }: LayoutProps) {
         <nav className="bg-white hidden md:block shadow-md">
           <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-center h-12">
-              <ul className="flex items-center space-x-4">
+              <ul className="flex items-center space-x-4" style={{ minHeight: '48px' }}>
                 <li>
                   <Link
                     href="/"
