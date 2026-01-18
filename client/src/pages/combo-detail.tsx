@@ -39,12 +39,14 @@ function normalizeImageUrl(url?: string | null): string {
     const s = String(url).trim();
     if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:')) return s;
     if (s.startsWith('//')) return window.location.protocol + s;
- 
+    // Migrate legacy /api/images to public /images
+    if (s.startsWith('/api/images/')) return `/images/${s.substring('/api/images/'.length)}`;
     return s;
   } catch (e) {
     return url as string;
   }
 }
+
 // Shade Selector Sheet Component (copied/adapted from offer-detail)
 function ShadeSelectorSheet({
   product,

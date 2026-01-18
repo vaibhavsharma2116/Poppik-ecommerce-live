@@ -139,7 +139,7 @@ export default function AdminBlog() {
     if (!url) return '/placeholder.png';
     if (url.startsWith('http') || url.startsWith('data:')) return url;
     if (url.startsWith('/')) return `${window.location.origin}${url}`;
-    return `${window.location.origin}/api/images/${url}`;
+    return `${window.location.origin}/images/${url}`;
   };
 
   // Using query data directly instead of local state to prevent re-render issues

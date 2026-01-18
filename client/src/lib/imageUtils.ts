@@ -33,6 +33,12 @@ export function optimizeImageUrl(
 
   // Handle local images through our API
   if (originalUrl.startsWith('/api/images/')) {
+    const newUrl = `/images/${originalUrl.substring('/api/images/'.length)}`;
+    return `${newUrl}?w=${width}&h=${height}&q=${quality}&format=${format}&fit=${fit}`;
+  }
+
+  // Handle local images through public /images
+  if (originalUrl.startsWith('/images/')) {
     return `${originalUrl}?w=${width}&h=${height}&q=${quality}&format=${format}&fit=${fit}`;
   }
 

@@ -42,7 +42,7 @@ export default function Blog() {
     if (!url) return '/placeholder.png';
     if (url.startsWith('http') || url.startsWith('data:')) return url;
     if (url.startsWith('/')) return `${window.location.origin}${url}`;
-    return `${window.location.origin}/api/images/${url}`;
+    return `${window.location.origin}/images/${url}`;
   };
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");

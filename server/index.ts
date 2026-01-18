@@ -14,6 +14,7 @@ import { products, productImages } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 import fs from "fs";
+import sharp from "sharp";
 import { drizzle } from "drizzle-orm/node-postgres";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,8 +41,8 @@ process.on('SIGINT', () => {
 
 const app = express();
 
-// Avoid 304 responses for API JSON routes (some clients send If-None-Match and 304 has no body)
-app.set('etag', false);
+// Enable ETag globally (needed for static assets like images)
+app.set('etag', true);
 
 // Security headers with performance optimizations
 app.use(helmet({
@@ -108,12 +109,129 @@ app.use('/attached_assets', express.static(path.resolve(process.cwd(), 'attached
   }
 }));
 
-// Cache API responses
-app.use((req, res, next) => {
-  if (req.method === 'GET' && req.path.startsWith('/api/products')) {
-    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+// Force NO caching for any /api/* route (CDN + browser)
+app.use('/api', (req, res, next) => {
+  // Avoid 304 responses for API JSON routes (some clients send If-None-Match and 304 has no body)
+  try {
+    delete (req.headers as any)['if-none-match'];
+    delete (req.headers as any)['if-modified-since'];
+  } catch (e) {
+    // ignore
   }
+
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   next();
+});
+
+// Serve images from /images (no auth, no sessions) with:
+// - query-param optimization via Sharp (w/h/q/format/fit)
+// - express.static fallback for raw file serving
+app.use('/images', (req, res, next) => {
+  const { w: width, h: height, q: quality, format, fit } = req.query as any;
+  if (!width && !height && !quality && !format && !fit) return next();
+
+  const rel = (req.path || '/').replace(/^\/+/, '');
+  const imagePath = path.join(process.cwd(), 'uploads', rel);
+
+  if (!fs.existsSync(imagePath)) {
+    return res.status(404).end();
+  }
+
+  const extension = path.extname(imagePath).toLowerCase();
+  let contentType = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+  }[extension] || 'image/jpeg';
+
+  if (format === 'webp') contentType = 'image/webp';
+  if (format === 'jpeg') contentType = 'image/jpeg';
+  if (format === 'png') contentType = 'image/png';
+
+  const allowedFits = new Set(['cover', 'contain', 'fill', 'inside', 'outside']);
+  const requestedFit = typeof fit === 'string' && allowedFits.has(fit) ? fit : 'cover';
+
+  const params = `${width || ''}-${height || ''}-${quality || ''}-${format || ''}-${fit || ''}`;
+  const cacheKey = `${req.path}-${params}`;
+  const fileStats = fs.statSync(imagePath);
+
+  res.set({
+    'Content-Type': contentType,
+    'Cache-Control': 'public, max-age=31536000, immutable',
+    'ETag': `"${cacheKey}-${fileStats.mtime.getTime()}"`,
+    'Last-Modified': fileStats.mtime.toUTCString(),
+    'Vary': 'Accept-Encoding',
+    'X-Content-Type-Options': 'nosniff',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET,HEAD',
+    'Cross-Origin-Resource-Policy': 'cross-origin',
+  });
+
+  const ifNoneMatch = req.headers['if-none-match'];
+  const ifModifiedSince = req.headers['if-modified-since'];
+  const etag = res.getHeader('ETag');
+  const lastModified = res.getHeader('Last-Modified');
+  if (
+    (ifNoneMatch && ifNoneMatch === etag) ||
+    (ifModifiedSince && new Date(ifModifiedSince) >= new Date(lastModified as any))
+  ) {
+    return res.status(304).end();
+  }
+
+  try {
+    let pipeline = sharp(imagePath);
+    if (width || height) {
+      pipeline = pipeline.resize(
+        width ? parseInt(String(width), 10) : undefined,
+        height ? parseInt(String(height), 10) : undefined,
+        {
+          fit: requestedFit as any,
+          position: 'center',
+          withoutEnlargement: true,
+        }
+      );
+    }
+
+    const qual = quality ? parseInt(String(quality), 10) : 80;
+    if (format === 'webp') {
+      pipeline = pipeline.webp({ quality: qual });
+    } else if (format === 'jpeg' || extension === '.jpg' || extension === '.jpeg') {
+      pipeline = pipeline.jpeg({ quality: qual, progressive: true });
+    } else if (format === 'png' || extension === '.png') {
+      pipeline = pipeline.png({ quality: qual, progressive: true });
+    }
+
+    pipeline.pipe(res);
+  } catch (error) {
+    res.sendFile(imagePath);
+  }
+});
+
+app.use('/images', express.static('uploads', {
+  maxAge: '365d',
+  immutable: true,
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, p) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Vary', 'Accept-Encoding');
+  }
+}));
+
+// Safe 301 redirect: /api/images/* -> /images/* (preserve query params)
+app.get('/api/images/*', (req, res) => {
+  const suffix = req.path.substring('/api/images'.length) || '/';
+  const qsIndex = req.originalUrl.indexOf('?');
+  const qs = qsIndex >= 0 ? req.originalUrl.substring(qsIndex) : '';
+  res.redirect(301, `/images${suffix}${qs}`);
 });
 
 // Trust proxy for load balancer
@@ -161,29 +279,6 @@ app.use((req, res, next) => {
 
 // Disable X-Powered-By header for security
 app.disable('x-powered-by');
-
-// Simple in-memory cache for GET requests
-const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 30000; // 30 seconds
-
-app.use((req, res, next) => {
-  if (req.method === 'GET' && req.path.startsWith('/api/')) {
-    const cacheKey = req.path + JSON.stringify(req.query);
-    const cached = cache.get(cacheKey);
-
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      return res.json(cached.data);
-    }
-
-    // Override res.json to cache response
-    const originalJson = res.json.bind(res);
-    res.json = function(data: any) {
-      cache.set(cacheKey, { data, timestamp: Date.now() });
-      return originalJson(data);
-    };
-  }
-  next();
-});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -379,12 +474,13 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       if (fullImageUrl && !fullImageUrl.toLowerCase().startsWith('http')) {
         // Clean the image URL path
         if (fullImageUrl.startsWith('/api/images/')) {
-          // Keep /api/images/ path as-is, just make it absolute
-          fullImageUrl = `${baseUrl}${fullImageUrl}`;
+          fullImageUrl = `${baseUrl}/images/${fullImageUrl.substring('/api/images/'.length)}`;
         } else if (fullImageUrl.startsWith('/api/image/')) {
           // Convert /api/image/xxx to /api/images/xxx path
           const imageId = fullImageUrl.split('/').pop();
-          fullImageUrl = `${baseUrl}/api/images/${imageId}`;
+          fullImageUrl = `${baseUrl}/images/${imageId}`;
+        } else if (fullImageUrl.startsWith('/images/')) {
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else if (fullImageUrl.startsWith('/uploads/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else if (fullImageUrl.startsWith('/')) {
@@ -583,20 +679,26 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       // Ensure absolute HTTPS URL
       let fullImageUrl = comboImage;
       const baseUrl = 'https://poppiklifestyle.com';
-      if (fullImageUrl && !fullImageUrl.toLowerCase().startsWith('http')) {
-        if (fullImageUrl.startsWith('/')) fullImageUrl = `${baseUrl}${fullImageUrl}`;
-        else fullImageUrl = `${baseUrl}/${fullImageUrl}`;
+      if (fullImageUrl && !String(fullImageUrl).toLowerCase().startsWith('http')) {
+        if (String(fullImageUrl).startsWith('/api/images/')) {
+          fullImageUrl = `${baseUrl}/images/${String(fullImageUrl).substring('/api/images/'.length)}`;
+        } else if (String(fullImageUrl).startsWith('/api/image/')) {
+          const imageId = String(fullImageUrl).split('/').pop();
+          fullImageUrl = `${baseUrl}/images/${imageId}`;
+        } else if (String(fullImageUrl).startsWith('/images/')) {
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
+        } else if (String(fullImageUrl).startsWith('/')) {
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
+        } else {
+          fullImageUrl = `${baseUrl}/${fullImageUrl}`;
+        }
       }
 
       if (!fullImageUrl) fullImageUrl = fallbackImage;
 
-      // Append a small cache-busting query for same-origin images so crawlers
-      // are more likely to fetch the actual combo image instead of a cached
-      // site-wide logo thumbnail. This helps WhatsApp/Facebook pick the
-      // correct OG image when CDN or cache returns a generic image.
       try {
-        const urlLower = String(fullImageUrl || '').toLowerCase();
-        if (urlLower.startsWith(baseUrl) || urlLower.includes('poppiklifestyle.com')) {
+        const urlLower = String(fullImageUrl).toLowerCase();
+        if (urlLower.includes('poppiklifestyle.com')) {
           // Don't duplicate query params if already present
           const separator = fullImageUrl.includes('?') ? '&' : '?';
           fullImageUrl = `${fullImageUrl}${separator}og=combo_${combo.id}`;
@@ -696,13 +798,22 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       // Ensure absolute HTTPS URL
       const baseUrl = 'https://poppiklifestyle.com';
       if (blogImage && !String(blogImage).toLowerCase().startsWith('http')) {
-        if (String(blogImage).startsWith('/')) blogImage = `${baseUrl}${blogImage}`;
-        else blogImage = `${baseUrl}/${blogImage}`;
+        if (String(blogImage).startsWith('/api/images/')) {
+          blogImage = `${baseUrl}/images/${String(blogImage).substring('/api/images/'.length)}`;
+        } else if (String(blogImage).startsWith('/api/image/')) {
+          const imageId = String(blogImage).split('/').pop();
+          blogImage = `${baseUrl}/images/${imageId}`;
+        } else if (String(blogImage).startsWith('/images/')) {
+          blogImage = `${baseUrl}${blogImage}`;
+        } else if (String(blogImage).startsWith('/')) {
+          blogImage = `${baseUrl}${blogImage}`;
+        } else {
+          blogImage = `${baseUrl}/${blogImage}`;
+        }
       }
 
       if (!blogImage) blogImage = fallbackImage;
 
-      // Append small cache buster for same-origin images to avoid generic thumbnails
       try {
         const urlLower = String(blogImage).toLowerCase();
         if (urlLower.includes('poppiklifestyle.com')) {
@@ -818,10 +929,12 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       let fullImageUrl = String(offerImage || '');
       if (fullImageUrl && !fullImageUrl.toLowerCase().startsWith('http')) {
         if (fullImageUrl.startsWith('/api/images/')) {
-          fullImageUrl = `${baseUrl}${fullImageUrl}`;
+          fullImageUrl = `${baseUrl}/images/${fullImageUrl.substring('/api/images/'.length)}`;
         } else if (fullImageUrl.startsWith('/api/image/')) {
           const imageId = fullImageUrl.split('/').pop();
-          fullImageUrl = `${baseUrl}/api/images/${imageId}`;
+          fullImageUrl = `${baseUrl}/images/${imageId}`;
+        } else if (fullImageUrl.startsWith('/images/')) {
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else if (fullImageUrl.startsWith('/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else {
@@ -918,10 +1031,12 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       let fullImageUrl = String(contestImage || '');
       if (fullImageUrl && !fullImageUrl.toLowerCase().startsWith('http')) {
         if (fullImageUrl.startsWith('/api/images/')) {
-          fullImageUrl = `${baseUrl}${fullImageUrl}`;
+          fullImageUrl = `${baseUrl}/images/${fullImageUrl.substring('/api/images/'.length)}`;
         } else if (fullImageUrl.startsWith('/api/image/')) {
           const imageId = fullImageUrl.split('/').pop();
-          fullImageUrl = `${baseUrl}/api/images/${imageId}`;
+          fullImageUrl = `${baseUrl}/images/${imageId}`;
+        } else if (fullImageUrl.startsWith('/images/')) {
+          fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else if (fullImageUrl.startsWith('/')) {
           fullImageUrl = `${baseUrl}${fullImageUrl}`;
         } else {
@@ -1044,14 +1159,6 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
   const host = app.get("env") === "development" ? "127.0.0.1" : "0.0.0.0";
   server.listen(port, host, () => {
     log(`serving on port ${port}`);
-
-    // Clear cache periodically
-    setInterval(() => {
-      const now = Date.now();
-      cache.forEach((value, key) => {
-        if (now - value.timestamp > CACHE_DURATION * 2) cache.delete(key);
-      });
-    }, 60000); // Clean every minute
 
     // Optimize garbage collection
     if ((global as any).gc) {
