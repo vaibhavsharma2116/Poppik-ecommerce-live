@@ -10478,6 +10478,107 @@ Poppik Affiliate Portal
     }
   });
 
+  app.get('/api/affiliate/wallet', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        return res.json({
+          totalEarnings: '0.00',
+          commissionBalance: '0.00',
+          cashbackBalance: '0.00',
+          pendingBalance: '0.00',
+          totalWithdrawn: '0.00',
+        });
+      }
+
+      res.json(wallet[0]);
+    } catch (error) {
+      console.error('Error fetching affiliate wallet:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate wallet' });
+    }
+  });
+
+  app.get('/api/affiliate/wallet/transactions', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      const transactions = await db
+        .select({
+          id: schema.affiliateTransactions.id,
+          userId: schema.affiliateTransactions.userId,
+          type: schema.affiliateTransactions.type,
+          amount: schema.affiliateTransactions.amount,
+          balanceType: schema.affiliateTransactions.balanceType,
+          description: schema.affiliateTransactions.description,
+          orderId: schema.affiliateTransactions.orderId,
+          status: schema.affiliateTransactions.status,
+          transactionId: schema.affiliateTransactions.transactionId,
+          notes: schema.affiliateTransactions.notes,
+          processedAt: schema.affiliateTransactions.processedAt,
+          createdAt: schema.affiliateTransactions.createdAt,
+        })
+        .from(schema.affiliateTransactions)
+        .where(eq(schema.affiliateTransactions.userId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateTransactions.createdAt))
+        .limit(100);
+
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error fetching affiliate wallet transactions:', error);
+      res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  });
+
+  app.get('/api/affiliate/wallet/withdrawals', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      const withdrawals = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(and(
+          eq(schema.affiliateTransactions.userId, parseInt(userId as string)),
+          eq(schema.affiliateTransactions.type, 'withdrawal')
+        ))
+        .orderBy(desc(schema.affiliateTransactions.createdAt));
+
+      const formattedWithdrawals = withdrawals.map(w => ({
+        id: w.id,
+        userId: w.userId,
+        amount: w.amount,
+        status: w.status,
+        paymentMethod: 'Bank Transfer',
+        requestedAt: w.createdAt,
+        processedAt: w.processedAt,
+        rejectedReason: w.notes
+      }));
+
+      res.json(formattedWithdrawals);
+    } catch (error) {
+      console.error('Error fetching affiliate withdrawals:', error);
+      res.status(500).json({ error: 'Failed to fetch withdrawals' });
+    }
+  });
+
   // Admin endpoints for affiliate applications
   app.get('/api/admin/affiliate-applications', async (req, res) => {
     try {

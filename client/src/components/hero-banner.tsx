@@ -230,21 +230,35 @@ export default function HeroBanner({
   if (error && !slides.length) {
     return (
       <div className="w-full flex items-center justify-center bg-red-50 py-20">
-        <p className="text-red-500">Failed to load hero banner: {(error as Error).message}</p>
       </div>
     );
   }
 
   if (!slides.length) {
     return (
-      <div className="w-full flex items-center justify-center bg-gray-50 py-20">
-        <p className="text-gray-500">No slides available</p>
+      <div
+        className="w-full relative"
+        style={{
+          height: heroHeightPx ? `${heroHeightPx}px` : undefined,
+          aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}`,
+        }}
+      >
+        <div className="w-full flex items-center justify-center bg-gray-50 py-20">
+          <p className="text-gray-500">No slides available</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <section className="relative w-full" aria-label="Hero banner carousel">
+    <div
+      className="w-full relative"
+      style={{
+        height: heroHeightPx ? `${heroHeightPx}px` : undefined,
+        aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}`,
+      }}
+    >
+      <section className="relative w-full h-full" aria-label="Hero banner carousel">
 
       {lcpImageUrl ? (
         <Helmet>
@@ -328,6 +342,7 @@ export default function HeroBanner({
           {current + 1} / {slides.length}
         </div> */}
       </Carousel>
-    </section>
+      </section>
+    </div>
   );
 }

@@ -315,7 +315,12 @@ export default function HomePage() {
 
   // Fetch data for filters
   const { data: allProductsForFilter = [], isLoading: allProductsForFilterLoading } = useQuery<Product[]>({
-    queryKey: ["/api/products/all"], // Assuming a new endpoint for all products without slicing
+    queryKey: ["/api/products"],
+    queryFn: async () => {
+      const res = await fetch("/api/products?limit=1000&offset=0");
+      if (!res.ok) throw new Error("Failed to fetch products for filters");
+      return res.json();
+    },
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
