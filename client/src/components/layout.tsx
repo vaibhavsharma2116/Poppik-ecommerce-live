@@ -941,6 +941,8 @@ export default function Layout({ children }: LayoutProps) {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Wishlist"
+                  title="Wishlist"
                   className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors"
                 >
                   <Heart className="h-5 w-5" aria-hidden="true" />
@@ -957,6 +959,8 @@ export default function Layout({ children }: LayoutProps) {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Cart"
+                  title="Cart"
                   className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors"
                 >
                   <ShoppingCart className="h-5 w-5" aria-hidden="true" />
@@ -975,6 +979,8 @@ export default function Layout({ children }: LayoutProps) {
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label="Wallet"
+                      title="Wallet"
                       className="h-10 w-10 text-black hover:text-pink-600 hover:bg-white/20 transition-colors focus:outline-none"
                     >
                       <Wallet className="h-5 w-5" aria-hidden="true" />
@@ -1055,7 +1061,9 @@ export default function Layout({ children }: LayoutProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-10 w-10 text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                      className="h-10 w-10 text-black hover:text-yellow-700 hover:bg-white/20 transition-all duration-300"
+                      aria-label="My account"
+                      title="My account"
                     >
                       <User className="h-5 w-5" aria-hidden="true" />
                     </Button>
@@ -1085,11 +1093,13 @@ export default function Layout({ children }: LayoutProps) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <Link href="/auth/login">
+                <Link href="/auth/login" aria-label="Sign in" title="Sign in">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-10 w-10 text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                    className="h-10 w-10 text-black hover:text-yellow-700 hover:bg-white/20 transition-all duration-300"
+                    aria-label="Sign in"
+                    title="Sign in"
                   >
                     <User className="h-5 w-5" aria-hidden="true" />
                   </Button>
@@ -1175,8 +1185,8 @@ export default function Layout({ children }: LayoutProps) {
                     href="/"
                     className={`text-sm font-medium transition-colors px-4 py-2 block ${
                       isActiveLink("/")
-                        ? "text-yellow-300 bg-white/20 rounded-full"
-                        : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                        ? "text-yellow-700 bg-white/20 rounded-full"
+                        : "text-black hover:text-yellow-700 hover:bg-white/20 rounded-full"
                     }`}
                   >
                     Home
@@ -1193,8 +1203,8 @@ export default function Layout({ children }: LayoutProps) {
                         <button
                           className={`text-sm font-medium transition-colors px-4 py-2 ${
                             isActiveLink(`/category/${category.slug}`)
-                              ? "text-yellow-300 bg-white/20 rounded-full"
-                              : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                              ? "text-yellow-700 bg-white/20 rounded-full"
+                              : "text-black hover:text-yellow-700 hover:bg-white/20 rounded-full"
                           }`}
                           onClick={() => window.location.href = `/category/${category.slug}`}
                         >
@@ -1230,8 +1240,8 @@ export default function Layout({ children }: LayoutProps) {
                           href={`/category/${category.slug}`}
                           className={`text-sm font-medium transition-colors px-4 py-2 block ${
                             isActiveLink(`/category/${category.slug}`)
-                              ? "text-yellow-300 bg-white/20 rounded-full"
-                              : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                              ? "text-yellow-700 bg-white/20 rounded-full"
+                              : "text-black hover:text-yellow-700 hover:bg-white/20 rounded-full"
                           }`}
                         >
                           {category.name}
@@ -1245,8 +1255,8 @@ export default function Layout({ children }: LayoutProps) {
                     href="/combo"
                     className={`text-sm font-medium transition-colors px-4 py-2 block ${
                       isActiveLink("/combo")
-                        ? "text-yellow-300 bg-white/20 rounded-full"
-                        : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                        ? "text-yellow-700 bg-white/20 rounded-full"
+                        : "text-black hover:text-yellow-700 hover:bg-white/20 rounded-full"
                     }`}
                   >
                     Combo
@@ -1257,8 +1267,8 @@ export default function Layout({ children }: LayoutProps) {
                     href="/offers"
                     className={`text-sm font-medium transition-colors px-4 py-2 block ${
                       isActiveLink("/offers")
-                        ? "text-yellow-300 bg-white/20 rounded-full"
-                        : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                        ? "text-yellow-700 bg-white/20 rounded-full"
+                        : "text-black hover:text-yellow-700 hover:bg-white/20 rounded-full"
                     }`}
                   >
                     Offer
@@ -1268,7 +1278,7 @@ export default function Layout({ children }: LayoutProps) {
                 {/* Design Your Beauty Kit with Dropdown */}
                 <li className="relative group">
                   <button
-                    className="text-sm font-medium transition-colors px-4 py-2 text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                    className="text-sm font-medium transition-colors px-4 py-2 text-black hover:text-yellow-700 hover:bg-white/20 rounded-full"
                   >
                     Design Your Beauty Kit
                   </button>
@@ -1306,7 +1316,7 @@ export default function Layout({ children }: LayoutProps) {
                 <li>
                   <Link
                     href="/contest"
-                    className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
+                    className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-700 hover:bg-white/20 rounded-full cursor-pointer"
                   >
                     Contest
                   </Link>
@@ -1317,7 +1327,7 @@ export default function Layout({ children }: LayoutProps) {
                     href="https://poppikacademy.com/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-300 hover:bg-white/20 rounded-full cursor-pointer"
+                    className="text-sm font-medium transition-colors px-4 py-2 block text-black hover:text-yellow-700 hover:bg-white/20 rounded-full cursor-pointer"
                   >
                     Academy
                   </a>
@@ -1369,8 +1379,8 @@ export default function Layout({ children }: LayoutProps) {
                     href="/blog"
                     className={`text-sm font-medium transition-colors px-4 py-2 block ${
                       isActiveLink("/blog")
-                        ? "text-yellow-300 bg-white/20 rounded-full"
-                        : "text-black hover:text-yellow-300 hover:bg-white/20 rounded-full"
+                        ? "text-yellow-700 bg-white/20 rounded-full"
+                        : "text-black hover:text-yellow-700 hover:bg-white/20 rounded-full"
                     }`}
                   >
                     Blog
