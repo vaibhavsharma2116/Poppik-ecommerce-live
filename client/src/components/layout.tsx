@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, ShoppingCart, Menu, X, User, Heart, LogOut, ChevronDown, ChevronRight, Wallet, IndianRupee } from "lucide-react";
+import { Search, ShoppingCart, Menu, X, User, Heart, LogOut, ChevronDown, ChevronRight, Wallet, IndianRupee, MessageCircle } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -21,7 +22,6 @@ import headerLogo from "@/assets/POPPIK LOGO.jpg";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 import AnnouncementBar from "@/components/announcement-bar";
-import loUntitled_design from "@/assets/Untitled_design.png";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,16 +53,11 @@ function WhatsAppButton() {
     <div className="fixed bottom-6 right-6 z-50">
       <button
         onClick={handleWhatsAppClick}
-        className="text-white p-2 rounded-full"
+        className="text-white p-3 rounded-full bg-green-500 hover:bg-green-600 transition-colors"
         title="Chat with us on WhatsApp"
+        aria-label="Chat with us on WhatsApp"
       >
-        <img
-          src={loUntitled_design}
-          alt="Chat with us"
-          className="w-16 h-16 rounded-full object-cover hover:scale-110 transition-transform duration-300"
-          width={64}
-          height={64}
-        />
+        <MessageCircle className="w-7 h-7" aria-hidden="true" />
       </button>
     </div>
   );
@@ -1340,6 +1335,9 @@ export default function Layout({ children }: LayoutProps) {
                 src={logo}
                 alt="POPPIK Logo"
                 className="h-40 w-40 md:h-48 md:w-48 object-contain"
+                loading="lazy"
+                decoding="async"
+                fetchPriority="low"
                 width={500}
                 height={500}
               />
