@@ -231,6 +231,7 @@ export default function HomePage() {
   const [showAllProductsFilter, setShowAllProductsFilter] = useState(false);
   const categoriesScrollRef = useRef<HTMLDivElement | null>(null);
   const [renderBelowFold, setRenderBelowFold] = useState(false);
+  const belowFoldSentinelRef = useRef<HTMLDivElement | null>(null);
 
   // Store affiliate code from URL
   useEffect(() => {
@@ -243,14 +244,35 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const w = window as any;
-    if (typeof w.requestIdleCallback === 'function') {
-      w.requestIdleCallback(() => setRenderBelowFold(true));
-      return;
+    if (typeof window === 'undefined') return;
+    if (renderBelowFold) return;
+
+    const target = belowFoldSentinelRef.current;
+    if (!target) return;
+
+    if (!('IntersectionObserver' in window)) {
+      const t = globalThis.setTimeout(() => setRenderBelowFold(true), 2000);
+      return () => globalThis.clearTimeout(t);
     }
-    const t = window.setTimeout(() => setRenderBelowFold(true), 1);
-    return () => window.clearTimeout(t);
-  }, []);
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        const e = entries[0];
+        if (e?.isIntersecting) {
+          setRenderBelowFold(true);
+          io.disconnect();
+        }
+      },
+      {
+        root: null,
+        rootMargin: '200px 0px',
+        threshold: 0,
+      }
+    );
+
+    io.observe(target);
+    return () => io.disconnect();
+  }, [renderBelowFold]);
 
   const { data: categories, isLoading: categoriesLoading } = useQuery<
     Category[]
@@ -732,8 +754,8 @@ export default function HomePage() {
                   <div className="h-20" />
                 </div>
               ) : featured && featured.length > 0 ? (
-                <>
-                  <div className="px-2 sm:px-4">
+                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                  <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                       {featured.slice(0, 4).map((product) => (
                         <ProductCard
@@ -767,7 +789,8 @@ export default function HomePage() {
                       </Button>
                     </Link>
                   </div>
-                </>
+                  <div className="h-20" />
+                </div>
               ) : (
                 <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="flex-1 flex items-center justify-center">
@@ -817,8 +840,8 @@ export default function HomePage() {
                   <div className="h-20" />
                 </div>
               ) : newArrivals && newArrivals.length > 0 ? (
-                <>
-                  <div className="px-2 sm:px-4">
+                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                  <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                       {newArrivals.slice(0, 4).map((product) => (
                         <ProductCard
@@ -852,7 +875,8 @@ export default function HomePage() {
                       </Button>
                     </Link>
                   </div>
-                </>
+                  <div className="h-20" />
+                </div>
               ) : (
                 <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="flex-1 flex items-center justify-center">
@@ -867,6 +891,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <div ref={belowFoldSentinelRef} />
 
       {renderBelowFold ? (
         <>
