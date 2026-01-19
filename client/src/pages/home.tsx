@@ -713,65 +713,71 @@ export default function HomePage() {
               </h3>
             </div>
 
-            {isLoadingFeatured ? (
-              <div className="px-2 sm:px-4">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
-                      <Skeleton className="aspect-square w-full" />
-                      <div className="p-3 space-y-2">
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-6 w-1/2" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : featured && featured.length > 0 ? (
-              <>
-                <div className="px-2 sm:px-4">
+            <div className="min-h-[650px]">
+              {isLoadingFeatured ? (
+                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {featured.slice(0, 4).map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                      />
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                        <Skeleton className="aspect-square w-full" />
+                        <div className="p-3 space-y-2">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-6 w-1/2" />
+                        </div>
+                      </div>
                     ))}
                   </div>
+                  <div className="h-20" />
                 </div>
-
-                <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                  <Link href="/products?filter=featured">
-                    <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                      <span>
-                        View All Products  ({featured?.length || 0})
-                      </span>
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+              ) : featured && featured.length > 0 ? (
+                <>
+                  <div className="px-2 sm:px-4">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                      {featured.slice(0, 4).map((product) => (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
                         />
-                      </svg>
-                    </Button>
-                  </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="text-center mt-6 sm:mt-8 md:mt-10">
+                    <Link href="/products?filter=featured">
+                      <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                        <span>
+                          View All Products  ({featured?.length || 0})
+                        </span>
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 8l4 4m0 0l-4 4m4-4H3"
+                          />
+                        </svg>
+                      </Button>
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                  <div className="flex-1 flex items-center justify-center">
+                    <p className="text-gray-500 text-lg text-center">
+                      No products available at the moment.
+                    </p>
+                  </div>
+                  <div className="h-20" />
                 </div>
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">
-                  No products available at the moment.
-                </p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -792,65 +798,71 @@ export default function HomePage() {
               </h3>
             </div>
 
-            {isLoadingNew ? (
-              <div className="px-2 sm:px-4">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
-                      <Skeleton className="aspect-square w-full" />
-                      <div className="p-3 space-y-2">
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-6 w-1/2" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : newArrivals && newArrivals.length > 0 ? (
-              <>
-                <div className="px-2 sm:px-4">
+            <div className="min-h-[650px]">
+              {isLoadingNew ? (
+                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {newArrivals.slice(0, 4).map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                      />
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                        <Skeleton className="aspect-square w-full" />
+                        <div className="p-3 space-y-2">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-6 w-1/2" />
+                        </div>
+                      </div>
                     ))}
                   </div>
+                  <div className="h-20" />
                 </div>
-
-                <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                  <Link href="/products?filter=newLaunches">
-                    <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                      <span>
-                        View All New Launches ({newArrivals?.length || 0})
-                      </span>
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+              ) : newArrivals && newArrivals.length > 0 ? (
+                <>
+                  <div className="px-2 sm:px-4">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                      {newArrivals.slice(0, 4).map((product) => (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
                         />
-                      </svg>
-                    </Button>
-                  </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="text-center mt-6 sm:mt-8 md:mt-10">
+                    <Link href="/products?filter=newLaunches">
+                      <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+                        <span>
+                          View All New Launches ({newArrivals?.length || 0})
+                        </span>
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 8l4 4m0 0l-4 4m4-4H3"
+                          />
+                        </svg>
+                      </Button>
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                  <div className="flex-1 flex items-center justify-center">
+                    <p className="text-gray-500 text-lg text-center">
+                      No new launches available at the moment.
+                    </p>
+                  </div>
+                  <div className="h-20" />
                 </div>
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">
-                  No new launches available at the moment.
-                </p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </section>

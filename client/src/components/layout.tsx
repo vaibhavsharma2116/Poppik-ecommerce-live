@@ -18,7 +18,6 @@ import {
 import type { Category, Subcategory, Product } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import logo from "@/assets/logo.png";
-import headerLogo from "@/assets/POPPIK LOGO.jpg";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 import AnnouncementBar from "@/components/announcement-bar";
@@ -34,7 +33,6 @@ import { Badge } from "@/components/ui/badge";
 import { Gift } from "lucide-react";
 import { NotificationPopup } from "./notification-popup";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -65,7 +63,7 @@ function WhatsAppButton() {
 
 export default function Layout({ children }: LayoutProps) {
   const [isSearchCommandOpen, setIsSearchCommandOpen] = useState(false);
-  const [showNotificationPopup, setShowNotificationPopup] = useState(true); // State to control notification popup visibility
+  const [showNotificationPopup, setShowNotificationPopup] = useState(false); // State to control notification popup visibility
 
   const getCategoryName = (p: any) => {
     try {
@@ -95,6 +93,32 @@ export default function Layout({ children }: LayoutProps) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State to manage mobile menu visibility
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'default') return;
+
+    let shown = false;
+    const showOnce = () => {
+      if (shown) return;
+      shown = true;
+      setShowNotificationPopup(true);
+      window.removeEventListener('pointerdown', showOnce);
+      window.removeEventListener('keydown', showOnce);
+      window.removeEventListener('scroll', showOnce);
+    };
+
+    window.addEventListener('pointerdown', showOnce, { once: true });
+    window.addEventListener('keydown', showOnce, { once: true });
+    window.addEventListener('scroll', showOnce, { once: true, passive: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', showOnce);
+      window.removeEventListener('keydown', showOnce);
+      window.removeEventListener('scroll', showOnce);
+    };
+  }, []);
 
   // Search functionality
   const { data: searchResults = [], isLoading: isSearchLoading } = useQuery<Product[]>({
@@ -416,12 +440,15 @@ export default function Layout({ children }: LayoutProps) {
               <Link href="/" className="flex-shrink-0">
                 <div className="flex items-center cursor-pointer hover:scale-105 transition-transform duration-300">
                   <img
-                    src={headerLogo}
+                    src={logo}
                     alt="POPPIK LIFESTYLE"
                     className="h-8 w-auto md:h-10 lg:h-12 xl:h-14 object-contain mt-2"
                     style={{ aspectRatio: '240 / 56' }}
                     width={240}
                     height={56}
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
                   />
                 </div>
               </Link>
@@ -787,11 +814,14 @@ export default function Layout({ children }: LayoutProps) {
               <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center">
                 <Link href="/">
                   <img
-                    src={headerLogo}
+                    src={logo}
                     alt="POPPIK LIFESTYLE"
                     className="h-10 w-auto sm:h-12 object-contain hover:scale-105 transition-transform duration-300"
                     width={240}
                     height={48}
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
                   />
                 </Link>
               </div>
