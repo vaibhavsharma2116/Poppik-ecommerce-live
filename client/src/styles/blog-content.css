@@ -1,0 +1,127 @@
+.blog-content video {
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  border-radius: 8px;
+  margin: 20px auto;
+  display: block;
+  background-color: #000;
+}
+
+.blog-content .video-container {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.blog-content .video-container video {
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  border-radius: 8px;
+  margin: 0 auto;
+  display: block;
+  background-color: #000;
+}
+
+.blog-content video::-webkit-media-controls {
+  visibility: visible !important;
+}
+
+.blog-content video::-webkit-media-controls-panel {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.blog-content img {
+  max-width: 480px;
+  width: 480px;
+  height: 480px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  margin: 1.5rem auto;
+  display: block;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+@media (max-width: 640px) {
+  .blog-content img {
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    margin: 1rem auto;
+  }
+}
+
+.blog-content p {
+  margin: 1rem 0;
+  line-height: 1.75;
+  color: #374151;
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
+}
+
+.blog-content * {
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
+}
+
+.blog-content h1 {
+  font-size: 2rem;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  font-weight: bold;
+  color: #111827;
+}
+
+.blog-content h2 {
+  font-size: 1.5rem;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: bold;
+  color: #111827;
+}
+
+.blog-content h3 {
+  font-size: 1.25rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.blog-content ul,
+.blog-content ol {
+  margin: 1rem 0;
+  padding-left: 2rem;
+  color: #374151;
+}
+
+.blog-content ul {
+  list-style-type: disc;
+}
+
+.blog-content ol {
+  list-style-type: decimal;
+}
+
+.blog-content a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.blog-content blockquote {
+  border-left: 4px solid #111827;
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: #374151;
+}
+
+.blog-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+}
+
+.blog-content th,
+.blog-content td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem;
+}

@@ -1,0 +1,134 @@
+.ProseMirror {
+  min-height: 300px;
+  outline: none;
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
+}
+
+.ProseMirror * {
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
+}
+
+.ProseMirror [data-font-family="Arial"],
+.ProseMirror [style*="font-family: Arial"],
+.ProseMirror [data-font-family="Calibri"],
+.ProseMirror [style*="font-family: Calibri"],
+.ProseMirror [data-font-family="Times New Roman"],
+.ProseMirror [style*="font-family: Times New Roman"],
+.ProseMirror [style*='font-family: "Times New Roman"'],
+.ProseMirror [data-font-family="Georgia"],
+.ProseMirror [style*="font-family: Georgia"],
+.ProseMirror [data-font-family="Verdana"],
+.ProseMirror [style*="font-family: Verdana"],
+.ProseMirror [data-font-family="Courier New"],
+.ProseMirror [style*="font-family: Courier New"],
+.ProseMirror [style*='font-family: "Courier New"'],
+.ProseMirror [data-font-family="Comic Sans MS"],
+.ProseMirror [style*="font-family: Comic Sans MS"],
+.ProseMirror [style*='font-family: "Comic Sans MS"'],
+.ProseMirror [data-font-family="Inter"],
+.ProseMirror [style*="font-family: Inter"] {
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
+}
+
+.ProseMirror [data-font-family="Calibri"],
+.ProseMirror [style*="font-family: Calibri"] {
+  font-family: Calibri, sans-serif !important;
+}
+
+.ProseMirror [data-font-family="Times New Roman"],
+.ProseMirror [style*="font-family: Times New Roman"],
+.ProseMirror [style*='font-family: "Times New Roman"'] {
+  font-family: "Times New Roman", serif !important;
+}
+
+.ProseMirror [data-font-family="Georgia"],
+.ProseMirror [style*="font-family: Georgia"] {
+  font-family: Georgia, serif !important;
+}
+
+.ProseMirror [data-font-family="Verdana"],
+.ProseMirror [style*="font-family: Verdana"] {
+  font-family: Verdana, sans-serif !important;
+}
+
+.ProseMirror [data-font-family="Courier New"],
+.ProseMirror [style*="font-family: Courier New"],
+.ProseMirror [style*='font-family: "Courier New"'] {
+  font-family: "Courier New", monospace !important;
+}
+
+.ProseMirror [data-font-family="Comic Sans MS"],
+.ProseMirror [style*="font-family: Comic Sans MS"],
+.ProseMirror [style*='font-family: "Comic Sans MS"'] {
+  font-family: "Comic Sans MS", cursive !important;
+}
+
+.ProseMirror [data-font-family="Inter"],
+.ProseMirror [style*="font-family: Inter"] {
+  font-family: Inter, sans-serif !important;
+}
+
+.ProseMirror > * + * {
+  margin-top: 0.75em;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+  font-weight: bold;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+.ProseMirror p {
+  margin: 0.5em 0;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5em;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.ProseMirror a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+.ProseMirror strong {
+  font-weight: bold;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror u {
+  text-decoration: underline;
+}
+
+.ProseMirror [style*="font-size"] {
+  font-size: inherit !important;
+}
+
+.ProseMirror img {
+  max-width: 350px;
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1.5rem auto;
+  display: block;
+}
+
+.ProseMirror img.ProseMirror-selectednode {
+  outline: 3px solid hsl(var(--primary));
+}
