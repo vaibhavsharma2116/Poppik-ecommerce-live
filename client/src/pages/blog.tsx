@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar, Clock, User, Search, Tag, ArrowRight, Share2, Play } from "lucide-react";
 import { Link } from "wouter";
+import "@/styles/blog-content.css";
 
 interface BlogPost {
   id: number;

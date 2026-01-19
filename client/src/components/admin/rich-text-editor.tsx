@@ -9,6 +9,7 @@ import { FontFamily } from '@tiptap/extension-font-family';
 import { Underline } from '@tiptap/extension-underline';
 import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
+import "@/styles/tiptap-editor.css";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {

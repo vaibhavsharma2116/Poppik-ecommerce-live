@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar, Clock, User, ArrowLeft, Share2, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import "@/styles/blog-content.css";
 
 interface BlogPost {
   id: number;
