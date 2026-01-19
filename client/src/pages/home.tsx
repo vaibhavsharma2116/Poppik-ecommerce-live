@@ -33,6 +33,7 @@ import AnnouncementBar from "@/components/announcement-bar";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { LazyImage } from "@/components/LazyImage";
+import { optimizeImageUrl } from "@/lib/imageUtils";
 
 interface Testimonial {
   id: number;
@@ -156,9 +157,19 @@ function TestimonialsCarousel() {
                 style={{ opacity }}
               >
                 <img
-                  src={testimonial.customerImageUrl || 'https://images.unsplash.com/photo-1534528741775-1cb2f982d8b?w=150&h=150&fit=crop'}
+                  src={
+                    testimonial.customerImageUrl
+                      ? optimizeImageUrl(testimonial.customerImageUrl, {
+                          width: 150,
+                          height: 150,
+                          fit: 'cover',
+                          format: 'webp',
+                          quality: 80,
+                        })
+                      : 'https://images.unsplash.com/photo-1534528741775-1cb2f982d8b?w=150&h=150&fit=crop'
+                  }
                   alt={testimonial.customerName}
-                  className="w-full h-full"
+                  className="w-full h-full object-cover"
                   width={150}
                   height={150}
                 />

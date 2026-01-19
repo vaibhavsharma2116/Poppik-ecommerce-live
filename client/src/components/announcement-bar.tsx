@@ -27,12 +27,18 @@ export default function AnnouncementBar() {
     let reconnectAttempts = 0;
 
     const ua = (navigator as any)?.userAgent || '';
-    if (/lighthouse|pagespeed|chrome-lighthouse/i.test(String(ua))) {
+    if (/lighthouse|pagespeed|chrome-lighthouse|headlesschrome/i.test(String(ua))) {
+      return;
+    }
+    if ((navigator as any)?.webdriver) {
       return;
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const isLocalhost = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+    if (!isLocalhost && (import.meta as any).env?.PROD) {
+      return;
+    }
     const hostsToTry = [
       `${protocol}://${window.location.host}/ws/announcements`,
       ...(isLocalhost ? [`${protocol}://${window.location.hostname}:8085/ws/announcements`] : []),

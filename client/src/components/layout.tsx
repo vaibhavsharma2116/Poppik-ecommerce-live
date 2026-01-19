@@ -1339,11 +1339,12 @@ export default function Layout({ children }: LayoutProps) {
               <img
                 src={logo}
                 alt="POPPIK Logo"
-                className="h-40 w-auto md:h-48"
-                width={240}
-                height={192}
+                className="h-40 w-40 md:h-48 md:w-48 object-contain"
+                width={500}
+                height={500}
               />
             </div>
+
             <p className="text-gray-300 text-sm leading-relaxed mb-6 text-center px-0">
               <span className="block font-semibold text-center mb-3">WELCOME TO POPPIK – BEAUTY THAT EMPOWERS</span>
               <span className="block text-center">

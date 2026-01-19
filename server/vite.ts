@@ -68,11 +68,11 @@ export async function setupVite(app: Express, server: Server) {
       );
       try {
         const page = await vite.transformIndexHtml(url, template);
-        res.status(200).set({ "Content-Type": "text/html" }).end(page);
+        res.status(200).set({ "Content-Type": "text/html; charset=utf-8" }).end(page);
       } catch (transformError) {
         // Fallback: serve template as-is if transformation fails
         console.error("HTML transformation error:", transformError);
-        res.status(200).set({ "Content-Type": "text/html" }).end(template);
+        res.status(200).set({ "Content-Type": "text/html; charset=utf-8" }).end(template);
       }
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
@@ -129,6 +129,7 @@ export function serveStatic(app: Express) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
