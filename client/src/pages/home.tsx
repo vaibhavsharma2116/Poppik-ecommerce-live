@@ -1,9 +1,10 @@
-import React, { useState, useEffect, lazy, Suspense } from "react";
+import React, { useRef, useState, useEffect, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+
 import {
   Star,
   Heart,
@@ -26,7 +27,6 @@ import HeroBanner from "@/components/hero-banner";
 import ProductCard from "@/components/product-card";
 import { Filter } from "lucide-react";
 import DynamicFilter from "@/components/dynamic-filter";
-import VideoTestimonials from "@/components/video-testimonials";
 import type { Product, Category } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 import AnnouncementBar from "@/components/announcement-bar";
@@ -34,6 +34,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { LazyImage } from "@/components/LazyImage";
 import { optimizeImageUrl } from "@/lib/imageUtils";
+
+const VideoTestimonials = lazy(() => import("@/components/video-testimonials"));
 
 interface Testimonial {
   id: number;
@@ -136,19 +138,18 @@ function TestimonialsCarousel() {
             let opacity = 1;
             let size = '';
 
-          if (isCenter) {
-            size = 'w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32';
-            opacity = 1;
-          } else if (position === -1 || position === 1) {
-             size = 'w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24';
-            opacity = 0.7;
-          } else {
+            if (isCenter) {
+              size = 'w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32';
+              opacity = 1;
+            } else if (position === -1 || position === 1) {
+              size = 'w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24';
+              opacity = 0.7;
+            } else {
               size = 'w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20';
               opacity = 0.5;
-          }
+            }
 
-
-              return (
+            return (
               <div
                 key={testimonial.id}
                 className={`${size} rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-300 flex-shrink-0 relative ${
@@ -228,6 +229,8 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filteredAllProducts, setFilteredAllProducts] = useState<Product[]>([]);
   const [showAllProductsFilter, setShowAllProductsFilter] = useState(false);
+  const categoriesScrollRef = useRef<HTMLDivElement | null>(null);
+  const [renderBelowFold, setRenderBelowFold] = useState(false);
 
   // Store affiliate code from URL
   useEffect(() => {
@@ -236,8 +239,17 @@ export default function HomePage() {
 
     if (affiliateRef) {
       localStorage.setItem('affiliateRef', affiliateRef);
-      console.log('Affiliate code stored:', affiliateRef);
     }
+  }, []);
+
+  useEffect(() => {
+    const w = window as any;
+    if (typeof w.requestIdleCallback === 'function') {
+      w.requestIdleCallback(() => setRenderBelowFold(true));
+      return;
+    }
+    const t = window.setTimeout(() => setRenderBelowFold(true), 1);
+    return () => window.clearTimeout(t);
   }, []);
 
   const { data: categories, isLoading: categoriesLoading } = useQuery<
@@ -257,19 +269,8 @@ export default function HomePage() {
     },
   });
 
-
-  const { data: bestsellerProducts, isLoading: bestsellersLoading, isFetching: bestsellersFetching, isFetched: bestsellersFetched } = useQuery<
-    Product[]
-  >({
-    queryKey: ["/api/products/bestsellers"],
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  });
-
   // Fetch featured products
-  const { data: featuredProducts = [], isLoading: isLoadingFeatured } = useQuery<Product[]>({
+  const { data: featured = [], isLoading: isLoadingFeatured } = useQuery<Product[]>({
     queryKey: ["/api/products/featured"],
     queryFn: async () => {
       const res = await fetch("/api/products/featured");
@@ -304,8 +305,6 @@ export default function HomePage() {
     },
   });
 
-
-
   const categoryImages = {
     skincare:
       "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
@@ -336,21 +335,15 @@ export default function HomePage() {
     gcTime: 30 * 60 * 1000,
   });
 
-  const { data: featured = [], isLoading: isLoadingFeaturedProducts } = useQuery<Product[]>({
-    queryKey: ["/api/products/featured"],
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: newLaunches = [], isLoading: isLoadingNewLaunches } = useQuery<Product[]>({
-    queryKey: ["/api/products/new-launches"],
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: bestsellers = [], isLoading: isLoadingBestsellers } = useQuery<Product[]>({
+  const {
+    data: bestsellers = [],
+    isLoading: isLoadingBestsellers,
+    isFetching: isFetchingBestsellers,
+    isFetched: isFetchedBestsellers,
+  } = useQuery<Product[]>({
     queryKey: ["/api/products/bestsellers"],
     staleTime: 5 * 60 * 1000,
   });
-console.log("featured",featured)
 
   return (
     <div>
@@ -390,6 +383,7 @@ console.log("featured",featured)
             <div className="relative">
               <div
                 id="categories-scroll-container"
+                ref={categoriesScrollRef}
                 className="overflow-x-auto scrollbar-hide pb-4"
                 style={{
                   WebkitOverflowScrolling: 'touch',
@@ -553,12 +547,14 @@ console.log("featured",featured)
                 <>
                   <button
                     onClick={() => {
-                      const container = document.getElementById('categories-scroll-container');
+                      const container = categoriesScrollRef.current;
                       if (container) {
                         const scrollAmount = window.innerWidth < 640 ? 160 : 300;
-                        container.scrollBy({
-                          left: -scrollAmount,
-                          behavior: 'smooth'
+                        window.requestAnimationFrame(() => {
+                          container.scrollBy({
+                            left: -scrollAmount,
+                            behavior: 'smooth'
+                          });
                         });
                       }
                     }}
@@ -584,12 +580,14 @@ console.log("featured",featured)
 
                   <button
                     onClick={() => {
-                      const container = document.getElementById('categories-scroll-container');
+                      const container = categoriesScrollRef.current;
                       if (container) {
                         const scrollAmount = window.innerWidth < 640 ? 160 : 300;
-                        container.scrollBy({
-                          left: scrollAmount,
-                          behavior: 'smooth'
+                        window.requestAnimationFrame(() => {
+                          container.scrollBy({
+                            left: scrollAmount,
+                            behavior: 'smooth'
+                          });
                         });
                       }
                     }}
@@ -628,7 +626,7 @@ console.log("featured",featured)
             </div>
 
             <div className="min-h-[520px]">
-              {bestsellersLoading || (!bestsellersFetched && bestsellersFetching) ? (
+              {isLoadingBestsellers || (!isFetchedBestsellers && isFetchingBestsellers) ? (
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                     {Array.from({ length: 8 }).map((_, i) => (
@@ -644,11 +642,11 @@ console.log("featured",featured)
                     ))}
                   </div>
                 </div>
-              ) : bestsellerProducts && bestsellerProducts.length > 0 ? (
+              ) : bestsellers && bestsellers.length > 0 ? (
                 <>
                   <div className="px-2 sm:px-4">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {bestsellerProducts.slice(0, 4).map((product) => (
+                      {bestsellers.slice(0, 4).map((product) => (
                         <ProductCard
                           key={product.id}
                           product={product}
@@ -662,7 +660,7 @@ console.log("featured",featured)
                     <Link href="/products?filter=bestsellers">
                       <Button className="font-poppins bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                         <span>
-                          View All Bestsellers ({bestsellerProducts?.length || 0})
+                          View All Bestsellers ({bestsellers?.length || 0})
                         </span>
                         <svg
                           className="w-4 h-4"
@@ -743,7 +741,9 @@ console.log("featured",featured)
                 <div className="text-center mt-6 sm:mt-8 md:mt-10">
                   <Link href="/products?filter=featured">
                     <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                      <span>View All Products  ({featured?.length || 0})</span>
+                      <span>
+                        View All Products  ({featured?.length || 0})
+                      </span>
                       <svg
                         className="w-4 h-4"
                         fill="none"
@@ -821,7 +821,7 @@ console.log("featured",featured)
                   <Link href="/products?filter=newLaunches">
                     <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                       <span>
-                        View All New Launches ({newLaunches?.length || 0})
+                        View All New Launches ({newArrivals?.length || 0})
                       </span>
                       <svg
                         className="w-4 h-4"
@@ -851,45 +851,58 @@ console.log("featured",featured)
         </div>
       </section>
 
-      {/* UGC Video Section */}
+      {renderBelowFold ? (
+        <>
+          {/* UGC Video Section */}
 
-      {/* Combos Section */}
-      <ComboSection />
+          {/* Combos Section */}
+          <ComboSection />
 
-      {/* Testimonials Section */}
-      <section className="py-12 sm:py-16 md:py-5 bg-gradient-to-br from-rose-50 via-white to-pink-50">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
-          <div className="text-center mb-8 sm:mb-10 md:mb-12">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium mb-2 sm:mb-4">
-              <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
-                Testimonials
-              </span>
-            </h2>
-          </div>
+          {/* Testimonials Section */}
+          <section className="py-12 sm:py-16 md:py-5 bg-gradient-to-br from-rose-50 via-white to-pink-50">
+            <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
+              <div className="text-center mb-8 sm:mb-10 md:mb-12">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium mb-2 sm:mb-4">
+                  <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
+                    Testimonials
+                  </span>
+                </h2>
+              </div>
 
-          <TestimonialsCarousel />
-        </div>
-      </section>
+              <TestimonialsCarousel />
+            </div>
+          </section>
 
-      <VideoTestimonials />
+          <Suspense fallback={null}>
+            <VideoTestimonials />
+          </Suspense>
 
-      {/* Blog Section - Latest Posts Per Category */}
-      <section className="py-8 sm:py-10 md:py-12 lg:py-16 bg-gradient-to-br from-slate-50 via-white to-gray-50">
-        <div className="max-w-12xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-          <div className="text-center mb-6 sm:mb-8 md:mb-10 lg:mb-12">
-            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold mb-2 sm:mb-3 md:mb-4 px-2">
-              <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
-                Latest From Our Blog
-              </span>
-            </h2>
-            <p className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-600 px-4">
-              Stay in style with the freshest beauty trends, tips, and expert advice
-            </p>
-          </div>
+          {/* Blog Section - Latest Posts Per Category */}
+          <section className="py-8 sm:py-10 md:py-12 lg:py-16 bg-gradient-to-br from-slate-50 via-white to-gray-50">
+            <div className="max-w-12xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+              <div className="text-center mb-6 sm:mb-8 md:mb-10 lg:mb-12">
+                <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold mb-2 sm:mb-3 md:mb-4 px-2">
+                  <span className="text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text">
+                    Latest From Our Blog
+                  </span>
+                </h2>
+                <p className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-600 px-4">
+                  Stay in style with the freshest beauty trends, tips, and expert advice
+                </p>
+              </div>
 
-          <LatestBlogPostsPerCategory />
-        </div>
-      </section>
+              <LatestBlogPostsPerCategory />
+            </div>
+          </section>
+
+          {/* WhatsApp Floating Button */}
+          {/* <WhatsAppButton /> */}
+
+          {/* Footer */}
+          {/* <footer className="bg-black text-black py-16">
+          </footer> */}
+        </>
+      ) : null}
 
       {/* WhatsApp Floating Button */}
       {/* <WhatsAppButton /> */}
