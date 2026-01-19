@@ -67,7 +67,6 @@ export default function HeroBanner({
   const [current, setCurrent] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoplay);
   const [progress, setProgress] = useState(0);
-  const resizeRafIdRef = useRef<number | null>(null);
 
   // Fetch sliders from API
   const { data: slidersData = [], isLoading: slidersLoading, error: slidersError } = useQuery<Slider[]>({
@@ -127,11 +126,8 @@ export default function HeroBanner({
   const isLcpSlide = (slide: HeroSlide) => slide.key === lcpSlide?.key;
 
   // Reserve space for hero images (reduces CLS)
-  const firstOfferSlide = slides.find((s) => s.type === 'offer');
-  const heroBaseUrl = firstOfferSlide?.imageUrl || lcpImageUrl;
-  const { width: heroWFromUrl, height: heroHFromUrl } = getImageDimensionsFromUrl(heroBaseUrl);
-  const HERO_WIDTH = heroWFromUrl || 1920;
-  const HERO_HEIGHT = heroHFromUrl || 600;
+  const HERO_WIDTH = 1920;
+  const HERO_HEIGHT = 600;
 
   const isLoading = slidersLoading || offersLoading;
   const error = slidersError || offersError;
