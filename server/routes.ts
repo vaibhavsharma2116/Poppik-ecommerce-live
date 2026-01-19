@@ -1051,8 +1051,8 @@ app.get("/api/admin/stores", async (req, res) => {
   app.post('/api/upload/video', upload.single('video'), async (req: any, res: any) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No video file uploaded' });
-      // Use the /images/ proxy path like other upload handlers
-      const videoUrl = `/images/${req.file.filename}`;
+      // Use the /api/images/ proxy path like other upload handlers
+      const videoUrl = `/api/images/${req.file.filename}`;
       console.log('Video uploaded:', req.file.filename, '->', videoUrl);
       res.json({ videoUrl });
     } catch (err) {
@@ -1064,167 +1064,2177 @@ app.get("/api/admin/stores", async (req, res) => {
   // Firebase authentication has been removed
   // Only email/password authentication is now supported
 
-  // ...
 
-  // Update offer (admin)
-  app.put("/api/admin/offers/:id", upload.fields([
+
+  // Authentication routes
+  app.post("/api/auth/signup", async (req, res) => {
+    try {
+      console.log("Signup request received:", {
+        ...req.body,
+        password: req.body.password ? "[HIDDEN]" : undefined,
+        confirmPassword: req.body.confirmPassword ? "[HIDDEN]" : undefined
+      });
+
+      const { firstName, lastName, email, phone, password, confirmPassword } = req.body;
+
+      // Validation
+      if (!firstName || !lastName || !phone || !password) {
+        console.log("Missing required fields:", { firstName: !!firstName, lastName: !!lastName, phone: !!phone, password: !!password });
+        return res.status(400).json({ error: "All required fields must be provided" });
+      }
+
+      if (password !== confirmPassword) {
+        console.log("Password mismatch during signup");
+        return res.status(400).json({ error: "Passwords don't match" });
+      }
+
+      if (password.length < 6) {
+        console.log("Password too short:", password.length);
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+
+      const normalizedEmail = typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
+
+      if (normalizedEmail) {
+        // Email validation (only if email provided)
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(normalizedEmail)) {
+          console.log("Invalid email format:", normalizedEmail);
+          return res.status(400).json({ error: "Please provide a valid email address" });
+        }
+
+        console.log("Checking if user exists with email:", normalizedEmail);
+        // Check if user already exists by email
+        const existingUser = await storage.getUserByEmail(normalizedEmail);
+        if (existingUser) {
+          console.log("User already exists with email:", normalizedEmail);
+          return res.status(400).json({ error: "User already exists with this email" });
+        }
+      }
+
+      // If phone provided, enforce uniqueness as well
+      const normalizedPhone = normalizePhone(phone);
+      if (normalizedPhone) {
+        const existingByPhone = await storage.getUserByPhone(normalizedPhone);
+        if (existingByPhone) {
+          console.log("User already exists with phone:", normalizedPhone);
+          return res.status(400).json({ error: "An account already exists with this mobile number" });
+        }
+      }
+
+      console.log("Hashing password...");
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      console.log("Creating user in database...");
+      // Create user with all the form data
+      const userData = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: normalizedEmail,
+        phone: normalizedPhone || null,
+        password: hashedPassword
+      };
+
+      console.log("User data to create:", {
+        ...userData,
+        password: "[HIDDEN]"
+      });
+
+      const user = await storage.createUser(userData);
+      console.log("User created successfully with ID:", user.id);
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user.id, email: user.email || null, role: user.role },
+        process.env.JWT_SECRET || "your-secret-key",
+        { expiresIn: "24h" }
+      );
+
+      // Return user data (without password) and token
+      const { password: _, ...userWithoutPassword } = user;
+
+      console.log("Signup successful for user:", userWithoutPassword.email || userWithoutPassword.phone);
+      res.status(201).json({
+        message: "User created successfully",
+        user: userWithoutPassword,
+        token
+      });
+    } catch (error) {
+      const errorProps = getErrorProperties(error);
+      console.error("Signup error details:", {
+        message: errorProps.message,
+        code: errorProps.code,
+        constraint: errorProps.constraint,
+        detail: errorProps.detail,
+        stack: process.env.NODE_ENV === 'development' ? errorProps.stack : undefined
+      });
+
+      // Handle specific database errors
+      const errorCode = (error as any).code;
+      const errorConstraint = (error as any).constraint;
+      const errorMessage = getErrorMessage(error);
+      
+      if (errorCode === '23505') { // Unique constraint violation
+        if (errorConstraint && errorConstraint.includes('email')) {
+          return res.status(400).json({ error: "A user with this email already exists" });
+        }
+        return res.status(400).json({ error: "A user with this information already exists" });
+      }
+
+      if (errorCode === 'ECONNREFUSED') {
+        return res.status(500).json({ error: "Database connection error. Please try again." });
+      }
+
+      if (errorMessage && errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        return res.status(500).json({ error: "Database table not found. Please contact support." });
+      }
+
+      // Generic error response
+      res.status(500).json({
+        error: "Failed to create user",
+        details: process.env.NODE_ENV === 'development' ? errorMessage : "Please try again or contact support if the problem persists."
+      });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      const identifier = typeof email === "string" ? email.trim() : "";
+      const passwordStr = typeof password === "string" ? password : String(password ?? "");
+
+      // Validation
+      if (!identifier || !passwordStr) {
+        return res.status(400).json({ error: "Email/mobile and password are required" });
+      }
+
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+
+      // Find user
+      const user = isEmail
+        ? await storage.getUserByEmail(identifier.toLowerCase())
+        : await storage.getUserByPhone(normalizePhone(identifier));
+
+      if (!user) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      if (!user.password) {
+        console.error("Login error: user record missing password hash", { userId: user.id });
+        return res.status(500).json({ error: "Failed to login" });
+      }
+
+      // Check password
+      const storedPassword = String(user.password);
+      const looksLikeBcrypt = /^\$2[aby]\$\d{2}\$/.test(storedPassword);
+      let isValidPassword = false;
+
+      if (looksLikeBcrypt) {
+        isValidPassword = await bcrypt.compare(passwordStr, storedPassword);
+      } else {
+        // Legacy support: some environments may have stored plaintext passwords.
+        // If it matches, migrate to bcrypt so subsequent logins use secure hashes.
+        isValidPassword = passwordStr === storedPassword;
+        if (isValidPassword) {
+          try {
+            const migratedHash = await bcrypt.hash(passwordStr, 10);
+            await storage.updateUser(user.id, { password: migratedHash });
+          } catch (migrateErr) {
+            console.error("Login warning: failed to migrate plaintext password to bcrypt", {
+              userId: user.id,
+              identifier,
+              error: migrateErr,
+            });
+          }
+        }
+      }
+
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        process.env.JWT_SECRET || "your-secret-key",
+        { expiresIn: "24h" }
+      );
+
+      // Return user data (without password) and token
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({
+        message: "Login successful",
+        user: userWithoutPassword,
+        token
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Failed to login" });
+    }
+  });
+
+  app.post("/api/auth/admin-login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      const identifier = typeof email === "string" ? email.trim() : "";
+
+      console.log("🔐 Admin login attempt for identifier:", identifier);
+
+      // Validation
+      if (!identifier || !password) {
+        console.log("❌ Missing identifier or password");
+        return res.status(400).json({ error: "Email/mobile and password are required" });
+      }
+
+      // Find user
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+
+      const user = isEmail
+        ? await storage.getUserByEmail(identifier.toLowerCase())
+        : await storage.getUserByPhone(normalizePhone(identifier));
+
+      if (!user) {
+        console.log("❌ User not found for identifier:", identifier);
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      console.log("✅ User found:", { id: user.id, email: user.email, role: user.role });
+
+      // Check if user is admin or master_admin
+      if (user.role !== 'admin' && user.role !== 'master_admin') {
+        console.log("❌ User does not have admin privileges. Role:", user.role);
+        return res.status(403).json({ error: "Access denied. Admin privileges required." });
+      }
+
+      // Check password
+      const storedPassword = String(user.password);
+      const looksLikeBcrypt = /^\$2[aby]\$\d{2}\$/.test(storedPassword);
+      let isValidPassword = false;
+
+      if (looksLikeBcrypt) {
+        isValidPassword = await bcrypt.compare(String(password ?? ""), storedPassword);
+      } else {
+        isValidPassword = String(password ?? "") === storedPassword;
+        if (isValidPassword) {
+          try {
+            const migratedHash = await bcrypt.hash(String(password ?? ""), 10);
+            await storage.updateUser(user.id, { password: migratedHash });
+          } catch (migrateErr) {
+            console.error("Admin login warning: failed to migrate plaintext password to bcrypt", {
+              userId: user.id,
+              identifier,
+              error: migrateErr,
+            });
+          }
+        }
+      }
+
+      console.log("🔑 Password validation result:", isValidPassword);
+      
+      if (!isValidPassword) {
+        console.log("❌ Invalid password for user:", identifier);
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      console.log("✅ Admin login successful for:", email);
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        process.env.JWT_SECRET || "your-secret-key",
+        { expiresIn: "24h" }
+      );
+
+      // Return user data (without password) and token
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({
+        message: "Admin login successful",
+        user: userWithoutPassword,
+        token
+      });
+    } catch (error) {
+      console.error("Admin login error:", error);
+      res.status(500).json({ error: "Failed to login" });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    res.json({ message: "Logged out successfully" });
+  });
+
+  // Forgot password - send reset link (returns 200 regardless to avoid account enumeration)
+  app.post('/api/auth/forgot-password', async (req, res) => {
+    try {
+      const { email } = req.body || {};
+      if (!email) return res.status(400).json({ error: 'Email is required' });
+
+      // Lookup user
+      const user = await storage.getUserByEmail(String(email).toLowerCase());
+
+      if (!user) {
+        return res.json({ message: 'If an account exists for this email, password reset instructions have been sent.' });
+      }
+
+      // Create a short-lived JWT token for password reset
+      const secret = process.env.JWT_SECRET || 'your-secret-key';
+      const token = jwt.sign({ uid: user.id, type: 'password_reset' }, secret, { expiresIn: '1h' });
+
+      const baseUrl = (process.env.APP_BASE_URL || process.env.APP_URL || process.env.SITE_URL || 'https://poppiklifestyle.com').replace(/\/$/, '');
+      const resetLink = `${baseUrl}/auth/reset-password?token=${token}`;
+
+      // Send email using configured transporter
+      try {
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@poppik.in',
+          to: user.email,
+          subject: 'Poppik - Password reset instructions',
+          html: `
+            <p>Hi ${user.first_name || user.firstName || 'there'},</p>
+            <p>We received a request to reset your password. Click the link below to set a new password. This link expires in 1 hour.</p>
+            <p><a href="${resetLink}">Reset your password</a></p>
+            <p>If you didn't request this, you can safely ignore this email.</p>
+            <p>— Poppik Team</p>
+          `
+        });
+      } catch (emailErr) {
+        console.error('Error sending reset email:', emailErr);
+        return res.status(500).json({ error: 'Failed to send reset email' });
+      }
+
+      return res.json({ message: 'Password reset instructions sent to your email.' });
+    } catch (err) {
+      console.error('Error in forgot-password endpoint:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/auth/forgot-password-phone/send-otp', async (req, res) => {
+    try {
+      const { phoneNumber } = req.body || {};
+      if (!phoneNumber) return res.status(400).json({ error: 'Phone number is required' });
+
+      const normalized = normalizePhone(phoneNumber);
+
+      if (!normalized) {
+        return res.status(400).json({ error: 'Invalid phone number' });
+      }
+
+      const user = await storage.getUserByPhone(normalized);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const result = await OTPService.sendMobileOTP(normalized);
+      if (!result.success) {
+        return res.status(500).json({ error: result.message || 'Failed to send OTP' });
+      }
+
+      return res.json({ success: true, message: 'OTP sent successfully' });
+    } catch (err) {
+      console.error('Error in forgot-password-phone/send-otp endpoint:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/auth/forgot-password-phone/verify-otp', async (req, res) => {
+    try {
+      const { phoneNumber, otp } = req.body || {};
+      if (!phoneNumber || !otp) return res.status(400).json({ error: 'Phone number and OTP are required' });
+
+      const normalized = normalizePhone(phoneNumber);
+      if (!normalized) return res.status(400).json({ error: 'Invalid phone number' });
+
+      const user = await storage.getUserByPhone(normalized);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const result = await OTPService.verifyMobileOTP(normalized, String(otp));
+      if (!result.success) {
+        return res.status(400).json({ error: result.message || 'Invalid OTP' });
+      }
+
+      const secret = process.env.JWT_SECRET || 'your-secret-key';
+      const token = jwt.sign({ uid: user.id, type: 'password_reset' }, secret, { expiresIn: '15m' });
+
+      return res.json({ verified: true, token });
+    } catch (err) {
+      console.error('Error in forgot-password-phone/verify-otp endpoint:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Change password - requires current password
+  app.put('/api/auth/change-password/:id', async (req, res) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      // Ensure no caching for password updates
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const { id } = req.params;
+      const { currentPassword, newPassword } = req.body;
+
+      // Validation
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Current password and new password are required' });
+      }
+
+      if (String(newPassword).length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      }
+
+      const userId = parseInt(id);
+      if (Number.isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user id' });
+      }
+
+      // Get user
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Check current password
+      const isValidPassword = await bcrypt.compare(String(currentPassword), user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(String(newPassword), 10);
+
+      // Update password
+      await storage.updateUserPassword(userId, hashedNewPassword);
+
+      return res.json({ message: 'Password updated successfully' });
+    } catch (error) {
+      console.error('Password change error:', error);
+      return res.status(500).json({ error: 'Failed to change password' });
+    }
+  });
+
+  const resetPasswordHandler = async (req: any, res: any) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      // Ensure no caching for password updates
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const { token, password, newPassword } = req.body || {};
+      const nextPassword = newPassword ?? password;
+
+      if (!token || !nextPassword) {
+        return res.status(400).json({ error: 'Token and new password are required' });
+      }
+
+      if (String(nextPassword).length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      }
+
+      const secret = process.env.JWT_SECRET || 'your-secret-key';
+      let payload: any;
+      try {
+        payload = jwt.verify(String(token), secret);
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid or expired token' });
+      }
+
+      if (!payload || payload.type !== 'password_reset' || !payload.uid) {
+        return res.status(400).json({ error: 'Invalid token' });
+      }
+
+      const userId = parseInt(String(payload.uid));
+      if (Number.isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid token' });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const hashedNewPassword = await bcrypt.hash(String(nextPassword), 10);
+      await storage.updateUserPassword(userId, hashedNewPassword);
+
+      return res.json({ message: 'Password updated successfully' });
+    } catch (error) {
+      console.error('Password reset error:', error);
+      return res.status(500).json({ error: 'Failed to reset password' });
+    }
+  };
+
+  // Reset password - accepts token and new password (matches client)
+  app.post('/api/auth/reset-password', resetPasswordHandler);
+
+  // Backward-compatible alias (some clients may still call PUT)
+  app.put('/api/auth/reset-password', resetPasswordHandler);
+
+  // Cashfree Payment Routes
+  app.post('/api/payments/cashfree/create-order', async (req, res) => {
+    try {
+      const { amount, orderId, currency, customerDetails, orderData, orderNote } = req.body;
+
+      // Validate required fields
+      if (!amount || !orderId || !currency || !customerDetails) {
+        return res.status(400).json({
+          error: "Missing required fields: amount, orderId, currency, and customerDetails are required"
+        });
+      }
+
+      // Validate customerDetails structure
+      if (!customerDetails.customerId || !customerDetails.customerName || !customerDetails.customerEmail) {
+        return res.status(400).json({
+          error: "customerDetails must include customerId, customerName, and customerEmail"
+        });
+      }
+
+      // Check if Cashfree is configured
+      if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY ||
+          CASHFREE_APP_ID === 'cashfree_app_id' || CASHFREE_SECRET_KEY === 'cashfree_secret_key') {
+        console.log("Cashfree not configured properly");
+        return res.status(400).json({
+          error: "Cashfree payment gateway is not configured",
+          configError: true
+        });
+      }
+
+      console.log("Creating Cashfree order:", {
+        orderId,
+        amount,
+        currency,
+        customer: customerDetails.customerName
+      });
+
+      // Create Cashfree order payload with proper HTTPS URLs
+      const host = req.get('host');
+
+      // Determine a secure public host to use for Cashfree return/notify URLs.
+      // Priority:
+      // 1) NGROK_URL env (recommended for local dev)
+      // 2) REPL_SLUG/REPL_OWNER (existing logic)
+      // 3) request host (may be localhost - Cashfree requires HTTPS/public URL)
+      let protocol = 'https';
+      let returnHost = host;
+
+      const ngrokUrl = process.env.NGROK_URL;
+      if (ngrokUrl) {
+        try {
+          const parsed = new URL(ngrokUrl);
+          protocol = parsed.protocol.replace(':', '') || 'https';
+          returnHost = parsed.host;
+        } catch (e) {
+          console.warn('Invalid NGROK_URL, falling back to host:', ngrokUrl);
+        }
+      } else if (host && (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0'))) {
+        // For local development without NGROK, try replit preview domain if available
+        const replitHost = process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : host;
+        returnHost = replitHost;
+        protocol = 'https';
+      }
+
+      // Ensure customer phone is valid (Cashfree requires phone to be 10+ digits)
+      let sanitizedPhone = (customerDetails.customerPhone || '9999999999').toString();
+      if (sanitizedPhone.length < 10) {
+        sanitizedPhone = '9999999999';
+      }
+
+      const cashfreePayload = {
+        order_id: orderId,
+        order_amount: amount,
+        order_currency: currency,
+        customer_details: {
+          customer_id: customerDetails.customerId.toString(),
+          customer_name: customerDetails.customerName.trim(),
+          customer_email: customerDetails.customerEmail.trim(),
+          customer_phone: sanitizedPhone
+        },
+        order_meta: {
+          return_url: `${protocol}://${returnHost}/checkout?payment=processing&orderId=${orderId}`,
+          notify_url: `${protocol}://${returnHost}/api/payments/cashfree/webhook`
+        },
+        order_note: (orderNote || 'Beauty Store Purchase').substring(0, 255)
+      };
+
+      console.log("Creating Cashfree order with credentials:", {
+        appId: CASHFREE_APP_ID.substring(0, 8) + '...',
+        mode: CASHFREE_MODE,
+        baseUrl: CASHFREE_BASE_URL
+      });
+      
+      console.log("Cashfree API URL:", `${CASHFREE_BASE_URL}/pg/orders`);
+      console.log("Cashfree payload:", JSON.stringify(cashfreePayload, null, 2));
+
+      // Call Cashfree API
+      const cashfreeResponse = await fetch(`${CASHFREE_BASE_URL}/pg/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-version': '2023-08-01',
+          'x-client-id': CASHFREE_APP_ID,
+          'x-client-secret': CASHFREE_SECRET_KEY,
+        },
+        body: JSON.stringify(cashfreePayload)
+      });
+
+      const cashfreeResult = await cashfreeResponse.json();
+
+      console.log("Cashfree API response status:", cashfreeResponse.status);
+      console.log("Cashfree API response:", JSON.stringify(cashfreeResult, null, 2));
+
+      if (!cashfreeResponse.ok) {
+        console.error("Cashfree API error:", cashfreeResult);
+        // Parse error details
+        const errorMessage = cashfreeResult.message || cashfreeResult.error || "Failed to create Cashfree order";
+        const errorCode = cashfreeResult.code || cashfreeResult.type || "unknown";
+        
+        return res.status(400).json({
+          error: errorMessage,
+          cashfreeError: true,
+          errorCode: errorCode,
+          details: {
+            message: cashfreeResult.message,
+            code: cashfreeResult.code,
+            type: cashfreeResult.type,
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+
+      // Store payment record in database
+      try {
+        await db.insert(schema.cashfreePayments).values({
+          cashfreeOrderId: orderId,
+          userId: parseInt(customerDetails.customerId),
+          amount: amount,
+          status: 'created',
+          orderData: orderData || {},
+          customerInfo: customerDetails
+        });
+      } catch (dbError) {
+        console.error("Database error storing payment:", dbError);
+        // Continue even if database storage fails
+      }
+
+      // Return payment session details
+      res.json({
+        orderId: orderId,
+        paymentSessionId: cashfreeResult.payment_session_id,
+        environment: CASHFREE_MODE,
+        message: "Order created successfully"
+      });
+
+    } catch (error) {
+      console.error("Cashfree create order error:", error);
+      res.status(500).json({
+        error: "Failed to create payment order",
+        details: getErrorMessage(error)
+      });
+    }
+  });
+
+  app.post('/api/payments/cashfree/verify', async (req, res) => {
+    try {
+      const { orderId } = req.body;
+
+      if (!orderId) {
+        return res.status(400).json({ error: "Order ID is required" });
+      }
+
+      console.log("Verifying payment for order:", orderId);
+
+      // Check Cashfree configuration
+      if (!CASHFREE_APP_ID || !CASHFREE_SECRET_KEY ||
+          CASHFREE_APP_ID === 'cashfree_app_id' || CASHFREE_SECRET_KEY === 'cashfree_secret_key') {
+        return res.status(400).json({
+          error: "Cashfree payment gateway is not configured",
+          verified: false
+        });
+      }
+
+      // Get order status from Cashfree
+      const statusResponse = await fetch(`${CASHFREE_BASE_URL}/pg/orders/${orderId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-version': '2023-08-01',
+          'x-client-id': CASHFREE_APP_ID,
+          'x-client-secret': CASHFREE_SECRET_KEY,
+        }
+      });
+
+      const statusResult: any = await statusResponse.json();
+
+      console.log("Payment verification response:", JSON.stringify(statusResult, null, 2));
+
+      if (!statusResponse.ok) {
+        console.error("Cashfree verification error:", statusResult);
+        return res.json({
+          verified: false,
+          error: "Failed to verify payment status"
+        });
+      }
+
+      const isPaymentSuccessful = statusResult.order_status === 'PAID';
+
+      // Update payment record in database
+      try {
+        await db.update(schema.cashfreePayments)
+          .set({
+            status: isPaymentSuccessful ? 'completed' : 'failed',
+            paymentId: statusResult.cf_order_id || null,
+            completedAt: isPaymentSuccessful ? new Date() : null
+          })
+          .where(eq(schema.cashfreePayments.cashfreeOrderId, orderId));
+
+        // If payment is successful, create order in ordersTable for admin panel
+        if (isPaymentSuccessful) {
+          // Get cashfree payment details
+          const cashfreePayment = await db
+            .select()
+            .from(schema.cashfreePayments)
+            .where(eq(schema.cashfreePayments.cashfreeOrderId, orderId))
+            .limit(1);
+
+          if (cashfreePayment.length > 0) {
+            const payment = cashfreePayment[0];
+            const orderData: any = payment.orderData;
+
+            // Check if order already exists in ordersTable
+            const existingOrder = await db
+              .select()
+              .from(schema.ordersTable)
+              .where(eq(schema.ordersTable.cashfreeOrderId, orderId))
+              .limit(1);
+
+            if (existingOrder.length === 0 && payment.userId) {
+              // Create order in ordersTable
+              const [newOrder] = await db.insert(schema.ordersTable).values({
+                userId: payment.userId,
+                totalAmount: payment.amount,
+                status: 'processing',
+                paymentMethod: 'Cashfree',
+                shippingAddress: orderData.shippingAddress,
+                cashfreeOrderId: orderId,
+                paymentSessionId: statusResult.payment_session_id || null,
+                paymentId: statusResult.cf_order_id || null,
+                affiliateCode: orderData.affiliateCode || null,
+                estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+              }).returning();
+
+              // Create order items
+              if (orderData.items && Array.isArray(orderData.items)) {
+                const orderItems = orderData.items.map((item: any) => ({
+                  orderId: newOrder.id,
+                  productId: Number(item.productId) || null,
+                  productName: item.productName,
+                  productImage: item.productImage,
+                  quantity: Number(item.quantity),
+                  price: item.price,
+                  cashbackPrice: item.cashbackPrice || null,
+                  cashbackPercentage: item.cashbackPercentage || null,
+                  deliveryAddress: item.deliveryAddress || null,
+                  recipientName: item.recipientName || null,
+                  recipientPhone: item.recipientPhone || null,
+                }));
+
+                await db.insert(schema.orderItemsTable).values(orderItems);
+              }
+
+              // Process affiliate commission for Cashfree payment
+              if (orderData.affiliateCode && orderData.affiliateCode.startsWith('POPPIKAP')) {
+                const affiliateUserId = parseInt(orderData.affiliateCode.replace('POPPIKAP', ''));
+
+                console.log(`🔍 Processing affiliate commission for Cashfree payment: ${orderData.affiliateCode}, userId: ${affiliateUserId}`);
+
+                if (!isNaN(affiliateUserId)) {
+                  try {
+                    // Verify affiliate exists and is approved
+                    const affiliateApp = await db
+                      .select()
+                      .from(schema.affiliateApplications)
+                      .where(and(
+                        eq(schema.affiliateApplications.userId, affiliateUserId),
+                        eq(schema.affiliateApplications.status, 'approved')
+                      ))
+                      .limit(1);
+
+                    if (affiliateApp && affiliateApp.length > 0) {
+                      // Calculate commission dynamically from order items
+                      let calculatedCommission = 0;
+
+                      if (orderData.items && Array.isArray(orderData.items)) {
+                        calculatedCommission = Math.round(
+                          orderData.items.reduce((sum: number, item: any) => {
+                            const itemAffiliateCommission = item.affiliateCommission || 0;
+                            const itemPrice = parseInt(item.price?.replace(/[₹,]/g, "") || "0");
+                            const itemTotal = itemPrice * (item.quantity || 1);
+                            return sum + (itemTotal * itemAffiliateCommission) / 100;
+                          }, 0)
+                        );
+                      }
+
+                      const commissionRate = calculatedCommission > 0 && Number(payment.amount) > 0
+                        ? (calculatedCommission / Number(payment.amount)) * 100
+                        : 0;
+
+                      console.log(`💰 Calculated commission: ₹${calculatedCommission.toFixed(2)} (${commissionRate}% of ₹${payment.amount})`);
+
+                      // Ensure affiliate wallet exists (do NOT credit until delivered)
+                      const existingAffiliateWallet = await db
+                        .select({ id: schema.affiliateWallet.id })
+                        .from(schema.affiliateWallet)
+                        .where(eq(schema.affiliateWallet.userId, affiliateUserId))
+                        .limit(1);
+
+                      if (!existingAffiliateWallet || existingAffiliateWallet.length === 0) {
+                        await db.insert(schema.affiliateWallet).values({
+                          userId: affiliateUserId,
+                          cashbackBalance: "0.00",
+                          commissionBalance: "0.00",
+                          totalEarnings: "0.00",
+                          totalWithdrawn: "0.00"
+                        });
+                      }
+
+                      // Record affiliate sale
+                      await db.insert(schema.affiliateSales).values({
+                        affiliateUserId,
+                        affiliateCode: orderData.affiliateCode,
+                        orderId: newOrder.id,
+                        customerId: Number(payment.userId),
+                        customerName: orderData.customerName || `${userData.firstName} ${userData.lastName}`,
+                        customerEmail: orderData.customerEmail || userData.email,
+                        customerPhone: orderData.customerPhone || userData.phone || null,
+                        productName: orderData.items.map((item: any) => item.productName).join(', '),
+                        saleAmount: Number(payment.amount).toFixed(2),
+                        commissionAmount: calculatedCommission.toFixed(2),
+                        commissionRate: commissionRate.toFixed(2),
+                        status: 'pending'
+                      });
+
+                      // Add pending transaction record (credit on delivered)
+                      await db.insert(schema.affiliateTransactions).values({
+                        userId: affiliateUserId, 
+                        orderId: newOrder.id,
+                        type: 'commission',
+                        amount: calculatedCommission.toFixed(2),
+                        balanceType: 'commission',
+                        description: `Commission (${commissionRate}%) from Cashfree order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+                        status: 'pending',
+                        transactionId: null,
+                        notes: null,
+                        processedAt: null,
+                        createdAt: new Date()
+                      });
+
+                      console.log(`✅ Affiliate commission pending: ₹${calculatedCommission.toFixed(2)} (${commissionRate}%) for affiliate ${affiliateUserId} (Cashfree order ${newOrder.id})`);
+                    } else {
+                      console.error(`❌ Affiliate not found or not approved for user ${affiliateUserId}`);
+                    }
+                  } catch (affiliateError) {
+                    console.error(`❌ Error processing affiliate commission for Cashfree:`, affiliateError);
+                  }
+                }
+              }
+
+              console.log("Order created in ordersTable:", newOrder.id);
+            } else {
+              console.log("Order already exists in ordersTable");
+            }
+          }
+        }
+      } catch (dbError) {
+        console.error("Database error updating payment:", dbError);
+      }
+
+      res.json({
+        verified: isPaymentSuccessful,
+        status: statusResult.order_status,
+        paymentId: statusResult.cf_order_id,
+        message: isPaymentSuccessful ? "Payment verified successfully" : "Payment verification failed"
+      });
+
+    } catch (error) {
+      console.error("Payment verification error:", error);
+      res.json({
+        verified: false,
+        error: "Payment verification failed"
+      });
+    }
+  });
+
+  // Mobile OTP routes
+  app.post("/api/auth/send-mobile-otp", async (req, res) => {
+    try {
+      const { phoneNumber, forSignup } = req.body;
+
+      if (!phoneNumber) {
+        return res.status(400).json({ error: "Phone number is required" });
+      }
+
+      // Basic phone number validation
+      const phoneRegex = /^(\+91|91)?[6-9]\d{9}$/;
+      if (!phoneRegex.test(String(phoneNumber).replace(/\s+/g, ""))) {
+        return res
+          .status(400)
+          .json({ error: "Please enter a valid Indian mobile number" });
+      }
+
+      const normalized = normalizePhone(phoneNumber);
+
+      // For signup flow, do not send OTP if phone already mapped to another user
+      if (forSignup) {
+        const existingByPhone = await storage.getUserByPhone(normalized);
+        if (existingByPhone) {
+          return res.status(400).json({
+            error:
+              "An account already exists with this mobile number. Please log in instead.",
+          });
+        }
+      }
+
+      const result = await OTPService.sendMobileOTP(phoneNumber);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: result.message,
+        });
+      } else {
+        res.status(500).json({ error: result.message });
+      }
+    } catch (error) {
+      console.error("Send mobile OTP error:", error);
+      res.status(500).json({ error: "Failed to send mobile OTP" });
+    }
+  });
+
+  app.post("/api/auth/verify-mobile-otp", async (req, res) => {
+    try {
+      const { phoneNumber, otp } = req.body;
+
+      if (!phoneNumber || !otp) {
+        return res.status(400).json({ error: "Phone number and OTP are required" });
+      }
+
+      if (otp.length !== 6) {
+        return res.status(400).json({ error: "Please enter valid 6-digit OTP" });
+      }
+
+      const result = await OTPService.verifyMobileOTP(phoneNumber, otp);
+
+      if (result.success) {
+        res.json({
+          verified: true,
+          message: result.message
+        });
+      } else {
+        res.status(400).json({ error: result.message });
+      }
+    } catch (error) {
+      console.error("Verify mobile OTP error:", error);
+      res.status(500).json({ error: "Failed to verify mobile OTP" });
+    }
+  });
+
+  // Affiliate Click Tracking - Track when someone clicks an affiliate link
+  app.post("/api/affiliate/track-click", async (req, res) => {
+    try {
+      const { affiliateCode, productId, comboId, offerId, ipAddress, userAgent, referrer } = req.body;
+
+      if (!affiliateCode) {
+        return res.status(400).json({ error: "Affiliate code is required" });
+      }
+
+      // Extract affiliate user ID from code (POPPIKAP01 -> 1)
+      const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
+
+      if (isNaN(affiliateUserId)) {
+        return res.status(400).json({ error: "Invalid affiliate code" });
+      }
+
+      // Verify affiliate exists and is approved
+      const affiliate = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(and(
+          eq(schema.affiliateApplications.userId, affiliateUserId),
+          eq(schema.affiliateApplications.status, 'approved')
+        ))
+        .limit(1);
+
+      if (!affiliate || affiliate.length === 0) {
+        return res.status(404).json({ error: "Affiliate not found or not approved" });
+      }
+
+      // Track the click
+      const [clickRecord] = await db.insert(schema.affiliateClicks).values({
+        affiliateUserId,
+        affiliateCode,
+        productId: productId || null,
+        comboId: comboId || null,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+        referrer: referrer || null,
+        converted: false
+      }).returning();
+
+      console.log(`✅ Affiliate click tracked: Code ${affiliateCode}, Product ${productId || 'N/A'}, Combo ${comboId || 'N/A'}, Offer ${offerId || 'N/A'}`);
+
+      res.json({
+        success: true,
+        message: "Click tracked successfully",
+        clickId: clickRecord.id
+      });
+
+    } catch (error) {
+      console.error("Error tracking affiliate click:", error);
+      res.status(500).json({ error: "Failed to track click" });
+    }
+  });
+
+  // Validate affiliate code - quick check to see if code corresponds to an approved affiliate
+  app.get('/api/affiliate/validate', async (req, res) => {
+    try {
+      const { code } = req.query;
+      if (!code) return res.status(400).json({ error: 'Affiliate code is required' });
+
+      const affiliateCode = String(code).toUpperCase();
+      const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
+      if (isNaN(affiliateUserId)) return res.status(400).json({ error: 'Invalid affiliate code format' });
+
+      const affiliate = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(and(
+          eq(schema.affiliateApplications.userId, affiliateUserId),
+          eq(schema.affiliateApplications.status, 'approved')
+        ))
+        .limit(1);
+
+      if (!affiliate || affiliate.length === 0) {
+        return res.status(404).json({ error: 'Affiliate not found or not approved' });
+      }
+
+      res.json({ valid: true, message: 'Affiliate code is valid', affiliateUserId });
+    } catch (error) {
+      console.error('Error validating affiliate code:', error);
+      res.status(500).json({ error: 'Failed to validate affiliate code' });
+    }
+  });
+
+  // Get Affiliate Clicks - Get all clicks for an affiliate
+  app.get("/api/affiliate/clicks/overview", async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const clicks = await db
+        .select()
+        .from(schema.affiliateClicks)
+        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateClicks.createdAt))
+        .limit(100);
+
+      const totalClicks = clicks.length;
+      const convertedClicks = clicks.filter(click => click.converted).length;
+
+      res.json({
+        total: totalClicks,
+        converted: convertedClicks,
+        conversionRate: totalClicks > 0 ? ((convertedClicks / totalClicks) * 100).toFixed(2) : 0,
+        recent: clicks.slice(0, 10)
+      });
+
+    } catch (error) {
+      console.error("Error fetching affiliate clicks:", error);
+      res.status(500).json({ error: "Failed to fetch clicks" });
+    }
+  });
+
+  // Get Affiliate Sales - Get all sales/commissions for an affiliate
+  app.get("/api/affiliate/sales", async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const sales = await db
+        .select()
+        .from(schema.affiliateSales)
+        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateSales.createdAt));
+
+      res.json(sales);
+
+    } catch (error) {
+      console.error("Error fetching affiliate sales:", error);
+      res.status(500).json({ error: "Failed to fetch sales" });
+    }
+  });
+
+  // Get Affiliate Wallet - Get wallet balance and stats
+  app.get("/api/affiliate/wallet", async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      // Get or create wallet
+      let wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        // Create wallet if doesn't exist
+        const [newWallet] = await db.insert(schema.affiliateWallet).values({
+          userId: parseInt(userId as string),
+          cashbackBalance: "0.00",
+          commissionBalance: "0.00",
+          totalEarnings: "0.00",
+          totalWithdrawn: "0.00"
+        }).returning();
+
+        wallet = [newWallet];
+      }
+
+      // Convert decimal values to proper format
+      const walletData = {
+        ...wallet[0],
+        cashbackBalance: parseFloat(wallet[0].cashbackBalance || '0').toFixed(2),
+        commissionBalance: parseFloat(wallet[0].commissionBalance || '0').toFixed(2),
+        totalEarnings: parseFloat(wallet[0].totalEarnings || '0').toFixed(2),
+        totalWithdrawn: parseFloat(wallet[0].totalWithdrawn || '0').toFixed(2)
+      };
+
+      console.log('Affiliate wallet data:', {
+        userId: parseInt(userId as string),
+        balances: walletData
+      });
+
+      res.json(walletData);
+
+    } catch (error) {
+      console.error("Error fetching affiliate wallet:", error);
+      res.status(500).json({ error: "Failed to fetch wallet" });
+    }
+  });
+
+  // Get Affiliate Wallet Stats
+  app.get("/api/affiliate/wallet/stats", async (req, res) => {
+    try {
+      const userId = req.query.userId;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      // Get wallet
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        return res.json({
+          totalEarnings: '0.00',
+          availableBalance: '0.00',
+          pendingCommission: '0.00',
+          totalWithdrawn: '0.00',
+          thisMonthEarnings: '0.00'
+        });
+      }
+
+      const walletData = wallet[0];
+
+      // Get pending commission (from confirmed sales)
+      const pendingSales = await db
+        .select()
+        .from(schema.affiliateSales)
+        .where(and(
+          eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)),
+          eq(schema.affiliateSales.status, 'confirmed')
+        ));
+
+      const pendingCommission = pendingSales.reduce((sum, sale) => 
+        sum + parseFloat(sale.commissionAmount || '0'), 0
+      );
+
+      // Get this month's earnings
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const monthSales = await db
+        .select()
+        .from(schema.affiliateSales)
+        .where(and(
+          eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)),
+          sql`${schema.affiliateSales.createdAt} >= ${startOfMonth}`
+        ));
+
+      const thisMonthEarnings = monthSales.reduce((sum, sale) => 
+        sum + parseFloat(sale.commissionAmount || '0'), 0
+      );
+
+      const totalEarnings = parseFloat(walletData.totalEarnings || '0');
+      const cashbackBalance = parseFloat(walletData.cashbackBalance || '0');
+      const commissionBalance = parseFloat(walletData.commissionBalance || '0');
+      const availableBalance = cashbackBalance + commissionBalance;
+
+      res.json({
+        totalEarnings: totalEarnings.toFixed(2),
+        availableBalance: availableBalance.toFixed(2),
+        pendingCommission: pendingCommission.toFixed(2),
+        totalWithdrawn: parseFloat(walletData.totalWithdrawn || '0').toFixed(2),
+        thisMonthEarnings: thisMonthEarnings.toFixed(2)
+      });
+
+    } catch (error) {
+      console.error("Error fetching wallet stats:", error);
+      res.status(500).json({ error: "Failed to fetch wallet stats" });
+    }
+  });
+
+  // Get Affiliate Wallet Transactions
+  app.get('/api/affiliate/wallet/transactions', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      const transactions = await db
+        .select({
+          id: schema.affiliateTransactions.id,
+          userId: schema.affiliateTransactions.userId,
+          type: schema.affiliateTransactions.type,
+          amount: schema.affiliateTransactions.amount,
+          balanceType: schema.affiliateTransactions.balanceType,
+          description: schema.affiliateTransactions.description,
+          orderId: schema.affiliateTransactions.orderId,
+          status: schema.affiliateTransactions.status,
+          transactionId: schema.affiliateTransactions.transactionId,
+          notes: schema.affiliateTransactions.notes,
+          processedAt: schema.affiliateTransactions.processedAt,
+          createdAt: schema.affiliateTransactions.createdAt,
+        })
+        .from(schema.affiliateTransactions)
+        .where(eq(schema.affiliateTransactions.userId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateTransactions.createdAt))
+        .limit(100);
+
+      console.log(`✅ Fetched ${transactions.length} transactions for user ${userId}`);
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error fetching affiliate wallet transactions:', error);
+      res.status(500).json({ error: 'Failed to fetch transactions' });
+    }
+  });
+
+  // Get Affiliate Withdrawals
+  app.get('/api/affiliate/wallet/withdrawals', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      const withdrawals = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(and(
+          eq(schema.affiliateTransactions.userId, parseInt(userId as string)),
+          eq(schema.affiliateTransactions.type, 'withdrawal')
+        ))
+        .orderBy(desc(schema.affiliateTransactions.createdAt));
+
+      // Transform the data to match the expected withdrawal format
+      const formattedWithdrawals = withdrawals.map(w => ({
+        id: w.id,
+        userId: w.userId,
+        amount: w.amount,
+        status: w.status,
+        paymentMethod: 'Bank Transfer',
+        requestedAt: w.createdAt,
+        processedAt: w.processedAt,
+        rejectedReason: w.notes
+      }));
+
+      res.json(formattedWithdrawals);
+    } catch (error) {
+      console.error('Error fetching affiliate withdrawals:', error);
+      res.status(500).json({ error: 'Failed to fetch withdrawals' });
+    }
+  });
+
+  // Get Affiliate Withdrawals (Admin)
+  app.get('/api/admin/affiliate/withdrawals', async (req, res) => {
+    try {
+      const withdrawals = await db
+        .select({
+          id: schema.affiliateTransactions.id,
+          userId: schema.affiliateTransactions.userId,
+          amount: schema.affiliateTransactions.amount,
+          balanceType: schema.affiliateTransactions.balanceType,
+          description: schema.affiliateTransactions.description,
+          status: schema.affiliateTransactions.status,
+          notes: schema.affiliateTransactions.notes,
+          transactionId: schema.affiliateTransactions.transactionId,
+          createdAt: schema.affiliateTransactions.createdAt,
+          processedAt: schema.affiliateTransactions.processedAt,
+          userName: schema.users.firstName,
+          userEmail: schema.users.email,
+          userPhone: schema.users.phone,
+          bankName: schema.affiliateApplications.bankName,
+          branchName: schema.affiliateApplications.branchName,
+          ifscCode: schema.affiliateApplications.ifscCode,
+          accountNumber: schema.affiliateApplications.accountNumber,
+        })
+        .from(schema.affiliateTransactions)
+        .leftJoin(schema.users, eq(schema.affiliateTransactions.userId, schema.users.id))
+        .leftJoin(schema.affiliateApplications, eq(schema.affiliateTransactions.userId, schema.affiliateApplications.userId))
+        .where(eq(schema.affiliateTransactions.type, 'withdrawal'))
+        .orderBy(desc(schema.affiliateTransactions.createdAt));
+
+      res.json(withdrawals);
+    } catch (error) {
+      console.error('Error fetching affiliate withdrawals (admin):', error);
+      res.status(500).json({ error: 'Failed to fetch withdrawals' });
+    }
+  });
+
+  // Approve affiliate withdrawal (Admin)
+  app.post('/api/admin/affiliate/withdrawals/:id/approve', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { transactionId, notes } = req.body;
+
+      if (!transactionId) {
+        return res.status(400).json({ error: 'Transaction ID is required' });
+      }
+
+      const withdrawal = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .limit(1);
+
+      if (!withdrawal || withdrawal.length === 0) {
+        return res.status(404).json({ error: 'Withdrawal request not found' });
+      }
+
+      const w = withdrawal[0];
+      if (w.type !== 'withdrawal') {
+        return res.status(400).json({ error: 'Invalid withdrawal request' });
+      }
+
+      if (w.status !== 'pending') {
+        return res.status(400).json({ error: `Only pending withdrawals can be approved (current: ${w.status})` });
+      }
+
+      const withdrawAmount = parseFloat(w.amount);
+      if (!Number.isFinite(withdrawAmount) || withdrawAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid withdrawal amount' });
+      }
+
+      const isHeldWithdrawal = String(w.description || '').includes('[WITHDRAWAL_HELD]');
+
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, w.userId))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        return res.status(404).json({ error: 'Wallet not found' });
+      }
+
+      const commissionBalance = parseFloat(wallet[0].commissionBalance || '0');
+
+      // If this withdrawal was NOT held at request time (legacy), deduct now.
+      // If it was held, do NOT deduct again.
+      if (!isHeldWithdrawal) {
+        if (commissionBalance < withdrawAmount) {
+          return res.status(400).json({ error: 'Insufficient commission balance' });
+        }
+
+        await db
+          .update(schema.affiliateWallet)
+          .set({
+            commissionBalance: (commissionBalance - withdrawAmount).toFixed(2),
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.affiliateWallet.userId, w.userId));
+      }
+
+      // Always track successful payouts in totalWithdrawn
+      await db
+        .update(schema.affiliateWallet)
+        .set({
+          totalWithdrawn: (parseFloat(wallet[0].totalWithdrawn || '0') + withdrawAmount).toFixed(2),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.affiliateWallet.userId, w.userId));
+
+      const [updatedTransaction] = await db
+        .update(schema.affiliateTransactions)
+        .set({
+          status: 'completed',
+          transactionId,
+          notes: notes || null,
+          processedAt: new Date(),
+        })
+        .where(eq(schema.affiliateTransactions.id, id))
+        .returning();
+
+      res.json({
+        success: true,
+        message: 'Withdrawal approved successfully',
+        transaction: updatedTransaction,
+      });
+    } catch (error) {
+      console.error('Error approving withdrawal:', error);
+      res.status(500).json({ error: 'Failed to approve withdrawal' });
+    }
+  });
+
+  // Reject affiliate withdrawal (Admin)
+  app.post('/api/admin/affiliate/withdrawals/:id/reject', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { notes } = req.body;
+
+      const transaction = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .limit(1);
+
+      if (!transaction || transaction.length === 0) {
+        return res.status(404).json({ error: 'Withdrawal request not found' });
+      }
+
+      if (transaction[0].status !== 'pending') {
+        return res.status(400).json({ error: `Only pending withdrawals can be rejected (current: ${transaction[0].status})` });
+      }
+
+      const w = transaction[0];
+      const withdrawAmount = parseFloat(w.amount);
+      const isHeldWithdrawal = String(w.description || '').includes('[WITHDRAWAL_HELD]');
+
+      // If this withdrawal was held (deducted at request time), refund on reject.
+      if (isHeldWithdrawal && Number.isFinite(withdrawAmount) && withdrawAmount > 0) {
+        const wallet = await db
+          .select()
+          .from(schema.affiliateWallet)
+          .where(eq(schema.affiliateWallet.userId, w.userId))
+          .limit(1);
+
+        if (wallet && wallet.length > 0) {
+          const commissionBalance = parseFloat(wallet[0].commissionBalance || '0');
+          await db
+            .update(schema.affiliateWallet)
+            .set({
+              commissionBalance: (commissionBalance + withdrawAmount).toFixed(2),
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.affiliateWallet.userId, w.userId));
+        }
+      }
+
+      const [updatedTransaction] = await db
+        .update(schema.affiliateTransactions)
+        .set({
+          status: 'rejected',
+          notes: notes || 'Rejected by admin',
+          processedAt: new Date(),
+        })
+        .where(eq(schema.affiliateTransactions.id, id))
+        .returning();
+
+      res.json({
+        success: true,
+        message: 'Withdrawal rejected',
+        transaction: updatedTransaction,
+      });
+    } catch (error) {
+      console.error('Error rejecting withdrawal:', error);
+      res.status(500).json({ error: 'Failed to reject withdrawal' });
+    }
+  });
+
+  // Process affiliate wallet withdrawal (creates pending request; deduction happens on admin approval)
+  app.post('/api/affiliate/wallet/withdraw', async (req, res) => {
+    try {
+      const { userId, amount } = req.body;
+
+      if (!userId || !amount) {
+        return res.status(400).json({ error: 'User ID and amount required' });
+      }
+
+      const withdrawAmount = parseFloat(amount);
+
+      if (withdrawAmount < 500) {
+        return res.status(400).json({ error: 'Minimum withdrawal amount is ₹500' });
+      }
+
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        return res.status(404).json({ error: 'Wallet not found' });
+      }
+
+      const commissionBalance = parseFloat(wallet[0].commissionBalance || '0');
+      if (commissionBalance < withdrawAmount) {
+        return res.status(400).json({ error: 'Insufficient commission balance' });
+      }
+
+      // Deduct immediately (hold) so user cannot re-request beyond available balance.
+      const newCommissionBalance = Math.max(0, commissionBalance - withdrawAmount);
+      await db
+        .update(schema.affiliateWallet)
+        .set({
+          commissionBalance: newCommissionBalance.toFixed(2),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId)));
+
+      await db.insert(schema.affiliateTransactions).values({
+        userId: parseInt(userId),
+        type: 'withdrawal',
+        amount: withdrawAmount.toFixed(2),
+        balanceType: 'commission',
+        description: `[WITHDRAWAL_HELD] Withdrawal request of ₹${withdrawAmount.toFixed(2)}`,
+        status: 'pending',
+        transactionId: null,
+        notes: null,
+        processedAt: null,
+        createdAt: new Date(),
+      });
+
+      // If bank details provided, upsert into affiliate_applications for admin visibility
+      try {
+        const { bankName, branchName, ifscCode, accountNumber } = req.body as any;
+        if (bankName || branchName || ifscCode || accountNumber) {
+          const existing = await db
+            .select()
+            .from(schema.affiliateApplications)
+            .where(eq(schema.affiliateApplications.userId, parseInt(userId)))
+            .limit(1);
+
+          if (existing && existing.length > 0) {
+            await db
+              .update(schema.affiliateApplications)
+              .set({
+                bankName: bankName || existing[0].bankName || null,
+                branchName: branchName || existing[0].branchName || null,
+                ifscCode: ifscCode || existing[0].ifscCode || null,
+                accountNumber: accountNumber || existing[0].accountNumber || null,
+                updatedAt: new Date(),
+              })
+              .where(eq(schema.affiliateApplications.userId, parseInt(userId)));
+          } else {
+            await db.insert(schema.affiliateApplications).values({
+              userId: parseInt(userId),
+              firstName: null,
+              lastName: null,
+              email: null,
+              phone: null,
+              address: null,
+              city: null,
+              state: null,
+              pincode: null,
+              landmark: null,
+              country: null,
+              bankName: bankName || null,
+              branchName: branchName || null,
+              ifscCode: ifscCode || null,
+              accountNumber: accountNumber || null,
+              status: 'pending',
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to upsert affiliate bank details:', e);
+      }
+
+      res.json({
+        success: true,
+        message: 'Withdrawal request submitted successfully',
+        newBalance: newCommissionBalance.toFixed(2),
+      });
+    } catch (error) {
+      console.error('Error processing withdrawal:', error);
+      res.status(500).json({ error: 'Failed to process withdrawal' });
+    }
+  });
+
+  // Multi-Address Orders API
+  app.post("/api/multi-address-orders", async (req, res) => {
+    try {
+      const { userId, itemAddressMapping, cartItems } = req.body;
+
+      if (!userId || !itemAddressMapping || !cartItems) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Validate that all items have addresses
+      const itemIds = cartItems.map((item: any) => item.id);
+      const mappingKeys = Object.keys(itemAddressMapping).map(k => parseInt(k));
+
+      const allItemsMapped = itemIds.every((id: number) => mappingKeys.includes(id));
+
+      if (!allItemsMapped) {
+        return res.status(400).json({ error: "All items must have delivery addresses assigned" });
+      }
+
+      // Get all addresses to include full details
+      const addressIds = Object.values(itemAddressMapping);
+      const addresses = await db
+        .select()
+        .from(schema.deliveryAddresses)
+        .where(sql`${schema.deliveryAddresses.id} IN (${sql.raw(addressIds.join(','))})`);
+
+      // Create a mapping of addressId to full address
+      const addressMap = addresses.reduce((acc, addr) => {
+        acc[addr.id] = addr;
+        return acc;
+      }, {} as any);
+
+      // Build response with full address details
+      const itemsWithAddresses = cartItems.map((item: any) => ({
+        ...item,
+        addressId: itemAddressMapping[item.id],
+        address: addressMap[itemAddressMapping[item.id]]
+      }));
+
+      res.json({
+        success: true,
+        message: "Multi-address order data saved",
+        itemsWithAddresses,
+        itemAddressMapping
+      });
+
+    } catch (error) {
+      console.error("Error saving multi-address order:", error);
+      res.status(500).json({ error: "Failed to save multi-address order" });
+    }
+  });
+
+  // Get all active offers (public endpoint)
+  app.get("/api/offers", async (req, res) => {
+    try {
+      console.log("📦 Fetching active offers...");
+
+      // Set no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const offers = await db
+        .select()
+        .from(schema.offers)
+        .where(eq(schema.offers.isActive, true))
+        .orderBy(desc(schema.offers.sortOrder));
+
+      console.log(`✅ Found ${offers.length} active offers`);
+
+      res.json(offers || []);
+    } catch (error) {
+      console.error("❌ Error fetching offers:", error);
+      res.json([]);
+    }
+  });
+
+  // Get all offers for admin (including inactive)
+  app.get("/api/admin/offers", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+
+      const token = req.headers.authorization?.substring(7);
+  
+
+      const decoded = jwt.verify(token || "", process.env.JWT_SECRET || "your-secret-key") as any;
+      if (decoded.role !== 'admin' && decoded.role !== 'master_admin') {
+        return res.status(403).json({ error: "Access denied. Admin privileges required." });
+      }
+
+      const offers = await db
+        .select()
+        .from(schema.offers)
+        .orderBy(desc(schema.offers.sortOrder), desc(schema.offers.createdAt));
+
+      console.log(`📦 Admin offers fetched: ${offers.length} items`);
+      res.json(offers);
+    } catch (error) {
+      console.error("Error fetching admin offers:", error);
+      res.status(500).json({ error: "Failed to fetch offers" });
+    }
+  });
+
+  // Get all combos (public endpoint)
+  app.get("/api/combos", async (req, res) => {
+    try {
+      // Set no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const activeCombos = await db
+        .select()
+        .from(schema.combos)
+        .where(eq(schema.combos.isActive, true))
+        .orderBy(desc(schema.combos.sortOrder), desc(schema.combos.createdAt));
+
+      console.log(`📦 Public combos fetched: ${activeCombos.length} items`);
+
+      // Attach imageUrls from combo_images table for each combo (ensures multiple images are returned)
+      const combosWithImages = await Promise.all(
+        activeCombos.map(async (combo) => {
+          try {
+            const images = await db
+              .select()
+              .from(schema.comboImages)
+              .where(eq(schema.comboImages.comboId, combo.id))
+              .orderBy(asc(schema.comboImages.sortOrder));
+
+            // Fallback: if no images in comboImages table, use imageUrl from combo
+            let imageUrls: any[] = [];
+            if (images.length > 0) {
+              imageUrls = images.map(img => img.imageUrl);
+            } else if (combo.imageUrl) {
+              // If imageUrl is already an array, use it as-is; otherwise wrap it
+              imageUrls = Array.isArray(combo.imageUrl) ? combo.imageUrl : [combo.imageUrl];
+            }
+
+            return {
+              ...combo,
+              imageUrls
+            };
+          } catch (imgError) {
+            console.warn(`Failed to get images for combo ${combo.id}:`, getErrorMessage(imgError));
+            // Fallback: use imageUrl from combo if available
+            const imageUrls = combo.imageUrl 
+              ? (Array.isArray(combo.imageUrl) ? combo.imageUrl : [combo.imageUrl])
+              : [];
+            return { ...combo, imageUrls };
+          }
+        })
+      );
+
+      res.json(combosWithImages);
+    } catch (error) {
+      console.error("Error fetching combos:", error);
+      res.json([]);
+    }
+  });
+
+  // Get all combos for admin (including inactive)
+  app.get("/api/admin/combos", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers to prevent any caching
+       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+
+      const token = req.headers.authorization?.substring(7);
+  
+
+      const decoded = jwt.verify(token || "", process.env.JWT_SECRET || "your-secret-key") as any;
+      if (decoded.role !== 'admin' && decoded.role !== 'master_admin') {
+        return res.status(403).json({ error: "Access denied. Admin privileges required." });
+      }
+
+      const allCombos = await db
+        .select()
+        .from(schema.combos)
+        .orderBy(desc(schema.combos.sortOrder), desc(schema.combos.createdAt));
+
+      console.log(`📦 Admin combos fetched: ${allCombos.length} items`);
+      res.json(allCombos);
+    } catch (error) {
+      console.error("Error fetching admin combos:", error);
+      res.status(500).json({ error: "Failed to fetch combos" });
+    }
+  });
+
+  // Create new offer (admin)
+  app.post("/api/admin/offers", upload.fields([
     { name: 'image', maxCount: 1 },
     { name: 'bannerImages', maxCount: 10 },
     { name: 'additionalImages', maxCount: 10 },
     { name: 'video', maxCount: 1 }
   ]), async (req, res) => {
     try {
-      const offerId = parseInt(req.params.id);
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-
-      const updateData: any = {};
+      let imageUrl = req.body.imageUrl;
+      let bannerImageUrl = req.body.bannerImageUrl;
+      let additionalImages: string[] = [];
+      let videoUrl = null;
 
       // Handle main image
       if (files?.image?.[0]) {
-        updateData.imageUrl = `/images/${files.image[0].filename}`;
-      } else if (req.body.imageUrl) {
-        updateData.imageUrl = req.body.imageUrl;
+        imageUrl = `/api/images/${files.image[0].filename}`;
       }
 
-      // Handle banner images - save to bannerImages array
-      let allBannerImages: string[] = [];
-      
-      // Add existing banner images if provided
-      if (req.body.existingBannerImages) {
-        try {
-          const existingImages = JSON.parse(req.body.existingBannerImages);
-          if (Array.isArray(existingImages)) {
-            allBannerImages = [...existingImages];
-          }
-        } catch (e) {
-          console.error('Error parsing existingBannerImages:', e);
-        }
-      }
-      
-      // Add new uploaded banner images
+      // Handle banner images - save multiple images to bannerImages array
+      let bannerImages: string[] = [];
       if (files?.bannerImages) {
-        const newImages = files.bannerImages.map(file => `/images/${file.filename}`);
-        allBannerImages = [...allBannerImages, ...newImages];
-      }
-      
-      // Only update bannerImages array if there are images
-      if (allBannerImages.length > 0) {
-        updateData.bannerImages = allBannerImages;
-      } else if (req.body.existingBannerImages === '[]') {
-        // If explicitly cleared
-        updateData.bannerImages = null;
+        bannerImages = files.bannerImages.map(file => `/api/images/${file.filename}`);
       }
 
-      // Handle additional images - these go in the images array, NOT the banner image
-      let allAdditionalImages: string[] = [];
-      
-      // Add existing additional images if provided
-      if (req.body.existingAdditionalImages) {
+      // Handle additional images - these go in the images array
+      if (files?.additionalImages) {
+        additionalImages = files.additionalImages.map(file => `/api/images/${file.filename}`);
+      }
+
+      // Handle video upload
+      if (files?.video?.[0]) {
+        videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.existingVideoUrl) {
+        videoUrl = req.body.existingVideoUrl;
+      }
+
+      const offerData: any = {
+        title: req.body.title,
+        description: req.body.description,
+        imageUrl: imageUrl || '',
+        bannerImageUrl: bannerImageUrl || null,
+        bannerImages: bannerImages.length > 0 ? bannerImages : null,
+        images: additionalImages.length > 0 ? additionalImages : null,
+        videoUrl: videoUrl,
+        discountType: req.body.discountType || 'none',
+        discountValue: req.body.discountValue ? parseFloat(req.body.discountValue) : null,
+        discountText: req.body.discountText || null,
+        validFrom: new Date(req.body.validFrom),
+        validUntil: new Date(req.body.validUntil),
+        linkUrl: req.body.linkUrl || null,
+        buttonText: req.body.buttonText || 'Shop Now',
+        productIds: req.body.productIds ? JSON.parse(req.body.productIds) : null,
+        productShades: req.body.productShades
+          ? (() => {
+              try {
+                const parsed = typeof req.body.productShades === 'string'
+                  ? JSON.parse(req.body.productShades)
+                  : req.body.productShades;
+
+                if (!parsed || typeof parsed !== 'object') return null;
+                const normalized: Record<string, number[]> = {};
+                for (const [pid, value] of Object.entries(parsed as Record<string, unknown>)) {
+                  if (Array.isArray(value)) {
+                    const ids = value
+                      .map((v) => Number(v))
+                      .filter((n) => Number.isFinite(n) && n > 0);
+                    if (ids.length > 0) normalized[String(pid)] = ids;
+                  } else {
+                    const id = Number(value);
+                    if (Number.isFinite(id) && id > 0) normalized[String(pid)] = [id];
+                  }
+                }
+                return Object.keys(normalized).length > 0 ? normalized : null;
+              } catch (e) {
+                console.error('Error parsing productShades:', e);
+                return null;
+              }
+            })()
+          : null,
+        detailedDescription: req.body.detailedDescription || null,
+        productsIncluded: req.body.productsIncluded || null,
+        benefits: req.body.benefits || null,
+        isActive: req.body.isActive === 'true' || req.body.isActive === true,
+        sortOrder: parseInt(req.body.sortOrder) || 0
+      };
+
+    // Add price fields
+    if (req.body.price) {
+      offerData.price = parseFloat(req.body.price);
+    }
+
+    if (req.body.originalPrice) {
+      offerData.originalPrice = parseFloat(req.body.originalPrice);
+    }
+    if (req.body.cashbackPercentage) {
+      offerData.cashbackPercentage = parseFloat(req.body.cashbackPercentage);
+    }
+    if (req.body.cashbackPrice) {
+      offerData.cashbackPrice = parseFloat(req.body.cashbackPrice);
+    }
+
+    console.log("Creating offer with data:", JSON.stringify(offerData, null, 2));
+
+    const [newOffer] = await db.insert(schema.offers).values(offerData).returning();
+
+    console.log("Offer created successfully:", JSON.stringify(newOffer, null, 2));
+    try {
+      const subscriptions = await db
+        .select()
+        .from(schema.pushSubscriptions)
+        .where(eq(schema.pushSubscriptions.isActive, true));
+
+      if (subscriptions.length > 0) {
+        console.log(`📢 Sending offer notification to ${subscriptions.length} subscribers...`);
+
+        // Prepare offer notification payload
+        const offerNotificationPayload = {
+          title: offerData.title || "🎉 New Offer Available!",
+          body: offerData.discountText || offerData.description || "Check out our latest exclusive offer!",
+          image: offerData.imageUrl || offerData.bannerImageUrl || "",
+          url: offerData.linkUrl || `/offers?highlight=${newOffer.id}`,
+          tag: `poppik-offer-${newOffer.id}`,
+        };
+
+        // Send notification to all subscriptions
+        let sentCount = 0;
+        for (const subscription of subscriptions) {
+          try {
+            const notificationMessage = {
+              title: offerNotificationPayload.title,
+              body: offerNotificationPayload.body,
+              icon: offerNotificationPayload.image || '/poppik-icon.png',
+              badge: '/poppik-badge.png',
+              image: offerNotificationPayload.image,
+              tag: offerNotificationPayload.tag,
+              data: {
+                url: offerNotificationPayload.url,
+                offerId: newOffer.id,
+              },
+            };
+
+            // Create subscription object for web-push
+            const pushSubscription = {
+              endpoint: subscription.endpoint,
+              keys: {
+                auth: subscription.auth,
+                p256dh: subscription.p256dh,
+              },
+            };
+
+            // Send via web-push
+            await webpush.sendNotification(pushSubscription, JSON.stringify(notificationMessage));
+            console.log(`📤 ✅ Offer notification sent to ${subscription.email || subscription.endpoint.substring(0, 50)}`);
+            
+            // Update last used timestamp
+            await db
+              .update(schema.pushSubscriptions)
+              .set({ lastUsedAt: new Date() })
+              .where(eq(schema.pushSubscriptions.id, subscription.id));
+
+            sentCount++;
+          } catch (error: any) {
+            // Handle subscription errors (expired, unsubscribed, etc)
+            if (error.statusCode === 410 || error.statusCode === 404) {
+              // Subscription is invalid, mark as inactive
+              console.warn(`⚠️ Subscription invalid for ${subscription.email || subscription.endpoint.substring(0, 50)}, marking inactive`);
+              await db
+                .update(schema.pushSubscriptions)
+                .set({ isActive: false })
+                .where(eq(schema.pushSubscriptions.id, subscription.id));
+            } else {
+              console.error(`❌ Failed to send offer notification to ${subscription.email || subscription.endpoint.substring(0, 50)}:`, error.message);
+            }
+          }
+        }
+
+        console.log(`✅ Offer notification sent to ${sentCount} subscribers`);
+      } else {
+        console.log("ℹ️ No active subscriptions found for offer notification");
+      }
+    } catch (notificationError) {
+      console.error("⚠️ Error sending offer notifications:", notificationError);
+      // Don't block offer creation if notification fails
+    }
+    res.status(201).json(newOffer);
+  } catch (error) {
+    console.error("Error creating offer:", error);
+    res.status(500).json({ error: "Failed to create offer", details: getErrorMessage(error) });
+  }
+});
+
+// Update offer (admin)
+app.put("/api/admin/offers/:id", upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'bannerImages', maxCount: 10 },
+  { name: 'additionalImages', maxCount: 10 },
+  { name: 'video', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const offerId = parseInt(req.params.id);
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    const updateData: any = {};
+
+    // Handle main image
+    if (files?.image?.[0]) {
+      updateData.imageUrl = `/api/images/${files.image[0].filename}`;
+    } else if (req.body.imageUrl) {
+      updateData.imageUrl = req.body.imageUrl;
+    }
+
+    // Handle banner images - save to bannerImages array
+    let allBannerImages: string[] = [];
+    
+    // Add existing banner images if provided
+    if (req.body.existingBannerImages) {
+      try {
+        const existingImages = JSON.parse(req.body.existingBannerImages);
+        if (Array.isArray(existingImages)) {
+          allBannerImages = [...existingImages];
+        }
+      } catch (e) {
+        console.error('Error parsing existingBannerImages:', e);
+      }
+    }
+    
+    // Add new uploaded banner images
+    if (files?.bannerImages) {
+      const newImages = files.bannerImages.map(file => `/api/images/${file.filename}`);
+      allBannerImages = [...allBannerImages, ...newImages];
+    }
+    
+    // Only update bannerImages array if there are images
+    if (allBannerImages.length > 0) {
+      updateData.bannerImages = allBannerImages;
+    } else if (req.body.existingBannerImages === '[]') {
+      // If explicitly cleared
+      updateData.bannerImages = null;
+    }
+
+    // Handle additional images - these go in the images array, NOT the banner image
+    let allAdditionalImages: string[] = [];
+    
+    // Add existing additional images if provided
+    if (req.body.existingAdditionalImages) {
+      try {
+        const existingImages = JSON.parse(req.body.existingAdditionalImages);
+        if (Array.isArray(existingImages)) {
+          allAdditionalImages = [...existingImages];
+        }
+      } catch (e) {
+        console.error('Error parsing existingAdditionalImages:', e);
+      }
+    }
+    
+    // Add new uploaded additional images (NOT banner image)
+    if (files?.additionalImages) {
+      const newImages = files.additionalImages.map(file => `/api/images/${file.filename}`);
+      allAdditionalImages = [...allAdditionalImages, ...newImages];
+    }
+    
+    // Only update images array with additional images
+    if (allAdditionalImages.length > 0) {
+      updateData.images = allAdditionalImages;
+    } else if (req.body.existingAdditionalImages === '[]') {
+      // If explicitly cleared
+      updateData.images = null;
+    }
+
+    // Handle video
+    if (files?.video?.[0]) {
+      updateData.videoUrl = `/api/images/${files.video[0].filename}`;
+    } else if (req.body.existingVideoUrl) {
+      // Preserve existing video URL if no new video is uploaded
+      updateData.videoUrl = req.body.existingVideoUrl;
+    }
+
+    if (req.body.title) updateData.title = req.body.title;
+    if (req.body.description) updateData.description = req.body.description;
+
+    // Price fields - ensure they are saved properly
+    if (req.body.price !== undefined && req.body.price !== '') {
+      updateData.price = parseFloat(req.body.price);
+    }
+    if (req.body.originalPrice !== undefined && req.body.originalPrice !== '') {
+      updateData.originalPrice = parseFloat(req.body.originalPrice);
+    }
+
+    // Discount fields
+    if (req.body.discountType) updateData.discountType = req.body.discountType;
+    if (req.body.discountValue !== undefined && req.body.discountValue !== '') {
+      updateData.discountValue = parseFloat(req.body.discountValue);
+    }
+    if (req.body.discountText !== undefined) updateData.discountText = req.body.discountText || null;
+
+    // Cashback fields
+    if (req.body.cashbackPercentage !== undefined && req.body.cashbackPercentage !== '') {
+      updateData.cashbackPercentage = parseFloat(req.body.cashbackPercentage);
+    }
+    if (req.body.cashbackPrice !== undefined && req.body.cashbackPrice !== '') {
+      updateData.cashbackPrice = parseFloat(req.body.cashbackPrice);
+    }
+
+    // Other fields
+    if (req.body.validFrom) updateData.validFrom = new Date(req.body.validFrom);
+    if (req.body.validUntil) updateData.validUntil = new Date(req.body.validUntil);
+    if (req.body.linkUrl !== undefined) updateData.linkUrl = req.body.linkUrl || null;
+    if (req.body.buttonText !== undefined) updateData.buttonText = req.body.buttonText || 'Shop Now';
+    if (req.body.productIds !== undefined) {
+      updateData.productIds = req.body.productIds ? JSON.parse(req.body.productIds) : null;
+    }
+
+    if (req.body.productShades !== undefined) {
+      if (!req.body.productShades) {
+        updateData.productShades = null;
+      } else {
         try {
-          const existingImages = JSON.parse(req.body.existingAdditionalImages);
-          if (Array.isArray(existingImages)) {
-            allAdditionalImages = [...existingImages];
+          const parsed = typeof req.body.productShades === 'string'
+            ? JSON.parse(req.body.productShades)
+            : req.body.productShades;
+          if (!parsed || typeof parsed !== 'object') {
+            updateData.productShades = null;
+          } else {
+            const normalized: Record<string, number[]> = {};
+            for (const [pid, value] of Object.entries(parsed as Record<string, unknown>)) {
+              if (Array.isArray(value)) {
+                const ids = value
+                  .map((v) => Number(v))
+                  .filter((n) => Number.isFinite(n) && n > 0);
+                if (ids.length > 0) normalized[String(pid)] = ids;
+              } else {
+                const id = Number(value);
+                if (Number.isFinite(id) && id > 0) normalized[String(pid)] = [id];
+              }
+            }
+            updateData.productShades = Object.keys(normalized).length > 0 ? normalized : null;
           }
         } catch (e) {
-          console.error('Error parsing existingAdditionalImages:', e);
-        }
-      }
-      
-      // Add new uploaded additional images (NOT banner image)
-      if (files?.additionalImages) {
-        const newImages = files.additionalImages.map(file => `/images/${file.filename}`);
-        allAdditionalImages = [...allAdditionalImages, ...newImages];
-      }
-      
-      // Only update images array with additional images
-      if (allAdditionalImages.length > 0) {
-        updateData.images = allAdditionalImages;
-      } else if (req.body.existingAdditionalImages === '[]') {
-        // If explicitly cleared
-        updateData.images = null;
-      }
-
-      // Handle video
-      if (files?.video?.[0]) {
-        updateData.videoUrl = `/images/${files.video[0].filename}`;
-      } else if (req.body.existingVideoUrl) {
-        // Preserve existing video URL if no new video is uploaded
-        updateData.videoUrl = req.body.existingVideoUrl;
-      }
-
-      if (req.body.title) updateData.title = req.body.title;
-      if (req.body.description) updateData.description = req.body.description;
-
-      // Price fields - ensure they are saved properly
-      if (req.body.price !== undefined && req.body.price !== '') {
-        updateData.price = parseFloat(req.body.price);
-      }
-      if (req.body.originalPrice !== undefined && req.body.originalPrice !== '') {
-        updateData.originalPrice = parseFloat(req.body.originalPrice);
-      }
-
-      // Discount fields
-      if (req.body.discountType) updateData.discountType = req.body.discountType;
-      if (req.body.discountValue !== undefined && req.body.discountValue !== '') {
-        updateData.discountValue = parseFloat(req.body.discountValue);
-      }
-      if (req.body.discountText !== undefined) updateData.discountText = req.body.discountText || null;
-
-      // Cashback fields
-      if (req.body.cashbackPercentage !== undefined && req.body.cashbackPercentage !== '') {
-        updateData.cashbackPercentage = parseFloat(req.body.cashbackPercentage);
-      }
-      if (req.body.cashbackPrice !== undefined && req.body.cashbackPrice !== '') {
-        updateData.cashbackPrice = parseFloat(req.body.cashbackPrice);
-      }
-
-      // Other fields
-      if (req.body.validFrom) updateData.validFrom = new Date(req.body.validFrom);
-      if (req.body.validUntil) updateData.validUntil = new Date(req.body.validUntil);
-      if (req.body.linkUrl !== undefined) updateData.linkUrl = req.body.linkUrl || null;
-      if (req.body.buttonText !== undefined) updateData.buttonText = req.body.buttonText || 'Shop Now';
-      if (req.body.productIds !== undefined) {
-        updateData.productIds = req.body.productIds ? JSON.parse(req.body.productIds) : null;
-      }
-
-      if (req.body.productShades !== undefined) {
-        if (!req.body.productShades) {
+          console.error('Error parsing productShades:', e);
           updateData.productShades = null;
-        } else {
-          try {
-            const parsed = typeof req.body.productShades === 'string'
-              ? JSON.parse(req.body.productShades)
-              : req.body.productShades;
-
-            if (!parsed || typeof parsed !== 'object') {
-              updateData.productShades = null;
-            } else {
-              const normalized: Record<string, number[]> = {};
-              for (const [pid, value] of Object.entries(parsed as Record<string, unknown>)) {
-                if (Array.isArray(value)) {
-                  const ids = value
-                    .map((v) => Number(v))
-                    .filter((n) => Number.isFinite(n) && n > 0);
-                  if (ids.length > 0) normalized[String(pid)] = ids;
-                } else {
-                  const id = Number(value);
-                  if (Number.isFinite(id) && id > 0) normalized[String(pid)] = [id];
-                }
-              }
-              updateData.productShades = Object.keys(normalized).length > 0 ? normalized : null;
-            }
-          } catch (e) {
-            console.error('Error parsing productShades:', e);
-            updateData.productShades = null;
-          }
         }
       }
+    }
 
-      if (req.body.detailedDescription !== undefined) updateData.detailedDescription = req.body.detailedDescription || null;
-      if (req.body.productsIncluded !== undefined) updateData.productsIncluded = req.body.productsIncluded || null;
-      if (req.body.benefits !== undefined) updateData.benefits = req.body.benefits || null;
-      if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive === 'true' || req.body.isActive === true;
-      if (req.body.sortOrder !== undefined) updateData.sortOrder = parseInt(req.body.sortOrder) || 0;
+    if (req.body.detailedDescription !== undefined) updateData.detailedDescription = req.body.detailedDescription || null;
+    if (req.body.productsIncluded !== undefined) updateData.productsIncluded = req.body.productsIncluded || null;
+    if (req.body.benefits !== undefined) updateData.benefits = req.body.benefits || null;
+    if (req.body.isActive !== undefined) updateData.isActive = req.body.isActive === 'true' || req.body.isActive === true;
+    if (req.body.sortOrder !== undefined) updateData.sortOrder = parseInt(req.body.sortOrder) || 0;
+
     updateData.updatedAt = new Date();
 
     console.log("Updating offer with data:", JSON.stringify(updateData, null, 2));
@@ -1973,6 +3983,10 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(400).json({ error: "Current password and new password are required" });
       }
 
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: "New password must be at least 6 characters" });
+      }
+
       // Get user
       const user = await storage.getUserById(parseInt(id));
       if (!user) {
@@ -2043,6 +4057,191 @@ app.get("/api/admin/stores", async (req, res) => {
     } catch (error) {
       console.error("Delete account error:", error);
       res.status(500).json({ error: "Failed to delete account" });
+    }
+  });
+
+  // Serve uploaded images with optimization
+  app.use("/api/images", (req, res, next) => {
+    const imagePath = path.join(uploadsDir, req.path.split('?')[0].substring(1));
+
+    // Check if file exists
+    if (!fs.existsSync(imagePath)) {
+      return res.status(404).json({ error: "Image not found" });
+    }
+
+    // Parse query parameters for optimization
+    const { w: width, h: height, q: quality, format, fit } = req.query;
+
+    // Set appropriate content type based on format or file extension
+    const extension = path.extname(imagePath).toLowerCase();
+    let contentType = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp'
+    }[extension] || 'image/jpeg';
+
+    // Override content type if format is specified
+    if (format === 'webp') contentType = 'image/webp';
+    if (format === 'jpeg') contentType = 'image/jpeg';
+    if (format === 'png') contentType = 'image/png';
+
+    // Create cache key based on file and parameters
+    const params = `${width || ''}-${height || ''}-${quality || ''}-${format || ''}-${fit || ''}`;
+    const cacheKey = `${req.path}-${params}`;
+    const fileStats = fs.statSync(imagePath);
+
+    // Set optimized caching headers
+    res.set({
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=31536000, immutable', // 1 year with immutable
+      'ETag': `"${cacheKey}-${fileStats.mtime.getTime()}"`,
+      'Last-Modified': fileStats.mtime.toUTCString(),
+      'Vary': 'Accept-Encoding'
+    });
+
+    // Handle conditional requests
+    const ifNoneMatch = req.headers['if-none-match'];
+    const ifModifiedSince = req.headers['if-modified-since'];
+    const etag = res.getHeader('ETag');
+    const lastModified = res.getHeader('Last-Modified');
+
+    if ((ifNoneMatch && ifNoneMatch === etag) ||
+        (ifModifiedSince && new Date(ifModifiedSince) >= new Date(lastModified))) {
+      return res.status(304).end();
+    }
+
+    const allowedFits = new Set(['cover', 'contain', 'fill', 'inside', 'outside']);
+    const requestedFit = typeof fit === 'string' && allowedFits.has(fit) ? fit : 'cover';
+
+    // Process image with Sharp if parameters are provided
+    if (width || height || quality || format || fit) {
+      try {
+        let pipeline = sharp(imagePath);
+
+        // Resize if width or height specified
+        if (width || height) {
+          pipeline = pipeline.resize(
+            width ? parseInt(width as string) : undefined,
+            height ? parseInt(height as string) : undefined,
+            {
+              fit: requestedFit as any,
+              position: 'center',
+              withoutEnlargement: true
+            }
+          );
+        }
+
+        // Set quality and format
+        const qual = quality ? parseInt(quality as string) : 80;
+
+        if (format === 'webp') {
+          pipeline = pipeline.webp({ quality: qual });
+        } else if (format === 'jpeg' || extension === '.jpg' || extension === '.jpeg') {
+          pipeline = pipeline.jpeg({ quality: qual, progressive: true });
+        } else if (format === 'png' || extension === '.png') {
+          pipeline = pipeline.png({ quality: qual, progressive: true });
+        }
+
+        // Stream the processed image
+        pipeline.pipe(res);
+      } catch (error) {
+        console.error('Image processing error:', error);
+        res.sendFile(imagePath);
+      }
+    } else {
+      res.sendFile(imagePath);
+    }
+  });
+
+  app.post("/api/upload/video", upload.single("video"), async (req, res) => {
+    try {
+      console.log("Video upload request received");
+
+      if (!req.file) {
+        console.error("No video file provided in request");
+        return res.status(400).json({ error: "No video file provided" });
+      }
+
+      console.log("Video uploaded successfully:", {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+
+      // Return the file URL
+      const videoUrl = `/api/images/${req.file.filename}`;
+      console.log("Video upload successful, returning URL:", videoUrl);
+      res.json({
+        videoUrl,
+        message: "Video uploaded successfully",
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size
+      });
+    } catch (error) {
+      console.error("Video upload error:", error);
+      res.status(500).json({
+        error: "Failed to upload video",
+        details: getErrorMessage(error)
+      });
+    }
+  });
+
+  // Image upload API
+  app.post("/api/upload/image", upload.single("image"), async (req, res) => {
+    try {
+      console.log("Image upload request received");
+
+      if (!req.file) {
+        console.error("No image file provided in request");
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      console.log("Image uploaded successfully:", {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+
+      // Return the file URL
+      const imageUrl = `/api/images/${req.file.filename}`;
+      res.json({
+        imageUrl,
+        message: "Image uploaded successfully",
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size
+      });
+    } catch (error) {
+      console.error("Image upload error:", error);
+      res.status(500).json({
+        error: "Failed to upload image",
+        details: error.message
+      });
+    }
+  });
+
+  // Admin image upload specifically for shades
+  app.post("/api/admin/upload-image", upload.single("image"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      // Return the file URL
+      const imageUrl = `/api/images/${req.file.filename}`;
+      res.json({
+        success: true,
+        imageUrl,
+        message: "Image uploaded successfully"
+      });
+    } catch (error) {
+      console.error("Admin image upload error:", error);
+      res.status(500).json({ error: "Failed to upload image" });
     }
   });
 
@@ -3453,7 +5652,6 @@ app.get("/api/admin/stores", async (req, res) => {
             products: items,
             userId: order.userId,
             totalAmount: order.totalAmount,
-            shippingCharge: (order as any).shippingCharge ?? (order as any).shipping_charge ?? 0,
             shippingAddress: order.shippingAddress,
             deliveryPartner:
               (order as any).deliveryPartner ||
@@ -3579,7 +5777,6 @@ app.get("/api/admin/stores", async (req, res) => {
             trackingNumber: order.trackingNumber,
             estimatedDelivery: order.estimatedDelivery?.toISOString().split('T')[0],
             shippingAddress: formattedShipping,
-            shippingCharge: (order as any).shippingCharge ?? (order as any).shipping_charge ?? 0,
             paymentMethod: order.paymentMethod,
             userId: order.userId,
           };
@@ -4295,16 +6492,6 @@ app.get("/api/admin/stores", async (req, res) => {
         deliveryType = 'MANUAL';
       }
 
-      // Disallow COD for manual dispatch orders (India Post). Enforce on server as well.
-      if (String(deliveryPartner).toUpperCase() === 'INDIA_POST' && String(deliveryType || '').toUpperCase() === 'MANUAL') {
-        const pm = String(paymentMethod || '').toLowerCase();
-        const isCod = pm.includes('cod') || pm.includes('cash');
-        if (isCod) {
-          const msg = 'Cash on Delivery is not available for manual dispatch orders. Please use Online Payment.';
-          return res.status(400).json({ error: msg, message: msg });
-        }
-      }
-
       // orders.redeem_amount is an integer column in DB schema
       const redeemToApply = Math.round(Math.max(0, Number(redeemAmount || 0)));
 
@@ -4318,36 +6505,7 @@ app.get("/api/admin/stores", async (req, res) => {
         (req.body as any)?.shipping_cost ??
         (req.body as any)?.shippingCost ??
         0;
-      let shippingChargeToApply = Math.round(Math.max(0, Number(shippingChargeFromBody || 0)));
-
-      // If COD shipping differs from prepaid for this pincode/weight, persist the COD rate.
-      // Only apply this when client sent a non-zero shippingCharge, so free-shipping orders
-      // are not accidentally charged due to serviceability rates.
-      try {
-        const pm = String(paymentMethod || '').toLowerCase();
-        const isCod = pm.includes('cod') || pm.includes('cash');
-        if (isCod && shippingChargeToApply > 0) {
-          const pickupPincode = String(process.env.SHIPROCKET_PICKUP_PINCODE || "400001");
-          const weight = Array.isArray(items)
-            ? Math.max(0.5, items.reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0))
-            : 0.5;
-          const deliveryPincode = Array.isArray(pincodes) && pincodes.length > 0 ? String(pincodes[0]) : "";
-
-          if (deliveryPincode && /^\d{6}$/.test(deliveryPincode)) {
-            const serviceability: any = await shiprocketService.getServiceability(pickupPincode, deliveryPincode, weight, true);
-            const couriers: any[] = serviceability?.data?.available_courier_companies;
-            if (Array.isArray(couriers) && couriers.length > 0) {
-              const cheapest = couriers.reduce((prev: any, curr: any) => (Number(curr?.rate) < Number(prev?.rate) ? curr : prev));
-              const codRate = Math.round(Math.max(0, Number(cheapest?.rate || 0)));
-              if (Number.isFinite(codRate) && codRate > 0) {
-                shippingChargeToApply = Math.max(shippingChargeToApply, codRate);
-              }
-            }
-          }
-        }
-      } catch (e) {
-        // ignore and fall back to client shippingCharge
-      }
+      const shippingChargeToApply = Math.round(Math.max(0, Number(shippingChargeFromBody || 0)));
 
       // Validate wallet balance before creating the order (so we can fail fast)
       if (redeemToApply > 0) {
@@ -5697,9 +7855,6 @@ app.get("/api/admin/stores", async (req, res) => {
           // Return fallback if no courier companies available
           console.warn("No courier companies available from Shiprocket, using fallback");
           res.json({
-            isServiceable: false,
-            deliveryPartner: "INDIA_POST",
-            deliveryType: "MANUAL",
             data: {
               available_courier_companies: [{
                 courier_company_id: 0,
@@ -5719,9 +7874,6 @@ app.get("/api/admin/stores", async (req, res) => {
         console.warn("Shiprocket serviceability check failed, using fallback:", shiprocketError);
 
         res.json({
-          isServiceable: false,
-          deliveryPartner: "INDIA_POST",
-          deliveryType: "MANUAL",
           data: {
             available_courier_companies: [{
               courier_company_id: 0,
@@ -6473,30 +8625,30 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Handle thumbnail upload (maps to imageUrl for API compatibility)
       if (files?.thumbnail?.[0]) {
-        thumbnailUrl = `/images/${files.thumbnail[0].filename}`;
+        thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
         imageUrl = thumbnailUrl; // Set imageUrl as fallback
       }
 
       // Handle hero upload
       if (files?.hero?.[0]) {
-        heroImageUrl = `/images/${files.hero[0].filename}`;
+        heroImageUrl = `/api/images/${files.hero[0].filename}`;
       }
 
       // Handle image upload (legacy field, maps to thumbnail if not provided)
       if (files?.image?.[0]) {
-        imageUrl = `/images/${files.image[0].filename}`;
+        imageUrl = `/api/images/${files.image[0].filename}`;
         if (!thumbnailUrl) thumbnailUrl = imageUrl;
       }
 
       // Handle video upload
       if (files?.video?.[0]) {
-        videoUrl = `/images/${files.video[0].filename}`;
+        videoUrl = `/api/images/${files.video[0].filename}`;
       }
 
       // Handle content videos upload
       if (files?.contentVideos && files.contentVideos.length > 0) {
         for (const videoFile of files.contentVideos) {
-          contentVideoUrls.push(`/images/${videoFile.filename}`);
+          contentVideoUrls.push(`/api/images/${videoFile.filename}`);
         }
       }
 
@@ -6562,6 +8714,8 @@ app.get("/api/admin/stores", async (req, res) => {
       if (req.body.excerpt) updateData.excerpt = req.body.excerpt;
       if (req.body.author) updateData.author = req.body.author;
       if (req.body.category) updateData.category = req.body.category;
+      if (req.body.readTime) updateData.readTime = req.body.readTime;
+
       if (req.body.tags) {
         updateData.tags = Array.isArray(req.body.tags) ? req.body.tags :
                           typeof req.body.tags === 'string' ? req.body.tags.split(',').map(t => t.trim()) : [];
@@ -6575,7 +8729,7 @@ app.get("/api/admin/stores", async (req, res) => {
       if (files?.contentVideos && files.contentVideos.length > 0) {
         const contentVideoUrls: string[] = [];
         for (const videoFile of files.contentVideos) {
-          contentVideoUrls.push(`/images/${videoFile.filename}`);
+          contentVideoUrls.push(`/api/images/${videoFile.filename}`);
         }
 
         const videoInsertPositions = req.body.videoPositions ? JSON.parse(req.body.videoPositions) : [];
@@ -6593,7 +8747,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Handle thumbnail upload (maps to imageUrl for API compatibility)
       if (files?.thumbnail?.[0]) {
-        updateData.thumbnailUrl = `/images/${files.thumbnail[0].filename}`;
+        updateData.thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
         updateData.imageUrl = updateData.thumbnailUrl; // Set imageUrl as fallback
       } else if (req.body.thumbnailUrl) {
         updateData.thumbnailUrl = req.body.thumbnailUrl;
@@ -6601,14 +8755,14 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Handle hero upload
       if (files?.hero?.[0]) {
-        updateData.heroImageUrl = `/images/${files.hero[0].filename}`;
+        updateData.heroImageUrl = `/api/images/${files.hero[0].filename}`;
       } else if (req.body.heroImageUrl) {
         updateData.heroImageUrl = req.body.heroImageUrl;
       }
 
       // Handle image upload (legacy field, maps to thumbnail if not provided)
       if (files?.image?.[0]) {
-        updateData.imageUrl = `/images/${files.image[0].filename}`;
+        updateData.imageUrl = `/api/images/${files.image[0].filename}`;
         if (!updateData.thumbnailUrl) updateData.thumbnailUrl = updateData.imageUrl;
       } else if (req.body.imageUrl) {
         updateData.imageUrl = req.body.imageUrl;
@@ -6616,7 +8770,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Handle video upload
       if (files?.video?.[0]) {
-        updateData.videoUrl = `/images/${files.video[0].filename}`;
+        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
       } else if (req.body.videoUrl !== undefined) {
         updateData.videoUrl = req.body.videoUrl || null;
       }
@@ -8076,7 +10230,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
       let imageUrl = '';
       if (req.file) {
-        imageUrl = `/images/${req.file.filename}`;
+        imageUrl = `/api/images/${req.file.filename}`;
       }
 
       const [slider] = await db
@@ -8104,7 +10258,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
       let imageUrl = req.body.imageUrl;
       if (req.file) {
-        imageUrl = `/images/${req.file.filename}`;
+        imageUrl = `/api/images/${req.file.filename}`;
       }
 
       const [updatedSlider] = await db
@@ -8196,12 +10350,12 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Handle video upload
       if (files?.video?.[0]) {
-        videoUrl = `/images/${files.video[0].filename}`;
+        videoUrl = `/api/images/${files.video[0].filename}`;
       }
 
       // Handle thumbnail upload
       if (files?.thumbnail?.[0]) {
-        thumbnailUrl = `/images/${files.thumbnail[0].filename}`;
+        thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
       }
 
       const testimonialData = {
@@ -8244,14 +10398,14 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Handle video upload
       if (files?.video?.[0]) {
-        updateData.videoUrl = `/images/${files.video[0].filename}`;
+        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
       } else if (req.body.videoUrl) {
         updateData.videoUrl = req.body.videoUrl;
       }
 
       // Handle thumbnail upload
       if (files?.thumbnail?.[0]) {
-        updateData.thumbnailUrl = `/images/${files.thumbnail[0].filename}`;
+        updateData.thumbnailUrl = `/api/images/${files.thumbnail[0].filename}`;
       } else if (req.body.thumbnailUrl) {
         updateData.thumbnailUrl = req.body.thumbnailUrl;
       }
@@ -8373,7 +10527,7 @@ app.get("/api/admin/stores", async (req, res) => {
       let imageUrl = req.body.imageUrl;
 
       if (req.file) {
-        imageUrl = `/images/${req.file.filename}`;
+        imageUrl = `/api/images/${req.file.filename}`;
       }
 
       // Parse productIds and ensure it's an array of integers
@@ -8460,7 +10614,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
 
       if (req.file) {
-        updateData.imageUrl = `/images/${req.file.filename}`;
+        updateData.imageUrl = `/api/images/${req.file.filename}`;
       } else if (req.body.imageUrl) {
         updateData.imageUrl = req.body.imageUrl;
       }
@@ -8699,7 +10853,7 @@ app.get("/api/admin/stores", async (req, res) => {
       // Allow admin preview to see all contests when sending a valid admin JWT.
       if (isAdminPreview) {
         const rows = await db.select().from(schema.contests).orderBy(desc(schema.contests.createdAt));
-        console.log('📊 Admin preview requested for /api/contests - returning all contests');
+        console.log('📣 Admin preview requested for /api/contests - returning all contests');
         return res.json(rows || []);
       }
 
@@ -8796,7 +10950,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
       let imageUrl = body.imageUrl || null;
       if (req.file) {
-        imageUrl = `/images/${req.file.filename}`;
+        imageUrl = `/api/images/${req.file.filename}`;
       }
 
       const validFrom = body.validFrom ? new Date(body.validFrom.toString()) : new Date();
@@ -8807,7 +10961,7 @@ app.get("/api/admin/stores", async (req, res) => {
         slug,
         description: body.description ? body.description.toString() : null,
         content: (body.content || body.detailedDescription) ? (body.content || body.detailedDescription).toString() : '',
-        imageUrl: imageUrl,
+        imageUrl,
         bannerImageUrl: body.bannerImageUrl ? body.bannerImageUrl.toString() : null,
         validFrom,
         validUntil,
@@ -8851,7 +11005,7 @@ app.get("/api/admin/stores", async (req, res) => {
       if (body.detailedDescription !== undefined && !body.content) updateData.content = body.detailedDescription ? body.detailedDescription.toString() : '';
 
       if (req.file) {
-        updateData.imageUrl = `/images/${req.file.filename}`;
+        updateData.imageUrl = `/api/images/${req.file.filename}`;
       } else if (body.imageUrl !== undefined) {
         updateData.imageUrl = body.imageUrl ? body.imageUrl.toString() : null;
       }
@@ -8999,7 +11153,7 @@ app.get("/api/admin/stores", async (req, res) => {
       let imageUrls: string[] = [];
 
       if (files?.images && files.images.length > 0) {
-        imageUrls = files.images.map(file => `/images/${file.filename}`);
+        imageUrls = files.images.map(file => `/api/images/${file.filename}`);
       } else if (req.body.imageUrl) {
         // If imageUrl is provided in body, ensure it's an array
         imageUrls = Array.isArray(req.body.imageUrl) ? req.body.imageUrl : [req.body.imageUrl];
@@ -9011,7 +11165,7 @@ app.get("/api/admin/stores", async (req, res) => {
       // Handle video upload
       let videoUrl = null;
       if (files?.video?.[0]) {
-        videoUrl = `/images/${files.video[0].filename}`;
+        videoUrl = `/api/images/${files.video[0].filename}`;
       } else if (req.body.videoUrl) {
         videoUrl = req.body.videoUrl;
       }
@@ -9133,7 +11287,7 @@ app.get("/api/admin/stores", async (req, res) => {
       let allImageUrls: string[] = [];
       if (files?.images && files.images.length > 0) {
         // New uploaded image URLs
-        const newUploaded = files.images.map(file => `/images/${file.filename}`);
+        const newUploaded = files.images.map(file => `/api/images/${file.filename}`);
 
         // Fetch existing combo to preserve its existing images
         const existingComboRow = await db.select().from(schema.combos).where(eq(schema.combos.id, id)).limit(1);
@@ -9179,7 +11333,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
       // Handle video upload
       if (files?.video?.[0]) {
-        updateData.videoUrl = `/images/${files.video[0].filename}`;
+        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
       } else if (req.body.videoUrl) {
         updateData.videoUrl = req.body.videoUrl;
       }
@@ -9251,8 +11405,8 @@ app.get("/api/admin/stores", async (req, res) => {
         return res.status(400).json({ error: 'Please provide a valid email address' });
       }
 
-      const resumeUrl = `/images/${req.file.filename}`;
-      
+      const resumeUrl = `/api/images/${req.file.filename}`;
+
       // Save application to database
       const [savedApplication] = await db.insert(schema.jobApplications).values({
         fullName,
@@ -9283,7 +11437,7 @@ app.get("/api/admin/stores", async (req, res) => {
       }
 
       // HR Manager's email
-      const HR_EMAIL = process.env.HR_EMAIL || 'talent@poppik.in';
+      const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
 
       // Prepare email content
       const experienceInfo = isFresher === 'true' 
@@ -10062,7 +12216,7 @@ Poppik Career Portal
 
       // TODO: Send email notification to applicant
       // For now, just send email notification to admin
-      const HR_EMAIL = process.env.HR_EMAIL || 'talent@poppik.in';
+      const HR_EMAIL = process.env.HR_EMAIL || 'apurva@poppik.in';
 
       const emailSubject = `New Affiliate Application - ${firstName} ${lastName}`;
       const emailBody = `
@@ -10478,107 +12632,6 @@ Poppik Affiliate Portal
     }
   });
 
-  app.get('/api/affiliate/wallet', async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      const wallet = await db
-        .select()
-        .from(schema.affiliateWallet)
-        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
-        .limit(1);
-
-      if (!wallet || wallet.length === 0) {
-        return res.json({
-          totalEarnings: '0.00',
-          commissionBalance: '0.00',
-          cashbackBalance: '0.00',
-          pendingBalance: '0.00',
-          totalWithdrawn: '0.00',
-        });
-      }
-
-      res.json(wallet[0]);
-    } catch (error) {
-      console.error('Error fetching affiliate wallet:', error);
-      res.status(500).json({ error: 'Failed to fetch affiliate wallet' });
-    }
-  });
-
-  app.get('/api/affiliate/wallet/transactions', async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      const transactions = await db
-        .select({
-          id: schema.affiliateTransactions.id,
-          userId: schema.affiliateTransactions.userId,
-          type: schema.affiliateTransactions.type,
-          amount: schema.affiliateTransactions.amount,
-          balanceType: schema.affiliateTransactions.balanceType,
-          description: schema.affiliateTransactions.description,
-          orderId: schema.affiliateTransactions.orderId,
-          status: schema.affiliateTransactions.status,
-          transactionId: schema.affiliateTransactions.transactionId,
-          notes: schema.affiliateTransactions.notes,
-          processedAt: schema.affiliateTransactions.processedAt,
-          createdAt: schema.affiliateTransactions.createdAt,
-        })
-        .from(schema.affiliateTransactions)
-        .where(eq(schema.affiliateTransactions.userId, parseInt(userId as string)))
-        .orderBy(desc(schema.affiliateTransactions.createdAt))
-        .limit(100);
-
-      res.json(transactions);
-    } catch (error) {
-      console.error('Error fetching affiliate wallet transactions:', error);
-      res.status(500).json({ error: 'Failed to fetch transactions' });
-    }
-  });
-
-  app.get('/api/affiliate/wallet/withdrawals', async (req, res) => {
-    try {
-      const { userId } = req.query;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User ID required' });
-      }
-
-      const withdrawals = await db
-        .select()
-        .from(schema.affiliateTransactions)
-        .where(and(
-          eq(schema.affiliateTransactions.userId, parseInt(userId as string)),
-          eq(schema.affiliateTransactions.type, 'withdrawal')
-        ))
-        .orderBy(desc(schema.affiliateTransactions.createdAt));
-
-      const formattedWithdrawals = withdrawals.map(w => ({
-        id: w.id,
-        userId: w.userId,
-        amount: w.amount,
-        status: w.status,
-        paymentMethod: 'Bank Transfer',
-        requestedAt: w.createdAt,
-        processedAt: w.processedAt,
-        rejectedReason: w.notes
-      }));
-
-      res.json(formattedWithdrawals);
-    } catch (error) {
-      console.error('Error fetching affiliate withdrawals:', error);
-      res.status(500).json({ error: 'Failed to fetch withdrawals' });
-    }
-  });
-
   // Admin endpoints for affiliate applications
   app.get('/api/admin/affiliate-applications', async (req, res) => {
     try {
@@ -10626,10 +12679,10 @@ Poppik Affiliate Portal
       const [updatedApplication] = await db
         .update(schema.affiliateApplications)
         .set({
-          status: status,
+          status,
           reviewNotes: notes,
           reviewedAt: new Date()
-        } as any)
+        })
         .where(eq(schema.affiliateApplications.id, parseInt(id)))
         .returning();
 
@@ -10649,10 +12702,10 @@ Poppik Affiliate Portal
           if (existingWallet.length === 0) {
             await db.insert(schema.affiliateWallet).values({
               userId: updatedApplication.userId,
-              cashbackBalance: '0.00',
-              commissionBalance: '0.00',
-              totalEarnings: '0.00',
-              totalWithdrawn: '0.00'
+              cashbackBalance: "0.00",
+              commissionBalance: "0.00",
+              totalEarnings: "0.00",
+              totalWithdrawn: "0.00"
             });
             console.log(`✅ Affiliate wallet created for user ${updatedApplication.userId}`);
           }
@@ -10665,11 +12718,11 @@ Poppik Affiliate Portal
       try {
         const formattedUserId = updatedApplication.userId.toString().padStart(2, '0');
         const affiliateCode = `POPPIKAP${formattedUserId}`;
-        const dashboardUrl = process.env.REPL_SLUG
+        const dashboardUrl = process.env.REPL_SLUG 
           ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate-dashboard`
           : 'https://poppik.in/affiliate-dashboard';
 
-        const emailSubject = status === 'approved'
+        const emailSubject = status === 'approved' 
           ? 'Welcome to the Poppik Lifestyle Private Limited Affiliate Program'
           : 'Update on Your Poppik Affiliate Application';
 
@@ -10707,7 +12760,7 @@ Poppik Affiliate Portal
             </div>
             <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
               <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">
-                &copy; 2024 Poppik Lifestyle Private Limited. All rights reserved.
+                © 2024 Poppik Lifestyle Private Limited. All rights reserved.
               </p>
               <p style="color: #999999; font-size: 12px; margin: 0;">
                 Office No.- 213, A- Wing, Skylark Building, Plot No.- 63, Sector No.- 11, C.B.D. Belapur, Navi Mumbai- 400614 INDIA
@@ -10734,7 +12787,7 @@ Poppik Affiliate Portal
               </p>
             </div>
             <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
-              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">&copy; 2024 Poppik Lifestyle Private Limited</p>
+              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">© 2024 Poppik Lifestyle Private Limited</p>
             </div>
           </div>`;
 
@@ -10750,10 +12803,10 @@ Poppik Affiliate Portal
         console.error('❌ Failed to send email:', emailError);
       }
 
-      res.json({
-        success: true,
+      res.json({ 
+        success: true, 
         message: `Application ${status} successfully`,
-        application: updatedApplication
+        application: updatedApplication 
       });
     } catch (error) {
       console.error('Error updating application status:', error);
@@ -10782,10 +12835,9 @@ Poppik Affiliate Portal
   });
 
   // Influencer Applications Routes
- app.get('/api/influencer-videos', async (req, res) => {
+app.get('/api/influencer-videos', async (req, res) => {
     try {
       const { isActive, category } = req.query;
-
       let query = db.select().from(schema.influencerVideos);
       if (isActive !== undefined) {
         query = query.where(eq(schema.influencerVideos.isActive, isActive === 'true'));
@@ -11308,7 +13360,7 @@ Poppik Affiliate Portal
 
       // Handle image upload
       if (req.file) {
-        customerImage = `/images/${req.file.filename}`;
+        customerImage = `/api/images/${req.file.filename}`;
       }
 
       const testimonialData = {
@@ -11343,7 +13395,7 @@ Poppik Affiliate Portal
 
       // Handle image upload
       if (req.file) {
-        updateData.customerImage = `/images/${req.file.filename}`;
+        updateData.customerImage = `/api/images/${req.file.filename}`;
       } else if (req.body.customerImage) {
         updateData.customerImage = req.body.customerImage;
       }
@@ -11427,7 +13479,7 @@ Poppik Affiliate Portal
       const allSliders = await db.select().from(schema.sliders).orderBy(desc(schema.sliders.sortOrder));
       res.json(allSliders);
     } catch (error) {
-      console.error('Error fetching sliders:', error);
+      console.error('Error fetchingsliders:', error);
       res.status(500).json({ error: 'Failed to fetch sliders' });
     }
   });
@@ -11441,7 +13493,7 @@ Poppik Affiliate Portal
         });
       }
 
-      const imageUrl = `/images/${req.file.filename}`;
+      const imageUrl = `/api/images/${req.file.filename}`;
 
       const [newSlider] = await db.insert(schema.sliders).values({
         title: 'Uploaded Image', // Default title
@@ -11473,7 +13525,7 @@ Poppik Affiliate Portal
        // Return the file URL
        let imageUrl = body.imageUrl;
        if(req.file) {
-        imageUrl = `/images/${req.file?.filename}`;
+        imageUrl = `/api/images/${req.file?.filename}`;
        }
 
       const [updatedSlider] = await db.update(schema.sliders)
@@ -11637,7 +13689,7 @@ Poppik Affiliate Portal
       // Handle image upload
       let imageUrl = null;
       if (req.file) {
-        imageUrl = `/images/${req.file.filename}`;
+        imageUrl = `/api/images/${req.file.filename}`;
       }
 
       // Create review
