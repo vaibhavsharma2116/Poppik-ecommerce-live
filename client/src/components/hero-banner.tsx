@@ -1,5 +1,5 @@
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,6 +68,7 @@ export default function HeroBanner({
   const [isPlaying, setIsPlaying] = useState(autoplay);
   const [progress, setProgress] = useState(0);
   const [heroHeightPx, setHeroHeightPx] = useState<number | null>(null);
+  const resizeRafIdRef = useRef<number | null>(null);
 
   // Fetch sliders from API
   const { data: slidersData = [], isLoading: slidersLoading, error: slidersError } = useQuery<Slider[]>({
@@ -156,15 +157,31 @@ export default function HeroBanner({
         const heroContainerW = vw;
         const ratio = HERO_HEIGHT / HERO_WIDTH;
         const nextH = Math.max(0, Math.round(heroContainerW * ratio) - 40);
-        setHeroHeightPx(nextH);
+        setHeroHeightPx((prev) => (prev === nextH ? prev : nextH));
       } catch {
         // ignore
       }
     };
 
+    const onResize = () => {
+      if (resizeRafIdRef.current != null) {
+        window.cancelAnimationFrame(resizeRafIdRef.current);
+      }
+      resizeRafIdRef.current = window.requestAnimationFrame(() => {
+        resizeRafIdRef.current = null;
+        compute();
+      });
+    };
+
     compute();
-    window.addEventListener('resize', compute);
-    return () => window.removeEventListener('resize', compute);
+    window.addEventListener('resize', onResize, { passive: true });
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (resizeRafIdRef.current != null) {
+        window.cancelAnimationFrame(resizeRafIdRef.current);
+        resizeRafIdRef.current = null;
+      }
+    };
   }, [HERO_WIDTH, HERO_HEIGHT]);
 
   useEffect(() => {

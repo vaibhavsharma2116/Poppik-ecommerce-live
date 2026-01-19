@@ -627,65 +627,67 @@ console.log("featured",featured)
               </h3>
             </div>
 
-            {bestsellersLoading ? (
-              <div className="px-2 sm:px-4">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
-                      <Skeleton className="aspect-square w-full" />
-                      <div className="p-3 space-y-2">
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-3/4" />
-                        <Skeleton className="h-6 w-1/2" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : bestsellerProducts && bestsellerProducts.length > 0 ? (
-              <>
+            <div className="min-h-[520px]">
+              {bestsellersLoading ? (
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                    {bestsellerProducts.slice(0, 4).map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                      />
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
+                        <Skeleton className="aspect-square w-full" />
+                        <div className="p-3 space-y-2">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-6 w-1/2" />
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
-
-                <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                  <Link href="/products?filter=bestsellers">
-                    <Button className="font-poppins bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
-                      <span>
-                        View All Bestsellers ({bestsellerProducts?.length || 0})
-                      </span>
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+              ) : bestsellerProducts && bestsellerProducts.length > 0 ? (
+                <>
+                  <div className="px-2 sm:px-4">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                      {bestsellerProducts.slice(0, 4).map((product) => (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
                         />
-                      </svg>
-                    </Button>
-                  </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="text-center mt-6 sm:mt-8 md:mt-10">
+                    <Link href="/products?filter=bestsellers">
+                      <Button className="font-poppins bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
+                        <span>
+                          View All Bestsellers ({bestsellerProducts?.length || 0})
+                        </span>
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 8l4 4m0 0l-4 4m4-4H3"
+                          />
+                        </svg>
+                      </Button>
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 text-lg">
+                    No bestseller products available at the moment.
+                  </p>
                 </div>
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">
-                  No bestseller products available at the moment.
-                </p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </section>

@@ -12,6 +12,27 @@ const __dirname = dirname(__filename);
 export default defineConfig({
   plugins: [
     react(),
+    {
+      name: "defer-local-css",
+      apply: "build",
+      transformIndexHtml(html) {
+        // Convert render-blocking local CSS into a preload + media-swap pattern.
+        // This works with hashed Vite asset filenames (e.g. /assets/index-XXXX.css).
+        return html.replace(
+          /<link\s+rel=["']stylesheet["']\s+([^>]*?)href=["'](\/assets\/[^"']+\.css)["']([^>]*?)>/g,
+          (_match, preAttrs: string, href: string, postAttrs: string) => {
+            const attrs = `${preAttrs || ""}${postAttrs || ""}`.trim();
+            const normalizedAttrs = attrs ? ` ${attrs}` : "";
+
+            return [
+              `<link rel="preload" as="style" href="${href}">`,
+              `<link rel="stylesheet" href="${href}" media="print" onload="this.media='all'"${normalizedAttrs}>`,
+              `<noscript><link rel="stylesheet" href="${href}"${normalizedAttrs}></noscript>`,
+            ].join("\n");
+          }
+        );
+      },
+    },
     runtimeErrorOverlay(),
     // themePlugin(),
   ],
