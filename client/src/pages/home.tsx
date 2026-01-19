@@ -625,9 +625,9 @@ export default function HomePage() {
               </h3>
             </div>
 
-            <div className="min-h-[520px]">
+            <div className="min-h-[650px]">
               {isLoadingBestsellers || (!isFetchedBestsellers && isFetchingBestsellers) ? (
-                <div className="px-2 sm:px-4">
+                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                     {Array.from({ length: 8 }).map((_, i) => (
                       <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
@@ -641,6 +641,7 @@ export default function HomePage() {
                       </div>
                     ))}
                   </div>
+                  <div className="h-20" />
                 </div>
               ) : bestsellers && bestsellers.length > 0 ? (
                 <>
@@ -680,12 +681,15 @@ export default function HomePage() {
                   </div>
                 </>
               ) : (
-                <div className="px-2 sm:px-4 h-[520px] flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="text-gray-500 text-lg">
-                      No bestseller products available at the moment.
-                    </p>
+                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-gray-500 text-lg">
+                        No bestseller products available at the moment.
+                      </p>
+                    </div>
                   </div>
+                  <div className="h-20" />
                 </div>
               )}
             </div>
