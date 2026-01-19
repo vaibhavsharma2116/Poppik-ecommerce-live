@@ -152,15 +152,10 @@ export default function HeroBanner({
         const vw = window.innerWidth || 0;
         if (!vw) return;
 
-        const maxW = 1440;
-        let px = 12;
-        if (vw >= 1024) px = 32;
-        else if (vw >= 768) px = 24;
-        else if (vw >= 640) px = 16;
-
-        const offersContainerW = Math.min(vw, maxW) - 2 * px;
+        // Hero banner is full width; reserve height based on actual viewport width
+        const heroContainerW = vw;
         const ratio = HERO_HEIGHT / HERO_WIDTH;
-        const nextH = Math.max(0, Math.round(offersContainerW * ratio) - 40);
+        const nextH = Math.max(0, Math.round(heroContainerW * ratio) - 40);
         setHeroHeightPx(nextH);
       } catch {
         // ignore
@@ -283,6 +278,12 @@ export default function HeroBanner({
         <CarouselContent>
           {slides.map((slide) => (
             <CarouselItem key={slide.key}>
+              {(() => {
+                const { width: slideW, height: slideH } = getImageDimensionsFromUrl(slide.imageUrl);
+                const IMG_W = slideW || HERO_WIDTH;
+                const IMG_H = slideH || HERO_HEIGHT;
+
+                return (
               <div
                 className={
                   slide.type === 'offer'
@@ -306,14 +307,16 @@ export default function HeroBanner({
                 <img
                   src={slide.imageUrl}
                   alt={slide.type === 'offer' ? `Offer ${slide.offerId ?? ''}` : slide.key}
-                  className="w-full h-full  bg-gray-100"
+                  className="w-full h-full object-cover bg-gray-100"
                   loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
                   decoding="async"
                   fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
-                  width={HERO_WIDTH}
-                  height={HERO_HEIGHT}
+                  width={IMG_W}
+                  height={IMG_H}
                 />
               </div>
+                );
+              })()}
             </CarouselItem>
           ))}
         </CarouselContent>

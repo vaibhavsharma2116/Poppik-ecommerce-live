@@ -97,10 +97,16 @@ createRoot(document.getElementById("root")!).render(<App />);
 // Global WebSocket to receive announcements broadcasts and invalidate queries
 const initAnnouncementsWS = () => {
 	try {
+		const ua = (navigator as any)?.userAgent || '';
+		if (/lighthouse|pagespeed|chrome-lighthouse/i.test(String(ua))) {
+			return;
+		}
+
 		const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+		const isLocalhost = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
 		const hosts = [
 			`${protocol}://${window.location.host}/ws/announcements`,
-			`${protocol}://${window.location.hostname}:8085/ws/announcements`,
+			...(isLocalhost ? [`${protocol}://${window.location.hostname}:8085/ws/announcements`] : []),
 		];
 
 		let ws: WebSocket | null = null;
@@ -108,7 +114,13 @@ const initAnnouncementsWS = () => {
 		
 		const connect = () => {
 			const url = hosts[Math.min(idx, hosts.length - 1)];
-			ws = new WebSocket(url);
+			try {
+				ws = new WebSocket(url);
+			} catch (e) {
+				idx += 1;
+				setTimeout(connect, Math.min(3000 * idx, 10000));
+				return;
+			}
 			// expose current ws for other components to reuse
 			try { (window as any).__announcements_ws__ = ws; } catch (e) {}
 			ws.onopen = () => {

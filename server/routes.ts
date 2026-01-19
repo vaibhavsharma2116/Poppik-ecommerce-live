@@ -10626,10 +10626,10 @@ Poppik Affiliate Portal
       const [updatedApplication] = await db
         .update(schema.affiliateApplications)
         .set({
-          status,
+          status: status,
           reviewNotes: notes,
           reviewedAt: new Date()
-        })
+        } as any)
         .where(eq(schema.affiliateApplications.id, parseInt(id)))
         .returning();
 
@@ -10649,10 +10649,10 @@ Poppik Affiliate Portal
           if (existingWallet.length === 0) {
             await db.insert(schema.affiliateWallet).values({
               userId: updatedApplication.userId,
-              cashbackBalance: "0.00",
-              commissionBalance: "0.00",
-              totalEarnings: "0.00",
-              totalWithdrawn: "0.00"
+              cashbackBalance: '0.00',
+              commissionBalance: '0.00',
+              totalEarnings: '0.00',
+              totalWithdrawn: '0.00'
             });
             console.log(`✅ Affiliate wallet created for user ${updatedApplication.userId}`);
           }
@@ -10665,11 +10665,11 @@ Poppik Affiliate Portal
       try {
         const formattedUserId = updatedApplication.userId.toString().padStart(2, '0');
         const affiliateCode = `POPPIKAP${formattedUserId}`;
-        const dashboardUrl = process.env.REPL_SLUG 
+        const dashboardUrl = process.env.REPL_SLUG
           ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate-dashboard`
           : 'https://poppik.in/affiliate-dashboard';
 
-        const emailSubject = status === 'approved' 
+        const emailSubject = status === 'approved'
           ? 'Welcome to the Poppik Lifestyle Private Limited Affiliate Program'
           : 'Update on Your Poppik Affiliate Application';
 
@@ -10707,7 +10707,7 @@ Poppik Affiliate Portal
             </div>
             <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
               <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">
-                © 2024 Poppik Lifestyle Private Limited. All rights reserved.
+                &copy; 2024 Poppik Lifestyle Private Limited. All rights reserved.
               </p>
               <p style="color: #999999; font-size: 12px; margin: 0;">
                 Office No.- 213, A- Wing, Skylark Building, Plot No.- 63, Sector No.- 11, C.B.D. Belapur, Navi Mumbai- 400614 INDIA
@@ -10734,7 +10734,7 @@ Poppik Affiliate Portal
               </p>
             </div>
             <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
-              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">© 2024 Poppik Lifestyle Private Limited</p>
+              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">&copy; 2024 Poppik Lifestyle Private Limited</p>
             </div>
           </div>`;
 
@@ -10750,10 +10750,10 @@ Poppik Affiliate Portal
         console.error('❌ Failed to send email:', emailError);
       }
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: `Application ${status} successfully`,
-        application: updatedApplication 
+        application: updatedApplication
       });
     } catch (error) {
       console.error('Error updating application status:', error);
@@ -10782,9 +10782,10 @@ Poppik Affiliate Portal
   });
 
   // Influencer Applications Routes
-app.get('/api/influencer-videos', async (req, res) => {
+ app.get('/api/influencer-videos', async (req, res) => {
     try {
       const { isActive, category } = req.query;
+
       let query = db.select().from(schema.influencerVideos);
       if (isActive !== undefined) {
         query = query.where(eq(schema.influencerVideos.isActive, isActive === 'true'));

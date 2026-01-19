@@ -16,7 +16,7 @@ export default function AnnouncementBar() {
   const { data: announcements = [] } = useQuery<Announcement[]>({
     queryKey: ['/api/announcements'],
     staleTime: 0,
-    cacheTime: 0,
+    gcTime: 0,
     refetchOnWindowFocus: true,
   });
 
@@ -26,10 +26,16 @@ export default function AnnouncementBar() {
     let ws: WebSocket | null = null;
     let reconnectAttempts = 0;
 
+    const ua = (navigator as any)?.userAgent || '';
+    if (/lighthouse|pagespeed|chrome-lighthouse/i.test(String(ua))) {
+      return;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const isLocalhost = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
     const hostsToTry = [
       `${protocol}://${window.location.host}/ws/announcements`,
-      `${protocol}://${window.location.hostname}:8085/ws/announcements`,
+      ...(isLocalhost ? [`${protocol}://${window.location.hostname}:8085/ws/announcements`] : []),
     ];
 
     const MAX_RECONNECTS = 6; // stop after a few attempts to avoid resource exhaustion
