@@ -644,8 +644,8 @@ export default function HomePage() {
                   <div className="h-20" />
                 </div>
               ) : bestsellers && bestsellers.length > 0 ? (
-                <>
-                  <div className="px-2 sm:px-4">
+                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                  <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                       {bestsellers.slice(0, 4).map((product) => (
                         <ProductCard
@@ -679,7 +679,8 @@ export default function HomePage() {
                       </Button>
                     </Link>
                   </div>
-                </>
+                  <div className="h-20" />
+                </div>
               ) : (
                 <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="flex-1 flex items-center justify-center">
