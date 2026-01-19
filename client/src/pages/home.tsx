@@ -258,7 +258,7 @@ export default function HomePage() {
   });
 
 
-  const { data: bestsellerProducts, isLoading: bestsellersLoading } = useQuery<
+  const { data: bestsellerProducts, isLoading: bestsellersLoading, isFetching: bestsellersFetching, isFetched: bestsellersFetched } = useQuery<
     Product[]
   >({
     queryKey: ["/api/products/bestsellers"],
@@ -628,12 +628,13 @@ console.log("featured",featured)
             </div>
 
             <div className="min-h-[520px]">
-              {bestsellersLoading ? (
+              {bestsellersLoading || (!bestsellersFetched && bestsellersFetching) ? (
                 <div className="px-2 sm:px-4">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                     {Array.from({ length: 8 }).map((_, i) => (
                       <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
                         <Skeleton className="aspect-square w-full" />
+
                         <div className="p-3 space-y-2">
                           <Skeleton className="h-4 w-full" />
                           <Skeleton className="h-4 w-3/4" />
@@ -681,10 +682,12 @@ console.log("featured",featured)
                   </div>
                 </>
               ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 text-lg">
-                    No bestseller products available at the moment.
-                  </p>
+                <div className="px-2 sm:px-4 h-[520px] flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-gray-500 text-lg">
+                      No bestseller products available at the moment.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
