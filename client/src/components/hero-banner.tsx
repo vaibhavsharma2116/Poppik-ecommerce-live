@@ -67,7 +67,6 @@ export default function HeroBanner({
   const [current, setCurrent] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoplay);
   const [progress, setProgress] = useState(0);
-  const [heroHeightPx, setHeroHeightPx] = useState<number | null>(null);
   const resizeRafIdRef = useRef<number | null>(null);
 
   // Fetch sliders from API
@@ -147,44 +146,6 @@ export default function HeroBanner({
   }, [api]);
 
   useEffect(() => {
-    const compute = () => {
-      try {
-        if (typeof window === 'undefined') return;
-        const vw = window.innerWidth || 0;
-        if (!vw) return;
-
-        // Hero banner is full width; reserve height based on actual viewport width
-        const heroContainerW = vw;
-        const ratio = HERO_HEIGHT / HERO_WIDTH;
-        const nextH = Math.max(0, Math.round(heroContainerW * ratio) - 40);
-        setHeroHeightPx((prev) => (prev === nextH ? prev : nextH));
-      } catch {
-        // ignore
-      }
-    };
-
-    const onResize = () => {
-      if (resizeRafIdRef.current != null) {
-        window.cancelAnimationFrame(resizeRafIdRef.current);
-      }
-      resizeRafIdRef.current = window.requestAnimationFrame(() => {
-        resizeRafIdRef.current = null;
-        compute();
-      });
-    };
-
-    compute();
-    window.addEventListener('resize', onResize, { passive: true });
-    return () => {
-      window.removeEventListener('resize', onResize);
-      if (resizeRafIdRef.current != null) {
-        window.cancelAnimationFrame(resizeRafIdRef.current);
-        resizeRafIdRef.current = null;
-      }
-    };
-  }, [HERO_WIDTH, HERO_HEIGHT]);
-
-  useEffect(() => {
     if (!isPlaying || !api) return;
 
     const interval = setInterval(() => {
@@ -251,7 +212,6 @@ export default function HeroBanner({
       <div
         className="w-full relative"
         style={{
-          height: heroHeightPx ? `${heroHeightPx}px` : undefined,
           aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}`,
         }}
       >
@@ -266,7 +226,6 @@ export default function HeroBanner({
     <div
       className="w-full relative"
       style={{
-        height: heroHeightPx ? `${heroHeightPx}px` : undefined,
         aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}`,
       }}
     >
@@ -307,7 +266,7 @@ export default function HeroBanner({
                     ? "mobile-slider-container mx-0 relative w-full overflow-hidden bg-white"
                     : "mobile-slider-container mx-0 relative w-full overflow-hidden"
                 }
-                style={{ height: heroHeightPx ? `${heroHeightPx}px` : undefined, aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}` }}
+                style={{ aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}` }}
                 role={slide.type === 'offer' ? 'button' : undefined}
                 tabIndex={slide.type === 'offer' ? 0 : undefined}
                 onClick={() => {

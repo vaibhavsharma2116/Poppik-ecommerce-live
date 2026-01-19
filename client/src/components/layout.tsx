@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/navigation-menu";
 import type { Category, Subcategory, Product } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/typo_Poppik_Black-01.png";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 import AnnouncementBar from "@/components/announcement-bar";
