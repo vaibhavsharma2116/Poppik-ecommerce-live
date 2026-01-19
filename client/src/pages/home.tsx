@@ -402,7 +402,7 @@ export default function HomePage() {
               ))}
             </div>
           ) : (
-            <div className="relative">
+            <div className="relative mb-12 sm:mb-16 md:mb-20">
               <div
                 id="categories-scroll-container"
                 ref={categoriesScrollRef}

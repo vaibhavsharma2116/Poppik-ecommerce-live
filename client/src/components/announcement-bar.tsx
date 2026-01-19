@@ -113,14 +113,17 @@ export default function AnnouncementBar() {
   }, [queryClient]);
 
   // Ensure announcements is an array
-  if (!isVisible || !Array.isArray(announcements) || announcements.length === 0) return null;
+  if (!isVisible) return null;
+  const safeAnnouncements = Array.isArray(announcements) ? announcements : [];
 
   // Combine all announcements with separator and spacing (minimum 6 non-breaking spaces)
   const spacing = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0'; // 6 non-breaking spaces
-  const announcementText = announcements.map(a => a.text).join(`${spacing}•${spacing}`);
+  const announcementText = safeAnnouncements.map(a => a.text).join(`${spacing}•${spacing}`);
   
   // Duplicate the text for seamless loop
-  const duplicatedText = `${announcementText}${spacing}•${spacing}${announcementText}`;
+  const duplicatedText = announcementText
+    ? `${announcementText}${spacing}•${spacing}${announcementText}`
+    : spacing;
 
   return (
     <div className="relative bg-black text-white py-2.5 sm:py-2 overflow-hidden min-h-[40px] sm:min-h-[36px]">

@@ -542,7 +542,7 @@ export default function Layout({ children }: LayoutProps) {
               {/* Left Spacer */}
               <div className="flex-1"></div>
               {/* Center Logo */}
-              <Link href="/" className="flex-shrink-0">
+              <Link href="/" className="flex-shrink-0 block leading-none">
                 <div className="flex items-center cursor-pointer hover:scale-105 transition-transform duration-300">
                   <img
                     src={logo}
@@ -605,7 +605,7 @@ export default function Layout({ children }: LayoutProps) {
               )}
 
               {/* Center - Logo */}
-              <Link href="/" className="flex-shrink-0">
+              <Link href="/" className="flex-shrink-0 block leading-none">
                 <img
                   src={logo}
                   alt="POPPIK LIFESTYLE"
