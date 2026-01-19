@@ -1,5 +1,5 @@
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -190,7 +190,12 @@ export default function HeroBanner({
 
   if (isLoading) {
     return (
-      <div className="w-full relative" style={{ aspectRatio: "1920/600" }}>
+      <div
+        className="w-full relative"
+        style={{
+          aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}`,
+        }}
+      >
         <Skeleton className="w-full h-full" />
       </div>
     );
@@ -198,7 +203,14 @@ export default function HeroBanner({
 
   if (error && !slides.length) {
     return (
-      <div className="w-full flex items-center justify-center bg-red-50 py-20">
+      <div
+        className="w-full relative"
+        style={{
+          aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}`,
+        }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center bg-red-50">
+        </div>
       </div>
     );
   }
@@ -211,7 +223,7 @@ export default function HeroBanner({
           aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}`,
         }}
       >
-        <div className="w-full flex items-center justify-center bg-gray-50 py-20">
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
           <p className="text-gray-500">No slides available</p>
         </div>
       </div>
