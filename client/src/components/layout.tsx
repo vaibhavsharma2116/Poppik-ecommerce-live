@@ -462,8 +462,15 @@ export default function Layout({ children }: LayoutProps) {
               {/* Left - Mobile Menu */}
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10" onClick={() => setIsMobileMenuOpen(true)}>
-                    <Menu className="h-5 w-5" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10"
+                    onClick={() => setIsMobileMenuOpen(true)}
+                    aria-label="Open menu"
+                    title="Open menu"
+                  >
+                    <Menu className="h-5 w-5" aria-hidden="true" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80 p-0 overflow-hidden">
@@ -833,13 +840,19 @@ export default function Layout({ children }: LayoutProps) {
                   size="icon"
                   onClick={() => setShowSearchBar(true)}
                   className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10"
+                  aria-label="Search"
+                  title="Search"
                 >
-                  <Search className="h-5 w-5" />
+                  <Search className="h-5 w-5" aria-hidden="true" />
                 </Button>
 
-                <Link href="/cart">
-                  <Button variant="ghost" size="icon" className="relative text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10">
-                    <ShoppingCart className="h-5 w-5" />
+                <Link href="/cart" aria-label="Cart" title="Cart">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10"
+                  >
+                    <ShoppingCart className="h-5 w-5" aria-hidden="true" />
                     {cartCount > 0 && (
                       <span className="absolute -top-1 -right-1 bg-gradient-to-r from-orange-400 to-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg animate-pulse font-semibold">
                         {cartCount}
@@ -915,16 +928,22 @@ export default function Layout({ children }: LayoutProps) {
                     size="icon"
                     onClick={() => setShowSearchBar(true)}
                     className="h-10 w-10 text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                    aria-label="Search"
+                    title="Search"
                   >
-                    <Search className="h-5 w-5" />
+                    <Search className="h-5 w-5" aria-hidden="true" />
                   </Button>
                 )}
               </div>
 
               {/* Wishlist Icon */}
-              <Link href="/wishlist">
-                <Button variant="ghost" size="icon" className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors">
-                  <Heart className="h-5 w-5" />
+              <Link href="/wishlist" aria-label="Wishlist" title="Wishlist">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors"
+                >
+                  <Heart className="h-5 w-5" aria-hidden="true" />
                   {wishlistCount > 0 && (
                     <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-pink-600 hover:bg-pink-700 text-white text-xs">
                       {wishlistCount}
@@ -934,9 +953,13 @@ export default function Layout({ children }: LayoutProps) {
               </Link>
 
               {/* Cart Icon */}
-              <Link href="/cart">
-                <Button variant="ghost" size="icon" className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors">
-                  <ShoppingCart className="h-5 w-5" />
+              <Link href="/cart" aria-label="Cart" title="Cart">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors"
+                >
+                  <ShoppingCart className="h-5 w-5" aria-hidden="true" />
                   {cartCount > 0 && (
                     <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-pink-600 hover:bg-pink-700 text-white text-xs">
                       {cartCount}
@@ -949,8 +972,12 @@ export default function Layout({ children }: LayoutProps) {
               {user && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-10 w-10 relative text-black hover:text-pink-600 hover:bg-white/20 transition-colors focus:outline-none">
-                      <Wallet className="h-5 w-5" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 text-black hover:text-pink-600 hover:bg-white/20 transition-colors focus:outline-none"
+                    >
+                      <Wallet className="h-5 w-5" aria-hidden="true" />
 
                     </Button>
                   </DropdownMenuTrigger>
@@ -1025,8 +1052,12 @@ export default function Layout({ children }: LayoutProps) {
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-10 w-10 text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
-                      <User className="h-5 w-5" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                    >
+                      <User className="h-5 w-5" aria-hidden="true" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
@@ -1055,8 +1086,12 @@ export default function Layout({ children }: LayoutProps) {
                 </DropdownMenu>
               ) : (
                 <Link href="/auth/login">
-                  <Button variant="ghost" size="icon" className="h-10 w-10 text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300">
-                    <User className="h-5 w-5" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300"
+                  >
+                    <User className="h-5 w-5" aria-hidden="true" />
                   </Button>
                 </Link>
               )}
@@ -1205,7 +1240,7 @@ export default function Layout({ children }: LayoutProps) {
                     );
                   }
                 })}
- <li>
+                <li>
                   <Link
                     href="/combo"
                     className={`text-sm font-medium transition-colors px-4 py-2 block ${
@@ -1395,7 +1430,7 @@ export default function Layout({ children }: LayoutProps) {
                 title="Follow us on Facebook"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
               </a>
               <a
@@ -1406,7 +1441,7 @@ export default function Layout({ children }: LayoutProps) {
                 title="Follow us on Instagram"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
                 </svg>
               </a>
               <a
@@ -1417,7 +1452,7 @@ export default function Layout({ children }: LayoutProps) {
                 title="Join our WhatsApp Channel"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                 </svg>
               </a>
               <a
@@ -1428,7 +1463,7 @@ export default function Layout({ children }: LayoutProps) {
                 title="Connect with us on LinkedIn"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                 </svg>
               </a>
               <a
@@ -1439,7 +1474,7 @@ export default function Layout({ children }: LayoutProps) {
                 title="Follow us on X (Twitter)"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.244H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.244H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
               </a>
               <a
@@ -1450,7 +1485,7 @@ export default function Layout({ children }: LayoutProps) {
                 title="Subscribe to our YouTube channel"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                 </svg>
               </a>
               <a
@@ -1461,186 +1496,117 @@ export default function Layout({ children }: LayoutProps) {
                 title="Follow us on Pinterest"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026L12.017 0z"/>
+                  <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026L12.017 0z" />
                 </svg>
               </a>
             </div>
           </div>
 
-          {/* Links Section - 5 Columns */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 md:gap-8 mb-8">
-            {/* Quick Links */}
             <div>
-              <h4 className="font-semibold mb-4 text-white text-sm">Quick Links</h4>
+              <h3 className="font-semibold mb-4 text-white text-sm">Quick Links</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="/" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Home
-                  </Link>
+                  <Link href="/" className="text-gray-400 hover:text-white transition-colors text-sm">Home</Link>
                 </li>
                 <li>
-                  <Link href="/about" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    About Us
-                  </Link>
+                  <Link href="/about" className="text-gray-400 hover:text-white transition-colors text-sm">About Us</Link>
                 </li>
                 <li>
-                  <Link href="/blog" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Blog
-                  </Link>
+                  <Link href="/blog" className="text-gray-400 hover:text-white transition-colors text-sm">Blog</Link>
                 </li>
                 <li>
-                  <Link href="/careers" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Careers
-                  </Link>
+                  <Link href="/careers" className="text-gray-400 hover:text-white transition-colors text-sm">Careers</Link>
                 </li>
                 <li>
-                  <Link href="/influencer-collab" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Influencer Collab
-                  </Link>
+                  <Link href="/influencer-collab" className="text-gray-400 hover:text-white transition-colors text-sm">Influencer Collab</Link>
                 </li>
                 <li>
-                  <Link href="/affiliate" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Become an Affiliate
-                  </Link>
+                  <Link href="/affiliate" className="text-gray-400 hover:text-white transition-colors text-sm">Become an Affiliate</Link>
                 </li>
-                <li >
-                  <Link href="/channel-partner"  className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Join as a Channel Partner
-                  </Link>
+                <li>
+                  <Link href="/channel-partner" className="text-gray-400 hover:text-white transition-colors text-sm">Join as a Channel Partner</Link>
                 </li>
               </ul>
             </div>
 
-            {/* Order & Support */}
             <div>
-              <h4 className="font-semibold mb-4 text-white text-sm">Order & Support</h4>
+              <h3 className="font-semibold mb-4 text-white text-sm">Order & Support</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Contact Us
-                  </Link>
+                  <Link href="/contact" className="text-gray-400 hover:text-white transition-colors text-sm">Contact Us</Link>
                 </li>
                 <li>
-                  <Link href="/track-order" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Track Order
-                  </Link>
+                  <Link href="/track-order" className="text-gray-400 hover:text-white transition-colors text-sm">Track Order</Link>
                 </li>
                 <li>
-                  <Link href="/order-history" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Order History
-                  </Link>
+                  <Link href="/order-history" className="text-gray-400 hover:text-white transition-colors text-sm">Order History</Link>
                 </li>
                 <li>
-                  <Link href="/store-locator" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Store Location
-                  </Link>
+                  <Link href="/store-locator" className="text-gray-400 hover:text-white transition-colors text-sm">Store Location</Link>
                 </li>
                 <li>
-                  <Link href="/media-links" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Media Rich
-                  </Link>
+                  <Link href="/media-links" className="text-gray-400 hover:text-white transition-colors text-sm">Media Rich</Link>
                 </li>
               </ul>
             </div>
 
-            {/* Policies */}
             <div>
-              <h4 className="font-semibold mb-4 text-white text-sm">Policies</h4>
+              <h3 className="font-semibold mb-4 text-white text-sm">Policies</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Privacy Policy
-                  </Link>
+                  <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors text-sm">Privacy Policy</Link>
                 </li>
                 <li>
-                  <Link href="/terms" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Terms & Condition
-                  </Link>
+                  <Link href="/terms" className="text-gray-400 hover:text-white transition-colors text-sm">Terms & Condition</Link>
+                </li>
+                <li>
+                  <Link href="/refund" className="text-gray-400 hover:text-white transition-colors text-sm">Return & Refund</Link>
+                </li>
+                <li>
+                  <Link href="/shipping" className="text-gray-400 hover:text-white transition-colors text-sm">Shipping Policy</Link>
                 </li>
               </ul>
             </div>
 
-            {/* Also Available On */}
             <div>
-              <h4 className="font-semibold mb-4 text-white text-sm">Also Available On</h4>
+              <h3 className="font-semibold mb-4 text-white text-sm">Also Available On</h3>
               <ul className="space-y-2">
                 <li>
-                  <a
-                    href="https://www.amazon.in/stores/page/59FA5054-B89F-4ECA-A0D2-1D19E71E7CF7"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white transition-colors text-sm"
-                  >
-                    Amazon
-                  </a>
+                  <a href="https://www.amazon.in/stores/page/59FA5054-B89F-4ECA-A0D2-1D19E71E7CF7" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors text-sm">Amazon</a>
                 </li>
                 <li>
-                  <a
-                    href="https://www.flipkart.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white transition-colors text-sm"
-                  >
-                    Flipkart
-                  </a>
+                  <a href="https://www.flipkart.com/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors text-sm">Flipkart</a>
                 </li>
                 <li>
-                  <a
-                    href="https://www.meesho.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white transition-colors text-sm"
-                  >
-                    Meesho
-                  </a>
+                  <a href="https://www.meesho.com/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors text-sm">Meesho</a>
                 </li>
               </ul>
             </div>
 
-            {/* Our Initiatives */}
             <div>
-              <h4 className="font-semibold mb-4 text-white text-sm">Our Initiatives</h4>
+              <h3 className="font-semibold mb-4 text-white text-sm">Our Initiatives</h3>
               <ul className="space-y-2">
                 <li>
-                  <a
-                    href="https://poppikacademy.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white transition-colors text-sm"
-                  >
-                    Poppik Academy
-                  </a>
+                  <a href="https://poppikacademy.com/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors text-sm">Poppik Academy</a>
                 </li>
                 <li>
-                  <a
-                    href="https://poppikdropshipping.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white transition-colors text-sm"
-                  >
-                    Poppik Dropshipping
-                  </a>
-                </li>
-                <li  >
-                  <Link href="/makeup-studio"   className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Poppik Makeup Studio
-                  </Link>
+                  <a href="https://poppikdropshipping.com/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors text-sm">Poppik Dropshipping</a>
                 </li>
                 <li>
-                  <Link href="/fashion-show" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    Poppik Fashion Show
-                  </Link>
+                  <Link href="/makeup-studio" className="text-gray-400 hover:text-white transition-colors text-sm">Poppik Makeup Studio</Link>
+                </li>
+                <li>
+                  <Link href="/fashion-show" className="text-gray-400 hover:text-white transition-colors text-sm">Poppik Fashion Show</Link>
                 </li>
               </ul>
             </div>
           </div>
 
-
-
           {/* Copyright */}
           <div className="border-t border-gray-800 pt-6 text-center">
             <p className="text-gray-400 text-sm">
-              © 2025 Poppik Lifestyle Private Limited. All rights reserved.
+              2025 Poppik Lifestyle Private Limited. All rights reserved.
             </p>
           </div>
         </div>
