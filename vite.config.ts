@@ -25,6 +25,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    manifest: true,
     sourcemap: false,
     minify: 'terser',
     reportCompressedSize: false,

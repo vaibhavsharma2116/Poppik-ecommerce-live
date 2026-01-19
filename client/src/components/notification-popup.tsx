@@ -184,13 +184,13 @@ export function NotificationPopup({ onClose }: NotificationPopupProps) {
               Email Address (Optional)
             </label>
             <div className="relative">
-              <Mail size={16} className="absolute left-3 top-3 text-gray-400" />
+              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="email"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 placeholder="your.email@example.com"
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent"
+                className="w-full h-10 pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent"
               />
             </div>
             <p className="text-xs text-gray-500 mt-1">

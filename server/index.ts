@@ -1115,6 +1115,12 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
 
   // Catch-all route for SPA - Must be LAST
   app.get('*', (req, res, next) => {
+    // In production, serveStatic() already serves index.html and applies preload headers.
+    // Avoid overriding it here.
+    if (app.get("env") !== "development") {
+      return next();
+    }
+
     // Skip API routes
     if (req.path.startsWith('/api/')) {
       return next();

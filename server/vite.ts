@@ -84,6 +84,56 @@ export async function setupVite(app: Express, server: Server) {
 export function serveStatic(app: Express) {
   const distPath = path.resolve(import.meta.dirname, "public");
 
+  let cachedManifest: any | null = null;
+  const getManifest = () => {
+    if (cachedManifest) return cachedManifest;
+    try {
+      const manifestPath = path.resolve(distPath, "manifest.json");
+      if (!fs.existsSync(manifestPath)) return null;
+      const raw = fs.readFileSync(manifestPath, "utf-8");
+      cachedManifest = JSON.parse(raw);
+      return cachedManifest;
+    } catch {
+      return null;
+    }
+  };
+
+  const applyEntryPreloadHeaders = (res: any) => {
+    try {
+      const manifest = getManifest();
+      if (!manifest || typeof manifest !== 'object') return;
+
+      const entries = Object.values(manifest).filter((v: any) => v && typeof v === 'object' && v.isEntry);
+      const entry: any =
+        entries.find((v: any) => typeof v.src === 'string' && v.src.endsWith('/src/main.tsx')) ||
+        entries.find((v: any) => typeof v.src === 'string' && v.src.endsWith('main.tsx')) ||
+        entries.find((v: any) => typeof v.file === 'string' && v.file.includes('assets/index-')) ||
+        entries[0];
+
+      if (!entry) return;
+
+      const links: string[] = [];
+
+      if (typeof entry.file === 'string') {
+        links.push(`</${entry.file.startsWith('/') ? entry.file.slice(1) : entry.file}>; rel=modulepreload; as=script`);
+      }
+
+      if (Array.isArray(entry.css)) {
+        for (const cssHref of entry.css) {
+          if (typeof cssHref === 'string') {
+            links.push(`</${cssHref.startsWith('/') ? cssHref.slice(1) : cssHref}>; rel=preload; as=style`);
+          }
+        }
+      }
+
+      if (links.length) {
+        res.setHeader('Link', links.join(', '));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   if (!fs.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`,
@@ -126,6 +176,7 @@ export function serveStatic(app: Express) {
     if (req.originalUrl.startsWith('/assets/')) {
       return res.status(404).end();
     }
+    applyEntryPreloadHeaders(res);
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
