@@ -1,11 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { Search, ShoppingCart, Menu, X, User, Heart, LogOut, ChevronDown, ChevronRight, Wallet, IndianRupee, MessageCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import SearchCommand from "@/components/search-command";
 import {
   NavigationMenu,
@@ -18,17 +16,7 @@ import {
 import type { Category, Subcategory, Product } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import logo from "@/assets/typo_Poppik_Black-01.png";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 import AnnouncementBar from "@/components/announcement-bar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Gift } from "lucide-react";
 import { NotificationPopup } from "./notification-popup";
@@ -65,6 +53,71 @@ export default function Layout({ children }: LayoutProps) {
   const [isSearchCommandOpen, setIsSearchCommandOpen] = useState(false);
   const [showNotificationPopup, setShowNotificationPopup] = useState(false); // State to control notification popup visibility
 
+  const [ui, setUi] = useState<null | {
+    Sheet: typeof import("@/components/ui/sheet")["Sheet"];
+    SheetContent: typeof import("@/components/ui/sheet")["SheetContent"];
+    SheetTrigger: typeof import("@/components/ui/sheet")["SheetTrigger"];
+    Accordion: typeof import("@/components/ui/accordion")["Accordion"];
+    AccordionContent: typeof import("@/components/ui/accordion")["AccordionContent"];
+    AccordionItem: typeof import("@/components/ui/accordion")["AccordionItem"];
+    AccordionTrigger: typeof import("@/components/ui/accordion")["AccordionTrigger"];
+    ScrollArea: typeof import("@/components/ui/scroll-area")["ScrollArea"];
+    DropdownMenu: typeof import("@/components/ui/dropdown-menu")["DropdownMenu"];
+    DropdownMenuContent: typeof import("@/components/ui/dropdown-menu")["DropdownMenuContent"];
+    DropdownMenuItem: typeof import("@/components/ui/dropdown-menu")["DropdownMenuItem"];
+    DropdownMenuLabel: typeof import("@/components/ui/dropdown-menu")["DropdownMenuLabel"];
+    DropdownMenuSeparator: typeof import("@/components/ui/dropdown-menu")["DropdownMenuSeparator"];
+    DropdownMenuTrigger: typeof import("@/components/ui/dropdown-menu")["DropdownMenuTrigger"];
+    Avatar: typeof import("@/components/ui/avatar")["Avatar"];
+    AvatarFallback: typeof import("@/components/ui/avatar")["AvatarFallback"];
+  }>(null);
+
+  const loadUi = useCallback(async () => {
+    if (ui) return;
+    const [sheet, accordion, scrollArea, dropdownMenu, avatar] = await Promise.all([
+      import("@/components/ui/sheet"),
+      import("@/components/ui/accordion"),
+      import("@/components/ui/scroll-area"),
+      import("@/components/ui/dropdown-menu"),
+      import("@/components/ui/avatar"),
+    ]);
+
+    setUi({
+      Sheet: sheet.Sheet,
+      SheetContent: sheet.SheetContent,
+      SheetTrigger: sheet.SheetTrigger,
+      Accordion: accordion.Accordion,
+      AccordionContent: accordion.AccordionContent,
+      AccordionItem: accordion.AccordionItem,
+      AccordionTrigger: accordion.AccordionTrigger,
+      ScrollArea: scrollArea.ScrollArea,
+      DropdownMenu: dropdownMenu.DropdownMenu,
+      DropdownMenuContent: dropdownMenu.DropdownMenuContent,
+      DropdownMenuItem: dropdownMenu.DropdownMenuItem,
+      DropdownMenuLabel: dropdownMenu.DropdownMenuLabel,
+      DropdownMenuSeparator: dropdownMenu.DropdownMenuSeparator,
+      DropdownMenuTrigger: dropdownMenu.DropdownMenuTrigger,
+      Avatar: avatar.Avatar,
+      AvatarFallback: avatar.AvatarFallback,
+    });
+  }, [ui]);
+
+  useEffect(() => {
+    const onFirstInteraction = () => {
+      loadUi();
+      window.removeEventListener("pointerdown", onFirstInteraction);
+      window.removeEventListener("keydown", onFirstInteraction);
+    };
+
+    window.addEventListener("pointerdown", onFirstInteraction, { once: true });
+    window.addEventListener("keydown", onFirstInteraction, { once: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", onFirstInteraction);
+      window.removeEventListener("keydown", onFirstInteraction);
+    };
+  }, [loadUi]);
+
   const getCategoryName = (p: any) => {
     try {
       const c = p?.category;
@@ -82,6 +135,7 @@ export default function Layout({ children }: LayoutProps) {
     const last = lastName?.charAt(0) || '';
     return `${first}${last}`.toUpperCase() || 'U';
   };
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showSearchBar, setShowSearchBar] = useState(false);
@@ -93,6 +147,57 @@ export default function Layout({ children }: LayoutProps) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State to manage mobile menu visibility
+
+  const Sheet = ui?.Sheet;
+  const SheetContent = ui?.SheetContent;
+  const SheetTrigger = ui?.SheetTrigger;
+  const Accordion = ui?.Accordion;
+  const AccordionContent = ui?.AccordionContent;
+  const AccordionItem = ui?.AccordionItem;
+  const AccordionTrigger = ui?.AccordionTrigger;
+  const ScrollArea = ui?.ScrollArea;
+  const DropdownMenu = ui?.DropdownMenu;
+  const DropdownMenuContent = ui?.DropdownMenuContent;
+  const DropdownMenuItem = ui?.DropdownMenuItem;
+  const DropdownMenuLabel = ui?.DropdownMenuLabel;
+  const DropdownMenuSeparator = ui?.DropdownMenuSeparator;
+  const DropdownMenuTrigger = ui?.DropdownMenuTrigger;
+  const Avatar = ui?.Avatar;
+  const AvatarFallback = ui?.AvatarFallback;
+
+  const canRenderMobileMenu =
+    !!Sheet &&
+    !!SheetContent &&
+    !!SheetTrigger &&
+    !!ScrollArea &&
+    !!Accordion &&
+    !!AccordionContent &&
+    !!AccordionItem &&
+    !!AccordionTrigger;
+
+  const canRenderDropdown =
+    !!DropdownMenu &&
+    !!DropdownMenuTrigger &&
+    !!DropdownMenuContent &&
+    !!DropdownMenuItem &&
+    !!DropdownMenuLabel &&
+    !!DropdownMenuSeparator;
+
+  const SheetComp = Sheet as any;
+  const SheetContentComp = SheetContent as any;
+  const SheetTriggerComp = SheetTrigger as any;
+  const ScrollAreaComp = ScrollArea as any;
+  const AccordionComp = Accordion as any;
+  const AccordionContentComp = AccordionContent as any;
+  const AccordionItemComp = AccordionItem as any;
+  const AccordionTriggerComp = AccordionTrigger as any;
+
+  const DropdownMenuComp = DropdownMenu as any;
+  const DropdownMenuTriggerComp = DropdownMenuTrigger as any;
+  const DropdownMenuContentComp = DropdownMenuContent as any;
+  const DropdownMenuItemComp = DropdownMenuItem as any;
+  const DropdownMenuLabelComp = DropdownMenuLabel as any;
+  const DropdownMenuSeparatorComp = DropdownMenuSeparator as any;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -452,7 +557,6 @@ export default function Layout({ children }: LayoutProps) {
                   />
                 </div>
               </Link>
-
               {/* Right Spacer */}
               <div className="flex-1"></div>
             </div>
@@ -460,378 +564,59 @@ export default function Layout({ children }: LayoutProps) {
             {/* Mobile Layout - Left: Menu, Center: Logo, Right: Search & Cart Icons */}
             <div className="md:hidden flex items-center justify-between w-full px-2">
               {/* Left - Mobile Menu */}
-              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10"
-                    onClick={() => setIsMobileMenuOpen(true)}
-                    aria-label="Open menu"
-                    title="Open menu"
-                  >
-                    <Menu className="h-5 w-5" aria-hidden="true" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-80 p-0 overflow-hidden">
-                  {/* Mobile Menu Header */}
-                  <div className="px-6 py-4 bg-gradient-to-r from-red-50 to-pink-50 border-b border-gray-100">
-                    <div className="flex items-center">
-                      <h2 className="font-semibold text-gray-800">Menu</h2>
+              {canRenderMobileMenu ? (
+                <SheetComp open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                  <SheetTriggerComp asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10"
+                      onClick={() => setIsMobileMenuOpen(true)}
+                      aria-label="Open menu"
+                      title="Open menu"
+                    >
+                      <Menu className="h-5 w-5" aria-hidden="true" />
+                    </Button>
+                  </SheetTriggerComp>
+                  <SheetContentComp side="left" className="w-80 p-4">
+                    <div className="space-y-2">
+                      <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg hover:bg-gray-50">Home</Link>
+                      <Link href="/combo" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg hover:bg-gray-50">Combo</Link>
+                      <Link href="/offers" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg hover:bg-gray-50">Offer</Link>
+                      <Link href="/contest" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg hover:bg-gray-50">Contest</Link>
+                      <Link href="/blog" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-lg hover:bg-gray-50">Blog</Link>
                     </div>
-                  </div>
-
-                  {/* Mobile Menu Content */}
-                  <ScrollArea className="flex-1 h-[calc(65vh)]">
-                    <div className="px-4 py-4 space-y-1">
-                      {/* A. Home */}
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
-                        Navigation
-                      </div>
-                      <Link
-                        href="/"
-                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                          isActiveLink("/")
-                            ? "bg-red-500 text-black shadow-md"
-                            : "text-gray-700 hover:bg-red-50 hover:text-red-600"
-                        }`}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        Home
-                      </Link>
-
-                      {/* B. Categories Section */}
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4 mb-3 px-3">
-                        Categories
-                      </div>
-                      <Accordion type="single" collapsible className="w-full space-y-2">
-                        {categories.map((category) => {
-                          const categorySubcategories = getSubcategoriesForCategory(category.id);
-
-                          if (categorySubcategories.length > 0) {
-                            return (
-                              <AccordionItem
-                                key={category.id}
-                                value={`category-${category.id}`}
-                                className="border-0 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
-                              >
-                                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-50 rounded-xl">
-                                  <div className="flex items-center justify-between w-full">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                                      <span className={`font-medium ${
-                                        isActiveLink(`/category/${category.slug}`)
-                                          ? "text-red-600"
-                                          : "text-gray-800"
-                                      }`}>
-                                        {category.name}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </AccordionTrigger>
-                                <AccordionContent className="px-4 pb-3">
-                                  <div className="space-y-1 ml-5 pl-3 border-l-2 border-red-100">
-                                    {categorySubcategories.map((subcategory) => (
-                                      <Link
-                                        key={subcategory.id}
-                                        href={`/category/${category.slug}?subcategory=${subcategory.slug}`}
-                                        className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
-                                        onClick={() => {
-                                          setIsMobileMenuOpen(false);
-                                          setTimeout(() => {
-                                            window.location.href = `/category/${category.slug}?subcategory=${subcategory.slug}`;
-                                          }, 100);
-                                        }}
-                                      >
-                                        {subcategory.name}
-                                      </Link>
-                                    ))}
-                                  </div>
-                                </AccordionContent>
-                              </AccordionItem>
-                            );
-                          } else {
-                            return (
-                              <div key={category.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                                <Link
-                                  href={`/category/${category.slug}`}
-                                  className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                                    isActiveLink(`/category/${category.slug}`)
-                                      ? "bg-red-500 text-black shadow-md"
-                                      : "text-gray-700 hover:bg-red-50 hover:text-red-600"
-                                  }`}
-                                  onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                  <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                                  {category.name}
-                                </Link>
-                              </div>
-                            );
-                          }
-                        })}
-                      </Accordion>
-
-                      {/* C. Combo */}
-                      <Link
-                        href="/combo"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                          isActiveLink('/combo')
-                            ? 'bg-red-500 text-black shadow-md'
-                            : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                        }`}
-                      >
-                        Combo
-                      </Link>
-
-                      {/* D. Offer */}
-                      <Link
-                        href="/offers"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                          isActiveLink('/offers')
-                            ? 'bg-red-500 text-black shadow-md'
-                            : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                        }`}
-                      >
-                        Offer
-                      </Link>
-
-                      {/* E. Design Your Beauty Kit */}
-                      <Accordion type="single" collapsible className="w-full space-y-2">
-                        <AccordionItem value="beauty-kit" className="border-0 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                          <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-50 rounded-xl">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                              <span className="font-medium text-gray-800">Design Your Beauty Kit</span>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-4 pb-3">
-                            <div className="space-y-1 ml-5 pl-3 border-l-2 border-red-100">
-                              <Link
-                                href="/beauty-kit/micro"
-                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                              >
-                                Micro
-                              </Link>
-                              <Link
-                                href="/beauty-kit/small"
-                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                              >
-                                Small
-                              </Link>
-                              <Link
-                                href="/beauty-kit/medium"
-                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                              >
-                                Medium
-                              </Link>
-                              <Link
-                                href="/beauty-kit/large"
-                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                              >
-                                Large
-                              </Link>
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
-
-                      {/* F. Contest */}
-                      <Link
-                        href="/contest"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                          isActiveLink('/contest')
-                            ? 'bg-red-500 text-black shadow-md'
-                            : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                        }`}
-                      >
-                        Contest
-                      </Link>
-                    </div>
-
-                    {/* G. Account Section */}
-                    <div className="border-t border-gray-100 bg-gray-50 px-4 py-4">
-                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-3">
-                        Account
-                      </div>
-                      <div className="space-y-2">
-                        {user ? (
-                          <>
-                            {/* My Profile with nested items */}
-                            <Accordion type="single" collapsible className="w-full">
-                              <AccordionItem
-                                key="profile"
-                                value="profile"
-                                className="border-0 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
-                              >
-                                <AccordionTrigger className="px-3 py-3 hover:no-underline hover:bg-gray-50 rounded-xl">
-                                  <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-blue-100 rounded-full">
-                                      <User className="h-4 w-4 text-blue-600" />
-                                    </div>
-                                    <div className="flex-1 text-left">
-                                      <div className="text-sm font-medium text-gray-900">My Profile</div>
-                                      <div className="text-xs text-gray-500">{user.firstName}</div>
-                                    </div>
-                                  </div>
-                                </AccordionTrigger>
-                                <AccordionContent className="px-3 pb-3">
-                                  <div className="space-y-1 ml-5 pl-3 border-l-2 border-blue-100">
-                                    <Link
-                                      href="/profile"
-                                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-                                      onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                      Profile Settings
-                                    </Link>
-                                    {/* Cashback Wallet for all users */}
-                                    <Link
-                                      href="/wallet"
-                                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-                                      onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                      Cashback Wallet
-                                    </Link>
-                                    <Link
-                                      href="/profile?delete=1"
-                                      className="block px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                      onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                      Delete Account
-                                    </Link>
-                                    {isApprovedAffiliate && (
-                                      <Accordion type="single" collapsible className="w-full">
-                                        <AccordionItem value="affiliate" className="border-0">
-                                          <AccordionTrigger className="px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-lg">
-                                            Affiliate Partner
-                                          </AccordionTrigger>
-                                          <AccordionContent className="px-3">
-                                            <div className="space-y-1 ml-3 pl-3 border-l-2 border-blue-100">
-                                              <Link
-                                                href="/affiliate-dashboard"
-                                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                onClick={() => setIsMobileMenuOpen(false)}
-                                              >
-                                                Dashboard
-                                              </Link>
-                                              <Link
-                                                href="/affiliate-wallet"
-                                                className="block px-3 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                onClick={() => setIsMobileMenuOpen(false)}
-                                              >
-                                                Affiliate Partner Wallet
-                                              </Link>
-                                            </div>
-                                          </AccordionContent>
-                                        </AccordionItem>
-                                      </Accordion>
-                                    )}
-                                  </div>
-                                </AccordionContent>
-                              </AccordionItem>
-                            </Accordion>
-
-                            {/* H. Wishlist */}
-                            <Link href="/wishlist" onClick={() => setIsMobileMenuOpen(false)}>
-                              <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
-                                <div className="p-2 bg-pink-100 rounded-full">
-                                  <Heart className="h-4 w-4 text-pink-600" />
-                                </div>
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-gray-900">Wishlist</div>
-                                  <div className="text-xs text-gray-500">
-                                    {wishlistCount} items saved
-                                  </div>
-                                </div>
-                                {wishlistCount > 0 && (
-                                  <span className="bg-pink-100 text-pink-600 px-2 py-1 rounded-full text-xs font-medium">
-                                    {wishlistCount}
-                                  </span>
-                                )}
-                              </div>
-                            </Link>
-
-                            {/* I. Logout */}
-                            <div className="pt-3 mt-3 border-t border-gray-200">
-                              <button
-                                onClick={handleLogout}
-                                className="flex items-center gap-3 px-3 py-3 rounded-xl bg-red-50 hover:bg-red-100 transition-all duration-200 border border-red-100 w-full"
-                              >
-                                <div className="p-2 bg-red-100 rounded-full">
-                                  <LogOut className="h-4 w-4 text-red-600" />
-                                </div>
-                                <div className="flex-1 text-left">
-                                  <div className="text-sm font-medium text-red-700">Logout</div>
-                                  <div className="text-xs text-red-500">Sign out of your account</div>
-                                </div>
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            {/* Sign In when not logged in */}
-                            <Link href="/auth/login" onClick={() => setIsMobileMenuOpen(false)}>
-                              <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
-                                <div className="p-2 bg-blue-100 rounded-full">
-                                  <User className="h-4 w-4 text-blue-600" />
-                                </div>
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-gray-900">Sign In</div>
-                                  <div className="text-xs text-gray-500">Access your account</div>
-                                </div>
-                              </div>
-                            </Link>
-
-                            {/* Wishlist for non-logged in users */}
-                            <Link href="/wishlist" onClick={() => setIsMobileMenuOpen(false)}>
-                              <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100">
-                                <div className="p-2 bg-pink-100 rounded-full">
-                                  <Heart className="h-4 w-4 text-pink-600" />
-                                </div>
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-gray-900">Wishlist</div>
-                                  <div className="text-xs text-gray-500">
-                                    {wishlistCount} items saved
-                                  </div>
-                                </div>
-                                {wishlistCount > 0 && (
-                                  <span className="bg-pink-100 text-pink-600 px-2 py-1 rounded-full text-xs font-medium">
-                                    {wishlistCount}
-                                  </span>
-                                )}
-                              </div>
-                            </Link>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </ScrollArea>
-                  {/* User Actions Section */}
-
-                </SheetContent>
-              </Sheet>
+                  </SheetContentComp>
+                </SheetComp>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-black hover:text-yellow-300 hover:bg-white/20 transition-all duration-300 h-10 w-10"
+                  onClick={async () => {
+                    await loadUi();
+                    setIsMobileMenuOpen(true);
+                  }}
+                  aria-label="Open menu"
+                  title="Open menu"
+                >
+                  <Menu className="h-5 w-5" aria-hidden="true" />
+                </Button>
+              )}
 
               {/* Center - Logo */}
-              <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center">
-                <Link href="/">
-                  <img
-                    src={logo}
-                    alt="POPPIK LIFESTYLE"
-                    className="h-10 w-auto sm:h-12 object-contain hover:scale-105 transition-transform duration-300"
-                    width={240}
-                    height={48}
-                    loading="eager"
-                    decoding="async"
-                    fetchPriority="high"
-                  />
-                </Link>
-              </div>
+              <Link href="/" className="flex-shrink-0">
+                <img
+                  src={logo}
+                  alt="POPPIK LIFESTYLE"
+                  className="h-10 w-auto sm:h-12 object-contain hover:scale-105 transition-transform duration-300"
+                  width={240}
+                  height={48}
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
+                />
+              </Link>
 
               {/* Right - Search & Cart Icons */}
               <div className="flex items-center space-x-2">
@@ -973,33 +758,35 @@ export default function Layout({ children }: LayoutProps) {
               </Link>
 
               {/* Wallet Dropdown */}
-              {user && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+              {user && (canRenderDropdown ? (
+                <DropdownMenuComp>
+                  <DropdownMenuTriggerComp asChild>
                     <Button
                       variant="ghost"
                       size="icon"
                       aria-label="Wallet"
                       title="Wallet"
                       className="h-10 w-10 text-black hover:text-pink-600 hover:bg-white/20 transition-colors focus:outline-none"
+                      onClick={loadUi}
                     >
                       <Wallet className="h-5 w-5" aria-hidden="true" />
 
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-72">
-                    <DropdownMenuLabel className="text-base font-bold flex items-center gap-2">
+                  </DropdownMenuTriggerComp>
+                  <DropdownMenuContentComp align="end" className="w-72">
+                    <DropdownMenuLabelComp className="text-base font-bold flex items-center gap-2">
                       <Wallet className="h-5 w-5 text-gray-600" /> My Wallet
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
+                    </DropdownMenuLabelComp>
+                    <DropdownMenuSeparatorComp />
 
                     {/* Cashback Wallet */}
-                    <DropdownMenuItem asChild>
+                    <DropdownMenuItemComp asChild>
                       <Link href="/wallet">
                         <div className="flex items-center justify-between w-full py-2 cursor-pointer">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                               <Gift className="h-5 w-5 text-blue-600" />
+
                             </div>
                             <div>
                               <p className="font-semibold text-sm">Cashback Wallet</p>
@@ -1011,18 +798,19 @@ export default function Layout({ children }: LayoutProps) {
                           </p>
                         </div>
                       </Link>
-                    </DropdownMenuItem>
+                    </DropdownMenuItemComp>
 
                     {/* Affiliate Wallet - Only show if approved affiliate */}
                     {isApprovedAffiliate && (
                       <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
+                        <DropdownMenuSeparatorComp />
+                        <DropdownMenuItemComp asChild>
                           <Link href="/affiliate-wallet">
                             <div className="flex items-center justify-between w-full py-2 cursor-pointer">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
                                   <IndianRupee className="h-5 w-5 text-purple-600" />
+
                                 </div>
                                 <div>
                                   <p className="font-semibold text-sm">Affiliate Wallet</p>
@@ -1036,15 +824,16 @@ export default function Layout({ children }: LayoutProps) {
                               </p>
                             </div>
                           </Link>
-                        </DropdownMenuItem>
+                        </DropdownMenuItemComp>
                       </>
                     )}
 
-                    <DropdownMenuSeparator />
+                    <DropdownMenuSeparatorComp />
                     <div className="px-2 py-3 bg-gray-50 rounded-md">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-medium text-gray-600">Total Balance</p>
                         <p className="text-lg font-bold text-gray-900">
+
                           ₹{(
                             parseFloat(((walletData as any)?.displayCashbackBalance ?? (walletData as any)?.cashbackBalance ?? "0") as any) +
                             parseFloat(affiliateWallet?.commissionBalance || "0")
@@ -1052,50 +841,80 @@ export default function Layout({ children }: LayoutProps) {
                         </p>
                       </div>
                     </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+                  </DropdownMenuContentComp>
+                </DropdownMenuComp>
+              ) : (
+                <Link href="/wallet" aria-label="Wallet" title="Wallet">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Wallet"
+                    title="Wallet"
+                    className="h-10 w-10 text-black hover:text-pink-600 hover:bg-white/20 transition-colors focus:outline-none"
+                    onClick={loadUi}
+                  >
+                    <Wallet className="h-5 w-5" aria-hidden="true" />
+                  </Button>
+                </Link>
+              ))}
               {user ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                canRenderDropdown ? (
+                  <DropdownMenuComp>
+                    <DropdownMenuTriggerComp asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 text-black hover:text-yellow-700 hover:bg-white/20 transition-all duration-300"
+                        aria-label="My account"
+                        title="My account"
+                        onClick={loadUi}
+                      >
+                        <User className="h-5 w-5" aria-hidden="true" />
+                      </Button>
+                    </DropdownMenuTriggerComp>
+                    <DropdownMenuContentComp align="end" className="w-48">
+                      <DropdownMenuLabelComp>My Account</DropdownMenuLabelComp>
+                      <DropdownMenuSeparatorComp />
+                      <DropdownMenuItemComp asChild>
+                        <Link href="/profile" className="cursor-pointer">
+                          <User className="h-4 w-4 mr-2" />
+                          Profile
+                        </Link>
+                      </DropdownMenuItemComp>
+                      {isApprovedAffiliate && (
+                        <DropdownMenuItemComp asChild>
+                          <Link href="/affiliate-dashboard" className="cursor-pointer">
+                            <Gift className="h-4 w-4 mr-2" />
+                            Affiliate Dashboard
+                          </Link>
+                        </DropdownMenuItemComp>
+                      )}
+                      <DropdownMenuSeparatorComp />
+                      <DropdownMenuItemComp onClick={handleLogout}>
+                        <LogOut className="h-4 w-4 mr-2" />
+                        <span>Sign Out</span>
+                      </DropdownMenuItemComp>
+                    </DropdownMenuContentComp>
+                  </DropdownMenuComp>
+                ) : (
+                  <Link href="/profile" aria-label="My account" title="My account">
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-10 w-10 text-black hover:text-yellow-700 hover:bg-white/20 transition-all duration-300"
                       aria-label="My account"
                       title="My account"
+                      onClick={loadUi}
                     >
                       <User className="h-5 w-5" aria-hidden="true" />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/profile" className="cursor-pointer">
-                        <User className="h-4 w-4 mr-2" />
-                        Profile
-                      </Link>
-                    </DropdownMenuItem>
-                    {isApprovedAffiliate && (
-                      <DropdownMenuItem asChild>
-                        <Link href="/affiliate-dashboard" className="cursor-pointer">
-                          <Gift className="h-4 w-4 mr-2" />
-                          Affiliate Dashboard
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout}>
-                      <LogOut className="h-4 w-4 mr-2" />
-                      <span>Sign Out</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </Link>
+                )
               ) : (
                 <Link href="/auth/login" aria-label="Sign in" title="Sign in">
                   <Button
                     variant="ghost"
+
                     size="icon"
                     className="h-10 w-10 text-black hover:text-yellow-700 hover:bg-white/20 transition-all duration-300"
                     aria-label="Sign in"

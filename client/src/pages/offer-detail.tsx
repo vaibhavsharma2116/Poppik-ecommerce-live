@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { ChevronRight, ShoppingCart, ArrowLeft, Share2, Tag, Clock, Check, Copy, Sparkles, Palette, Star, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import "@/styles/product-media.css";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";

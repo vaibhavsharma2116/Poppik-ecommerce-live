@@ -61,7 +61,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
-          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-accordion', '@radix-ui/react-avatar'],
           'query-vendor': ['@tanstack/react-query'],
         },
         chunkFileNames: 'assets/[name]-[hash].js',
