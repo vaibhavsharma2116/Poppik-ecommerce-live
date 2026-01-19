@@ -18,6 +18,7 @@ RewriteRule . /index.html [L]
 Header set Cache-Control "no-cache, no-store, must-revalidate"
 Header set Pragma "no-cache"
 Header set Expires "0"
+Header set Content-Signal "search=yes,ai-train=no"
 </FilesMatch>
 
 <FilesMatch "\.(?:js|css|png|jpg|jpeg|gif|svg|webp|ico|woff2|woff|ttf|eot|map)$">

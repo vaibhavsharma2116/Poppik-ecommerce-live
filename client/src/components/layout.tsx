@@ -1548,8 +1548,7 @@ export default function Layout({ children }: LayoutProps) {
                 </li>
                 <li>
                   <a
-                    // href="/"
-                    onClick={(e) => e.preventDefault()}
+                    href="https://www.flipkart.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-gray-400 hover:text-white transition-colors text-sm"
@@ -1559,8 +1558,7 @@ export default function Layout({ children }: LayoutProps) {
                 </li>
                 <li>
                   <a
-                    // href="/"
-                    onClick={(e) => e.preventDefault()}
+                    href="https://www.meesho.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-gray-400 hover:text-white transition-colors text-sm"
