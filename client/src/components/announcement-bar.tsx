@@ -132,26 +132,6 @@ export default function AnnouncementBar() {
           {duplicatedText}
         </div>
       </div>
-
-      <style>{`
-        @keyframes scroll-continuous {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
-        }
-        
-        .animate-scroll-continuous {
-          display: inline-block;
-          animation: scroll-continuous 30s linear infinite;
-        }
-        
-        .animate-scroll-continuous:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
     </div>
   );
 }
