@@ -16,6 +16,8 @@ import {
 import type { Category, Subcategory, Product } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import logo from "@/assets/typo_Poppik_Black-01.png";
+import footerlogo from "@/assets/logo.png";
+import whatsapplogo from "@/assets/Untitled_design.png.webp";
 import AnnouncementBar from "@/components/announcement-bar";
 import { Badge } from "@/components/ui/badge";
 import { Gift } from "lucide-react";
@@ -39,11 +41,13 @@ function WhatsAppButton() {
     <div className="fixed bottom-6 right-6 z-50">
       <button
         onClick={handleWhatsAppClick}
-        className="text-white p-3 rounded-full bg-green-500 hover:bg-green-600 transition-colors"
+        className="text-white p-3 rounded-full  transition-colors"
         title="Chat with us on WhatsApp"
         aria-label="Chat with us on WhatsApp"
       >
-        <MessageCircle className="w-7 h-7" aria-hidden="true" />
+
+        <img src={whatsapplogo} className="w-16 h-16 rounded-full object-cover hover:scale-110 transition-transform duration-300" aria-hidden="true"/>
+        {/* <MessageCircle className="w-7 h-7" aria-hidden="true" /> */}
       </button>
     </div>
   );
@@ -1226,7 +1230,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="text-center mb-12">
             <div className="mb-0 flex justify-center">
               <img
-                src={logo}
+                src={footerlogo}
                 alt="POPPIK Logo"
                 className="h-40 w-40 md:h-48 md:w-48 object-contain"
                 loading="lazy"
@@ -1389,12 +1393,8 @@ export default function Layout({ children }: LayoutProps) {
                 <li>
                   <Link href="/terms" className="text-gray-400 hover:text-white transition-colors text-sm">Terms & Condition</Link>
                 </li>
-                <li>
-                  <Link href="/refund" className="text-gray-400 hover:text-white transition-colors text-sm">Return & Refund</Link>
-                </li>
-                <li>
-                  <Link href="/shipping" className="text-gray-400 hover:text-white transition-colors text-sm">Shipping Policy</Link>
-                </li>
+               
+               
               </ul>
             </div>
 
