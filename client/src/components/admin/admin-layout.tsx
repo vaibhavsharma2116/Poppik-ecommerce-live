@@ -351,7 +351,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Check authentication on component mount
   useEffect(() => {
     // Skip auth check if we're on the admin login page
-    if (location === '/admin/auth/admin-login') {
+    if (location === '/auth/admin-login') {
       setIsAuthenticating(false);
       return;
     }
@@ -362,7 +362,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       if (!token || !userStr) {
         console.log('No token or user found, redirecting to admin login');
-        setLocation('/admin/auth/admin-login');
+        setLocation('/auth/admin-login');
         return;
       }
 
@@ -390,7 +390,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           console.log('Token validation failed, redirecting to admin login');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          setLocation('/admin/auth/admin-login');
+          setLocation('/auth/admin-login');
           return;
         }
 
@@ -444,7 +444,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         // On error, remove token and redirect to admin login
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        setLocation('/admin/auth/admin-login');
+        setLocation('/auth/admin-login');
       }
     };
 
@@ -454,7 +454,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
-    setLocation('/admin/auth/admin-login');
+    setLocation('/auth/admin-login');
   };
 
   // Global keyboard shortcut for search

@@ -816,15 +816,7 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
           </div>
 
           {/* Product Tags */}
-          <div className="space-y-2">
-            <Label htmlFor="tags">Tags (comma separated)</Label>
-            <Input
-              id="tags"
-              value={formData.tags}
-              onChange={(e) => handleInputChange('tags', e.target.value)}
-              placeholder="organic, cruelty-free, vegan"
-            />
-          </div>
+         
 
           {/* Shade Selection */}
           {/* <div className="space-y-2">
