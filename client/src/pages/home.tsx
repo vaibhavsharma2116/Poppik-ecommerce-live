@@ -388,245 +388,245 @@ export default function HomePage() {
         </div>
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
-
-
-          {/* Dynamic Categories Grid - Mobile-first Design */}
-          {categoriesLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mb-12 sm:mb-16 md:mb-20">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="space-y-2 sm:space-3 md:space-y-4">
-                  <Skeleton className="aspect-square rounded-2xl sm:rounded-3xl" />
-                  <Skeleton className="h-4 sm:h-5 md:h-6 w-3/4 mx-auto" />
-                  <Skeleton className="h-3 sm:h-4 w-1/2 mx-auto" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="relative">
-              <div
-                id="categories-scroll-container"
-                ref={categoriesScrollRef}
-                className="overflow-x-auto scrollbar-hide pb-4"
-                style={{
-                  WebkitOverflowScrolling: 'touch',
-                  scrollBehavior: 'smooth',
-                  overflowY: 'hidden'
-                }}
-              >
+          <div className="min-h-[420px] sm:min-h-[460px] md:min-h-[500px]">
+            {/* Dynamic Categories Grid - Mobile-first Design */}
+            {categoriesLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mb-12 sm:mb-16 md:mb-20">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-2 sm:space-3 md:space-y-4">
+                    <Skeleton className="aspect-square rounded-2xl sm:rounded-3xl" />
+                    <Skeleton className="h-4 sm:h-5 md:h-6 w-3/4 mx-auto" />
+                    <Skeleton className="h-3 sm:h-4 w-1/2 mx-auto" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="relative mb-12 sm:mb-16 md:mb-20">
                 <div
-                  className="flex gap-4"
+                  id="categories-scroll-container"
+                  ref={categoriesScrollRef}
+                  className="overflow-x-auto scrollbar-hide pb-4"
                   style={{
-                    display: 'flex',
-                    gap: 'clamp(12px, 3vw, 16px)',
-                    paddingLeft: 'clamp(12px, 3vw, 16px)',
-                    paddingRight: 'clamp(12px, 3vw, 16px)',
-                    justifyContent: 'center',
-                    minWidth: 'fit-content',
-                    margin: '0 auto'
+                    WebkitOverflowScrolling: 'touch',
+                    scrollBehavior: 'smooth',
+                    overflowY: 'hidden'
                   }}
                 >
-                  {categories?.map((category, index) => (
-                    <Link
-                      key={category.id}
-                      href={`/category/${category.slug}`}
-                      className="group inline-block flex-shrink-0"
-                      style={{
-                        width: 'clamp(160px, 45vw, 280px)',
-                        minWidth: '160px',
-                        maxWidth: '280px'
-                      }}
-                    >
-                      <div
-                        className="relative bg-white/70 backdrop-blur-md overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105 group-hover:-translate-y-1 border border-white/20"
+                  <div
+                    className="flex gap-4"
+                    style={{
+                      display: 'flex',
+                      gap: 'clamp(12px, 3vw, 16px)',
+                      paddingLeft: 'clamp(12px, 3vw, 16px)',
+                      paddingRight: 'clamp(12px, 3vw, 16px)',
+                      justifyContent: 'center',
+                      minWidth: 'fit-content',
+                      margin: '0 auto'
+                    }}
+                  >
+                    {categories?.map((category, index) => (
+                      <Link
+                        key={category.id}
+                        href={`/category/${category.slug}`}
+                        className="group inline-block flex-shrink-0"
                         style={{
-                          borderRadius: 'clamp(12px, 3vw, 24px)',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                          transition: 'all 0.3s ease'
+                          width: 'clamp(160px, 45vw, 280px)',
+                          minWidth: '160px',
+                          maxWidth: '280px'
                         }}
                       >
                         <div
-                          className="overflow-hidden relative"
+                          className="relative bg-white/70 backdrop-blur-md overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105 group-hover:-translate-y-1 border border-white/20"
                           style={{
-                            aspectRatio: '1',
-                            borderRadius: 'clamp(12px, 3vw, 24px)'
+                            borderRadius: 'clamp(12px, 3vw, 24px)',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            transition: 'all 0.3s ease'
                           }}
                         >
                           <div
-                            className={`relative h-full bg-gradient-to-br ${categoryGradients[category.slug as keyof typeof categoryGradients] || "from-gray-100 to-gray-200"}`}
+                            className="overflow-hidden relative"
+                            style={{
+                              aspectRatio: '1',
+                              borderRadius: 'clamp(12px, 3vw, 24px)'
+                            }}
+                          >
+                            <div
+                              className={`relative h-full bg-gradient-to-br ${categoryGradients[category.slug as keyof typeof categoryGradients] || "from-gray-100 to-gray-200"}`}
+                              style={{
+                                padding: 'clamp(8px, 2vw, 32px)'
+                              }}
+                            >
+                              {/* Decorative Elements - Hidden on mobile for cleaner look */}
+                              <div
+                                className="hidden sm:block absolute bg-white/20 rounded-full blur-sm"
+                                style={{
+                                  top: 'clamp(8px, 2vw, 16px)',
+                                  right: 'clamp(8px, 2vw, 16px)',
+                                  width: 'clamp(12px, 3vw, 32px)',
+                                  height: 'clamp(12px, 3vw, 32px)'
+                                }}
+                              ></div>
+                              <div
+                                className="hidden sm:block absolute bg-white/30 rounded-full blur-sm"
+                                style={{
+                                  bottom: 'clamp(8px, 2vw, 16px)',
+                                  left: 'clamp(8px, 2vw, 16px)',
+                                  width: 'clamp(8px, 2vw, 24px)',
+                                  height: 'clamp(8px, 2vw, 24px)'
+                                }}
+                              ></div>
+
+                              <img
+                                src={
+                                  category.imageUrl ||
+                                  categoryImages[
+                                    category.slug as keyof typeof categoryImages
+                                  ] ||
+                                  "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400"
+                                }
+                                alt={category.name}
+                                className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 bg-white"
+                                width={400}
+                                height={400}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'contain',
+                                  borderRadius: 'clamp(8px, 2vw, 16px)',
+                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                }}
+                              />
+                              <div
+                                className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent group-hover:from-black/5 transition-all duration-300"
+                                style={{
+                                  borderRadius: 'clamp(8px, 2vw, 16px)'
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                          <div
+                            className="text-center relative"
                             style={{
                               padding: 'clamp(8px, 2vw, 32px)'
                             }}
                           >
-                            {/* Decorative Elements - Hidden on mobile for cleaner look */}
-                            <div
-                              className="hidden sm:block absolute bg-white/20 rounded-full blur-sm"
+                            <h3
+                              className="font-bold text-gray-900 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-pink-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-1"
                               style={{
-                                top: 'clamp(8px, 2vw, 16px)',
-                                right: 'clamp(8px, 2vw, 16px)',
-                                width: 'clamp(12px, 3vw, 32px)',
-                                height: 'clamp(12px, 3vw, 32px)'
-                              }}
-                            ></div>
-                            <div
-                              className="hidden sm:block absolute bg-white/30 rounded-full blur-sm"
-                              style={{
-                                bottom: 'clamp(8px, 2vw, 16px)',
-                                left: 'clamp(8px, 2vw, 16px)',
-                                width: 'clamp(8px, 2vw, 24px)',
-                                height: 'clamp(8px, 2vw, 24px)'
-                              }}
-                            ></div>
-
-                            <img
-                              src={
-                                category.imageUrl ||
-                                categoryImages[
-                                  category.slug as keyof typeof categoryImages
-                                ] ||
-                                "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400"
-                              }
-                              alt={category.name}
-                              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 bg-white"
-                              width={400}
-                              height={400}
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'contain',
-                                borderRadius: 'clamp(8px, 2vw, 16px)',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                              }}
-                            />
-                            <div
-                              className="absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent group-hover:from-black/5 transition-all duration-300"
-                              style={{
-                                borderRadius: 'clamp(8px, 2vw, 16px)'
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                        <div
-                          className="text-center relative"
-                          style={{
-                            padding: 'clamp(8px, 2vw, 32px)'
-                          }}
-                        >
-                          <h3
-                            className="font-bold text-gray-900 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-pink-600 group-hover:to-purple-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-1"
-                            style={{
-                              fontSize: 'clamp(0.75rem, 2vw, 1.5rem)',
-                              lineHeight: '1.2',
-                              marginBottom: 'clamp(4px, 1vw, 12px)'
-                            }}
-                          >
-                            {category.name}
-                          </h3>
-                          <div
-                            className="hidden sm:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0"
-                            style={{
-                              fontSize: 'clamp(0.65rem, 1.5vw, 0.875rem)'
-                            }}
-                          >
-                            <span className="font-medium text-gray-700">
-                              Shop Now
-                            </span>
-                            <svg
-                              className="text-gray-700"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              style={{
-                                width: 'clamp(12px, 2vw, 16px)',
-                                height: 'clamp(12px, 2vw, 16px)'
+                                fontSize: 'clamp(0.75rem, 2vw, 1.5rem)',
+                                lineHeight: '1.2',
+                                marginBottom: 'clamp(4px, 1vw, 12px)'
                               }}
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M17 8l4 4m0 0l-4 4m4-4H3"
-                              />
-                            </svg>
+                              {category.name}
+                            </h3>
+                            <div
+                              className="hidden sm:flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0"
+                              style={{
+                                fontSize: 'clamp(0.65rem, 1.5vw, 0.875rem)'
+                              }}
+                            >
+                              <span className="font-medium text-gray-700">
+                                Shop Now
+                              </span>
+                              <svg
+                                className="text-gray-700"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                style={{
+                                  width: 'clamp(12px, 2vw, 16px)',
+                                  height: 'clamp(12px, 2vw, 16px)'
+                                }}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M17 8l4 4m0 0l-4 4m4-4H3"
+                                />
+                              </svg>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Navigation Buttons */}
+                {categories && categories.length > 4 && (
+                  <>
+                    <button
+                      onClick={() => {
+                        const container = categoriesScrollRef.current;
+                        if (container) {
+                          const scrollAmount = window.innerWidth < 640 ? 160 : 300;
+                          window.requestAnimationFrame(() => {
+                            container.scrollBy({
+                              left: -scrollAmount,
+                              behavior: 'smooth'
+                            });
+                          });
+                        }
+                      }}
+                      className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full transition-all duration-200 hidden sm:flex items-center justify-center"
+                      style={{
+                        padding: 'clamp(8px, 2vw, 12px)'
+                      }}
+                      aria-label="Scroll left"
+                    >
+                      <svg
+                        className="text-gray-800"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        style={{
+                          width: 'clamp(20px, 4vw, 24px)',
+                          height: 'clamp(20px, 4vw, 24px)'
+                        }}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const container = categoriesScrollRef.current;
+                        if (container) {
+                          const scrollAmount = window.innerWidth < 640 ? 160 : 300;
+                          window.requestAnimationFrame(() => {
+                            container.scrollBy({
+                              left: scrollAmount,
+                              behavior: 'smooth'
+                            });
+                          });
+                        }
+                      }}
+                      className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full transition-all duration-200 hidden sm:flex items-center justify-center"
+                      style={{
+                        padding: 'clamp(8px, 2vw, 12px)'
+                      }}
+                      aria-label="Scroll right"
+                    >
+                      <svg
+                        className="text-gray-800"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        style={{
+                          width: 'clamp(20px, 4vw, 24px)',
+                          height: 'clamp(20px, 4vw, 24px)'
+                        }}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </>
+                )}
               </div>
-
-              {/* Navigation Buttons */}
-              {categories && categories.length > 4 && (
-                <>
-                  <button
-                    onClick={() => {
-                      const container = categoriesScrollRef.current;
-                      if (container) {
-                        const scrollAmount = window.innerWidth < 640 ? 160 : 300;
-                        window.requestAnimationFrame(() => {
-                          container.scrollBy({
-                            left: -scrollAmount,
-                            behavior: 'smooth'
-                          });
-                        });
-                      }
-                    }}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full transition-all duration-200 hidden sm:flex items-center justify-center"
-                    style={{
-                      padding: 'clamp(8px, 2vw, 12px)'
-                    }}
-                    aria-label="Scroll left"
-                  >
-                    <svg
-                      className="text-gray-800"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      style={{
-                        width: 'clamp(20px, 4vw, 24px)',
-                        height: 'clamp(20px, 4vw, 24px)'
-                      }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const container = categoriesScrollRef.current;
-                      if (container) {
-                        const scrollAmount = window.innerWidth < 640 ? 160 : 300;
-                        window.requestAnimationFrame(() => {
-                          container.scrollBy({
-                            left: scrollAmount,
-                            behavior: 'smooth'
-                          });
-                        });
-                      }
-                    }}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white shadow-lg rounded-full transition-all duration-200 hidden sm:flex items-center justify-center"
-                    style={{
-                      padding: 'clamp(8px, 2vw, 12px)'
-                    }}
-                    aria-label="Scroll right"
-                  >
-                    <svg
-                      className="text-gray-800"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      style={{
-                        width: 'clamp(20px, 4vw, 24px)',
-                        height: 'clamp(20px, 4vw, 24px)'
-                      }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Bestsellers Section - First */}
           <div className="space-y-8 sm:space-y-12">
@@ -656,11 +656,11 @@ export default function HomePage() {
                   </div>
                   <div className="h-20" />
                 </div>
-              ) : bestsellers && bestsellers.length > 0 ? (
+              ) : bestsellers && bestsellers.filter((product) => product.inStock === true).length > 0 ? (
                 <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {bestsellers.slice(0, 4).map((product) => (
+                      {bestsellers.filter((product) => product.inStock === true).slice(0, 4).map((product) => (
                         <ProductCard
                           key={product.id}
                           product={product}
@@ -674,7 +674,7 @@ export default function HomePage() {
                     <Link href="/products?filter=bestsellers">
                       <Button className="font-poppins bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                         <span>
-                          View All Bestsellers ({bestsellers?.length || 0})
+                          View All Bestsellers ({bestsellers.filter((product) => product.inStock === true).length || 0})
                         </span>
                         <svg
                           className="w-4 h-4"
@@ -744,11 +744,11 @@ export default function HomePage() {
                   </div>
                   <div className="h-20" />
                 </div>
-              ) : featured && featured.length > 0 ? (
+              ) : featured && featured.filter((product) => product.inStock === true).length > 0 ? (
                 <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {featured.slice(0, 4).map((product) => (
+                      {featured.filter((product) => product.inStock === true).slice(0, 4).map((product) => (
                         <ProductCard
                           key={product.id}
                           product={product}
@@ -762,7 +762,7 @@ export default function HomePage() {
                     <Link href="/products?filter=featured">
                       <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                         <span>
-                          View All Products  ({featured?.length || 0})
+                          View All Products  ({featured.filter((product) => product.inStock === true).length || 0})
                         </span>
                         <svg
                           className="w-4 h-4"
@@ -830,11 +830,11 @@ export default function HomePage() {
                   </div>
                   <div className="h-20" />
                 </div>
-              ) : newArrivals && newArrivals.length > 0 ? (
+              ) : newArrivals && newArrivals.filter((product) => product.inStock === true).length > 0 ? (
                 <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {newArrivals.slice(0, 4).map((product) => (
+                      {newArrivals.filter((product) => product.inStock === true).slice(0, 4).map((product) => (
                         <ProductCard
                           key={product.id}
                           product={product}
@@ -848,7 +848,7 @@ export default function HomePage() {
                     <Link href="/products?filter=newLaunches">
                       <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                         <span>
-                          View All New Launches ({newArrivals?.length || 0})
+                          View All New Launches ({newArrivals.filter((product) => product.inStock === true).length || 0})
                         </span>
                         <svg
                           className="w-4 h-4"
