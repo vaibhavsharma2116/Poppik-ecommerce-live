@@ -656,11 +656,11 @@ export default function HomePage() {
                   </div>
                   <div className="h-20" />
                 </div>
-              ) : bestsellers && bestsellers.length > 0 ? (
+              ) : bestsellers && bestsellers.filter((product) => product.inStock === true).length > 0 ? (
                 <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {bestsellers.slice(0, 4).map((product) => (
+                      {bestsellers.filter((product) => product.inStock === true).slice(0, 4).map((product) => (
                         <ProductCard
                           key={product.id}
                           product={product}
@@ -674,7 +674,7 @@ export default function HomePage() {
                     <Link href="/products?filter=bestsellers">
                       <Button className="font-poppins bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                         <span>
-                          View All Bestsellers ({bestsellers?.length || 0})
+                          View All Bestsellers ({bestsellers.filter((product) => product.inStock === true).length || 0})
                         </span>
                         <svg
                           className="w-4 h-4"
@@ -744,11 +744,11 @@ export default function HomePage() {
                   </div>
                   <div className="h-20" />
                 </div>
-              ) : featured && featured.length > 0 ? (
+              ) : featured && featured.filter((product) => product.inStock === true).length > 0 ? (
                 <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {featured.slice(0, 4).map((product) => (
+                      {featured.filter((product) => product.inStock === true).slice(0, 4).map((product) => (
                         <ProductCard
                           key={product.id}
                           product={product}
@@ -762,7 +762,7 @@ export default function HomePage() {
                     <Link href="/products?filter=featured">
                       <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                         <span>
-                          View All Products  ({featured?.length || 0})
+                          View All Products  ({featured.filter((product) => product.inStock === true).length || 0})
                         </span>
                         <svg
                           className="w-4 h-4"
@@ -830,11 +830,11 @@ export default function HomePage() {
                   </div>
                   <div className="h-20" />
                 </div>
-              ) : newArrivals && newArrivals.length > 0 ? (
+              ) : newArrivals && newArrivals.filter((product) => product.inStock === true).length > 0 ? (
                 <div className="px-2 sm:px-4 h-[650px] flex flex-col">
                   <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {newArrivals.slice(0, 4).map((product) => (
+                      {newArrivals.filter((product) => product.inStock === true).slice(0, 4).map((product) => (
                         <ProductCard
                           key={product.id}
                           product={product}
@@ -848,7 +848,7 @@ export default function HomePage() {
                     <Link href="/products?filter=newLaunches">
                       <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                         <span>
-                          View All New Launches ({newArrivals?.length || 0})
+                          View All New Launches ({newArrivals.filter((product) => product.inStock === true).length || 0})
                         </span>
                         <svg
                           className="w-4 h-4"
