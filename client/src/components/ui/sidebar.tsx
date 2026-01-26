@@ -547,6 +547,8 @@ const SidebarMenuButton = React.forwardRef<
     asChild?: boolean
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
+    variant?: "default" | "outline"
+    size?: "default" | "sm" | "lg"
   } & VariantProps<typeof sidebarMenuButtonVariants>
 >(
   (
@@ -570,7 +572,7 @@ const SidebarMenuButton = React.forwardRef<
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
-        className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+        className={cn(sidebarMenuButtonVariants({ variant, size } as any), className)}
         {...props}
       />
     )

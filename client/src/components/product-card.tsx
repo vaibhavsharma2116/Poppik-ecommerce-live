@@ -293,7 +293,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
           <div className="space-y-3">
             <div className="flex items-center justify-between bg-white/70 backdrop-blur-sm rounded-lg p-2 border border-pink-100">
               <div className="star-rating">
-                {renderStars(parseFloat(product.rating))}
+                {renderStars(Number((product as any).rating || 0))}
               </div>
               <span className="text-gray-700 text-sm font-semibold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">{product.rating}</span>
             </div>
@@ -464,7 +464,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       <div className="mobile-product-content p-2 sm:p-3 md:p-4 lg:p-5 space-y-1 sm:space-y-2 md:space-y-3 bg-white">
         <div className="flex items-center justify-between bg-white rounded-lg p-2">
           <div className="star-rating">
-            {renderStars(parseFloat(product.rating))}
+            {renderStars(Number((product as any).rating || 0))}
           </div>
           <span className="text-gray-700 text-xs sm:text-sm font-bold bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">{product.rating}</span>
         </div>

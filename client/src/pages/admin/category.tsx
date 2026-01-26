@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Pencil, Trash2, Eye, Layers, Tag, FolderOpen, Package, TrendingUp, ImageIcon, X, Search, Edit } from "lucide-react";
-import type { Category, Subcategory } from "@/lib/types";
 import { AlertDialog, AlertDialogFooter, AlertDialogHeader } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@radix-ui/react-alert-dialog';
@@ -58,6 +57,8 @@ export default function AdminCategories() {
   const [activeTab, setActiveTab] = useState('categories');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<Subcategory | null>(null);
+
+  // Modals
   const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
   const [isAddSubcategoryModalOpen, setIsAddSubcategoryModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -146,7 +147,7 @@ export default function AdminCategories() {
 
   // Category mutations
   const createCategoryMutation = useMutation({
-    mutationFn: async (category: Omit<Category, 'id' | 'productCount'>) => {
+    mutationFn: async (category: Omit<Category, 'id' | 'productCount' | 'createdAt' | 'updatedAt'>) => {
       const response = await fetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -215,7 +216,7 @@ export default function AdminCategories() {
 
   // Subcategory mutations
   const createSubcategoryMutation = useMutation({
-    mutationFn: async (subcategory: Omit<Subcategory, 'id' | 'productCount'>) => {
+    mutationFn: async (subcategory: Omit<Subcategory, 'id' | 'productCount' | 'createdAt' | 'updatedAt'>) => {
       console.log('Creating subcategory:', subcategory);
       const response = await fetch('/api/subcategories', {
         method: 'POST',
@@ -294,19 +295,19 @@ export default function AdminCategories() {
     }
   });
 
-  const [categoryFormData, setCategoryFormData] = useState({
+  const [categoryFormData, setCategoryFormData] = useState<{ name: string; slug: string; description: string; status: 'Active' | 'Inactive' }>({
     name: '',
     slug: '',
     description: '',
-    status: 'Active' as const
+    status: 'Active'
   });
 
-  const [subcategoryFormData, setSubcategoryFormData] = useState({
+  const [subcategoryFormData, setSubcategoryFormData] = useState<{ name: string; slug: string; description: string; categoryId: string; status: 'Active' | 'Inactive' }>({
     name: '',
     slug: '',
     description: '',
     categoryId: '',
-    status: 'Active' as const
+    status: 'Active'
   });
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -1011,7 +1012,7 @@ export default function AdminCategories() {
       </Tabs>
 
       {/* Add/Edit Category Modal */}
-      <Dialog open={isAddCategoryModalOpen || (isEditModalOpen && editingCategory)} onOpenChange={(open) => {
+      <Dialog open={isAddCategoryModalOpen || Boolean(isEditModalOpen && editingCategory)} onOpenChange={(open) => {
         if (!open) {
           setIsAddCategoryModalOpen(false);
           setIsEditModalOpen(false);
@@ -1154,7 +1155,7 @@ export default function AdminCategories() {
       </Dialog>
 
       {/* Add/Edit Subcategory Modal */}
-      <Dialog open={isAddSubcategoryModalOpen || (isEditModalOpen && editingSubcategory)} onOpenChange={(open) => {
+      <Dialog open={isAddSubcategoryModalOpen || Boolean(isEditModalOpen && editingSubcategory)} onOpenChange={(open) => {
         if (!open) {
           setIsAddSubcategoryModalOpen(false);
           setIsEditModalOpen(false);

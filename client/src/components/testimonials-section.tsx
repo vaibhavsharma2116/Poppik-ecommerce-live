@@ -126,11 +126,9 @@ export default function TestimonialsSection() {
                         style={{
                           width: isCenter ? 150 : 120,
                           height: isCenter ? 150 : 120,
-                          quality: 75,
-                          fit: 'cover'
-                        }}
-                        lazy={true}
-                        responsive={false}
+                          ...( { quality: 75, fit: 'cover' } as any)
+                        } as any}
+                        loading="lazy"
                         className="object-cover"
                       />
                     ) : (

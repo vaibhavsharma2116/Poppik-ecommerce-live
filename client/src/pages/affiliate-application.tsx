@@ -171,7 +171,7 @@ function CombosList({ affiliateCode, copyAffiliateLink }: { affiliateCode: strin
 }
 
 // Beauty Kits List Component
-function BeautyKitsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: string; copyAffiliateLink: (kitId?: string) => void }) {
+function BeautyKitsList({ affiliateCode, copyAffiliateLink }: { affiliateCode: string; copyAffiliateLink: (kitId?: string | number) => void }) {
   const beautyKits = [
     {
       id: 'micro',

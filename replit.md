@@ -65,7 +65,7 @@ Preferred communication style: Simple, everyday language.
 
 **Key Services**
 - **OTP Service**: SMS-based verification using MDSSEND.IN gateway
-- **Shiprocket Integration**: Order fulfillment and shipping management
+- **iThink Logistics Integration**: Order fulfillment and shipping management
 - **Push Notifications**: Web Push API with VAPID keys
 - **Email Service**: Nodemailer for transactional emails
 
@@ -137,7 +137,7 @@ Preferred communication style: Simple, everyday language.
 - WhatsApp Business integration (link-based)
 
 **Shipping & Logistics**
-- Shiprocket API for order fulfillment
+- iThink Logistics API for order fulfillment
 
 **Cloud & Infrastructure**
 - Replit Object Storage (@replit/object-storage)

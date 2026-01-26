@@ -31,8 +31,8 @@ export const products = pgTable("products", {
   discount: numeric('discount', { precision: 10, scale: 2 }), // Discount percentage
   cashbackPercentage: numeric('cashback_percentage', { precision: 5, scale: 2 }), // Cashback percentage
   cashbackPrice: numeric('cashback_price', { precision: 10, scale: 2 }), // Auto-calculated cashback amount
-    affiliateCommission: numeric('affiliate_commission', { precision: 5, scale: 2 }).default(0), // commission % for affiliates on this product
-  affiliateUserDiscount: numeric('affiliate_user_discount', { precision: 5, scale: 2 }).default(0), // discount % given to customer when affiliate code used
+    affiliateCommission: numeric('affiliate_commission', { precision: 5, scale: 2 }).default("0"), // commission % for affiliates on this product
+  affiliateUserDiscount: numeric('affiliate_user_discount', { precision: 5, scale: 2 }).default("0"), // discount % given to customer when affiliate code used
   category: text('category').notNull(),
   subcategory: text("subcategory"),
   imageUrl: text("image_url").notNull(),
@@ -78,15 +78,15 @@ export const subcategories = pgTable("subcategories", {
 
 export const insertProductSchema = createInsertSchema(products).omit({
   id: true,
-});
+} as any);
 
 export const insertCategorySchema = createInsertSchema(categories).omit({
   id: true,
-});
+} as any);
 
 export const insertSubcategorySchema = createInsertSchema(subcategories).omit({
   id: true,
-});
+} as any);
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -113,8 +113,8 @@ export const ordersTable = pgTable("orders", {
   deliveryInstructions: text("delivery_instructions"),
   saturdayDelivery: boolean("saturday_delivery").default(true),
   sundayDelivery: boolean("sunday_delivery").default(true),
-  shiprocketOrderId: integer("shiprocket_order_id"),
-  shiprocketShipmentId: integer("shiprocket_shipment_id"),
+  ithinkOrderId: integer("ithink_order_id"),
+  ithinkShipmentId: integer("ithink_shipment_id"),
   paymentSessionId: varchar("payment_session_id", { length: 255 }),
   paymentId: varchar("payment_id", { length: 255 }),
   cashfreeOrderId: varchar("cashfree_order_id", { length: 255 }),
@@ -454,8 +454,8 @@ export const combos = pgTable("combos", {
   howToUse: text("how_to_use"),
   cashbackPercentage: numeric("cashback_percentage", { precision: 5, scale: 2 }),
   cashbackPrice: numeric("cashback_price", { precision: 10, scale: 2 }),
-  affiliateCommission: numeric('affiliate_commission', { precision: 5, scale: 2 }).default(0), // commission % for affiliates on this combo
-  affiliateUserDiscount: numeric('affiliate_user_discount', { precision: 5, scale: 2 }).default(0), // discount % given to customer when affiliate code used on combo
+  affiliateCommission: numeric('affiliate_commission', { precision: 5, scale: 2 }).default("0"), // commission % for affiliates on this combo
+  affiliateUserDiscount: numeric('affiliate_user_discount', { precision: 5, scale: 2 }).default("0"), // discount % given to customer when affiliate code used on combo
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -586,8 +586,8 @@ export const offers = pgTable("offers", {
   discountText: varchar("discount_text", { length: 100 }),
   cashbackPercentage: numeric("cashback_percentage", { precision: 5, scale: 2 }), // Cashback percentage
   cashbackPrice: numeric("cashback_price", { precision: 10, scale: 2 }), // Auto-calculated cashback amount
-  affiliateCommission: numeric('affiliate_commission', { precision: 5, scale: 2 }).default(0), // commission % for affiliates on this offer
-  affiliateUserDiscount: numeric('affiliate_user_discount', { precision: 5, scale: 2 }).default(0), // discount % given to customer when affiliate code used on offer
+  affiliateCommission: numeric('affiliate_commission', { precision: 5, scale: 2 }).default("0"), // commission % for affiliates on this offer
+  affiliateUserDiscount: numeric('affiliate_user_discount', { precision: 5, scale: 2 }).default("0"), // discount % given to customer when affiliate code used on offer
   validFrom: timestamp("valid_from", { mode: "date" }).notNull(),
   validUntil: timestamp("valid_until", { mode: "date" }).notNull(),
   linkUrl: text("link_url"),
@@ -776,11 +776,11 @@ export type InsertCartItem = typeof cartItemsTable.$inferInsert;
 export const insertCartItemSchema = createInsertSchema(cartItemsTable).omit({
   id: true,
   userId: true, // User ID is handled by authentication
-});
+} as any);
 export const selectCartItemSchema = createSelectSchema(cartItemsTable);
 
 // Updated CartItem interface to include offer details
-interface CartItem {
+interface CartItemUI {
   id: number;
   name: string;
   price: string;
@@ -807,7 +807,6 @@ interface CartItem {
   isOfferItem?: boolean;
   itemKey?: string;
 }
-
 
 // Delivery Addresses Table
 export const deliveryAddresses = pgTable("delivery_addresses", {
@@ -892,7 +891,7 @@ export type InsertMediaLink = typeof mediaLinks.$inferInsert;
 
 export const insertMediaLinkSchema = createInsertSchema(mediaLinks).omit({
   id: true,
-});
+} as any);
 
 // Contests Table
 export const contests = pgTable("contests", {
@@ -916,7 +915,7 @@ export type InsertContest = typeof contests.$inferInsert;
 
 export const insertContestSchema = createInsertSchema(contests).omit({
   id: true,
-});
+} as any);
 export const selectContestSchema = createSelectSchema(contests);
 export const selectMediaLinkSchema = createSelectSchema(mediaLinks);
 export const influencerVideos = pgTable("influencer_videos", {
@@ -1008,10 +1007,10 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
 
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;
-export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true });
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true } as any);
 export const selectPushSubscriptionSchema = createSelectSchema(pushSubscriptions);
 
-
+// Admin Activity Logs Table
 export const adminActivityLogs = pgTable("admin_activity_logs", {
   id: serial("id").primaryKey(),
   adminId: integer("admin_id").notNull().references(() => users.id),

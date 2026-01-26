@@ -38,7 +38,7 @@ export default function AdminInfluencerApplications() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: applications = [], isLoading } = useQuery({
+  const { data: applications = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/influencer-applications'],
   });
 

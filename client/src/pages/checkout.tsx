@@ -462,7 +462,7 @@ export default function CheckoutPage() {
   const [loadingShipping, setLoadingShipping] = useState(false);
 
   // Delivery partner state
-  const [deliveryPartner, setDeliveryPartner] = useState<string>("SHIPROCKET");
+  const [deliveryPartner, setDeliveryPartner] = useState<string>("ITHINK");
   const [deliveryType, setDeliveryType] = useState<string | null>(null);
   const [pincodeMessage, setPincodeMessage] = useState<string | null>(null);
   const [checkingPincode, setCheckingPincode] = useState(false);
@@ -1129,17 +1129,17 @@ export default function CheckoutPage() {
 
   // Check pincode serviceability when zipCode changes
   useEffect(() => {
+    let cancelled = false;
     const checkPincode = async () => {
       if (formData.zipCode && formData.zipCode.length === 6 && /^\d{6}$/.test(formData.zipCode)) {
         setCheckingPincode(true);
+
         try {
           const response = await fetch(apiUrl(`/api/check-pincode?pincode=${formData.zipCode}`));
-          
           if (response.ok) {
             const data = await response.json();
-            
             if (data.available) {
-              setDeliveryPartner("SHIPROCKET");
+              setDeliveryPartner("ITHINK");
               setDeliveryType(null);
               setPincodeMessage(null);
             } else {
@@ -1160,17 +1160,20 @@ export default function CheckoutPage() {
           setDeliveryType("MANUAL");
           setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days.");
         } finally {
-          setCheckingPincode(false);
+          if (!cancelled) setCheckingPincode(false);
         }
       } else {
         // Reset when pincode is invalid or empty
-        setDeliveryPartner("SHIPROCKET");
+        setDeliveryPartner("ITHINK");
         setDeliveryType(null);
         setPincodeMessage(null);
       }
     };
 
     checkPincode();
+    return () => {
+      cancelled = true;
+    };
   }, [formData.zipCode]);
 
   // Fetch shipping cost when zipCode or paymentMethod changes
@@ -1183,7 +1186,7 @@ export default function CheckoutPage() {
           const isCOD = formData.paymentMethod === 'cod';
 
           const response = await fetch(
-            `/api/shiprocket/serviceability?deliveryPincode=${formData.zipCode}&weight=${weight}&cod=${isCOD}`
+            `/api/ithink/serviceability?deliveryPincode=${formData.zipCode}&weight=${weight}&cod=${isCOD}`
           );
 
           if (response.ok) {
@@ -2541,8 +2544,8 @@ export default function CheckoutPage() {
           deliveryInstructions: formData.deliveryInstructions, // Include general delivery instructions
           saturdayDelivery: formData.saturdayDelivery, // Include weekend delivery preferences
           sundayDelivery: formData.sundayDelivery,   // Include weekend delivery preferences
-          deliveryPartner: deliveryPartner, // Shiprocket or INDIA_POST
-          deliveryType: deliveryType, // MANUAL for India Post, null for Shiprocket
+          deliveryPartner: deliveryPartner, // ITHINK or INDIA_POST
+          deliveryType: deliveryType, // MANUAL for India Post, null for ITHINK
           items: itemsData,
           customerName: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
           customerEmail: formData.email.trim(),

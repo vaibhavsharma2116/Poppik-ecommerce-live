@@ -23,6 +23,9 @@ interface ComboProduct {
   reviewCount: number;
   cashbackPercentage?: number; // Added for cashback
   cashbackPrice?: number;      // Added for cashback
+  affiliateCommission?: string | number;
+  affiliateUserDiscount?: string | number;
+  inStock?: boolean;
 }
 
 export default function ComboPage() {
@@ -37,7 +40,7 @@ export default function ComboPage() {
     if (savedWishlist) {
       try {
         const parsedWishlist = JSON.parse(savedWishlist);
-        const wishlistIds = new Set(parsedWishlist.map((item: any) => item.id));
+        const wishlistIds = new Set<number>(parsedWishlist.map((item: any) => Number(item.id)).filter((id: number) => !Number.isNaN(id)));
         setWishlist(wishlistIds);
       } catch (error) {
         console.error("Error loading wishlist:", error);
@@ -49,8 +52,7 @@ export default function ComboPage() {
     queryKey: ["/api/combos"],
   });
 
-
- const getPrimaryImage = (combo: any) => {
+  const getPrimaryImage = (combo: any) => {
     if (!combo) return null;
     if (Array.isArray(combo.imageUrl) && combo.imageUrl.length) return combo.imageUrl[0];
     if (Array.isArray(combo.imageUrls) && combo.imageUrls.length) return combo.imageUrls[0];
@@ -66,7 +68,7 @@ export default function ComboPage() {
     return null;
   };
 
- const { data: comboSliders = [], isLoading: slidersLoading, refetch } = useQuery<[]>({
+  const { data: comboSliders = [], isLoading: slidersLoading, refetch } = useQuery<any[]>({
     queryKey: ['/api/admin/combo-sliders'],
     queryFn: async () => {
       const timestamp = Date.now();
@@ -88,12 +90,13 @@ export default function ComboPage() {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
+
   // Helper function to check if combo has single product and if any products have shades
   const checkComboProductInfo = async (combo: ComboProduct) => {
     try {
       const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products || [];
       const isSingleProduct = Array.isArray(products) && products.length === 1;
-      
+
       // Check if any product in the combo has shades
       let anyProductHasShades = false;
       if (Array.isArray(products)) {
@@ -116,7 +119,7 @@ export default function ComboPage() {
           }
         }
       }
-      
+
       setComboProductInfo(prev => new Map(prev).set(combo.id, { isSingleProduct, hasShades: anyProductHasShades }));
       return { isSingleProduct, hasShades: anyProductHasShades };
     } catch (e) {
@@ -138,14 +141,14 @@ export default function ComboPage() {
 
     const cart = JSON.parse(localStorage.getItem("cart") || "[]");
     const existingItem = cart.find((cartItem: any) => cartItem.id === combo.id);
-console.log("VCVVVVVV",combo)
+
     // Parse prices to ensure they are numbers for calculations
     const price = typeof combo.price === 'string' ? parseFloat(combo.price.replace(/[^0-9.-]+/g,"")) : combo.price;
     const originalPrice = typeof combo.originalPrice === 'string' ? parseFloat(combo.originalPrice.replace(/[^0-9.-]+/g,"")) : combo.originalPrice;
 
     // Get affiliate percentages from combo data
-    const affiliateCommissionPercentage = parseFloat(combo.affiliateCommission || '0');
-    const affiliateUserDiscountPercentage = parseFloat(combo.affiliateUserDiscount || '0');
+    const affiliateCommissionPercentage = parseFloat(String(combo.affiliateCommission ?? '0'));
+    const affiliateUserDiscountPercentage = parseFloat(String(combo.affiliateUserDiscount ?? '0'));
 
     // Calculate actual values based on combo price
     const affiliateCommissionAmount = (price * affiliateCommissionPercentage) / 100;
@@ -253,7 +256,11 @@ console.log("VCVVVVVV",combo)
           isCombo: true,
         };
         wishlist.push(wishlistItem);
-        setWishlist(prev => new Set([...prev, combo.id]));
+        setWishlist(prev => {
+          const next = new Set(prev);
+          next.add(combo.id);
+          return next;
+        });
         toast({
           title: "Added to Wishlist",
           description: `${combo.name} has been added to your wishlist`,

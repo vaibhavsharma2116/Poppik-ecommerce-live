@@ -251,7 +251,6 @@ export async function showTestNotification(): Promise<void> {
       body: "You've successfully enabled notifications from Poppik!",
       icon: "/favicon.png",
       badge: "/favicon.png",
-      image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
       tag: "poppik-test",
       requireInteraction: false,
       vibrate: [200, 100, 200],
@@ -271,6 +270,9 @@ export async function showTestNotification(): Promise<void> {
       data: {
         url: "/offer",
       },
+      ...( {
+        image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400",
+      } as any),
     };
 
     await swRegistration.showNotification("Welcome to Poppik!", options);

@@ -185,8 +185,6 @@ export interface IStorage {
 
   // Featured Sections Management Functions
 
-  deleteFeaturedSection(id: number): Promise<boolean>;
-
   // Blog Categories
   getBlogCategories(): Promise<BlogCategory[]>; // Changed from any[] to BlogCategory[]
   createBlogCategory(categoryData: InsertBlogCategory): Promise<BlogCategory>; // Changed from any to InsertBlogCategory and BlogCategory
@@ -257,8 +255,6 @@ export class DatabaseStorage implements IStorage {
     // Database connection is handled by the singleton instance above
   }
 
-
-
   // Users
   async getUser(id: number): Promise<User | undefined> {
     const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
@@ -287,7 +283,7 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Missing required fields: firstName, lastName, and password are required");
       }
 
-      const [user] = await this.db.insert(users).values({
+      const userRows = (await this.db.insert(users).values({
         firstName: userData.firstName,
         lastName: userData.lastName,
         email: userData.email || null,
@@ -302,7 +298,8 @@ export class DatabaseStorage implements IStorage {
         role: (userData.role || 'user').toString().trim().toLowerCase(),
         createdAt: new Date(),
         updatedAt: new Date()
-      }).returning();
+      }).returning()) as any[];
+      const user = userRows?.[0];
       console.log("Storage: User created successfully with ID:", user.id);
       return user;
     } catch (error: any) {
@@ -338,8 +335,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: number): Promise<boolean> {
-    const result = await this.db.delete(users).where(eq(users.id, id)).returning();
-    return result.length > 0;
+    const rows = (await this.db.delete(users).where(eq(users.id, id)).returning()) as any[];
+    return rows.length > 0;
   }
 
   // Products
@@ -562,12 +559,13 @@ export class DatabaseStorage implements IStorage {
       console.log("Inserting product data:", finalProductData);
       const result = await this.db.insert(products).values(finalProductData).returning();
 
-      if (!result || result.length === 0) {
+      const rows = result as any[];
+      if (!rows || rows.length === 0) {
         throw new Error("Product was not created - no result returned");
       }
 
-      console.log("Product created successfully:", result[0]);
-      return result[0];
+      console.log("Product created successfully:", rows[0]);
+      return rows[0];
     } catch (error: any) {
       console.error("Error creating product:", error);
 
@@ -623,13 +621,14 @@ export class DatabaseStorage implements IStorage {
         affiliateUserDiscount: productData.affiliateUserDiscount !== undefined ? (productData.affiliateUserDiscount ? parseFloat(productData.affiliateUserDiscount.toString()) : 0) : undefined,
       };
 
-      const [updatedProduct] = await this.db
+      const result = await this.db
         .update(products)
         .set(updateData)
         .where(eq(products.id, id))
         .returning();
 
-      return updatedProduct || null;
+      const rows = result as any[];
+      return rows[0] || null;
     } catch (error) {
       console.error("Error updating product:", error);
       throw error;
@@ -677,11 +676,12 @@ export class DatabaseStorage implements IStorage {
 
       // Delete the product
       const result = await this.db.delete(products).where(eq(products.id, id)).returning();
-      const success = result.length > 0;
+      const rows = result as any[];
+      const success = rows.length > 0;
 
       if (success) {
-        console.log(`Successfully deleted product ${id} from database. Deleted ${result.length} rows.`);
-        console.log(`Deleted product details:`, result[0]);
+        console.log(`Successfully deleted product ${id} from database. Deleted ${rows.length} rows.`);
+        console.log(`Deleted product details:`, rows[0]);
       } else {
         console.log(`Failed to delete product ${id} - no rows affected`);
       }
@@ -726,12 +726,13 @@ export class DatabaseStorage implements IStorage {
 
       const result = await this.db.insert(categories).values(category).returning();
 
-      if (!result || result.length === 0) {
+      const rows = result as any[];
+      if (!rows || rows.length === 0) {
         throw new Error("Failed to insert category into database");
       }
 
-      console.log("Category created successfully:", result[0]);
-      return result[0];
+      console.log("Category created successfully:", rows[0]);
+      return rows[0];
     } catch (error) {
       console.error("Error creating category:", error);
 
@@ -752,8 +753,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCategory(id: number): Promise<boolean> {
-    const result = await this.db.delete(categories).where(eq(categories.id, id)).returning();
-    return result.length > 0;
+    const rows = (await this.db.delete(categories).where(eq(categories.id, id)).returning()) as any[];
+    return rows.length > 0;
   }
 
   // Subcategories
@@ -797,12 +798,13 @@ export class DatabaseStorage implements IStorage {
 
       const result = await this.db.insert(subcategories).values(subcategoryData).returning();
 
-      if (!result || result.length === 0) {
+      const rows = result as any[];
+      if (!rows || rows.length === 0) {
         throw new Error("Failed to insert subcategory into database");
       }
 
-      console.log("Subcategory created successfully:", result[0]);
-      return result[0];
+      console.log("Subcategory created successfully:", rows[0]);
+      return rows[0];
     } catch (error) {
       console.error("Error creating subcategory:", error);
 
@@ -825,8 +827,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteSubcategory(id: number): Promise<boolean> {
-    const result = await this.db.delete(subcategories).where(eq(subcategories.id, id)).returning();
-    return result.length > 0;
+    const rows = (await this.db.delete(subcategories).where(eq(subcategories.id, id)).returning()) as any[];
+    return rows.length > 0;
   }
 
   async searchProducts(query: string): Promise<Product[]> {
@@ -850,7 +852,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserPassword(id: number, hashedPassword: string): Promise<boolean> {
     const result = await this.db.update(users).set({ password: hashedPassword }).where(eq(users.id, id)).returning();
-    return result.length > 0;
+    return (result as any[]).length > 0;
   }
 
   async createContactSubmission(submissionData: any): Promise<any> {
@@ -894,7 +896,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteContactSubmission(id: number): Promise<boolean> {
     const result = await this.db.delete(contactSubmissions).where(eq(contactSubmissions.id, id)).returning();
-    return result.length > 0;
+    return (result as any[]).length > 0;
   }
 
   // Shades - Optimized methods
@@ -1011,7 +1013,8 @@ export class DatabaseStorage implements IStorage {
 
       console.log("Inserting shade:", shadeToInsert);
 
-      const [shade] = await this.db.insert(shades).values(shadeToInsert).returning();
+      const shadeRows = (await this.db.insert(shades).values(shadeToInsert).returning()) as any[];
+      const shade = shadeRows?.[0];
       
       console.log("✅ Shade created successfully:", shade.id);
       
@@ -1060,15 +1063,14 @@ export class DatabaseStorage implements IStorage {
 
       console.log("Updating shade in database:", { id, updateData });
 
-      const [updatedShade] = await this.db
+      const result = await this.db
         .update(shades)
         .set(updateData)
         .where(eq(shades.id, id))
         .returning();
 
-      console.log("✅ Shade updated successfully:", updatedShade);
-      
-      return updatedShade;
+      const rows = result as any[];
+      return rows[0];
     } catch (error) {
       console.error("Error updating shade:", error);
       throw error;
@@ -1108,7 +1110,8 @@ export class DatabaseStorage implements IStorage {
         .where(eq(shades.id, id))
         .returning();
 
-      const success = result.length > 0;
+      const rows = result as any[];
+      const success = rows.length > 0;
       
       if (success) {
         console.log(`✅ Successfully deleted shade ${id}`);
@@ -1185,8 +1188,8 @@ export class DatabaseStorage implements IStorage {
 
   async createProductImage(imageData: any): Promise<any> {
     try {
-      const [image] = await this.db.insert(productImages).values(imageData).returning();
-      return image;
+      const rows = (await this.db.insert(productImages).values(imageData).returning()) as any[];
+      return rows?.[0];
     } catch (error) {
       console.error("Error creating product image:", error);
       throw error;
@@ -1195,8 +1198,8 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProductImage(imageId: number): Promise<boolean> {
     try {
-      const result = await this.db.delete(productImages).where(eq(productImages.id, imageId)).returning();
-      return result.length > 0;
+      const rows = (await this.db.delete(productImages).where(eq(productImages.id, imageId)).returning()) as any[];
+      return rows.length > 0;
     } catch (error) {
       console.error("Error deleting product image:", error);
       throw error;
@@ -1205,7 +1208,8 @@ export class DatabaseStorage implements IStorage {
 
   // Review Management Functions
   async createReview(reviewData: InsertReview): Promise<Review> {
-    const [review] = await this.db.insert(reviews).values(reviewData).returning();
+    const rows = (await this.db.insert(reviews).values(reviewData).returning()) as any[];
+    const review = rows?.[0];
     console.log("Review created:", review);
     return review;
   }
@@ -1313,7 +1317,7 @@ export class DatabaseStorage implements IStorage {
         .where(and(eq(reviews.id, reviewId), eq(reviews.userId, userId)))
         .returning();
 
-      return result.length > 0;
+      return (result as any[]).length > 0;
     } catch (error) {
       console.error("Error deleting review:", error);
       throw error;
@@ -1577,12 +1581,12 @@ export class DatabaseStorage implements IStorage {
 
       updateData.updatedAt = new Date();
 
-      const [post] = await this.db
+      const result = await this.db
         .update(blogPosts)
         .set(updateData)
         .where(eq(blogPosts.id, id))
         .returning();
-      return post;
+      return result[0];
     } catch (error) {
       console.error("Error updating blog post:", error);
       throw error;
@@ -1596,7 +1600,7 @@ export class DatabaseStorage implements IStorage {
         .delete(blogPosts)
         .where(eq(blogPosts.id, id))
         .returning();
-      return result.length > 0;
+      return (result as any[]).length > 0;
     } catch (error) {
       console.error("Error deleting blog post:", error);
       throw error;
@@ -1632,8 +1636,6 @@ export class DatabaseStorage implements IStorage {
 
   // Featured Sections Management Functions
 
-  deleteFeaturedSection(id: number): Promise<boolean>;
-
   // Blog Categories
 
   // Get all blog categories
@@ -1657,7 +1659,7 @@ export class DatabaseStorage implements IStorage {
         .replace(/-+/g, '-')
         .trim();
 
-      const [category] = await this.db
+      const rows = (await this.db
         .insert(blogCategories)
         .values({
           name: categoryData.name,
@@ -1666,8 +1668,8 @@ export class DatabaseStorage implements IStorage {
           isActive: categoryData.isActive ?? true,
           sortOrder: categoryData.sortOrder || 0
         })
-        .returning();
-      return category;
+        .returning()) as any[];
+      return rows?.[0];
     } catch (error) {
       console.error("Error creating blog category:", error);
       if (error.code === '23505') {
@@ -1691,12 +1693,12 @@ export class DatabaseStorage implements IStorage {
           .trim();
       }
 
-      const [category] = await this.db
+      const result = await this.db
         .update(blogCategories)
         .set(updateData)
         .where(eq(blogCategories.id, id))
         .returning();
-      return category;
+      return result[0];
     } catch (error) {
       console.error("Error updating blog category:", error);
       throw error;
@@ -1722,7 +1724,7 @@ export class DatabaseStorage implements IStorage {
         .delete(blogCategories)
         .where(eq(blogCategories.id, id));
 
-      return result.rowCount > 0;
+      return result.rowCount ? result.rowCount > 0 : false;
     } catch (error) {
       console.error("Error deleting blog category:", error);
       throw new Error('Failed to delete blog category: ' + (error.message || 'Unknown error'));
@@ -1773,11 +1775,11 @@ export class DatabaseStorage implements IStorage {
 
   async createBlogSubcategory(subcategoryData: InsertBlogSubcategory): Promise<BlogSubcategory> {
     try {
-      const [subcategory] = await this.db
+      const rows = (await this.db
         .insert(blogSubcategories)
         .values(subcategoryData)
-        .returning();
-      return subcategory;
+        .returning()) as BlogSubcategory[];
+      return rows?.[0];
     } catch (error) {
       console.error("Error creating blog subcategory:", error);
       throw error;
@@ -1804,7 +1806,7 @@ export class DatabaseStorage implements IStorage {
         .delete(blogSubcategories)
         .where(eq(blogSubcategories.id, id))
         .returning();
-      return result.length > 0;
+      return (result as any[]).length > 0;
     } catch (error) {
       console.error("Error deleting blog subcategory:", error);
       throw error;
@@ -1815,28 +1817,25 @@ export class DatabaseStorage implements IStorage {
   async toggleBlogPostLike(postId: number, userId: number): Promise<{ liked: boolean; likesCount: number }> {
     try {
       // Check if user already liked this post
-      const existingLike = await this.db
-        .select()
-        .from(sql`blog_post_likes`)
-        .where(sql`post_id = ${postId} AND user_id = ${userId}`)
-        .limit(1);
+      const existingLikeResult: any = await this.db.execute(
+        sql`SELECT 1 AS v FROM blog_post_likes WHERE post_id = ${postId} AND user_id = ${userId} LIMIT 1`
+      );
+      const existingLike = (existingLikeResult?.rows || []) as any[];
 
       let liked = false;
 
       if (existingLike.length > 0) {
         // Unlike - remove the like
-        await this.db.delete(sql`blog_post_likes`).where(sql`post_id = ${postId} AND user_id = ${userId}`);
+        await this.db.execute(sql`DELETE FROM blog_post_likes WHERE post_id = ${postId} AND user_id = ${userId}`);
         await this.db.update(blogPosts).set({
           likes: sql`${blogPosts.likes} - 1`
         }).where(eq(blogPosts.id, postId));
         liked = false;
       } else {
         // Like - add the like
-        await this.db.insert(sql`blog_post_likes`).values({
-          post_id: postId,
-          user_id: userId,
-          created_at: new Date()
-        });
+        await this.db.execute(
+          sql`INSERT INTO blog_post_likes (post_id, user_id, created_at) VALUES (${postId}, ${userId}, ${new Date()})`
+        );
         await this.db.update(blogPosts).set({
           likes: sql`${blogPosts.likes} + 1`
         }).where(eq(blogPosts.id, postId));
@@ -1875,8 +1874,8 @@ export class DatabaseStorage implements IStorage {
 
   async createSlider(sliderData: any): Promise<any> {
     try {
-      const [slider] = await this.db.insert(sliders).values(sliderData).returning();
-      return slider;
+      const rows = (await this.db.insert(sliders).values(sliderData).returning()) as any[];
+      return rows?.[0];
     } catch (error) {
       console.error("Error creating slider:", error);
       throw error;
@@ -1885,8 +1884,8 @@ export class DatabaseStorage implements IStorage {
 
   async updateSlider(id: number, sliderData: any): Promise<any> {
     try {
-      const [slider] = await this.db.update(sliders).set(sliderData).where(eq(sliders.id, id)).returning();
-      return slider;
+      const rows = (await this.db.update(sliders).set(sliderData).where(eq(sliders.id, id)).returning()) as any[];
+      return rows?.[0];
     } catch (error) {
       console.error("Error updating slider:", error);
       throw error;
@@ -1896,7 +1895,7 @@ export class DatabaseStorage implements IStorage {
   async deleteSlider(id: number): Promise<boolean> {
     try {
       const result = await this.db.delete(sliders).where(eq(sliders.id, id)).returning();
-      return result.length > 0;
+      return (result as any[]).length > 0;
     } catch (error) {
       console.error("Error deleting slider:", error);
       throw error;
@@ -1908,21 +1907,21 @@ export class DatabaseStorage implements IStorage {
     return await this.db.select().from(categorySliders).where(eq(categorySliders.categoryId, categoryId));
   }
   async createCategorySlider(sliderData: any): Promise<any> {
-    const [result] = await this.db.insert(categorySliders).values(sliderData).returning();
-    return result;
+    const rows = (await this.db.insert(categorySliders).values(sliderData).returning()) as any[];
+    return rows?.[0];
   }
   async updateCategorySlider(id: number, sliderData: any): Promise<any> {
-    const [result] = await this.db
+    const rows = (await this.db
       .update(categorySliders)
       .set(sliderData)
       .where(eq(categorySliders.id, id))
-      .returning();
-    return result;
+      .returning()) as any[];
+    return rows?.[0];
   }
   async deleteCategorySlider(id: number): Promise<boolean> {
     try {
       const result = await this.db.delete(categorySliders).where(eq(categorySliders.id, id)).returning();
-      return result.length > 0;
+      return (result as any[]).length > 0;
     } catch (error) {
       console.error("Error deleting category slider:", error);
       throw error;
@@ -1985,10 +1984,11 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       };
 
-      const [result] = await this.db
+      const rows = (await this.db
         .insert(videoTestimonials)
         .values(testimonialData)
-        .returning();
+        .returning()) as any[];
+      const result = rows?.[0];
       
       console.log("✅ Video testimonial created successfully:", result.id);
       return result;
@@ -2013,11 +2013,12 @@ export class DatabaseStorage implements IStorage {
       if (data.isActive !== undefined) updateData.isActive = data.isActive;
       if (data.sortOrder !== undefined) updateData.sortOrder = parseInt(data.sortOrder);
 
-      const [result] = await this.db
+      const rows = (await this.db
         .update(videoTestimonials)
         .set(updateData)
         .where(eq(videoTestimonials.id, id))
-        .returning();
+        .returning()) as any[];
+      const result = rows?.[0];
       
       if (!result) {
         console.log(`⚠️ Video testimonial ${id} not found`);
@@ -2041,7 +2042,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(videoTestimonials.id, id))
         .returning();
       
-      const success = result.length > 0;
+      const success = (result as any[]).length > 0;
       
       if (success) {
         console.log(`✅ Video testimonial ${id} deleted successfully`);
@@ -2082,7 +2083,7 @@ export class DatabaseStorage implements IStorage {
 
   async createTestimonial(testimonialData: any): Promise<any> {
     try {
-      const [result] = await this.db.insert(testimonials).values({
+      const rows = (await this.db.insert(testimonials).values({
         customerName: testimonialData.customerName,
         customerImage: testimonialData.customerImage || null,
         instagramUrl: testimonialData.instagramUrl || null,
@@ -2090,8 +2091,8 @@ export class DatabaseStorage implements IStorage {
         reviewText: testimonialData.reviewText,
         isActive: testimonialData.isActive !== false,
         sortOrder: testimonialData.sortOrder || 0,
-      }).returning();
-      return result;
+      }).returning()) as any[];
+      return rows?.[0];
     } catch (error) {
       console.error("Error creating testimonial:", error);
       throw error;
@@ -2146,7 +2147,7 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log('Storage: Updating announcement', id, 'with data:', announcementData);
       const result = await this.db.update(announcements)
-        .set({
+        .set({ 
           text: announcementData.text,
           isActive: announcementData.isActive,
           sortOrder: announcementData.sortOrder !== undefined ? announcementData.sortOrder : 0,
@@ -2357,7 +2358,8 @@ export class DatabaseStorage implements IStorage {
     console.log('Storage: Inserting job position:', jobPositionToInsert);
 
     try {
-      const [jobPosition] = await this.db.insert(jobPositions).values(jobPositionToInsert).returning();
+      const rows = (await this.db.insert(jobPositions).values(jobPositionToInsert).returning()) as any[];
+      const jobPosition = rows?.[0];
       console.log('Storage: Job position created successfully:', jobPosition.id);
       return jobPosition;
     } catch (error) {
@@ -2391,7 +2393,7 @@ export class DatabaseStorage implements IStorage {
       .delete(jobPositions)
       .where(eq(jobPositions.id, id))
       .returning();
-    return result.length > 0;
+    return (result as any[]).length > 0;
   }
 
   // Influencer Applications
@@ -2412,8 +2414,8 @@ export class DatabaseStorage implements IStorage {
       facebookProfile: data.facebookProfile || null,
       status: data.status || 'pending'
     };
-    const [application] = await this.db.insert(influencerApplications).values(applicationData).returning();
-    return application;
+    const rows = (await this.db.insert(influencerApplications).values(applicationData).returning()) as any[];
+    return rows?.[0];
   }
 
   async getInfluencerApplications() {

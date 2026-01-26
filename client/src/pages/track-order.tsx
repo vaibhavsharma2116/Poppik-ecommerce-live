@@ -94,16 +94,16 @@ export default function TrackOrderPage() {
     setError("");
 
     try {
-      // Try Shiprocket tracking first
-      let response = await fetch(`/api/orders/${trackingOrderId}/track-shiprocket`, {
+      // Try delivery partner tracking first
+      let response = await fetch(`/api/orders/${trackingOrderId}/track-ithink`, {
         credentials: 'include',
       });
       
       if (response.ok) {
         const data = await response.json();
         
-        // Check if there's an error (like "not shipped through Shiprocket")
-        if (data.error && data.hasShiprocketTracking === false) {
+        // Check if there's an error (like "not shipped through delivery partner")
+        if (data.error && data.hasIthinkTracking === false) {
           // Fall back to regular tracking
           response = await fetch(`/api/orders/${trackingOrderId}/tracking`, {
             credentials: 'include',
@@ -137,7 +137,7 @@ export default function TrackOrderPage() {
         return;
       }
       
-      // Fallback to regular tracking if Shiprocket fails
+      // Fallback to regular tracking if delivery partner tracking fails
       response = await fetch(`/api/orders/${trackingOrderId}/tracking`);
       
       if (response.ok) {
@@ -167,8 +167,8 @@ export default function TrackOrderPage() {
     
     setRefreshing(true);
     try {
-      // Try Shiprocket tracking first for real-time updates
-      let response = await fetch(`/api/orders/${trackingInfo.orderId}/track-shiprocket`);
+      // Try delivery partner tracking first for real-time updates
+      let response = await fetch(`/api/orders/${trackingInfo.orderId}/track-ithink`);
       
       if (response.ok) {
         const data = await response.json();

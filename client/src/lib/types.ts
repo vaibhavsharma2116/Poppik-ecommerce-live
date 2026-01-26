@@ -4,24 +4,30 @@ export interface Product {
   slug: string;
   shortDescription: string;
   description: string;
-  price: number;
+  price: number | string;
   originalPrice?: number;
   discount?: number; // Discount percentage
   imageUrl: string;
+  videoUrl?: string;
+  images?: { url?: string; imageUrl?: string }[];
   additionalImages?: string[];
   category: string;
-  rating: string;
+  categoryId?: number;
+  rating: string | number;
   reviewCount: number;
   inStock: boolean;
-  bestseller?: boolean;
-  newLaunch?: boolean;
+  featured?: boolean | number | string;
+  bestseller?: boolean | number | string;
+  newLaunch?: boolean | number | string;
   saleOffer?: string;
   size?: string;
   ingredients?: string;
   benefits?: string;
   howToUse?: string;
+  detailedDescription?: string;
   cashbackPercentage?: number;
   cashbackPrice?: number;
+  createdAt?: string | Date;
 }
 
 export interface Category {

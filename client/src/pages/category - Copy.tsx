@@ -14,7 +14,8 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import type { Product, Category, Subcategory } from "@/lib/types";
 
 export default function CategoryPage() {
-  const [match, params] = useRoute("/category/:slug");
+  const [match, rawParams] = useRoute("/category/:slug");
+  const params = rawParams ?? ({} as any);
   const categorySlug = params?.slug;
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string>("");
   const [sortBy, setSortBy] = useState("popular");
@@ -99,7 +100,7 @@ export default function CategoryPage() {
       case "newest":
         return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
       case "rating":
-        return (b.rating || 0) - (a.rating || 0);
+        return Number(b.rating || 0) - Number(a.rating || 0);
       default: // popular
         return (b.reviewCount || 0) - (a.reviewCount || 0);
     }
@@ -129,7 +130,7 @@ export default function CategoryPage() {
   };
 
   // Get category sliders with better error handling
-  const { data: categorySliderImages = [], isLoading: slidersLoading, error: slidersError } = useQuery({
+  const { data: categorySliderImages = [], isLoading: slidersLoading, error: slidersError } = useQuery<any[]>({
     queryKey: [`/api/categories/slug/${categorySlug}/sliders`],
     queryFn: async () => {
       const response = await fetch(`/api/categories/slug/${categorySlug}/sliders`);
@@ -144,13 +145,11 @@ export default function CategoryPage() {
     enabled: !!categorySlug,
     retry: 1,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
   // Fallback static slider data if no dynamic sliders exist
-  const fallbackSliderImages = [
-
-  ];
+  const fallbackSliderImages = [];
 
   // Use dynamic sliders if available, otherwise use fallback (memoized to prevent infinite loops)
   const slidesToShow = React.useMemo(() => {
@@ -384,37 +383,17 @@ export default function CategoryPage() {
                   : "space-y-4 sm:space-y-6"
                 }>
                   {sortedProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      viewMode={viewMode}
-                      className="mobile-category-product-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300"
-                    >
+                    <React.Fragment key={product.id}>
                       {/* ProductCard content rendering is assumed to be inside ProductCard component */}
-                      {/* The following is a hypothetical structure if ProductCard were to directly render price and cashback */}
-                      <div>
-                        <p className="text-2xl font-bold text-gray-900 mb-2">
-                          ₹{product.price}
-                        </p>
-                        {product.cashbackPercentage && product.cashbackPrice && (
-                          <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-2 mb-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-semibold text-orange-700">Cashback</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-orange-600">
-                                  ₹{Number(product.cashbackPrice).toFixed(2)}
-                                </span>
-                                <span className="text-xs bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full">
-                                  {product.cashbackPercentage}%
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </ProductCard>
+                      <ProductCard
+                        product={product}
+                        viewMode={viewMode}
+                        className="mobile-category-product-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300"
+                      />
+                    </React.Fragment>
                   ))}
                 </div>
+
               ) : (
                 <div className="text-center py-20">
                   <div className="max-w-md mx-auto bg-white/70 backdrop-blur-md rounded-3xl p-12 shadow-2xl border border-white/20">
@@ -435,7 +414,6 @@ export default function CategoryPage() {
           )}
         </div>
       </div>
-    </div >
-
+    </div>
   );
 }

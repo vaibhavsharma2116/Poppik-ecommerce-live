@@ -1197,7 +1197,7 @@ export default function AdminProducts() {
                             <Star
                               key={i}
                               className={`h-5 w-5 ${
-                                i < Math.floor(selectedProduct.rating)
+                                i < Math.floor(Number((selectedProduct as any).rating || 0))
                                   ? "fill-yellow-400 text-yellow-400"
                                   : "text-slate-300"
                               }`}

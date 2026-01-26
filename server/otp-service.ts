@@ -154,7 +154,7 @@ export class OTPService {
       passPreview: config.auth.pass ? `${config.auth.pass.substring(0, 4)}****` : 'undefined'
     });
 
-    return nodemailer.createTransporter(config);
+    return nodemailer.createTransport(config);
   }
 
   private static generateOTP(): string {

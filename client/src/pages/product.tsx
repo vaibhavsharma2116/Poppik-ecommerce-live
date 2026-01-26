@@ -184,7 +184,7 @@ export default function ProductsPage() {
         sorted.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
         break;
       case "rating":
-        sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+        sorted.sort((a, b) => (parseFloat(String(b.rating || 0)) || 0) - (parseFloat(String(a.rating || 0)) || 0));
         break;
       default: // popular
         sorted.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));

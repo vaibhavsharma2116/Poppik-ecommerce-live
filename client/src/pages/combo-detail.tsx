@@ -186,7 +186,8 @@ async function fetchProductDetailsAndShades(productIds: number[]) {
 }
 
 export default function ComboDetail() {
-  const [, params] = useRoute("/combo/:id");
+  const [, rawParams] = useRoute("/combo/:id");
+  const params = rawParams ?? ({} as any);
   const comboId = params?.id || "";
   const [location] = useLocation();
   const [isInWishlist, setIsInWishlist] = useState(false);
@@ -1418,7 +1419,7 @@ export default function ComboDetail() {
                                 console.warn(`❌ Image failed to load for product ${product.id}:`, displayImage?.substring(0, 100) || 'empty');
                                 // Only add to broken if it's not already the placeholder
                                 if (displayImage !== PLACEHOLDER && productImage !== PLACEHOLDER) {
-                                  setBrokenImages(prev => new Set([...prev, productImage]));
+                                  setBrokenImages(prev => new Set([...Array.from(prev), productImage]));
                                 }
                               }}
                               onLoad={(e) => {
@@ -1757,7 +1758,7 @@ export default function ComboDetail() {
                                   onError={(e) => {
                                     // Only add to broken if it's not already the placeholder
                                     if (displayImage !== PLACEHOLDER && productImage !== PLACEHOLDER) {
-                                      setBrokenImages(prev => new Set([...prev, productImage]));
+                                      setBrokenImages(prev => new Set([...Array.from(prev), productImage]));
                                     }
                                   }}
                                 />

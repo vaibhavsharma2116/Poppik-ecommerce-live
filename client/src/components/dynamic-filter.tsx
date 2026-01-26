@@ -54,7 +54,7 @@ export default function DynamicFilter({
   // Calculate max price from products and initialize filters
   useEffect(() => {
     if (Array.isArray(products) && products.length > 0) {
-      const max = Math.max(...products.map(p => p.price));
+      const max = Math.max(...products.map(p => Number((p as any).price || 0)));
       const roundedMax = Math.ceil(max / 100) * 100;
       setMaxPrice(roundedMax);
 
@@ -118,7 +118,7 @@ export default function DynamicFilter({
       }
 
       // Rating filter
-      if (filters.rating > 0 && parseFloat(product.rating) < filters.rating) {
+      if (filters.rating > 0 && Number((product as any).rating || 0) < filters.rating) {
         return false;
       }
 
@@ -153,7 +153,7 @@ export default function DynamicFilter({
       }
 
       // Subcategory filter
-      if (filters.selectedSubcategories.length > 0 && !filters.selectedSubcategories.includes(product.subcategory || '')) {
+      if (filters.selectedSubcategories.length > 0 && !filters.selectedSubcategories.includes(((product as any).subcategory || '') as any)) {
         return false;
       }
 
@@ -427,7 +427,7 @@ export default function DynamicFilter({
             <CardContent className="space-y-3">
               {subcategories.map((subcategory) => {
                 const productCount = Array.isArray(products)
-                  ? products.filter(p => p?.subcategory === subcategory.name).length
+                  ? products.filter(p => (p as any)?.subcategory === (subcategory as any).name).length
                   : 0;
                 return (
                   <div key={subcategory.id} className="flex items-center justify-between space-x-2">

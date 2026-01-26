@@ -17,6 +17,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Local dev / Replit state
+.local/
+
 # OS specific files
 .DS_Store
 Thumbs.db

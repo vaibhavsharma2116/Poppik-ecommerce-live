@@ -60,7 +60,7 @@ interface Order {
   userId?: number;
   totalAmount?: number;
   shippingAddress?: string;
-  awbCode?: string; // Add awbCode for Shiprocket
+  awbCode?: string; // Add awbCode for delivery partner
   deliveryPartner?: string;
   deliveryType?: string;
 }
@@ -76,6 +76,14 @@ export default function AdminOrders() {
   const [editingTracking, setEditingTracking] = useState<string | null>(null);
   const [trackingInput, setTrackingInput] = useState('');
   const { toast } = useToast();
+
+  const getDeliveryPartnerLabel = (partner?: string) => {
+    const raw = String(partner || 'ITHINK').trim();
+    const normalized = raw.toUpperCase();
+    if (normalized === 'ITHINK') return 'iThink Logistics';
+    if (normalized === 'INDIA_POST') return 'India Post';
+    return raw;
+  };
 
   // Fetch all orders from backend
   const fetchOrders = async () => {
@@ -137,11 +145,11 @@ export default function AdminOrders() {
     }
   };
 
-  // Function to ship order via Shiprocket
+  // Function to ship order via delivery partner
   const handleShipOrder = async (orderId: string) => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/shiprocket/ship', {
+      const response = await fetch('/api/admin/ithink/ship', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -532,7 +540,7 @@ export default function AdminOrders() {
                         variant={order.deliveryPartner === 'INDIA_POST' ? 'destructive' : 'default'}
                         className={order.deliveryPartner === 'INDIA_POST' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
                       >
-                        {order.deliveryPartner || 'SHIPROCKET'}
+                        {getDeliveryPartnerLabel(order.deliveryPartner)}
                       </Badge>
                       {order.deliveryType && (
                         <span className="ml-2 text-xs text-slate-500">({order.deliveryType})</span>
@@ -595,14 +603,14 @@ export default function AdminOrders() {
                             className="ml-2"
                           >
                             <Truck className="h-4 w-4 mr-1" />
-                            Ship
+                            Ship via iThink Logistics
                           </Button>
                         )}
                         {order.awbCode && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => window.open(`/api/orders/${order.id}/track-shiprocket`, '_blank')}
+                            onClick={() => window.open(`/api/orders/${order.id}/track-ithink`, '_blank')}
                             className="ml-2"
                           >
                             <Package className="h-4 w-4 mr-1" />
@@ -694,7 +702,7 @@ export default function AdminOrders() {
                           variant={selectedOrder.deliveryPartner === 'INDIA_POST' ? 'destructive' : 'default'}
                           className={selectedOrder.deliveryPartner === 'INDIA_POST' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
                         >
-                          {selectedOrder.deliveryPartner || 'SHIPROCKET'}
+                          {getDeliveryPartnerLabel(selectedOrder.deliveryPartner)}
                         </Badge>
                       </div>
                       {selectedOrder.deliveryType && (
@@ -754,14 +762,14 @@ export default function AdminOrders() {
                           onClick={() => handleShipOrder(selectedOrder.id)}
                         >
                           <Truck className="h-4 w-4 mr-2" />
-                          Ship via Shiprocket
+                          Ship via iThink Logistics
                         </Button>
                       )}
                       {selectedOrder.awbCode && (
                         <Button
                           className="w-full justify-start"
                           variant="outline"
-                          onClick={() => window.open(`/api/orders/${selectedOrder.id}/track-shiprocket`, '_blank')}
+                          onClick={() => window.open(`/api/orders/${selectedOrder.id}/track-ithink`, '_blank')}
                         >
                           <Package className="h-4 w-4 mr-2" />
                           Track Shipment

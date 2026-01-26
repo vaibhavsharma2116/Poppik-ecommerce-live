@@ -16,7 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
 export default function CareersDetail() {
-  const [, params] = useRoute("/careers/:position");
+  const [, rawParams] = useRoute("/careers/:position");
+  const params = rawParams ?? ({} as any);
   const positionSlug = params?.position || "";
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [copied, setCopied] = useState(false);

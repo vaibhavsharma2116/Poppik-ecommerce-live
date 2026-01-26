@@ -669,7 +669,6 @@ export default function AdminCombos() {
         let shades = {};
 
         if (typeof combo.productShades === 'string') {
-          // Try to parse JSON string
           try {
             shades = JSON.parse(combo.productShades);
           } catch (parseError) {
@@ -677,431 +676,126 @@ export default function AdminCombos() {
             shades = {};
           }
         } else if (typeof combo.productShades === 'object' && combo.productShades !== null) {
-          // Already an object
           shades = combo.productShades;
         }
 
-        // Ensure shades is a valid object (not an array or other type)
         if (shades && typeof shades === 'object' && !Array.isArray(shades)) {
-          setSelectedProductShades(shades);
+          setSelectedProductShades(shades as any);
         } else {
           console.warn('productShades is not a valid object, resetting to empty');
-          setSelectedProductShades({});
+          setSelectedProductShades({} as any);
         }
       } catch (error) {
         console.error('Error processing productShades:', error);
-        setSelectedProductShades({});
+        setSelectedProductShades({} as any);
       }
     } else {
-      setSelectedProductShades({});
+      setSelectedProductShades({} as any);
     }
 
     setIsModalOpen(true);
   };
 
-  return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Combo Management</h1>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add Combo
-        </Button>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>All Combos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Image</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Discount</TableHead>
-                <TableHead>Affiliate Comm</TableHead>
-                <TableHead>Affiliate Disc</TableHead>
-                <TableHead>Products</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+return (
+  <div className="p-6">
+    <div className="flex justify-between items-center mb-6">
+      <h1 className="text-3xl font-bold">Combo Management</h1>
+      <Button onClick={() => setIsModalOpen(true)}>
+        <Plus className="mr-2 h-4 w-4" /> Add Combo
+      </Button>
+    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>All Combos</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Image</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Discount</TableHead>
+              <TableHead>Affiliate Comm</TableHead>
+              <TableHead>Affiliate Disc</TableHead>
+              <TableHead>Products</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {combosList.map((combo: any) => (
+              <TableRow key={combo.id}>
+                <TableCell>
+                  <img
+                    src={getPrimaryImage(combo)}
+                    alt={combo.name}
+                    className="w-16 h-16 object-cover rounded"
+                  />
+                </TableCell>
+                <TableCell>{combo.name}</TableCell>
+                <TableCell>₹{combo.price}</TableCell>
+                <TableCell>
+                  <Badge variant="secondary">{combo.discount}</Badge>
+                </TableCell>
+                <TableCell>
+                  {combo.affiliateCommission ? `${combo.affiliateCommission}%` : '-'}
+                </TableCell>
+                <TableCell>
+                  {combo.affiliateUserDiscount ? `${combo.affiliateUserDiscount}%` : '-'}
+                </TableCell>
+                <TableCell>
+                  {getProductsCount(combo)} items
+                </TableCell>
+                <TableCell>
+                  <Badge variant={combo.isActive ? "default" : "secondary"}>
+                    {combo.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(combo)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => deleteMutation.mutate(combo.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {combosList.map((combo: any) => (
-                <TableRow key={combo.id}>
-                  <TableCell>
-                    <img
-                      src={getPrimaryImage(combo)}
-                      alt={combo.name}
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                  </TableCell>
-                  <TableCell>{combo.name}</TableCell>
-                  <TableCell>₹{combo.price}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{combo.discount}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {combo.affiliateCommission ? `${combo.affiliateCommission}%` : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {combo.affiliateUserDiscount ? `${combo.affiliateUserDiscount}%` : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {getProductsCount(combo)} items
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={combo.isActive ? "default" : "secondary"}>
-                      {combo.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(combo)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => deleteMutation.mutate(combo.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
 
-      <Dialog open={isModalOpen} onOpenChange={(open) => !open && resetForm()}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingCombo ? "Edit Combo" : "Add New Combo"}</DialogTitle>
-            <DialogDescription>
-              {editingCombo ? "Update combo details" : "Create a new combo offer"}
-            </DialogDescription>
-          </DialogHeader>
+    <Dialog open={isModalOpen} onOpenChange={(open) => !open && resetForm()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{editingCombo ? "Edit Combo" : "Add New Combo"}</DialogTitle>
+          <DialogDescription>
+            {editingCombo ? "Update combo details" : "Create a new combo offer"}
+          </DialogDescription>
+        </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label>Combo Images</Label>
-              {imagePreviews.length > 0 && (
-                <div className="grid grid-cols-3 gap-2 mb-2">
-                  {imagePreviews.map((preview, index) => (
-                    <div key={index} className="relative w-full h-32">
-                      <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover rounded" />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-1 right-1"
-                        onClick={() => removeImage(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                      {index === 0 && (
-                        <Badge className="absolute bottom-1 left-1 text-xs">Primary</Badge>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="border-2 border-dashed rounded p-4">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageSelect}
-                  className="hidden"
-                  id="combo-images"
-                />
-                <Label htmlFor="combo-images" className="cursor-pointer flex flex-col items-center">
-                  <Plus className="h-8 w-8 mb-2" />
-                  <span>Click to upload multiple images</span>
-                  <span className="text-xs text-gray-500 mt-1">First image will be primary</span>
-                </Label>
-              </div>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Products Included * ({formData.products.length} selected)</Label>
 
-            <div>
-              <Label>Combo Video (Optional)</Label>
-              {videoPreview && (
-                <div className="relative mb-2">
-                  <video src={videoPreview} className="w-full h-48 object-cover rounded" controls />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => { setSelectedVideo(null); setVideoPreview(''); }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-              <div className="border-2 border-dashed rounded p-4">
-                <input
-                  type="file"
-                  accept="video/*"
-                  onChange={handleVideoSelect}
-                  className="hidden"
-                  id="combo-video"
-                />
-                <Label htmlFor="combo-video" className="cursor-pointer flex flex-col items-center">
-                  <Plus className="h-8 w-8 mb-2" />
-                  <span>Click to upload video</span>
-                  <span className="text-xs text-gray-500 mt-1">MP4, WebM up to 50MB</span>
-                </Label>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label>Combo Name *</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label>Original Price (₹) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.originalPrice}
-                  onChange={(e) => {
-                    const originalPrice = e.target.value;
-                    setFormData(prev => {
-                      const updated = { ...prev, originalPrice };
-                      
-                      // Case 1: Original Price + Sale Price → Calculate Discount
-                      if (updated.price && originalPrice) {
-                        const discount = ((parseFloat(originalPrice) - parseFloat(updated.price)) / parseFloat(originalPrice) * 100).toFixed(2);
-                        updated.discount = discount;
-                      }
-                      // Case 2: Original Price + Discount → Calculate Sale Price
-                      else if (updated.discount && originalPrice) {
-                        const discountNum = parseFloat(updated.discount);
-                        const salePrice = (parseFloat(originalPrice) * (1 - discountNum / 100)).toFixed(2);
-                        updated.price = salePrice;
-                      }
-                      
-                      return updated;
-                    });
-                  }}
-                  placeholder="e.g., 1999"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label>Sale Price (₹) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => {
-                    const salePrice = e.target.value;
-                    setFormData(prev => {
-                      const updated = { ...prev, price: salePrice };
-                      
-                      // Case 1: Original Price + Sale Price → Calculate Discount
-                      if (updated.originalPrice && salePrice) {
-                        const discount = ((parseFloat(updated.originalPrice) - parseFloat(salePrice)) / parseFloat(updated.originalPrice) * 100).toFixed(2);
-                        updated.discount = discount;
-                      }
-                      // Case 2: Sale Price + Discount → Calculate Original Price
-                      else if (updated.discount && salePrice) {
-                        const discountNum = parseFloat(updated.discount);
-                        const originalPrice = (parseFloat(salePrice) / (1 - discountNum / 100)).toFixed(2);
-                        updated.originalPrice = originalPrice;
-                      }
-                      
-                      return updated;
-                    });
-                  }}
-                  placeholder="e.g., 1199"
-                  required
-                />
-              </div>
-
-              <div className="col-span-2">
-                <Label>Discount (%)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.discount}
-                  onChange={(e) => {
-                    const discount = e.target.value;
-                    setFormData(prev => {
-                      const updated = { ...prev, discount };
-                      
-                      // Case 1: Original Price + Discount → Calculate Sale Price
-                      if (updated.originalPrice && discount) {
-                        const discountNum = parseFloat(discount);
-                        const salePrice = (parseFloat(updated.originalPrice) * (1 - discountNum / 100)).toFixed(2);
-                        updated.price = salePrice;
-                      }
-                      // Case 2: Sale Price + Discount → Calculate Original Price
-                      else if (updated.price && discount) {
-                        const discountNum = parseFloat(discount);
-                        const originalPrice = (parseFloat(updated.price) / (1 - discountNum / 100)).toFixed(2);
-                        updated.originalPrice = originalPrice;
-                      }
-                      
-                      return updated;
-                    });
-                  }}
-                  placeholder="Enter discount percentage"
-                />
-                <p className="text-xs text-gray-500 mt-1">Enter any 2 values (Original Price, Sale Price, or Discount) - the third will auto-calculate</p>
-              </div>
-
-              <div>
-                <Label>Cashback (%)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.cashbackPercentage}
-                  onChange={(e) => {
-                    setFormData({ ...formData, cashbackPercentage: e.target.value });
-                    // Auto-calculate cashback price
-                    if (formData.price && e.target.value) {
-                      const cashbackAmount = (parseFloat(formData.price) * parseFloat(e.target.value) / 100).toFixed(2);
-                      setFormData(prev => ({ ...prev, cashbackPrice: cashbackAmount }));
-                    }
-                  }}
-                  placeholder="e.g., 5"
-                />
-                <p className="text-xs text-gray-500 mt-1">Enter cashback percentage</p>
-              </div>
-
-              <div>
-                <Label>Cashback Amount (₹)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={formData.cashbackPrice}
-                  placeholder="Auto-calculated from cashback %"
-                  className="bg-gray-50"
-                  readOnly
-                />
-                <p className="text-xs text-gray-500 mt-1">Auto-calculated from sale price and cashback percentage</p>
-              </div>
-
-              <div>
-                <Label>Rating</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="5"
-                  value={formData.rating}
-                  onChange={(e) => setFormData({ ...formData, rating: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <Label>Review Count</Label>
-                <Input
-                  type="number"
-                  value={formData.reviewCount}
-                  onChange={(e) => setFormData({ ...formData, reviewCount: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Affiliate Commission (%)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  value={formData.affiliateCommission}
-                  onChange={(e) => setFormData({ ...formData, affiliateCommission: e.target.value })}
-                  placeholder="e.g., 5"
-                />
-                <p className="text-xs text-gray-500 mt-1">Percentage of sale paid to affiliate</p>
-              </div>
-              <div>
-                <Label>Affiliate User Discount (%)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  value={formData.affiliateUserDiscount}
-                  onChange={(e) => setFormData({ ...formData, affiliateUserDiscount: e.target.value })}
-                  placeholder="e.g., 10"
-                />
-                <p className="text-xs text-gray-500 mt-1">Discount percentage offered to referred user</p>
-              </div>
-            </div>
-
-            <div>
-              <Label>Short Description *</Label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                required
-                rows={3}
-                placeholder="Brief description for combo card"
+            {/* Search products */}
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search products..."
+                value={productSearchTerm}
+                onChange={(e) => setProductSearchTerm(e.target.value)}
+                className="pl-10"
               />
             </div>
-
-            <div>
-              <Label>Detailed Description</Label>
-              <RichTextEditor
-                content={formData.detailedDescription}
-                onChange={(html) => setFormData({ ...formData, detailedDescription: html })}
-              />
-            </div>
-
-            <div>
-              <Label>Products Included Details</Label>
-              <RichTextEditor
-                content={formData.productsIncluded}
-                onChange={(html) => setFormData({ ...formData, productsIncluded: html })}
-              />
-            </div>
-
-            <div>
-              <Label>Benefits</Label>
-              <RichTextEditor
-                content={formData.benefits}
-                onChange={(html) => setFormData({ ...formData, benefits: html })}
-              />
-            </div>
-
-            <div>
-              <Label>How to Use</Label>
-              <RichTextEditor
-                content={formData.howToUse}
-                onChange={(html) => setFormData({ ...formData, howToUse: html })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Products Included * ({formData.products.length} selected)</Label>
-
-              {/* Search products */}
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search products..."
-                  value={productSearchTerm}
-                  onChange={(e) => setProductSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
 
               {/* Selected products preview */}
               {formData.products.length > 0 && (

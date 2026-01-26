@@ -50,16 +50,16 @@ async function sendScheduledNotifications() {
     let sent = 0;
     for (const s of subscriptions) {
       try {
-        const pushSubscription = {
+        const pushSubscription: any = {
           endpoint: s.endpoint,
           keys: { auth: s.auth, p256dh: s.p256dh },
         };
 
-        await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
+        await webpush.sendNotification(pushSubscription as any, JSON.stringify(payload));
 
         await db
           .update(schema.pushSubscriptions)
-          .set({ lastUsedAt: new Date() })
+          .set({ lastUsedAt: new Date() } as any)
           .where((schema.pushSubscriptions as any).id.eq(s.id));
 
         sent++;
@@ -68,7 +68,7 @@ async function sendScheduledNotifications() {
           console.warn(`⚠️ Scheduled: subscription invalid for ${s.email || s.endpoint}, marking inactive`);
           await db
             .update(schema.pushSubscriptions)
-            .set({ isActive: false })
+            .set({ isActive: false } as any)
             .where((schema.pushSubscriptions as any).id.eq(s.id));
         } else {
           console.error('❌ Scheduled: Failed to send notification for subscription', s.id, err && err.message ? err.message : err);

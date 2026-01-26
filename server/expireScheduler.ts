@@ -26,27 +26,27 @@ async function expireEntities() {
     // Expire offers whose validUntil passed and are still active
     const expiredOffers = await db
       .update(schema.offers)
-      .set({ isActive: false })
+      .set({ isActive: false } as any)
       .where(and(lt(schema.offers.validUntil, now), eq(schema.offers.isActive, true)))
       .returning();
 
     // Expire contests whose validUntil passed and are still active
     const expiredContests = await db
       .update(schema.contests)
-      .set({ isActive: false })
+      .set({ isActive: false } as any)
       .where(and(lt(schema.contests.validUntil, now), eq(schema.contests.isActive, true)))
       .returning();
 
     // Optionally, activate entities when validFrom has arrived
     const activatedOffers = await db
       .update(schema.offers)
-      .set({ isActive: true })
+      .set({ isActive: true } as any)
       .where(and(lte(schema.offers.validFrom, now), eq(schema.offers.isActive, false)))
       .returning();
 
     const activatedContests = await db
       .update(schema.contests)
-      .set({ isActive: true })
+      .set({ isActive: true } as any)
       .where(and(lte(schema.contests.validFrom, now), eq(schema.contests.isActive, false)))
       .returning();
 

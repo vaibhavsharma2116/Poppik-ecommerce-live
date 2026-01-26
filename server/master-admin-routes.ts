@@ -75,7 +75,7 @@ export function createMasterAdminRoutes(pool: Pool) {
         ipAddress: req?.ip || req?.socket.remoteAddress || null,
         userAgent: req?.headers["user-agent"] || null,
         status: "success",
-      });
+      } as any);
     } catch (error) {
       console.error("Failed to log activity:", error);
     }
@@ -169,7 +169,7 @@ export function createMasterAdminRoutes(pool: Pool) {
         phone,
         password: hashedPassword,
         role: normalizedRole,
-      }).returning();
+      } as any).returning();
 
       // Fetch any permissions associated with this role so the frontend
       // can render the appropriate dashboard/actions immediately.
@@ -316,7 +316,7 @@ export function createMasterAdminRoutes(pool: Pool) {
 
       const [updatedUser] = await db
         .update(schema.users)
-        .set({ role, updatedAt: new Date() })
+        .set({ role, updatedAt: new Date() } as any)
         .where(eq(schema.users.id, Number(id)))
         .returning();
 
@@ -388,7 +388,7 @@ export function createMasterAdminRoutes(pool: Pool) {
       if (existing) {
         const [updated] = await db
           .update(schema.adminPermissions)
-          .set({ canCreate, canRead, canUpdate, canDelete, canExport, updatedAt: new Date() })
+          .set({ canCreate, canRead, canUpdate, canDelete, canExport, updatedAt: new Date() } as any)
           .where(eq(schema.adminPermissions.id, existing.id))
           .returning();
         return res.json({ message: "Permission updated", permission: updated });
@@ -402,7 +402,7 @@ export function createMasterAdminRoutes(pool: Pool) {
         canUpdate,
         canDelete,
         canExport,
-      }).returning();
+      } as any).returning();
 
       await logActivity(req.user!.userId, "CREATE", "permissions", `Set permissions for ${role} on ${module}`, "permission", permission.id, null, { role, module }, req);
 
@@ -443,7 +443,7 @@ export function createMasterAdminRoutes(pool: Pool) {
 
       const [updated] = await db
         .update(schema.systemSettings)
-        .set({ settingValue: value, lastModifiedBy: req.user!.userId, updatedAt: new Date() })
+        .set({ settingValue: value, lastModifiedBy: req.user!.userId, updatedAt: new Date() } as any)
         .where(eq(schema.systemSettings.settingKey, key))
         .returning();
 
@@ -473,7 +473,7 @@ export function createMasterAdminRoutes(pool: Pool) {
         description,
         isEditable,
         lastModifiedBy: req.user!.userId,
-      }).returning();
+      } as any).returning();
 
       await logActivity(req.user!.userId, "CREATE", "settings", `Created setting: ${settingKey}`, "setting", setting.id, null, { settingKey, settingValue }, req);
 
@@ -506,7 +506,7 @@ export function createMasterAdminRoutes(pool: Pool) {
 
       const [updated] = await db
         .update(schema.featureToggles)
-        .set({ isEnabled, enabledForRoles, lastModifiedBy: req.user!.userId, updatedAt: new Date() })
+        .set({ isEnabled, enabledForRoles, lastModifiedBy: req.user!.userId, updatedAt: new Date() } as any)
         .where(eq(schema.featureToggles.id, Number(id)))
         .returning();
 
@@ -530,7 +530,7 @@ export function createMasterAdminRoutes(pool: Pool) {
         isEnabled,
         enabledForRoles,
         lastModifiedBy: req.user!.userId,
-      }).returning();
+      } as any).returning();
 
       await logActivity(req.user!.userId, "CREATE", "features", `Created feature: ${featureName}`, "feature", feature.id, null, { featureKey, isEnabled }, req);
 
@@ -634,12 +634,12 @@ export function createMasterAdminRoutes(pool: Pool) {
         backupType: backupType || "manual",
         status: "in_progress",
         initiatedBy: req.user!.userId,
-      }).returning();
+      } as any).returning();
 
       setTimeout(async () => {
         await db
           .update(schema.backupLogs)
-          .set({ status: "completed", completedAt: new Date() })
+          .set({ status: "completed", completedAt: new Date() } as any)
           .where(eq(schema.backupLogs.id, backup.id));
       }, 5000);
 
@@ -891,7 +891,7 @@ export function createMasterAdminRoutes(pool: Pool) {
                 settingValue: String(value), 
                 lastModifiedBy: req.user!.userId, 
                 updatedAt: new Date() 
-              })
+              } as any)
               .where(eq(schema.systemSettings.settingKey, key))
               .returning();
             updatedSettings.push(updated);
@@ -906,7 +906,7 @@ export function createMasterAdminRoutes(pool: Pool) {
             description: `${key} setting`,
             isEditable: true,
             lastModifiedBy: req.user!.userId,
-          }).returning();
+          } as any).returning();
           updatedSettings.push(created);
         }
       }

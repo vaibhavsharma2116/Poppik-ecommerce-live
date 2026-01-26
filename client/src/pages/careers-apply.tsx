@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/select";
 
 export default function CareersApply() {
-  const [, params] = useRoute("/careers/apply/:position?");
+  const [, rawParams] = useRoute("/careers/apply/:position?");
+  const params = rawParams ?? ({} as any);
   const position = params?.position || "";
   const { toast } = useToast();
 

@@ -61,7 +61,6 @@ export default function PromoCodesManagement() {
       if (!response.ok) throw new Error('Failed to fetch promo codes');
       return response.json();
     },
-    suspense: false,
     staleTime: 30000,
   });
 

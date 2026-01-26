@@ -31,7 +31,8 @@ interface BlogPost {
 }
 
 export default function BlogPostDetail() {
-  const { slug } = useParams();
+  const params = useParams() as any;
+  const slug = params?.slug;
   const [post, setPost] = useState<BlogPost | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);

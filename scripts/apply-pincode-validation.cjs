@@ -17,8 +17,8 @@ fs.writeFileSync(backupPath, s, 'utf8');
 const shadesAnchor = 'const shadesCache: Map<string, { expires: number; data: any }> = new Map();';
 assert(s.includes(shadesAnchor), 'Anchor shadesCache not found');
 
-const shipSvcAnchor = 'const shiprocketService = new ShiprocketService();';
-assert(s.includes(shipSvcAnchor), 'Anchor shiprocketService not found');
+const svcAnchor = 'const ithinkService = new IthinkService();';
+assert(s.includes(svcAnchor), 'Anchor ithinkService not found');
 
 // 1) Add cache after shadesCache
 if (!s.includes('const pincodeExistsCache:')) {
@@ -29,7 +29,7 @@ if (!s.includes('const pincodeExistsCache:')) {
   );
 }
 
-// 2) Add helpers after shiprocketService initialization
+// 2) Add helpers after ithinkService initialization
 if (!s.includes('async function validatePincodeBackend')) {
   const helper = [
     '',
@@ -46,7 +46,7 @@ if (!s.includes('async function validatePincodeBackend')) {
     'async function validatePincodeBackend(pincode: string) {',
     "  const normalized = String(pincode || '').trim();",
     '  if (!/^\\d{6}$/.test(normalized)) {',
-    "    return { status: 'error', message: 'Invalid pincode format', pincode_valid: false, shiprocket_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
+    "    return { status: 'error', message: 'Invalid pincode format', pincode_valid: false, ithink_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
     '  }',
     '',
     '  const cached = pincodeExistsCache.get(normalized);',
@@ -56,7 +56,7 @@ if (!s.includes('async function validatePincodeBackend')) {
     '  } else {',
     '    const apiKey = process.env.DATA_GOV_API_KEY;',
     '    if (!apiKey) {',
-    "      return { status: 'error', message: 'Pincode validation service unavailable', pincode_valid: false, shiprocket_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
+    "      return { status: 'error', message: 'Pincode validation service unavailable', pincode_valid: false, ithink_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
     '    }',
     "    const RESOURCE_ID = '5c2f62fe-5afa-4119-a499-fec9d604d5bd';",
     "    const u = new URL('https://api.data.gov.in/resource/' + RESOURCE_ID);",
@@ -72,7 +72,7 @@ if (!s.includes('async function validatePincodeBackend')) {
     '      exists = Array.isArray(records) && records.length > 0;',
     '    } catch (e) {',
     "      console.error('data.gov.in pincode validation failed:', e);",
-    "      return { status: 'error', message: 'Pincode validation service unavailable', pincode_valid: false, shiprocket_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
+    "      return { status: 'error', message: 'Pincode validation service unavailable', pincode_valid: false, ithink_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
     '    }',
     '    if (exists) {',
     '      pincodeExistsCache.set(normalized, { exists: true, expires: Date.now() + 24*60*60*1000 });',
@@ -80,33 +80,33 @@ if (!s.includes('async function validatePincodeBackend')) {
     '  }',
     '',
     '  if (!exists) {',
-    "    return { status: 'invalid', message: 'Pincode does not exist', pincode_valid: false, shiprocket_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
+    "    return { status: 'invalid', message: 'Pincode does not exist', pincode_valid: false, ithink_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
     '  }',
     '',
     '  try {',
-    "    const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE || '400001';",
+    "    const pickupPincode = process.env.ITHINK_PICKUP_PINCODE || '400001';",
     '    const defaultWeight = 0.5;',
     '    const cod = false;',
-    '    const serviceability = await shiprocketService.getServiceability(pickupPincode, normalized, defaultWeight, cod);',
+    '    const serviceability = await ithinkService.getServiceability(pickupPincode, normalized, defaultWeight, cod);',
     '    const hasAvailableCouriers = serviceability && (serviceability as any).data && Array.isArray((serviceability as any).data.available_courier_companies) && (serviceability as any).data.available_courier_companies.length > 0;',
     '    if (hasAvailableCouriers) {',
-    "      return { status: 'success', message: 'Delivery available', pincode_valid: true, shiprocket_deliverable: true, delivery_partner: 'SHIPROCKET' as const };",
+    "      return { status: 'success', message: 'Delivery available', pincode_valid: true, ithink_deliverable: true, delivery_partner: 'ITHINK' as const };",
     '    }',
-    "    return { status: 'success', message: 'Delivery available via India Post', pincode_valid: true, shiprocket_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
+    "    return { status: 'success', message: 'Delivery available via India Post', pincode_valid: true, ithink_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
     '  } catch (e) {',
-    "    console.error('Shiprocket serviceability check failed:', e);",
-    "    return { status: 'error', message: 'Pincode validation service unavailable', pincode_valid: false, shiprocket_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
+    "    console.error('Delivery partner serviceability check failed:', e);",
+    "    return { status: 'error', message: 'Pincode validation service unavailable', pincode_valid: false, ithink_deliverable: false, delivery_partner: 'INDIA_POST' as const };",
     '  }',
     '}',
     ''
   ].join('\n');
 
-  s = s.replace(shipSvcAnchor, shipSvcAnchor + helper);
+  s = s.replace(svcAnchor, svcAnchor + helper);
 }
 
-// 3) Add endpoint near existing shiprocket serviceability section
+// 3) Add endpoint near existing ithink serviceability section
 if (!s.includes("app.get('/api/pincode/validate'")) {
-  const marker = '  // Shiprocket serviceability endpoint for shipping cost';
+  const marker = '  // iThink serviceability endpoint for shipping cost';
   const pos = s.indexOf(marker);
   assert(pos >= 0, 'Insertion marker not found');
 
@@ -117,7 +117,7 @@ if (!s.includes("app.get('/api/pincode/validate'")) {
     '    const result = await validatePincodeBackend(pincode);',
     "    if (result.status === 'error') return res.status(500).json({ status: 'error', message: result.message });",
     "    if (result.status === 'invalid') return res.json({ status: 'invalid', message: result.message, pincode_valid: false });",
-    "    return res.json({ status: 'success', message: result.message, pincode_valid: true, shiprocket_deliverable: result.shiprocket_deliverable, delivery_partner: result.delivery_partner });",
+    "    return res.json({ status: 'success', message: result.message, pincode_valid: true, ithink_deliverable: result.ithink_deliverable, delivery_partner: result.delivery_partner });",
     '  });',
     ''
   ].join('\n');

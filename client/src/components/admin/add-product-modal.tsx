@@ -215,7 +215,7 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
       const slug = formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
       // Find the category name from the category ID
-      const selectedCategory = categories?.find((cat: any) => cat.id === parseInt(formData.category));
+      const selectedCategory = (categories as any[])?.find((cat: any) => cat.id === parseInt(formData.category));
       const categoryName = selectedCategory ? selectedCategory.name : formData.category;
 
       const newProduct = {
@@ -630,8 +630,8 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.length > 0 ? (
-                    categories.map((category: any) => (
+                  {(categories as any[]).length > 0 ? (
+                    (categories as any[]).map((category: any) => (
                       <SelectItem key={category.id} value={category.id.toString()}>
                         {category.name}
                       </SelectItem>
@@ -657,10 +657,10 @@ export default function AddProductModal({ onAddProduct }: AddProductModalProps) 
                 </SelectTrigger>
                 <SelectContent>
                   {formData.category ? (
-                    subcategories
+                    (subcategories as any[])
                       .filter((sub: any) => sub.categoryId.toString() === formData.category)
                       .length > 0 ? (
-                        subcategories
+                        (subcategories as any[])
                           .filter((sub: any) => sub.categoryId.toString() === formData.category)
                           .map((subcategory: any) => (
                             <SelectItem key={subcategory.id} value={subcategory.name}>

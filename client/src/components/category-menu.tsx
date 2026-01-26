@@ -33,18 +33,18 @@ export default function CategoryMenu({
   const getSubcategoriesForCategory = (categoryName: string) => {
     // Ensure newSet is defined or replace with a standard JavaScript Set
     // Assuming 'newSet' was intended to be 'new Set'
-    return [...new Set(
+    return Array.from(new Set(
       products
         .filter(p => p.category === categoryName)
-        .map(p => p.subcategory)
+        .map(p => (p as any).subcategory)
         .filter(Boolean)
-    )];
+    ));
   };
 
   const getProductCount = (categoryName: string, subcategory?: string) => {
     return products.filter(p =>
       p.category === categoryName &&
-      (subcategory ? p.subcategory === subcategory : true)
+      (subcategory ? (p as any).subcategory === subcategory : true)
     ).length;
   };
 
@@ -54,7 +54,7 @@ export default function CategoryMenu({
         <ul className="space-y-1">
           {categories.map((category) => (
             <li key={category.id}>
-              <Collapsible open={openCategories.includes(category.id)} onOpenChange={() => toggleCategory(category.id)}>
+              <Collapsible open={openCategories.includes(String(category.id))} onOpenChange={() => toggleCategory(String(category.id))}>
                 <CollapsibleTrigger asChild>
                   <Button
                     variant="ghost"
@@ -69,13 +69,12 @@ export default function CategoryMenu({
                           style={{
                             width: 200,
                             height: 200,
-                            quality: 75,
-                            fit: 'cover'
-                          }}
-                          lazy={true}
-                          responsive={false}
+                            ...( { quality: 75, fit: 'cover' } as any)
+                          } as any}
+                          loading="lazy"
                           className="w-full h-full object-cover rounded-md"
                         />
+
                       </div>
                       <span className="flex-grow">{category.name}</span>
                       <span className="ml-auto text-sm text-gray-500 mr-2">

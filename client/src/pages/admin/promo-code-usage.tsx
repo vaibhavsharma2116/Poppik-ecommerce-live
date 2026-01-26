@@ -21,7 +21,6 @@ export default function PromoCodeUsage() {
       console.log('Promo code usage data:', data);
       return Array.isArray(data) ? data : [];
     },
-    suspense: false,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   });
@@ -37,7 +36,7 @@ export default function PromoCodeUsage() {
 
   const uniqueCodes = useMemo(() => {
     if (!Array.isArray(deferredUsageData) || deferredUsageData.length === 0) return 0;
-    return [...new Set(deferredUsageData.map((item: any) => item.code))].length;
+    return Array.from(new Set(deferredUsageData.map((item: any) => item.code))).length;
   }, [deferredUsageData]);
   
   const totalOrders = useMemo(() => {

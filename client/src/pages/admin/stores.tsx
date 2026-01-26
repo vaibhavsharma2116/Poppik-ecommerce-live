@@ -21,6 +21,7 @@ interface Store {
   country?: string;
   phone?: string;
   email?: string;
+  website?: string;
   hours?: string;
   latitude: string;
   longitude: string;
