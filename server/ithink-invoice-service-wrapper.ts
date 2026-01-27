@@ -1,27 +1,27 @@
 import type { Response } from "express";
-import ShiprocketService from "./shiprocket-service";
+import IthinkServiceAdapter from "./ithink-service-adapter";
 
-export class ShiprocketInvoiceService {
-  private readonly shiprocketService: ShiprocketService;
+export class IthinkInvoiceService {
+  private readonly ithinkService: IthinkServiceAdapter;
 
-  constructor(shiprocketService: ShiprocketService) {
-    this.shiprocketService = shiprocketService;
+  constructor(ithinkService: IthinkServiceAdapter) {
+    this.ithinkService = ithinkService;
   }
 
   async streamThermalInvoicePdf(
     res: Response,
-    shiprocketOrderId: any,
+    ithinkOrderId: any,
     normalizedOrder: any,
     awb: string | null,
     filename: string
   ) {
-    void shiprocketOrderId;
+    void ithinkOrderId;
     void normalizedOrder;
     void awb;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename=\"${filename}\"`);
 
-    const resp = await this.shiprocketService.generateInvoicePdfResponse(shiprocketOrderId);
+    const resp = await this.ithinkService.generateInvoicePdfResponse(ithinkOrderId);
     const buf = Buffer.from(await resp.arrayBuffer());
     res.end(buf);
   }
@@ -30,7 +30,7 @@ export class ShiprocketInvoiceService {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename=\"${filename}\"`);
 
-    const resp = await this.shiprocketService.generateLabelPdfResponse(shipmentId);
+    const resp = await this.ithinkService.generateLabelPdfResponse(shipmentId);
     const buf = Buffer.from(await resp.arrayBuffer());
     res.end(buf);
   }

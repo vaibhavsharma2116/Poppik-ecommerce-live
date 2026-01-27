@@ -11,7 +11,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import sharp from "sharp";
 import { adminAuthMiddleware as adminMiddleware } from "./admin-middleware";
-import { ShiprocketInvoiceService } from "./shiprocket-invoice-service";
+import { IthinkInvoiceService } from "./ithink-invoice-service-wrapper";
 import { IndiaPostInvoiceService } from "./india-post-invoice-service";
 import nodemailer from 'nodemailer';
 import { createMasterAdminRoutes } from "./master-admin-routes";
@@ -108,14 +108,14 @@ import { desc } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
-import ShiprocketService from "./shiprocket-service";
+import IthinkServiceAdapter from "./ithink-service-adapter";
 import type { InsertBlogCategory, InsertBlogSubcategory, InsertInfluencerApplication, PromoCode, PromoCodeUsage } from "../shared/schema";
 import { users, ordersTable, orderItemsTable, cashfreePayments, affiliateApplications, affiliateClicks, affiliateSales, affiliateWallet, affiliateTransactions, blogPosts, blogCategories, blogSubcategories, contactSubmissions, categorySliders, videoTestimonials, announcements, combos, comboImages, jobPositions, influencerApplications, userWallet, userWalletTransactions, affiliateWallet as affiliateWalletSchema, affiliateApplications as affiliateApplicationsSchema } from "../shared/schema"; // Import users table explicitly
 import type { Request, Response } from 'express'; // Import Request and Response types for clarity
 
-// Initialize Shiprocket service
-const shiprocketService = new ShiprocketService();
-const shiprocketInvoiceService = new ShiprocketInvoiceService(shiprocketService);
+// Initialize iThink service
+const ithinkService = new IthinkServiceAdapter();
+const ithinkInvoiceService = new IthinkInvoiceService(ithinkService);
 const indiaPostInvoiceService = new IndiaPostInvoiceService();
 
 async function fetchWithTimeout(url: string, init: any, timeoutMs: number) {
@@ -687,7 +687,7 @@ async function sendOrderNotificationEmail(orderData: any) {
 
             <div style="background-color: ${deliveryPartner === 'INDIA_POST' ? '#fff3cd' : '#d1ecf1'}; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid ${deliveryPartner === 'INDIA_POST' ? '#ffc107' : '#0dcaf0'};">
               <p style="margin: 0; font-size: 14px; font-weight: bold; color: ${deliveryPartner === 'INDIA_POST' ? '#856404' : '#0c5460'};">
-                Delivery Partner: ${deliveryPartner === 'INDIA_POST' ? 'India Post (Manual Delivery)' : 'Shiprocket'}
+                Delivery Partner: ${deliveryPartner === 'INDIA_POST' ? 'India Post (Manual Delivery)' : 'iThink'}
               </p>
               ${deliveryType ? `<p style="margin: 5px 0 0 0; font-size: 13px; color: ${deliveryPartner === 'INDIA_POST' ? '#856404' : '#0c5460'};"><strong>Delivery Type:</strong> ${deliveryType}</p>` : ''}
               ${deliveryPartner === 'INDIA_POST' ? '<p style="margin: 5px 0 0 0; font-size: 13px; color: #856404;"><strong> Manual Processing Required:</strong> This order needs to be processed manually via India Post.</p>' : ''}
@@ -1968,6 +1968,62 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
+ // Delivery Address Management Routes
+  app.get("/api/delivery-addresses", async (req, res) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const addresses = await db
+        .select()
+        .from(schema.deliveryAddresses)
+        .where(eq(schema.deliveryAddresses.userId, parseInt(userId as string)))
+        .orderBy(desc(schema.deliveryAddresses.isDefault), desc(schema.deliveryAddresses.createdAt));
+
+      res.json(addresses);
+    } catch (error) {
+      console.error("Error fetching delivery addresses:", error);
+      res.status(500).json({ error: "Failed to fetch delivery addresses" });
+    }
+  });
+
+  app.get("/api/delivery-addresses/:id", async (req, res) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const addressId = parseInt(req.params.id);
+      if (isNaN(addressId)) {
+        return res.status(400).json({ error: "Invalid address ID" });
+      }
+
+      const address = await db
+        .select()
+        .from(schema.deliveryAddresses)
+        .where(eq(schema.deliveryAddresses.id, addressId))
+        .limit(1);
+
+      if (address.length === 0) {
+        return res.status(404).json({ error: "Address not found" });
+      }
+
+      res.json(address[0]);
+    } catch (error) {
+      console.error("Error fetching delivery address:", error);
+      res.status(500).json({ error: "Failed to fetch delivery address" });
+    }
+  });
+
   app.post("/api/delivery-addresses", async (req, res) => {
     try {
       res.setHeader('Content-Type', 'application/json');
@@ -2006,7 +2062,7 @@ app.get("/api/admin/stores", async (req, res) => {
       if (isDefault) {
         await db
           .update(schema.deliveryAddresses)
-          .set({ isDefault: false } as any)
+          .set({ isDefault: false })
           .where(eq(schema.deliveryAddresses.userId, parseInt(userId)));
       }
 
@@ -2025,7 +2081,7 @@ app.get("/api/admin/stores", async (req, res) => {
           phoneNumber: phoneNumber.trim(),
           deliveryInstructions: deliveryInstructions ? deliveryInstructions.trim() : null,
           isDefault: Boolean(isDefault)
-        } as any)
+        })
         .returning();
 
       res.status(201).json(newAddress);
@@ -2078,7 +2134,7 @@ app.get("/api/admin/stores", async (req, res) => {
         if (address.length > 0) {
           await db
             .update(schema.deliveryAddresses)
-            .set({ isDefault: false } as any)
+            .set({ isDefault: false })
             .where(eq(schema.deliveryAddresses.userId, address[0].userId));
         }
       }
@@ -2098,7 +2154,7 @@ app.get("/api/admin/stores", async (req, res) => {
           deliveryInstructions: deliveryInstructions ? deliveryInstructions.trim() : null,
           isDefault: Boolean(isDefault),
           updatedAt: new Date()
-        } as any)
+        })
         .where(eq(schema.deliveryAddresses.id, addressId))
         .returning();
 
@@ -2160,13 +2216,13 @@ app.get("/api/admin/stores", async (req, res) => {
       // Unset all default addresses for this user
       await db
         .update(schema.deliveryAddresses)
-        .set({ isDefault: false } as any)
+        .set({ isDefault: false })
         .where(eq(schema.deliveryAddresses.userId, address[0].userId));
 
       // Set this address as default
       const [updatedAddress] = await db
         .update(schema.deliveryAddresses)
-        .set({ isDefault: true, updatedAt: new Date() } as any)
+        .set({ isDefault: true, updatedAt: new Date() })
         .where(eq(schema.deliveryAddresses.id, addressId))
         .returning();
 
@@ -2768,25 +2824,25 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
-  // Sync existing orders with Shiprocket
-  app.post("/api/admin/sync-shiprocket-orders", async (req, res) => {
+  // Sync existing orders with iThink
+  app.post("/api/admin/sync-ithink-orders", async (req, res) => {
     try {
-      console.log("Syncing existing orders with Shiprocket...");
+      console.log("Syncing existing orders with iThink...");
 
-      // Check if Shiprocket is configured
-      if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD) {
+      // Check if iThink is configured
+      if (!process.env.ITHINK_EMAIL || !process.env.ITHINK_PASSWORD) {
         return res.status(400).json({
-          error: "Shiprocket credentials not configured",
-          message: "Please set SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD environment variables"
+          error: "iThink credentials not configured",
+          message: "Please set ITHINK_EMAIL and ITHINK_PASSWORD environment variables"
         });
       }
 
-      // Get orders that don't have Shiprocket tracking
+      // Get orders that don't have iThink tracking
       const ordersToSync = await db
         .select()
         .from(schema.ordersTable)
         .where(and(
-          isNull((schema.ordersTable as any).shiprocketOrderId),
+          isNull((schema.ordersTable as any).ithinkOrderId),
           or(
             eq(schema.ordersTable.status, 'processing'),
             eq(schema.ordersTable.status, 'pending')
@@ -2824,7 +2880,7 @@ app.get("/api/admin/stores", async (req, res) => {
             .from(schema.orderItemsTable)
             .where(eq(schema.orderItemsTable.orderId, order.id));
 
-          const orderForShiprocket = {
+          const orderForiThink = {
             id: `ORD-${order.id.toString().padStart(3, '0')}`,
             createdAt: order.createdAt,
             totalAmount: order.totalAmount,
@@ -2845,23 +2901,23 @@ app.get("/api/admin/stores", async (req, res) => {
             }
           };
 
-          const shiprocketOrderData = shiprocketService.convertToShiprocketFormat(orderForShiprocket);
-          const shiprocketResponse = await shiprocketService.createOrder(shiprocketOrderData);
+          const ithinkOrderData = ithinkService.convertToIthinkFormat(orderForIthink);
+          const ithinkResponse = await ithinkService.createOrder(ithinkOrderData);
 
-          if (shiprocketResponse.order_id) {
-            // Update order with Shiprocket details
+          if (ithinkResponse.order_id) {
+            // Update order with iThink details
             await db.update(schema.ordersTable)
               .set({
-                shiprocketOrderId: shiprocketResponse.order_id,
-                shiprocketShipmentId: shiprocketResponse.shipment_id || null
+                ithinkOrderId: ithinkResponse.order_id,
+                ithinkShipmentId: ithinkResponse.shipment_id || null
               } as any)
               .where(eq(schema.ordersTable.id, order.id));
 
             syncedCount++;
-            console.log(`Synced order ${order.id} with Shiprocket order ${shiprocketResponse.order_id}`);
+            console.log(`Synced order ${order.id} with iThink order ${ithinkResponse.order_id}`);
           } else {
             failedCount++;
-            console.error(`Failed to create Shiprocket order for order ${order.id}`);
+            console.error(`Failed to create iThink order for order ${order.id}`);
           }
 
         } catch (orderError) {
@@ -2874,7 +2930,7 @@ app.get("/api/admin/stores", async (req, res) => {
       }
 
       res.json({
-        message: `Shiprocket sync completed`,
+        message: `iThink sync completed`,
         totalOrders: ordersToSync.length,
         syncedCount,
         failedCount,
@@ -2882,9 +2938,9 @@ app.get("/api/admin/stores", async (req, res) => {
       });
 
     } catch (error) {
-      console.error("Error syncing orders with Shiprocket:", error);
+      console.error("Error syncing orders with iThink:", error);
       res.status(500).json({
-        error: "Failed to sync orders with Shiprocket",
+        error: "Failed to sync orders with iThink",
         details: (error as any)?.message
       });
     }
@@ -2930,19 +2986,19 @@ app.get("/api/admin/stores", async (req, res) => {
         .limit(1);
       const user = userRows?.[0];
 
-      const hasShiprocketRef =
-        Number((order as any).shiprocketShipmentId) > 0 ||
-        Number((order as any).shiprocketOrderId) > 0 ||
-        Number((order as any).shiprocket_order_id) > 0 ||
-        Number((order as any).shiprocket_shipment_id) > 0;
-      const deliveryPartner = String(order.deliveryPartner || (hasShiprocketRef ? "SHIPROCKET" : "INDIA_POST")).toUpperCase();
+      const hasiThinkRef =
+        Number((order as any).ithinkShipmentId) > 0 ||
+        Number((order as any).ithinkOrderId) > 0 ||
+        Number((order as any).ithink_order_id) > 0 ||
+        Number((order as any).ithink_shipment_id) > 0;
+      const deliveryPartner = String(order.deliveryPartner || (hasiThinkRef ? "ITHINK" : "INDIA_POST")).toUpperCase();
       const filename = `${normalized}-thermal-invoice.pdf`;
 
-      if (deliveryPartner === "SHIPROCKET") {
-        const shiprocketOrderId = Number((order as any).shiprocketOrderId || (order as any).shiprocket_order_id);
-        const shipmentId = Number((order as any).shiprocketShipmentId || (order as any).shiprocket_shipment_id);
+      if (deliveryPartner === "ITHINK") {
+        const ithinkOrderId = Number((order as any).ithinkOrderId || (order as any).ithink_order_id);
+        const shipmentId = Number((order as any).ithinkShipmentId || (order as any).ithink_shipment_id);
         if (!Number.isFinite(shipmentId) || shipmentId <= 0) {
-          return res.status(400).json({ error: "Shiprocket shipmentId missing for this order" });
+          return res.status(400).json({ error: "iThink shipmentId missing for this order" });
         }
 
         let awbNow = String((order as any).trackingNumber || (order as any).tracking_number || "").trim();
@@ -2956,7 +3012,7 @@ app.get("/api/admin/stores", async (req, res) => {
             return res.status(400).json({ error: "Delivery pincode missing; cannot generate AWB" });
           }
 
-          const pickupPincode = String(process.env.SHIPROCKET_PICKUP_PINCODE || "400001");
+          const pickupPincode = String(process.env.ITHINK_PICKUP_PINCODE || "400001");
           const weight = Math.max(
             0.5,
             (items || []).reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0)
@@ -2964,20 +3020,20 @@ app.get("/api/admin/stores", async (req, res) => {
           const pm = String((order as any).paymentMethod || (order as any).payment_method || "");
           const cod = pm.toLowerCase().includes("cod") || pm.toLowerCase().includes("cash");
 
-          const serviceability: any = await shiprocketService.getServiceability(pickupPincode, deliveryPincode, weight, cod);
+          const serviceability: any = await ithinkService.getServiceability(pickupPincode, deliveryPincode, weight, cod);
           const couriers: any[] = serviceability?.data?.available_courier_companies;
           if (!Array.isArray(couriers) || couriers.length === 0) {
-            return res.status(400).json({ error: "No Shiprocket couriers available to generate AWB" });
+            return res.status(400).json({ error: "No iThink couriers available to generate AWB" });
           }
 
           const courierId = Number(
             couriers.find((c: any) => Number(c?.courier_company_id) > 0)?.courier_company_id || couriers[0]?.courier_company_id
           );
           if (!Number.isFinite(courierId) || courierId <= 0) {
-            return res.status(400).json({ error: "Invalid courier_company_id returned by Shiprocket" });
+            return res.status(400).json({ error: "Invalid courier_company_id returned by iThink" });
           }
 
-          const awbResp: any = await shiprocketService.generateAWB(shipmentId, courierId);
+          const awbResp: any = await ithinkService.generateAWB(shipmentId, courierId);
           const awb = String(
             awbResp?.awb_code ||
               awbResp?.data?.awb_code ||
@@ -2990,13 +3046,13 @@ app.get("/api/admin/stores", async (req, res) => {
             await db.update(schema.ordersTable).set({ trackingNumber: awb } as any).where(eq(schema.ordersTable.id, orderIdNum));
           }
 
-          console.log("[thermal-invoice][shiprocket] awb after generateAWB=", awbNow || "<empty>");
+          console.log("[thermal-invoice][ithink] awb after generateAWB=", awbNow || "<empty>");
         }
 
-        // Fallback: if AWB is still missing, try fetching it from Shiprocket order details.
+        // Fallback: if AWB is still missing, try fetching it from iThink order details.
         if (!awbNow) {
           try {
-            const details: any = await shiprocketService.getOrderDetails(String((order as any).shiprocketOrderId || (order as any).shiprocket_order_id));
+            const details: any = await ithinkService.getOrderDetails(String((order as any).ithinkOrderId || (order as any).ithink_order_id));
             const awbFromDetails = String(
               details?.data?.awb_code ||
                 details?.data?.awb ||
@@ -3015,16 +3071,16 @@ app.get("/api/admin/stores", async (req, res) => {
               await db.update(schema.ordersTable).set({ trackingNumber: awbFromDetails } as any).where(eq(schema.ordersTable.id, orderIdNum));
             }
 
-            console.log("[thermal-invoice][shiprocket] awb after getOrderDetails fallback=", awbNow || "<empty>");
+            console.log("[thermal-invoice][ithink] awb after getOrderDetails fallback=", awbNow || "<empty>");
           } catch (e) {
-            console.warn("Shiprocket AWB fallback fetch failed:", (e as any)?.message || e);
+            console.warn("iThink AWB fallback fetch failed:", (e as any)?.message || e);
           }
         }
 
-        // Fallback 2: Shiprocket tracking endpoint often contains the AWB even if order details don't.
+        // Fallback 2: iThink tracking endpoint often contains the AWB even if order details don't.
         if (!awbNow) {
           try {
-            const track: any = await shiprocketService.trackOrder(String((order as any).shiprocketOrderId || (order as any).shiprocket_order_id));
+            const track: any = await ithinkService.trackOrder(String((order as any).ithinkOrderId || (order as any).ithink_order_id));
             const awbFromTrack = String(
               track?.awb_code ||
                 track?.awb ||
@@ -3042,14 +3098,14 @@ app.get("/api/admin/stores", async (req, res) => {
               await db.update(schema.ordersTable).set({ trackingNumber: awbFromTrack } as any).where(eq(schema.ordersTable.id, orderIdNum));
             }
 
-            console.log("[thermal-invoice][shiprocket] awb after trackOrder fallback=", awbNow || "<empty>");
+            console.log("[thermal-invoice][ithink] awb after trackOrder fallback=", awbNow || "<empty>");
           } catch (e) {
-            console.warn("Shiprocket trackOrder AWB fallback failed:", (e as any)?.message || e);
+            console.warn("iThink trackOrder AWB fallback failed:", (e as any)?.message || e);
           }
         }
 
-        console.log("[thermal-invoice][shiprocket] final awb passed to PDF overlay=", awbNow || "<empty>");
-        await shiprocketInvoiceService.streamThermalInvoicePdf(res, shiprocketOrderId, normalized, awbNow || null, filename);
+        console.log("[thermal-invoice][ithink] final awb passed to PDF overlay=", awbNow || "<empty>");
+        await ithinkInvoiceService.streamThermalInvoicePdf(res, ithinkOrderId, normalized, awbNow || null, filename);
         return;
       }
 
@@ -3114,18 +3170,18 @@ app.get("/api/admin/stores", async (req, res) => {
         .limit(1);
       const user = userRows?.[0];
 
-      const hasShiprocketRef =
-        Number((order as any).shiprocketShipmentId) > 0 ||
-        Number((order as any).shiprocketOrderId) > 0 ||
-        Number((order as any).shiprocket_order_id) > 0 ||
-        Number((order as any).shiprocket_shipment_id) > 0;
-      const deliveryPartner = String(order.deliveryPartner || (hasShiprocketRef ? "SHIPROCKET" : "INDIA_POST")).toUpperCase();
+      const hasiThinkRef =
+        Number((order as any).ithinkShipmentId) > 0 ||
+        Number((order as any).ithinkOrderId) > 0 ||
+        Number((order as any).ithink_order_id) > 0 ||
+        Number((order as any).ithink_shipment_id) > 0;
+      const deliveryPartner = String(order.deliveryPartner || (hasiThinkRef ? "ITHINK" : "INDIA_POST")).toUpperCase();
       const filename = `${normalized}-thermal-label.pdf`;
 
-      if (deliveryPartner === "SHIPROCKET") {
-        const shipmentId = Number((order as any).shiprocketShipmentId || (order as any).shiprocket_shipment_id);
+      if (deliveryPartner === "ITHINK") {
+        const shipmentId = Number((order as any).ithinkShipmentId || (order as any).ithink_shipment_id);
         if (!Number.isFinite(shipmentId) || shipmentId <= 0) {
-          return res.status(400).json({ error: "Shiprocket shipmentId missing for this order" });
+          return res.status(400).json({ error: "iThink shipmentId missing for this order" });
         }
 
         const existingTracking = String((order as any).trackingNumber || (order as any).tracking_number || "").trim();
@@ -3137,7 +3193,7 @@ app.get("/api/admin/stores", async (req, res) => {
             return res.status(400).json({ error: "Delivery pincode missing; cannot generate AWB" });
           }
 
-          const pickupPincode = String(process.env.SHIPROCKET_PICKUP_PINCODE || "400001");
+          const pickupPincode = String(process.env.ITHINK_PICKUP_PINCODE || "400001");
           const weight = Math.max(
             0.5,
             (items || []).reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0)
@@ -3145,27 +3201,27 @@ app.get("/api/admin/stores", async (req, res) => {
           const pm = String((order as any).paymentMethod || (order as any).payment_method || "");
           const cod = pm.toLowerCase().includes("cod") || pm.toLowerCase().includes("cash");
 
-          const serviceability: any = await shiprocketService.getServiceability(pickupPincode, deliveryPincode, weight, cod);
+          const serviceability: any = await ithinkService.getServiceability(pickupPincode, deliveryPincode, weight, cod);
           const couriers: any[] = serviceability?.data?.available_courier_companies;
           if (!Array.isArray(couriers) || couriers.length === 0) {
-            return res.status(400).json({ error: "No Shiprocket couriers available to generate AWB" });
+            return res.status(400).json({ error: "No iThink couriers available to generate AWB" });
           }
 
           const courierId = Number(
             couriers.find((c: any) => Number(c?.courier_company_id) > 0)?.courier_company_id || couriers[0]?.courier_company_id
           );
           if (!Number.isFinite(courierId) || courierId <= 0) {
-            return res.status(400).json({ error: "Invalid courier_company_id returned by Shiprocket" });
+            return res.status(400).json({ error: "Invalid courier_company_id returned by iThink" });
           }
 
-          const awbResp: any = await shiprocketService.generateAWB(shipmentId, courierId);
+          const awbResp: any = await ithinkService.generateAWB(shipmentId, courierId);
           const awb = String(awbResp?.awb_code || awbResp?.data?.awb_code || awbResp?.data?.awb || awbResp?.awb || "").trim();
           if (awb) {
             await db.update(schema.ordersTable).set({ trackingNumber: awb } as any).where(eq(schema.ordersTable.id, orderIdNum));
           }
         }
 
-        await shiprocketInvoiceService.streamThermalLabelPdf(res, shipmentId, filename);
+        await ithinkInvoiceService.streamThermalLabelPdf(res, shipmentId, filename);
         return;
       }
 
@@ -3259,11 +3315,11 @@ app.get("/api/admin/stores", async (req, res) => {
             shippingAddress: order.shippingAddress,
             deliveryPartner:
               (order as any).deliveryPartner ||
-              ((Number((order as any).shiprocketShipmentId) > 0 ||
-                Number((order as any).shiprocketOrderId) > 0 ||
-                Number((order as any).shiprocket_order_id) > 0 ||
-                Number((order as any).shiprocket_shipment_id) > 0)
-                ? "SHIPROCKET"
+              ((Number((order as any).ithinkShipmentId) > 0 ||
+                Number((order as any).ithinkOrderId) > 0 ||
+                Number((order as any).ithink_order_id) > 0 ||
+                Number((order as any).ithink_shipment_id) > 0)
+                ? "ITHINK"
                 : "INDIA_POST"),
             deliveryType: (order as any).deliveryType || null,
           };
@@ -4016,8 +4072,8 @@ app.get("/api/admin/stores", async (req, res) => {
         }
       }
 
-      // Determine delivery partner and type from request or default to SHIPROCKET
-      let deliveryPartner = req.body.deliveryPartner || 'SHIPROCKET';
+      // Determine delivery partner and type from request or default to ITHINK
+      let deliveryPartner = req.body.deliveryPartner || 'ITHINK';
       let deliveryType = req.body.deliveryType || null;
 
       // Re-check pincode serviceability on the server so order/email stays consistent
@@ -4069,14 +4125,14 @@ app.get("/api/admin/stores", async (req, res) => {
       let isServiceable = true;
       if (pincodes.length > 0) {
         try {
-          const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE || "400001";
+          const pickupPincode = process.env.ITHINK_PICKUP_PINCODE || "400001";
           const weight = Array.isArray(items)
             ? Math.max(0.5, items.reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0))
             : 0.5;
           const cod = String(paymentMethod || '').toLowerCase().includes('cod') || String(paymentMethod || '').toLowerCase().includes('cash');
 
           for (const pc of pincodes) {
-            const serviceability = await shiprocketService.getServiceability(pickupPincode, pc, weight, cod);
+            const serviceability = await ithinkService.getServiceability(pickupPincode, pc, weight, cod);
             const hasAvailableCouriers = serviceability &&
               (serviceability as any).data &&
               Array.isArray((serviceability as any).data.available_courier_companies) &&
@@ -4834,18 +4890,18 @@ app.get("/api/admin/stores", async (req, res) => {
         console.error('Failed to create pending cashback transactions:', e);
       }
 
-      let shiprocketAwb = null;
-      let shiprocketOrderId = null;
-      let shiprocketShipmentId = null;
-      let shiprocketError = null;
+      let ithinkAwb = null;
+      let ithinkOrderId = null;
+      let ithinkShipmentId = null;
+      let ithinkError = null;
 
-      // Prepare a user placeholder so it's available outside the Shiprocket block
+      // Prepare a user placeholder so it's available outside the iThink block
       let user: any = [];
 
-      // Check if Shiprocket is configured
-      if (deliveryPartner === 'SHIPROCKET' && process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD) {
+      // Check if iThink is configured
+      if (deliveryPartner === 'ITHINK' && process.env.ITHINK_EMAIL && process.env.ITHINK_PASSWORD) {
         try {
-          console.log('Starting Shiprocket order creation for:', orderId);
+          console.log('Starting iThink order creation for:', orderId);
 
           // Get user details from database
           user = await db
@@ -4875,13 +4931,13 @@ app.get("/api/admin/stores", async (req, res) => {
             };
           }
 
-          console.log('Customer data for Shiprocket:', customerData);
+          console.log('Customer data for iThink:', customerData);
           console.log('Full shipping address:', shippingAddress);
 
-          // Prepare Shiprocket order with correct pickup location
-          // NOTE: If env is missing, default to 'Office' since many Shiprocket accounts use it
-          const pickupLocation = String(process.env.SHIPROCKET_PICKUP_LOCATION || 'Office');
-          const shiprocketOrderData = shiprocketService.convertToShiprocketFormat({
+          // Prepare iThink order with correct pickup location
+          // NOTE: If env is missing, default to 'Office' since many iThink accounts use it
+          const pickupLocation = String(process.env.ITHINK_PICKUP_LOCATION || 'Office');
+          const ithinkOrderData = ithinkService.convertToIthinkFormat({
             id: orderId,
             createdAt: newOrder.createdAt,
             totalAmount: Number(totalAmount),
@@ -4891,54 +4947,54 @@ app.get("/api/admin/stores", async (req, res) => {
             customer: customerData
           }, pickupLocation);
 
-          console.log('Shiprocket order payload:', JSON.stringify(shiprocketOrderData, null, 2));
+          console.log('iThink order payload:', JSON.stringify(ithinkOrderData, null, 2));
 
-          // Create order on Shiprocket
-          const shiprocketResponse = await shiprocketService.createOrder(shiprocketOrderData);
-          console.log('Shiprocket API response:', JSON.stringify(shiprocketResponse, null, 2));
+          // Create order on iThink
+          const ithinkResponse = await ithinkService.createOrder(ithinkOrderData);
+          console.log('iThink API response:', JSON.stringify(ithinkResponse, null, 2));
 
-          if (shiprocketResponse && shiprocketResponse.order_id) {
-            shiprocketOrderId = shiprocketResponse.order_id;
-            shiprocketShipmentId = shiprocketResponse.shipment_id || null;
-            shiprocketAwb = shiprocketResponse.awb_code || null;
+          if (ithinkResponse && ithinkResponse.order_id) {
+            ithinkOrderId = ithinkResponse.order_id;
+            ithinkShipmentId = ithinkResponse.shipment_id || null;
+            ithinkAwb = ithinkResponse.awb_code || null;
 
-            console.log(`Shiprocket order created: ${shiprocketOrderId} shipment_id=${shiprocketShipmentId || 'Pending'} awb=${shiprocketAwb || 'Pending'}`);
+            console.log(`iThink order created: ${ithinkOrderId} shipment_id=${ithinkShipmentId || 'Pending'} awb=${ithinkAwb || 'Pending'}`);
 
-            // Update order with Shiprocket details immediately
+            // Update order with iThink details immediately
             await db.update(schema.ordersTable)
               .set({
-                shiprocketOrderId: shiprocketOrderId,
-                shiprocketShipmentId: shiprocketShipmentId,
-                trackingNumber: shiprocketAwb || undefined,
-                status: 'processing' // Set status to processing since it's now with Shiprocket
+                ithinkOrderId: ithinkOrderId,
+                ithinkShipmentId: ithinkShipmentId,
+                trackingNumber: ithinkAwb || undefined,
+                status: 'processing' // Set status to processing since it's now with iThink
               } as any)
               .where(eq(schema.ordersTable.id, newOrder.id));
 
-            console.log(`Database updated with Shiprocket details for order ${orderId}`);
+            console.log(`Database updated with iThink details for order ${orderId}`);
           } else {
-            shiprocketError = 'Invalid Shiprocket response - no order_id';
-            console.error('Shiprocket response missing order_id:', shiprocketResponse);
+            ithinkError = 'Invalid iThink response - no order_id';
+            console.error('iThink response missing order_id:', ithinkResponse);
           }
-        } catch (shiprocketErrorCatch) {
-          shiprocketError = shiprocketErrorCatch.message;
-          console.error('Shiprocket order creation failed:', {
+        } catch (ithinkErrorCatch) {
+          ithinkError = ithinkErrorCatch.message;
+          console.error('iThink order creation failed:', {
             orderId: orderId,
-            error: shiprocketErrorCatch.message,
-            stack: shiprocketErrorCatch.stack
+            error: ithinkErrorCatch.message,
+            stack: ithinkErrorCatch.stack
           });
 
           // Save error to database for debugging
           await db.update(schema.ordersTable)
             .set({
-              notes: `Shiprocket Error: ${shiprocketErrorCatch.message}`
+              notes: `iThink Error: ${ithinkErrorCatch.message}`
             } as any)
             .where(eq(schema.ordersTable.id, newOrder.id));
         }
       } else {
-        shiprocketError = deliveryPartner !== 'SHIPROCKET'
-          ? 'Manual dispatch (India Post) - Shiprocket integration skipped'
-          : 'Shiprocket credentials not configured';
-        console.warn('Skipping Shiprocket integration:', shiprocketError);
+        ithinkError = deliveryPartner !== 'ITHINK'
+          ? 'Manual dispatch (India Post) - iThink integration skipped'
+          : 'iThink credentials not configured';
+        console.warn('Skipping iThink integration:', ithinkError);
       }
 
       // Send order notification email to info@poppik.in
@@ -4964,14 +5020,14 @@ app.get("/api/admin/stores", async (req, res) => {
         success: true,
         message: "Order placed successfully",
         orderId: orderId,
-        shiprocketIntegrated: !!shiprocketOrderId,
-        shiprocketOrderId: shiprocketOrderId,
-        shiprocketError: shiprocketError,
+        ithinkIntegrated: !!ithinkOrderId,
+        ithinkOrderId: ithinkOrderId,
+        ithinkError: ithinkError,
         order: {
           id: orderId,
           ...newOrder,
-          shiprocketOrderId: shiprocketOrderId || null,
-          shiprocketShipmentId: shiprocketShipmentId || null
+          ithinkOrderId: ithinkOrderId || null,
+          ithinkShipmentId: ithinkShipmentId || null
         }
       });
 
@@ -5351,8 +5407,8 @@ app.get("/api/admin/stores", async (req, res) => {
         });
       }
 
-      const shiprocketService = new ShiprocketService();
-      const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE || "400001";
+      const ithinkService = new iThinkService();
+      const pickupPincode = process.env.ITHINK_PICKUP_PINCODE || "400001";
       
       // Default weight for serviceability check (0.5kg)
       const defaultWeight = 0.5;
@@ -5360,14 +5416,14 @@ app.get("/api/admin/stores", async (req, res) => {
       const isCOD = false;
 
       try {
-        const serviceability = await shiprocketService.getServiceability(
+        const serviceability = await ithinkService.getServiceability(
           pickupPincode,
           pincode,
           defaultWeight,
           isCOD
         );
 
-        // Check if Shiprocket has at least one available courier
+        // Check if iThink has at least one available courier
         const hasAvailableCouriers = serviceability && 
           serviceability.data && 
           serviceability.data.available_courier_companies &&
@@ -5377,8 +5433,8 @@ app.get("/api/admin/stores", async (req, res) => {
         if (hasAvailableCouriers) {
           return res.json({
             available: true,
-            deliveryPartner: "SHIPROCKET",
-            message: "Shiprocket delivery available for this pincode"
+            deliveryPartner: "ITHINK",
+            message: "iThink delivery available for this pincode"
           });
         } else {
           return res.json({
@@ -5388,9 +5444,9 @@ app.get("/api/admin/stores", async (req, res) => {
             message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days."
           });
         }
-      } catch (shiprocketError) {
-        // If Shiprocket API fails, default to India Post
-        console.warn("Shiprocket serviceability check failed:", shiprocketError);
+      } catch (ithinkError) {
+        // If iThink API fails, default to India Post
+        console.warn("iThink serviceability check failed:", ithinkError);
         return res.json({
           available: false,
           deliveryPartner: "INDIA_POST",
@@ -5429,8 +5485,8 @@ app.get("/api/admin/stores", async (req, res) => {
     return res.json({ status: 'success', pincode_valid: true });
   });
 
-  // Shiprocket serviceability endpoint for shipping cost
-  app.get("/api/shiprocket/serviceability", async (req, res) => {
+  // iThink serviceability endpoint for shipping cost
+  app.get("/api/ithink/serviceability", async (req, res) => {
     try {
       const { deliveryPincode, weight, cod } = req.query;
 
@@ -5440,25 +5496,25 @@ app.get("/api/admin/stores", async (req, res) => {
         });
       }
 
-      const shiprocketService = new ShiprocketService();
+      const ithinkService = new iThinkService();
 
       // Default pickup pincode (you should set this in env or get from settings)
-      const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE || "400001";
+      const pickupPincode = process.env.ITHINK_PICKUP_PINCODE || "400001";
 
       try {
-        const serviceability = await shiprocketService.getServiceability(
+        const serviceability = await ithinkService.getServiceability(
           pickupPincode,
           deliveryPincode as string,
           Number(weight),
           cod === 'true'
         );
 
-        // Check if we got valid data from Shiprocket
+        // Check if we got valid data from iThink
         if (serviceability && serviceability.data && serviceability.data.available_courier_companies) {
           res.json(serviceability);
         } else {
           // Return fallback if no courier companies available
-          console.warn("No courier companies available from Shiprocket, using fallback");
+          console.warn("No courier companies available from iThink, using fallback");
           res.json({
             data: {
               available_courier_companies: [{
@@ -5474,9 +5530,9 @@ app.get("/api/admin/stores", async (req, res) => {
             message: "Using default shipping rates"
           });
         }
-      } catch (shiprocketError) {
-        // If Shiprocket fails, return a fallback response with default shipping
-        console.warn("Shiprocket serviceability check failed, using fallback:", shiprocketError);
+      } catch (ithinkError) {
+        // If iThink fails, return a fallback response with default shipping
+        console.warn("iThink serviceability check failed, using fallback:", ithinkError);
 
         res.json({
           data: {
@@ -5494,7 +5550,7 @@ app.get("/api/admin/stores", async (req, res) => {
         });
       }
     } catch (error) {
-      console.error("Error checking Shiprocket serviceability:", error);
+      console.error("Error checking iThink serviceability:", error);
       res.status(500).json({
         error: "Failed to check shipping serviceability",
         details: error instanceof Error ? error.message : String(error)
@@ -5502,8 +5558,8 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
-  // Shiprocket tracking endpoint
-  app.get("/api/orders/:orderId/track-shiprocket", async (req, res) => {
+  // iThink tracking endpoint
+  app.get("/api/orders/:orderId/track-ithink", async (req, res) => {
     try {
       const orderId = req.params.orderId.replace('ORD-', '');
       const numericId = parseInt(orderId.replace(/\D/g, ''), 10);
@@ -5524,20 +5580,20 @@ app.get("/api/admin/stores", async (req, res) => {
 
       const orderData: any = order[0];
 
-      if (!orderData.shiprocketOrderId) {
+      if (!orderData.ithinkOrderId) {
         return res.json({
           orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-          shiprocketOrderId: null,
+          ithinkOrderId: null,
           status: orderData.status,
           trackingNumber: orderData.trackingNumber,
           estimatedDelivery: orderData.estimatedDelivery?.toISOString?.().split('T')[0],
-          hasShiprocketTracking: false,
+          hasiThinkTracking: false,
           realTimeTracking: false,
         });
       }
 
-      const shiprocketService = new ShiprocketService();
-      const trackingDetails = await shiprocketService.trackOrder(String(orderData.shiprocketOrderId));
+      const ithinkService = new iThinkService();
+      const trackingDetails = await ithinkService.trackOrder(String(orderData.ithinkOrderId));
       const currentStatus =
         trackingDetails?.tracking_data?.shipment_track?.[0]?.current_status ||
         trackingDetails?.tracking_data?.shipment_track?.[0]?.shipment_status ||
@@ -5550,27 +5606,27 @@ app.get("/api/admin/stores", async (req, res) => {
 
       res.json({
         orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
-        shiprocketOrderId: orderData.shiprocketOrderId,
+        ithinkOrderId: orderData.ithinkOrderId,
         status: finalStatus,
         trackingNumber: orderData.trackingNumber,
         estimatedDelivery: orderData.estimatedDelivery?.toISOString?.().split('T')[0],
-        hasShiprocketTracking: true,
+        hasiThinkTracking: true,
         realTimeTracking: true,
-        shiprocketStatus: currentStatus,
+        ithinkStatus: currentStatus,
       });
     } catch (error) {
-      console.error("Error fetching Shiprocket tracking:", error);
+      console.error("Error fetching iThink tracking:", error);
       res.status(500).json({ error: "Failed to fetch tracking information" });
     }
   });
 
-  app.post('/api/webhooks/shiprocket', async (req, res) => {
+  app.post('/api/webhooks/ithink', async (req, res) => {
     try {
-      const configuredSecret = process.env.SHIPROCKET_WEBHOOK_SECRET;
+      const configuredSecret = process.env.ITHINK_WEBHOOK_SECRET;
       if (configuredSecret) {
         const providedSecret =
           (req.headers['x-api-key'] as string) ||
-          (req.headers['x-shiprocket-webhook-secret'] as string) ||
+          (req.headers['x-ithink-webhook-secret'] as string) ||
           (req.headers['x-webhook-secret'] as string) ||
           (req.query.secret as string);
 
@@ -5581,22 +5637,22 @@ app.get("/api/admin/stores", async (req, res) => {
 
       const payload: any = req.body || {};
 
-      const rawShiprocketOrderId =
+      const rawiThinkOrderId =
         payload.order_id ||
         payload.orderId ||
-        payload.shiprocket_order_id ||
-        payload.shiprocketOrderId ||
+        payload.ithink_order_id ||
+        payload.ithinkOrderId ||
         payload?.tracking_data?.shipment_track?.[0]?.order_id;
 
       let orderRow: any = null;
 
-      if (rawShiprocketOrderId !== undefined && rawShiprocketOrderId !== null && String(rawShiprocketOrderId).trim() !== '') {
-        const shiprocketOrderId = parseInt(String(rawShiprocketOrderId).replace(/\D/g, ''), 10);
-        if (!isNaN(shiprocketOrderId)) {
+      if (rawiThinkOrderId !== undefined && rawiThinkOrderId !== null && String(rawiThinkOrderId).trim() !== '') {
+        const ithinkOrderId = parseInt(String(rawiThinkOrderId).replace(/\D/g, ''), 10);
+        if (!isNaN(ithinkOrderId)) {
           const rows = await db
             .select({ id: schema.ordersTable.id, userId: schema.ordersTable.userId })
             .from(schema.ordersTable)
-            .where(eq((schema.ordersTable as any).shiprocketOrderId, shiprocketOrderId))
+            .where(eq((schema.ordersTable as any).ithinkOrderId, ithinkOrderId))
             .limit(1);
           orderRow = rows?.[0] || null;
         }
@@ -5829,7 +5885,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
       res.json({ success: true });
     } catch (error) {
-      console.error('Shiprocket webhook error:', error);
+      console.error('iThink webhook error:', error);
       res.status(500).json({ error: 'Failed to process webhook' });
     }
   });
@@ -10788,7 +10844,63 @@ app.get('/api/influencer-videos', async (req, res) => {
       }
     },
   );
+// Products API
+  app.get("/api/products", async (req, res) => {
+    try {
+      console.log("📦 GET /api/products - Fetching products...");
+      const limit = parseInt(req.query.limit as string) || 100;
+      const offset = parseInt(req.query.offset as string) || 0;
 
+      console.log("📦 Query params - limit:", limit, "offset:", offset);
+
+      // Fetch all products directly from database
+      const allProducts = await db
+        .select()
+        .from(schema.products)
+        .orderBy(desc(schema.products.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      console.log("📦 Products fetched from DB:", allProducts?.length || 0);
+
+      if (allProducts && allProducts.length > 0) {
+        console.log("📦 Sample product from DB:", {
+          id: allProducts[0].id,
+          name: allProducts[0].name,
+          price: allProducts[0].price,
+          category: allProducts[0].category
+        });
+      } else {
+        console.log("⚠️ No products found in database!");
+      }
+
+      if (!allProducts || !Array.isArray(allProducts)) {
+        console.warn("Products data is not an array, returning empty array");
+        return res.json([]);
+      }
+
+      // Fetch images for each product
+      const productsWithImages = await Promise.all(
+        allProducts.map(async (product) => {
+          const images = await db
+            .select()
+            .from(schema.productImages)
+            .where(eq(schema.productImages.productId, product.id))
+            .orderBy(asc(schema.productImages.sortOrder));
+          
+          return {
+            ...product,
+            images: images.map(img => img.imageUrl) || []
+          };
+        })
+      );
+
+      res.json(productsWithImages);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      res.status(500).json({ error: "Failed to fetch products" });
+    }
+  });
   app.post("/api/notifications/send", async (req: Request, res: Response) => {
     try {
       // Check admin authentication

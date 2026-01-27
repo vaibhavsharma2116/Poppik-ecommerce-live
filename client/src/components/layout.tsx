@@ -21,7 +21,7 @@ import headerLogo from "@/assets/POPPIK LOGO.jpg";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
 import AnnouncementBar from "@/components/announcement-bar";
-import loUntitled_design from "@/assets/Untitled_design.png";
+import loUntitled_design from "@/assets/Untitled_design.png.webp";
 import {
   DropdownMenu,
   DropdownMenuContent,

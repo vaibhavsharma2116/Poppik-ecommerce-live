@@ -1,13 +1,13 @@
 import IthinkService from "./ithink-service";
 
-class ShiprocketService {
+class IthinkServiceAdapter {
   private readonly ithink: IthinkService;
 
   constructor() {
     this.ithink = new IthinkService();
   }
 
-  convertToShiprocketFormat(order: any, pickupLocation: string = "Primary") {
+  convertToIthinkFormat(order: any, pickupLocation: string = "Primary") {
     return this.ithink.convertToIthinkFormat(order, pickupLocation) as any;
   }
 
@@ -48,4 +48,4 @@ class ShiprocketService {
   }
 }
 
-export default ShiprocketService;
+export default IthinkServiceAdapter;
