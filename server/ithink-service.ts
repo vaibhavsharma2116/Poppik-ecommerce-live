@@ -451,12 +451,24 @@ class IthinkService {
       const itlOrderDate = this.formatIthinkOrderDate(orderData.order_date);
       const isCOD = String(orderData.payment_method || '').toUpperCase() === 'COD';
 
+      const computedTotalAmount = (orderData.order_items || []).reduce((sum, it) => {
+        const units = Number((it as any)?.units ?? 1) || 1;
+        const price = Number((it as any)?.selling_price ?? 0) || 0;
+        const discount = Number((it as any)?.discount ?? 0) || 0;
+        const lineTotal = (price * units) - discount;
+        return sum + (Number.isFinite(lineTotal) ? lineTotal : 0);
+      }, 0);
+
+      const totalAmountForITL = Number.isFinite(computedTotalAmount)
+        ? computedTotalAmount
+        : Number(orderData.sub_total ?? 0) || 0;
+
       const shipments = [
         {
           order: orderNo,
           sub_order: '',
           order_date: itlOrderDate,
-          total_amount: String(orderData.sub_total ?? 0),
+          total_amount: String(totalAmountForITL),
           name: String(orderData.billing_customer_name || 'Customer'),
           company_name: 'Poppik',
           add: String(orderData.billing_address || ''),
@@ -502,7 +514,7 @@ class IthinkService {
           first_attemp_discount: '0',
           cod_charges: '0',
           advance_amount: '0',
-          cod_amount: isCOD ? String(orderData.sub_total ?? 0) : '0',
+          cod_amount: isCOD ? String(totalAmountForITL) : '0',
           payment_mode: isCOD ? 'COD' : 'Prepaid',
           reseller_name: '',
           eway_bill_number: '',
