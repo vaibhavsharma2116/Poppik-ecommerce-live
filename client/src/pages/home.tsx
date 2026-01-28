@@ -153,7 +153,7 @@ function TestimonialsCarousel() {
               <div
                 key={testimonial.id}
                 className={`${size} rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-300 flex-shrink-0 relative ${
-                  isCenter ? 'shadow-md sm:shadow-lg border-2 sm:border-4 border-white' : ''
+                  isCenter ? '' : ''
                 } ${position === -1 || position === 1 ? 'blur-[2px]' : ''}`}
                 style={{ opacity }}
               >

@@ -749,7 +749,8 @@ export default function AdminOrders() {
                         onClick={() => {
                           const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
                           const qs = token ? `?token=${encodeURIComponent(token)}` : '';
-                          window.open(`/api/admin/print-thermal-invoice/${selectedOrder.id}${qs}`, '_blank');
+                          const joiner = qs ? '&' : '?';
+                          window.open(`/admin/orders/thermal-print${qs}${joiner}orderId=${encodeURIComponent(selectedOrder.id)}`, '_blank');
                         }}
                       >
                         <Download className="h-4 w-4 mr-2" />

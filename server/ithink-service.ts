@@ -775,7 +775,10 @@ class IthinkService {
       });
       return response;
     } catch (error) {
-      console.error('Error generating AWB:', error);
+      const msg = String((error as any)?.message || error || '');
+      if (!msg.toLowerCase().includes('awb not available')) {
+        console.error('Error generating AWB:', error);
+      }
       throw error;
     }
   }
