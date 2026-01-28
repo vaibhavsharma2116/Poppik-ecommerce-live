@@ -638,9 +638,9 @@ export default function HomePage() {
               </h3>
             </div>
 
-            <div className="min-h-[650px]">
+            <div className="sm:min-h-[650px]">
               {isLoadingBestsellers || (!isFetchedBestsellers && isFetchingBestsellers) ? (
-                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                     {Array.from({ length: 8 }).map((_, i) => (
                       <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
@@ -657,7 +657,7 @@ export default function HomePage() {
                   <div className="h-20" />
                 </div>
               ) : bestsellers && bestsellers.filter((product) => product.inStock === true).length > 0 ? (
-                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
                   <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                       {bestsellers.filter((product) => product.inStock === true).slice(0, 4).map((product) => (
@@ -695,7 +695,7 @@ export default function HomePage() {
                   <div className="h-20" />
                 </div>
               ) : (
-                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
                   <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
                       <p className="text-gray-500 text-lg">
@@ -727,9 +727,9 @@ export default function HomePage() {
               </h3>
             </div>
 
-            <div className="min-h-[650px]">
+            <div className="sm:min-h-[650px]">
               {isLoadingFeatured ? (
-                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                     {Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
@@ -745,7 +745,7 @@ export default function HomePage() {
                   <div className="h-20" />
                 </div>
               ) : featured && featured.filter((product) => product.inStock === true).length > 0 ? (
-                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
                   <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                       {featured.filter((product) => product.inStock === true).slice(0, 4).map((product) => (
@@ -783,7 +783,7 @@ export default function HomePage() {
                   <div className="h-20" />
                 </div>
               ) : (
-                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
                   <div className="flex-1 flex items-center justify-center">
                     <p className="text-gray-500 text-lg text-center">
                       No products available at the moment.
@@ -813,9 +813,9 @@ export default function HomePage() {
               </h3>
             </div>
 
-            <div className="min-h-[650px]">
+            <div className="sm:min-h-[650px]">
               {isLoadingNew ? (
-                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                     {Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
@@ -831,7 +831,7 @@ export default function HomePage() {
                   <div className="h-20" />
                 </div>
               ) : newArrivals && newArrivals.filter((product) => product.inStock === true).length > 0 ? (
-                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
                   <div className="flex-1">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                       {newArrivals.filter((product) => product.inStock === true).slice(0, 4).map((product) => (
@@ -869,7 +869,7 @@ export default function HomePage() {
                   <div className="h-20" />
                 </div>
               ) : (
-                <div className="px-2 sm:px-4 h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
                   <div className="flex-1 flex items-center justify-center">
                     <p className="text-gray-500 text-lg text-center">
                       No new launches available at the moment.
