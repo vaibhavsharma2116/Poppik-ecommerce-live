@@ -8280,6 +8280,93 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
+  // Get offer reviews
+  app.get('/api/offers/:offerId/reviews', async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.offerId);
+      if (isNaN(offerId)) return res.status(400).json({ error: 'Invalid offerId' });
+
+      const rows = await db
+        .select({
+          id: schema.offerReviews.id,
+          userId: schema.offerReviews.userId,
+          offerId: schema.offerReviews.offerId,
+          rating: schema.offerReviews.rating,
+          title: schema.offerReviews.title,
+          comment: schema.offerReviews.comment,
+          userName: schema.offerReviews.userName,
+          createdAt: schema.offerReviews.createdAt,
+        })
+        .from(schema.offerReviews)
+        .where(eq(schema.offerReviews.offerId, offerId))
+        .orderBy(desc(schema.offerReviews.createdAt));
+
+      res.json(rows);
+    } catch (error) {
+      console.error('Error fetching offer reviews:', error);
+      res.status(500).json({ error: 'Failed to fetch offer reviews' });
+    }
+  });
+
+  // Check if user can review offer
+  app.get('/api/offers/:offerId/can-review', async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.offerId);
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.json({
+          canReview: false,
+          message: 'Please login to submit a review',
+        });
+      }
+
+      const result = await storage.checkUserCanReviewOffer(parseInt(userId as string), offerId);
+      res.json(result);
+    } catch (error) {
+      console.error('Error checking offer review eligibility:', error);
+      res.status(500).json({
+        canReview: false,
+        message: 'Error checking review eligibility',
+      });
+    }
+  });
+
+  // Create offer review
+  app.post('/api/offers/:offerId/reviews', async (req, res) => {
+    try {
+      const offerId = parseInt(req.params.offerId);
+      const { rating, title, comment, userName, orderId } = req.body;
+      const user = (req as any).user;
+
+      if (!user) {
+        return res.status(401).json({ error: 'Please login to submit a review' });
+      }
+
+      const canReview = await storage.checkUserCanReviewOffer(user.id, offerId);
+      if (!canReview.canReview) {
+        return res.status(403).json({ error: canReview.message });
+      }
+
+      const reviewData = {
+        userId: user.id,
+        offerId,
+        orderId: orderId || canReview.orderId,
+        rating: parseInt(rating),
+        title: title || null,
+        comment: comment || null,
+        userName: userName || `${user.firstName} ${user.lastName}`,
+        isVerified: true,
+      };
+
+      const inserted = await db.insert(schema.offerReviews).values(reviewData).returning();
+      res.json(inserted[0]);
+    } catch (error) {
+      console.error('Error creating offer review:', error);
+      res.status(500).json({ error: 'Failed to create offer review' });
+    }
+  });
+
   // Announcements Management Routes
 
   // Public endpoint for active announcements
@@ -9675,8 +9762,8 @@ app.get('/api/influencer-videos', async (req, res) => {
         console.log('Auto-expire error (continuing):', expireError.message);
       }
 
-      // Get all positions (both active and inactive)
-      const positions = await storage.getAllJobPositions();
+      // Get only active (non-expired) positions
+      const positions = await storage.getActiveJobPositions();
       console.log('Total positions found:', positions.length);
       console.log('Positions data:', JSON.stringify(positions, null, 2));
 
@@ -9715,6 +9802,14 @@ app.get('/api/influencer-videos', async (req, res) => {
         return res.status(404).json({ error: 'Job position not found' });
       }
 
+      const now = Date.now();
+      const exp = position.expiresAt ? new Date(position.expiresAt as any).getTime() : null;
+      const isExpired = exp !== null && !isNaN(exp) && exp <= now;
+         
+      if (!position.isActive || isExpired) {
+        return res.status(404).json({ error: 'Job position not found' });
+      }
+
       // Parse JSONB fields if they are strings
       const parsedPosition = {
         ...position,
@@ -9734,26 +9829,6 @@ app.get('/api/influencer-videos', async (req, res) => {
       console.error('Error fetching job position:', error);
       res.status(500).json({ error: 'Failed to fetch job position' });
     }
-  });
-
-  // Server-Sent Events for realtime job positions updates (admin)
-  const jobPositionsSSEClients = new Set<any>();
-
-  app.get('/api/admin/job-positions/stream', async (req, res) => {
-    // Allow only GET
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders?.();
-
-    // Send an initial comment to establish the stream
-    res.write(': connected to job positions stream\n\n');
-
-    jobPositionsSSEClients.add(res);
-
-    req.on('close', () => {
-      jobPositionsSSEClients.delete(res);
-    });
   });
 
   // Admin endpoints for job positions management
@@ -10701,9 +10776,12 @@ app.get('/api/influencer-videos', async (req, res) => {
       res.json(canReview);
     } catch (error) {
       console.error("Error checking combo review eligibility:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         canReview: false,
-        message: "Error checking review eligibility"
+        message: "Error checking review eligibility",
+        ...(process.env.NODE_ENV === 'development'
+          ? { details: (error as any)?.message || String(error) }
+          : {})
       });
     }
   });

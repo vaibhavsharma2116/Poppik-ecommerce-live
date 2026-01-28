@@ -2228,7 +2228,15 @@ export class DatabaseStorage implements IStorage {
         updatedAt: jobPositions.updatedAt,
       })
       .from(jobPositions)
-      .where(eq(jobPositions.isActive, true))
+      .where(
+        and(
+          eq(jobPositions.isActive, true),
+          or(
+            isNull(jobPositions.expiresAt),
+            sql`${jobPositions.expiresAt} > ${now}`
+          )
+        )
+      )
       .orderBy(asc(jobPositions.sortOrder));
 
       // Parse JSONB fields
@@ -2290,22 +2298,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async autoExpireJobPositions(): Promise<void> {
-    try {
-      const now = new Date();
-
-      // Auto-expire positions where expiresAt is in the past
-      await this.db.update(jobPositions)
-        .set({ isActive: false, updatedAt: now })
-        .where(and(
-          eq(jobPositions.isActive, true),
-          lte(jobPositions.expiresAt, now)
-        ));
-    } catch (error) {
-      console.error("Error auto-expiring job positions:", error);
-    }
-  }
-
   async getJobPositionBySlug(slug: string): Promise<JobPosition | null> {
     const result = await this.db
       .select()
@@ -2333,6 +2325,10 @@ export class DatabaseStorage implements IStorage {
       .replace(/-+/g, '-')
       .trim();
 
+    const now = new Date();
+    const expiresAt = (data as any).expiresAt ? new Date((data as any).expiresAt as any) : undefined;
+    const isExpired = expiresAt instanceof Date && !isNaN(expiresAt.getTime()) ? expiresAt.getTime() <= now.getTime() : false;
+
     // Ensure arrays are properly formatted as JSONB
     const jobPositionToInsert = {
       title: data.title,
@@ -2349,10 +2345,11 @@ export class DatabaseStorage implements IStorage {
       responsibilities: JSON.stringify(Array.isArray(data.responsibilities) ? data.responsibilities : []),
       requirements: JSON.stringify(Array.isArray(data.requirements) ? data.requirements : []),
       skills: JSON.stringify(Array.isArray(data.skills) ? data.skills : []),
-      isActive: data.isActive !== undefined ? data.isActive : true,
+      isActive: isExpired ? false : (data.isActive !== undefined ? data.isActive : true),
+      expiresAt: expiresAt && !isNaN(expiresAt.getTime()) ? expiresAt : null,
       sortOrder: data.sortOrder || 0,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: now,
+      updatedAt: now
     };
 
     console.log('Storage: Inserting job position:', jobPositionToInsert);
@@ -2378,7 +2375,18 @@ export class DatabaseStorage implements IStorage {
         .replace(/-+/g, '-')
         .trim();
     }
-    updateData.updatedAt = new Date();
+
+    const now = new Date();
+    if ((updateData as any).expiresAt) {
+      const exp = new Date((updateData as any).expiresAt as any);
+      (updateData as any).expiresAt = !isNaN(exp.getTime()) ? exp : null;
+
+      if (!isNaN(exp.getTime()) && exp.getTime() <= now.getTime()) {
+        (updateData as any).isActive = false;
+      }
+    }
+
+    updateData.updatedAt = now;
 
     const [jobPosition] = await this.db
       .update(jobPositions)

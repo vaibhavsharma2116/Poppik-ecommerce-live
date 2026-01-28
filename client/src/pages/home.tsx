@@ -1205,17 +1205,12 @@ function ComboSection() {
                     <div className="relative overflow-hidden bg-white">
                       <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
                         {getPrimaryImage(combo) ? (
-                          <img
+                          <LazyImage
                             src={getPrimaryImage(combo)!}
                             alt={combo.name}
                             className="h-full w-full object-cover"
                             width={400}
                             height={400}
-                            loading="lazy"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
-                            }}
                           />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center">

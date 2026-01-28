@@ -607,6 +607,24 @@ export const offers = pgTable("offers", {
 export type Offer = typeof offers.$inferSelect;
 export type InsertOffer = typeof offers.$inferInsert;
 
+// Offer Reviews Table
+export const offerReviews = pgTable("offer_reviews", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  offerId: integer("offer_id").notNull().references(() => offers.id),
+  orderId: integer("order_id").notNull().references(() => ordersTable.id),
+  rating: integer("rating").notNull(),
+  title: text("title"),
+  comment: text("comment"),
+  userName: text("user_name"),
+  isVerified: boolean("is_verified").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type OfferReview = typeof offerReviews.$inferSelect;
+export type InsertOfferReview = typeof offerReviews.$inferInsert;
+
 // Affiliate Wallet Table
 export const affiliateWallet = pgTable("affiliate_wallet", {
   id: serial("id").primaryKey(),

@@ -42,6 +42,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
+  const cardImageSize = isMobile ? 200 : 400;
+
   const getShadeKey = (shade: any) => String(shade?.id ?? shade?.value ?? shade?.name ?? "");
 
 
@@ -449,8 +451,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             <LazyImage
               src={getPrimaryImage(product, true)}
               alt={product.name}
-              width={200}
-              height={200}
+              width={cardImageSize}
+              height={cardImageSize}
               className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
             />
             <div className={`absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
