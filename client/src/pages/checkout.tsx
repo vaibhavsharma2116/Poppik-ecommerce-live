@@ -1086,8 +1086,6 @@ export default function CheckoutPage() {
         if (cancelled) return;
 
         if (!resp.ok) {
-          // If backend is down/unavailable, don't mark as invalid.
-          // We'll show a separate message and allow user to try saving.
           setNewPincodeValid(null);
           setNewPincodeError(null);
           setNewPincodeServiceError('Pincode validation service unavailable. Please try again.');
@@ -1127,84 +1125,117 @@ export default function CheckoutPage() {
     };
   }, [newAddressData.pincode]);
 
-  // Check pincode serviceability when zipCode changes
   useEffect(() => {
-    let cancelled = false;
-    const checkPincode = async () => {
-      if (formData.zipCode && formData.zipCode.length === 6 && /^\d{6}$/.test(formData.zipCode)) {
-        setCheckingPincode(true);
+    const cleaned = String(newAddressData.pincode || '').replace(/\D/g, '').slice(0, 6);
+    if (cleaned.length !== 6) return;
+    if (newPincodeValid !== true) return;
 
-        try {
-          const response = await fetch(apiUrl(`/api/check-pincode?pincode=${formData.zipCode}`));
-          if (response.ok) {
-            const data = await response.json();
-            if (data.available) {
-              setDeliveryPartner("ITHINK");
-              setDeliveryType(null);
-              setPincodeMessage(null);
-            } else {
-              setDeliveryPartner("INDIA_POST");
-              setDeliveryType("MANUAL");
-              setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days.");
-            }
-          } else {
-            // On error, default to India Post
-            setDeliveryPartner("INDIA_POST");
-            setDeliveryType("MANUAL");
-            setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days.");
-          }
-        } catch (error) {
-          console.error("Error checking pincode:", error);
-          // On error, default to India Post
-          setDeliveryPartner("INDIA_POST");
-          setDeliveryType("MANUAL");
-          setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days.");
-        } finally {
-          if (!cancelled) setCheckingPincode(false);
+    let cancelled = false;
+
+    const checkServiceability = async () => {
+      try {
+        const weight = cartItems.reduce((total, item) => total + (0.5 * item.quantity), 0);
+        const isCOD = formData.paymentMethod === 'cod';
+        const productMrp = cartItems.reduce((total, item) => {
+          const priceStr = item.originalPrice || item.price;
+          const price = parseFloat(String(priceStr).replace(/[₹,]/g, "")) || 0;
+          return total + (price * item.quantity);
+        }, 0);
+
+        setNewPincodeServiceError('Checking delivery service...');
+
+        const resp = await fetch(
+          `/api/ithink/serviceability?deliveryPincode=${cleaned}&weight=${weight}&cod=${isCOD}&productMrp=${encodeURIComponent(String(Math.round(productMrp)))}`
+        );
+
+        const data: any = await resp.json().catch(() => ({}));
+        if (cancelled) return;
+
+        const companies = data?.data?.available_courier_companies;
+        const hasCouriers = Array.isArray(companies) && companies.length > 0;
+
+        if (data?.error === true) {
+          setNewPincodeServiceError('Unable to verify delivery partner right now. Please try again.');
+          return;
         }
-      } else {
-        // Reset when pincode is invalid or empty
-        setDeliveryPartner("ITHINK");
-        setDeliveryType(null);
-        setPincodeMessage(null);
+
+        if (hasCouriers) {
+          setDeliveryPartner('ITHINK');
+          setDeliveryType(null);
+          setNewPincodeServiceError(null);
+          return;
+        }
+
+        setDeliveryPartner('INDIA_POST');
+        setDeliveryType('MANUAL');
+        setNewPincodeServiceError('As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days.');
+      } catch (e) {
+        if (cancelled) return;
+        setNewPincodeServiceError('Unable to verify delivery partner right now. Please try again.');
       }
     };
 
-    checkPincode();
+    checkServiceability();
     return () => {
       cancelled = true;
     };
-  }, [formData.zipCode]);
+  }, [newAddressData.pincode, newPincodeValid, formData.paymentMethod, cartItems]);
 
-  // Fetch shipping cost when zipCode or paymentMethod changes
   useEffect(() => {
     const fetchShippingCost = async () => {
       if (formData.zipCode && formData.zipCode.length === 6) {
         setLoadingShipping(true);
+
         try {
           const weight = cartItems.reduce((total, item) => total + (0.5 * item.quantity), 0);
           const isCOD = formData.paymentMethod === 'cod';
+          const productMrp = cartItems.reduce((total, item) => {
+            const priceStr = item.originalPrice || item.price;
+            const price = parseFloat(String(priceStr).replace(/[₹,]/g, "")) || 0;
+            return total + (price * item.quantity);
+          }, 0);
 
           const response = await fetch(
-            `/api/ithink/serviceability?deliveryPincode=${formData.zipCode}&weight=${weight}&cod=${isCOD}`
+            `/api/ithink/serviceability?deliveryPincode=${formData.zipCode}&weight=${weight}&cod=${isCOD}&productMrp=${encodeURIComponent(String(Math.round(productMrp)))}`
           );
 
           if (response.ok) {
-            const data = await response.json();
+            const data: any = await response.json().catch(() => ({}));
+
+            if (data?.error === true) {
+              setShippingCost(99);
+              setPincodeMessage("Unable to verify delivery partner right now. Please try again.");
+              toast({
+                title: "Shipping Check Unavailable",
+                description: "Unable to verify shipping service right now. Please try again.",
+              });
+              return;
+            }
 
             if (data.data && data.data.available_courier_companies && data.data.available_courier_companies.length > 0) {
-              const cheapestCourier = data.data.available_courier_companies.reduce((prev: any, curr: any) => {
-                return (curr.rate < prev.rate) ? curr : prev;
-              });
+              setDeliveryPartner("ITHINK");
+              setDeliveryType(null);
+              setPincodeMessage(null);
+              const companies = Array.isArray(data.data.available_courier_companies)
+                ? data.data.available_courier_companies
+                : [];
+              const withRates = companies
+                .map((c: any) => ({ ...c, rate: Number(c?.rate) }))
+                .filter((c: any) => Number.isFinite(c.rate));
 
-              setShippingCost(Math.round(cheapestCourier.rate));
+              if (withRates.length > 0) {
+                const cheapestCourier = withRates.reduce((prev: any, curr: any) => {
+                  return (curr.rate < prev.rate) ? curr : prev;
+                });
+                setShippingCost(Math.round(Number(cheapestCourier.rate)));
+              } else {
+                setShippingCost(99);
+              }
             } else {
+              setDeliveryPartner("INDIA_POST");
+              setDeliveryType("MANUAL");
+              setPincodeMessage("As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days.");
               setShippingCost(99);
-              toast({
-                title: "Shipping Unavailable",
-                description: "Shipping not available for this location or combination.",
-                variant: "destructive",
-              });
             }
           } else {
             setShippingCost(99);
@@ -1279,7 +1310,6 @@ export default function CheckoutPage() {
 
   const affiliateDiscountAmount = (() => {
     try {
-      // First try to get from localStorage (set by cart page)
       const saved = localStorage.getItem('affiliateCommissionEarned');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -1292,7 +1322,6 @@ export default function CheckoutPage() {
       console.error('Error reading affiliate commission from localStorage:', e);
     }
 
-    // Fallback: Calculate from cart items if affiliate code is present
     if (formData.affiliateCode || passedAffiliateCode) {
       const calculated = Math.round(
         cartItems.reduce((sum, item) => {
@@ -1525,7 +1554,7 @@ export default function CheckoutPage() {
         }
       }
 
-        setFormData({
+      setFormData({
         email: (userProfile as any)?.email || "",
         firstName: (userProfile as any)?.firstName || "",
         lastName: (userProfile as any)?.lastName || "",
@@ -1538,8 +1567,8 @@ export default function CheckoutPage() {
         affiliateCode: passedAffiliateCode,
         affiliateDiscount: passedAffiliateDiscount || passedAffiliateDiscountFromItems || 0,
         deliveryInstructions: (userProfile as any)?.deliveryInstructions || "",
-        saturdayDelivery: (userProfile as any)?.saturdayDelivery === true, // Ensure boolean
-        sundayDelivery: (userProfile as any)?.sundayDelivery === true // Ensure boolean
+        saturdayDelivery: (userProfile as any)?.saturdayDelivery === true,
+        sundayDelivery: (userProfile as any)?.sundayDelivery === true
       });
 
       toast({

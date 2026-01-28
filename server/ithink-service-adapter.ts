@@ -23,8 +23,14 @@ class IthinkServiceAdapter {
     return await this.ithink.trackByAWB(awbCode);
   }
 
-  async getServiceability(pickupPincode: string, deliveryPincode: string, weight: number, cod: boolean = false) {
-    return await this.ithink.getServiceability(pickupPincode, deliveryPincode, weight, cod);
+  async getServiceability(
+    pickupPincode: string,
+    deliveryPincode: string,
+    weight: number,
+    cod: boolean = false,
+    productMrp?: number
+  ) {
+    return await this.ithink.getServiceability(pickupPincode, deliveryPincode, weight, cod, productMrp);
   }
 
   async generateAWB(shipmentId: number, courierId: number) {

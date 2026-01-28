@@ -99,7 +99,7 @@ class IthinkService {
     this.config = {
       email: process.env.ITHINK_EMAIL || '',
       password: process.env.ITHINK_PASSWORD || '',
-      baseUrl: process.env.ITHINK_BASE_URL || 'https://api.ithinklogistics.com'
+      baseUrl: process.env.ITHINK_EXTERNAL_BASE_URL || process.env.ITHINK_BASE_URL || 'https://api.ithinklogistics.com'
     };
 
     this.itlBaseUrl = String(process.env.ITHINK_BASE_URL || process.env.ITHINKLOGISTICS_BASE_URL || 'https://api.ithinklogistics.com').replace(/\/+$/, '');
@@ -395,7 +395,8 @@ class IthinkService {
         jsonData = JSON.parse(responseData);
       } catch (parseError) {
         console.error('Failed to parse response:', responseData);
-        throw new Error(`Invalid response: ${response.statusText}`);
+        const snippet = String(responseData || '').slice(0, 200);
+        throw new Error(`Invalid response: ${response.statusText} (${response.status}) from ${url}. Body: ${snippet}`);
       }
 
       if (!response.ok) {
@@ -609,17 +610,61 @@ class IthinkService {
     }
   }
 
-  async getServiceability(pickupPincode: string, deliveryPincode: string, weight: number, cod: boolean = false) {
+  private async itlGetRates(params: {
+    fromPincode: string;
+    toPincode: string;
+    weightKg: number;
+    isCOD: boolean;
+    productMrp: number;
+    lengthCm?: number;
+    widthCm?: number;
+    heightCm?: number;
+  }): Promise<any[] | null> {
+    try {
+      const lengthCm = Number(params.lengthCm ?? process.env.ITHINK_DEFAULT_LENGTH_CM ?? 22);
+      const widthCm = Number(params.widthCm ?? process.env.ITHINK_DEFAULT_WIDTH_CM ?? 12);
+      const heightCm = Number(params.heightCm ?? process.env.ITHINK_DEFAULT_HEIGHT_CM ?? 12);
+
+      const payload = {
+        from_pincode: String(params.fromPincode),
+        to_pincode: String(params.toPincode),
+        shipping_length_cms: String(Number.isFinite(lengthCm) ? lengthCm : 22),
+        shipping_width_cms: String(Number.isFinite(widthCm) ? widthCm : 12),
+        shipping_height_cms: String(Number.isFinite(heightCm) ? heightCm : 12),
+        shipping_weight_kg: String(Math.max(0.01, Number(params.weightKg) || 0.01)),
+        order_type: 'forward',
+        payment_method: params.isCOD ? 'cod' : 'prepaid',
+        product_mrp: String(Math.max(0, Number(params.productMrp) || 0)),
+      };
+
+      const resp: any = await this.makeIthinkRequest('/api_v3/rate/check.json', payload);
+      const rates = resp?.data;
+      if (Array.isArray(rates)) return rates;
+      return null;
+    } catch (e) {
+      console.warn('iThink rate check failed:', (e as any)?.message || e);
+      return null;
+    }
+  }
+
+  async getServiceability(
+    pickupPincode: string,
+    deliveryPincode: string,
+    weight: number,
+    cod: boolean = false,
+    productMrp?: number
+  ) {
     try {
       if (this.useIthink) {
-        void pickupPincode;
-        void weight;
+        const pickup = String(pickupPincode || process.env.ITHINK_PICKUP_PINCODE || '400001');
+        const delivery = String(deliveryPincode);
+        const weightKg = Math.max(0.01, Number(weight) || 0.01);
 
-        const resp: any = await this.makeIthinkRequest('/api_v2/pincode/check.json', {
-          pincode: String(deliveryPincode),
+        const resp: any = await this.makeIthinkRequest('/api_v3/pincode/check.json', {
+          pincode: delivery,
         });
 
-        const courierMap = resp?.data?.[String(deliveryPincode)];
+        const courierMap = resp?.data?.[delivery];
         const available: any[] = [];
         if (courierMap && typeof courierMap === 'object') {
           let idx = 1;
@@ -632,8 +677,45 @@ class IthinkService {
               available.push({
                 courier_company_id: idx,
                 courier_name: name,
+                rate: undefined,
               });
               idx += 1;
+            }
+          }
+        }
+
+        const mrpFallback = Number.isFinite(Number(productMrp)) ? Number(productMrp) : 0;
+        const rateRows = await this.itlGetRates({
+          fromPincode: pickup,
+          toPincode: delivery,
+          weightKg,
+          isCOD: Boolean(cod),
+          productMrp: mrpFallback,
+        });
+
+        if (Array.isArray(rateRows) && rateRows.length > 0) {
+          const rateMap = new Map<string, number>();
+          for (const row of rateRows) {
+            const name = String((row as any)?.logistic_name || (row as any)?.logistics_name || '').trim();
+            const r = Number((row as any)?.rate);
+            if (name && Number.isFinite(r)) {
+              const key = name.toLowerCase();
+              if (!rateMap.has(key) || r < (rateMap.get(key) as number)) {
+                rateMap.set(key, r);
+              }
+            }
+          }
+
+          const minRate = rateMap.size > 0
+            ? Math.min(...Array.from(rateMap.values()).filter(v => Number.isFinite(v)))
+            : NaN;
+
+          for (const c of available) {
+            const key = String(c?.courier_name || '').toLowerCase().trim();
+            if (rateMap.has(key)) {
+              c.rate = rateMap.get(key);
+            } else if (Number.isFinite(minRate)) {
+              c.rate = minRate;
             }
           }
         }
@@ -648,7 +730,7 @@ class IthinkService {
       await this.authenticate();
 
       const codValue = cod ? 1 : 0;
-      const endpoint = `/external/courier/serviceability/?pickup_postcode=${pickupPincode}&delivery_postcode=${deliveryPincode}&weight=${weight}&cod=${codValue}`;
+      const endpoint = `/external/courier/serviceability?pickup_postcode=${pickupPincode}&delivery_postcode=${deliveryPincode}&weight=${weight}&cod=${codValue}`;
 
       console.log('Checking serviceability with GET request:', endpoint);
 

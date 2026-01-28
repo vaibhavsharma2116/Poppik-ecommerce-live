@@ -2234,14 +2234,191 @@ app.get("/api/admin/stores", async (req, res) => {
   });
 
 
+  app.get("/api/affiliate/my-application", async (req, res) => {
+    try {
+      const userId = Number(req.query.userId);
+      if (!Number.isFinite(userId) || userId <= 0) {
+        return res.status(400).json({ error: "Invalid userId" });
+      }
+
+      const rows = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.userId, userId))
+        .orderBy(desc(schema.affiliateApplications.id))
+        .limit(1);
+
+      return res.json(rows?.[0] || null);
+    } catch (error) {
+      console.error("Error fetching affiliate application:", error);
+      return res.status(500).json({ error: "Failed to fetch affiliate application" });
+    }
+  });
+
+  app.get("/api/affiliate/wallet", async (req, res) => {
+    try {
+      const userId = Number(req.query.userId);
+      if (!Number.isFinite(userId) || userId <= 0) {
+        return res.status(400).json({ error: "Invalid userId" });
+      }
+
+      let walletRows = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, userId))
+        .limit(1);
+
+      if (!walletRows || walletRows.length === 0) {
+        const [newWallet] = await db
+          .insert(schema.affiliateWallet)
+          .values({
+            userId,
+            cashbackBalance: "0.00",
+            commissionBalance: "0.00",
+            totalEarnings: "0.00",
+            totalWithdrawn: "0.00",
+          } as any)
+          .returning();
+        walletRows = [newWallet];
+      }
+
+      return res.json(walletRows[0]);
+    } catch (error) {
+      console.error("Error fetching affiliate wallet:", error);
+      return res.status(500).json({ error: "Failed to fetch affiliate wallet" });
+    }
+  });
+
+  app.get("/api/affiliate/wallet/transactions", async (req, res) => {
+    try {
+      const userId = Number(req.query.userId);
+      if (!Number.isFinite(userId) || userId <= 0) {
+        return res.status(400).json({ error: "Invalid userId" });
+      }
+
+      const rows = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(eq(schema.affiliateTransactions.userId, userId))
+        .orderBy(desc(schema.affiliateTransactions.createdAt));
+
+      return res.json(Array.isArray(rows) ? rows : []);
+    } catch (error) {
+      console.error("Error fetching affiliate transactions:", error);
+      return res.status(500).json({ error: "Failed to fetch transactions" });
+    }
+  });
+
+  app.get("/api/affiliate/wallet/withdrawals", async (req, res) => {
+    try {
+      const userId = Number(req.query.userId);
+      if (!Number.isFinite(userId) || userId <= 0) {
+        return res.status(400).json({ error: "Invalid userId" });
+      }
+
+      const rows = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(
+          and(
+            eq(schema.affiliateTransactions.userId, userId),
+            eq(schema.affiliateTransactions.type, 'withdrawal'),
+          )
+        )
+        .orderBy(desc(schema.affiliateTransactions.createdAt));
+
+      const withdrawals = (Array.isArray(rows) ? rows : []).map((tx: any) => ({
+        id: tx.id,
+        userId: tx.userId,
+        amount: tx.amount,
+        status: tx.status,
+        paymentMethod: tx.balanceType || 'bank',
+        requestedAt: tx.createdAt,
+        processedAt: tx.processedAt || null,
+        rejectedReason: null,
+      }));
+
+      return res.json(withdrawals);
+    } catch (error) {
+      console.error("Error fetching affiliate withdrawals:", error);
+      return res.status(500).json({ error: "Failed to fetch withdrawals" });
+    }
+  });
+
+  app.post("/api/affiliate/wallet/withdraw", async (req, res) => {
+    try {
+      const userId = Number(req.body?.userId);
+      const amountNum = Number(req.body?.amount);
+
+      if (!Number.isFinite(userId) || userId <= 0) {
+        return res.status(400).json({ error: "Invalid userId" });
+      }
+      if (!Number.isFinite(amountNum) || amountNum <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      const walletRows = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, userId))
+        .limit(1);
+
+      if (!walletRows || walletRows.length === 0) {
+        return res.status(400).json({ error: "Affiliate wallet not found" });
+      }
+
+      const wallet = walletRows[0] as any;
+      const currentCommission = parseFloat(String(wallet.commissionBalance || '0'));
+      if (currentCommission < amountNum) {
+        return res.status(400).json({ error: "Insufficient affiliate commission balance" });
+      }
+
+      const newCommissionBalance = (currentCommission - amountNum).toFixed(2);
+      const currentWithdrawn = parseFloat(String(wallet.totalWithdrawn || '0'));
+      const newTotalWithdrawn = (currentWithdrawn + amountNum).toFixed(2);
+
+      await db
+        .update(schema.affiliateWallet)
+        .set({
+          commissionBalance: newCommissionBalance,
+          totalWithdrawn: newTotalWithdrawn,
+          updatedAt: new Date(),
+        } as any)
+        .where(eq(schema.affiliateWallet.userId, userId));
+
+      const notes = JSON.stringify({
+        bankName: req.body?.bankName || null,
+        branchName: req.body?.branchName || null,
+        ifscCode: req.body?.ifscCode || null,
+        accountNumber: req.body?.accountNumber || null,
+      });
+
+      const [tx] = await db
+        .insert(schema.affiliateTransactions)
+        .values({
+          userId,
+          type: 'withdrawal',
+          amount: amountNum.toFixed(2),
+          balanceType: 'commission',
+          description: 'Withdrawal request',
+          status: 'pending',
+          notes,
+          createdAt: new Date(),
+        } as any)
+        .returning();
+
+      return res.json({ success: true, transaction: tx });
+    } catch (error) {
+      console.error("Error creating affiliate withdrawal:", error);
+      return res.status(500).json({ error: "Failed to create withdrawal" });
+    }
+  });
+
+
   app.post("/api/products", async (req, res) => {
     try {
       console.log("Received product data:", req.body);
 
-      // Set content type to ensure JSON response
-      res.setHeader('Content-Type', 'application/json');
-      // Ensure no caching for CRUD operations
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
       res.setHeader('Pragma', 'no-cache');
 
       // Validate required fields
@@ -2654,9 +2831,9 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
-  function generateSampleSubcategories(): any[] {
+  const generateSampleSubcategories = (): any[] => {
     return [];
-  }
+  };
 
   // Get subcategories for a specific category by slug
   app.get("/api/categories/:slug/subcategories", async (req, res) => {
@@ -2704,9 +2881,9 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
-  function generateSampleSubcategoriesForCategory(_slug: string): any[] {
+  const generateSampleSubcategoriesForCategory = (_slug: string): any[] => {
     return [];
-  }
+  };
 
   app.get("/api/subcategories/category/:categoryId", async (req, res) => {
     try {
@@ -4143,7 +4320,8 @@ app.get("/api/admin/stores", async (req, res) => {
             }
           }
         } catch (e) {
-          isServiceable = false;
+          console.warn('iThink serviceability check failed during order placement; keeping ITHINK by default:', e);
+          isServiceable = true;
         }
       }
 
@@ -5286,7 +5464,7 @@ app.get("/api/admin/stores", async (req, res) => {
   });
 
   // Helper function to generate tracking timeline
-  function generateTrackingTimeline(status: string, createdAt: Date, estimatedDelivery: Date | null) {
+  const generateTrackingTimeline = (status: string, createdAt: Date, estimatedDelivery: Date | null) => {
     const timeline = [
       {
         step: "Order Placed",
@@ -5304,7 +5482,7 @@ app.get("/api/admin/stores", async (req, res) => {
       timeline.push({
         step: "Order Cancelled",
         status: "completed",
-        date: new Date(orderDate.getTime() + 2 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 hours later
+        date: new Date(orderDate.getTime() + 2 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: new Date(orderDate.getTime() + 2 * 60 * 60 * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         description: "Your order has been cancelled. If you have any questions, please contact our support team."
       });
@@ -5315,7 +5493,7 @@ app.get("/api/admin/stores", async (req, res) => {
       timeline.push({
         step: "Order Confirmed",
         status: "completed",
-        date: new Date(orderDate.getTime() + 2 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 hours later
+        date: new Date(orderDate.getTime() + 2 * 60 * 60 * 1000).toISOString().split('T')[0],
         time: new Date(orderDate.getTime() + 2 * 60 * 60 * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         description: "Your order has been confirmed and is being prepared"
       });
@@ -5381,20 +5559,20 @@ app.get("/api/admin/stores", async (req, res) => {
     }
 
     return timeline;
-  }
+  };
 
   // Helper function to get current step
-  function getCurrentStep(status: string): number {
+  const getCurrentStep = (status: string): number => {
     switch (status) {
       case 'pending': return 0;
       case 'confirmed': return 1;
       case 'processing': return 2;
       case 'shipped': return 3;
       case 'delivered': return 4;
-      case 'cancelled': return 1; // Show cancelled at step 1
+      case 'cancelled': return 1;
       default: return 0;
     }
-  }
+  };
 
   // Check pincode serviceability endpoint
   app.get("/api/check-pincode", async (req, res) => {
@@ -5407,88 +5585,61 @@ app.get("/api/admin/stores", async (req, res) => {
         });
       }
 
-      const ithinkService = new iThinkService();
-      const pickupPincode = process.env.ITHINK_PICKUP_PINCODE || "400001";
-      
-      // Default weight for serviceability check (0.5kg)
-      const defaultWeight = 0.5;
-      // Check for COD (default to false for serviceability check)
-      const isCOD = false;
+      const result = await validatePincodeBackend(pincode);
 
-      try {
-        const serviceability = await ithinkService.getServiceability(
-          pickupPincode,
-          pincode,
-          defaultWeight,
-          isCOD
-        );
-
-        // Check if iThink has at least one available courier
-        const hasAvailableCouriers = serviceability && 
-          serviceability.data && 
-          serviceability.data.available_courier_companies &&
-          Array.isArray(serviceability.data.available_courier_companies) &&
-          serviceability.data.available_courier_companies.length > 0;
-
-        if (hasAvailableCouriers) {
-          return res.json({
-            available: true,
-            deliveryPartner: "ITHINK",
-            message: "iThink delivery available for this pincode"
-          });
-        } else {
-          return res.json({
-            available: false,
-            deliveryPartner: "INDIA_POST",
-            deliveryType: "MANUAL",
-            message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days."
-          });
-        }
-      } catch (ithinkError) {
-        // If iThink API fails, default to India Post
-        console.warn("iThink serviceability check failed:", ithinkError);
-        return res.json({
-          available: false,
-          deliveryPartner: "INDIA_POST",
-          deliveryType: "MANUAL",
-          message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days."
-        });
-      }
+      return res.json({
+        ...result,
+        available: (result as any)?.pincode_valid === true,
+      });
     } catch (error) {
       console.error("Error checking pincode serviceability:", error);
-      // On error, default to India Post
-      return res.json({
+      return res.status(500).json({
+        status: 'error',
+        message: 'Pincode validation service unavailable',
+        pincode_valid: false,
         available: false,
-        deliveryPartner: "INDIA_POST",
-        deliveryType: "MANUAL",
-        message: "As service is unavailable at your PIN code, we are dispatching your order manually. Tracking will not be available, but your courier will definitely reach you within 5-7 days."
+        ...(process.env.NODE_ENV !== 'production'
+          ? { debug: { pincode: String(pincode || ''), error: (error as any)?.message || String(error) } }
+          : {}),
       });
     }
   });
 
-  app.get('/api/pincode/validate', async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+  app.get("/api/pincode/validate", async (req, res) => {
+    try {
+      const { pincode } = req.query;
 
-    const pincode = String((req.query as any)?.pincode ?? '').trim();
-    const result = await validatePincodeBackend(pincode);
-    if (result.status === 'error') {
-      if (result.message === 'Invalid pincode format') {
-        return res.status(400).json({ status: 'error', message: result.message });
+      if (!pincode || typeof pincode !== 'string' || !/^\d{6}$/.test(pincode)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Valid 6-digit pincode is required',
+          pincode_valid: false,
+        });
       }
-      return res.status(503).json({ status: 'error', message: result.message || 'Pincode validation service unavailable' });
+
+      const result = await validatePincodeBackend(pincode);
+      if ((result as any)?.status === 'error') {
+        return res.status(503).json(result);
+      }
+
+      return res.json(result);
+    } catch (error) {
+      console.error("Error validating pincode:", error);
+      return res.status(503).json({
+        status: 'error',
+        message: 'Pincode validation service unavailable',
+        pincode_valid: false,
+        ...(process.env.NODE_ENV !== 'production'
+          ? { debug: { pincode: String((req as any)?.query?.pincode || ''), error: (error as any)?.message || String(error) } }
+          : {}),
+      });
     }
-    if (result.status === 'invalid') {
-      return res.json({ status: 'invalid', pincode_valid: false });
-    }
-    return res.json({ status: 'success', pincode_valid: true });
   });
 
   // iThink serviceability endpoint for shipping cost
   app.get("/api/ithink/serviceability", async (req, res) => {
     try {
-      const { deliveryPincode, weight, cod } = req.query;
+      const { deliveryPincode, weight, cod, productMrp } = req.query;
 
       if (!deliveryPincode || !weight) {
         return res.status(400).json({
@@ -5496,9 +5647,6 @@ app.get("/api/admin/stores", async (req, res) => {
         });
       }
 
-      const ithinkService = new iThinkService();
-
-      // Default pickup pincode (you should set this in env or get from settings)
       const pickupPincode = process.env.ITHINK_PICKUP_PINCODE || "400001";
 
       try {
@@ -5506,52 +5654,39 @@ app.get("/api/admin/stores", async (req, res) => {
           pickupPincode,
           deliveryPincode as string,
           Number(weight),
-          cod === 'true'
+          cod === 'true',
+          productMrp !== undefined ? Number(productMrp) : undefined
         );
 
-        // Check if we got valid data from iThink
-        if (serviceability && serviceability.data && serviceability.data.available_courier_companies) {
-          res.json(serviceability);
-        } else {
-          // Return fallback if no courier companies available
-          console.warn("No courier companies available from iThink, using fallback");
-          res.json({
-            data: {
-              available_courier_companies: [{
-                courier_company_id: 0,
-                courier_name: "Standard Shipping",
-                freight_charge: 99,
-                cod_charges: cod === 'true' ? 20 : 0,
-                estimated_delivery_days: "5-7",
-                rate: 99
-              }]
-            },
-            fallback: true,
-            message: "Using default shipping rates"
+        const companies = (serviceability as any)?.data?.available_courier_companies;
+        if (Array.isArray(companies)) {
+          return res.json({
+            ...(serviceability as any),
+            serviceable: companies.length > 0,
+            error: false,
           });
         }
-      } catch (ithinkError) {
-        // If iThink fails, return a fallback response with default shipping
-        console.warn("iThink serviceability check failed, using fallback:", ithinkError);
 
-        res.json({
-          data: {
-            available_courier_companies: [{
-              courier_company_id: 0,
-              courier_name: "Standard Shipping",
-              freight_charge: 99,
-              cod_charges: cod === 'true' ? 20 : 0,
-              estimated_delivery_days: "5-7",
-              rate: 99
-            }]
-          },
-          fallback: true,
-          message: "Using default shipping rates"
+        return res.json({
+          data: { available_courier_companies: [] },
+          serviceable: false,
+          error: false,
+        });
+      } catch (ithinkError) {
+        console.warn("iThink serviceability check failed:", ithinkError);
+        return res.json({
+          data: { available_courier_companies: [] },
+          serviceable: null,
+          error: true,
+          message: "iThink serviceability check failed",
+          ...(process.env.NODE_ENV !== 'production'
+            ? { debug: { error: (ithinkError as any)?.message || String(ithinkError) } }
+            : {}),
         });
       }
     } catch (error) {
       console.error("Error checking iThink serviceability:", error);
-      res.status(500).json({
+      return res.status(500).json({
         error: "Failed to check shipping serviceability",
         details: error instanceof Error ? error.message : String(error)
       });
@@ -5592,7 +5727,6 @@ app.get("/api/admin/stores", async (req, res) => {
         });
       }
 
-      const ithinkService = new iThinkService();
       const trackingDetails = await ithinkService.trackOrder(String(orderData.ithinkOrderId));
       const currentStatus =
         trackingDetails?.tracking_data?.shipment_track?.[0]?.current_status ||
@@ -5604,7 +5738,7 @@ app.get("/api/admin/stores", async (req, res) => {
       if (statusText.includes('deliver')) finalStatus = 'delivered';
       else if (statusText.includes('ship') || statusText.includes('out for delivery') || statusText.includes('in transit')) finalStatus = 'shipped';
 
-      res.json({
+      return res.json({
         orderId: `ORD-${orderData.id.toString().padStart(3, '0')}`,
         ithinkOrderId: orderData.ithinkOrderId,
         status: finalStatus,
@@ -5616,7 +5750,7 @@ app.get("/api/admin/stores", async (req, res) => {
       });
     } catch (error) {
       console.error("Error fetching iThink tracking:", error);
-      res.status(500).json({ error: "Failed to fetch tracking information" });
+      return res.status(500).json({ error: "Failed to fetch tracking information" });
     }
   });
 
@@ -7021,7 +7155,7 @@ app.get("/api/admin/stores", async (req, res) => {
   });
 
   // Helper function to generate invoice HTML
-  function generateInvoiceHTML({ order, items, customer, orderId }: any) {
+  const generateInvoiceHTML = ({ order, items, customer, orderId }: any) => {
 
     // Embed logo if present (so invoice works as a standalone HTML file)
     let logoDataUri = '';
@@ -7048,7 +7182,7 @@ app.get("/api/admin/stores", async (req, res) => {
     const discount = Math.max(0, Math.round(subtotal + shipping - paidTotal));
 
     // Prepare readable shipping address HTML (handles JSON, arrays or plain strings)
-    function escapeHtml(str: any) {
+    const escapeHtml = (str: any) => {
       if (str === null || str === undefined) return '';
       return String(str)
         .replace(/&/g, '&amp;')
@@ -7056,9 +7190,9 @@ app.get("/api/admin/stores", async (req, res) => {
         .replace(/>/g, '&gt;')
         .replace(/\"/g, '&quot;')
         .replace(/'/g, '&#39;');
-    }
+    };
 
-    function formatSingleAddress(a: any) {
+    const formatSingleAddress = (a: any) => {
       const addr = a.deliveryAddress || a.address || '';
       const name = a.recipientName || a.name || '';
       const phone = a.recipientPhone || a.phone || '';
@@ -7071,7 +7205,7 @@ app.get("/api/admin/stores", async (req, res) => {
       if (name) parts += `<strong>Name:</strong> ${escapeHtml(name)}<br>`;
       if (phone) parts += `<strong>Phone:</strong> ${escapeHtml(phone)}<br>`;
       return parts;
-    }
+    };
 
     let shippingHtml = '';
     try {
@@ -10844,187 +10978,6 @@ app.get('/api/influencer-videos', async (req, res) => {
       }
     },
   );
-// Products API
-  app.get("/api/products", async (req, res) => {
-    try {
-      console.log("📦 GET /api/products - Fetching products...");
-      const limit = parseInt(req.query.limit as string) || 100;
-      const offset = parseInt(req.query.offset as string) || 0;
-
-      console.log("📦 Query params - limit:", limit, "offset:", offset);
-
-      // Fetch all products directly from database
-      const allProducts = await db
-        .select()
-        .from(schema.products)
-        .orderBy(desc(schema.products.createdAt))
-        .limit(limit)
-        .offset(offset);
-
-      console.log("📦 Products fetched from DB:", allProducts?.length || 0);
-
-      if (allProducts && allProducts.length > 0) {
-        console.log("📦 Sample product from DB:", {
-          id: allProducts[0].id,
-          name: allProducts[0].name,
-          price: allProducts[0].price,
-          category: allProducts[0].category
-        });
-      } else {
-        console.log("⚠️ No products found in database!");
-      }
-
-      if (!allProducts || !Array.isArray(allProducts)) {
-        console.warn("Products data is not an array, returning empty array");
-        return res.json([]);
-      }
-
-      // Fetch images for each product
-      const productsWithImages = await Promise.all(
-        allProducts.map(async (product) => {
-          const images = await db
-            .select()
-            .from(schema.productImages)
-            .where(eq(schema.productImages.productId, product.id))
-            .orderBy(asc(schema.productImages.sortOrder));
-          
-          return {
-            ...product,
-            images: images.map(img => img.imageUrl) || []
-          };
-        })
-      );
-
-      res.json(productsWithImages);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      res.status(500).json({ error: "Failed to fetch products" });
-    }
-  });
-  app.post("/api/notifications/send", async (req: Request, res: Response) => {
-    try {
-      // Check admin authentication
-      const token = req.headers.authorization?.split(" ")[1];
-
-      if (!token) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-
-      let isAdmin = false;
-      try {
-        const decoded: any = jwt.verify(
-          token,
-          process.env.JWT_SECRET || "your-secret-key"
-        );
-        // Check if user is admin
-        const user = await db
-          .select()
-          .from(schema.users)
-          .where(eq(schema.users.id, decoded.id))
-          .limit(1);
-
-        if (user.length === 0 || user[0].role !== "admin") {
-          return res.status(403).json({ error: "Forbidden: Admin access required" });
-        }
-        isAdmin = true;
-      } catch (error) {
-        return res.status(401).json({ error: "Invalid token" });
-      }
-
-      const { userId, title, body, image, url, tag } = req.body;
-
-      if (!title || !body) {
-        return res.status(400).json({ error: "Title and body are required" });
-      }
-
-      // Get subscriptions to send to
-      let subscriptions;
-      if (userId) {
-        // Send to specific user
-        subscriptions = await db
-          .select()
-          .from(schema.pushSubscriptions)
-          .where(
-            and(
-              eq(schema.pushSubscriptions.userId, userId),
-              eq(schema.pushSubscriptions.isActive, true)
-            )
-          );
-      } else {
-        // Send to all active subscriptions
-        subscriptions = await db
-          .select()
-          .from(schema.pushSubscriptions)
-          .where(eq(schema.pushSubscriptions.isActive, true));
-      }
-
-      if (subscriptions.length === 0) {
-        return res.status(404).json({
-          error: "No active subscriptions found",
-          sent: 0,
-        });
-      }
-
-      // Prepare notification payload
-      const notificationPayload = {
-        title,
-        body,
-        image: image || "",
-        url: url || "/",
-        tag: tag || "poppik-notification",
-      };
-
-      // Send to all subscriptions (in production, you'd use a queue)
-      let sentCount = 0;
-      let failedCount = 0;
-
-      for (const subscription of subscriptions) {
-        try {
-          // In production, integrate with web-push library:
-          // import webpush from 'web-push';
-          // await webpush.sendNotification(subscription, JSON.stringify(notificationPayload));
-
-          // For now, just log that we would send
-          console.log(`📤 Would send notification to ${subscription.endpoint.substring(0, 50)}...`);
-
-          // Update last used timestamp
-          await db
-            .update(schema.pushSubscriptions)
-            .set(({ lastUsedAt: new Date() } as any))
-            .where(eq(schema.pushSubscriptions.id, subscription.id));
-
-          sentCount++;
-        } catch (error) {
-          console.error("❌ Failed to send to subscription:", error);
-          failedCount++;
-
-          // Mark as inactive if endpoint invalid
-          if (
-            error instanceof Error &&
-            (error.message.includes("invalid") || error.message.includes("410"))
-          ) {
-            await db
-              .update(schema.pushSubscriptions)
-              .set(({ isActive: false } as any))
-              .where(eq(schema.pushSubscriptions.id, subscription.id));
-          }
-        }
-      }
-
-      console.log(`✅ Notification send complete: ${sentCount} sent, ${failedCount} failed`);
-
-      res.json({
-        success: true,
-        message: `Notification sent to ${sentCount} subscriptions`,
-        sent: sentCount,
-        failed: failedCount,
-        total: subscriptions.length,
-      });
-    } catch (error) {
-      console.error("❌ Error sending notifications:", error);
-      res.status(500).json({ error: "Failed to send notifications" });
-    }
-  });
 
   // Public media links endpoint (for front-end gallery)
   // In-memory list of Server-Sent-Events subscribers for media updates
