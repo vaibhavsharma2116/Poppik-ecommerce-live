@@ -12020,7 +12020,79 @@ app.get('/api/influencer-videos', async (req, res) => {
       res.status(500).json({ error: 'Failed to delete category slider' });
     }
   });
+    // Mobile OTP routes
+  app.post("/api/auth/send-mobile-otp", async (req, res) => {
+    try {
+      const { phoneNumber, forSignup } = req.body;
 
+      if (!phoneNumber) {
+        return res.status(400).json({ error: "Phone number is required" });
+      }
+
+      // Basic phone number validation
+      const phoneRegex = /^(\+91|91)?[6-9]\d{9}$/;
+      if (!phoneRegex.test(String(phoneNumber).replace(/\s+/g, ""))) {
+        return res
+          .status(400)
+          .json({ error: "Please enter a valid Indian mobile number" });
+      }
+
+      const normalized = normalizePhone(phoneNumber);
+
+      // For signup flow, do not send OTP if phone already mapped to another user
+      if (forSignup) {
+        const existingByPhone = await storage.getUserByPhone(normalized);
+        if (existingByPhone) {
+          return res.status(400).json({
+            error:
+              "An account already exists with this mobile number. Please log in instead.",
+          });
+        }
+      }
+
+      const result = await OTPService.sendMobileOTP(phoneNumber);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: result.message,
+        });
+      } else {
+        res.status(500).json({ error: result.message });
+      }
+    } catch (error) {
+      console.error("Send mobile OTP error:", error);
+      res.status(500).json({ error: "Failed to send mobile OTP" });
+    }
+  });
+
+  app.post("/api/auth/verify-mobile-otp", async (req, res) => {
+    try {
+      const { phoneNumber, otp } = req.body;
+
+      if (!phoneNumber || !otp) {
+        return res.status(400).json({ error: "Phone number and OTP are required" });
+      }
+
+      if (otp.length !== 6) {
+        return res.status(400).json({ error: "Please enter valid 6-digit OTP" });
+      }
+
+      const result = await OTPService.verifyMobileOTP(phoneNumber, otp);
+
+      if (result.success) {
+        res.json({
+          verified: true,
+          message: result.message
+        });
+      } else {
+        res.status(400).json({ error: result.message });
+      }
+    } catch (error) {
+      console.error("Verify mobile OTP error:", error);
+      res.status(500).json({ error: "Failed to verify mobile OTP" });
+    }
+  });
   // Admin: delete channel partner video
   app.delete('/api/admin/channel-partner-videos/:id', async (req, res) => {
     try {
