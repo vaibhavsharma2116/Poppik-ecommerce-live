@@ -677,10 +677,10 @@ export default function HomePage() {
                   </div>
 
                   <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                    <Link href="/products?filter=bestsellers">
+                    <Link href="/products?filter=bestseller">
                       <Button className="font-poppins bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                         <span>
-                          View All Bestsellers ({bestsellers.filter(isInStock).length || 0})
+                          View All Bestsellers 
                         </span>
                         <svg
                           className="w-4 h-4"
@@ -768,7 +768,7 @@ export default function HomePage() {
                     <Link href="/products">
                       <Button className="font-poppins inline-flex items-center justify-center gap-2 whitespace-nowrap bg-black text-white hover:bg-gray-800 px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                         <span>
-                          View All Products  ({allProducts.filter(isInStock).length || 0})
+                          View All Products  
                         </span>
                         <svg
                           className="w-4 h-4"
@@ -851,10 +851,10 @@ export default function HomePage() {
                   </div>
 
                   <div className="text-center mt-6 sm:mt-8 md:mt-10">
-                    <Link href="/products?filter=newLaunches">
+                    <Link href="/products?filter=newLaunch">
                       <Button className="font-poppins bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2">
                         <span>
-                          View All New Launches ({newArrivals.filter(isInStock).length || 0})
+                          View All New Launches 
                         </span>
                         <svg
                           className="w-4 h-4"

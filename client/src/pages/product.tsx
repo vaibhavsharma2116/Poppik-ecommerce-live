@@ -361,23 +361,13 @@ export default function ProductsPage() {
               <>
                 {/* Results Count */}
                 <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-                  <div className="bg-white/70 backdrop-blur-md rounded-2xl px-6 py-4 shadow-lg border border-white/20">
-                    <h2 className="text-xl font-bold text-gray-900">
-                      {filteredProducts.length} Products Found
-                    </h2>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        {filteredProducts.length} Products Found
+                      </h2>
+                    </div>
                   </div>
-                  
-                  {/* Add All to Cart Button */}
-                  {filteredProducts.length > 0 && (
-                    <Button
-                      onClick={addAllToCart}
-                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
-                    >
-                      <ShoppingCart className="h-5 w-5" />
-                      <span className="hidden sm:inline">Add All to Cart</span>
-                      <span className="sm:hidden">Add All</span>
-                    </Button>
-                  )}
                 </div>
 
                 {/* Products Grid/List */}
