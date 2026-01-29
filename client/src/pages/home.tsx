@@ -386,7 +386,7 @@ export default function HomePage() {
       /> */}
 
       {/* Enhanced Categories Section */}
-      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden min-h-0 sm:min-h-[560px]">
+      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden min-h-0 sm:min-h-0 md:min-h-0">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-[0.02]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
@@ -394,10 +394,11 @@ export default function HomePage() {
         </div>
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="min-h-0 sm:min-h-[460px] md:min-h-[500px]">
+          <div className="min-h-0">
+
             {/* Dynamic Categories Grid - Mobile-first Design */}
             {categoriesLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mb-12 sm:mb-16 md:mb-20">
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mb-12 sm:mb-10 md:mb-12">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="space-y-2 sm:space-3 md:space-y-4">
                     <Skeleton className="aspect-square rounded-2xl sm:rounded-3xl" />
@@ -407,11 +408,11 @@ export default function HomePage() {
                 ))}
               </div>
             ) : (
-              <div className="relative mb-6 sm:mb-16 md:mb-20">
+              <div className="relative mb-6 sm:mb-6 md:mb-8">
                 <div
                   id="categories-scroll-container"
                   ref={categoriesScrollRef}
-                  className="overflow-x-auto scrollbar-hide pb-4"
+                  className="overflow-x-auto scrollbar-hide pb-4 sm:pb-2"
                   style={{
                     WebkitOverflowScrolling: 'touch',
                     scrollBehavior: 'smooth',
@@ -660,7 +661,7 @@ export default function HomePage() {
                       </div>
                     ))}
                   </div>
-                  <div className="h-20" />
+                  <div className="h-6 sm:h-20" />
                 </div>
               ) : bestsellers && bestsellers.filter(isInStock).length > 0 ? (
                 <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
@@ -698,7 +699,7 @@ export default function HomePage() {
                       </Button>
                     </Link>
                   </div>
-                  <div className="h-20" />
+                  <div className="h-6 sm:h-20" />
                 </div>
               ) : (
                 <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
@@ -709,7 +710,7 @@ export default function HomePage() {
                       </p>
                     </div>
                   </div>
-                  <div className="h-20" />
+                  <div className="h-6 sm:h-20" />
                 </div>
               )}
             </div>
@@ -748,7 +749,7 @@ export default function HomePage() {
                       </div>
                     ))}
                   </div>
-                  <div className="h-20" />
+                  <div className="h-6 sm:h-20" />
                 </div>
               ) : allProducts && allProducts.filter(isInStock).length > 0 ? (
                 <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
@@ -786,7 +787,7 @@ export default function HomePage() {
                       </Button>
                     </Link>
                   </div>
-                  <div className="h-20" />
+                  <div className="h-6 sm:h-20" />
                 </div>
               ) : (
                 <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
@@ -795,7 +796,7 @@ export default function HomePage() {
                       No products available at the moment.
                     </p>
                   </div>
-                  <div className="h-20" />
+                  <div className="h-6 sm:h-20" />
                 </div>
               )}
             </div>
@@ -834,7 +835,7 @@ export default function HomePage() {
                       </div>
                     ))}
                   </div>
-                  <div className="h-20" />
+                  <div className="h-6 sm:h-20" />
                 </div>
               ) : newArrivals && newArrivals.filter(isInStock).length > 0 ? (
                 <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
@@ -856,6 +857,7 @@ export default function HomePage() {
                         <span>
                           View All New Launches 
                         </span>
+
                         <svg
                           className="w-4 h-4"
                           fill="none"
@@ -872,7 +874,7 @@ export default function HomePage() {
                       </Button>
                     </Link>
                   </div>
-                  <div className="h-20" />
+                  <div className="h-6 sm:h-20" />
                 </div>
               ) : (
                 <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
@@ -881,16 +883,16 @@ export default function HomePage() {
                       No new launches available at the moment.
                     </p>
                   </div>
-                  <div className="h-20" />
+                  <div className="h-6 sm:h-20" />
                 </div>
               )}
             </div>
           </div>
+
         </div>
       </section>
 
       <div ref={belowFoldSentinelRef} />
-
       {renderBelowFold ? (
         <>
           {/* UGC Video Section */}
