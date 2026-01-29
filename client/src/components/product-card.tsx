@@ -31,9 +31,10 @@ interface ProductCardProps {
   product: Product;
   className?: string;
   viewMode?: 'grid' | 'list';
+  titleLines?: 2 | 3 | 4;
 }
 
-export default function ProductCard({ product, className = "", viewMode = 'grid' }: ProductCardProps) {
+export default function ProductCard({ product, className = "", viewMode = 'grid', titleLines = 3 }: ProductCardProps) {
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [selectedShades, setSelectedShades] = useState<Shade[]>([]);
@@ -42,10 +43,13 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
+  const titleClamp = titleLines;
+  const titleHeightRem = 1.75 * titleClamp;
+  const titleClampClass = titleClamp === 4 ? 'line-clamp-4' : titleClamp === 2 ? 'line-clamp-2' : 'line-clamp-3';
+
   const cardImageSize = isMobile ? 200 : 400;
 
   const getShadeKey = (shade: any) => String(shade?.id ?? shade?.value ?? shade?.name ?? "");
-
 
   // Fetch product shades
   const { data: productShades = [] } = useQuery<Shade[]>({
@@ -301,7 +305,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             </div>
 
             <Link href={`/product/${product.slug}`}>
-              <h3 className="font-bold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer text-lg leading-tight line-clamp-3" style={{ minHeight: '5.25rem', maxHeight: '5.25rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              <h3 className={`font-bold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer text-lg leading-tight ${titleClampClass}`} style={{ minHeight: `${titleHeightRem}rem`, maxHeight: `${titleHeightRem}rem`, display: '-webkit-box', WebkitLineClamp: titleClamp, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                 {product.name}
               </h3>
             </Link>
@@ -472,7 +476,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         </div>
 
         <Link href={`/product/${product.slug}`}>
-          <h3 className="mobile-product-title font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-3 text-xs sm:text-sm md:text-base" style={{ minHeight: '5.25rem', maxHeight: '5.25rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          <h3 className={`mobile-product-title font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer ${titleClampClass} text-xs sm:text-sm md:text-base`} style={{ minHeight: `${titleHeightRem}rem`, maxHeight: `${titleHeightRem}rem`, display: '-webkit-box', WebkitLineClamp: titleClamp, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {product.name}
           </h3>
         </Link>
