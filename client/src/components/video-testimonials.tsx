@@ -82,10 +82,23 @@ export default function VideoTestimonials() {
   const [isShadeDrawerOpen, setIsShadeDrawerOpen] = useState(false);
   const [productShades, setProductShades] = useState<Shade[]>([]);
   const [selectedShades, setSelectedShades] = useState<Shade[]>([]);
+  const [selectedShadeImageUrl, setSelectedShadeImageUrl] = useState<string | null>(null);
   const [shadeQuantity, setShadeQuantity] = useState(1);
   const [currentProductForShades, setCurrentProductForShades] = useState<Product | null>(null);
   // Cache shades per product to avoid refetching and to show conditional buttons
   const [shadesCache, setShadesCache] = useState<Record<number, Shade[]>>({});
+
+  useEffect(() => {
+    if (!isShadeDrawerOpen) return;
+
+    const last = selectedShades[selectedShades.length - 1];
+    if (last?.imageUrl) {
+      setSelectedShadeImageUrl(last.imageUrl);
+      return;
+    }
+
+    setSelectedShadeImageUrl(currentProductForShades?.imageUrl || null);
+  }, [currentProductForShades, isShadeDrawerOpen, selectedShades]);
 
   // Prefetch shades for testimonial products so we can render correct button (Add vs Select Shades)
   useEffect(() => {
@@ -191,11 +204,13 @@ export default function VideoTestimonials() {
     setCurrentProductForShades(product);
     setSelectedShades([]);
     setShadeQuantity(1);
+    setSelectedShadeImageUrl(product.imageUrl || null);
     if (preloadedShades) {
       setProductShades(preloadedShades);
     } else {
       try {
         const response = await fetch(`/api/products/${product.id}/shades`);
+
         if (!response.ok) {
           setProductShades([]);
         } else {
@@ -468,8 +483,8 @@ export default function VideoTestimonials() {
           <div className="space-y-6 px-4 pb-6">
             <div className="relative bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg overflow-hidden aspect-square">
               <img
-                src={currentProductForShades?.imageUrl}
-                alt={currentProductForShades?.name || ''}
+                src={selectedShadeImageUrl || currentProductForShades?.imageUrl}
+                alt={selectedShades.length > 0 ? selectedShades[selectedShades.length - 1]?.name || currentProductForShades?.name || '' : currentProductForShades?.name || ''}
                 className="w-full h-full object-contain"
                 loading="lazy"
               />
@@ -511,7 +526,10 @@ export default function VideoTestimonials() {
                 <h3 className="font-semibold text-gray-900">Select Shades:</h3>
                 {selectedShades.length > 0 && (
                   <button
-                    onClick={() => setSelectedShades([])}
+                    onClick={() => {
+                      setSelectedShades([]);
+                      setSelectedShadeImageUrl(currentProductForShades?.imageUrl || null);
+                    }}
                     className="text-xs text-purple-600 hover:text-purple-700 font-medium"
                   >
                     Clear All
@@ -527,8 +545,26 @@ export default function VideoTestimonials() {
                       <div
                         key={shade.id}
                         onClick={() => {
-                          if (isSelected) setSelectedShades(selectedShades.filter(s => s.id !== shade.id));
-                          else setSelectedShades([...selectedShades, shade]);
+                          if (isSelected) {
+                            const remaining = selectedShades.filter(s => s.id !== shade.id);
+                            setSelectedShades(remaining);
+
+                            const last = remaining[remaining.length - 1];
+                            if (last?.imageUrl) {
+                              setSelectedShadeImageUrl(last.imageUrl);
+                            } else {
+                              setSelectedShadeImageUrl(currentProductForShades?.imageUrl || null);
+                            }
+                          } else {
+                            const next = [...selectedShades, shade];
+                            setSelectedShades(next);
+
+                            if (shade.imageUrl) {
+                              setSelectedShadeImageUrl(shade.imageUrl);
+                            } else {
+                              setSelectedShadeImageUrl(currentProductForShades?.imageUrl || null);
+                            }
+                          }
                         }}
                         className={`cursor-pointer group relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all duration-200 hover:shadow-lg ${isSelected ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-pink-50 shadow-md scale-105' : 'border-purple-300 hover:border-purple-400'}`}
                       >

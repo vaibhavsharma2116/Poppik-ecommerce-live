@@ -9549,6 +9549,8 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
+  
+
   app.delete('/api/admin/affiliate-applications/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
