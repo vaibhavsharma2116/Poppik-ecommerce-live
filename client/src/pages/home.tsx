@@ -386,7 +386,7 @@ export default function HomePage() {
       /> */}
 
       {/* Enhanced Categories Section */}
-      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden min-h-[520px] sm:min-h-[560px]">
+      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden min-h-0 sm:min-h-[560px]">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-[0.02]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
@@ -394,7 +394,7 @@ export default function HomePage() {
         </div>
 
         <div className="mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="min-h-[420px] sm:min-h-[460px] md:min-h-[500px]">
+          <div className="min-h-0 sm:min-h-[460px] md:min-h-[500px]">
             {/* Dynamic Categories Grid - Mobile-first Design */}
             {categoriesLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 mb-12 sm:mb-16 md:mb-20">
@@ -407,7 +407,7 @@ export default function HomePage() {
                 ))}
               </div>
             ) : (
-              <div className="relative mb-12 sm:mb-16 md:mb-20">
+              <div className="relative mb-6 sm:mb-16 md:mb-20">
                 <div
                   id="categories-scroll-container"
                   ref={categoriesScrollRef}
