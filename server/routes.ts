@@ -2069,7 +2069,7 @@ app.get("/api/admin/stores", async (req, res) => {
       if (isDefault) {
         await db
           .update(schema.deliveryAddresses)
-          .set({ isDefault: false })
+          .set({ isDefault: false } as any)
           .where(eq(schema.deliveryAddresses.userId, parseInt(userId)));
       }
 
@@ -2223,13 +2223,13 @@ app.get("/api/admin/stores", async (req, res) => {
       // Unset all default addresses for this user
       await db
         .update(schema.deliveryAddresses)
-        .set({ isDefault: false })
+        .set({ isDefault: false }as any)
         .where(eq(schema.deliveryAddresses.userId, address[0].userId));
 
       // Set this address as default
       const [updatedAddress] = await db
         .update(schema.deliveryAddresses)
-        .set({ isDefault: true, updatedAt: new Date() })
+        .set({ isDefault: true, updatedAt: new Date() }as any)
         .where(eq(schema.deliveryAddresses.id, addressId))
         .returning();
 
@@ -3095,7 +3095,7 @@ app.get("/api/admin/stores", async (req, res) => {
             }
           };
 
-          const ithinkOrderData = ithinkService.convertToIthinkFormat(orderForIthink);
+          const ithinkOrderData = ithinkService.convertToIthinkFormat(orderForiThink);
           const ithinkResponse = await ithinkService.createOrder(ithinkOrderData);
 
           if (ithinkResponse.order_id) {
@@ -5591,7 +5591,7 @@ app.get("/api/admin/stores", async (req, res) => {
         pincode_valid: false,
         available: false,
         ...(process.env.NODE_ENV !== 'production'
-          ? { debug: { pincode: String(pincode || ''), error: (error as any)?.message || String(error) } }
+          ? { debug: { pincode: String(req.query.pincode || ''), error: (error as any)?.message || String(error) } }
           : {}),
       });
     }
@@ -9549,7 +9549,829 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
+   // Get Affiliate Withdrawals (Admin)
+  app.get('/api/admin/affiliate/withdrawals', async (req, res) => {
+    try {
+      const withdrawals = await db
+        .select({
+          id: schema.affiliateTransactions.id,
+          userId: schema.affiliateTransactions.userId,
+          amount: schema.affiliateTransactions.amount,
+          balanceType: schema.affiliateTransactions.balanceType,
+          description: schema.affiliateTransactions.description,
+          status: schema.affiliateTransactions.status,
+          notes: schema.affiliateTransactions.notes,
+          transactionId: schema.affiliateTransactions.transactionId,
+          createdAt: schema.affiliateTransactions.createdAt,
+          processedAt: schema.affiliateTransactions.processedAt,
+          userName: schema.users.firstName,
+          userEmail: schema.users.email,
+          userPhone: schema.users.phone,
+          bankName: schema.affiliateApplications.bankName,
+          branchName: schema.affiliateApplications.branchName,
+          ifscCode: schema.affiliateApplications.ifscCode,
+          accountNumber: schema.affiliateApplications.accountNumber,
+        })
+        .from(schema.affiliateTransactions)
+        .leftJoin(schema.users, eq(schema.affiliateTransactions.userId, schema.users.id))
+        .leftJoin(schema.affiliateApplications, eq(schema.affiliateTransactions.userId, schema.affiliateApplications.userId))
+        .where(eq(schema.affiliateTransactions.type, 'withdrawal'))
+        .orderBy(desc(schema.affiliateTransactions.createdAt));
+
+      res.json(withdrawals);
+    } catch (error) {
+      console.error('Error fetching affiliate withdrawals (admin):', error);
+      res.status(500).json({ error: 'Failed to fetch withdrawals' });
+    }
+  });
+
+  // Approve affiliate withdrawal (Admin)
+  app.post('/api/admin/affiliate/withdrawals/:id/approve', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { transactionId, notes } = req.body;
+
+      if (!transactionId) {
+        return res.status(400).json({ error: 'Transaction ID is required' });
+      }
+
+      const withdrawal = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .limit(1);
+
+      if (!withdrawal || withdrawal.length === 0) {
+        return res.status(404).json({ error: 'Withdrawal request not found' });
+      }
+
+      const w = withdrawal[0];
+      if (w.type !== 'withdrawal') {
+        return res.status(400).json({ error: 'Invalid withdrawal request' });
+      }
+
+      if (w.status !== 'pending') {
+        return res.status(400).json({ error: `Only pending withdrawals can be approved (current: ${w.status})` });
+      }
+
+      const withdrawAmount = parseFloat(w.amount);
+      if (!Number.isFinite(withdrawAmount) || withdrawAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid withdrawal amount' });
+      }
+
+      const isHeldWithdrawal = String(w.description || '').includes('[WITHDRAWAL_HELD]');
+
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, w.userId))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        return res.status(404).json({ error: 'Wallet not found' });
+      }
+
+      const commissionBalance = parseFloat(wallet[0].commissionBalance || '0');
+
+      // If this withdrawal was NOT held at request time (legacy), deduct now.
+      // If it was held, do NOT deduct again.
+      if (!isHeldWithdrawal) {
+        if (commissionBalance < withdrawAmount) {
+          return res.status(400).json({ error: 'Insufficient commission balance' });
+        }
+
+        await db
+          .update(schema.affiliateWallet)
+          .set({
+            commissionBalance: (commissionBalance - withdrawAmount).toFixed(2),
+            updatedAt: new Date(),
+          }as any)
+          .where(eq(schema.affiliateWallet.userId, w.userId));
+      }
+
+      // Always track successful payouts in totalWithdrawn
+      await db
+        .update(schema.affiliateWallet)
+        .set({
+          totalWithdrawn: (parseFloat(wallet[0].totalWithdrawn || '0') + withdrawAmount).toFixed(2),
+          updatedAt: new Date(),
+        }as any)
+        .where(eq(schema.affiliateWallet.userId, w.userId));
+
+      const [updatedTransaction] = await db
+        .update(schema.affiliateTransactions)
+        .set({ 
+          status: 'completed',
+          transactionId,
+          notes: notes || null,
+          processedAt: new Date(),
+        }as any)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .returning();
+
+      res.json({
+        success: true,
+        message: 'Withdrawal approved successfully',
+        transaction: updatedTransaction,
+      });
+    } catch (error) {
+      console.error('Error approving withdrawal:', error);
+      res.status(500).json({ error: 'Failed to approve withdrawal' });
+    }
+  });
+
+  // Reject affiliate withdrawal (Admin)
+  app.post('/api/admin/affiliate/withdrawals/:id/reject', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { notes } = req.body;
+
+      const transaction = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .limit(1);
+
+      if (!transaction || transaction.length === 0) {
+        return res.status(404).json({ error: 'Withdrawal request not found' });
+      }
+
+      if (transaction[0].status !== 'pending') {
+        return res.status(400).json({ error: `Only pending withdrawals can be rejected (current: ${transaction[0].status})` });
+      }
+
+      const w = transaction[0];
+      const withdrawAmount = parseFloat(w.amount);
+      const isHeldWithdrawal = String(w.description || '').includes('[WITHDRAWAL_HELD]');
+
+      // If this withdrawal was held (deducted at request time), refund on reject.
+      if (isHeldWithdrawal && Number.isFinite(withdrawAmount) && withdrawAmount > 0) {
+        const wallet = await db
+          .select()
+          .from(schema.affiliateWallet)
+          .where(eq(schema.affiliateWallet.userId, w.userId))
+          .limit(1);
+
+        if (wallet && wallet.length > 0) {
+          const commissionBalance = parseFloat(wallet[0].commissionBalance || '0');
+          await db
+            .update(schema.affiliateWallet)
+            .set({
+              commissionBalance: (commissionBalance + withdrawAmount).toFixed(2),
+              updatedAt: new Date(),
+            }as any)
+            .where(eq(schema.affiliateWallet.userId, w.userId));
+        }
+      }
+
+      const [updatedTransaction] = await db
+        .update(schema.affiliateTransactions)
+        .set({
+          status: 'rejected',
+          notes: notes || 'Rejected by admin',
+          processedAt: new Date(),
+        } as any)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .returning();
+
+      res.json({
+        success: true,
+        message: 'Withdrawal rejected',
+        transaction: updatedTransaction,
+      });
+    } catch (error) {
+      console.error('Error rejecting withdrawal:', error);
+      res.status(500).json({ error: 'Failed to reject withdrawal' });
+    }
+  });
+
+  // Process affiliate wallet withdrawal (creates pending request; deduction happens on admin approval)
+  app.post('/api/affiliate/wallet/withdraw', async (req, res) => {
+    try {
+      const { userId, amount } = req.body;
+
+      if (!userId || !amount) {
+        return res.status(400).json({ error: 'User ID and amount required' });
+      }
+
+      const withdrawAmount = parseFloat(amount);
+
+      if (withdrawAmount < 500) {
+        return res.status(400).json({ error: 'Minimum withdrawal amount is ₹500' });
+      }
+
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId)))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        return res.status(404).json({ error: 'Wallet not found' });
+      }
+
+      const commissionBalance = parseFloat(wallet[0].commissionBalance || '0');
+      if (commissionBalance < withdrawAmount) {
+        return res.status(400).json({ error: 'Insufficient commission balance' });
+      }
+
+      // Deduct immediately (hold) so user cannot re-request beyond available balance.
+      const newCommissionBalance = Math.max(0, commissionBalance - withdrawAmount);
+      await db
+        .update(schema.affiliateWallet)
+        .set({
+          commissionBalance: newCommissionBalance.toFixed(2),
+          updatedAt: new Date(),
+        }as any)
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId)));
+
+      await db.insert(schema.affiliateTransactions).values({
+        userId: parseInt(userId),
+        type: 'withdrawal',
+        amount: withdrawAmount.toFixed(2),
+        balanceType: 'commission',
+        description: `[WITHDRAWAL_HELD] Withdrawal request of ₹${withdrawAmount.toFixed(2)}`,
+        status: 'pending',
+        transactionId: null,
+        notes: null,
+        processedAt: null,
+        createdAt: new Date(),
+      }as any);
+
+      // If bank details provided, upsert into affiliate_applications for admin visibility
+      try {
+        const { bankName, branchName, ifscCode, accountNumber } = req.body as any;
+        if (bankName || branchName || ifscCode || accountNumber) {
+          const existing = await db
+            .select()
+            .from(schema.affiliateApplications)
+            .where(eq(schema.affiliateApplications.userId, parseInt(userId)))
+            .limit(1);
+
+          if (existing && existing.length > 0) {
+            await db
+              .update(schema.affiliateApplications)
+              .set({
+                bankName: bankName || existing[0].bankName || null,
+                branchName: branchName || existing[0].branchName || null,
+                ifscCode: ifscCode || existing[0].ifscCode || null,
+                accountNumber: accountNumber || existing[0].accountNumber || null,
+                updatedAt: new Date(),
+              }as any)
+              .where(eq(schema.affiliateApplications.userId, parseInt(userId)));
+          } else {
+            await db.insert(schema.affiliateApplications).values({
+              userId: parseInt(userId),
+              firstName: null,
+              lastName: null,
+              email: null,
+              phone: null,
+              address: null,
+              city: null,
+              state: null,
+              pincode: null,
+              landmark: null,
+              country: null,
+              bankName: bankName || null,
+              branchName: branchName || null,
+              ifscCode: ifscCode || null,
+              accountNumber: accountNumber || null,
+              status: 'pending',
+            }as any);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to upsert affiliate bank details:', e);
+      }
+
+      res.json({
+        success: true,
+        message: 'Withdrawal request submitted successfully',
+        newBalance: newCommissionBalance.toFixed(2),
+      });
+    } catch (error) {
+      console.error('Error processing withdrawal:', error);
+      res.status(500).json({ error: 'Failed to process withdrawal' });
+    }
+  });
+
+   // Get all combos for admin (including inactive)
+  app.get("/api/admin/combos", async (req, res) => {
+    try {
+      // Set aggressive no-cache headers to prevent any caching
+       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+
+      const token = req.headers.authorization?.substring(7);
   
+
+      const decoded = jwt.verify(token || "", process.env.JWT_SECRET || "your-secret-key") as any;
+      if (decoded.role !== 'admin' && decoded.role !== 'master_admin') {
+        return res.status(403).json({ error: "Access denied. Admin privileges required." });
+      }
+
+      const allCombos = await db
+        .select()
+        .from(schema.combos)
+        .orderBy(desc(schema.combos.sortOrder), desc(schema.combos.createdAt));
+
+      console.log(`📦 Admin combos fetched: ${allCombos.length} items`);
+      res.json(allCombos);
+    } catch (error) {
+      console.error("Error fetching admin combos:", error);
+      res.status(500).json({ error: "Failed to fetch combos" });
+    }
+  });
+
+   // Admin endpoints for combos management
+  app.get('/api/admin/combos', async (req, res) => {
+    try {
+      const allCombos = await db
+        .select()
+        .from(schema.combos)
+        .orderBy(desc(schema.combos.createdAt));
+
+      // Get images for each combo
+      const combosWithImages = await Promise.all(
+        allCombos.map(async (combo) => {
+          try {
+            const images = await db
+              .select()
+              .from(schema.comboImages)
+              .where(eq(schema.comboImages.comboId, combo.id))
+              .orderBy(asc(schema.comboImages.sortOrder));
+
+            return {
+              ...combo,
+              imageUrls: images.map(img => img.imageUrl)
+            };
+          } catch (imgError) {
+            console.warn(`Failed to get images for combo ${combo.id}:`, imgError.message);
+            return {
+              ...combo,
+              imageUrls: []
+            };
+          }
+        })
+      );
+
+      res.json(combosWithImages);
+    } catch (error) {
+      console.error('Error fetching combos:', error);
+      res.status(500).json({ error: 'Failed to fetch combos' });
+    }
+  });
+
+  app.post('/api/admin/combos', upload.fields([{ name: 'images', maxCount: 10 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      const name = (req.body.name || '').substring(0, 200);
+      const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').substring(0, 200);
+
+      // Get products array - ensure it's properly parsed and limited
+      let products = req.body.products || [];
+      if (typeof products === 'string') {
+        try {
+          products = JSON.parse(products);
+        } catch (e) {
+          console.error('Error parsing products:', e);
+          products = [];
+        }
+      }
+
+      // Ensure products is an array and limit to 20 items
+      if (!Array.isArray(products)) {
+        products = [];
+      }
+      products = products.slice(0, 20);
+
+      // Get productShades from request body
+      let productShades = req.body.productShades || {};
+      if (typeof productShades === 'string') {
+        try {
+          productShades = JSON.parse(productShades);
+        } catch (e) {
+          console.error('Error parsing productShades:', e);
+          productShades = {};
+        }
+      }
+
+      // Collect all image URLs into an array
+      let imageUrls: string[] = [];
+
+      if (files?.images && files.images.length > 0) {
+        imageUrls = files.images.map(file => `/api/images/${file.filename}`);
+      } else if (req.body.imageUrl) {
+        // If imageUrl is provided in body, ensure it's an array
+        imageUrls = Array.isArray(req.body.imageUrl) ? req.body.imageUrl : [req.body.imageUrl];
+      } else {
+        // Default fallback image
+        imageUrls = ['https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop'];
+      }
+
+      // Handle video upload
+      let videoUrl = null;
+      if (files?.video?.[0]) {
+        videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.videoUrl) {
+        videoUrl = req.body.videoUrl;
+      }
+
+      const comboData = {
+        name: name,
+        slug,
+        description: (req.body.description || '').substring(0, 500),
+        detailedDescription: req.body.detailedDescription || null,
+        productsIncluded: req.body.productsIncluded || null,
+        benefits: req.body.benefits || null,
+        howToUse: req.body.howToUse || null,
+        price: parseFloat(req.body.price) || 0,
+        originalPrice: parseFloat(req.body.originalPrice) || 0,
+        discount: (req.body.discount || '').substring(0, 50),
+        cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
+        cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
+        affiliateCommission: req.body.affiliateCommission ? parseFloat(req.body.affiliateCommission) : 0,
+        affiliateUserDiscount: req.body.affiliateUserDiscount ? parseFloat(req.body.affiliateUserDiscount) : 0,
+        imageUrl: imageUrls,
+        videoUrl: videoUrl,
+        products: JSON.stringify(products),
+        productShades: JSON.stringify(productShades || {}),
+        rating: parseFloat(req.body.rating) || 5.0,
+        reviewCount: parseInt(req.body.reviewCount) || 0,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+      };
+
+      console.log("Final combo data to insert:", comboData);
+
+      // Insert combo into database
+      const [combo] = await db
+        .insert(schema.combos)
+        .values(comboData as any)
+        .returning();
+
+      console.log("Combo created successfully:", combo);
+      
+      // Insert images into combo_images table
+      if (imageUrls.length > 0) {
+        try {
+          await Promise.all(
+            imageUrls.map(async (url, index) => {
+              await db.insert(schema.comboImages).values({
+                comboId: combo.id,
+                imageUrl: url,
+                altText: `${combo.name} - Image ${index + 1}`,
+                isPrimary: index === 0,
+                sortOrder: index
+              } as any);
+            })
+          );
+        } catch (imgErr) {
+          console.warn('Failed to insert combo images:', imgErr);
+        }
+      }
+      
+      // Return combo with imageUrls for frontend sync
+      res.json({
+        ...combo,
+        imageUrls: imageUrls
+      });
+    } catch (error) {
+      console.error("Error creating combo:", error);
+      console.error('Error details:', error.message);
+      res.status(500).json({
+        error: "Failed to create combo",
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
+  app.put('/api/admin/combos/:id', upload.fields([{ name: 'images', maxCount: 10 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      // Get products array - ensure it's properly parsed and limited
+      let products = req.body.products || [];
+      if (typeof products === 'string') {
+        try {
+          products = JSON.parse(products);
+        } catch (e) {
+          console.error('Error parsing products:', e);
+          products = [];
+        }
+      }
+
+      // Ensure products is an array and limit to 20 items
+      if (!Array.isArray(products)) {
+        products = [];
+      }
+      products = products.slice(0, 20);
+
+      let updateData: any = {
+        name: (req.body.name || '').substring(0, 200),
+        description: (req.body.description || '').substring(0, 500),
+        detailedDescription: req.body.detailedDescription || null,
+        productsIncluded: req.body.productsIncluded || null,
+        benefits: req.body.benefits || null,
+        howToUse: req.body.howToUse || null,
+        price: parseFloat(req.body.price) || 0,
+        originalPrice: parseFloat(req.body.originalPrice) || 0,
+        discount: (req.body.discount || '').substring(0, 50),
+        cashbackPercentage: req.body.cashbackPercentage ? parseFloat(req.body.cashbackPercentage) : null,
+        cashbackPrice: req.body.cashbackPrice ? parseFloat(req.body.cashbackPrice) : null,
+        affiliateCommission: req.body.affiliateCommission ? parseFloat(req.body.affiliateCommission) : 0,
+        affiliateUserDiscount: req.body.affiliateUserDiscount ? parseFloat(req.body.affiliateUserDiscount) : 0,
+        products: JSON.stringify(products),
+        rating: parseFloat(req.body.rating) || 5.0,
+        reviewCount: parseInt(req.body.reviewCount) || 0,
+        isActive: req.body.isActive !== 'false',
+        sortOrder: parseInt(req.body.sortOrder) || 0,
+        updatedAt: new Date()
+      };
+
+      // Handle image updates
+      let allImageUrls: string[] = [];
+      if (files?.images && files.images.length > 0) {
+        // New uploaded image URLs
+        const newUploaded = files.images.map(file => `/api/images/${file.filename}`);
+
+        // Fetch existing combo to preserve its existing images
+        const existingComboRow = await db.select().from(schema.combos).where(eq(schema.combos.id, id)).limit(1);
+        const existingImages = (existingComboRow && existingComboRow.length > 0 && existingComboRow[0].imageUrl)
+          ? (Array.isArray(existingComboRow[0].imageUrl) ? existingComboRow[0].imageUrl : [existingComboRow[0].imageUrl])
+          : [];
+
+        // Append new images to existing list
+        allImageUrls = [...existingImages, ...newUploaded];
+        updateData.imageUrl = allImageUrls;
+
+        // Insert only the newly uploaded images into combo_images table
+        const existingCount = existingImages.length;
+        await Promise.all(
+          newUploaded.map(async (url, idx) => {
+            await db.insert(schema.comboImages).values({
+              comboId: id,
+              imageUrl: url,
+              altText: `${updateData.name} - Image ${existingCount + idx + 1}`,
+              isPrimary: existingCount === 0 && idx === 0,
+              sortOrder: existingCount + idx
+            } as any);
+          })
+        );
+      } else if (req.body.imageUrl) {
+        // Coerce imageUrl (may come as JSON string, comma-separated string, or array)
+        let imgVal: any = req.body.imageUrl;
+        if (typeof imgVal === 'string') {
+          // Try parse JSON first
+          try {
+            const parsed = JSON.parse(imgVal);
+            imgVal = parsed;
+          } catch (e) {
+            // Fallback: split comma-separated string
+            imgVal = imgVal.split(',').map((s: string) => s.trim()).filter(Boolean);
+          }
+        }
+
+        if (!Array.isArray(imgVal)) imgVal = [imgVal];
+        updateData.imageUrl = imgVal;
+        allImageUrls = imgVal;
+      }
+
+      // Handle video upload
+      if (files?.video?.[0]) {
+        updateData.videoUrl = `/api/images/${files.video[0].filename}`;
+      } else if (req.body.videoUrl) {
+        updateData.videoUrl = req.body.videoUrl;
+      }
+
+      const [combo] = await db
+        .update(schema.combos)
+        .set(updateData)
+        .where(eq(schema.combos.id, id))
+        .returning();
+
+      if (!combo) {
+        return res.status(404).json({ error: 'Combo not found' });
+      }
+
+      // Return combo with imageUrls for frontend sync
+      res.json({
+        ...combo,
+        imageUrls: allImageUrls.length > 0 ? allImageUrls : (combo.imageUrl || [])
+      });
+    } catch (error) {
+      console.error('Error updating combo:', error);
+      console.error('Error details:', error.message);
+      res.status(500).json({
+        error: 'Failed to update combo',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  });
+
+  app.delete('/api/admin/combos/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const [deletedCombo] = await db
+        .delete(schema.combos)
+        .where(eq(schema.combos.id, id))
+        .returning();
+
+      if (!deletedCombo) {
+        return res.status(404).json({ error: 'Combo not found' });
+      }
+
+      res.json({ message: 'Combo deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting combo:', error);
+      res.status(500).json({ error: 'Failed to delete combo' });
+    }
+  });
+
+ // Admin endpoints for affiliate applications
+  app.get('/api/admin/affiliate-applications', async (req, res) => {
+    try {
+      const applications = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .orderBy(desc(schema.affiliateApplications.createdAt));
+
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching affiliate applications:', error);
+      res.status(500).json({ error: 'Failed to fetch applications' });
+    }
+  });
+
+  app.get('/api/admin/affiliate-applications/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const application = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.id, id))
+        .limit(1);
+
+      if (!application || application.length === 0) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json(application[0]);
+    } catch (error) {
+      console.error('Error fetching affiliate application:', error);
+      res.status(500).json({ error: 'Failed to fetch application' });
+    }
+  });
+
+  app.put('/api/admin/affiliate-applications/:id/status', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['pending', 'approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const [updatedApplication] = await db
+        .update(schema.affiliateApplications)
+        .set({
+          status,
+          reviewNotes: notes,
+          reviewedAt: new Date()
+        }as any)
+        .where(eq(schema.affiliateApplications.id, parseInt(id)))
+        .returning();
+
+      if (!updatedApplication) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      // If approved, create affiliate wallet
+      if (status === 'approved' && updatedApplication.userId) {
+        try {
+          const existingWallet = await db
+            .select()
+            .from(schema.affiliateWallet)
+            .where(eq(schema.affiliateWallet.userId, updatedApplication.userId))
+            .limit(1);
+
+          if (existingWallet.length === 0) {
+            await db.insert(schema.affiliateWallet).values({
+              userId: updatedApplication.userId,
+              cashbackBalance: "0.00",
+              commissionBalance: "0.00",
+              totalEarnings: "0.00",
+              totalWithdrawn: "0.00"
+            }as any);
+            console.log(`✅ Affiliate wallet created for user ${updatedApplication.userId}`);
+          }
+        } catch (walletError) {
+          console.error('Error creating affiliate wallet:', walletError);
+        }
+      }
+
+      // Send email notification
+      try {
+        const formattedUserId = updatedApplication.userId.toString().padStart(2, '0');
+        const affiliateCode = `POPPIKAP${formattedUserId}`;
+        const dashboardUrl = process.env.REPL_SLUG 
+          ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/affiliate-dashboard`
+          : 'https://poppik.in/affiliate-dashboard';
+
+        const emailSubject = status === 'approved' 
+          ? 'Welcome to the Poppik Lifestyle Private Limited Affiliate Program'
+          : 'Update on Your Poppik Affiliate Application';
+
+        const emailHtml = status === 'approved'
+          ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 40px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to the Poppik Lifestyle Private Limited Affiliate Program</h1>
+            </div>
+            <div style="padding: 40px 30px;">
+              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName}</strong>,</p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 20px 0;">
+                We are delighted to welcome you as an official affiliate partner of Poppik Lifestyle Private Limited.
+              </p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0 0 30px 0;">
+                Your skills and dedication align perfectly with our vision, and we are excited to collaborate with you. As a valued member of our affiliate program, you now have access to your unique referral link, marketing materials, and performance dashboard to help you start promoting our brand effectively.
+              </p>
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
+                <p style="color: #ffffff; margin: 0 0 10px 0; font-size: 14px;">Your Unique Affiliate Code</p>
+                <p style="color: #ffffff; margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 2px;">${affiliateCode}</p>
+              </div>
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="font-size: 16px; color: #555555; margin: 0 0 15px 0;">
+                  Please log in to your affiliate account here:
+                </p>
+                <a href="${dashboardUrl}" style="display: inline-block; background-color: #e74c3c; color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 5px; font-size: 16px; font-weight: bold;">
+                  Access Dashboard
+                </a>
+              </div>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 30px 0 20px 0;">
+                If you have any questions or need assistance, don't hesitate to contact our support team at <a href="mailto:info@poppik.in" style="color: #e74c3c; text-decoration: none;">info@poppik.in</a>.
+              </p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 0;">
+                Thank you for joining us. We look forward to a successful and rewarding partnership.
+              </p>
+            </div>
+            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center; border-top: 1px solid #e0e0e0;">
+              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">
+                © 2024 Poppik Lifestyle Private Limited. All rights reserved.
+              </p>
+              <p style="color: #999999; font-size: 12px; margin: 0;">
+                Office No.- 213, A- Wing, Skylark Building, Plot No.- 63, Sector No.- 11, C.B.D. Belapur, Navi Mumbai- 400614 INDIA
+              </p>
+            </div>
+          </div>`
+          : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #6c757d; padding: 40px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Poppik Affiliate Application Update</h1>
+            </div>
+            <div style="background: white; padding: 40px 30px;">
+              <p style="font-size: 18px; color: #333333; margin: 0 0 20px 0;">Dear <strong>${updatedApplication.firstName} ${updatedApplication.lastName}</strong>,</p>
+              <p style="font-size: 16px; color: #555555; line-height: 1.6;">
+                Thank you for your interest in the Poppik Affiliate Program. After careful review, we are unable to approve your application at this time.
+              </p>
+              ${notes ? `<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0; color: #856404;"><strong>Reason:</strong> ${notes}</p>
+              </div>` : ''}
+              <p style="font-size: 16px; color: #555555; line-height: 1.6; margin: 20px 0 0 0;">
+                We encourage you to reapply in the future. Keep creating amazing content!
+              </p>
+              <p style="font-size: 14px; color: #999999; margin: 20px 0 0 0;">
+                Questions? Contact us at <a href="mailto:info@poppik.in" style="color: #e74c3c;">info@poppik.in</a>
+              </p>
+            </div>
+            <div style="background-color: #f8f8f8; padding: 20px 30px; text-align: center;">
+              <p style="color: #999999; font-size: 12px; margin: 0 0 5px 0;">© 2024 Poppik Lifestyle Private Limited</p>
+            </div>
+          </div>`;
+
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'info@poppik.in',
+          to: updatedApplication.email,
+          subject: emailSubject,
+          html: emailHtml
+        });
+
+        console.log(`✅ Affiliate ${status} email sent to: ${updatedApplication.email}`);
+      } catch (emailError) {
+        console.error('❌ Failed to send email:', emailError);
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Application ${status} successfully`,
+        application: updatedApplication 
+      });
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      res.status(500).json({ error: 'Failed to update application status' });
+    }
+  });
 
   app.delete('/api/admin/affiliate-applications/:id', async (req, res) => {
     try {
@@ -9830,6 +10652,180 @@ app.get('/api/influencer-videos', async (req, res) => {
     } catch (error) {
       console.error('Error fetching job position:', error);
       res.status(500).json({ error: 'Failed to fetch job position' });
+    }
+  });
+
+  const jobPositionsSSEClients = new Set<any>();
+  const jobApplicationsSSEClients = new Set<any>();
+
+  app.get('/api/admin/job-positions/stream', async (req, res) => {
+    // Allow only GET
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    // Send an initial comment to establish the stream
+    res.write(': connected to job positions stream\n\n');
+
+    jobPositionsSSEClients.add(res);
+
+    req.on('close', () => {
+      jobPositionsSSEClients.delete(res);
+    });
+  });
+
+   // Admin job applications endpoints
+  // Server-Sent Events for realtime job applications updates (admin)
+
+  app.get('/api/admin/job-applications/stream', async (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    // Send an initial comment to establish the stream
+    res.write(': connected to job applications stream\n\n');
+
+    jobApplicationsSSEClients.add(res);
+
+    req.on('close', () => {
+      jobApplicationsSSEClients.delete(res);
+    });
+  });
+
+  app.get('/api/admin/job-applications', async (req, res) => {
+    try {
+      // Set strict no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const applications = await db
+        .select()
+        .from(schema.jobApplications)
+        .orderBy(desc(schema.jobApplications.appliedAt));
+
+      res.json(applications);
+    } catch (error) {
+      console.error('Error fetching job applications:', error);
+      res.status(500).json({ error: 'Failed to fetch job applications' });
+    }
+  });
+
+  app.get('/api/admin/job-applications/:id', async (req, res) => {
+    try {
+      // Set strict no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const id = parseInt(req.params.id);
+      const application = await db
+        .select()
+        .from(schema.jobApplications)
+        .where(eq(schema.jobApplications.id, id))
+        .limit(1);
+
+      if (!application || application.length === 0) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      res.json(application[0]);
+    } catch (error) {
+      console.error('Error fetching job application:', error);
+      res.status(500).json({ error: 'Failed to fetch job application' });
+    }
+  });
+
+  app.put('/api/admin/job-applications/:id/status', async (req, res) => {
+    try {
+      // Set strict no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (!['pending', 'reviewing', 'shortlisted', 'accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const [updatedApplication] = await db
+        .update(schema.jobApplications)
+        .set({
+          status,
+          reviewedAt: new Date()
+        }as any)
+        .where(eq(schema.jobApplications.id, id))
+        .returning();
+
+      if (!updatedApplication) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      // Broadcast update to admin SSE clients
+      try {
+       jobApplicationsSSEClients.forEach((client: any) => {
+  try {
+    client.write('event: jobApplicationUpdated\n');
+    client.write('data: ' + JSON.stringify(updatedApplication) + '\n\n');
+  } catch (e) {
+    // ignore individual client errors
+  }
+});
+      } catch (e) {
+        console.error('Error broadcasting job application update event:', e);
+      }
+
+      res.json({
+        success: true, 
+        message: `Application status updated to ${status}`,
+        application: updatedApplication 
+      });
+    } catch (error) {
+      console.error('Error updating application status:', error);
+      res.status(500).json({ error: 'Failed to update application status' });
+    }
+  });
+
+  app.delete('/api/admin/job-applications/:id', async (req, res) => {
+    try {
+      // Set strict no-cache headers
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      const id = parseInt(req.params.id);
+
+      const [deleted] = await db
+        .delete(schema.jobApplications)
+        .where(eq(schema.jobApplications.id, id))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Application not found' });
+      }
+
+      // Broadcast deletion to admin SSE clients
+      try {
+        jobApplicationsSSEClients.forEach((client: any) => {
+          try {
+            client.write('event: jobApplicationDeleted\n');
+            client.write('data: ' + JSON.stringify({ id }) + '\n\n');
+          } catch (e) {
+            // ignore individual client errors
+          }
+        });
+      } catch (e) {
+        console.error('Error broadcasting job application delete event:', e);
+      }
+
+      res.json({ success: true, message: 'Application deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting job application:', error);
+      res.status(500).json({ error: 'Failed to delete job application' });
     }
   });
 

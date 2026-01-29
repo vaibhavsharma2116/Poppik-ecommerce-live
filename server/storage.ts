@@ -2298,6 +2298,35 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async autoExpireJobPositions(): Promise<void> {
+    try {
+      const now = new Date();
+
+      await this.db
+        .update(jobPositions)
+        .set({ isActive: false, updatedAt: now } as any)
+        .where(
+          and(
+            eq(jobPositions.isActive, true),
+            sql`${jobPositions.expiresAt} IS NOT NULL AND ${jobPositions.expiresAt} <= ${now}`
+          )
+        );
+
+      await this.db
+        .update(jobPositions)
+        .set({ isActive: true, updatedAt: now } as any)
+        .where(
+          and(
+            eq(jobPositions.isActive, false),
+            sql`${jobPositions.expiresAt} IS NOT NULL AND ${jobPositions.expiresAt} > ${now}`
+          )
+        );
+    } catch (error) {
+      console.error("Error auto-expiring job positions:", error);
+      throw error;
+    }
+  }
+
   async getJobPositionBySlug(slug: string): Promise<JobPosition | null> {
     const result = await this.db
       .select()

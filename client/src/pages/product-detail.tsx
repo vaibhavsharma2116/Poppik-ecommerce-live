@@ -173,7 +173,8 @@ const requestManager = new RequestManager();
 
 export default function ProductDetail() {
   const [, params] = useRoute("/product/:slug");
-  const productSlugOrId = params?.slug ?? "";
+  const routeParams = (params ?? {}) as { slug?: string };
+  const productSlugOrId = routeParams.slug ?? "";
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [showAllShades, setShowAllShades] = useState(false);
   const [selectedShades, setSelectedShades] = useState<Shade[]>([]);
@@ -195,7 +196,7 @@ export default function ProductDetail() {
   const { toast } = useToast();
 
   // Memoize the product slug to prevent unnecessary re-fetches
-  const productSlug = useMemo(() => params?.slug ?? null, [params?.slug]);
+  const productSlug = useMemo(() => routeParams.slug ?? null, [routeParams.slug]);
 
   const { data: product, isLoading } = useQuery<Product>({
     queryKey: [`/api/products/${productSlug}`],
@@ -233,14 +234,14 @@ export default function ProductDetail() {
     const urls: string[] = [];
 
     if (productImages && productImages.length > 0) {
-      // Get unique URLs from product images only - use Set to ensure uniqueness
+      // Get unique URLs from product images only
       const imageUrlsFromDb = productImages
         .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
         .map(img => img.url || img.imageUrl)
         .filter(url => url && url.trim() !== ''); // Filter out empty/null URLs
 
-      // Remove duplicates using Set
-      const uniqueUrls = Array.from(new Set(imageUrlsFromDb));
+      // Remove duplicates without Set (avoids downlevel iteration issues)
+      const uniqueUrls = imageUrlsFromDb.filter((u: string, i: number, arr: string[]) => arr.indexOf(u) === i);
       urls.push(...uniqueUrls);
     } else if (product?.imageUrl) {
       urls.push(product.imageUrl);
@@ -662,7 +663,7 @@ export default function ProductDetail() {
     const affiliateUserDiscountPercentage = parseFloat(String((product as any)?.affiliateUserDiscount ?? (product as any)?.affiliate_user_discount ?? '0')) || 0;
 
     // Calculate actual values based on product price
-    const productPrice = parseFloat(product.price);
+    const productPrice = parseFloat(String((product as any)?.price ?? '0'));
     const affiliateCommissionAmount = affiliateCommissionPercentage > 0 ? (productPrice * affiliateCommissionPercentage) / 100 : 0;
     const affiliateUserDiscountAmount = affiliateUserDiscountPercentage > 0 ? (productPrice * affiliateUserDiscountPercentage) / 100 : 0;
 
