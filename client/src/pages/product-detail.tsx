@@ -1048,8 +1048,8 @@ export default function ProductDetail() {
   const filteredRelatedProducts = relatedProducts?.filter(p => p.id !== product.id).slice(0, 4) || [];
 
   // Price and related-products helpers used in several UI sections
-  const originalPrice = product?.originalPrice || product?.price || 0;
-  const price = product?.price || 0;
+ const originalPrice = Number((product as any)?.originalPrice ?? (product as any)?.price ?? 0);
+const price = Number((product as any)?.price ?? 0);
   const discountPercentage = originalPrice && originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
   const includedProducts = Array.isArray(filteredRelatedProducts) ? filteredRelatedProducts : [];
 
@@ -1442,7 +1442,7 @@ export default function ProductDetail() {
                                   className="w-full h-full object-contain rounded-xl sm:rounded-2xl group-hover:scale-105 sm:group-hover:scale-110"
                                   width={400}
                                   height={400}
-                                  fetchpriority="high"
+                                 fetchPriority="high"
                                   decoding="async"
                                   onClick={() => {
                                     // Create zoom modal
@@ -1596,7 +1596,7 @@ export default function ProductDetail() {
                   {/* Rating */}
                   <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
                     <div className="flex">
-                      {renderStars(parseFloat(product.rating))}
+                      {renderStars(parseFloat(String(product.rating)))}
                     </div>
                     <span className="product-detail-rating sm:text-xl font-bold text-gray-900">{product.rating}</span>
                     <span className="text-sm sm:text-base text-gray-600 font-medium">({product.reviewCount !== undefined && product.reviewCount !== null ? product.reviewCount.toLocaleString() : ""} reviews)</span>
@@ -2212,7 +2212,7 @@ export default function ProductDetail() {
               <div className="text-center md:text-left">
                 <div className="flex items-center justify-center md:justify-start space-x-2 mb-2">
                   <div className="flex">
-                    {renderStars(parseFloat(product.rating))}
+                    {renderStars(parseFloat(String(product.rating)))}
                   </div>
                   <span className="text-3xl font-bold text-gray-900">{product.rating}</span>
                 </div>
@@ -2325,7 +2325,7 @@ export default function ProductDetail() {
             </p>
           </div>
 
-          {recommendedProducts.length === 0 ? (
+          {(Array.isArray(recommendedProducts) ? recommendedProducts : []).length === 0 ? (
             <>
               {/* Mobile: Loading Skeleton */}
               <div className="block md:hidden">

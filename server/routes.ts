@@ -2088,7 +2088,7 @@ app.get("/api/admin/stores", async (req, res) => {
           phoneNumber: phoneNumber.trim(),
           deliveryInstructions: deliveryInstructions ? deliveryInstructions.trim() : null,
           isDefault: Boolean(isDefault)
-        })
+        } as any)
         .returning();
 
       res.status(201).json(newAddress);
@@ -2141,7 +2141,7 @@ app.get("/api/admin/stores", async (req, res) => {
         if (address.length > 0) {
           await db
             .update(schema.deliveryAddresses)
-            .set({ isDefault: false })
+            .set({ isDefault: false } as any)
             .where(eq(schema.deliveryAddresses.userId, address[0].userId));
         }
       }
@@ -2161,7 +2161,7 @@ app.get("/api/admin/stores", async (req, res) => {
           deliveryInstructions: deliveryInstructions ? deliveryInstructions.trim() : null,
           isDefault: Boolean(isDefault),
           updatedAt: new Date()
-        })
+        } as any)
         .where(eq(schema.deliveryAddresses.id, addressId))
         .returning();
 

@@ -666,19 +666,19 @@ export default function AdminCombos() {
     // Load product shades if available - handle both string and object formats
     if (combo.productShades) {
       try {
-        let shades = {};
+        let shades: Record<number, number[]> = {};
 
         if (typeof combo.productShades === 'string') {
           // Try to parse JSON string
           try {
-            shades = JSON.parse(combo.productShades);
+            shades = JSON.parse(combo.productShades) as Record<number, number[]>;
           } catch (parseError) {
             console.warn('Could not parse productShades string:', parseError);
             shades = {};
           }
         } else if (typeof combo.productShades === 'object' && combo.productShades !== null) {
           // Already an object
-          shades = combo.productShades;
+          shades = combo.productShades as Record<number, number[]>;
         }
 
         // Ensure shades is a valid object (not an array or other type)
