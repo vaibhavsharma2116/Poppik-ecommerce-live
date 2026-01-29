@@ -39,6 +39,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   const [isHovered, setIsHovered] = useState(false);
   const [selectedShades, setSelectedShades] = useState<Shade[]>([]);
   const [isShadeDrawerOpen, setIsShadeDrawerOpen] = useState(false);
+  const [selectedShadeImageUrl, setSelectedShadeImageUrl] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -50,6 +51,17 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   const cardImageSize = isMobile ? 200 : 400;
 
   const getShadeKey = (shade: any) => String(shade?.id ?? shade?.value ?? shade?.name ?? "");
+
+  useEffect(() => {
+    if (!isShadeDrawerOpen) return;
+
+    if (selectedShades.length > 0 && selectedShades[selectedShades.length - 1]?.imageUrl) {
+      setSelectedShadeImageUrl(selectedShades[selectedShades.length - 1].imageUrl || null);
+      return;
+    }
+
+    setSelectedShadeImageUrl(getPrimaryImage(product));
+  }, [isShadeDrawerOpen, product, selectedShades]);
 
   // Fetch product shades
   const { data: productShades = [] } = useQuery<Shade[]>({
@@ -291,8 +303,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
               <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
             </div>
           </Link>
-
-
         </div>
 
         <div className="flex-1 p-6 flex flex-col justify-between bg-gradient-to-br from-white via-pink-25 to-purple-25">
@@ -463,8 +473,6 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             <div className={`absolute inset-0 bg-gradient-to-r from-pink-500/10 to-purple-500/10 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
           </div>
         </Link>
-
-
       </div>
 
       <div className="mobile-product-content p-2 sm:p-3 md:p-4 lg:p-5 space-y-1 sm:space-y-2 md:space-y-3 bg-white">
@@ -582,12 +590,8 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
             {/* Product Image - Dynamic based on selected shade */}
             <div className="relative bg-gradient-to-br from-pink-50 to-purple-50 rounded-lg overflow-hidden aspect-square transition-all duration-300">
               <img
-                src={
-                  selectedShades.length > 0 && selectedShades[0].imageUrl
-                    ? selectedShades[0].imageUrl
-                    : getPrimaryImage(product)
-                }
-                alt={selectedShades.length > 0 ? selectedShades[0].name : product.name}
+                src={selectedShadeImageUrl || getPrimaryImage(product)}
+                alt={selectedShades.length > 0 ? selectedShades[selectedShades.length - 1]?.name || product.name : product.name}
                 className="w-full h-full object-contain transition-opacity duration-300"
                 loading="lazy"
               />
@@ -663,9 +667,24 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
                       key={shadeKey}
                       onClick={() => {
                         if (isSelected) {
-                          setSelectedShades(selectedShades.filter(s => getShadeKey(s) !== shadeKey));
+                          const remaining = selectedShades.filter(s => getShadeKey(s) !== shadeKey);
+                          setSelectedShades(remaining);
+
+                          const last = remaining[remaining.length - 1];
+                          if (last?.imageUrl) {
+                            setSelectedShadeImageUrl(last.imageUrl);
+                          } else {
+                            setSelectedShadeImageUrl(getPrimaryImage(product));
+                          }
                         } else {
-                          setSelectedShades([...selectedShades, shade]);
+                          const next = [...selectedShades, shade];
+                          setSelectedShades(next);
+
+                          if (shade.imageUrl) {
+                            setSelectedShadeImageUrl(shade.imageUrl);
+                          } else {
+                            setSelectedShadeImageUrl(getPrimaryImage(product));
+                          }
                         }
                       }}
                       className={`cursor-pointer relative flex flex-col items-center gap-2 p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
