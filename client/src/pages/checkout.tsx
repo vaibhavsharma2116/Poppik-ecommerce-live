@@ -1285,14 +1285,6 @@ export default function CheckoutPage() {
   const cartSubtotal = calculateSubtotal();
   const cartSubtotalAfterProductDiscount = cartSubtotal - productDiscount;
 
-  const COD_BONUS_MIN_AMOUNT = 1500;
-  const COD_BONUS_DISCOUNT = 50;
-
-  const codBonusDiscount =
-    formData.paymentMethod === 'cod' && cartSubtotalAfterProductDiscount >= COD_BONUS_MIN_AMOUNT
-      ? COD_BONUS_DISCOUNT
-      : 0;
-
   const totalAffiliateDiscountFromItems = cartItems.reduce((total, item) => {
     if (item.affiliateUserDiscount) {
       return total + (Number(item.affiliateUserDiscount) * item.quantity);
@@ -1434,12 +1426,7 @@ export default function CheckoutPage() {
     }
   }, [giftMilestonesSorted.length, subtotalForGiftMilestone]);
 
-  const subtotalAfterDiscount =
-    cartSubtotalAfterProductDiscount -
-    affiliateDiscountAmount -
-    promoDiscount -
-    giftMilestoneDiscount -
-    codBonusDiscount;
+  const subtotalAfterDiscount = cartSubtotalAfterProductDiscount - affiliateDiscountAmount - promoDiscount - giftMilestoneDiscount;
 
   const freeShippingThreshold = 499;
   const shipping = cartSubtotalAfterProductDiscount >= freeShippingThreshold ? 0 : shippingCost;
@@ -2176,7 +2163,6 @@ export default function CheckoutPage() {
             affiliateCode: passedAffiliateCode || null,
             promoCode: appliedPromo?.code || null,
             promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
-            codBonusDiscount: codBonusDiscount > 0 ? Math.round(codBonusDiscount) : null,
             redeemAmount: Math.round(redeemAmount) || 0,
             affiliateWalletAmount: Math.round(affiliateWalletAmount) || 0,
             deliveryInstructions: formData.deliveryInstructions, // Include general delivery instructions
@@ -2580,7 +2566,6 @@ export default function CheckoutPage() {
           affiliateCode: shouldIncludeAffiliateCode ? effectiveAffiliateCode : null,
           promoCode: appliedPromo?.code || null,
           promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
-          codBonusDiscount: codBonusDiscount > 0 ? Math.round(codBonusDiscount) : null,
           redeemAmount: Math.round(redeemAmount) || 0,
           affiliateWalletAmount: Math.round(affiliateWalletAmount) || 0,
           giftMilestoneId: appliedGiftMilestone?.id || null,
@@ -3804,13 +3789,6 @@ export default function CheckoutPage() {
                       </div>
                     )}
 
-                    {codBonusDiscount > 0 && (
-                      <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
-                        <span className="text-green-700 font-medium">COD Bonus</span>
-                        <span className="font-bold text-green-600">-₹{codBonusDiscount.toLocaleString()}</span>
-                      </div>
-                    )}
-
                     {giftMilestoneCashback > 0 && (
                       <div className="flex justify-between text-sm bg-pink-50 p-2 rounded">
                         <span className="text-pink-700 font-medium">Gift Milestone Cashback</span>
@@ -3818,16 +3796,63 @@ export default function CheckoutPage() {
                       </div>
                     )}
 
-                    {/* ... */}
+                    {appliedGiftMilestone && (
+                      <div className="text-xs text-pink-600 bg-pink-50 p-2 rounded">
+                        🎁 You've unlocked {appliedGiftMilestone.giftCount} gift{appliedGiftMilestone.giftCount > 1 ? 's' : ''} with this order!
+                      </div>
+                    )}
+
+                    {totalCashbackEarned > 0 && (
+                      <div className="flex justify-between text-sm bg-orange-50 p-2 rounded">
+                        <span className="text-orange-700 font-medium">Cashback Earned</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-orange-600">+₹{totalCashbackEarned.toFixed(2)}</span>
+                          <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">{((totalCashbackEarned / cartSubtotal) * 100).toFixed(2)}%</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {totalCashbackEarned > 0 && (
+                      <div className="text-xs text-gray-600 bg-orange-50 p-2 rounded">
+                        Cashback will be credited to your Poppik Wallet within 48–72 business hours after the order is successfully delivered. If an order is cancelled, returned, or refunded, the cashback for that order will be automatically revoked.
+                      </div>
+                    )}
+
+                    {safeWalletAmount > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Cashback Wallet</span>
+                        <span className="text-green-600 font-semibold">-₹{safeWalletAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    {safeAffiliateWalletAmount > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-purple-600">Affiliate Wallet</span>
+                        <span className="text-purple-600 font-semibold">-₹{safeAffiliateWalletAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Shipping</span>
+                      <span className="font-medium">{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
+                    </div>
+
+                    {cartSubtotalAfterProductDiscount >= freeShippingThreshold && (
+                      <div className="text-xs text-green-700 bg-green-50 p-2 rounded">
+                        Free shipping on all orders above Rs. 499.
+                      </div>
+                    )}
+
+                    <Separator />
 
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-bold text-gray-900">Total</span>
                       <span className="text-2xl font-bold text-pink-600">₹{(isNaN(total) ? 0 : total).toLocaleString()}</span>
                     </div>
 
-                    {((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0) + (giftMilestoneDiscount || 0) + (codBonusDiscount || 0) > 0) && (
+                    {((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0) + (giftMilestoneDiscount || 0) > 0) && (
                       <div className="text-xs text-green-600 text-right">
-                        You saved ₹{((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0) + (giftMilestoneDiscount || 0) + (codBonusDiscount || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}!
+                        You saved ₹{((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0) + (giftMilestoneDiscount || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}!
                       </div>
                     )}
                   </div>
