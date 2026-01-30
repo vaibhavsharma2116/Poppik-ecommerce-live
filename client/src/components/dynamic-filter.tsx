@@ -228,6 +228,12 @@ export default function DynamicFilter({
         ? [...prev.selectedCategories, category]
         : prev.selectedCategories.filter(cat => cat !== category)
     }));
+
+    if (checked) {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
   };
 
   const handleSubcategoryChange = (subcategory: string, checked: boolean) => {
