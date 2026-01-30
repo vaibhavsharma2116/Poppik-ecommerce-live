@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useId } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
@@ -37,6 +37,10 @@ export default function DynamicFilter({
   subcategories = [],
   showSubcategories = false
 }: DynamicFilterProps) {
+  const toBool = (v: any) => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
+
+  const idPrefix = useId();
+
   const [filters, setFilters] = useState<FilterState>({
     priceRange: [0, 2000],
     rating: 0,
@@ -68,9 +72,9 @@ export default function DynamicFilter({
         priceRange: [0, roundedMax],
         rating: 0,
         inStock: false,
-        featured: filterParam === 'featured',
-        bestseller: filterParam === 'bestseller',
-        newLaunch: filterParam === 'newLaunch',
+        featured: toBool(filterParam === 'featured'),
+        bestseller: toBool(filterParam === 'bestseller'),
+        newLaunch: toBool(filterParam === 'newLaunch'),
         searchTerm: "",
         selectedCategories: categoryParam && categoryParam !== 'all' ? [categoryParam] : [],
         selectedSubcategories: []
@@ -87,9 +91,9 @@ export default function DynamicFilter({
     if (filterParam) {
       setFilters(prev => ({
         ...prev,
-        featured: filterParam === 'featured',
-        bestseller: filterParam === 'bestseller',
-        newLaunch: filterParam === 'newLaunch'
+        featured: toBool(filterParam === 'featured'),
+        bestseller: toBool(filterParam === 'bestseller'),
+        newLaunch: toBool(filterParam === 'newLaunch')
       }));
     }
 
@@ -99,7 +103,7 @@ export default function DynamicFilter({
         selectedCategories: [categoryParam]
       }));
     }
-  }, [window.location.search]);
+  }, []);
 
   // Apply filters whenever filters change
   useEffect(() => {
@@ -118,27 +122,32 @@ export default function DynamicFilter({
       }
 
       // Rating filter
-      if (filters.rating > 0 && Number((product as any).rating || 0) < filters.rating) {
-        return false;
+      const productRating = parseFloat(String((product as any).rating ?? 0)) || 0;
+      if (filters.rating > 0) {
+        const minRating = filters.rating;
+        const maxRating = filters.rating === 5 ? Number.POSITIVE_INFINITY : filters.rating + 1;
+        if (productRating < minRating || productRating >= maxRating) {
+          return false;
+        }
       }
 
       // Stock filter
-      if (filters.inStock && !product.inStock) {
+      if (filters.inStock && !toBool((product as any).inStock)) {
         return false;
       }
 
       // Featured filter
-      if (filters.featured && !product.featured) {
+      if (filters.featured && !toBool((product as any).featured)) {
         return false;
       }
 
       // Bestseller filter
-      if (filters.bestseller && !product.bestseller) {
+      if (filters.bestseller && !toBool((product as any).bestseller)) {
         return false;
       }
 
       // New launch filter
-      if (filters.newLaunch && !product.newLaunch) {
+      if (filters.newLaunch && !toBool((product as any).newLaunch)) {
         return false;
       }
 
@@ -304,7 +313,7 @@ export default function DynamicFilter({
             )}
             {filters.rating > 0 && (
               <Badge variant="outline" className="flex items-center gap-1">
-                {filters.rating}+ Stars
+                {filters.rating} Stars
                 <X 
                   className="h-3 w-3 cursor-pointer" 
                   onClick={() => removeFilter('rating')}
@@ -393,167 +402,181 @@ export default function DynamicFilter({
             <CardTitle className="text-sm">Rating</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {[4, 3, 2, 1].map(rating => (
-              <div 
+            {[5, 4, 3, 2, 1].map((rating) => (
+              <div
                 key={rating}
                 className="flex items-center space-x-2 cursor-pointer"
                 onClick={() => handleRatingChange(rating)}
               >
                 <Checkbox
                   checked={filters.rating === rating}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRatingChange(rating);
+                  }}
                   onCheckedChange={() => {}}
                 />
+
                 <div className="flex items-center">
                   {Array.from({ length: 5 }, (_, i) => (
-                    <span 
-                      key={i} 
+                    <span
+                      key={i}
                       className={`text-sm ${i < rating ? 'text-yellow-400' : 'text-gray-300'}`}
                     >
                       ★
                     </span>
                   ))}
-                  <span className="text-sm text-gray-600 ml-1">& up</span>
+                  <span className="text-sm text-gray-600 ml-1">Stars</span>
                 </div>
               </div>
             ))}
           </CardContent>
         </Card>
 
-        {showSubcategories && subcategories.length > 0 ? (
+      {showSubcategories && subcategories.length > 0 ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Subcategories</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {subcategories.map((subcategory) => {
+              const productCount = Array.isArray(products)
+                ? products.filter(p => (p as any)?.subcategory === (subcategory as any).name).length
+                : 0;
+              return (
+                <div key={subcategory.id} className="flex items-center justify-between space-x-2">
+                  <div
+                    className="flex items-center space-x-2 flex-1 cursor-pointer"
+                    onClick={() =>
+                      handleSubcategoryChange(
+                        subcategory.name,
+                        !filters.selectedSubcategories.includes(subcategory.name)
+                      )
+                    }
+                  >
+                    <Checkbox
+                      id={`${idPrefix}-subcategory-${subcategory.id}`}
+                      checked={filters.selectedSubcategories.includes(subcategory.name)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => e.stopPropagation()}
+                      onCheckedChange={(checked) =>
+                        handleSubcategoryChange(subcategory.name, checked as boolean)
+                      }
+                      className="h-3.5 w-3.5 scale-75"
+                    />
+                    <span className="text-sm font-medium flex-1">{subcategory.name}</span>
+                  </div>
+
+                  {/* <span className="text-xs text-gray-500">({productCount})</span> */}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      ) : (
+        categories.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Subcategories</CardTitle>
+              <CardTitle className="text-sm">Categories</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {subcategories.map((subcategory) => {
+              {categories.map((category) => {
                 const productCount = Array.isArray(products)
-                  ? products.filter(p => (p as any)?.subcategory === (subcategory as any).name).length
+                  ? products.filter(p => p?.category === category.name).length
                   : 0;
                 return (
-                  <div key={subcategory.id} className="flex items-center justify-between space-x-2">
-                    <div className="flex items-center space-x-2 flex-1">
+                  <div key={category.id} className="flex items-center justify-between space-x-2">
+                    <div
+                      className="flex items-center space-x-2 flex-1 cursor-pointer"
+                      onClick={() =>
+                        handleCategoryChange(
+                          category.name,
+                          !filters.selectedCategories.includes(category.name)
+                        )
+                      }
+                    >
                       <Checkbox
-                        id={`subcategory-${subcategory.id}`}
-                        checked={filters.selectedSubcategories.includes(subcategory.name)}
+                        id={`${idPrefix}-category-${category.id}`}
+                        checked={filters.selectedCategories.includes(category.name)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => e.stopPropagation()}
                         onCheckedChange={(checked) =>
-                          handleSubcategoryChange(subcategory.name, checked as boolean)
+                          handleCategoryChange(category.name, checked as boolean)
                         }
                         className="h-3.5 w-3.5 scale-75"
                       />
-                      <label
-                        htmlFor={`subcategory-${subcategory.id}`}
-                        className="text-sm font-medium cursor-pointer flex-1"
-                      >
-                        {subcategory.name}
-                      </label>
+                      <span className="text-sm font-medium flex-1">{category.name}</span>
                     </div>
+
                     {/* <span className="text-xs text-gray-500">({productCount})</span> */}
                   </div>
                 );
               })}
             </CardContent>
           </Card>
-        ) : (
-          categories.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Categories</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {categories.map((category) => {
-                  const productCount = Array.isArray(products)
-                    ? products.filter(p => p?.category === category.name).length
-                    : 0;
-                  return (
-                    <div key={category.id} className="flex items-center justify-between space-x-2">
-                      <div className="flex items-center space-x-2 flex-1">
-                        <Checkbox
-                          id={`category-${category.id}`}
-                          checked={filters.selectedCategories.includes(category.name)}
-                          onCheckedChange={(checked) =>
-                            handleCategoryChange(category.name, checked as boolean)
-                          }
-                          className="h-3.5 w-3.5 scale-75"
-                        />
-                        <label
-                          htmlFor={`category-${category.id}`}
-                          className="text-sm font-medium cursor-pointer flex-1"
-                        >
-                          {category.name}
-                        </label>
-                      </div>
-                      {/* <span className="text-xs text-gray-500">({productCount})</span> */}
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )
-        )}
+        )
+      )}
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Product Status</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="inStock"
-                checked={filters.inStock}
-                onCheckedChange={(checked) =>
-                  setFilters(prev => ({ ...prev, inStock: checked as boolean }))
-                }
-                className="h-3.5 w-3.5 scale-75"
-              />
-              <label htmlFor="inStock" className="text-sm font-medium cursor-pointer">
-                In Stock Only
-              </label>
-            </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Product Status</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div
+            className="flex items-center space-x-2 cursor-pointer"
+            onClick={() => setFilters(prev => ({ ...prev, inStock: !prev.inStock }))}
+          >
+            <Checkbox
+              id={`${idPrefix}-inStock`}
+              checked={filters.inStock}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => e.stopPropagation()}
+              onCheckedChange={(checked) =>
+                setFilters(prev => ({ ...prev, inStock: checked as boolean }))
+              }
+              className="h-3.5 w-3.5 scale-75"
+            />
+            <span className="text-sm font-medium">In Stock Only</span>
+          </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="featured"
-                checked={filters.featured}
-                onCheckedChange={(checked) =>
-                  setFilters(prev => ({ ...prev, featured: checked as boolean }))
-                }
-                className="h-3.5 w-3.5 scale-75"
-              />
-              <label htmlFor="featured" className="text-sm font-medium cursor-pointer">
-                Featured Products
-              </label>
-            </div>
+          <div
+            className="flex items-center space-x-2 cursor-pointer"
+            onClick={() => setFilters(prev => ({ ...prev, bestseller: !prev.bestseller }))}
+          >
+            <Checkbox
+              id={`${idPrefix}-bestseller`}
+              checked={filters.bestseller}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => e.stopPropagation()}
+              onCheckedChange={(checked) =>
+                setFilters(prev => ({ ...prev, bestseller: checked as boolean }))
+              }
+              className="h-3.5 w-3.5 scale-75"
+            />
+            <span className="text-sm font-medium">Bestsellers</span>
+          </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="bestseller"
-                checked={filters.bestseller}
-                onCheckedChange={(checked) =>
-                  setFilters(prev => ({ ...prev, bestseller: checked as boolean }))
-                }
-                className="h-3.5 w-3.5 scale-75"
-              />
-              <label htmlFor="bestseller" className="text-sm font-medium cursor-pointer">
-                Bestsellers
-              </label>
-            </div>
+          <div
+            className="flex items-center space-x-2 cursor-pointer"
+            onClick={() => setFilters(prev => ({ ...prev, newLaunch: !prev.newLaunch }))}
+          >
+            <Checkbox
+              id={`${idPrefix}-newLaunch`}
+              checked={filters.newLaunch}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => e.stopPropagation()}
+              onCheckedChange={(checked) =>
+                setFilters(prev => ({ ...prev, newLaunch: checked as boolean }))
+              }
+              className="h-3.5 w-3.5 scale-75"
+            />
+            <span className="text-sm font-medium">New Launches</span>
+          </div>
+        </CardContent>
+      </Card>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="newLaunch"
-                checked={filters.newLaunch}
-                onCheckedChange={(checked) =>
-                  setFilters(prev => ({ ...prev, newLaunch: checked as boolean }))
-                }
-                className="h-3.5 w-3.5 scale-75"
-              />
-              <label htmlFor="newLaunch" className="text-sm font-medium cursor-pointer">
-                New Launches
-              </label>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
-  );
+  </div>
+);
 }

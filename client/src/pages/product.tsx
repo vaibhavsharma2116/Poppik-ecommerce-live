@@ -193,6 +193,8 @@ export default function ProductsPage() {
     return sorted;
   }, [filteredProducts, sortBy]);
 
+  const displayedProducts = sortedProducts;
+
   // Add all filtered products to cart
   const addAllToCart = () => {
     if (filteredProducts.length === 0) {
@@ -364,19 +366,19 @@ export default function ProductsPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900">
-                        {filteredProducts.length} Products Found
+                        {displayedProducts.length} Products Found
                       </h2>
                     </div>
                   </div>
                 </div>
 
                 {/* Products Grid/List */}
-                {filteredProducts.length > 0 ? (
+                {displayedProducts.length > 0 ? (
                   <div className={viewMode === "grid" 
                     ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8" 
                     : "space-y-6"
                   }>
-                    {filteredProducts.map((product) => (
+                    {displayedProducts.map((product) => (
                       <ProductCard 
                         key={product.id} 
                         product={product} 
