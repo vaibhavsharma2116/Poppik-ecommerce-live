@@ -4204,6 +4204,7 @@ app.get("/api/admin/stores", async (req, res) => {
         customerEmail,
         customerPhone,
         redeemAmount,
+        codBonusDiscount,
         affiliateCode,
         affiliateCommission,
         affiliateCommissionEarned,
@@ -4328,6 +4329,17 @@ app.get("/api/admin/stores", async (req, res) => {
       // Affiliate wallet redemption (commission balance)
       const affiliateWalletToApply = Math.round(Math.max(0, Number(affiliateWalletAmount || 0)));
 
+      const codBonusThreshold = 1500;
+      const codBonusAmount = 50;
+      const isCodSelected = String(paymentMethod || '').toLowerCase().includes('cod') || String(paymentMethod || '').toLowerCase().includes('cash');
+      const totalBeforeRedemption = Number(totalAmount) + redeemToApply + affiliateWalletToApply;
+      const codBonusToApply = isCodSelected && totalBeforeRedemption >= codBonusThreshold ? codBonusAmount : 0;
+
+      const clientCodBonus = Math.round(Math.max(0, Number(codBonusDiscount || 0)));
+      if (clientCodBonus !== codBonusToApply) {
+        console.warn(`⚠️ COD bonus mismatch for user ${userId}. client=${clientCodBonus}, server=${codBonusToApply}. Using server value.`);
+      }
+
       // Persist shipping charge as integer (DB column orders.shipping_charge)
       const shippingChargeFromBody =
         shippingCharge ??
@@ -4392,6 +4404,10 @@ app.get("/api/admin/stores", async (req, res) => {
         deliveryPartner: deliveryPartner,
         deliveryType: deliveryType,
         redeemAmount: redeemToApply > 0 ? redeemToApply : 0,
+        codBonusDiscount: codBonusToApply,
+        notes: codBonusToApply > 0
+          ? [String((req.body as any)?.notes || '').trim(), `COD_BONUS:${codBonusToApply}`].filter(Boolean).join(' | ')
+          : (req.body as any)?.notes || null,
         estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
       };
 
@@ -4399,6 +4415,7 @@ app.get("/api/admin/stores", async (req, res) => {
 
       const [newOrder] = await db.insert(ordersTable).values(newOrderData).returning();
 
+      console.log('✅ Order created successfully:', newOrder.id);
       const orderId = newOrder.id;
 
       console.log('✅ Order created successfully:', orderId);

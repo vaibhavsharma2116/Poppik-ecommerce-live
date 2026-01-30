@@ -1433,10 +1433,15 @@ export default function CheckoutPage() {
 
   const totalBeforeRedemption = subtotalAfterDiscount + shipping;
 
+  const codBonusThreshold = 1500;
+  const codBonusAmount = 50;
+  const isCodSelected = formData.paymentMethod === 'cod';
+  const codBonusDiscount = isCodSelected && totalBeforeRedemption >= codBonusThreshold ? codBonusAmount : 0;
+
   // Apply wallet deductions at the end (same as cart page) - with NaN safety checks
   const safeWalletAmount = isNaN(walletAmount) || !walletAmount ? 0 : Number(walletAmount);
   const safeAffiliateWalletAmount = isNaN(affiliateWalletAmount) || !affiliateWalletAmount ? 0 : Number(affiliateWalletAmount);
-  const total = Math.max(0, totalBeforeRedemption - safeWalletAmount - safeAffiliateWalletAmount);
+  const total = Math.max(0, totalBeforeRedemption - codBonusDiscount - safeWalletAmount - safeAffiliateWalletAmount);
 
   // Calculate affiliate commission from localStorage or from cart items
   const affiliateCommission = (() => {
@@ -2566,6 +2571,7 @@ export default function CheckoutPage() {
           affiliateCode: shouldIncludeAffiliateCode ? effectiveAffiliateCode : null,
           promoCode: appliedPromo?.code || null,
           promoDiscount: promoDiscount > 0 ? Math.round(promoDiscount) : null,
+          codBonusDiscount: codBonusDiscount > 0 ? Math.round(codBonusDiscount) : 0,
           redeemAmount: Math.round(redeemAmount) || 0,
           affiliateWalletAmount: Math.round(affiliateWalletAmount) || 0,
           giftMilestoneId: appliedGiftMilestone?.id || null,
@@ -3443,7 +3449,7 @@ export default function CheckoutPage() {
                           // defensively, but only consider indices within the item's quantity
                           const extraInstances = instanceKeys.map(key => {
                             const addressId = multiAddressMapping[String(key)];
-                            const address = savedAddresses.find(addr => Number(addr.id) === Number(addressId)) || null;
+                            const address = addressId ? savedAddresses.find(addr => Number(addr.id) === Number(addressId)) : null;
                             const parts = String(key).split('-');
                             let idx = -1;
                             if (parts.length > 1) {
@@ -3717,6 +3723,9 @@ export default function CheckoutPage() {
                               <div>
                                 <p className="font-medium">Cash on Delivery</p>
                                 <p className="text-sm text-gray-500">Pay when you receive your order</p>
+                                <p className={`text-xs mt-1 ${codBonusDiscount > 0 ? 'text-green-700 font-semibold' : 'text-gray-500'}`}>
+                                  COD Bonus! - Even on cash on delivery, get Rs. 50 off above Rs. 1500 orders. apply conditions
+                                </p>
                               </div>
                               <Badge className="bg-amber-100 text-amber-800">No fees</Badge>
                             </div>
@@ -3789,6 +3798,12 @@ export default function CheckoutPage() {
                       </div>
                     )}
 
+                    {codBonusDiscount > 0 && (
+                      <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                        <span className="text-green-700 font-medium">COD Bonus</span>
+                        <span className="font-bold text-green-600">-₹{codBonusDiscount.toLocaleString()}</span>
+                      </div>
+                    )}
                     {giftMilestoneCashback > 0 && (
                       <div className="flex justify-between text-sm bg-pink-50 p-2 rounded">
                         <span className="text-pink-700 font-medium">Gift Milestone Cashback</span>
@@ -3850,9 +3865,9 @@ export default function CheckoutPage() {
                       <span className="text-2xl font-bold text-pink-600">₹{(isNaN(total) ? 0 : total).toLocaleString()}</span>
                     </div>
 
-                    {((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0) + (giftMilestoneDiscount || 0) > 0) && (
+                    {((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0) + (giftMilestoneDiscount || 0) + (codBonusDiscount || 0) > 0) && (
                       <div className="text-xs text-green-600 text-right">
-                        You saved ₹{((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0) + (giftMilestoneDiscount || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}!
+                        You saved ₹{((affiliateDiscountAmount || 0) + (promoDiscount || 0) + (safeWalletAmount || 0) + (safeAffiliateWalletAmount || 0) + (giftMilestoneDiscount || 0) + (codBonusDiscount || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}!
                       </div>
                     )}
                   </div>
