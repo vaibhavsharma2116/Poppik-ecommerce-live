@@ -23,6 +23,15 @@ export default function CareersDetail() {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
+  const decodeHtmlEntities = (html: string): string => {
+    return html
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+  };
+
   // Helper function to parse field content (HTML or JSON)
   const parseFieldContent = (content: any): string | string[] => {
     if (!content) return [];
@@ -30,8 +39,14 @@ export default function CareersDetail() {
     // If it's already an array, return it
     if (Array.isArray(content)) {
       // If array items look like HTML, treat as HTML string so we render it correctly
-      if (content.some((item) => typeof item === 'string' && item.includes('<') && item.includes('>'))) {
-        return [content.join('')];
+      if (
+        content.some(
+          (item) =>
+            typeof item === 'string' &&
+            ((item.includes('<') && item.includes('>')) || (item.includes('&lt;') && item.includes('&gt;'))),
+        )
+      ) {
+        return decodeHtmlEntities(content.join(''));
       }
       return content;
     }
@@ -43,8 +58,14 @@ export default function CareersDetail() {
         const parsed = JSON.parse(content);
         if (Array.isArray(parsed)) {
           // If array items look like HTML, treat as HTML string so we render it correctly
-          if (parsed.some((item) => typeof item === 'string' && item.includes('<') && item.includes('>'))) {
-            return parsed.join('');
+          if (
+            parsed.some(
+              (item) =>
+                typeof item === 'string' &&
+                ((item.includes('<') && item.includes('>')) || (item.includes('&lt;') && item.includes('&gt;'))),
+            )
+          ) {
+            return decodeHtmlEntities(parsed.join(''));
           }
           return parsed;
         }
@@ -52,9 +73,11 @@ export default function CareersDetail() {
         // Not JSON, treat as HTML
       }
 
+      const decoded = decodeHtmlEntities(content);
+
       // If it contains HTML tags, return as HTML string
-      if (content.includes('<') && content.includes('>')) {
-        return content;
+      if (decoded.includes('<') && decoded.includes('>')) {
+        return decoded;
       }
 
       // Otherwise return as single string in array
@@ -561,10 +584,10 @@ export default function CareersDetail() {
             {/* About the Role */}
             <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 shadow-sm career-section">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4 career-title">About the Role</h2>
-              {typeof position.aboutRole === 'string' && position.aboutRole.includes('<') ? (
+              {typeof position.aboutRole === 'string' && (position.aboutRole.includes('<') || position.aboutRole.includes('&lt;')) ? (
                 <div 
                   className="text-gray-700 leading-relaxed text-sm sm:text-base prose prose-sm max-w-none career-text"
-                  dangerouslySetInnerHTML={{ __html: position.aboutRole }}
+                  dangerouslySetInnerHTML={{ __html: decodeHtmlEntities(position.aboutRole) }}
                 />
               ) : (
                 <p className="text-gray-700 leading-relaxed text-sm sm:text-base career-text">
