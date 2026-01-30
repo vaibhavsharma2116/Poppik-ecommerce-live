@@ -192,9 +192,6 @@ export default function HeroBanner({
     return (
       <div
         className="w-full relative"
-        style={{
-          aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}`,
-        }}
       >
         <Skeleton className="w-full h-full" />
       </div>
@@ -205,9 +202,6 @@ export default function HeroBanner({
     return (
       <div
         className="w-full relative"
-        style={{
-          aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}`,
-        }}
       >
         <div className="absolute inset-0 flex items-center justify-center bg-red-50">
         </div>
@@ -219,9 +213,6 @@ export default function HeroBanner({
     return (
       <div
         className="w-full relative"
-        style={{
-          aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}`,
-        }}
       >
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
           <p className="text-gray-500">No slides available</p>
@@ -233,9 +224,6 @@ export default function HeroBanner({
   return (
     <div
       className="w-full relative"
-      style={{
-        aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}`,
-      }}
     >
       <section className="relative w-full h-full" aria-label="Hero banner carousel">
 
@@ -264,8 +252,8 @@ export default function HeroBanner({
             <CarouselItem key={slide.key}>
               {(() => {
                 const { width: slideW, height: slideH } = getImageDimensionsFromUrl(slide.imageUrl);
-                const IMG_W = slideW || HERO_WIDTH;
-                const IMG_H = slideH || HERO_HEIGHT;
+                const IMG_W = slideW || 1920;
+                const IMG_H = slideH || 600;
 
                 return (
               <div
@@ -274,7 +262,6 @@ export default function HeroBanner({
                     ? "mobile-slider-container mx-0 relative w-full overflow-hidden bg-white"
                     : "mobile-slider-container mx-0 relative w-full overflow-hidden"
                 }
-                style={{ aspectRatio: `${HERO_WIDTH}/${HERO_HEIGHT}` }}
                 role={slide.type === 'offer' ? 'button' : undefined}
                 tabIndex={slide.type === 'offer' ? 0 : undefined}
                 onClick={() => {
@@ -291,12 +278,14 @@ export default function HeroBanner({
                 <img
                   src={slide.imageUrl}
                   alt={slide.type === 'offer' ? `Offer ${slide.offerId ?? ''}` : slide.key}
-                  className="w-full h-full  bg-gray-100"
+                  className="w-full h-auto object-contain bg-gray-100"
                   loading={isLcpSlide(slide) ? 'eager' : 'lazy'}
                   decoding="async"
                   fetchPriority={isLcpSlide(slide) ? 'high' : 'auto'}
-                  width={IMG_W}
-                  height={IMG_H}
+                  style={{
+                    objectFit: 'contain',
+                    objectPosition: 'center',
+                  }}
                 />
               </div>
                 );

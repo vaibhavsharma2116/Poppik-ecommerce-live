@@ -1227,8 +1227,8 @@ function ComboSection() {
                     </div>
 
                     <h3
-                      className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-3 text-xs sm:text-sm md:text-base break-words"
-                      style={{ minHeight: '3.6rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', hyphens: 'auto' }}
+                      className="font-semibold text-gray-900 hover:bg-gradient-to-r hover:from-pink-600 hover:to-purple-600 hover:bg-clip-text hover:text-transparent transition-all duration-300 cursor-pointer line-clamp-3 text-xs sm:text-sm md:text-base"
+                      style={{ minHeight: '4.5rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
                       onClick={() => {
                         React.startTransition(() => {
                           window.location.href = `/combo/${combo.id}`;
