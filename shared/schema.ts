@@ -122,6 +122,7 @@ export const ordersTable = pgTable("orders", {
   affiliateDiscount: integer("affiliate_discount").default(0),
   promoCode: text("promo_code"),
   promoDiscount: integer("promo_discount").default(0),
+  codBonusDiscount: integer("cod_bonus_discount").default(0),
   redeemAmount: integer("redeem_amount").default(0),
   affiliateWalletAmount: integer("affiliate_wallet_amount").default(0),
   isMultiAddress: boolean("is_multi_address").default(false),

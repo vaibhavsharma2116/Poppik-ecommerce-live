@@ -855,6 +855,10 @@ export default function Cart() {
     );
   }
 
+  const COD_BONUS_MIN_AMOUNT = 1500;
+  const COD_BONUS_DISCOUNT = 50;
+  const codBonusEligible = cartSubtotal >= COD_BONUS_MIN_AMOUNT;
+
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -977,7 +981,7 @@ export default function Cart() {
                       className="absolute flex flex-col items-center"
                       style={{ left: `${position}%`, top: '50%', transform: 'translate(-50%, -50%)' }}
                     >
-                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-3 ${
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border-3 ${
                         unlocked ? 'bg-pink-500 border-pink-600 ' + animationClass : 'bg-white border-gray-300'
                       } shadow-md transition-transform duration-300`}>
                         <span className="text-lg sm:text-xl">🎁</span>
@@ -1381,7 +1385,12 @@ export default function Cart() {
                     </div>
                   )}
 
-                
+                  {codBonusEligible && (
+                    <div className="flex justify-between text-sm bg-green-50 p-2 rounded">
+                      <span className="text-green-700 font-medium">COD Bonus (applied at checkout)</span>
+                      <span className="font-bold text-green-600">-₹{COD_BONUS_DISCOUNT.toLocaleString()}</span>
+                    </div>
+                  )}
 
                   {walletAmount > 0 && (
                     <div className="flex items-center justify-between text-sm">

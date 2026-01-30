@@ -4188,178 +4188,248 @@ app.get("/api/admin/stores", async (req, res) => {
 
 
   // Create new order (for checkout)
-  app.post("/api/orders", async (req, res) => {
-    try {
-      console.log("Creating new order:", req.body);
-      console.log("📍 Cookies received in order request:", (req as any).cookies);
 
-      const { 
-        userId, 
-        totalAmount, 
-        paymentMethod, 
-        shippingAddress, 
-        shippingCharge,
-        items,
-        customerName,
-        customerEmail,
-        customerPhone,
-        redeemAmount,
-        affiliateCode,
-        affiliateCommission,
-        affiliateCommissionEarned,
-        affiliateWalletAmount
-      } = req.body;
-
-      // If affiliate code not provided in the body, try to read from cookie set by affiliate links
-      const cookieAffiliate = (req as any).cookies?.affiliate_id || (req as any).cookies?.affiliate_code || null;
-      console.log("🔗 Affiliate from cookie:", cookieAffiliate, "| From body:", affiliateCode);
-      const effectiveAffiliateCode = affiliateCode || cookieAffiliate || null;
-
-      // Validation
-      if (!userId || !totalAmount || !paymentMethod || !shippingAddress || !items) {
-        return res.status(400).json({ error: "Missing required fields: userId, totalAmount, paymentMethod, shippingAddress, and items are required" });
-      }
-
-      if (!Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ error: "Items are required" });
-      }
-
-      // Mutual exclusion: do not allow both promo code and affiliate code/wallet redemption together
-      const hasPromo = !!(req.body.promoCode || req.body.promoDiscount);
-      const hasAffiliateUsage = !!(effectiveAffiliateCode || (affiliateWalletAmount && Number(affiliateWalletAmount) > 0));
-
-      if (hasPromo && hasAffiliateUsage) {
-        return res.status(400).json({ error: "Cannot use a promo code together with an affiliate code/link or affiliate wallet redemption. Remove one before placing the order." });
-      }
-
-      // 🔒 CRITICAL VALIDATION: Affiliate commission fields should only affect processing when an affiliate code is present
-      // If affiliate commission values are present but no affiliate code was supplied, log a warning and ignore them
-      if ((affiliateCommission && Number(affiliateCommission) > 0) || (affiliateCommissionEarned && Number(affiliateCommissionEarned) > 0)) {
-        if (!effectiveAffiliateCode) {
-          console.warn(`⚠️ Suspicious affiliate commission fields present (affiliateCommission=${affiliateCommission}, affiliateCommissionEarned=${affiliateCommissionEarned}) without an affiliate code for user ${userId}. Ignoring these fields.`);
-          // Do not reject the order; the commission will not be processed without a valid affiliate code.
-        }
-      }
-
-      // Determine delivery partner and type from request or default to ITHINK
-      let deliveryPartner = req.body.deliveryPartner || 'ITHINK';
-      let deliveryType = req.body.deliveryType || null;
-
-      // Re-check pincode serviceability on the server so order/email stays consistent
-      const extractPincodesFromAddressText = (text: string): string[] => {
-        if (!text) return [];
-        const matches = text.match(/\b\d{6}\b/g);
-        return Array.from(new Set((matches || []).map(m => String(m))));
-      };
-
-      const extractPincodes = (): string[] => {
-        const pincodes = new Set<string>();
-
-        try {
-          if (typeof shippingAddress === 'string') {
-            const trimmed = shippingAddress.trim();
-            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-              const parsed = JSON.parse(trimmed);
-              if (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) {
-                for (const it of (parsed as any).items) {
-                  if (typeof it?.deliveryAddress === 'string') {
-                    for (const pc of extractPincodesFromAddressText(it.deliveryAddress)) pincodes.add(pc);
-                  }
+      try {
+        if (typeof shippingAddress === 'string') {
+          const trimmed = shippingAddress.trim();
+          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) {
+              for (const it of (parsed as any).items) {
+                if (typeof it?.deliveryAddress === 'string') {
+                  for (const pc of extractPincodesFromAddressText(it.deliveryAddress)) pincodes.add(pc);
                 }
               }
-            } else {
-              for (const pc of extractPincodesFromAddressText(trimmed)) pincodes.add(pc);
             }
-          }
-        } catch (e) {
-          // ignore parse errors and fall back to regex extraction below
-        }
-
-        if (pincodes.size === 0 && typeof shippingAddress === 'string') {
-          for (const pc of extractPincodesFromAddressText(shippingAddress)) pincodes.add(pc);
-        }
-
-        if (pincodes.size === 0 && Array.isArray(items)) {
-          for (const it of items) {
-            if (typeof it?.deliveryAddress === 'string') {
-              for (const pc of extractPincodesFromAddressText(it.deliveryAddress)) pincodes.add(pc);
-            }
+          } else {
+            for (const pc of extractPincodesFromAddressText(trimmed)) pincodes.add(pc);
           }
         }
+      } catch (e) {
+        // ignore parse errors and fall back to regex extraction below
+      }
 
-        return Array.from(pincodes);
-      };
+      if (pincodes.size === 0 && typeof shippingAddress === 'string') {
+        for (const pc of extractPincodesFromAddressText(shippingAddress)) pincodes.add(pc);
+      }
 
-      const pincodes = extractPincodes();
-      let isServiceable = true;
-      if (pincodes.length > 0) {
-        try {
-          const pickupPincode = process.env.ITHINK_PICKUP_PINCODE || "400001";
-          const weight = Array.isArray(items)
-            ? Math.max(0.5, items.reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0))
-            : 0.5;
-          const cod = String(paymentMethod || '').toLowerCase().includes('cod') || String(paymentMethod || '').toLowerCase().includes('cash');
-
-          for (const pc of pincodes) {
-            const serviceability = await ithinkService.getServiceability(pickupPincode, pc, weight, cod);
-            const hasAvailableCouriers = serviceability &&
-              (serviceability as any).data &&
-              Array.isArray((serviceability as any).data.available_courier_companies) &&
-              (serviceability as any).data.available_courier_companies.length > 0;
-            if (!hasAvailableCouriers) {
-              isServiceable = false;
-              break;
-            }
+      if (pincodes.size === 0 && Array.isArray(items)) {
+        for (const it of items) {
+          if (typeof it?.deliveryAddress === 'string') {
+            for (const pc of extractPincodesFromAddressText(it.deliveryAddress)) pincodes.add(pc);
           }
-        } catch (e) {
-          console.warn('iThink serviceability check failed during order placement; keeping ITHINK by default:', e);
-          isServiceable = true;
         }
       }
 
-      if (!isServiceable) {
-        deliveryPartner = 'INDIA_POST';
-        deliveryType = 'MANUAL';
+      return Array.from(pincodes);
+    };
+
+    const pincodes = extractPincodes();
+    let isServiceable = true;
+    if (pincodes.length > 0) {
+      try {
+        const pickupPincode = process.env.ITHINK_PICKUP_PINCODE || "400001";
+        const weight = Array.isArray(items)
+          ? Math.max(0.5, items.reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0))
+          : 0.5;
+        const cod = String(paymentMethod || '').toLowerCase().includes('cod') || String(paymentMethod || '').toLowerCase().includes('cash');
+
+        for (const pc of pincodes) {
+          const serviceability = await ithinkService.getServiceability(pickupPincode, pc, weight, cod);
+          const hasAvailableCouriers = serviceability &&
+            (serviceability as any).data &&
+            Array.isArray((serviceability as any).data.available_courier_companies) &&
+            (serviceability as any).data.available_courier_companies.length > 0;
+          if (!hasAvailableCouriers) {
+            isServiceable = false;
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn('iThink serviceability check failed during order placement; keeping ITHINK by default:', e);
+        isServiceable = true;
+      }
+    }
+
+    if (!isServiceable) {
+      deliveryPartner = 'INDIA_POST';
+      deliveryType = 'MANUAL';
+    }
+
+    // orders.redeem_amount is an integer column in DB schema
+    const redeemToApply = Math.round(Math.max(0, Number(redeemAmount || 0)));
+
+    // Affiliate wallet redemption (commission balance)
+    const affiliateWalletToApply = Math.round(Math.max(0, Number(affiliateWalletAmount || 0)));
+
+    // COD bonus discount (orders.cod_bonus_discount)
+    const codBonusToApply = Math.round(Math.max(0, Number(codBonusDiscount || 0)));
+
+    // Persist shipping charge as integer (DB column orders.shipping_charge)
+    const shippingChargeFromBody =
+      shippingCharge ??
+      (req.body as any)?.shipping ??
+      (req.body as any)?.shipping_cost ??
+      (req.body as any)?.shippingCost ??
+      0;
+    const shippingChargeToApply = Math.round(Math.max(0, Number(shippingChargeFromBody || 0)));
+
+    // Validate wallet balance before creating the order (so we can fail fast)
+    if (redeemToApply > 0) {
+      const walletRows = await db
+        .select()
+        .from(schema.userWallet)
+        .where(eq(schema.userWallet.userId, Number(userId)))
+        .limit(1);
+
+      const currentBalance = parseFloat(walletRows?.[0]?.cashbackBalance || '0');
+      if (currentBalance < redeemToApply) {
+        return res.status(400).json({ error: 'Insufficient cashback balance' });
+      }
+    }
+
+    // Validate affiliate wallet balance before creating the order (so we can fail fast)
+    if (affiliateWalletToApply > 0) {
+      let walletRows = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, Number(userId)))
+        .limit(1);
+
+      if (!walletRows || walletRows.length === 0) {
+        const [newWallet] = await db.insert(schema.affiliateWallet).values({
+          userId: Number(userId),
+          cashbackBalance: '0.00',
+          commissionBalance: '0.00',
+          totalEarnings: '0.00',
+          totalWithdrawn: '0.00',
+        } as any).returning();
+        walletRows = [newWallet];
       }
 
-      // orders.redeem_amount is an integer column in DB schema
-      const redeemToApply = Math.round(Math.max(0, Number(redeemAmount || 0)));
+      const currentCommission = parseFloat(walletRows?.[0]?.commissionBalance || '0');
+      if (currentCommission < affiliateWalletToApply) {
+        return res.status(400).json({ error: 'Insufficient affiliate commission balance' });
+      }
+    }
 
-      // Affiliate wallet redemption (commission balance)
-      const affiliateWalletToApply = Math.round(Math.max(0, Number(affiliateWalletAmount || 0)));
+    // Insert the order into database
+    const newOrderData = {
+      userId: Number(userId),
+      totalAmount: Number(totalAmount),
 
-      // Persist shipping charge as integer (DB column orders.shipping_charge)
-      const shippingChargeFromBody =
-        shippingCharge ??
-        (req.body as any)?.shipping ??
-        (req.body as any)?.shipping_cost ??
-        (req.body as any)?.shippingCost ??
-        0;
-      const shippingChargeToApply = Math.round(Math.max(0, Number(shippingChargeFromBody || 0)));
+      status: 'pending', // Default to 'pending' for COD, will be updated by webhook/payment confirmation
+      paymentMethod: paymentMethod || 'Cash on Delivery',
+      shippingAddress: shippingAddress,
+      shippingCharge: shippingChargeToApply,
+      deliveryInstructions: req.body.deliveryInstructions || null,
+      saturdayDelivery: req.body.saturdayDelivery !== undefined ? req.body.saturdayDelivery : true,
+      sundayDelivery: req.body.sundayDelivery !== undefined ? req.body.sundayDelivery : true,
+      affiliateCode: effectiveAffiliateCode || null,
+      deliveryPartner: deliveryPartner,
+      deliveryType: deliveryType,
+      codBonusDiscount: codBonusToApply,
+      redeemAmount: redeemToApply > 0 ? redeemToApply : 0,
+      estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+    };
 
-      // Validate wallet balance before creating the order (so we can fail fast)
-      if (redeemToApply > 0) {
-        const walletRows = await db
+    console.log("Inserting order data:", newOrderData);
+
+    const [newOrder] = await db.insert(ordersTable).values(newOrderData).returning();
+
+    const orderId = newOrder.id;
+
+    console.log('✅ Order created successfully:', orderId);
+
+    // Deduct redeemed cashback from user wallet (if applied)
+    if (redeemToApply > 0) {
+      const existingRedeemTx = await db
+        .select({ id: schema.userWalletTransactions.id })
+        .from(schema.userWalletTransactions)
+        .where(
+          and(
+            eq(schema.userWalletTransactions.userId, Number(userId)),
+            eq(schema.userWalletTransactions.orderId, orderId),
+            eq(schema.userWalletTransactions.type, 'redeem'),
+            eq(schema.userWalletTransactions.status, 'completed')
+          )
+        )
+        .limit(1);
+
+      if (!existingRedeemTx || existingRedeemTx.length === 0) {
+        let walletRows = await db
           .select()
           .from(schema.userWallet)
           .where(eq(schema.userWallet.userId, Number(userId)))
           .limit(1);
 
+        if (!walletRows || walletRows.length === 0) {
+          const [newWallet] = await db
+            .insert(schema.userWallet)
+            .values({
+              userId: Number(userId),
+              cashbackBalance: "0.00",
+              totalEarned: "0.00",
+              totalRedeemed: "0.00",
+            } as any)
+            .returning();
+          walletRows = [newWallet];
+        }
+
         const currentBalance = parseFloat(walletRows?.[0]?.cashbackBalance || '0');
+        const currentRedeemed = parseFloat(walletRows?.[0]?.totalRedeemed || '0');
+
         if (currentBalance < redeemToApply) {
           return res.status(400).json({ error: 'Insufficient cashback balance' });
         }
-      }
 
-      // Validate affiliate wallet balance before creating the order (so we can fail fast)
-      if (affiliateWalletToApply > 0) {
-        let walletRows = await db
+        const newBalance = currentBalance - redeemToApply;
+
+        await db
+          .update(schema.userWallet)
+          .set({
+            cashbackBalance: newBalance.toFixed(2),
+            totalRedeemed: (currentRedeemed + redeemToApply).toFixed(2),
+            updatedAt: new Date(),
+          } as any)
+          .where(eq(schema.userWallet.userId, Number(userId)));
+
+        await db.insert(schema.userWalletTransactions).values({
+          userId: Number(userId),
+          orderId: newOrder.id,
+          type: 'redeem',
+          amount: redeemToApply.toFixed(2),
+          description: `Cashback redeemed for order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+          balanceBefore: currentBalance.toFixed(2),
+          balanceAfter: newBalance.toFixed(2),
+          status: 'completed',
+        } as any);
+      }
+    }
+
+    // Deduct affiliate wallet commission (if applied)
+    if (affiliateWalletToApply > 0) {
+      const existingAffiliateRedeemTx = await db
+        .select({ id: schema.affiliateTransactions.id })
+        .from(schema.affiliateTransactions)
+        .where(
+          and(
+            eq(schema.affiliateTransactions.userId, Number(userId)),
+            eq(schema.affiliateTransactions.orderId, orderId),
+            eq(schema.affiliateTransactions.type, 'redemption'),
+            eq(schema.affiliateTransactions.status, 'completed')
+          )
+        )
+        .limit(1);
+
+      if (!existingAffiliateRedeemTx || existingAffiliateRedeemTx.length === 0) {
+        let affiliateWalletRows = await db
           .select()
           .from(schema.affiliateWallet)
           .where(eq(schema.affiliateWallet.userId, Number(userId)))
           .limit(1);
 
-        if (!walletRows || walletRows.length === 0) {
+        if (!affiliateWalletRows || affiliateWalletRows.length === 0) {
           const [newWallet] = await db.insert(schema.affiliateWallet).values({
             userId: Number(userId),
             cashbackBalance: '0.00',
@@ -4367,38 +4437,37 @@ app.get("/api/admin/stores", async (req, res) => {
             totalEarnings: '0.00',
             totalWithdrawn: '0.00',
           } as any).returning();
-          walletRows = [newWallet];
+          affiliateWalletRows = [newWallet];
         }
 
-        const currentCommission = parseFloat(walletRows?.[0]?.commissionBalance || '0');
+        const currentCommission = parseFloat(affiliateWalletRows?.[0]?.commissionBalance || '0');
         if (currentCommission < affiliateWalletToApply) {
           return res.status(400).json({ error: 'Insufficient affiliate commission balance' });
         }
-      }
 
-      // Insert the order into database
-      const newOrderData = {
-        userId: Number(userId),
-        totalAmount: Number(totalAmount),
+        const newCommissionBalance = currentCommission - affiliateWalletToApply;
 
-        status: 'pending', // Default to 'pending' for COD, will be updated by webhook/payment confirmation
-        paymentMethod: paymentMethod || 'Cash on Delivery',
-        shippingAddress: shippingAddress,
-        shippingCharge: shippingChargeToApply,
-        deliveryInstructions: req.body.deliveryInstructions || null,
-        saturdayDelivery: req.body.saturdayDelivery !== undefined ? req.body.saturdayDelivery : true,
-        sundayDelivery: req.body.sundayDelivery !== undefined ? req.body.sundayDelivery : true,
-        affiliateCode: effectiveAffiliateCode || null,
-        deliveryPartner: deliveryPartner,
-        deliveryType: deliveryType,
-        redeemAmount: redeemToApply > 0 ? redeemToApply : 0,
-        estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-      };
+        await db
+          .update(schema.affiliateWallet)
+          .set({
+            commissionBalance: newCommissionBalance.toFixed(2),
+            updatedAt: new Date(),
+          } as any)
+          .where(eq(schema.affiliateWallet.userId, Number(userId)));
 
-      console.log("Inserting order data:", newOrderData);
-
-      const [newOrder] = await db.insert(ordersTable).values(newOrderData).returning();
-
+        await db.insert(schema.affiliateTransactions).values({
+          userId: Number(userId),
+          type: 'redemption',
+          amount: affiliateWalletToApply.toFixed(2),
+          balanceType: 'commission',
+          description: `Affiliate wallet redeemed for order ORD-${newOrder.id.toString().padStart(3, '0')}`,
+          orderId: newOrder.id,
+          status: 'completed',
+          transactionId: null,
+          notes: null,
+          processedAt: null,
+          createdAt: new Date(),
+        } as any);
       const orderId = newOrder.id;
 
       console.log('✅ Order created successfully:', orderId);
