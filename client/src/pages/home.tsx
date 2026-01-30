@@ -645,9 +645,9 @@ export default function HomePage() {
               </h3>
             </div>
 
-            <div className="sm:min-h-[650px]">
+            <div className="flex-1">
               {isLoadingBestsellers || (!isFetchedBestsellers && isFetchingBestsellers) ? (
-                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 flex flex-col">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                     {Array.from({ length: 8 }).map((_, i) => (
                       <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
@@ -661,20 +661,17 @@ export default function HomePage() {
                       </div>
                     ))}
                   </div>
-                  <div className="h-6 sm:h-20" />
                 </div>
               ) : bestsellers && bestsellers.filter(isInStock).length > 0 ? (
-                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
-                  <div className="flex-1">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {bestsellers.filter(isInStock).slice(0, 4).map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                        />
-                      ))}
-                    </div>
+                <div className="px-2 sm:px-4 flex flex-col">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                    {bestsellers.filter(isInStock).slice(0, 4).map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                      />
+                    ))}
                   </div>
 
                   <div className="text-center mt-6 sm:mt-8 md:mt-10">
@@ -699,10 +696,9 @@ export default function HomePage() {
                       </Button>
                     </Link>
                   </div>
-                  <div className="h-6 sm:h-20" />
                 </div>
               ) : (
-                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 flex flex-col">
                   <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
                       <p className="text-gray-500 text-lg">
@@ -710,7 +706,6 @@ export default function HomePage() {
                       </p>
                     </div>
                   </div>
-                  <div className="h-6 sm:h-20" />
                 </div>
               )}
             </div>
@@ -719,7 +714,7 @@ export default function HomePage() {
       </section>
 
       {/* Our Products Section - Second */}
-      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-visible">
         <div className="absolute inset-0 opacity-[0.02]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
         </div>
@@ -734,9 +729,9 @@ export default function HomePage() {
               </h3>
             </div>
 
-            <div className="sm:min-h-[650px]">
+            <div className="flex-1">
               {allProductsLoading ? (
-                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 flex flex-col">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                     {Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
@@ -749,20 +744,17 @@ export default function HomePage() {
                       </div>
                     ))}
                   </div>
-                  <div className="h-6 sm:h-20" />
                 </div>
               ) : allProducts && allProducts.filter(isInStock).length > 0 ? (
-                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
-                  <div className="flex-1">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {allProducts.filter(isInStock).slice(0, 4).map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                        />
-                      ))}
-                    </div>
+                <div className="px-2 sm:px-4 flex flex-col">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                    {allProducts.filter(isInStock).slice(0, 4).map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                      />
+                    ))}
                   </div>
 
                   <div className="text-center mt-6 sm:mt-8 md:mt-10">
@@ -787,16 +779,14 @@ export default function HomePage() {
                       </Button>
                     </Link>
                   </div>
-                  <div className="h-6 sm:h-20" />
                 </div>
               ) : (
-                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 flex flex-col">
                   <div className="flex-1 flex items-center justify-center">
                     <p className="text-gray-500 text-lg text-center">
                       No products available at the moment.
                     </p>
                   </div>
-                  <div className="h-6 sm:h-20" />
                 </div>
               )}
             </div>
@@ -805,7 +795,7 @@ export default function HomePage() {
       </section>
 
       {/* New Launches Section - Third */}
-      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-hidden">
+      <section className="py-6 bg-gradient-to-br from-slate-50 via-white to-gray-50 relative overflow-visible">
         <div className="absolute inset-0 opacity-[0.02]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_var(--tw-gradient-stops))] from-pink-500 via-transparent to-transparent"></div>
         </div>
@@ -820,9 +810,9 @@ export default function HomePage() {
               </h3>
             </div>
 
-            <div className="sm:min-h-[650px]">
+            <div className="flex-1">
               {isLoadingNew ? (
-                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 flex flex-col">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
                     {Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
@@ -835,20 +825,17 @@ export default function HomePage() {
                       </div>
                     ))}
                   </div>
-                  <div className="h-6 sm:h-20" />
                 </div>
               ) : newArrivals && newArrivals.filter(isInStock).length > 0 ? (
-                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
-                  <div className="flex-1">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
-                      {newArrivals.filter(isInStock).slice(0, 4).map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
-                        />
-                      ))}
-                    </div>
+                <div className="px-2 sm:px-4 flex flex-col">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4 lg:gap-8">
+                    {newArrivals.filter(isInStock).slice(0, 4).map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        className="w-full h-full bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                      />
+                    ))}
                   </div>
 
                   <div className="text-center mt-6 sm:mt-8 md:mt-10">
@@ -874,16 +861,14 @@ export default function HomePage() {
                       </Button>
                     </Link>
                   </div>
-                  <div className="h-6 sm:h-20" />
                 </div>
               ) : (
-                <div className="px-2 sm:px-4 sm:h-[650px] flex flex-col">
+                <div className="px-2 sm:px-4 flex flex-col">
                   <div className="flex-1 flex items-center justify-center">
                     <p className="text-gray-500 text-lg text-center">
                       No new launches available at the moment.
                     </p>
                   </div>
-                  <div className="h-6 sm:h-20" />
                 </div>
               )}
             </div>
@@ -1494,11 +1479,11 @@ function LatestBlogPostsPerCategory() {
                   </span>
                 </div>
 
-                <h3 className="text-base sm:text-lg md:text-xl font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2 leading-tight">
+                <h3 className="text-base sm:text-lg md:text-xl font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-3 leading-tight min-h-[4.5rem]">
                   {post.title}
                 </h3>
 
-                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 sm:line-clamp-3 leading-relaxed">
+                <p className="text-xs sm:text-sm text-gray-600 line-clamp-3 leading-relaxed min-h-[3.75rem]">
                   {post.excerpt}
                 </p>
 

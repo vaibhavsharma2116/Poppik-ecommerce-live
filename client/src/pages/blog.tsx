@@ -142,7 +142,6 @@ export default function Blog() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Simple Header - Mobile Responsive */}
       <section className="bg-white border-b">
         <div className="max-w-12xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-8 sm:py-12 md:py-16">
           <div className="text-center max-w-3xl mx-auto">
@@ -172,7 +171,6 @@ export default function Blog() {
       </section>
 
       <div className="max-w-12xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Category Filter - Mobile Responsive Horizontal Tabs */}
         <div className="mb-6 sm:mb-8 md:mb-12 border-b overflow-x-auto scrollbar-hide">
           <div className="flex gap-4 sm:gap-6 md:gap-8 min-w-max px-2 sm:px-0">
             {allCategories.map((category) => (
@@ -195,7 +193,6 @@ export default function Blog() {
           </div>
         </div>
 
-        {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
@@ -203,7 +200,6 @@ export default function Blog() {
           </div>
         )}
 
-        {/* Error State */}
         {error && (
           <div className="text-center py-12">
             <p className="text-red-600 mb-4">{error}</p>
@@ -213,7 +209,6 @@ export default function Blog() {
           </div>
         )}
 
-        {/* Blog Posts Grid */}
         {!loading && (
           <section>
             {filteredPosts.length === 0 ? (
@@ -222,8 +217,7 @@ export default function Blog() {
                 <p className="text-gray-600 mb-4">
                   {searchQuery
                     ? `No articles match "${searchQuery}". Try different keywords.`
-                    : "No articles available in this category yet."
-                  }
+                    : "No articles available in this category yet."}
                 </p>
                 {searchQuery && (
                   <Button
@@ -244,8 +238,10 @@ export default function Blog() {
                 {filteredPosts.map((post) => (
                   <Link key={post.id} href={`/blog/${post.slug}`}>
                     <div className="group cursor-pointer">
-                      {/* Image - Mobile Optimized */}
-                      <div className="relative overflow-hidden bg-gray-100 mb-3 sm:mb-4 rounded-lg sm:rounded-none" style={{ paddingBottom: '66.67%' }}>
+                      <div
+                        className="relative overflow-hidden bg-gray-100 mb-3 sm:mb-4 rounded-lg sm:rounded-none"
+                        style={{ paddingBottom: '66.67%' }}
+                      >
                         <img
                           src={resolveImage(post.imageUrl || post.heroImageUrl || post.thumbnailUrl)}
                           alt={post.title}
@@ -265,24 +261,37 @@ export default function Blog() {
                         )}
                       </div>
 
-                      {/* Content - Mobile Responsive */}
                       <div className="space-y-2 sm:space-y-3 px-1 sm:px-0">
                         <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-500 flex-wrap">
-                          <Badge variant="outline" className="rounded-full sm:rounded-none border-gray-300 text-gray-600 text-xs px-2 py-0.5">
+                          <Badge
+                            variant="outline"
+                            className="rounded-full sm:rounded-none border-gray-300 text-gray-600 text-xs px-2 py-0.5"
+                          >
                             {post.category}
                           </Badge>
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            <span className="hidden sm:inline">{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                            <span className="sm:hidden">{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                            <span className="hidden sm:inline">
+                              {new Date(post.createdAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </span>
+                            <span className="sm:hidden">
+                              {new Date(post.createdAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </span>
                           </span>
                         </div>
 
-                        <h3 className="text-base sm:text-lg md:text-xl font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2 leading-tight">
+                        <h3 className="text-base sm:text-lg md:text-xl font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-3 leading-tight min-h-[4.5rem]">
                           {post.title}
                         </h3>
 
-                        <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 sm:line-clamp-3 leading-relaxed">
+                        <p className="text-xs sm:text-sm text-gray-600 line-clamp-3 leading-relaxed min-h-[3.75rem]">
                           {post.excerpt}
                         </p>
 

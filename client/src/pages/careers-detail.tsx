@@ -26,9 +26,13 @@ export default function CareersDetail() {
   // Helper function to parse field content (HTML or JSON)
   const parseFieldContent = (content: any): string | string[] => {
     if (!content) return [];
-    
+
     // If it's already an array, return it
     if (Array.isArray(content)) {
+      // If array items look like HTML, treat as HTML string so we render it correctly
+      if (content.some((item) => typeof item === 'string' && item.includes('<') && item.includes('>'))) {
+        return [content.join('')];
+      }
       return content;
     }
 
@@ -38,6 +42,10 @@ export default function CareersDetail() {
       try {
         const parsed = JSON.parse(content);
         if (Array.isArray(parsed)) {
+          // If array items look like HTML, treat as HTML string so we render it correctly
+          if (parsed.some((item) => typeof item === 'string' && item.includes('<') && item.includes('>'))) {
+            return parsed.join('');
+          }
           return parsed;
         }
       } catch (e) {

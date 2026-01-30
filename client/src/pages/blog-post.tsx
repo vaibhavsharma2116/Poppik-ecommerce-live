@@ -398,7 +398,7 @@ export default function BlogPostDetail() {
                       })}
                     </p>
 
-                    <h3 className="text-sm sm:text-base md:text-lg font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2 leading-tight">
+                    <h3 className="text-sm sm:text-base md:text-lg font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-3 leading-tight min-h-[4.05rem]">
                       {relatedPost.title}
                     </h3>
                   </div>
