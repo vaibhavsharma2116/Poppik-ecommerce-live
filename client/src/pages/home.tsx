@@ -1155,7 +1155,7 @@ function ComboSection() {
         </div>
 
         <div>
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4 lg:gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4 lg:gap-6 items-stretch">
             {activeComboProducts.map((combo) => {
               const products = typeof combo.products === 'string' ? JSON.parse(combo.products) : combo.products;
               const price = typeof combo.price === 'string' ? parseFloat(combo.price) : combo.price;
@@ -1167,7 +1167,7 @@ function ComboSection() {
               return (
                 <div
                   key={combo.id}
-                  className="group transition-all duration-300 overflow-hidden bg-white rounded-lg sm:rounded-xl shadow-sm hover:shadow-md cursor-pointer flex flex-col"
+                  className="group transition-all duration-300 overflow-hidden bg-white rounded-lg sm:rounded-xl shadow-sm hover:shadow-md cursor-pointer flex flex-col h-full"
                   onMouseEnter={() => setHoveredCard(combo.id)}
                   onMouseLeave={() => setHoveredCard(null)}
                 >
