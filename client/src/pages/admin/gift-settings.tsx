@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,8 @@ export default function GiftSettings() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState<GiftMilestone | null>(null);
+  const [scrollToIndex, setScrollToIndex] = useState<number | null>(null);
+  const milestoneRowRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const createEmptyRow = (): GiftMilestoneFormRow => ({
     minAmount: "",
@@ -58,6 +60,15 @@ export default function GiftSettings() {
   const [milestoneRows, setMilestoneRows] = useState<GiftMilestoneFormRow[]>([
     createEmptyRow(),
   ]);
+
+  useEffect(() => {
+    if (scrollToIndex === null) return;
+    const el = milestoneRowRefs.current[scrollToIndex];
+    if (!el) return;
+
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    setScrollToIndex(null);
+  }, [milestoneRows, scrollToIndex]);
 
   // Fetch gift milestones
   const { data: milestonesData, isLoading } = useQuery({
@@ -243,18 +254,33 @@ export default function GiftSettings() {
             <form onSubmit={handleSubmit} className="flex flex-col gap-4 overflow-y-auto flex-1 px-1">
 
               {!editingMilestone && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setMilestoneRows((prev) => [...prev, createEmptyRow()])}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Another Milestone
-                </Button>
+                <div className="sticky top-0 z-10 bg-white pb-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setMilestoneRows((prev) => {
+                        const next = [...prev, createEmptyRow()];
+                        return next;
+                      });
+                      setScrollToIndex(milestoneRows.length);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Another Milestone
+                  </Button>
+                </div>
               )}
 
               {milestoneRows.map((row, index) => (
-                <div key={index} className="border border-gray-200 rounded-md p-3 space-y-4">
+                <div
+                  key={index}
+                  ref={(el) => {
+                    milestoneRowRefs.current[index] = el;
+                  }}
+                  className="border border-gray-200 rounded-md p-3 space-y-4 scroll-mt-16"
+                >
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-medium">Milestone {index + 1}</div>
                     {!editingMilestone && milestoneRows.length > 1 && (

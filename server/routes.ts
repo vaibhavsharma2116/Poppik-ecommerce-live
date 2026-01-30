@@ -10879,10 +10879,7 @@ app.get('/api/influencer-videos', async (req, res) => {
 
       const slug = req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-      // Set expiry date to 15 days from now if not provided
-      const expiresAt = req.body.expiresAt 
-        ? new Date(req.body.expiresAt) 
-        : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000);
+      const expiresAt = req.body.expiresAt ? new Date(req.body.expiresAt) : null;
 
       const positionData = {
         title: req.body.title,
@@ -10981,7 +10978,12 @@ app.get('/api/influencer-videos', async (req, res) => {
         responsibilities: req.body.responsibilities ? (Array.isArray(req.body.responsibilities) ? req.body.responsibilities : JSON.parse(req.body.responsibilities)) : undefined,
         requirements: req.body.requirements ? (Array.isArray(req.body.requirements) ? req.body.requirements : JSON.parse(req.body.requirements)) : undefined,
         skills: req.body.skills ? (Array.isArray(req.body.skills) ? req.body.skills : JSON.parse(req.body.skills)) : undefined,
-        expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : undefined,
+        expiresAt:
+          req.body.expiresAt === null || req.body.expiresAt === ''
+            ? null
+            : req.body.expiresAt
+              ? new Date(req.body.expiresAt)
+              : undefined,
       };
 
       const position = await storage.updateJobPosition(id, updateData);

@@ -275,6 +275,7 @@ export default function AdminJobPositions() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const expiresAtRaw = formData.get('expiresAt') as string | null;
     
     const data = {
       title: formData.get('title'),
@@ -292,6 +293,7 @@ export default function AdminJobPositions() {
       requirements: requirementsContent,
       skills: [], // Empty array for skills
       isActive: isActive, // Use state value instead of FormData
+      expiresAt: expiresAtRaw ? expiresAtRaw : null,
       sortOrder: parseInt(formData.get('sortOrder') as string) || 0,
     };
 
@@ -491,12 +493,12 @@ export default function AdminJobPositions() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="expiresAt">Expires At (15 days default)</Label>
+                  <Label htmlFor="expiresAt">Expires At</Label>
                   <Input
                     id="expiresAt"
                     name="expiresAt"
                     type="date"
-                    defaultValue={(editingPosition as any)?.expiresAt ? new Date((editingPosition as any).expiresAt).toISOString().split('T')[0] : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                    defaultValue={(editingPosition as any)?.expiresAt ? new Date((editingPosition as any).expiresAt).toISOString().split('T')[0] : ''}
                   />
                 </div>
               </div>

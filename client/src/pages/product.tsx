@@ -307,12 +307,12 @@ export default function ProductsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Desktop Filter Sidebar */}
           <div className="hidden lg:block">
-            <div className="sticky top-4">
+            <div className="sticky top-24 h-[calc(100vh-6rem)] overflow-hidden">
               <DynamicFilter
                 products={allProducts || []}
                 categories={categories || []}
                 onFilterChange={handleFilterChange}
-                className="bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20"
+                className="bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20 h-full"
               />
             </div>
           </div>
@@ -333,11 +333,12 @@ export default function ProductsPage() {
                     Filter products by category, price, and more.
                   </SheetDescription>
                 </SheetHeader>
-                <div className="mt-6">
+                <div className="mt-6 h-[calc(100vh-8rem)] overflow-hidden">
                   <DynamicFilter
                     products={allProducts || []}
                     categories={categories || []}
                     onFilterChange={handleFilterChange}
+                    className="h-full"
                   />
                 </div>
               </SheetContent>

@@ -282,7 +282,7 @@ export default function DynamicFilter({
   };
 
   return (
-    <div className={`flex h-full flex-col ${className}`}>
+    <div className={`flex h-full min-h-0 flex-col ${className}`}>
       <div className="sticky top-0 z-10 flex items-center justify-between pb-4 bg-white/80 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <Filter className="h-5 w-5" />
@@ -299,7 +299,7 @@ export default function DynamicFilter({
         )}
       </div>
 
-      <div className="flex-1 space-y-6 overflow-y-auto pr-1">
+      <div className="flex-1 min-h-0 space-y-6 overflow-y-auto pr-1">
         {getActiveFilterCount() > 0 && (
           <div className="flex flex-wrap gap-2">
             {(filters.priceRange[0] > 0 || filters.priceRange[1] < maxPrice) && (
@@ -518,7 +518,7 @@ export default function DynamicFilter({
         )
       )}
 
-      <Card>
+      {/* <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm">Product Status</CardTitle>
         </CardHeader>
@@ -574,7 +574,7 @@ export default function DynamicFilter({
             <span className="text-sm font-medium">New Launches</span>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
     </div>
   </div>
