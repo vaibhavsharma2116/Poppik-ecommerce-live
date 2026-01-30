@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, desc, and, gte, lte, like, isNull, asc, or, sql } from "drizzle-orm";
+import { eq, desc, and, gte, lte, like, isNull, asc, or, sql, inArray } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "@shared/schema";
 
@@ -66,8 +66,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-
-
+// Database connection pool
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
   ssl: false,
@@ -159,7 +158,7 @@ export interface IStorage {
   deleteShade(id: number): Promise<boolean>;
   getProductShades(productId: number): Promise<any[]>; // Changed to use the new method
 
-   // Review Management Functions
+  // Review Management Functions
   createReview(reviewData: InsertReview): Promise<Review>;
   getProductReviews(productId: number): Promise<Review[]>;
   getUserReviews(userId: number): Promise<Review[]>;
@@ -255,6 +254,47 @@ export class DatabaseStorage implements IStorage {
     // Database connection is handled by the singleton instance above
   }
 
+  private async attachImagesToProducts(rows: any[]): Promise<any[]> {
+    if (!Array.isArray(rows) || rows.length === 0) return rows;
+
+    const productIds = Array.from(
+      new Set(
+        rows
+          .map((p: any) => Number(p?.id))
+          .filter((id: number) => Number.isFinite(id) && id > 0),
+      ),
+    );
+
+    if (productIds.length === 0) return rows;
+
+    const images = await this.db
+      .select()
+      .from(productImages)
+      .where(inArray(productImages.productId, productIds))
+      .orderBy(asc(productImages.sortOrder));
+
+    const byProductId = new Map<number, string[]>();
+    for (const img of images as any[]) {
+      const pid = Number(img?.productId);
+      const url = String(img?.imageUrl || '').trim();
+      if (!Number.isFinite(pid) || pid <= 0 || !url) continue;
+      const list = byProductId.get(pid) || [];
+      list.push(url);
+      byProductId.set(pid, list);
+    }
+
+    return rows.map((p: any) => {
+      const list = byProductId.get(Number(p?.id)) || [];
+      const fallback = p?.imageUrl ? [String(p.imageUrl)] : [];
+      const imagesArr = list.length > 0 ? list : fallback;
+      return {
+        ...p,
+        images: imagesArr,
+        imageUrl: p?.imageUrl || imagesArr[0],
+      };
+    });
+  }
+
   // Users
   async getUser(id: number): Promise<User | undefined> {
     const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
@@ -342,12 +382,14 @@ export class DatabaseStorage implements IStorage {
   // Products
   async getProduct(id: number): Promise<Product | undefined> {
     const result = await this.db.select().from(products).where(eq(products.id, id)).limit(1);
-    return result[0];
+    const withImages = await this.attachImagesToProducts(result as any[]);
+    return (withImages as any[])?.[0];
   }
 
   async getProductBySlug(slug: string): Promise<Product | undefined> {
     const result = await this.db.select().from(products).where(eq(products.slug, slug)).limit(1);
-    return result[0];
+    const withImages = await this.attachImagesToProducts(result as any[]);
+    return (withImages as any[])?.[0];
   }
 
   async getProducts(): Promise<Product[]> {
@@ -359,8 +401,8 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(products.createdAt));
 
       console.log(`📦 Storage: Fetched ${result.length} products from database`);
-      
-      return result as Product[];
+
+      return (await this.attachImagesToProducts(result as any[])) as Product[];
     } catch (error) {
       console.error("❌ Error fetching products from database:", error);
       console.error("Error details:", (error as any)?.message);
@@ -401,7 +443,7 @@ export class DatabaseStorage implements IStorage {
       });
     }
 
-    return result;
+    return (await this.attachImagesToProducts(result as any[])) as Product[];
   }
 
   async getFeaturedProducts() {
@@ -415,14 +457,14 @@ export class DatabaseStorage implements IStorage {
         .limit(10);
 
       console.log(`✅ Featured products query returned ${featuredProducts.length} products`);
-      
+
       // If no featured products, log the total count for debugging
       if (featuredProducts.length === 0) {
         const totalProducts = await this.db.select().from(products);
         console.log(`⚠️ No featured products found. Total products in DB: ${totalProducts.length}`);
       }
-      
-      return featuredProducts;
+
+      return await this.attachImagesToProducts(featuredProducts as any[]);
     } catch (error) {
       console.error('❌ Error fetching featured products:', error);
       return [];
@@ -440,14 +482,14 @@ export class DatabaseStorage implements IStorage {
         .limit(10);
 
       console.log(`✅ Bestseller products query returned ${bestsellerProducts.length} products`);
-      
+
       // If no bestseller products, log the total count for debugging
       if (bestsellerProducts.length === 0) {
         const totalProducts = await this.db.select().from(products);
         console.log(`⚠️ No bestseller products found. Total products in DB: ${totalProducts.length}`);
       }
-      
-      return bestsellerProducts;
+
+      return await this.attachImagesToProducts(bestsellerProducts as any[]);
     } catch (error) {
       console.error('❌ Error fetching bestseller products:', error);
       return [];
@@ -465,14 +507,14 @@ export class DatabaseStorage implements IStorage {
         .limit(10);
 
       console.log(`✅ New launch products query returned ${newLaunchProducts.length} products`);
-      
+
       // If no new launch products, log the total count for debugging
       if (newLaunchProducts.length === 0) {
         const totalProducts = await this.db.select().from(products);
         console.log(`⚠️ No new launch products found. Total products in DB: ${totalProducts.length}`);
       }
-      
-      return newLaunchProducts;
+
+      return await this.attachImagesToProducts(newLaunchProducts as any[]);
     } catch (error) {
       console.error('❌ Error fetching new launch products:', error);
       return [];
