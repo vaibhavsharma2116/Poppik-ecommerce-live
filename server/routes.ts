@@ -13091,6 +13091,42 @@ app.get('/api/influencer-videos', async (req, res) => {
       res.status(500).json({ error: "Failed to verify mobile OTP" });
     }
   });
+
+  // Image upload API
+  app.post("/api/upload/image", upload.single("image"), async (req, res) => {
+    try {
+      console.log("Image upload request received");
+
+      if (!req.file) {
+        console.error("No image file provided in request");
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      console.log("Image uploaded successfully:", {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+
+      // Return the file URL
+      const imageUrl = `/api/images/${req.file.filename}`;
+      res.json({
+        imageUrl,
+        message: "Image uploaded successfully",
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        size: req.file.size
+      });
+    } catch (error) {
+      console.error("Image upload error:", error);
+      res.status(500).json({
+        error: "Failed to upload image",
+        details: error.message
+      });
+    }
+  });
+
   // Admin: delete channel partner video
   app.delete('/api/admin/channel-partner-videos/:id', async (req, res) => {
     try {
