@@ -289,11 +289,11 @@ export default function Blog() {
                           </span>
                         </div>
 
-                        <h3 className="text-base sm:text-lg md:text-xl font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-3 leading-tight min-h-[4.5rem]">
+                        <h3 className="text-base sm:text-lg md:text-xl font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-3 leading-tight h-[4.5rem]">
                           {post.title}
                         </h3>
 
-                        <p className="text-xs sm:text-sm text-gray-600 line-clamp-3 leading-relaxed min-h-[3.75rem]">
+                        <p className="text-xs sm:text-sm text-gray-600 line-clamp-3 leading-relaxed h-[3.75rem]">
                           {post.excerpt}
                         </p>
 
