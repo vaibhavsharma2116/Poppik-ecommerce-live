@@ -2921,10 +2921,17 @@ app.get("/api/admin/stores", async (req, res) => {
       console.log("Syncing existing orders with iThink...");
 
       // Check if iThink is configured
-      if (!process.env.ITHINK_EMAIL || !process.env.ITHINK_PASSWORD) {
+      const ithinkConfigured = Boolean(
+        (process.env.ITHINK_ACCESS_TOKEN && process.env.ITHINK_SECRET_KEY) ||
+        (process.env.ITHINKLOGISTICS_ACCESS_TOKEN && process.env.ITHINKLOGISTICS_SECRET_KEY) ||
+        (process.env.ITHINK_EMAIL && process.env.ITHINK_PASSWORD) ||
+        process.env.ITHINK_TOKEN
+      );
+
+      if (!ithinkConfigured) {
         return res.status(400).json({
           error: "iThink credentials not configured",
-          message: "Please set ITHINK_EMAIL and ITHINK_PASSWORD environment variables"
+          message: "Please configure iThink credentials (ITHINK_ACCESS_TOKEN/ITHINK_SECRET_KEY or ITHINK_EMAIL/ITHINK_PASSWORD)"
         });
       }
 
@@ -4983,7 +4990,14 @@ app.get("/api/admin/stores", async (req, res) => {
       let user: any = [];
 
       // Check if iThink is configured
-      if (deliveryPartner === 'ITHINK' && process.env.ITHINK_EMAIL && process.env.ITHINK_PASSWORD) {
+      const ithinkConfigured = Boolean(
+        (process.env.ITHINK_ACCESS_TOKEN && process.env.ITHINK_SECRET_KEY) ||
+        (process.env.ITHINKLOGISTICS_ACCESS_TOKEN && process.env.ITHINKLOGISTICS_SECRET_KEY) ||
+        (process.env.ITHINK_EMAIL && process.env.ITHINK_PASSWORD) ||
+        process.env.ITHINK_TOKEN
+      );
+
+      if (deliveryPartner === 'ITHINK' && ithinkConfigured) {
         try {
           console.log('Starting iThink order creation for:', orderId);
 
@@ -13440,7 +13454,7 @@ app.get('/api/influencer-videos', async (req, res) => {
         conversionRateDelivered,
         avgCommission,
         monthlyGrowth: parseFloat(monthlyGrowth.toFixed(1)),
-        pendingAmount: wallet && wallet.length > 0 ? parseFloat(wallet[0].pendingBalance?.toString() || '0') : 0,
+        pendingAmount: wallet && wallet.length > 0 ? parseFloat(wallet[0].commissionBalance?.toString() || '0') : 0,
       });
     } catch (error) {
       console.error('Error fetching affiliate stats:', error);

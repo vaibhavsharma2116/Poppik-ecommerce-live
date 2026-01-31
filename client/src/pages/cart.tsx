@@ -242,32 +242,38 @@ export default function Cart() {
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
     if (refCode && refCode.toUpperCase().startsWith('POPPIKAP')) {
-      // Store affiliate code in localStorage for later use (use existing key 'affiliateRef')
-      localStorage.setItem('affiliateRef', refCode.toUpperCase());
-      localStorage.setItem('affiliateRefSetAt', String(Date.now()));
+      const refUpper = refCode.toUpperCase();
+      const existingRef = localStorage.getItem('affiliateRef');
 
-      // Also set it in state so it can be applied
-      setAffiliateCode(refCode.toUpperCase());
+      if (existingRef && existingRef !== refUpper) {
+        try {
+          const u = new URL(window.location.href);
+          u.searchParams.delete('ref');
+          window.history.replaceState({}, '', u.toString());
+        } catch (e) {
+          // ignore
+        }
+        setAffiliateCode(existingRef);
+      } else if (!existingRef) {
+        // Store affiliate code in localStorage for later use (use existing key 'affiliateRef')
+        localStorage.setItem('affiliateRef', refUpper);
+        localStorage.setItem('affiliateRefLocked', '1');
+        localStorage.setItem('affiliateRefSetAt', String(Date.now()));
 
-      toast({
-        title: "Affiliate Code Found",
-        description: `Affiliate code ${refCode.toUpperCase()} has been saved. Apply it in your cart to get the discount!`,
-      });
-    } else if (localStorage.getItem('affiliateRef')) {
-      // Load saved affiliate code from previous visit (time-bound to avoid stale discounts)
-      const savedRefCode = localStorage.getItem('affiliateRef');
-      const savedSetAtRaw = localStorage.getItem('affiliateRefSetAt');
-      const savedSetAt = savedSetAtRaw ? Number(savedSetAtRaw) : 0;
-      const maxAgeMs = 24 * 60 * 60 * 1000; // 24 hours
+        // Also set it in state so it can be applied
+        setAffiliateCode(refUpper);
 
-      if (!savedRefCode) {
-        // nothing
-      } else if (!savedSetAt || Number.isNaN(savedSetAt) || Date.now() - savedSetAt > maxAgeMs) {
-        localStorage.removeItem('affiliateRef');
-        localStorage.removeItem('affiliateRefSetAt');
+        toast({
+          title: "Affiliate Code Found",
+          description: `Affiliate code ${refUpper} has been saved. Apply it in your cart to get the discount!`,
+        });
       } else {
-        setAffiliateCode(savedRefCode);
+        setAffiliateCode(existingRef);
       }
+    } else if (localStorage.getItem('affiliateRef')) {
+      // Load saved affiliate code from previous visit
+      const savedRefCode = localStorage.getItem('affiliateRef');
+      if (savedRefCode) setAffiliateCode(savedRefCode);
     }
 
     const savedCart = localStorage.getItem("cart");

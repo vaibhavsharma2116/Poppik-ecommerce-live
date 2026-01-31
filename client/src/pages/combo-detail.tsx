@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
 import { ChevronRight, Star, ShoppingCart, Heart, ArrowLeft, Share2, Package, ChevronLeft, Palette, Check, Copy } from "lucide-react";
@@ -214,6 +214,11 @@ export default function ComboDetail() {
     queryKey: [`/api/combos/${comboId}/reviews`],
     enabled: !!comboId,
   });
+
+  const { data: recommendedProducts = [] } = useQuery<any[]>({
+    queryKey: ['/api/products', { limit: 12 }],
+  });
+
   // Shade data for products (fetched when combo products are available)
   const [productShadesData, setProductShadesData] = useState<Record<number, any[]>>({});
   // Product details cache for included products (fetch full product when combo only contains minimal data)
@@ -245,240 +250,112 @@ export default function ComboDetail() {
   console.log("Loading:", isLoading);
   console.log("Error:", error);
 
-  // Capture affiliate code from URL (either ?ref=CODE or raw ?CODE) and
-  // persist it to localStorage immediately, then remove it from the URL.
-  // This ensures the code is stored even when navigation is client-side
-  // and avoids relying on a full page reload.
+  const products = useMemo(() => {
+    const raw = (combo as any)?.products ?? (combo as any)?.items ?? [];
+    return Array.isArray(raw) ? raw : [];
+  }, [combo]);
+
+  // Affiliate lock: once affiliateRef is stored, ignore any new different ref codes.
+  // Validate the first code, track the click, persist it, then remove it from the URL.
   useEffect(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       let affiliateRef = urlParams.get('ref');
 
       if (!affiliateRef) {
-        const searchString = window.location.search.substring(1);
+        const searchString = window.location.search.substring(1); // Remove the ?
         if (searchString && /^[A-Z0-9]+/.test(searchString)) {
           affiliateRef = searchString.split('&')[0];
         }
       }
 
-      if (!affiliateRef) return;
-
-      try { localStorage.setItem('affiliateRef', affiliateRef); } catch (e) { }
-
-      // Remove affiliate param from URL without reloading
-      try {
-        const u = new URL(window.location.href);
-        u.searchParams.delete('ref');
-        const raw = u.search.substring(1);
-        if (raw && /^[A-Z0-9]+($|&)/.test(raw)) {
-          const parts = raw.split('&').slice(1);
-          u.search = parts.length ? `?${parts.join('&')}` : '';
-        }
-        window.history.replaceState({}, '', u.toString());
-      } catch (e) {
-        try { window.history.replaceState({}, '', window.location.pathname + window.location.hash); } catch (err) { }
-      }
-    } catch (e) {
-      // ignore
-    }
-  }, [comboId]);
-
-  // When navigating to the combo page without any query string (i.e. the
-  // URL is `/combo/:id` with no affiliate code), remove `affiliateRef` from
-  // localStorage so stale codes are not kept across navigations.
-  useEffect(() => {
-    try {
-      const search = window.location.search || '';
-      // If there's any search/query string, don't remove — the capture logic
-      // handles storing it. Only remove when there is NO query string.
-      if (search && search.length > 0) return;
-
-      try {
-        localStorage.removeItem('affiliateRef');
-      } catch (e) {
-        // ignore
-      }
-    } catch (e) {
-      // ignore
-    }
-  }, [location]);
-
-  // Update canReview state when eligibility data changes
-  useEffect(() => {
-    if (reviewEligibility && typeof reviewEligibility === 'object') {
-      setCanReview(reviewEligibility);
-    }
-  }, [reviewEligibility]);
- const { data: recommendedProducts = [] } = useQuery<any[]>({
-    queryKey: ['/api/products', { limit: 12 }],
-  });
-  useEffect(() => {
-    // Validate affiliate code (if present) and track only when applicable to this combo
-    const urlParams = new URLSearchParams(window.location.search);
-    // Support multiple affiliate parameter formats: ref=CODE, CODE (first param as value), or direct parameter
-    let affiliateRef = urlParams.get('ref');
-
-    // If no 'ref' parameter, check for direct affiliate code (e.g., ?POPPIKAP12)
-    if (!affiliateRef) {
-      const searchString = window.location.search.substring(1); // Remove the ?
-      if (searchString && /^[A-Z0-9]+/.test(searchString)) {
-        affiliateRef = searchString.split('&')[0]; // Get first query param value
-      }
-    }
-
-    // If still not found in URL, fall back to localStorage (captured earlier)
-    if (!affiliateRef) {
-      try { affiliateRef = localStorage.getItem('affiliateRef') || '' } catch (e) { affiliateRef = '' }
-    }
-
-    if (!affiliateRef || !combo?.id) return;
-
-    const removeAffiliateRef = () => {
-      try { localStorage.removeItem('affiliateRef'); } catch (e) { }
-      try {
-        const u = new URL(window.location.href);
-        u.searchParams.delete('ref');
-        const raw = u.search.substring(1);
-        if (raw && /^[A-Z0-9]+($|&)/.test(raw)) {
-          const parts = raw.split('&').slice(1);
-          u.search = parts.length ? `?${parts.join('&')}` : '';
-        }
-        window.history.replaceState({}, '', u.toString());
-      } catch (e) {
-        try { window.history.replaceState({}, '', window.location.pathname + window.location.hash); } catch (err) { }
-      }
-    };
-
-    (async () => {
-      try {
-        const res = await fetch(`/api/affiliate/validate?code=${encodeURIComponent(affiliateRef)}`);
-        if (!res.ok) {
-          removeAffiliateRef();
-          toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
-          return;
-        }
-
-        const data = await res.json();
-        if (!data || !data.valid) {
-          removeAffiliateRef();
-          toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
-          return;
-        }
-
-        // Determine if this combo or its products are affiliate-enabled
-        const comboCommission = Number(combo?.affiliateCommission ?? combo?.affiliate_commission ?? 0);
-        const comboUserDiscount = Number(combo?.affiliateUserDiscount ?? combo?.affiliate_user_discount ?? 0);
-
-        let eligible = comboCommission > 0 && comboUserDiscount > 0;
-
-        if (!eligible && Array.isArray(combo?.products) && combo.products.length > 0) {
-          eligible = combo.products.some((p: any) => {
-            const pc = Number(p?.affiliateCommission ?? p?.affiliate_commission ?? 0);
-            const pd = Number(p?.affiliateUserDiscount ?? p?.affiliate_user_discount ?? 0);
-            return pc > 0 && pd > 0;
-          });
-        }
-
-        if (!eligible) {
-          removeAffiliateRef();
-          toast({ title: 'Not Eligible', description: 'This affiliate code cannot be applied to this combo.', variant: 'destructive' });
-          return;
-        }
-
-        // Valid and eligible — track and persist
-        fetch('/api/affiliate/track-click', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ affiliateCode: affiliateRef, comboId: combo.id }),
-        }).catch(err => console.error('Error tracking affiliate click:', err));
-
+      const normalizedRef = affiliateRef ? affiliateRef.toUpperCase() : '';
+      const existingRef = (() => {
         try {
-          localStorage.setItem('affiliateRef', affiliateRef);
-          localStorage.setItem('affiliateRefSetAt', String(Date.now()));
-        } catch (e) {
-          // ignore localStorage failures
+          return localStorage.getItem('affiliateRef') || '';
+        } catch {
+          return '';
         }
-      } catch (err) {
-        console.error('Error validating affiliate code:', err);
+      })();
+
+      const cleanAffiliateFromUrlOnly = () => {
+        try {
+          const u = new URL(window.location.href);
+          u.searchParams.delete('ref');
+          const raw = u.search.substring(1);
+          if (raw && /^[A-Z0-9]+($|&)/.test(raw)) {
+            const parts = raw.split('&').slice(1);
+            u.search = parts.length ? `?${parts.join('&')}` : '';
+          }
+          window.history.replaceState({}, '', u.toString());
+        } catch (e) {
+          try {
+            window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+          } catch {
+            // ignore
+          }
+        }
+      };
+
+      // If already locked to another affiliate, ignore and just clean URL.
+      if (existingRef && normalizedRef && existingRef !== normalizedRef) {
+        cleanAffiliateFromUrlOnly();
+        return;
       }
-    })();
-  }, [combo?.id, combo, toast]);
 
-  // Cleanup affiliate ref from localStorage when leaving the combo page
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      // Check if affiliateRef exists in localStorage
-      const storedAffiliateRef = localStorage.getItem('affiliateRef');
-      
-      // Only remove if it exists
-      if (storedAffiliateRef) {
-        try { localStorage.removeItem('affiliateRef'); } catch (e) { }
-      }
-    };
+      if (!normalizedRef || !combo?.id) return;
 
-    // Listen for navigation events
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
+      (async () => {
+        try {
+          const res = await fetch(`/api/affiliate/validate?code=${encodeURIComponent(normalizedRef)}`);
+          if (!res.ok) {
+            // Invalid code; do not keep it (only remove if it wasn't an already stored code)
+            if (!existingRef) {
+              try { localStorage.removeItem('affiliateRef'); } catch (e) { }
+            }
+            cleanAffiliateFromUrlOnly();
+            toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
+            return;
+          }
 
-  // Prepare products (safe parse) and load shades for products before any early returns
-  const products = combo
-    ? (typeof combo.products === 'string' ? (() => { try { return JSON.parse(combo.products); } catch { return []; } })() : combo.products)
-    : [];
+          const data = await res.json().catch(() => null);
+          if (!data || !data.valid) {
+            if (!existingRef) {
+              try { localStorage.removeItem('affiliateRef'); } catch (e) { }
+            }
+            cleanAffiliateFromUrlOnly();
+            toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
+            return;
+          }
 
-  // Debug: Log products with their images
-  useEffect(() => {
-    if (combo && Array.isArray(products) && products.length > 0) {
-      console.log('🎨 === COMBO PRODUCTS DEBUG ===');
-      console.log('🎨 Combo:', combo.name);
-      products.forEach((p, idx) => {
-        console.group(`Product ${idx + 1}: ${p.name} (ID: ${p.id})`);
-        console.log('  - images:', p.images);
-        console.log('  - imageUrls:', p.imageUrls);
-        console.log('  - imageUrl:', p.imageUrl ? p.imageUrl.substring(0, 80) + '...' : 'NOT FOUND');
-        console.groupEnd();
-      });
-      console.log('🎨 === END DEBUG ===');
-    }
-  }, [combo, products]);
+          fetch('/api/affiliate/track-click', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ affiliateCode: normalizedRef, comboId: combo.id }),
+          }).catch(err => console.error('Error tracking affiliate click:', err));
 
-  useEffect(() => {
-    try {
-      const productIds: number[] = Array.isArray(products)
-        ? products.map((p: any) => (typeof p === 'string' ? null : p.id)).filter(Boolean)
-        : [];
+          try {
+            localStorage.setItem('affiliateRef', normalizedRef);
+            localStorage.setItem('affiliateRefLocked', '1');
+            localStorage.setItem('affiliateRefSetAt', String(Date.now()));
+          } catch (e) {
+            // ignore
+          }
 
-      if (productIds.length > 0) {
-        // Fetch shades
-        fetchProductDetailsAndShades(productIds)
-          .then((map) => setProductShadesData(map))
-          .catch((err) => console.error('Error fetching product shades:', err));
-
-        // Fetch full product details (to obtain images if combo payload is minimal)
-        Promise.all(
-          productIds.map((id) =>
-            fetch(`/api/products/${id}`)
-              .then((res) => (res.ok ? res.json() : Promise.resolve(null)))
-              .catch(() => null)
-          )
-        )
-          .then((results) => {
-            const map: Record<number, any> = {};
-            results.forEach((res) => {
-              if (res && res.id) map[res.id] = res;
-            });
-            setProductDetailsData(map);
-          })
-          .catch((err) => console.error('Error fetching product details for combo:', err));
-      }
+          cleanAffiliateFromUrlOnly();
+        } catch (err) {
+          console.error('Error validating affiliate code:', err);
+        }
+      })();
     } catch (err) {
-      console.error('Error parsing products for shades:', err);
+      console.error('Error parsing affiliate code:', err);
     }
-  }, [products]);
+  }, [combo?.id, toast]);
+
+  useEffect(() => {
+    return;
+  }, [location]);
 
   // Helper to get primary image from combo
   const getPrimaryImage = (comboData: any) => {

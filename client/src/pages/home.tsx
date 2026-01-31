@@ -244,8 +244,26 @@ export default function HomePage() {
     const urlParams = new URLSearchParams(window.location.search);
     const affiliateRef = urlParams.get('ref');
 
-    if (affiliateRef) {
-      localStorage.setItem('affiliateRef', affiliateRef);
+    if (affiliateRef && affiliateRef.toUpperCase().startsWith('POPPIKAP')) {
+      const refUpper = affiliateRef.toUpperCase();
+      const existingRef = localStorage.getItem('affiliateRef');
+
+      if (existingRef && existingRef !== refUpper) {
+        try {
+          const u = new URL(window.location.href);
+          u.searchParams.delete('ref');
+          window.history.replaceState({}, '', u.toString());
+        } catch (e) {
+          // ignore
+        }
+        return;
+      }
+
+      if (!existingRef) {
+        localStorage.setItem('affiliateRef', refUpper);
+        localStorage.setItem('affiliateRefLocked', '1');
+        localStorage.setItem('affiliateRefSetAt', String(Date.now()));
+      }
     }
   }, []);
 

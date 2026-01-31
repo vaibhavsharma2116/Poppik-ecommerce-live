@@ -594,7 +594,38 @@ export default function OfferDetail() {
       }
     }
 
-    if (!affiliateRef || !offer?.id) return;
+    const normalizedRef = affiliateRef ? affiliateRef.toUpperCase() : '';
+    const existingRef = (() => {
+      try {
+        return localStorage.getItem('affiliateRef') || '';
+      } catch {
+        return '';
+      }
+    })();
+
+    if (existingRef && normalizedRef && existingRef !== normalizedRef) {
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('ref');
+
+        const raw = u.search.substring(1); // without '?'
+        if (raw && /^[A-Z0-9]+($|&)/.test(raw)) {
+          const parts = raw.split('&').slice(1);
+          u.search = parts.length ? `?${parts.join('&')}` : '';
+        }
+
+        window.history.replaceState({}, '', u.toString());
+      } catch (e) {
+        try {
+          window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+        } catch (err) {
+          // ignore
+        }
+      }
+      return;
+    }
+
+    if (!normalizedRef || !offer?.id) return;
 
     const removeAffiliateRef = () => {
       try {
@@ -667,11 +698,12 @@ export default function OfferDetail() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ affiliateCode: affiliateRef, offerId: offer.id }),
+          body: JSON.stringify({ affiliateCode: normalizedRef, offerId: offer.id }),
         }).catch(err => console.error('Error tracking affiliate click:', err));
 
         try {
-          localStorage.setItem('affiliateRef', affiliateRef);
+          localStorage.setItem('affiliateRef', normalizedRef);
+          localStorage.setItem('affiliateRefLocked', '1');
           localStorage.setItem('affiliateRefSetAt', String(Date.now()));
         } catch (e) {
           // ignore localStorage failures

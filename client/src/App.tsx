@@ -173,13 +173,25 @@ function AffiliateHandler() {
     // Capture affiliate ref parameter from URL
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
-    
+
     if (ref && ref.startsWith('POPPIKAP')) {
-      // Store affiliate ref in localStorage if not already stored
       const existingRef = localStorage.getItem('affiliateRef');
+
+      if (existingRef && existingRef !== ref) {
+        try {
+          const u = new URL(window.location.href);
+          u.searchParams.delete('ref');
+          window.history.replaceState({}, '', u.toString());
+        } catch (e) {
+          // ignore
+        }
+        return;
+      }
+
       if (!existingRef) {
         localStorage.setItem('affiliateRef', ref);
-        // Log for tracking
+        localStorage.setItem('affiliateRefLocked', '1');
+        localStorage.setItem('affiliateRefSetAt', String(Date.now()));
         console.log('Affiliate link captured:', ref);
       }
     }

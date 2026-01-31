@@ -373,17 +373,7 @@ export default function CheckoutPage() {
 
   const localStorageAffiliateRef = (() => {
     try {
-      const setAtRaw = localStorage.getItem('affiliateRefSetAt');
-      const setAt = setAtRaw ? Number(setAtRaw) : 0;
-      const maxAgeMs = 24 * 60 * 60 * 1000;
-      const ref = setAt && !Number.isNaN(setAt) && (Date.now() - setAt) <= maxAgeMs
-        ? localStorage.getItem('affiliateRef')
-        : null;
-      if (!ref) {
-        localStorage.removeItem('affiliateRef');
-        localStorage.removeItem('affiliateRefSetAt');
-      }
-      return ref || '';
+      return localStorage.getItem('affiliateRef') || '';
     } catch {
       return '';
     }
