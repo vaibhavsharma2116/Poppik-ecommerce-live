@@ -884,46 +884,107 @@ export default function AffiliateDashboard() {
             <Button
               onClick={() => {
                 // Create affiliate marketing kit download
+                const baseUrl = "https://www.poppiklifestyle.com";
+                const affiliateLink = `${baseUrl}/?ref=${affiliateCode}`;
+                const dashboardLink = `${baseUrl}/affiliate-dashboard`;
                 const affiliateKit = `
 POPPIK AFFILIATE MARKETING KIT
 ================================
 
-Welcome ${application?.firstName || 'Affiliate'}!
+Welcome super!
 
 Your Unique Affiliate Code: ${affiliateCode}
 
 QUICK LINKS:
 ------------
-🔗 Your Affiliate Link: ${window.location.origin}/?ref=${affiliateCode}
-📊 Dashboard: ${window.location.origin}/affiliate-dashboard
+🔗 Your Affiliate Link: ${affiliateLink}
+📊 Dashboard: ${dashboardLink}
 
 SAMPLE PROMOTIONAL MESSAGES:
 ----------------------------
 
-Instagram Caption:
-"✨ Discover amazing beauty products at Poppik! Use my code ${affiliateCode} for exclusive deals! 💄💅
-Shop now: ${window.location.origin}/?ref=${affiliateCode}
-#PoppikBeauty #BeautyAffiliate #SkincareLover"
+🌸 Instagram Caption
 
-Facebook Post:
-"Hey everyone! 🌟 I'm excited to share my favorite beauty brand - Poppik!
-Get amazing skincare & makeup products. Use my special code: ${affiliateCode}
-Shop here: ${window.location.origin}/?ref=${affiliateCode}"
+✨ Glow up starts here! ✨
+I’m obsessed with Poppik’s beauty & skincare 💄💖
+If you love quality products at great prices, this is for you!
 
-YouTube Description:
-"Shop Poppik Beauty Products
-Use Code: ${affiliateCode}
-Link: ${window.location.origin}/?ref=${affiliateCode}
+🎁 **Use my code: ${affiliateCode}**
+🛍️ Shop now 👉 [${affiliateLink}](${affiliateLink})
 
-Get exclusive deals on premium beauty products!"
+Because your skin & style deserve the best 💫
+#PoppikBeauty #GlowWithPoppik #BeautyFinds #MakeupLove #SkincareRoutine
 
-Email Template:
-"Hi there!
-I wanted to share this amazing beauty brand I've been loving - Poppik!
-Use my affiliate code ${affiliateCode} when you shop to get the best deals.
-Shop now: ${window.location.origin}/?ref=${affiliateCode}
+---
 
-Happy Shopping! 💕"
+🌟 Facebook Post
+
+Hey everyone! 💕
+I recently discovered **Poppik** and honestly… it’s a beauty lover’s dream 😍
+
+From skincare to makeup — everything is premium & affordable ✨
+🎁 Use my special code **${affiliateCode}** for exclusive offers
+
+👉 Shop here: [${affiliateLink}](${affiliateLink})
+
+Try it once, you’ll love it forever 💄💖
+
+---
+
+💬 WhatsApp / Telegram Message
+
+Hey! 👋
+If you’re into beauty & skincare, you *have to* check this out 😍
+
+✨ **Poppik Beauty Products**
+🎁 Use Code: **${affiliateCode}** for special discounts
+
+👉 [${affiliateLink}](${affiliateLink})
+
+Totally worth it 💕 Let me know what you buy!
+
+---
+
+🎥 YouTube Description
+
+✨ Shop Premium Beauty Products from Poppik ✨
+
+💄 Makeup | 🧴 Skincare | 🌿 Beauty Essentials
+Loved by beauty lovers across India 💖
+
+🎁 **Use Code: ${affiliateCode}**
+🔗 Shop Here: [${affiliateLink}](${affiliateLink})
+
+Don’t miss exclusive deals & glow-worthy products ✨
+
+---
+
+🎬 Reels / Shorts Caption
+
+POV: You found your new favorite beauty brand 😍💄
+
+✨ Poppik Beauty
+🎁 Code: **${affiliateCode}**
+🛍️ Link in bio
+
+Glow smart. Shop Poppik 💖
+
+---
+
+💌 Email Content
+
+Hi there 💕
+
+I just had to share a beauty brand I’m absolutely loving — **Poppik** ✨
+From skincare to makeup, their products are amazing and super affordable.
+
+🎁 Use my affiliate code **${affiliateCode}** to unlock special deals
+🛍️ Shop now: [${affiliateLink}](${affiliateLink})
+
+Happy shopping & happy glowing 💄✨
+
+Warm regards,
+�
 
 TIPS FOR SUCCESS:
 -----------------
@@ -933,7 +994,7 @@ TIPS FOR SUCCESS:
 ✅ Track your performance in the dashboard regularly
 ✅ Use high-quality images and videos in your posts
 
-Need help? Contact us at support@poppik.in
+Need help? Contact us at info@poppik.in
 
 Generated on: ${new Date().toLocaleDateString('en-IN')}
                   `;

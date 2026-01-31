@@ -2316,110 +2316,7 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
-  app.get("/api/affiliate/wallet/withdrawals", async (req, res) => {
-    try {
-      const userId = Number(req.query.userId);
-      if (!Number.isFinite(userId) || userId <= 0) {
-        return res.status(400).json({ error: "Invalid userId" });
-      }
-
-      const rows = await db
-        .select()
-        .from(schema.affiliateTransactions)
-        .where(
-          and(
-            eq(schema.affiliateTransactions.userId, userId),
-            eq(schema.affiliateTransactions.type, 'withdrawal'),
-          )
-        )
-        .orderBy(desc(schema.affiliateTransactions.createdAt));
-
-      const withdrawals = (Array.isArray(rows) ? rows : []).map((tx: any) => ({
-        id: tx.id,
-        userId: tx.userId,
-        amount: tx.amount,
-        status: tx.status,
-        paymentMethod: tx.balanceType || 'bank',
-        requestedAt: tx.createdAt,
-        processedAt: tx.processedAt || null,
-        rejectedReason: null,
-      }));
-
-      return res.json(withdrawals);
-    } catch (error) {
-      console.error("Error fetching affiliate withdrawals:", error);
-      return res.status(500).json({ error: "Failed to fetch withdrawals" });
-    }
-  });
-
-  app.post("/api/affiliate/wallet/withdraw", async (req, res) => {
-    try {
-      const userId = Number(req.body?.userId);
-      const amountNum = Number(req.body?.amount);
-
-      if (!Number.isFinite(userId) || userId <= 0) {
-        return res.status(400).json({ error: "Invalid userId" });
-      }
-      if (!Number.isFinite(amountNum) || amountNum <= 0) {
-        return res.status(400).json({ error: "Invalid amount" });
-      }
-
-      const walletRows = await db
-        .select()
-        .from(schema.affiliateWallet)
-        .where(eq(schema.affiliateWallet.userId, userId))
-        .limit(1);
-
-      if (!walletRows || walletRows.length === 0) {
-        return res.status(400).json({ error: "Affiliate wallet not found" });
-      }
-
-      const wallet = walletRows[0] as any;
-      const currentCommission = parseFloat(String(wallet.commissionBalance || '0'));
-      if (currentCommission < amountNum) {
-        return res.status(400).json({ error: "Insufficient affiliate commission balance" });
-      }
-
-      const newCommissionBalance = (currentCommission - amountNum).toFixed(2);
-      const currentWithdrawn = parseFloat(String(wallet.totalWithdrawn || '0'));
-      const newTotalWithdrawn = (currentWithdrawn + amountNum).toFixed(2);
-
-      await db
-        .update(schema.affiliateWallet)
-        .set({
-          commissionBalance: newCommissionBalance,
-          totalWithdrawn: newTotalWithdrawn,
-          updatedAt: new Date(),
-        } as any)
-        .where(eq(schema.affiliateWallet.userId, userId));
-
-      const notes = JSON.stringify({
-        bankName: req.body?.bankName || null,
-        branchName: req.body?.branchName || null,
-        ifscCode: req.body?.ifscCode || null,
-        accountNumber: req.body?.accountNumber || null,
-      });
-
-      const [tx] = await db
-        .insert(schema.affiliateTransactions)
-        .values({
-          userId,
-          type: 'withdrawal',
-          amount: amountNum.toFixed(2),
-          balanceType: 'commission',
-          description: 'Withdrawal request',
-          status: 'pending',
-          notes,
-          createdAt: new Date(),
-        } as any)
-        .returning();
-
-      return res.json({ success: true, transaction: tx });
-    } catch (error) {
-      console.error("Error creating affiliate withdrawal:", error);
-      return res.status(500).json({ error: "Failed to create withdrawal" });
-    }
-  });
+  
 
 
   app.post("/api/products", async (req, res) => {
@@ -9762,6 +9659,239 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
+  // Get Affiliate Withdrawals
+  app.get('/api/affiliate/wallet/withdrawals', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      const withdrawals = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(and(
+          eq(schema.affiliateTransactions.userId, parseInt(userId as string)),
+          eq(schema.affiliateTransactions.type, 'withdrawal')
+        ))
+        .orderBy(desc(schema.affiliateTransactions.createdAt));
+
+      // Transform the data to match the expected withdrawal format
+      const formattedWithdrawals = withdrawals.map(w => ({
+        id: w.id,
+        userId: w.userId,
+        amount: w.amount,
+        status: w.status,
+        paymentMethod: 'Bank Transfer',
+        requestedAt: w.createdAt,
+        processedAt: w.processedAt,
+        rejectedReason: w.notes
+      }));
+
+      res.json(formattedWithdrawals);
+    } catch (error) {
+      console.error('Error fetching affiliate withdrawals:', error);
+      res.status(500).json({ error: 'Failed to fetch withdrawals' });
+    }
+  });
+
+  // Get Affiliate Withdrawals (Admin)
+  app.get('/api/admin/affiliate/withdrawals', async (req, res) => {
+    try {
+      const withdrawals = await db
+        .select({
+          id: schema.affiliateTransactions.id,
+          userId: schema.affiliateTransactions.userId,
+          amount: schema.affiliateTransactions.amount,
+          balanceType: schema.affiliateTransactions.balanceType,
+          description: schema.affiliateTransactions.description,
+          status: schema.affiliateTransactions.status,
+          notes: schema.affiliateTransactions.notes,
+          transactionId: schema.affiliateTransactions.transactionId,
+          createdAt: schema.affiliateTransactions.createdAt,
+          processedAt: schema.affiliateTransactions.processedAt,
+          userName: schema.users.firstName,
+          userEmail: schema.users.email,
+          userPhone: schema.users.phone,
+          bankName: schema.affiliateApplications.bankName,
+          branchName: schema.affiliateApplications.branchName,
+          ifscCode: schema.affiliateApplications.ifscCode,
+          accountNumber: schema.affiliateApplications.accountNumber,
+        })
+        .from(schema.affiliateTransactions)
+        .leftJoin(schema.users, eq(schema.affiliateTransactions.userId, schema.users.id))
+        .leftJoin(schema.affiliateApplications, eq(schema.affiliateTransactions.userId, schema.affiliateApplications.userId))
+        .where(eq(schema.affiliateTransactions.type, 'withdrawal'))
+        .orderBy(desc(schema.affiliateTransactions.createdAt));
+
+      res.json(withdrawals);
+    } catch (error) {
+      console.error('Error fetching affiliate withdrawals (admin):', error);
+      res.status(500).json({ error: 'Failed to fetch withdrawals' });
+    }
+  });
+
+  // Approve affiliate withdrawal (Admin)
+  app.post('/api/admin/affiliate/withdrawals/:id/approve', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { transactionId, notes } = req.body;
+
+      if (!transactionId) {
+        return res.status(400).json({ error: 'Transaction ID is required' });
+      }
+
+      const withdrawal = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .limit(1);
+
+      if (!withdrawal || withdrawal.length === 0) {
+        return res.status(404).json({ error: 'Withdrawal request not found' });
+      }
+
+      const w = withdrawal[0];
+      if (w.type !== 'withdrawal') {
+        return res.status(400).json({ error: 'Invalid withdrawal request' });
+      }
+
+      if (w.status !== 'pending') {
+        return res.status(400).json({ error: `Only pending withdrawals can be approved (current: ${w.status})` });
+      }
+
+      const withdrawAmount = parseFloat(w.amount);
+      if (!Number.isFinite(withdrawAmount) || withdrawAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid withdrawal amount' });
+      }
+
+      const isHeldWithdrawal = String(w.description || '').includes('[WITHDRAWAL_HELD]');
+
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, w.userId))
+        .limit(1);
+
+      if (!wallet || wallet.length === 0) {
+        return res.status(404).json({ error: 'Wallet not found' });
+      }
+
+      const commissionBalance = parseFloat(wallet[0].commissionBalance || '0');
+
+      // If this withdrawal was NOT held at request time (legacy), deduct now.
+      // If it was held, do NOT deduct again.
+      if (!isHeldWithdrawal) {
+        if (commissionBalance < withdrawAmount) {
+          return res.status(400).json({ error: 'Insufficient commission balance' });
+        }
+
+        await db
+          .update(schema.affiliateWallet)
+          .set({
+            commissionBalance: (commissionBalance - withdrawAmount).toFixed(2),
+            updatedAt: new Date(),
+          }as any)
+          .where(eq(schema.affiliateWallet.userId, w.userId));
+      }
+
+      // Always track successful payouts in totalWithdrawn
+      await db
+        .update(schema.affiliateWallet)
+        .set({
+          totalWithdrawn: (parseFloat(wallet[0].totalWithdrawn || '0') + withdrawAmount).toFixed(2),
+          updatedAt: new Date(),
+        }as any)
+        .where(eq(schema.affiliateWallet.userId, w.userId));
+
+      const [updatedTransaction] = await db
+        .update(schema.affiliateTransactions)
+        .set({
+          status: 'completed',
+          transactionId,
+          notes: notes || null,
+          processedAt: new Date(),
+        }as any)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .returning();
+
+      res.json({
+        success: true,
+        message: 'Withdrawal approved successfully',
+        transaction: updatedTransaction,
+      });
+    } catch (error) {
+      console.error('Error approving withdrawal:', error);
+      res.status(500).json({ error: 'Failed to approve withdrawal' });
+    }
+  });
+
+  // Reject affiliate withdrawal (Admin)
+  app.post('/api/admin/affiliate/withdrawals/:id/reject', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { notes } = req.body;
+
+      const transaction = await db
+        .select()
+        .from(schema.affiliateTransactions)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .limit(1);
+
+      if (!transaction || transaction.length === 0) {
+        return res.status(404).json({ error: 'Withdrawal request not found' });
+      }
+
+      if (transaction[0].status !== 'pending') {
+        return res.status(400).json({ error: `Only pending withdrawals can be rejected (current: ${transaction[0].status})` });
+      }
+
+      const w = transaction[0];
+      const withdrawAmount = parseFloat(w.amount);
+      const isHeldWithdrawal = String(w.description || '').includes('[WITHDRAWAL_HELD]');
+
+      // If this withdrawal was held (deducted at request time), refund on reject.
+      if (isHeldWithdrawal && Number.isFinite(withdrawAmount) && withdrawAmount > 0) {
+        const wallet = await db
+          .select()
+          .from(schema.affiliateWallet)
+          .where(eq(schema.affiliateWallet.userId, w.userId))
+          .limit(1);
+
+        if (wallet && wallet.length > 0) {
+          const commissionBalance = parseFloat(wallet[0].commissionBalance || '0');
+          await db
+            .update(schema.affiliateWallet)
+            .set({
+              commissionBalance: (commissionBalance + withdrawAmount).toFixed(2),
+              updatedAt: new Date(),
+            }as any)
+            .where(eq(schema.affiliateWallet.userId, w.userId));
+        }
+      }
+
+      const [updatedTransaction] = await db
+        .update(schema.affiliateTransactions)
+        .set({
+          status: 'rejected',
+          notes: notes || 'Rejected by admin',
+          processedAt: new Date(),
+        }as any)
+        .where(eq(schema.affiliateTransactions.id, id))
+        .returning();
+
+      res.json({
+        success: true,
+        message: 'Withdrawal rejected',
+        transaction: updatedTransaction,
+      });
+    } catch (error) {
+      console.error('Error rejecting withdrawal:', error);
+      res.status(500).json({ error: 'Failed to reject withdrawal' });
+    }
+  });
+
   // Process affiliate wallet withdrawal (creates pending request; deduction happens on admin approval)
   app.post('/api/affiliate/wallet/withdraw', async (req, res) => {
     try {
@@ -13143,6 +13273,423 @@ app.get('/api/influencer-videos', async (req, res) => {
         error: "Failed to upload image",
         details: error.message
       });
+    }
+  });
+
+   // Get Affiliate Clicks - Get all clicks for an affiliate
+  app.get("/api/affiliate/clicks/overview", async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const clicks = await db
+        .select()
+        .from(schema.affiliateClicks)
+        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateClicks.createdAt))
+        .limit(100);
+
+      const totalClicks = clicks.length;
+      const convertedClicks = clicks.filter(click => click.converted).length;
+
+      res.json({
+        total: totalClicks,
+        converted: convertedClicks,
+        conversionRate: totalClicks > 0 ? ((convertedClicks / totalClicks) * 100).toFixed(2) : 0,
+        recent: clicks.slice(0, 10)
+      });
+
+    } catch (error) {
+      console.error("Error fetching affiliate clicks:", error);
+      res.status(500).json({ error: "Failed to fetch clicks" });
+    }
+  });
+
+  // Get affiliate clicks
+  app.get('/api/affiliate/clicks', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      const totalResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.affiliateClicks)
+        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)));
+
+      const totalClicks = Number(totalResult?.[0]?.count || 0);
+
+      // Fetch recent clicks
+      const clicks = await db
+        .select()
+        .from(schema.affiliateClicks)
+        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateClicks.createdAt))
+        .limit(50);
+
+      res.json({
+        total: totalClicks,
+        recent: clicks.slice(0, 10)
+      });
+    } catch (error) {
+      console.error('Error fetching affiliate clicks:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate clicks' });
+    }
+  });
+
+  // Get affiliate stats with wallet details
+  app.get('/api/affiliate/stats', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      // Generate affiliate code for tracking
+      const user = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, parseInt(userId as string)))
+        .limit(1);
+
+      if (!user || user.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Format user ID as 2-digit number (01, 02, 03, etc.)
+      const formattedUserId = userId.toString().padStart(2, '0');
+      const affiliateCode = `POPPIKAP${formattedUserId}`;
+
+      // Get wallet data
+      const wallet = await db
+        .select()
+        .from(schema.affiliateWallet)
+        .where(eq(schema.affiliateWallet.userId, parseInt(userId as string)))
+        .limit(1);
+
+      // Get sales data
+      const sales = await db
+        .select()
+        .from(schema.affiliateSales)
+        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)));
+
+      // Get clicks data
+      const clicks = await db
+        .select()
+        .from(schema.affiliateClicks)
+        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)));
+
+      const totalClicks = clicks.length;
+      const totalConversions = sales.length;
+      const totalEarnings = wallet && wallet[0] ? parseFloat(wallet[0].totalEarnings || '0') : 0;
+      const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
+      const totalSales = totalConversions;
+      const avgCommission = totalConversions > 0 ? totalEarnings / totalConversions : 0;
+
+      // Orders placed via affiliate link (all statuses)
+      const affiliateOrders = await db
+        .select({ id: schema.ordersTable.id, status: schema.ordersTable.status })
+        .from(schema.ordersTable)
+        .where(eq(schema.ordersTable.affiliateCode, affiliateCode));
+
+      const totalOrders = affiliateOrders.length;
+      const deliveredOrders = affiliateOrders.filter(o => String(o.status || '').toLowerCase() === 'delivered').length;
+
+      const conversionRateAll = totalClicks > 0 ? (totalOrders / totalClicks) * 100 : 0;
+      const conversionRateDelivered = totalClicks > 0 ? (deliveredOrders / totalClicks) * 100 : 0;
+
+      // Monthly growth based on affiliate sales earnings (commission amounts)
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const startOfLastMonth = new Date(startOfMonth);
+      startOfLastMonth.setMonth(startOfLastMonth.getMonth() - 1);
+
+      const thisMonthEarnings = sales
+        .filter(sale => new Date(sale.createdAt) >= startOfMonth)
+        .reduce((sum, sale) => sum + parseFloat(sale.commissionAmount || '0'), 0);
+
+      const lastMonthEarnings = sales
+        .filter(sale => {
+          const saleDate = new Date(sale.createdAt);
+          return saleDate >= startOfLastMonth && saleDate < startOfMonth;
+        })
+        .reduce((sum, sale) => sum + parseFloat(sale.commissionAmount || '0'), 0);
+
+      const monthlyGrowth = lastMonthEarnings > 0
+        ? ((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings) * 100
+        : thisMonthEarnings > 0 ? 100 : 0;
+
+      res.json({
+        affiliateCode,
+        totalClicks,
+        totalSales,
+        totalConversions,
+        totalOrders,
+        deliveredOrders,
+        totalEarnings,
+        conversionRate,
+        conversionRateAll,
+        conversionRateDelivered,
+        avgCommission,
+        monthlyGrowth: parseFloat(monthlyGrowth.toFixed(1)),
+        pendingAmount: wallet && wallet.length > 0 ? parseFloat(wallet[0].pendingBalance?.toString() || '0') : 0,
+      });
+    } catch (error) {
+      console.error('Error fetching affiliate stats:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate stats' });
+    }
+  });
+
+  // Get Affiliate Sales - Get all sales/commissions for an affiliate
+  app.get("/api/affiliate/sales", async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const sales = await db
+        .select()
+        .from(schema.affiliateSales)
+        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateSales.createdAt));
+
+      res.json(sales);
+
+    } catch (error) {
+      console.error("Error fetching affiliate sales:", error);
+      res.status(500).json({ error: "Failed to fetch sales" });
+    }
+  });
+
+  // Get affiliate sales history
+  app.get('/api/affiliate/sales', async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User ID required' });
+      }
+
+      // Check if user is an approved affiliate
+      const application = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(eq(schema.affiliateApplications.userId, parseInt(userId as string)))
+        .limit(1);
+
+      if (!application || application.length === 0 || application[0].status !== 'approved') {
+        return res.status(403).json({ error: 'Not an approved affiliate' });
+      }
+
+      // Fetch affiliate sales with detailed information
+      const sales = await db
+        .select({
+          id: schema.affiliateSales.id,
+          orderId: schema.affiliateSales.orderId,
+          productName: schema.affiliateSales.productName,
+          productId: schema.affiliateSales.productId,
+          comboId: schema.affiliateSales.comboId,
+          customerName: schema.affiliateSales.customerName,
+          customerEmail: schema.affiliateSales.customerEmail,
+          customerPhone: schema.affiliateSales.customerPhone,
+          saleAmount: schema.affiliateSales.saleAmount,
+          commissionRate: schema.affiliateSales.commissionRate,
+          commissionAmount: schema.affiliateSales.commissionAmount,
+          status: schema.affiliateSales.status,
+          createdAt: schema.affiliateSales.createdAt,
+          paidAt: schema.affiliateSales.paidAt,
+        })
+        .from(schema.affiliateSales)
+        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)))
+        .orderBy(desc(schema.affiliateSales.createdAt))
+        .limit(100);
+
+      res.json(sales);
+    } catch (error) {
+      console.error('Error fetching affiliate sales:', error);
+      res.status(500).json({ error: 'Failed to fetch affiliate sales' });
+    }
+  });
+
+  // Validate affiliate code - quick check to see if code corresponds to an approved affiliate
+  app.get('/api/affiliate/validate', async (req, res) => {
+    try {
+      const { code } = req.query;
+      if (!code) return res.status(400).json({ error: 'Affiliate code is required' });
+
+      const affiliateCode = String(code).toUpperCase();
+      const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
+      if (isNaN(affiliateUserId)) return res.status(400).json({ error: 'Invalid affiliate code format' });
+
+      const affiliate = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(and(
+          eq(schema.affiliateApplications.userId, affiliateUserId),
+          eq(schema.affiliateApplications.status, 'approved')
+        ))
+        .limit(1);
+
+      if (!affiliate || affiliate.length === 0) {
+        return res.status(404).json({ error: 'Affiliate not found or not approved' });
+      }
+
+      res.json({ valid: true, message: 'Affiliate code is valid', affiliateUserId });
+    } catch (error) {
+      console.error('Error validating affiliate code:', error);
+      res.status(500).json({ error: 'Failed to validate affiliate code' });
+    }
+  });
+
+  // Affiliate Stats - Overview stats
+  app.get("/api/affiliate/stats/overview", async (req, res) => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      // Get total clicks
+      const clicks = await db
+        .select()
+        .from(schema.affiliateClicks)
+        .where(eq(schema.affiliateClicks.affiliateUserId, parseInt(userId as string)));
+
+      const totalClicks = clicks.length;
+
+      // Get total sales
+      const sales = await db
+        .select()
+        .from(schema.affiliateSales)
+        .where(eq(schema.affiliateSales.affiliateUserId, parseInt(userId as string)));
+
+      const totalSales = sales.length;
+      const totalEarnings = sales.reduce((sum, sale) => sum + parseFloat(sale.commissionAmount), 0);
+
+      // Calculate average commission
+      const avgCommission = totalSales > 0 ? totalEarnings / totalSales : 0;
+
+      // Get pending earnings
+      const pendingSales = sales.filter(sale => sale.status === 'pending');
+      const pendingEarnings = pendingSales.reduce((sum, sale) => sum + parseFloat(sale.commissionAmount), 0);
+
+      // Calculate conversion rate
+      const conversionRate = totalClicks > 0 ? ((totalSales / totalClicks) * 100) : 0;
+
+      // Get this month's data for growth calculation
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const thisMonthClicks = clicks.filter(click => 
+        new Date(click.createdAt) >= startOfMonth
+      ).length;
+
+      const thisMonthSales = sales.filter(sale => 
+        new Date(sale.createdAt) >= startOfMonth
+      ).length;
+
+      const thisMonthEarnings = sales
+        .filter(sale => new Date(sale.createdAt) >= startOfMonth)
+        .reduce((sum, sale) => sum + parseFloat(sale.commissionAmount), 0);
+
+      // Calculate monthly growth (compare with previous month)
+      const startOfLastMonth = new Date(startOfMonth);
+      startOfLastMonth.setMonth(startOfLastMonth.getMonth() - 1);
+
+      const lastMonthEarnings = sales
+        .filter(sale => {
+          const saleDate = new Date(sale.createdAt);
+          return saleDate >= startOfLastMonth && saleDate < startOfMonth;
+        })
+        .reduce((sum, sale) => sum + parseFloat(sale.commissionAmount), 0);
+
+      const monthlyGrowth = lastMonthEarnings > 0 
+        ? ((thisMonthEarnings - lastMonthEarnings) / lastMonthEarnings) * 100 
+        : thisMonthEarnings > 0 ? 100 : 0;
+
+      res.json({
+        totalClicks,
+        totalSales,
+        totalEarnings: totalEarnings.toFixed(2),
+        pendingEarnings: pendingEarnings.toFixed(2),
+        conversionRate: parseFloat(conversionRate.toFixed(2)),
+        avgCommission: parseFloat(avgCommission.toFixed(2)),
+        clicksGrowth: 0, // Placeholder, not calculated
+        salesGrowth: 0,  // Placeholder, not calculated
+        monthlyGrowth: parseFloat(monthlyGrowth.toFixed(1))
+      });
+
+    } catch (error) {
+      console.error("Error fetching affiliate stats:", error);
+      res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+   // Affiliate Click Tracking - Track when someone clicks an affiliate link
+  app.post("/api/affiliate/track-click", async (req, res) => {
+    try {
+      const { affiliateCode, productId, comboId, offerId, ipAddress, userAgent, referrer } = req.body;
+
+      if (!affiliateCode) {
+        return res.status(400).json({ error: "Affiliate code is required" });
+      }
+
+      // Extract affiliate user ID from code (POPPIKAP01 -> 1)
+      const affiliateUserId = parseInt(affiliateCode.replace('POPPIKAP', ''));
+
+      if (isNaN(affiliateUserId)) {
+        return res.status(400).json({ error: "Invalid affiliate code" });
+      }
+
+      // Verify affiliate exists and is approved
+      const affiliate = await db
+        .select()
+        .from(schema.affiliateApplications)
+        .where(and(
+          eq(schema.affiliateApplications.userId, affiliateUserId),
+          eq(schema.affiliateApplications.status, 'approved')
+        ))
+        .limit(1);
+
+      if (!affiliate || affiliate.length === 0) {
+        return res.status(404).json({ error: "Affiliate not found or not approved" });
+      }
+
+      // Track the click
+      const [clickRecord] = await db.insert(schema.affiliateClicks).values({
+        affiliateUserId,
+        affiliateCode,
+        productId: productId || null,
+        comboId: comboId || null,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+        referrer: referrer || null,
+        converted: false
+      }as any).returning();
+
+      console.log(`✅ Affiliate click tracked: Code ${affiliateCode}, Product ${productId || 'N/A'}, Combo ${comboId || 'N/A'}, Offer ${offerId || 'N/A'}`);
+
+      res.json({
+        success: true,
+        message: "Click tracked successfully",
+        clickId: clickRecord.id
+      });
+
+    } catch (error) {
+      console.error("Error tracking affiliate click:", error);
+      res.status(500).json({ error: "Failed to track click" });
     }
   });
 
