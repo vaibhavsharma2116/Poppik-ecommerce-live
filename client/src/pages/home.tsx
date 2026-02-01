@@ -1498,7 +1498,7 @@ function LatestBlogPostsPerCategory() {
                   </span>
                 </div>
 
-                <h3 className="text-base sm:text-lg md:text-xl font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-3 leading-tight h-[4.5rem]">
+                <h3 className="text-base sm:text-lg md:text-xl font-medium text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-3 leading-tight h-[4.2rem] sm:h-[4.5rem] md:h-[5.25rem]">
                   {post.title}
                 </h3>
 
