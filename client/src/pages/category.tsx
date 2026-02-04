@@ -299,13 +299,12 @@ export default function CategoryPage() {
         <CategoryHeroSlider />
       )}
 
-
-
       <div className="lg:hidden mb-4 sm:mb-6 order-last lg:order-first">
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="outline" className="w-full bg-white/70 backdrop-blur-md border border-white/20 rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 py-3 sm:py-4 min-h-[48px] touch-target">
               <SlidersHorizontal className="h-4 w-4 mr-2" />
+
               <span className="text-sm sm:text-base font-medium">Filters</span>
             </Button>
           </SheetTrigger>
@@ -316,38 +315,35 @@ export default function CategoryPage() {
                 Filter products by category, price, rating and more.
               </SheetDescription>
             </SheetHeader>
-            <div className="mt-6">
+            <div className="mt-6 h-[calc(100vh-8rem)] overflow-hidden">
               <DynamicFilter
                 products={productsToShow || []}
                 categories={categories || []}
                 subcategories={subcategories || []}
                 showSubcategories={true}
                 onFilterChange={handleFilterChange}
+                className="h-full"
               />
             </div>
           </SheetContent>
         </Sheet>
       </div>
 
-
       {/* Filter and Products Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Desktop Filter Sidebar */}
         <div className="hidden lg:block">
-          <div className="sticky top-4">
+          <div className="sticky top-24 h-[calc(100vh-6rem)] overflow-hidden">
             <DynamicFilter
               products={productsToShow || []}
               categories={categories || []}
               subcategories={subcategories || []}
               showSubcategories={true}
               onFilterChange={handleFilterChange}
-              className="bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20 p-6"
+              className="bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20 p-6 h-full"
             />
           </div>
         </div>
-
-        {/* Mobile Filter Sheet */}
-
 
         {/* Products Display */}
         <div className="lg:col-span-3">

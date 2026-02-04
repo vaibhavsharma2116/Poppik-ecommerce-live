@@ -26,16 +26,37 @@ export class IndiaPostInvoiceService {
    * Creates a thermal-friendly 4x6 PDF invoice.
    */
   async streamThermalInvoicePdf(res: Response, ctx: ThermalOrderContext, filename: string) {
-    const doc = this.createThermalDoc();
-    this.setPdfHeaders(res, filename);
-    doc.pipe(res);
-
     const margin = 14;
     const pageWidth = 288; // 4 inch * 72
 
+    const badgeH = 30;
+
+    const nameText = String(ctx.customerName || "").trim();
+    const phoneText = String(ctx.customerPhone || "").trim();
+    const addrText = String(ctx.shippingAddress || "").trim();
+    const normalizedAddr = addrText.replace(/\s+/g, " ").trim();
+    const shipToValue = [nameText, normalizedAddr, phoneText].filter(Boolean).join("\n") || "-";
+
+    const shipTop = margin + badgeH + 28;
+    const shipLineH = 13;
+    const shipLines = shipToValue.split(/\n/).filter(Boolean).length || 1;
+    const shipBlockH = shipLines * shipLineH;
+
+    const footerGap = 36;
+    const footerY = shipTop + shipBlockH + footerGap;
+
+    // Approx footer height (company + 2 address lines + contact label + contact line + gaps)
+    const footerBlockH = 78;
+    const minHeight = 220;
+    const maxHeight = 432;
+    const pageHeight = Math.max(minHeight, Math.min(maxHeight, footerY + footerBlockH + margin));
+
+    const doc = this.createThermalDocWithHeight(pageHeight);
+    this.setPdfHeaders(res, filename);
+    doc.pipe(res);
+
     const innerW = pageWidth - margin * 2;
 
-    const badgeH = 30;
     const badgeLine1 = "BNPL Account SPPED POST";
     const badgeLine2 = "NM/ROA-NM/1203/25-28";
     doc.font("Helvetica-Bold").fontSize(11);
@@ -51,22 +72,14 @@ export class IndiaPostInvoiceService {
     doc.font("Helvetica").fontSize(10).text(badgeLine2, badgeX, margin + 17, { width: badgeW, align: "center" });
 
     // Ship To (match reference: lots of whitespace, lighter label, dynamic value)
-    const shipTop = margin + badgeH + 58;
     const shipLabelW = 58;
     const shipValueX = margin + shipLabelW;
     const shipValueW = innerW - shipLabelW;
 
-    const nameText = String(ctx.customerName || "").trim();
-    const phoneText = String(ctx.customerPhone || "").trim();
-    const addrText = String(ctx.shippingAddress || "").trim();
-    const normalizedAddr = addrText.replace(/\s+/g, " ").trim();
-    const shipToValue = [nameText, normalizedAddr, phoneText].filter(Boolean).join("\n");
-
     doc.font("Helvetica").fontSize(12).fillColor("#666").text("Ship To:", margin, shipTop, { width: shipLabelW, align: "left" });
-    doc.font("Helvetica").fontSize(11).fillColor("#000").text(shipToValue || "-", shipValueX, shipTop, { width: shipValueW, align: "left" });
+    doc.font("Helvetica").fontSize(11).fillColor("#000").text(shipToValue, shipValueX, shipTop, { width: shipValueW, align: "left" });
 
     // Footer (match reference: no box, light address, bold label)
-    const footerY = 432 - margin - 92;
     doc.font("Helvetica-Bold").fontSize(12).fillColor("#000").text("Poppik Lifestyle Private Limited", margin, footerY, { width: innerW, align: "center" });
     doc.font("Helvetica").fontSize(9).fillColor("#666").text(
       "Shop No. 06, Gauri Complex CHS, Sector No. 11, CBD Belapur,\nNavi Mumbai, MH, India - 400614",
@@ -147,6 +160,14 @@ export class IndiaPostInvoiceService {
     // 4x6 inches => 288 x 432 points
     return new PDFDocument({
       size: [288, 432],
+      margins: { top: 14, bottom: 14, left: 14, right: 14 },
+      compress: true,
+    });
+  }
+
+  private createThermalDocWithHeight(pageHeight: number) {
+    return new PDFDocument({
+      size: [288, pageHeight],
       margins: { top: 14, bottom: 14, left: 14, right: 14 },
       compress: true,
     });

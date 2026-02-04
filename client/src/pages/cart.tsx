@@ -423,7 +423,15 @@ export default function Cart() {
     }
 
     const gifts = Number(highestUnlocked.giftCount || 0);
-    const msg = `Congratulations! You've unlocked ${gifts} FREE gift${gifts > 1 ? 's' : ''}!`;
+    const cashbackPercent = highestUnlocked?.cashbackPercentage
+      ? parseFloat(String(highestUnlocked.cashbackPercentage))
+      : NaN;
+
+    const cashbackText = !Number.isNaN(cashbackPercent) && cashbackPercent > 0
+      ? ` cashback ${cashbackPercent}%`
+      : "";
+
+    const msg = `Congratulations! You've unlocked${cashbackText} ${gifts} FREE gift${gifts > 1 ? 's' : ''}!`;
 
     const colors = [
       "#EC4899",
@@ -1015,9 +1023,17 @@ export default function Cart() {
                 const nextMilestone = giftMilestonesSorted.find(m => cartSubtotal < parseFloat(m.minAmount));
 
                 if (highestMilestone && !nextMilestone) {
+                  const cashbackPercent = highestMilestone?.cashbackPercentage
+                    ? parseFloat(String(highestMilestone.cashbackPercentage))
+                    : NaN;
+
                   return (
                     <p className="text-green-600 font-semibold text-sm sm:text-base mt-12">
-                      🎉 Congratulations! You've unlocked {highestMilestone.giftCount} FREE gift{highestMilestone.giftCount > 1 ? 's' : ''}!
+                      🎉 Congratulations! You've unlocked
+                      {!Number.isNaN(cashbackPercent) && cashbackPercent > 0 && (
+                        <span className="text-green-700 font-extrabold"> cashback {cashbackPercent}%</span>
+                      )}{" "}
+                      
                       {highestMilestone.discountType !== 'none' && highestMilestone.discountValue && (
                         <span className="block text-pink-600 text-base font-bold mt-1 animate-fadeInUp">
                           {highestMilestone.discountType === 'percentage'

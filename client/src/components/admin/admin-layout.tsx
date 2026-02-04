@@ -145,7 +145,7 @@ const sidebarItems = [
     requiredRole: 'shades'
   },
   {
-    title: "Sliders",
+    title: "Home Slider",
     href: "/sliders",
     icon: Images,
     badge: null,

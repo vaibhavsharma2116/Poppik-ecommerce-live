@@ -24,7 +24,7 @@ interface Category {
   status: string;
   createdAt: string;
   updatedAt: string;
-  productCount: number; // Added productCount for stats
+  // productCount: number; 
 }
 
 interface Subcategory {
@@ -36,7 +36,7 @@ interface Subcategory {
   status: string;
   createdAt: string;
   updatedAt: string;
-  productCount: number; // Added productCount for stats
+  // productCount: number; 
 }
 
 interface CategorySlider {
@@ -503,7 +503,7 @@ export default function AdminCategories() {
     { label: "Total Categories", value: (categories?.length || 0).toString(), icon: Layers, color: "from-blue-500 to-cyan-500" },
     { label: "Total Subcategories", value: (subcategories?.length || 0).toString(), icon: Tag, color: "from-purple-500 to-pink-500" },
     { label: "Active Categories", value: (categories?.filter((c: Category) => c.status === 'Active').length || 0).toString(), icon: Package, color: "from-green-500 to-emerald-500" },
-    { label: "Total Products", value: (categories?.reduce((sum: number, cat: Category) => sum + (cat.productCount || 0), 0) || 0).toString(), icon: TrendingUp, color: "from-orange-500 to-red-500" }
+    // { label: "Total Products", value: (categories?.reduce((sum: number, cat: Category) => sum + (cat.productCount || 0), 0) || 0).toString(), icon: TrendingUp, color: "from-orange-500 to-red-500" }
   ];
 
   if ((categoriesLoading && categories.length === 0) || (subcategoriesLoading && subcategories.length === 0)) {
@@ -832,7 +832,7 @@ export default function AdminCategories() {
                     <TableHead>Name</TableHead>
                     <TableHead>Slug</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead>Products</TableHead>
+                    {/* <TableHead>Products</TableHead> */}
                     <TableHead>Subcategories</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
@@ -861,7 +861,7 @@ export default function AdminCategories() {
                       <TableCell className="max-w-xs">
                         <p className="text-sm text-slate-600 truncate">{category.description}</p>
                       </TableCell>
-                      <TableCell>{category.productCount}</TableCell>
+                      {/* <TableCell>{category.productCount}</TableCell> */}
                       <TableCell>{subcategories.filter((sub: Subcategory) => sub.categoryId === category.id).length}</TableCell>
                       <TableCell>
                         <Badge variant={category.status === 'Active' ? 'default' : 'destructive'}>
@@ -937,7 +937,7 @@ export default function AdminCategories() {
                     <TableHead>Slug</TableHead>
                     <TableHead>Parent Category</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead>Products</TableHead>
+                    {/* <TableHead>Products</TableHead> */}
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -958,7 +958,7 @@ export default function AdminCategories() {
                         <TableCell className="max-w-xs">
                           <p className="text-sm text-slate-600 truncate">{subcategory.description}</p>
                         </TableCell>
-                        <TableCell>{subcategory.productCount}</TableCell>
+                        {/* <TableCell>{subcategory.productCount}</TableCell> */}
                         <TableCell>
                           <Badge variant={subcategory.status === 'Active' ? 'default' : 'destructive'}>
                             {subcategory.status}
@@ -1053,7 +1053,7 @@ export default function AdminCategories() {
                 className="mt-1"
               />
             </div>
-            <div>
+            {/* <div>
               <Label htmlFor="category-description">Description</Label>
               <Textarea
                 id="category-description"
@@ -1062,7 +1062,7 @@ export default function AdminCategories() {
                 placeholder="Brief description of the category"
                 className="mt-1"
               />
-            </div>
+            </div> */}
             <div>
               <Label htmlFor="category-image">Category Image</Label>
               {imagePreview ? (
@@ -1209,7 +1209,7 @@ export default function AdminCategories() {
                 className="mt-1"
               />
             </div>
-            <div>
+            {/* <div>
               <Label htmlFor="subcategory-description">Description</Label>
               <Textarea
                 id="subcategory-description"
@@ -1218,7 +1218,7 @@ export default function AdminCategories() {
                 placeholder="Brief description of the subcategory"
                 className="mt-1"
               />
-            </div>
+            </div> */}
             <div>
               <Label htmlFor="subcategory-status">Status</Label>
               <Select value={subcategoryFormData.status} onValueChange={(value) => setSubcategoryFormData(prev => ({ ...prev, status: value as 'Active' | 'Inactive' }))}>
@@ -1289,10 +1289,10 @@ export default function AdminCategories() {
                 <p className="mt-1 text-slate-900">{selectedCategory.description}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                {/* <div>
                   <Label className="text-sm font-medium text-slate-600">Products</Label>
                   <p className="mt-1 text-2xl font-bold text-slate-900">{selectedCategory.productCount}</p>
-                </div>
+                </div> */}
                 <div>
                   <Label className="text-sm font-medium text-slate-600">Subcategories</Label>
                   <p className="mt-1 text-2xl font-bold text-slate-900">{subcategories.filter((sub: Subcategory) => sub.categoryId === selectedCategory.id).length}</p>
@@ -1322,10 +1322,10 @@ export default function AdminCategories() {
                 <Label className="text-sm font-medium text-slate-600">Description</Label>
                 <p className="mt-1 text-slate-900">{selectedSubcategory.description}</p>
               </div>
-              <div>
+              {/* <div>
                 <Label className="text-sm font-medium text-slate-600">Products</Label>
                 <p className="mt-1 text-2xl font-bold text-slate-900">{selectedSubcategory.productCount}</p>
-              </div>
+              </div> */}
             </div>
           )}
           <DialogFooter>
