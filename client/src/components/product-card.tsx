@@ -579,7 +579,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
       {/* Shade Selection Drawer */}
       <Sheet open={isShadeDrawerOpen} onOpenChange={setIsShadeDrawerOpen}>
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader className="border-b pb-4 mb-4">
+          <SheetHeader className="border-b pb-4 mb-4 pr-12">
             <SheetTitle className="text-xl font-bold">{product.name}</SheetTitle>
             <SheetDescription>
               Select shade and quantity
