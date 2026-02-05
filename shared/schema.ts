@@ -156,7 +156,7 @@ export const jobPositions = pgTable("job_positions", {
   jobId: varchar("job_id", { length: 50 }).unique(),
   experienceLevel: varchar("experience_level", { length: 50 }).notNull(),
   workExperience: varchar("work_experience", { length: 50 }).notNull(),
-  education: varchar("education", { length: 200 }).notNull(),
+  education: text("education").notNull(),
   description: text("description").notNull(),
   aboutRole: text("about_role").notNull(),
   responsibilities: jsonb("responsibilities").notNull(), // Array of strings
