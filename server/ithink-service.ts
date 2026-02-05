@@ -183,8 +183,26 @@ class IthinkService {
 
   private formatIthinkOrderDate(orderDate: string): string {
     // Accepts format: YYYY-MM-DD HH:mm OR ISO-ish; returns: DD-MM-YYYY HH:mm:ss
-    const tryDate = new Date(orderDate);
-    const d = isNaN(tryDate.getTime()) ? new Date() : tryDate;
+    const raw = String(orderDate || '').trim();
+    let d: Date;
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (m) {
+      const yyyy = Number(m[1]);
+      const mm = Number(m[2]);
+      const dd = Number(m[3]);
+      const HH = Number(m[4]);
+      const MM = Number(m[5]);
+      const SS = Number(m[6] ?? 0);
+      d = new Date(yyyy, mm - 1, dd, HH, MM, SS);
+    } else {
+      const tryDate = new Date(raw);
+      d = isNaN(tryDate.getTime()) ? new Date() : tryDate;
+    }
+
+    const now = new Date();
+    if (d.getTime() > now.getTime()) {
+      d = now;
+    }
     const dd = String(d.getDate()).padStart(2, '0');
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const yyyy = String(d.getFullYear());
@@ -192,6 +210,33 @@ class IthinkService {
     const MM = String(d.getMinutes()).padStart(2, '0');
     const SS = String(d.getSeconds()).padStart(2, '0');
     return `${dd}-${mm}-${yyyy} ${HH}:${MM}:${SS}`;
+  }
+
+  private formatIthinkOrderDateDateOnly(orderDate: string): string {
+    const raw = String(orderDate || '').trim();
+    let d: Date;
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (m) {
+      const yyyy = Number(m[1]);
+      const mm = Number(m[2]);
+      const dd = Number(m[3]);
+      const HH = Number(m[4]);
+      const MM = Number(m[5]);
+      const SS = Number(m[6] ?? 0);
+      d = new Date(yyyy, mm - 1, dd, HH, MM, SS);
+    } else {
+      const tryDate = new Date(raw);
+      d = isNaN(tryDate.getTime()) ? new Date() : tryDate;
+    }
+
+    const now = new Date();
+    if (d.getTime() > now.getTime()) {
+      d = now;
+    }
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = String(d.getFullYear());
+    return `${dd}-${mm}-${yyyy}`;
   }
 
   private coercePublicOrderNoFromNumeric(orderId: string | number): string {
@@ -448,8 +493,23 @@ class IthinkService {
     if (this.useIthink) {
       // Map existing delivery partner payload to iThink Logistics Sync Order (v3)
       const orderNo = String(orderData.order_id);
-      const itlOrderDate = this.formatIthinkOrderDate(orderData.order_date);
+      const itlOrderDate = this.formatIthinkOrderDateDateOnly(orderData.order_date);
       const isCOD = String(orderData.payment_method || '').toUpperCase() === 'COD';
+
+      const pickupAddressId = (process.env.ITHINK_PICKUP_ADDRESS_ID || process.env.ITL_PICKUP_ADDRESS_ID || '').trim();
+      const logistics = (process.env.ITHINK_LOGISTICS || process.env.ITL_LOGISTICS || '').trim();
+      const sType = (process.env.ITHINK_S_TYPE || process.env.ITL_S_TYPE || '').trim();
+      const orderType = (process.env.ITHINK_ORDER_TYPE || process.env.ITL_ORDER_TYPE || '').trim();
+
+      if (!pickupAddressId) {
+        throw new Error('iThink order add failed: Missing pickup_address_id. Set ITHINK_PICKUP_ADDRESS_ID in .env');
+      }
+      if (!logistics) {
+        throw new Error('iThink order add failed: Missing logistics. Set ITHINK_LOGISTICS (courier name like fedex/delhivery) in .env');
+      }
+      if (!sType) {
+        throw new Error('iThink order add failed: Missing s_type. Set ITHINK_S_TYPE (e.g. ground/surface) in .env');
+      }
 
       const computedTotalAmount = (orderData.order_items || []).reduce((sum, it) => {
         const units = Number((it as any)?.units ?? 1) || 1;
@@ -522,10 +582,40 @@ class IthinkService {
         },
       ];
 
-      const resp: any = await this.makeIthinkRequest('/api_v3/order/sync.json', { shipments });
-      const status = String(resp?.data?.['1']?.status || resp?.data?.[1]?.status || '').toLowerCase();
-      if (status && status !== 'success') {
-        throw new Error(`iThink order sync failed: ${resp?.data?.['1']?.remark || resp?.html_message || 'Unknown error'}`);
+      let resp: any;
+      try {
+        resp = await this.makeIthinkRequest('/api_v3/order/add.json', {
+          shipments,
+          pickup_address_id: pickupAddressId,
+          logistics,
+          s_type: sType,
+          order_type: orderType,
+        });
+        const row: any = resp?.data?.['1'] ?? resp?.data?.[1] ?? resp?.data?.[0] ?? resp?.data;
+        const status = String(row?.status ?? resp?.status ?? '').toLowerCase();
+        if (status && status !== 'success') {
+          throw new Error(`iThink order add failed: ${row?.remark || resp?.html_message || resp?.message || 'Unknown error'}`);
+        }
+      } catch (e: any) {
+        const msg = String(e?.message || '').toLowerCase();
+        const rawRemark = String(e?.response?.html_message || e?.response?.message || '').toLowerCase();
+        const combined = `${msg} ${rawRemark}`;
+        if (
+          combined.includes('invalid logistics name') ||
+          combined.includes('shipment service type') ||
+          combined.includes('order date') ||
+          combined.includes('pickup_address_id')
+        ) {
+          const syncResp: any = await this.makeIthinkRequest('/api_v3/order/sync.json', { shipments });
+          const syncRow: any = syncResp?.data?.['1'] ?? syncResp?.data?.[1] ?? syncResp?.data?.[0] ?? syncResp?.data;
+          const syncStatus = String(syncRow?.status ?? syncResp?.status ?? '').toLowerCase();
+          if (syncStatus && syncStatus !== 'success') {
+            throw new Error(`iThink order sync failed: ${syncRow?.remark || syncResp?.html_message || syncResp?.message || 'Unknown error'}`);
+          }
+          resp = syncResp;
+        } else {
+          throw e;
+        }
       }
 
       // Try to fetch AWB (may take time; we'll keep it optional)
@@ -887,7 +977,13 @@ class IthinkService {
   async cancelOrder(orderId: string) {
     try {
       if (this.useIthink) {
-        throw new Error('Order cancellation not implemented for iThink Logistics in this integration');
+        const awb = await this.itlGetAwbForOrder(this.coercePublicOrderNoFromNumeric(orderId));
+        if (!awb) {
+          throw new Error('AWB not available for this order yet');
+        }
+        return await this.makeIthinkRequest('/api_v3/order/cancel.json', {
+          awb_numbers: awb,
+        });
       }
 
       await this.authenticate();
@@ -899,6 +995,252 @@ class IthinkService {
       console.error('Error cancelling order:', error);
       throw error;
     }
+  }
+
+  async cancelOrdersByAwb(awbNumbers: string | string[]) {
+    if (!this.useIthink) {
+      throw new Error('Order cancellation by AWB is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const awbList = Array.isArray(awbNumbers) ? awbNumbers : String(awbNumbers || '').split(',');
+    const awb_numbers = awbList.map(v => String(v || '').trim()).filter(Boolean).join(',');
+    if (!awb_numbers) {
+      throw new Error('awb_numbers is required');
+    }
+    return await this.makeIthinkRequest('/api_v3/order/cancel.json', {
+      awb_numbers,
+    });
+  }
+
+  async updatePaymentByAwb(awbNumbers: string | string[]) {
+    if (!this.useIthink) {
+      throw new Error('Update payment is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+
+    const awbList = Array.isArray(awbNumbers) ? awbNumbers : String(awbNumbers || '').split(',');
+    const awb_numbers = awbList.map(v => String(v || '').trim()).filter(Boolean).join(',');
+    if (!awb_numbers) {
+      throw new Error('awb_numbers is required');
+    }
+
+    return await this.makeIthinkRequest('/api_v3/order/update-payment.json', {
+      awb_numbers,
+    });
+  }
+
+  async getAirwaybillList(params: { start_date_time: string; end_date_time: string }) {
+    if (!this.useIthink) {
+      throw new Error('Get airwaybill is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const start = String(params?.start_date_time || '').trim();
+    const end = String(params?.end_date_time || '').trim();
+    if (!start || !end) {
+      throw new Error('start_date_time and end_date_time are required');
+    }
+    return await this.makeIthinkRequest('/api_v3/order/get_awb.json', {
+      start_date_time: start,
+      end_date_time: end,
+    });
+  }
+
+  async generateManifestPdfResponse(awbNumbers: string | string[]) {
+    if (!this.useIthink) {
+      throw new Error('Manifest printing is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const awbList = Array.isArray(awbNumbers) ? awbNumbers : String(awbNumbers || '').split(',');
+    const awb_numbers = awbList.map(v => String(v || '').trim()).filter(Boolean).join(',');
+    if (!awb_numbers) {
+      throw new Error('awb_numbers is required');
+    }
+
+    const data: any = await this.makeIthinkRequest('/api_v3/shipping/manifest.json', {
+      awb_numbers,
+    });
+
+    const url = String(data?.file_name || '').trim();
+    if (!url) {
+      throw new Error('iThink manifest URL missing in response');
+    }
+
+    return await fetch(url, { method: 'GET' });
+  }
+
+  async getStates(countryId: string | number = 101) {
+    if (!this.useIthink) {
+      throw new Error('Get state is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const country_id = String(countryId ?? 101);
+    return await this.makeIthinkRequest('/api_v3/state/get.json', { country_id });
+  }
+
+  async getCities(stateId: string | number) {
+    if (!this.useIthink) {
+      throw new Error('Get city is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const state_id = String(stateId ?? '').trim();
+    if (!state_id) {
+      throw new Error('state_id is required');
+    }
+    return await this.makeIthinkRequest('/api_v3/city/get.json', { state_id });
+  }
+
+  async addWarehouse(payload: {
+    company_name: string;
+    address1: string;
+    address2?: string;
+    mobile: string;
+    pincode: string;
+    city_id: string | number;
+    state_id: string | number;
+    country_id?: string | number;
+    gps?: string;
+  }) {
+    if (!this.useIthink) {
+      throw new Error('Add warehouse is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const data = {
+      company_name: String(payload?.company_name || '').trim(),
+      address1: String(payload?.address1 || '').trim(),
+      address2: String(payload?.address2 || '').trim(),
+      mobile: String(payload?.mobile || '').trim(),
+      pincode: String(payload?.pincode || '').trim(),
+      city_id: String(payload?.city_id ?? '').trim(),
+      state_id: String(payload?.state_id ?? '').trim(),
+      country_id: String(payload?.country_id ?? 101).trim(),
+      gps: String(payload?.gps || '').trim(),
+    };
+    if (!data.company_name || !data.address1 || !data.mobile || !data.pincode || !data.city_id || !data.state_id) {
+      throw new Error('Missing required warehouse fields');
+    }
+    return await this.makeIthinkRequest('/api_v3/warehouse/add.json', data);
+  }
+
+  async getWarehouse(warehouseId?: string | number) {
+    if (!this.useIthink) {
+      throw new Error('Get warehouse is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const warehouse_id = warehouseId !== undefined && warehouseId !== null ? String(warehouseId) : '';
+    return await this.makeIthinkRequest('/api_v3/warehouse/get.json', {
+      warehouse_id,
+    });
+  }
+
+  async getZoneWiseRate(params: {
+    from_pincode: string;
+    shipping_length_cms: string | number;
+    shipping_width_cms: string | number;
+    shipping_height_cms: string | number;
+    shipping_weight_kg: string | number;
+    order_type: string;
+    payment_method: string;
+    service_type: string;
+    product_mrp: string | number;
+  }) {
+    if (!this.useIthink) {
+      throw new Error('Zone wise rate is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const data = {
+      from_pincode: String(params?.from_pincode || '').trim(),
+      shipping_length_cms: String(params?.shipping_length_cms ?? '').trim(),
+      shipping_width_cms: String(params?.shipping_width_cms ?? '').trim(),
+      shipping_height_cms: String(params?.shipping_height_cms ?? '').trim(),
+      shipping_weight_kg: String(params?.shipping_weight_kg ?? '').trim(),
+      order_type: String(params?.order_type || 'forward').trim(),
+      payment_method: String(params?.payment_method || 'prepaid').trim(),
+      service_type: String(params?.service_type || 'surface').trim(),
+      product_mrp: String(params?.product_mrp ?? 0).trim(),
+    };
+    if (!data.from_pincode || !data.shipping_weight_kg) {
+      throw new Error('from_pincode and shipping_weight_kg are required');
+    }
+    return await this.makeIthinkRequest('/api_v3/rate/zone_rate.json', data);
+  }
+
+  async getRemittance(remittanceDate: string) {
+    if (!this.useIthink) {
+      throw new Error('Remittance is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const remittance_date = String(remittanceDate || '').trim();
+    if (!remittance_date) {
+      throw new Error('remittance_date is required');
+    }
+    return await this.makeIthinkRequest('/api_v3/remittance/get.json', { remittance_date });
+  }
+
+  async getRemittanceDetails(remittanceDate: string) {
+    if (!this.useIthink) {
+      throw new Error('Remittance details is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const remittance_date = String(remittanceDate || '').trim();
+    if (!remittance_date) {
+      throw new Error('remittance_date is required');
+    }
+    return await this.makeIthinkRequest('/api_v3/remittance/get_details.json', { remittance_date });
+  }
+
+  async getStore(storeId?: string | number) {
+    if (!this.useIthink) {
+      throw new Error('Get store is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const store_id = storeId !== undefined && storeId !== null ? String(storeId) : '';
+    return await this.makeIthinkRequest('/api_v3/store/get.json', { store_id });
+  }
+
+  async getStoreOrderList(params: { platform_id: string | number; start_date?: string; end_date?: string }) {
+    if (!this.useIthink) {
+      throw new Error('Store order list is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const platform_id = String(params?.platform_id ?? '').trim();
+    if (!platform_id) {
+      throw new Error('platform_id is required');
+    }
+    return await this.makeIthinkRequest('/api_v3/store/get-order-list.json', {
+      platform_id,
+      start_date: params?.start_date ? String(params.start_date).trim() : '',
+      end_date: params?.end_date ? String(params.end_date).trim() : '',
+    });
+  }
+
+  async getStoreOrderDetails(params: { platform_id: string | number; order_no_list: string | string[] }) {
+    if (!this.useIthink) {
+      throw new Error('Store order details is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const platform_id = String(params?.platform_id ?? '').trim();
+    if (!platform_id) {
+      throw new Error('platform_id is required');
+    }
+    const orderList = Array.isArray(params?.order_no_list)
+      ? params.order_no_list
+      : String(params?.order_no_list || '').split(',');
+    const order_no_list = orderList.map(v => String(v || '').trim()).filter(Boolean).join(',');
+    if (!order_no_list) {
+      throw new Error('order_no_list is required');
+    }
+    return await this.makeIthinkRequest('/api_v3/store/get-order-details.json', {
+      order_no_list,
+      platform_id,
+    });
+  }
+
+  async addNdrReattemptOrRto(payload: {
+    shipments: Array<{
+      awb_numbers: string;
+      ndr_action: string | number;
+      reattempt_date?: string;
+      reattempt_time?: string;
+      reattempt_mobile_number?: string;
+      reattempt_address?: string;
+      reattempt_address_type?: string | number;
+      rto_remark?: string;
+    }>;
+  }) {
+    if (!this.useIthink) {
+      throw new Error('NDR reattempt/RTO is only implemented for iThink Logistics (access_token/secret_key) mode');
+    }
+    const shipments = Array.isArray(payload?.shipments) ? payload.shipments : [];
+    if (shipments.length === 0) {
+      throw new Error('shipments is required');
+    }
+    return await this.makeIthinkRequest('/api_v3/ndr/add-reattempt-rto.json', { shipments });
   }
 
   convertToIthinkFormat(order: any, pickupLocation: string = "Primary"): IthinkOrder {

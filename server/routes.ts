@@ -5674,6 +5674,164 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
+  app.get('/api/admin/ithink/states', adminMiddleware, async (req, res) => {
+    try {
+      const countryId = (req.query?.countryId ?? req.query?.country_id ?? 101) as any;
+      const data = await ithinkService.getStates(countryId);
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.get('/api/admin/ithink/cities', adminMiddleware, async (req, res) => {
+    try {
+      const stateId = (req.query?.stateId ?? req.query?.state_id) as any;
+      if (!stateId) {
+        return res.status(400).json({ error: 'state_id is required' });
+      }
+      const data = await ithinkService.getCities(stateId);
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.post('/api/admin/ithink/warehouse', adminMiddleware, async (req, res) => {
+    try {
+      const data = await ithinkService.addWarehouse((req as any).body || {});
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.get('/api/admin/ithink/warehouse', adminMiddleware, async (req, res) => {
+    try {
+      const warehouseId = (req.query?.warehouseId ?? req.query?.warehouse_id) as any;
+      const data = await ithinkService.getWarehouse(warehouseId);
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.post('/api/admin/ithink/rate/zone', adminMiddleware, async (req, res) => {
+    try {
+      const data = await ithinkService.getZoneWiseRate((req as any).body || {});
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.get('/api/admin/ithink/remittance', adminMiddleware, async (req, res) => {
+    try {
+      const date = String((req.query?.remittance_date ?? req.query?.date ?? '') || '').trim();
+      if (!date) {
+        return res.status(400).json({ error: 'remittance_date is required' });
+      }
+      const data = await ithinkService.getRemittance(date);
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.get('/api/admin/ithink/remittance/details', adminMiddleware, async (req, res) => {
+    try {
+      const date = String((req.query?.remittance_date ?? req.query?.date ?? '') || '').trim();
+      if (!date) {
+        return res.status(400).json({ error: 'remittance_date is required' });
+      }
+      const data = await ithinkService.getRemittanceDetails(date);
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.get('/api/admin/ithink/store', adminMiddleware, async (req, res) => {
+    try {
+      const storeId = (req.query?.storeId ?? req.query?.store_id) as any;
+      const data = await ithinkService.getStore(storeId);
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.post('/api/admin/ithink/store/orders', adminMiddleware, async (req, res) => {
+    try {
+      const data = await ithinkService.getStoreOrderDetails((req as any).body || {});
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.post('/api/admin/ithink/store/order-list', adminMiddleware, async (req, res) => {
+    try {
+      const data = await ithinkService.getStoreOrderList((req as any).body || {});
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.post('/api/admin/ithink/ndr/reattempt-rto', adminMiddleware, async (req, res) => {
+    try {
+      const data = await ithinkService.addNdrReattemptOrRto((req as any).body || {});
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.post('/api/admin/ithink/order/cancel-by-awb', adminMiddleware, async (req, res) => {
+    try {
+      const awb_numbers = (req as any).body?.awb_numbers;
+      const data = await ithinkService.cancelOrdersByAwb(awb_numbers);
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.post('/api/admin/ithink/order/update-payment', adminMiddleware, async (req, res) => {
+    try {
+      const awb_numbers = (req as any).body?.awb_numbers;
+      const data = await ithinkService.updatePaymentByAwb(awb_numbers);
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.post('/api/admin/ithink/order/airwaybills', adminMiddleware, async (req, res) => {
+    try {
+      const start_date_time = String((req as any).body?.start_date_time || '').trim();
+      const end_date_time = String((req as any).body?.end_date_time || '').trim();
+      const data = await ithinkService.getAirwaybillList({ start_date_time, end_date_time });
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
+  app.post('/api/admin/ithink/shipping/manifest', adminMiddleware, async (req, res) => {
+    try {
+      const awb_numbers = (req as any).body?.awb_numbers;
+      const resp = await ithinkService.generateManifestPdfResponse(awb_numbers);
+      const buf = Buffer.from(await resp.arrayBuffer());
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline; filename="manifest.pdf"');
+      return res.end(buf);
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || String(error) });
+    }
+  });
+
   app.post('/api/webhooks/ithink', async (req, res) => {
     try {
       const configuredSecret = process.env.ITHINK_WEBHOOK_SECRET;
