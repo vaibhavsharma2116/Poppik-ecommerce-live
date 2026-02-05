@@ -11179,7 +11179,12 @@ app.get('/api/influencer-videos', async (req, res) => {
         });
       }
 
-      const slug = req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const slug = (req.body.slug || req.body.title)
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '');
 
       const expiresAt = req.body.expiresAt ? new Date(req.body.expiresAt) : null;
 
@@ -11189,12 +11194,13 @@ app.get('/api/influencer-videos', async (req, res) => {
         department: req.body.department,
         location: req.body.location,
         type: req.body.type,
-        jobId: req.body.jobId || null,
+        jobId: typeof req.body.jobId === 'string' ? req.body.jobId.trim() : (req.body.jobId || null),
         experienceLevel: req.body.experienceLevel || 'Entry Level',
         workExperience: req.body.workExperience || '0-1 years',
         education: req.body.education || 'Bachelor\'s Degree',
         description: req.body.description || '',
         aboutRole: req.body.aboutRole || '',
+
         responsibilities: (() => {
           const r = req.body.responsibilities;
           if (Array.isArray(r)) return r;
@@ -11264,9 +11270,28 @@ app.get('/api/influencer-videos', async (req, res) => {
     } catch (error) {
       console.error('Error creating job position:', error);
       console.error('Error details:', error.message, error.stack);
-      res.status(500).json({ 
+
+      const anyErr: any = error as any;
+      const pgCode = anyErr?.code;
+      const constraint = anyErr?.constraint;
+
+      if (pgCode === '23505') {
+        const message = constraint === 'job_positions_slug_unique' || constraint === 'job_positions_slug_key'
+          ? 'A job position with this slug already exists'
+          : constraint === 'job_positions_job_id_unique' || constraint === 'job_positions_job_id_key'
+            ? 'A job position with this jobId already exists'
+            : 'Duplicate value violates a unique constraint';
+
+        return res.status(409).json({
+          error: message,
+          constraint,
+          details: process.env.NODE_ENV === 'development' ? anyErr?.detail || anyErr?.message : undefined,
+        });
+      }
+
+      res.status(500).json({
         error: 'Failed to create job position',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        details: process.env.NODE_ENV === 'development' ? anyErr?.message : undefined,
       });
     }
   });
