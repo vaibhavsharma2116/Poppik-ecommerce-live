@@ -288,24 +288,26 @@ export default function DynamicFilter({
   };
 
   return (
-    <div className={`flex h-full min-h-0 flex-col ${className}`}>
-      <div className="sticky top-0 z-10 flex items-center justify-between pb-4 bg-white/80 backdrop-blur-md">
+    <div className={`flex flex-col h-full ${className}`}>
+      {/* Fixed Header - Always Visible */}
+      <div className="sticky top-0 z-10 flex items-center justify-between pb-4 bg-white/95 backdrop-blur-md border-b border-gray-200/50 px-1 py-3 rounded-t-3xl">
         <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          <h3 className="font-semibold">Filters</h3>
+          <Filter className="h-5 w-5 text-purple-600" />
+          <h3 className="font-semibold text-gray-900">Filters</h3>
           {getActiveFilterCount() > 0 && (
-            <Badge variant="secondary">{getActiveFilterCount()}</Badge>
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700">{getActiveFilterCount()}</Badge>
           )}
         </div>
         {getActiveFilterCount() > 0 && (
-          <Button variant="ghost" size="sm" onClick={resetFilters}>
+          <Button variant="ghost" size="sm" onClick={resetFilters} className="text-gray-600 hover:text-purple-600">
             <RotateCcw className="h-4 w-4 mr-1" />
             Reset
           </Button>
         )}
       </div>
 
-      <div className="flex-1 min-h-0 space-y-6 overflow-y-auto pr-1">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 pr-2 pl-1 pb-4" style={{ maxHeight: 'calc(100vh - 200px)' }}>
         {getActiveFilterCount() > 0 && (
           <div className="flex flex-wrap gap-2">
             {(filters.priceRange[0] > 0 || filters.priceRange[1] < maxPrice) && (
