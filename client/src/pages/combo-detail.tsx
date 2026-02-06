@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
 import { ChevronRight, Star, ShoppingCart, Heart, ArrowLeft, Share2, Package, ChevronLeft, Palette, Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import "@/styles/product-media.css";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,14 +39,12 @@ function normalizeImageUrl(url?: string | null): string {
     const s = String(url).trim();
     if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:')) return s;
     if (s.startsWith('//')) return window.location.protocol + s;
-    // Migrate legacy /api/images to public /images
-    if (s.startsWith('/api/images/')) return `/images/${s.substring('/api/images/'.length)}`;
+ 
     return s;
   } catch (e) {
     return url as string;
   }
 }
-
 // Shade Selector Sheet Component (copied/adapted from offer-detail)
 function ShadeSelectorSheet({
   product,
@@ -121,18 +118,18 @@ function ShadeSelectorSheet({
           </div>
         </SheetHeader>
 
-        <div className="overflow-y-auto h-[calc(100%-180px)] pb-28 -mx-6 px-6">
+        <div className="overflow-y-auto h-[calc(100%-180px)] pb-4 -mx-6 px-6">
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
             {shades.map((shade: any) => {
               const shadeKey = String(shade.id || shade.name);
               const isSelected = selectedShades.has(shadeKey);
               return (
-                <button key={shade.id} onClick={() => handleShadeToggle(shade)} className={`flex flex-col items-center gap-3 p-4 rounded-2xl transition-all duration-300 ${isSelected ? 'bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg scale-105' : 'bg-white hover:bg-gradient-to-br hover:from-purple-50 hover:to-pink-50 hover:shadow-md hover:scale-102'}`}>
+                <button key={shade.id} onClick={() => handleShadeToggle(shade)} className={`group flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${isSelected ? 'border-purple-600 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg scale-105 ring-2 ring-purple-300' : 'border-gray-200 hover:border-purple-400 hover:bg-gradient-to-br hover:from-purple-50 hover:to-pink-50 hover:shadow-md hover:scale-102'}`}>
                   <div className="relative">
                     {shade.imageUrl ? (
-                      <img src={normalizeImageUrl(shade.imageUrl)} alt={shade.name} className={`w-16 h-16 rounded-xl shadow-md object-cover transition-transform ${isSelected ? 'scale-110' : 'hover:scale-105'}`} />
+                      <img src={normalizeImageUrl(shade.imageUrl)} alt={shade.name} className={`w-16 h-16 rounded-xl shadow-md border-4 border-white object-cover transition-transform ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`} />
                     ) : (
-                      <div className={`w-16 h-16 rounded-xl shadow-md transition-transform ${isSelected ? 'scale-110' : 'hover:scale-105'}`} style={{ backgroundColor: shade.colorCode || getShadeColor(shade.name) }} />
+                      <div className={`w-16 h-16 rounded-xl shadow-md border-4 border-white transition-transform ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`} style={{ backgroundColor: shade.colorCode || getShadeColor(shade.name) }} />
                     )}
                     {isSelected && (
                       <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 text-white flex items-center justify-center shadow-lg ring-2 ring-white">
@@ -140,7 +137,7 @@ function ShadeSelectorSheet({
                       </div>
                     )}
                   </div>
-                  <span className={`text-xs font-semibold text-center line-clamp-2 capitalize transition-colors ${isSelected ? 'text-purple-700' : 'text-gray-700 hover:text-purple-600'}`}>{shade.name}</span>
+                  <span className={`text-xs font-semibold text-center line-clamp-2 capitalize transition-colors ${isSelected ? 'text-purple-700' : 'text-gray-700 group-hover:text-purple-600'}`}>{shade.name}</span>
                 </button>
               );
             })}
@@ -150,16 +147,7 @@ function ShadeSelectorSheet({
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 flex items-center justify-between shadow-2xl">
           <div className="flex items-center gap-2">
             <Check className="w-5 h-5" />
-            <span className="font-semibold">
-              {selectedShades.size > 0
-                ? (() => {
-                    const selectedKey = Array.from(selectedShades)[0];
-                    const selectedShadeObj = shades.find((s: any) => String(s.id || s.name) === selectedKey) || null;
-                    const name = String(selectedShadeObj?.name || '').trim();
-                    return name ? `Selected: ${name}` : `${selectedShades.size} shade selected`;
-                  })()
-                : 'Select 1 shade'}
-            </span>
+            <span className="font-semibold">{selectedShades.size > 0 ? `${selectedShades.size} shade selected` : 'Select 1 shade'}</span>
           </div>
           <Button onClick={handleConfirm} variant="secondary" size="sm" disabled={selectedShades.size === 0} className="bg-white text-purple-700 hover:bg-gray-100 font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
             {selectedShades.size > 0 ? 'Confirm Selection' : 'Select Shade'}
@@ -186,8 +174,7 @@ async function fetchProductDetailsAndShades(productIds: number[]) {
 }
 
 export default function ComboDetail() {
-  const [, rawParams] = useRoute("/combo/:id");
-  const params = rawParams ?? ({} as any);
+  const [, params] = useRoute("/combo/:id");
   const comboId = params?.id || "";
   const [location] = useLocation();
   const [isInWishlist, setIsInWishlist] = useState(false);
@@ -214,11 +201,6 @@ export default function ComboDetail() {
     queryKey: [`/api/combos/${comboId}/reviews`],
     enabled: !!comboId,
   });
-
-  const { data: recommendedProducts = [] } = useQuery<any[]>({
-    queryKey: ['/api/products', { limit: 12 }],
-  });
-
   // Shade data for products (fetched when combo products are available)
   const [productShadesData, setProductShadesData] = useState<Record<number, any[]>>({});
   // Product details cache for included products (fetch full product when combo only contains minimal data)
@@ -250,112 +232,235 @@ export default function ComboDetail() {
   console.log("Loading:", isLoading);
   console.log("Error:", error);
 
-  const products = useMemo(() => {
-    const raw = (combo as any)?.products ?? (combo as any)?.items ?? [];
-    return Array.isArray(raw) ? raw : [];
-  }, [combo]);
-
-  // Affiliate lock: once affiliateRef is stored, ignore any new different ref codes.
-  // Validate the first code, track the click, persist it, then remove it from the URL.
+  // Capture affiliate code from URL (either ?ref=CODE or raw ?CODE) and
+  // persist it to localStorage immediately, then remove it from the URL.
+  // This ensures the code is stored even when navigation is client-side
+  // and avoids relying on a full page reload.
   useEffect(() => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       let affiliateRef = urlParams.get('ref');
 
       if (!affiliateRef) {
-        const searchString = window.location.search.substring(1); // Remove the ?
+        const searchString = window.location.search.substring(1);
         if (searchString && /^[A-Z0-9]+/.test(searchString)) {
           affiliateRef = searchString.split('&')[0];
         }
       }
 
-      const normalizedRef = affiliateRef ? affiliateRef.toUpperCase() : '';
-      const existingRef = (() => {
-        try {
-          return localStorage.getItem('affiliateRef') || '';
-        } catch {
-          return '';
-        }
-      })();
+      if (!affiliateRef) return;
 
-      const cleanAffiliateFromUrlOnly = () => {
-        try {
-          const u = new URL(window.location.href);
-          u.searchParams.delete('ref');
-          const raw = u.search.substring(1);
-          if (raw && /^[A-Z0-9]+($|&)/.test(raw)) {
-            const parts = raw.split('&').slice(1);
-            u.search = parts.length ? `?${parts.join('&')}` : '';
-          }
-          window.history.replaceState({}, '', u.toString());
-        } catch (e) {
-          try {
-            window.history.replaceState({}, '', window.location.pathname + window.location.hash);
-          } catch {
-            // ignore
-          }
-        }
-      };
+      try { localStorage.setItem('affiliateRef', affiliateRef); } catch (e) { }
 
-      // If already locked to another affiliate, ignore and just clean URL.
-      if (existingRef && normalizedRef && existingRef !== normalizedRef) {
-        cleanAffiliateFromUrlOnly();
-        return;
+      // Remove affiliate param from URL without reloading
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('ref');
+        const raw = u.search.substring(1);
+        if (raw && /^[A-Z0-9]+($|&)/.test(raw)) {
+          const parts = raw.split('&').slice(1);
+          u.search = parts.length ? `?${parts.join('&')}` : '';
+        }
+        window.history.replaceState({}, '', u.toString());
+      } catch (e) {
+        try { window.history.replaceState({}, '', window.location.pathname + window.location.hash); } catch (err) { }
       }
-
-      if (!normalizedRef || !combo?.id) return;
-
-      (async () => {
-        try {
-          const res = await fetch(`/api/affiliate/validate?code=${encodeURIComponent(normalizedRef)}`);
-          if (!res.ok) {
-            // Invalid code; do not keep it (only remove if it wasn't an already stored code)
-            if (!existingRef) {
-              try { localStorage.removeItem('affiliateRef'); } catch (e) { }
-            }
-            cleanAffiliateFromUrlOnly();
-            toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
-            return;
-          }
-
-          const data = await res.json().catch(() => null);
-          if (!data || !data.valid) {
-            if (!existingRef) {
-              try { localStorage.removeItem('affiliateRef'); } catch (e) { }
-            }
-            cleanAffiliateFromUrlOnly();
-            toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
-            return;
-          }
-
-          fetch('/api/affiliate/track-click', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ affiliateCode: normalizedRef, comboId: combo.id }),
-          }).catch(err => console.error('Error tracking affiliate click:', err));
-
-          try {
-            localStorage.setItem('affiliateRef', normalizedRef);
-            localStorage.setItem('affiliateRefLocked', '1');
-            localStorage.setItem('affiliateRefSetAt', String(Date.now()));
-          } catch (e) {
-            // ignore
-          }
-
-          cleanAffiliateFromUrlOnly();
-        } catch (err) {
-          console.error('Error validating affiliate code:', err);
-        }
-      })();
-    } catch (err) {
-      console.error('Error parsing affiliate code:', err);
+    } catch (e) {
+      // ignore
     }
-  }, [combo?.id, toast]);
+  }, [comboId]);
+
+  // When navigating to the combo page without any query string (i.e. the
+  // URL is `/combo/:id` with no affiliate code), remove `affiliateRef` from
+  // localStorage so stale codes are not kept across navigations.
+  useEffect(() => {
+    try {
+      const search = window.location.search || '';
+      // If there's any search/query string, don't remove — the capture logic
+      // handles storing it. Only remove when there is NO query string.
+      if (search && search.length > 0) return;
+
+      try {
+        localStorage.removeItem('affiliateRef');
+      } catch (e) {
+        // ignore
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [location]);
+
+  // Update canReview state when eligibility data changes
+  useEffect(() => {
+    if (reviewEligibility && typeof reviewEligibility === 'object') {
+      setCanReview(reviewEligibility);
+    }
+  }, [reviewEligibility]);
+ const { data: recommendedProducts = [] } = useQuery<any[]>({
+    queryKey: ['/api/products', { limit: 12 }],
+  });
+  useEffect(() => {
+    // Validate affiliate code (if present) and track only when applicable to this combo
+    const urlParams = new URLSearchParams(window.location.search);
+    // Support multiple affiliate parameter formats: ref=CODE, CODE (first param as value), or direct parameter
+    let affiliateRef = urlParams.get('ref');
+
+    // If no 'ref' parameter, check for direct affiliate code (e.g., ?POPPIKAP12)
+    if (!affiliateRef) {
+      const searchString = window.location.search.substring(1); // Remove the ?
+      if (searchString && /^[A-Z0-9]+/.test(searchString)) {
+        affiliateRef = searchString.split('&')[0]; // Get first query param value
+      }
+    }
+
+    // If still not found in URL, fall back to localStorage (captured earlier)
+    if (!affiliateRef) {
+      try { affiliateRef = localStorage.getItem('affiliateRef') || '' } catch (e) { affiliateRef = '' }
+    }
+
+    if (!affiliateRef || !combo?.id) return;
+
+    const removeAffiliateRef = () => {
+      try { localStorage.removeItem('affiliateRef'); } catch (e) { }
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('ref');
+        const raw = u.search.substring(1);
+        if (raw && /^[A-Z0-9]+($|&)/.test(raw)) {
+          const parts = raw.split('&').slice(1);
+          u.search = parts.length ? `?${parts.join('&')}` : '';
+        }
+        window.history.replaceState({}, '', u.toString());
+      } catch (e) {
+        try { window.history.replaceState({}, '', window.location.pathname + window.location.hash); } catch (err) { }
+      }
+    };
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/affiliate/validate?code=${encodeURIComponent(affiliateRef)}`);
+        if (!res.ok) {
+          removeAffiliateRef();
+          toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
+          return;
+        }
+
+        const data = await res.json();
+        if (!data || !data.valid) {
+          removeAffiliateRef();
+          toast({ title: 'Invalid Affiliate Code', description: 'This affiliate code is invalid or expired.', variant: 'destructive' });
+          return;
+        }
+
+        // Determine if this combo or its products are affiliate-enabled
+        const comboCommission = Number(combo?.affiliateCommission ?? combo?.affiliate_commission ?? 0);
+        const comboUserDiscount = Number(combo?.affiliateUserDiscount ?? combo?.affiliate_user_discount ?? 0);
+
+        let eligible = comboCommission > 0 && comboUserDiscount > 0;
+
+        if (!eligible && Array.isArray(combo?.products) && combo.products.length > 0) {
+          eligible = combo.products.some((p: any) => {
+            const pc = Number(p?.affiliateCommission ?? p?.affiliate_commission ?? 0);
+            const pd = Number(p?.affiliateUserDiscount ?? p?.affiliate_user_discount ?? 0);
+            return pc > 0 && pd > 0;
+          });
+        }
+
+        if (!eligible) {
+          removeAffiliateRef();
+          toast({ title: 'Not Eligible', description: 'This affiliate code cannot be applied to this combo.', variant: 'destructive' });
+          return;
+        }
+
+        // Valid and eligible — track and persist
+        fetch('/api/affiliate/track-click', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ affiliateCode: affiliateRef, comboId: combo.id }),
+        }).catch(err => console.error('Error tracking affiliate click:', err));
+
+        try { localStorage.setItem('affiliateRef', affiliateRef); } catch (e) { }
+      } catch (err) {
+        console.error('Error validating affiliate code:', err);
+      }
+    })();
+  }, [combo?.id, combo, toast]);
+
+  // Cleanup affiliate ref from localStorage when leaving the combo page
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Check if affiliateRef exists in localStorage
+      const storedAffiliateRef = localStorage.getItem('affiliateRef');
+      
+      // Only remove if it exists
+      if (storedAffiliateRef) {
+        try { localStorage.removeItem('affiliateRef'); } catch (e) { }
+      }
+    };
+
+    // Listen for navigation events
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  // Prepare products (safe parse) and load shades for products before any early returns
+  const products = combo
+    ? (typeof combo.products === 'string' ? (() => { try { return JSON.parse(combo.products); } catch { return []; } })() : combo.products)
+    : [];
+
+  // Debug: Log products with their images
+  useEffect(() => {
+    if (combo && Array.isArray(products) && products.length > 0) {
+      console.log('🎨 === COMBO PRODUCTS DEBUG ===');
+      console.log('🎨 Combo:', combo.name);
+      products.forEach((p, idx) => {
+        console.group(`Product ${idx + 1}: ${p.name} (ID: ${p.id})`);
+        console.log('  - images:', p.images);
+        console.log('  - imageUrls:', p.imageUrls);
+        console.log('  - imageUrl:', p.imageUrl ? p.imageUrl.substring(0, 80) + '...' : 'NOT FOUND');
+        console.groupEnd();
+      });
+      console.log('🎨 === END DEBUG ===');
+    }
+  }, [combo, products]);
 
   useEffect(() => {
-    return;
-  }, [location]);
+    try {
+      const productIds: number[] = Array.isArray(products)
+        ? products.map((p: any) => (typeof p === 'string' ? null : p.id)).filter(Boolean)
+        : [];
+
+      if (productIds.length > 0) {
+        // Fetch shades
+        fetchProductDetailsAndShades(productIds)
+          .then((map) => setProductShadesData(map))
+          .catch((err) => console.error('Error fetching product shades:', err));
+
+        // Fetch full product details (to obtain images if combo payload is minimal)
+        Promise.all(
+          productIds.map((id) =>
+            fetch(`/api/products/${id}`)
+              .then((res) => (res.ok ? res.json() : Promise.resolve(null)))
+              .catch(() => null)
+          )
+        )
+          .then((results) => {
+            const map: Record<number, any> = {};
+            results.forEach((res) => {
+              if (res && res.id) map[res.id] = res;
+            });
+            setProductDetailsData(map);
+          })
+          .catch((err) => console.error('Error fetching product details for combo:', err));
+      }
+    } catch (err) {
+      console.error('Error parsing products for shades:', err);
+    }
+  }, [products]);
 
   // Helper to get primary image from combo
   const getPrimaryImage = (comboData: any) => {
@@ -477,44 +582,14 @@ export default function ComboDetail() {
       // Update selected shades if any
       if (Object.keys(effectiveSelectedShades).length > 0) {
         existingItem.selectedShades = Object.fromEntries(
-          Object.entries(effectiveSelectedShades).map(([k, v]) => {
-            const pid = Number(k);
-            const product = products.find((p: any) => Number(p?.id) === pid);
-            const productName = product?.name || '';
-            return [
-              k,
-              v
-                ? {
-                    id: v.id,
-                    name: v.name,
-                    imageUrl: v.imageUrl,
-                    productName,
-                  }
-                : null,
-            ];
-          })
+          Object.entries(effectiveSelectedShades).map(([k, v]) => [k, v ? { id: v.id, name: v.name, imageUrl: v.imageUrl } : null])
         );
       }
     } else {
       // Normalize selected shades for storage: keep id, name, imageUrl only
       const selectedShadesForCart = Object.keys(effectiveSelectedShades).length > 0
         ? Object.fromEntries(
-            Object.entries(effectiveSelectedShades).map(([k, v]) => {
-              const pid = Number(k);
-              const product = products.find((p: any) => Number(p?.id) === pid);
-              const productName = product?.name || '';
-              return [
-                k,
-                v
-                  ? {
-                      id: v.id,
-                      name: v.name,
-                      imageUrl: v.imageUrl,
-                      productName,
-                    }
-                  : null,
-              ];
-            })
+            Object.entries(effectiveSelectedShades).map(([k, v]) => [k, v ? { id: v.id, name: v.name, imageUrl: v.imageUrl } : null])
           )
         : undefined;
       const cartItem = {
@@ -537,6 +612,11 @@ export default function ComboDetail() {
     localStorage.setItem("cart", JSON.stringify(cart));
     localStorage.setItem("cartCount", cart.reduce((total: number, item: any) => total + item.quantity, 0).toString());
     window.dispatchEvent(new Event("cartUpdated"));
+
+    toast({
+      title: "Added to Cart",
+      description: `${combo.name} has been added to your cart.`,
+    });
   };
 
   // Build canonical share URL that points to server share endpoint so crawlers see OG tags
@@ -1296,7 +1376,7 @@ export default function ComboDetail() {
                                 console.warn(`❌ Image failed to load for product ${product.id}:`, displayImage?.substring(0, 100) || 'empty');
                                 // Only add to broken if it's not already the placeholder
                                 if (displayImage !== PLACEHOLDER && productImage !== PLACEHOLDER) {
-                                  setBrokenImages(prev => new Set([...Array.from(prev), productImage]));
+                                  setBrokenImages(prev => new Set([...prev, productImage]));
                                 }
                               }}
                               onLoad={(e) => {
@@ -1635,7 +1715,7 @@ export default function ComboDetail() {
                                   onError={(e) => {
                                     // Only add to broken if it's not already the placeholder
                                     if (displayImage !== PLACEHOLDER && productImage !== PLACEHOLDER) {
-                                      setBrokenImages(prev => new Set([...Array.from(prev), productImage]));
+                                      setBrokenImages(prev => new Set([...prev, productImage]));
                                     }
                                   }}
                                 />

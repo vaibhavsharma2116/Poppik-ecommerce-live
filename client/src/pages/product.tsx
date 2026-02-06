@@ -184,7 +184,7 @@ export default function ProductsPage() {
         sorted.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
         break;
       case "rating":
-        sorted.sort((a, b) => (parseFloat(String(b.rating || 0)) || 0) - (parseFloat(String(a.rating || 0)) || 0));
+        sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
       default: // popular
         sorted.sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
@@ -192,8 +192,6 @@ export default function ProductsPage() {
 
     return sorted;
   }, [filteredProducts, sortBy]);
-
-  const displayedProducts = sortedProducts;
 
   // Add all filtered products to cart
   const addAllToCart = () => {
@@ -307,12 +305,12 @@ export default function ProductsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Desktop Filter Sidebar */}
           <div className="hidden lg:block">
-            <div className="sticky top-24 h-[calc(100vh-6rem)] overflow-hidden">
+            <div className="sticky top-4">
               <DynamicFilter
                 products={allProducts || []}
                 categories={categories || []}
                 onFilterChange={handleFilterChange}
-                className="bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20 h-full"
+                className="bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20"
               />
             </div>
           </div>
@@ -333,12 +331,11 @@ export default function ProductsPage() {
                     Filter products by category, price, and more.
                   </SheetDescription>
                 </SheetHeader>
-                <div className="mt-6 h-[calc(100vh-8rem)] overflow-hidden">
+                <div className="mt-6">
                   <DynamicFilter
                     products={allProducts || []}
                     categories={categories || []}
                     onFilterChange={handleFilterChange}
-                    className="h-full"
                   />
                 </div>
               </SheetContent>
@@ -364,27 +361,36 @@ export default function ProductsPage() {
               <>
                 {/* Results Count */}
                 <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">
-                        {displayedProducts.length} Products Found
-                      </h2>
-                    </div>
+                  <div className="bg-white/70 backdrop-blur-md rounded-2xl px-6 py-4 shadow-lg border border-white/20">
+                    <h2 className="text-xl font-bold text-gray-900">
+                      {filteredProducts.length} Products Found
+                    </h2>
                   </div>
+                  
+                  {/* Add All to Cart Button */}
+                  {filteredProducts.length > 0 && (
+                    <Button
+                      onClick={addAllToCart}
+                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+                    >
+                      <ShoppingCart className="h-5 w-5" />
+                      <span className="hidden sm:inline">Add All to Cart</span>
+                      <span className="sm:hidden">Add All</span>
+                    </Button>
+                  )}
                 </div>
 
                 {/* Products Grid/List */}
-                {displayedProducts.length > 0 ? (
+                {filteredProducts.length > 0 ? (
                   <div className={viewMode === "grid" 
                     ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6 lg:gap-8" 
                     : "space-y-6"
                   }>
-                    {displayedProducts.map((product) => (
+                    {filteredProducts.map((product) => (
                       <ProductCard 
                         key={product.id} 
                         product={product} 
                         viewMode={viewMode}
-                        titleLines={4}
                       />
                     ))}
                   </div>
