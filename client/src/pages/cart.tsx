@@ -929,7 +929,7 @@ export default function Cart() {
 
         {/* Gift Milestone Section - Dynamic from Backend */}
         {cartItems.length > 0 && giftMilestonesSorted.length > 0 && (
-          <div className="mb-6 bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 border-2 border-pink-200 rounded-xl p-4 sm:p-8 shadow-lg">
+          <div className="mb-6 bg-gradient-to-r from-pink-50 via-purple-50 to-pink-50 border-2 border-pink-200 rounded-xl p-4 pb-8 sm:p-8 sm:pb-8 shadow-lg">
             <div className="text-center mb-10">
               {(() => {
                 const nextMilestoneLocal = giftMilestonesSorted.find((m: any) => cartSubtotal < parseFloat(m.minAmount));
@@ -997,20 +997,23 @@ export default function Cart() {
                         <span className="text-lg sm:text-xl">🎁</span>
                       </div>
 
-                      <div className="mt-3 text-center w-20">
-                        <div className={`text-xs font-bold ${unlocked ? 'text-pink-600' : 'text-gray-600'}`}>
+                      <div className="mt-3 text-center w-16 sm:w-20">
+                        <div className={`text-xs font-bold ${unlocked ? 'text-pink-600' : 'text-gray-600'} break-words`}>
                           {milestone.giftCount} Gift{milestone.giftCount > 1 ? 's' : ''}
                         </div>
-                        <div className="text-gray-500 text-xs">₹{milestoneAmount.toFixed(0)}</div>
+                        <div className="text-gray-500 text-xs break-words">₹{milestoneAmount.toFixed(0)}</div>
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="absolute left-0 -bottom-10 flex items-center gap-1 rounded-full bg-pink-50 px-2.5 py-1 text-xs font-semibold text-pink-700 border border-pink-200 shadow">
-                <MapPin className="h-3.5 w-3.5 text-pink-600" />
-                Start Here
+              <div className="absolute left-3 -bottom-20 sm:-bottom-10 flex items-center gap-1 rounded-full bg-pink-50 px-2 sm:px-2.5 py-1 text-xs font-semibold text-pink-700 border border-pink-200 shadow whitespace-nowrap">
+                <MapPin className="h-3.5 w-3.5 text-pink-600 flex-shrink-0" />
+                <span className="truncate">
+                  <span className="sm:hidden">Start</span>
+                  <span className="hidden sm:inline">Start Here</span>
+                </span>
               </div>
             </div>
 

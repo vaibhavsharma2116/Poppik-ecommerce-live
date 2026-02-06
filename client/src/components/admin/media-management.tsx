@@ -111,8 +111,8 @@ export default function MediaManagement() {
     // Search filter
     if (searchQuery.trim()) {
       filtered = filtered.filter(m => 
-        m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        m.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.type.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -143,7 +143,7 @@ export default function MediaManagement() {
         filtered.sort((a, b) => b.clickCount - a.clickCount);
         break;
       case 'alphabetic':
-        filtered.sort((a, b) => a.title.localeCompare(b.title));
+        filtered.sort((a, b) => a.category.localeCompare(b.category));
         break;
     }
 
@@ -232,12 +232,6 @@ export default function MediaManagement() {
 
   // Save media
   const handleSaveMedia = async () => {
-    // Only validate required fields (marked with *)
-    if (!formData.title.trim()) {
-      toast({ title: 'Error', description: 'Title is required', variant: 'destructive' });
-      return;
-    }
-    
     // Image URL required for image type, video URL required for video type
     if (formData.type === 'image' && !formData.imageUrl.trim()) {
       toast({ title: 'Error', description: 'Image URL is required for image type', variant: 'destructive' });
@@ -612,7 +606,7 @@ export default function MediaManagement() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="Search media by title..."
+                  placeholder="Search media by category or type..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 w-full"
@@ -647,17 +641,6 @@ export default function MediaManagement() {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-700">Title *</label>
-                    <Input
-                      name="title"
-                      placeholder="Enter title"
-                      value={formData.title}
-                      onChange={handleInputChange}
-                      className="border-gray-300"
-                    />
-                  </div>
-                  
                   <div>
                     <label className="block text-sm font-semibold mb-2 text-gray-700">Category</label>
                     <select
@@ -784,17 +767,6 @@ export default function MediaManagement() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold mb-2 text-gray-700">Description</label>
-                    <textarea
-                      name="description"
-                      placeholder="Enter description"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                      rows={2}
-                      value={formData.description}
-                      onChange={handleInputChange}
-                    />
-                  </div>
 
                   <div className="flex items-center gap-3">
                     <input
@@ -918,7 +890,6 @@ export default function MediaManagement() {
                       <thead>
                         <tr className="border-b-2 border-gray-200 bg-gray-50">
                           <th className="px-4 py-3 text-left font-bold text-gray-700">Image</th>
-                          <th className="px-4 py-3 text-left font-bold text-gray-700">Title</th>
                           <th className="px-4 py-3 text-left font-bold text-gray-700">Category</th>
                           <th className="px-4 py-3 text-center font-bold text-gray-700">Clicks</th>
                           <th className="px-4 py-3 text-center font-bold text-gray-700">Status</th>
@@ -937,14 +908,9 @@ export default function MediaManagement() {
                             </td>
                             <td className="px-4 py-3">
                               <div>
-                                <p className="font-semibold text-gray-800">{media.title}</p>
+                                <p className="font-semibold text-gray-800">{media.category}</p>
                                 <p className="text-xs text-gray-500">{media.type}</p>
                               </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800">
-                                {media.category}
-                              </span>
                             </td>
                             <td className="px-4 py-3 text-center font-bold text-purple-600">{media.clickCount}</td>
                             <td className="px-4 py-3 text-center">

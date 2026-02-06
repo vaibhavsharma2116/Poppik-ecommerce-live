@@ -17,7 +17,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Local dev / Replit state
+# Local development state
 .local/
 
 # OS specific files

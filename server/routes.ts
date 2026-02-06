@@ -1638,9 +1638,8 @@ app.get("/api/admin/stores", async (req, res) => {
           console.warn('Invalid NGROK_URL, falling back to host:', ngrokUrl);
         }
       } else if (host && (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0'))) {
-        // For local development without NGROK, try replit preview domain if available
-        const replitHost = process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : host;
-        returnHost = replitHost;
+        // For local development without NGROK, use localhost
+        returnHost = host;
         protocol = 'https';
       }
 
