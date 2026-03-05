@@ -1033,6 +1033,63 @@ export default function CheckoutPage() {
     };
   }, [user?.id, profileDataLoaded]);
 
+  // Handle payment processing from URL parameters (for Cashfree return)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const orderId = urlParams.get('orderId');
+
+    if (paymentStatus === 'processing' && orderId) {
+      const verifyPayment = async () => {
+        try {
+          console.log('Verifying payment for order:', orderId);
+          
+          const response = await fetch('/api/payments/cashfree/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ orderId }),
+          });
+
+          const result = await response.json();
+          
+          if (response.ok && result.verified) {
+            console.log('Payment verified successfully:', result);
+            
+            // Show order confirmation
+            setOrderPlaced(true);
+            setOrderId(orderId);
+            setCurrentStep(4); // Show confirmation step
+            
+            // Clear the URL parameters
+            window.history.replaceState({}, '', window.location.pathname);
+            
+            toast({
+              title: "Payment Successful!",
+              description: "Your order has been confirmed.",
+            });
+          } else {
+            console.error('Payment verification failed:', result);
+            toast({
+              title: "Payment Verification Failed",
+              description: result.error || "Unable to verify payment status",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          console.error('Error verifying payment:', error);
+          toast({
+            title: "Payment Error",
+            description: "Unable to verify payment status. Please contact support.",
+            variant: "destructive",
+          });
+        }
+      };
+
+      verifyPayment();
+    }
+  }, [location]);
+
   // Load multi-address mapping from localStorage so Review step can render addresses
   useEffect(() => {
     try {
