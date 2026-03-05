@@ -1949,6 +1949,34 @@ app.get("/api/admin/stores", async (req, res) => {
               }
 
               console.log("Order created in ordersTable:", newOrder.id);
+
+              // Send order confirmation email to customer and admin (same as COD)
+              try {
+                const orderItemsForEmail = orderData.items.map((item: any) => ({
+                  productName: item.productName,
+                  quantity: item.quantity,
+                  price: item.price,
+                  productImage: item.productImage
+                }));
+
+                await sendOrderNotificationEmail({
+                  orderId: `ORD-${newOrder.id.toString().padStart(3, '0')}`,
+                  customerName: orderData.customerName || `${payment.firstName || ''} ${payment.lastName || ''}`.trim(),
+                  customerEmail: orderData.customerEmail || (payment as any)?.email || 'customer@example.com',
+                  customerPhone: orderData.customerPhone || (payment as any)?.phone,
+                  shippingAddress: orderData.shippingAddress,
+                  paymentMethod: 'Cashfree (Online Payment)',
+                  totalAmount: payment.amount,
+                  items: orderItemsForEmail,
+                  deliveryPartner: 'INDIA_POST', // Default for online payments
+                  deliveryType: orderData.deliveryType || null,
+                  deliveryInstructions: orderData.deliveryInstructions || null
+                });
+                
+                console.log(`📧 Order confirmation email sent for online payment order ${newOrder.id} (verification)`);
+              } catch (emailError) {
+                console.error(`❌ Failed to send order confirmation email for online payment order ${newOrder.id} (verification):`, emailError);
+              }
             } else {
               console.log("Order already exists in ordersTable");
             }
@@ -1974,7 +2002,148 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
- // Delivery Address Management Routes
+  // Cashfree Webhook Endpoint
+  app.post('/api/payments/cashfree/webhook', async (req, res) => {
+    try {
+      const webhookData = req.body;
+      console.log('Cashfree webhook received:', JSON.stringify(webhookData, null, 2));
+
+      // Verify webhook signature (optional but recommended)
+      const webhookSignature = req.headers['x-webhook-signature'] as string;
+      if (webhookSignature) {
+        // TODO: Implement signature verification if needed
+        console.log('Webhook signature present:', webhookSignature);
+      }
+
+      const { order_id, order_status, payment_session_id, cf_order_id } = webhookData;
+
+      if (!order_id || !order_status) {
+        console.error('Invalid webhook data: missing order_id or order_status');
+        return res.status(400).json({ error: 'Invalid webhook data' });
+      }
+
+      // Update payment record in database
+      try {
+        const isPaymentSuccessful = order_status === 'PAID';
+        
+        await db.update(schema.cashfreePayments)
+          .set({
+            status: isPaymentSuccessful ? 'completed' : 'failed',
+            paymentId: cf_order_id || null,
+            completedAt: isPaymentSuccessful ? new Date() : null
+          } as any)
+          .where(eq(schema.cashfreePayments.cashfreeOrderId, order_id));
+
+        console.log(`Payment status updated for order ${order_id}: ${order_status}`);
+
+        // If payment is successful, create order in ordersTable for admin panel
+        if (isPaymentSuccessful) {
+          // Get cashfree payment details
+          const cashfreePayment = await db
+            .select()
+            .from(schema.cashfreePayments)
+            .where(eq(schema.cashfreePayments.cashfreeOrderId, order_id))
+            .limit(1);
+
+          if (cashfreePayment.length > 0) {
+            const payment = cashfreePayment[0];
+            const orderData: any = payment.orderData;
+
+            // Check if order already exists in ordersTable
+            const existingOrder = await db
+              .select()
+              .from(schema.ordersTable)
+              .where(eq(schema.ordersTable.cashfreeOrderId, order_id))
+              .limit(1);
+
+            if (existingOrder.length === 0 && payment.userId) {
+              // Create order in ordersTable
+              const [newOrder] = await db.insert(schema.ordersTable).values({
+                userId: payment.userId,
+                totalAmount: payment.amount,
+                status: 'processing',
+                paymentMethod: 'Cashfree',
+                shippingAddress: orderData.shippingAddress,
+                cashfreeOrderId: order_id,
+                paymentSessionId: payment_session_id || null,
+                paymentId: cf_order_id || null,
+                affiliateCode: orderData.affiliateCode || null,
+                estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+              } as any).returning();
+
+              // Create order items
+              if (orderData.items && Array.isArray(orderData.items)) {
+                const orderItems = orderData.items.map((item: any) => ({
+                  orderId: newOrder.id,
+                  productId: Number(item.productId) || null,
+                  productName: item.productName,
+                  productImage: item.productImage,
+                  quantity: Number(item.quantity),
+                  price: item.price,
+                  cashbackPrice: item.cashbackPrice || null,
+                  cashbackPercentage: item.cashbackPercentage || null,
+                  deliveryAddress: item.deliveryAddress || null,
+                  recipientName: item.recipientName || null,
+                  recipientPhone: item.recipientPhone || null,
+                }));
+
+                await db.insert(schema.orderItemsTable).values(orderItems as any);
+              }
+
+              console.log(`✅ Order ${newOrder.id} created in ordersTable via webhook for Cashfree payment ${order_id}`);
+
+              // Send order confirmation email to customer and admin (same as COD)
+              try {
+                const orderItemsForEmail = orderData.items.map((item: any) => ({
+                  productName: item.productName,
+                  quantity: item.quantity,
+                  price: item.price,
+                  productImage: item.productImage
+                }));
+
+                await sendOrderNotificationEmail({
+                  orderId: `ORD-${newOrder.id.toString().padStart(3, '0')}`,
+                  customerName: orderData.customerName || `${payment.firstName || ''} ${payment.lastName || ''}`.trim(),
+                  customerEmail: orderData.customerEmail || (payment as any)?.email || 'customer@example.com',
+                  customerPhone: orderData.customerPhone || (payment as any)?.phone,
+                  shippingAddress: orderData.shippingAddress,
+                  paymentMethod: 'Cashfree (Online Payment)',
+                  totalAmount: payment.amount,
+                  items: orderItemsForEmail,
+                  deliveryPartner: 'INDIA_POST', // Default for online payments
+                  deliveryType: orderData.deliveryType || null,
+                  deliveryInstructions: orderData.deliveryInstructions || null
+                });
+                
+                console.log(`📧 Order confirmation email sent for online payment order ${newOrder.id}`);
+              } catch (emailError) {
+                console.error(`❌ Failed to send order confirmation email for online payment order ${newOrder.id}:`, emailError);
+              }
+            } else {
+              console.log(`Order ${order_id} already exists in ordersTable or no userId found`);
+            }
+          }
+        }
+
+        res.status(200).json({ 
+          success: true, 
+          message: 'Webhook processed successfully',
+          order_id,
+          order_status 
+        });
+
+      } catch (dbError) {
+        console.error('Database error processing webhook:', dbError);
+        res.status(500).json({ error: 'Database error processing webhook' });
+      }
+
+    } catch (error) {
+      console.error('Cashfree webhook error:', error);
+      res.status(500).json({ error: 'Failed to process webhook' });
+    }
+  });
+
+  // Delivery Address Management Routes
   app.get("/api/delivery-addresses", async (req, res) => {
     try {
       res.setHeader('Content-Type', 'application/json');
