@@ -1818,19 +1818,103 @@ app.get("/api/admin/stores", async (req, res) => {
               .limit(1);
 
             if (existingOrder.length === 0 && payment.userId) {
-              // Create order in ordersTable
-              const [newOrder] = await db.insert(schema.ordersTable).values({
-                userId: payment.userId,
-                totalAmount: payment.amount,
-                status: 'processing',
-                paymentMethod: 'Cashfree',
-                shippingAddress: orderData.shippingAddress,
-                cashfreeOrderId: orderId,
-                paymentSessionId: statusResult.payment_session_id || null,
-                paymentId: statusResult.cf_order_id || null,
-                affiliateCode: orderData.affiliateCode || null,
-                estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-              } as any).returning();
+  // Determine delivery partner based on pincode serviceability (same as COD)
+  let deliveryPartner = 'ITHINK';
+  let deliveryType = null;
+  
+  // Extract pincodes from shipping address to check serviceability
+  const extractPincodesFromAddressText = (text: string): string[] => {
+    if (!text) return [];
+    const matches = text.match(/\b\d{6}\b/g);
+    return Array.from(new Set((matches || []).map(m => String(m))));
+  };
+
+  const extractPincodes = (): string[] => {
+    const pincodes = new Set<string>();
+    
+    try {
+      if (typeof orderData.shippingAddress === 'string') {
+        const trimmed = orderData.shippingAddress.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+          const parsed = JSON.parse(trimmed);
+          if (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) {
+            for (const it of (parsed as any).items) {
+              if (typeof it?.deliveryAddress === 'string') {
+                for (const pc of extractPincodesFromAddressText(it.deliveryAddress)) pincodes.add(pc);
+              }
+            }
+          }
+        } else {
+          for (const pc of extractPincodesFromAddressText(trimmed)) pincodes.add(pc);
+        }
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+
+    if (pincodes.size === 0 && typeof orderData.shippingAddress === 'string') {
+      for (const pc of extractPincodesFromAddressText(orderData.shippingAddress)) pincodes.add(pc);
+    }
+
+    if (pincodes.size === 0 && Array.isArray(orderData.items)) {
+      for (const it of orderData.items) {
+        if (typeof it?.deliveryAddress === 'string') {
+          for (const pc of extractPincodesFromAddressText(it.deliveryAddress)) pincodes.add(pc);
+        }
+      }
+    }
+
+    return Array.from(pincodes);
+  };
+
+  const pincodes = extractPincodes();
+  let isServiceable = true;
+  
+  if (pincodes.length > 0) {
+    try {
+      const pickupPincode = process.env.ITHINK_PICKUP_PINCODE || "400001";
+      const weight = Array.isArray(orderData.items)
+        ? Math.max(0.5, orderData.items.reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0))
+        : 0.5;
+      const cod = false; // Online payment is not COD
+
+      for (const pc of pincodes) {
+        const serviceability = await ithinkService.getServiceability(pickupPincode, pc, weight, cod);
+        const hasAvailableCouriers = serviceability &&
+          (serviceability as any).data &&
+          Array.isArray((serviceability as any).data.available_courier_companies) &&
+          (serviceability as any).data.available_courier_companies.length > 0;
+        if (!hasAvailableCouriers) {
+          isServiceable = false;
+          break;
+        }
+      }
+    } catch (e) {
+      console.warn('iThink serviceability check failed for online payment; keeping ITHINK by default:', e);
+      isServiceable = true;
+    }
+  }
+
+  if (!isServiceable) {
+    deliveryPartner = 'INDIA_POST';
+    deliveryType = 'MANUAL';
+  }
+
+  // Create order in ordersTable
+  const [newOrder] = await db.insert(schema.ordersTable).values({
+    userId: payment.userId,
+    totalAmount: payment.amount,
+    status: 'processing',
+    paymentMethod: 'Cashfree',
+    shippingAddress: orderData.shippingAddress,
+    cashfreeOrderId: orderId,
+    paymentSessionId: statusResult.payment_session_id || null,
+    paymentId: statusResult.cf_order_id || null,
+    affiliateCode: orderData.affiliateCode || null,
+    estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+    deliveryPartner: deliveryPartner,
+    deliveryType: deliveryType,
+  } as any).returning();
 
               // Create order items
               if (orderData.items && Array.isArray(orderData.items)) {
@@ -1968,7 +2052,7 @@ app.get("/api/admin/stores", async (req, res) => {
                   paymentMethod: 'Cashfree (Online Payment)',
                   totalAmount: payment.amount,
                   items: orderItemsForEmail,
-                  deliveryPartner: 'INDIA_POST', // Default for online payments
+                  deliveryPartner: deliveryPartner, // Dynamic based on serviceability
                   deliveryType: orderData.deliveryType || null,
                   deliveryInstructions: orderData.deliveryInstructions || null
                 });
@@ -2057,6 +2141,88 @@ app.get("/api/admin/stores", async (req, res) => {
               .limit(1);
 
             if (existingOrder.length === 0 && payment.userId) {
+              // Determine delivery partner based on pincode serviceability (same as COD)
+              let deliveryPartner = 'ITHINK';
+              let deliveryType = null;
+              
+              // Extract pincodes from shipping address to check serviceability
+              const extractPincodesFromAddressText = (text: string): string[] => {
+                if (!text) return [];
+                const matches = text.match(/\b\d{6}\b/g);
+                return Array.from(new Set((matches || []).map(m => String(m))));
+              };
+
+              const extractPincodes = (): string[] => {
+                const pincodes = new Set<string>();
+                
+                try {
+                  if (typeof orderData.shippingAddress === 'string') {
+                    const trimmed = orderData.shippingAddress.trim();
+                    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                      const parsed = JSON.parse(trimmed);
+                      if (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).items)) {
+                        for (const it of (parsed as any).items) {
+                          if (typeof it?.deliveryAddress === 'string') {
+                            for (const pc of extractPincodesFromAddressText(it.deliveryAddress)) pincodes.add(pc);
+                          }
+                        }
+                      }
+                    } else {
+                      for (const pc of extractPincodesFromAddressText(trimmed)) pincodes.add(pc);
+                    }
+                  }
+                } catch (e) {
+                  // ignore parse errors
+                }
+
+                if (pincodes.size === 0 && typeof orderData.shippingAddress === 'string') {
+                  for (const pc of extractPincodesFromAddressText(orderData.shippingAddress)) pincodes.add(pc);
+                }
+
+                if (pincodes.size === 0 && Array.isArray(orderData.items)) {
+                  for (const it of orderData.items) {
+                    if (typeof it?.deliveryAddress === 'string') {
+                      for (const pc of extractPincodesFromAddressText(it.deliveryAddress)) pincodes.add(pc);
+                    }
+                  }
+                }
+
+                return Array.from(pincodes);
+              };
+
+              const pincodes = extractPincodes();
+              let isServiceable = true;
+              
+              if (pincodes.length > 0) {
+                try {
+                  const pickupPincode = process.env.ITHINK_PICKUP_PINCODE || "400001";
+                  const weight = Array.isArray(orderData.items)
+                    ? Math.max(0.5, orderData.items.reduce((sum: number, it: any) => sum + (0.5 * Number(it?.quantity || 1)), 0))
+                    : 0.5;
+                  const cod = false; // Online payment is not COD
+
+                  for (const pc of pincodes) {
+                    const serviceability = await ithinkService.getServiceability(pickupPincode, pc, weight, cod);
+                    const hasAvailableCouriers = serviceability &&
+                      (serviceability as any).data &&
+                      Array.isArray((serviceability as any).data.available_courier_companies) &&
+                      (serviceability as any).data.available_courier_companies.length > 0;
+                    if (!hasAvailableCouriers) {
+                      isServiceable = false;
+                      break;
+                    }
+                  }
+                } catch (e) {
+                  console.warn('iThink serviceability check failed for online payment; keeping ITHINK by default:', e);
+                  isServiceable = true;
+                }
+              }
+
+              if (!isServiceable) {
+                deliveryPartner = 'INDIA_POST';
+                deliveryType = 'MANUAL';
+              }
+
               // Create order in ordersTable
               const [newOrder] = await db.insert(schema.ordersTable).values({
                 userId: payment.userId,
@@ -2069,6 +2235,8 @@ app.get("/api/admin/stores", async (req, res) => {
                 paymentId: cf_order_id || null,
                 affiliateCode: orderData.affiliateCode || null,
                 estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+                deliveryPartner: deliveryPartner,
+                deliveryType: deliveryType,
               } as any).returning();
 
               // Create order items
@@ -2110,8 +2278,8 @@ app.get("/api/admin/stores", async (req, res) => {
                   paymentMethod: 'Cashfree (Online Payment)',
                   totalAmount: payment.amount,
                   items: orderItemsForEmail,
-                  deliveryPartner: 'INDIA_POST', // Default for online payments
-                  deliveryType: orderData.deliveryType || null,
+                  deliveryPartner: deliveryPartner,
+                  deliveryType: deliveryType,
                   deliveryInstructions: orderData.deliveryInstructions || null
                 });
                 
@@ -2162,7 +2330,6 @@ app.get("/api/admin/stores", async (req, res) => {
         .from(schema.deliveryAddresses)
         .where(eq(schema.deliveryAddresses.userId, parseInt(userId as string)))
         .orderBy(desc(schema.deliveryAddresses.isDefault), desc(schema.deliveryAddresses.createdAt));
-
       res.json(addresses);
     } catch (error) {
       console.error("Error fetching delivery addresses:", error);
