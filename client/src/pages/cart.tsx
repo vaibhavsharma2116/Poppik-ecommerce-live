@@ -997,7 +997,7 @@ export default function Cart() {
                         <span className="text-lg sm:text-xl">🎁</span>
                       </div>
 
-                      <div className="mt-3 text-center w-16 sm:w-20">
+                      <div className="mt-3 text-left w-16 sm:w-20">
                         <div className={`text-xs font-bold ${unlocked ? 'text-pink-600' : 'text-gray-600'} break-words`}>
                           {milestone.giftCount} Gift{milestone.giftCount > 1 ? 's' : ''}
                         </div>
@@ -1008,13 +1008,13 @@ export default function Cart() {
                 })}
               </div>
 
-              <div className="absolute left-3 -bottom-20 sm:-bottom-10 flex items-center gap-1 rounded-full bg-pink-50 px-2 sm:px-2.5 py-1 text-xs font-semibold text-pink-700 border border-pink-200 shadow whitespace-nowrap">
+              {/* <div className="absolute left-3 -bottom-20 sm:-bottom-10 flex items-center gap-1 rounded-full bg-pink-50 px-2 sm:px-2.5 py-1 text-xs font-semibold text-pink-700 border border-pink-200 shadow whitespace-nowrap">
                 <MapPin className="h-3.5 w-3.5 text-pink-600 flex-shrink-0" />
                 <span className="truncate">
                   <span className="sm:hidden">Start</span>
                   <span className="hidden sm:inline">Start Here</span>
                 </span>
-              </div>
+              </div> */}
             </div>
 
             {/* Labels are now rendered under each icon above to keep them aligned with markers */}
