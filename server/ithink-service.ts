@@ -247,6 +247,32 @@ class IthinkService {
     return raw || 'ORD-0';
   }
 
+  private async itlGenerateAwbForOrder(orderNo: string): Promise<string | null> {
+    try {
+      const resp: any = await this.makeIthinkRequest('/api_v3/order/get_awb.json', {
+        order_no: orderNo,
+      });
+
+      // iThink V3 get_awb.json response structure can vary, 
+      // but usually contains data.awb_no or similar.
+      const data = resp?.data;
+      if (!data) return null;
+
+      // Handle both single object and array responses if applicable
+      const row = Array.isArray(data) ? data[0] : (data?.[orderNo] || data?.[1] || data);
+      const awb = String(row?.awb_no || row?.awb || '').trim();
+      
+      if (awb) {
+        console.log(`Successfully generated AWB ${awb} for order ${orderNo}`);
+        return awb;
+      }
+      return null;
+    } catch (e) {
+      console.warn('iThink get_awb (generation) failed:', (e as any)?.message || e);
+      return null;
+    }
+  }
+
   private async itlGetAwbForOrder(orderNo: string): Promise<string | null> {
     try {
       const today = new Date();
@@ -619,7 +645,13 @@ class IthinkService {
       }
 
       // Try to fetch AWB (may take time; we'll keep it optional)
-      const awb = await this.itlGetAwbForOrder(orderNo);
+      // First try to check if it's already assigned
+      let awb = await this.itlGetAwbForOrder(orderNo);
+      
+      // If not, trigger generation (this handles "Ship Now" automatically)
+      if (!awb) {
+        awb = await this.itlGenerateAwbForOrder(orderNo);
+      }
 
       // Keep response shape expected by routes.ts
       return {
@@ -849,9 +881,17 @@ class IthinkService {
       if (this.useIthink) {
         void courierId;
         const orderNo = this.coercePublicOrderNoFromNumeric(shipmentId);
-        const awb = await this.itlGetAwbForOrder(orderNo);
+        
+        // Try to get existing AWB first
+        let awb = await this.itlGetAwbForOrder(orderNo);
+        
+        // If not found, call get_awb.json to generate it (this is the "Ship Now" action)
         if (!awb) {
-          throw new Error('AWB not available for this order yet');
+          awb = await this.itlGenerateAwbForOrder(orderNo);
+        }
+
+        if (!awb) {
+          throw new Error('AWB generation failed for this order. Please try manually in iThink dashboard.');
         }
         return {
           awb_code: awb,
