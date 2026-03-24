@@ -112,8 +112,21 @@ export default function AdminThermalInvoice() {
   };
 
   const displaySubtotal = o?.subtotal ? formatCurrency(o.subtotal) : formatCurrency(computeSubtotalNumber());
-  const shippingNumber = o?.shipping ? parseNumber(o.shipping) : o?.shippingCharge ? parseNumber(o.shippingCharge) : 0;
-  const displayShipping = o?.shipping || o?.shippingCharge ? formatCurrency(o.shipping ?? o.shippingCharge) : '₹0';
+  
+  // Try to find shipping in order object or fallback to parsing from shippingAddress JSON
+  let shippingNumber = o?.shipping ? parseNumber(o.shipping) : o?.shippingCharge ? parseNumber(o.shippingCharge) : 0;
+  if (shippingNumber === 0 && o?.shippingAddress) {
+    try {
+      const raw = o.shippingAddress;
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const extracted = parseNumber(parsed?.shippingCharge ?? parsed?.shipping_charge ?? parsed?.shipping ?? parsed?.shipping_cost ?? 0);
+      if (extracted > 0) shippingNumber = extracted;
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  const displayShipping = shippingNumber > 0 ? formatCurrency(shippingNumber) : '₹0';
   const subtotalNumber = o?.subtotal ? parseNumber(o.subtotal) : computeSubtotalNumber();
   const displayTotal = o?.total ? formatCurrency(o.total) : formatCurrency(subtotalNumber + shippingNumber || o?.totalAmount || 0);
   const displayAWB = o?.awbCode || o?.trackingNumber || 'N/A';

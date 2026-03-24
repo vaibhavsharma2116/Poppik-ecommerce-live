@@ -15,22 +15,20 @@ export class IthinkInvoiceService {
     awb: string | null,
     filename: string
   ) {
-    void ithinkOrderId;
     void normalizedOrder;
-    void awb;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename=\"${filename}\"`);
 
-    const resp = await this.ithinkService.generateInvoicePdfResponse(ithinkOrderId);
+    const resp = await this.ithinkService.generateInvoicePdfResponse(ithinkOrderId, awb);
     const buf = Buffer.from(await resp.arrayBuffer());
     res.end(buf);
   }
 
-  async streamThermalLabelPdf(res: Response, shipmentId: any, filename: string) {
+  async streamThermalLabelPdf(res: Response, shipmentId: any, filename: string, awb?: string | null) {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename=\"${filename}\"`);
 
-    const resp = await this.ithinkService.generateLabelPdfResponse(shipmentId);
+    const resp = await this.ithinkService.generateLabelPdfResponse(shipmentId, awb);
     const buf = Buffer.from(await resp.arrayBuffer());
     res.end(buf);
   }

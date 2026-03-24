@@ -249,26 +249,115 @@ class IthinkService {
 
   private async itlGenerateAwbForOrder(orderNo: string): Promise<string | null> {
     try {
-      const resp: any = await this.makeIthinkRequest('/api_v3/order/get_awb.json', {
-        order_no: orderNo,
-      });
-
-      // iThink V3 get_awb.json response structure can vary, 
-      // but usually contains data.awb_no or similar.
-      const data = resp?.data;
-      if (!data) return null;
-
-      // Handle both single object and array responses if applicable
-      const row = Array.isArray(data) ? data[0] : (data?.[orderNo] || data?.[1] || data);
-      const awb = String(row?.awb_no || row?.awb || '').trim();
+      // orderNo is likely ORD- prefix due to coercePublicOrderNoFromNumeric
+      console.log(`Generating AWB for order ${orderNo}...`);
+      const numericNo = orderNo.replace(/\D/g, '');
       
-      if (awb) {
-        console.log(`Successfully generated AWB ${awb} for order ${orderNo}`);
+      // 1. Check if it already exists (15-day window)
+      let awb = await this.itlGetAwbForOrder(orderNo);
+      if (!awb && numericNo !== orderNo) {
+        awb = await this.itlGetAwbForOrder(numericNo);
+      }
+
+      if (awb && awb !== 'null' && awb !== 'undefined' && awb !== '') {
+        console.log(`Found existing AWB ${awb} for order ${orderNo} during generation check.`);
         return awb;
       }
+
+      // 2. Attempt courier assignment (Ship Now)
+      console.log(`AWB not found for ${orderNo}, attempting courier assignment (Ship Now)...`);
+      
+      const pickupAddressId = (process.env.ITHINK_PICKUP_ADDRESS_ID || process.env.ITL_PICKUP_ADDRESS_ID || '').trim();
+      const logistics = (process.env.ITHINK_LOGISTICS || process.env.ITL_LOGISTICS || '').trim();
+      const sType = (process.env.ITHINK_S_TYPE || process.env.ITL_S_TYPE || '').trim();
+
+      if (pickupAddressId && logistics && sType) {
+        // We try both formats for assignment if the first one returns an empty response or error
+        const tryAssign = async (idToUse: string) => {
+          const assignPayload = {
+            order_no: idToUse,
+            logistics_name: logistics,
+            service_id: sType,
+            s_type: sType,
+            pickup_address_id: Number(pickupAddressId) || pickupAddressId
+          };
+          console.log(`iThink assign-courier payload for ${idToUse}:`, JSON.stringify(assignPayload, null, 2));
+          
+          try {
+            let resp = await this.makeIthinkRequest('/api_v3/shipping/assign_courier.json', assignPayload);
+            // If response is empty array, treat as failure to find order
+            if (Array.isArray(resp) && resp.length === 0) return null;
+            return resp;
+          } catch (e) {
+            console.warn(`assign_courier.json failed for ${idToUse}, trying hyphen:`, (e as any)?.message);
+            try {
+              return await this.makeIthinkRequest('/api_v3/shipping/assign-courier.json', assignPayload);
+            } catch (e2) {
+              console.warn(`assign-courier.json also failed for ${idToUse}:`, (e2 as any)?.message);
+              return null;
+            }
+          }
+        };
+
+        let assignResp = await tryAssign(orderNo);
+        if (!assignResp && numericNo !== orderNo) {
+          console.log(`Assignment failed with ${orderNo}, retrying with numeric ${numericNo}...`);
+          assignResp = await tryAssign(numericNo);
+        }
+        
+        console.log(`iThink assign-courier final result for ${orderNo}:`, JSON.stringify(assignResp, null, 2));
+        
+        // After assignment, wait a bit and try get_details.json (wider window)
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        awb = await this.itlGetAwbForOrder(orderNo);
+        if (!awb && numericNo !== orderNo) awb = await this.itlGetAwbForOrder(numericNo);
+        
+        if (awb && awb !== 'null' && awb !== 'undefined' && awb !== '') {
+          return awb;
+        }
+
+        // Final attempt: get_awb.json (V3 specific generation check, very narrow window)
+        const today = new Date();
+        const start = new Date(today.getTime() - 25 * 60 * 1000); // 25 minutes back
+        const formatDateTime = (d: Date) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const h = String(d.getHours()).padStart(2, '0');
+          const min = String(d.getMinutes()).padStart(2, '0');
+          const s = String(d.getSeconds()).padStart(2, '0');
+          return `${y}-${m}-${day} ${h}:${min}:${s}`;
+        };
+
+        const tryGetAwb = async (idToUse: string) => {
+          try {
+            const resp: any = await this.makeIthinkRequest('/api_v3/order/get_awb.json', {
+              order_no: idToUse,
+              start_date_time: formatDateTime(start),
+              end_date_time: formatDateTime(today)
+            });
+            const data = resp?.data;
+            const row = data ? (Array.isArray(data) ? data[0] : (data?.[idToUse] || data?.[1] || Object.values(data)[0] || data)) : null;
+            return String(row?.awb_no || row?.awb || '').trim();
+          } catch {
+            return null;
+          }
+        };
+
+        awb = await tryGetAwb(orderNo);
+        if ((!awb || awb === 'null' || awb === '') && numericNo !== orderNo) {
+          awb = await tryGetAwb(numericNo);
+        }
+        
+        if (awb && awb !== 'null' && awb !== 'undefined' && awb !== '') {
+          return awb;
+        }
+      }
+      
+      console.warn(`AWB not found after assignment for ${orderNo}`);
       return null;
     } catch (e) {
-      console.warn('iThink get_awb (generation) failed:', (e as any)?.message || e);
+      console.warn('iThink itlGenerateAwbForOrder failed:', (e as any)?.message || e);
       return null;
     }
   }
@@ -276,7 +365,8 @@ class IthinkService {
   private async itlGetAwbForOrder(orderNo: string): Promise<string | null> {
     try {
       const today = new Date();
-      const start = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      // Look back 15 days instead of 7
+      const start = new Date(today.getTime() - 15 * 24 * 60 * 60 * 1000);
       const yyyy1 = start.getFullYear();
       const mm1 = String(start.getMonth() + 1).padStart(2, '0');
       const dd1 = String(start.getDate()).padStart(2, '0');
@@ -291,13 +381,26 @@ class IthinkService {
         end_date: `${yyyy2}-${mm2}-${dd2}`,
       });
 
+      console.log(`iThink get_details response for ${orderNo}:`, JSON.stringify(details, null, 2));
+
       const data = details?.data;
       if (!data || typeof data !== 'object') return null;
-      const firstKey = Object.keys(data)[0];
-      if (!firstKey) return null;
-      const row = (data as any)[firstKey];
-      const awb = String(row?.awb_no || row?.awb || '').trim();
-      return awb || null;
+      
+      // iThink V3 data can be an array or an object keyed by index or order_no
+      let row: any = null;
+      const pureNo = orderNo.replace(/\D/g, '');
+      const ordNo = orderNo.startsWith('ORD-') ? orderNo : `ORD-${orderNo}`;
+
+      if (Array.isArray(data)) {
+        row = data.find((r: any) => 
+          String(r?.order_no || r?.refnum || '').replace(/\D/g, '') === pureNo
+        ) || data[0];
+      } else {
+        row = data[pureNo] || data[ordNo] || data['1'] || data[1] || data?.[Object.keys(data)[0]];
+      }
+
+      const awb = String(row?.awb_no || row?.awb || row?.waybill || '').trim();
+      return (awb && awb !== 'null' && awb !== 'undefined' && awb !== '') ? awb : null;
     } catch (e) {
       console.warn('iThink get_details (awb lookup) failed:', (e as any)?.message || e);
       return null;
@@ -610,16 +713,29 @@ class IthinkService {
 
       let resp: any;
       try {
-        resp = await this.makeIthinkRequest('/api_v3/order/add.json', {
+        const payload = {
           shipments,
           pickup_address_id: pickupAddressId,
           logistics,
           s_type: sType,
           order_type: orderType,
-        });
+        };
+        console.log('Final iThink order/add payload:', JSON.stringify(payload, null, 2));
+        
+        resp = await this.makeIthinkRequest('/api_v3/order/add.json', payload);
+        
+        console.log('iThink order/add raw response:', JSON.stringify(resp, null, 2));
+        
         const row: any = resp?.data?.['1'] ?? resp?.data?.[1] ?? resp?.data?.[0] ?? resp?.data;
         const status = String(row?.status ?? resp?.status ?? '').toLowerCase();
-        if (status && status !== 'success') {
+        const remark = String(row?.remark || '').toLowerCase();
+        const waybill = String(row?.waybill || row?.awb_no || row?.awb || '').trim();
+
+        // If order already exists, iThink returns error status but provides the waybill.
+        // We should treat this as success if we get a valid waybill.
+        if (status === 'error' && remark.includes('already exist') && waybill && waybill !== 'null' && waybill !== '') {
+          console.log(`Order ${orderNo} already exists in iThink. Recovered waybill: ${waybill}`);
+        } else if (status && status !== 'success') {
           throw new Error(`iThink order add failed: ${row?.remark || resp?.html_message || resp?.message || 'Unknown error'}`);
         }
       } catch (e: any) {
@@ -644,12 +760,20 @@ class IthinkService {
         }
       }
 
-      // Try to fetch AWB (may take time; we'll keep it optional)
-      // First try to check if it's already assigned
-      let awb = await this.itlGetAwbForOrder(orderNo);
+      // Small delay to allow iThink to process the added order before fetching AWB
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // 1. Try to get waybill directly from the 'add' or 'sync' response
+      const row: any = resp?.data?.['1'] ?? resp?.data?.[1] ?? resp?.data?.[0] ?? resp?.data;
+      let awb = String(row?.waybill || row?.awb_no || row?.awb || '').trim();
+
+      // 2. If not in response, try to fetch it
+      if (!awb || awb === 'null' || awb === 'undefined') {
+        awb = await this.itlGetAwbForOrder(orderNo);
+      }
       
-      // If not, trigger generation (this handles "Ship Now" automatically)
-      if (!awb) {
+      // 3. If still not found, trigger generation (Ship Now)
+      if (!awb || awb === 'null' || awb === 'undefined') {
         awb = await this.itlGenerateAwbForOrder(orderNo);
       }
 
@@ -657,7 +781,7 @@ class IthinkService {
       return {
         order_id: Number(String(orderNo).replace(/\D/g, '')) || orderNo,
         shipment_id: Number(String(orderNo).replace(/\D/g, '')) || null,
-        awb_code: awb || null,
+        awb_code: (awb && awb !== 'null' && awb !== 'undefined') ? awb : null,
       };
     }
 
@@ -703,15 +827,20 @@ class IthinkService {
     }
   }
 
-  async trackOrder(orderId: string) {
+  async trackOrder(orderId: string, awbOverride?: string | null) {
     try {
       if (this.useIthink) {
         const orderNo = this.coercePublicOrderNoFromNumeric(orderId);
-        const awb = await this.itlGetAwbForOrder(orderNo);
+        let awb = (awbOverride && awbOverride !== 'null' && awbOverride !== 'undefined' && awbOverride !== '') ? awbOverride : null;
+        
+        if (!awb) {
+          awb = await this.itlGetAwbForOrder(orderNo);
+        }
+
         if (!awb) {
           throw new Error('AWB not available for this order yet');
         }
-        const response = await this.makeIthinkRequest('/api_v2/order/track.json', {
+        const response = await this.makeIthinkRequest('/api_v3/order/track.json', {
           awb_number_list: awb,
         });
         return response;
@@ -729,9 +858,9 @@ class IthinkService {
   async trackByAWB(awbCode: string) {
     try {
       if (this.useIthink) {
-        const response = await this.makeIthinkRequest('/api_v2/order/track.json', {
-          awb_number_list: String(awbCode),
-        });
+        const response = await this.makeIthinkRequest('/api_v3/order/track.json', {
+        awb_number_list: String(awbCode),
+      });
         return response;
       }
 
@@ -882,15 +1011,26 @@ class IthinkService {
         void courierId;
         const orderNo = this.coercePublicOrderNoFromNumeric(shipmentId);
         
-        // Try to get existing AWB first
+        // 1. Try to get existing AWB first
         let awb = await this.itlGetAwbForOrder(orderNo);
         
-        // If not found, call get_awb.json to generate it (this is the "Ship Now" action)
-        if (!awb) {
+        // 2. Fallback: try getOrderDetails (sometimes it's there but get_awb fails)
+        if (!awb || awb === 'null' || awb === 'undefined') {
+          try {
+            const details: any = await this.getOrderDetails(String(shipmentId));
+            const row = details?.data?.['1'] ?? details?.data?.[1] ?? details?.data?.[0] ?? details?.data;
+            awb = String(row?.waybill || row?.awb_no || row?.awb || '').trim();
+          } catch (e) {
+            console.warn('iThink getOrderDetails fallback failed in generateAWB:', e);
+          }
+        }
+
+        // 3. If still not found, call itlGenerateAwbForOrder (triggers Ship Now)
+        if (!awb || awb === 'null' || awb === 'undefined') {
           awb = await this.itlGenerateAwbForOrder(orderNo);
         }
 
-        if (!awb) {
+        if (!awb || awb === 'null' || awb === 'undefined') {
           throw new Error('AWB generation failed for this order. Please try manually in iThink dashboard.');
         }
         return {
@@ -917,11 +1057,21 @@ class IthinkService {
     try {
       if (this.useIthink) {
         const orderNo = this.coercePublicOrderNoFromNumeric(orderId);
+        
+        const today = new Date();
+        const start = new Date(today.getTime() - 15 * 24 * 60 * 60 * 1000);
+        const yyyy1 = start.getFullYear();
+        const mm1 = String(start.getMonth() + 1).padStart(2, '0');
+        const dd1 = String(start.getDate()).padStart(2, '0');
+        const yyyy2 = today.getFullYear();
+        const mm2 = String(today.getMonth() + 1).padStart(2, '0');
+        const dd2 = String(today.getDate()).padStart(2, '0');
+
         const details: any = await this.makeIthinkRequest('/api_v3/order/get_details.json', {
           awb_number_list: '',
           order_no: orderNo,
-          start_date: '',
-          end_date: '',
+          start_date: `${yyyy1}-${mm1}-${dd1}`,
+          end_date: `${yyyy2}-${mm2}-${dd2}`,
         });
         return details;
       }
@@ -935,15 +1085,20 @@ class IthinkService {
     }
   }
 
-  async generateInvoicePdfResponse(ithinkOrderId: string | number) {
+  async generateInvoicePdfResponse(ithinkOrderId: string | number, awbOverride?: string | null) {
     if (this.useIthink) {
       const orderNo = this.coercePublicOrderNoFromNumeric(ithinkOrderId);
-      const awb = await this.itlGetAwbForOrder(orderNo);
+      let awb = (awbOverride && awbOverride !== 'null' && awbOverride !== 'undefined' && awbOverride !== '') ? awbOverride : null;
+      
+      if (!awb) {
+        awb = await this.itlGetAwbForOrder(orderNo);
+      }
+      
       if (!awb) {
         throw new Error('AWB not available for this order yet');
       }
 
-      const data: any = await this.makeIthinkRequest('/api_v2/shipping/invoice.json', {
+      const data: any = await this.makeIthinkRequest('/api_v3/shipping/invoice.json', {
         awb_numbers: awb,
       });
 
@@ -975,15 +1130,20 @@ class IthinkService {
     });
   }
 
-  async generateLabelPdfResponse(shipmentId: number) {
+  async generateLabelPdfResponse(shipmentId: number, awbOverride?: string | null) {
     if (this.useIthink) {
       const orderNo = this.coercePublicOrderNoFromNumeric(shipmentId);
-      const awb = await this.itlGetAwbForOrder(orderNo);
+      let awb = (awbOverride && awbOverride !== 'null' && awbOverride !== 'undefined' && awbOverride !== '') ? awbOverride : null;
+
+      if (!awb) {
+        awb = await this.itlGetAwbForOrder(orderNo);
+      }
+
       if (!awb) {
         throw new Error('AWB not available for this order yet');
       }
 
-      const data: any = await this.makeIthinkRequest('/api_v2/shipping/label.json', {
+      const data: any = await this.makeIthinkRequest('/api_v3/shipping/label.json', {
         awb_numbers: awb,
         page_size: 'A4',
       });

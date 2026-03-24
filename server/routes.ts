@@ -1744,6 +1744,11 @@ app.get("/api/admin/stores", async (req, res) => {
   });
 
   app.post('/api/payments/cashfree/verify', async (req, res) => {
+    let ithinkOrderId = null;
+    let ithinkShipmentId = null;
+    let ithinkAwb = null;
+    let ithinkError = null;
+
     try {
       const { orderId } = req.body;
 
@@ -1907,10 +1912,19 @@ app.get("/api/admin/stores", async (req, res) => {
     status: 'processing',
     paymentMethod: 'Cashfree',
     shippingAddress: orderData.shippingAddress,
+    shippingCharge: orderData.shippingCharge || 0,
     cashfreeOrderId: orderId,
     paymentSessionId: statusResult.payment_session_id || null,
     paymentId: statusResult.cf_order_id || null,
     affiliateCode: orderData.affiliateCode || null,
+    promoCode: orderData.promoCode || null,
+    promoDiscount: orderData.promoDiscount || 0,
+    redeemAmount: orderData.redeemAmount || 0,
+    affiliateWalletAmount: orderData.affiliateWalletAmount || 0,
+    isMultiAddress: orderData.isMultiAddress || false,
+    deliveryInstructions: orderData.deliveryInstructions || null,
+    saturdayDelivery: orderData.saturdayDelivery !== undefined ? orderData.saturdayDelivery : true,
+    sundayDelivery: orderData.sundayDelivery !== undefined ? orderData.sundayDelivery : true,
     estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
     deliveryPartner: deliveryPartner,
     deliveryType: deliveryType,
@@ -2061,6 +2075,88 @@ app.get("/api/admin/stores", async (req, res) => {
               } catch (emailError) {
                 console.error(`❌ Failed to send order confirmation email for online payment order ${newOrder.id} (verification):`, emailError);
               }
+
+              // --- START iThink Integration for Online Payment ---
+              ithinkOrderId = null;
+              ithinkShipmentId = null;
+              ithinkAwb = null;
+              ithinkError = null;
+
+              const ithinkConfigured = Boolean(
+                (process.env.ITHINK_ACCESS_TOKEN && process.env.ITHINK_SECRET_KEY) ||
+                (process.env.ITHINKLOGISTICS_ACCESS_TOKEN && process.env.ITHINKLOGISTICS_SECRET_KEY) ||
+                (process.env.ITHINK_EMAIL && process.env.ITHINK_PASSWORD) ||
+                process.env.ITHINK_TOKEN
+              );
+
+              if (deliveryPartner === 'ITHINK' && ithinkConfigured) {
+                try {
+                  const displayOrderId = `ORD-${newOrder.id.toString().padStart(3, '0')}`;
+                  console.log('Starting iThink order creation for online order:', displayOrderId);
+
+                  // Fetch user details for customer info
+                  const userRows = await db
+                    .select({
+                      firstName: schema.users.firstName,
+                      lastName: schema.users.lastName,
+                      email: schema.users.email,
+                      phone: schema.users.phone,
+                    })
+                    .from(schema.users)
+                    .where(eq(schema.users.id, Number(payment.userId)))
+                    .limit(1);
+
+                  const customerData = {
+                    firstName: orderData.customerName?.split(' ')[0] || userRows[0]?.firstName || 'Customer',
+                    lastName: orderData.customerName?.split(' ').slice(1).join(' ') || userRows[0]?.lastName || 'Name',
+                    email: orderData.customerEmail || userRows[0]?.email || 'customer@example.com',
+                    phone: orderData.customerPhone || userRows[0]?.phone || '9999999999'
+                  };
+
+                  const ithinkOrderData = ithinkService.convertToIthinkFormat({
+                    id: newOrder.id,
+                    createdAt: newOrder.createdAt,
+                    totalAmount: Number(payment.amount),
+                    paymentMethod: 'Prepaid',
+                    shippingAddress: orderData.shippingAddress,
+                    items: orderData.items,
+                    customer: customerData
+                  }, String(process.env.ITHINK_PICKUP_LOCATION || 'Office'));
+
+                  console.log('iThink order payload (Online):', JSON.stringify(ithinkOrderData, null, 2));
+
+                  const ithinkResponse = await ithinkService.createOrder(ithinkOrderData);
+                  console.log('iThink API response (Online):', JSON.stringify(ithinkResponse, null, 2));
+
+                  if (ithinkResponse && ithinkResponse.order_id) {
+                    ithinkOrderId = ithinkResponse.order_id;
+                    ithinkShipmentId = ithinkResponse.shipment_id || null;
+                    ithinkAwb = ithinkResponse.awb_code || null;
+
+                    console.log(`iThink order created (Online): ${ithinkOrderId} awb=${ithinkAwb || 'Pending'}`);
+
+                    await db.update(schema.ordersTable)
+                      .set({
+                        ithinkOrderId: ithinkOrderId,
+                        ithinkShipmentId: ithinkShipmentId,
+                        trackingNumber: ithinkAwb || undefined,
+                        status: 'processing'
+                      } as any)
+                      .where(eq(schema.ordersTable.id, newOrder.id));
+                  } else {
+                    ithinkError = 'Invalid iThink response - no order_id';
+                    console.error('iThink response missing order_id (Online):', ithinkResponse);
+                  }
+                } catch (err: any) {
+                  ithinkError = err.message;
+                  console.error('iThink order creation failed (Online):', err.message);
+                  await db.update(schema.ordersTable)
+                    .set({ notes: `iThink Error: ${err.message}` } as any)
+                    .where(eq(schema.ordersTable.id, newOrder.id));
+                }
+              }
+              // --- END iThink Integration for Online Payment ---
+
             } else {
               console.log("Order already exists in ordersTable");
             }
@@ -2072,9 +2168,10 @@ app.get("/api/admin/stores", async (req, res) => {
 
       res.json({
         verified: isPaymentSuccessful,
-        status: statusResult.order_status,
-        paymentId: statusResult.cf_order_id,
-        message: isPaymentSuccessful ? "Payment verified successfully" : "Payment verification failed"
+        status: statusResult?.order_status,
+        paymentId: statusResult?.cf_order_id,
+        message: isPaymentSuccessful ? "Payment verified successfully" : "Payment verification failed",
+        ithinkOrderId: ithinkOrderId // Optional, but helpful for client
       });
 
     } catch (error) {
@@ -2230,10 +2327,19 @@ app.get("/api/admin/stores", async (req, res) => {
                 status: 'processing',
                 paymentMethod: 'Cashfree',
                 shippingAddress: orderData.shippingAddress,
+                shippingCharge: orderData.shippingCharge || 0,
                 cashfreeOrderId: order_id,
                 paymentSessionId: payment_session_id || null,
                 paymentId: cf_order_id || null,
                 affiliateCode: orderData.affiliateCode || null,
+                promoCode: orderData.promoCode || null,
+                promoDiscount: orderData.promoDiscount || 0,
+                redeemAmount: orderData.redeemAmount || 0,
+                affiliateWalletAmount: orderData.affiliateWalletAmount || 0,
+                isMultiAddress: orderData.isMultiAddress || false,
+                deliveryInstructions: orderData.deliveryInstructions || null,
+                saturdayDelivery: orderData.saturdayDelivery !== undefined ? orderData.saturdayDelivery : true,
+                sundayDelivery: orderData.sundayDelivery !== undefined ? orderData.sundayDelivery : true,
                 estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
                 deliveryPartner: deliveryPartner,
                 deliveryType: deliveryType,
@@ -2287,6 +2393,83 @@ app.get("/api/admin/stores", async (req, res) => {
               } catch (emailError) {
                 console.error(`❌ Failed to send order confirmation email for online payment order ${newOrder.id}:`, emailError);
               }
+
+              // --- START iThink Integration for Online Payment (Webhook) ---
+              let ithinkOrderId = null;
+              let ithinkShipmentId = null;
+              let ithinkAwb = null;
+
+              const ithinkConfigured = Boolean(
+                (process.env.ITHINK_ACCESS_TOKEN && process.env.ITHINK_SECRET_KEY) ||
+                (process.env.ITHINKLOGISTICS_ACCESS_TOKEN && process.env.ITHINKLOGISTICS_SECRET_KEY) ||
+                (process.env.ITHINK_EMAIL && process.env.ITHINK_PASSWORD) ||
+                process.env.ITHINK_TOKEN
+              );
+
+              if (deliveryPartner === 'ITHINK' && ithinkConfigured) {
+                try {
+                  const displayOrderId = `ORD-${newOrder.id.toString().padStart(3, '0')}`;
+                  console.log('Starting iThink order creation for online order (Webhook):', displayOrderId);
+
+                  // Get user details for customer data if not provided in payment
+                  const user = await db
+                    .select({
+                      firstName: schema.users.firstName,
+                      lastName: schema.users.lastName,
+                      email: schema.users.email,
+                      phone: schema.users.phone,
+                    })
+                    .from(schema.users)
+                    .where(eq(schema.users.id, Number(payment.userId)))
+                    .limit(1);
+
+                  const customerData = {
+                    firstName: orderData.customerName?.split(' ')[0] || user[0]?.firstName || 'Customer',
+                    lastName: orderData.customerName?.split(' ').slice(1).join(' ') || user[0]?.lastName || 'Name',
+                    email: orderData.customerEmail || user[0]?.email || 'customer@example.com',
+                    phone: orderData.customerPhone || user[0]?.phone || '9999999999'
+                  };
+
+                  const ithinkOrderData = ithinkService.convertToIthinkFormat({
+                    id: newOrder.id,
+                    createdAt: newOrder.createdAt,
+                    totalAmount: Number(payment.amount),
+                    paymentMethod: 'Prepaid',
+                    shippingAddress: orderData.shippingAddress,
+                    items: orderData.items,
+                    customer: customerData
+                  }, String(process.env.ITHINK_PICKUP_LOCATION || 'Office'));
+
+                  console.log('iThink order payload (Webhook):', JSON.stringify(ithinkOrderData, null, 2));
+
+                  const ithinkResponse = await ithinkService.createOrder(ithinkOrderData);
+                  console.log('iThink API response (Webhook):', JSON.stringify(ithinkResponse, null, 2));
+
+                  if (ithinkResponse && ithinkResponse.order_id) {
+                    ithinkOrderId = ithinkResponse.order_id;
+                    ithinkShipmentId = ithinkResponse.shipment_id || null;
+                    ithinkAwb = ithinkResponse.awb_code || null;
+
+                    console.log(`iThink order created (Webhook): ${ithinkOrderId} awb=${ithinkAwb || 'Pending'}`);
+
+                    await db.update(schema.ordersTable)
+                      .set({
+                        ithinkOrderId: ithinkOrderId,
+                        ithinkShipmentId: ithinkShipmentId,
+                        trackingNumber: ithinkAwb || undefined,
+                        status: 'processing'
+                      } as any)
+                      .where(eq(schema.ordersTable.id, newOrder.id));
+                  }
+                } catch (err: any) {
+                  console.error('iThink order creation failed (Webhook):', err.message);
+                  await db.update(schema.ordersTable)
+                    .set({ notes: `iThink Error (Webhook): ${err.message}` } as any)
+                    .where(eq(schema.ordersTable.id, newOrder.id));
+                }
+              }
+              // --- END iThink Integration for Online Payment (Webhook) ---
+
             } else {
               console.log(`Order ${order_id} already exists in ordersTable or no userId found`);
             }
@@ -3428,8 +3611,8 @@ app.get("/api/admin/stores", async (req, res) => {
       const filename = `${normalized}-thermal-invoice.pdf`;
 
       if (deliveryPartner === "ITHINK") {
-        const ithinkOrderId = Number((order as any).ithinkOrderId || (order as any).ithink_order_id);
-        const shipmentId = Number((order as any).ithinkShipmentId || (order as any).ithink_shipment_id);
+        let ithinkOrderId = Number((order as any).ithinkOrderId || (order as any).ithink_order_id);
+        let shipmentId = Number((order as any).ithinkShipmentId || (order as any).ithink_shipment_id);
         if (!Number.isFinite(shipmentId) || shipmentId <= 0) {
           return res.status(400).json({ error: "iThink shipmentId missing for this order" });
         }
@@ -3466,17 +3649,58 @@ app.get("/api/admin/stores", async (req, res) => {
           }
 
           try {
-            const awbResp: any = await ithinkService.generateAWB(shipmentId, courierId);
+            console.log(`[thermal-invoice] AWB missing for ${normalized}, trying to re-sync/create order in iThink...`);
+            
+            const customerData = {
+              firstName: user?.firstName || 'Customer',
+              lastName: user?.lastName || 'Name',
+              email: user?.email || 'customer@example.com',
+              phone: user?.phone || '9999999999'
+            };
+
+            const ithinkOrderData = ithinkService.convertToIthinkFormat({
+              id: orderIdNum,
+              createdAt: order.createdAt,
+              totalAmount: Number(order.totalAmount),
+              paymentMethod: order.paymentMethod,
+              shippingAddress: order.shippingAddress,
+              items: items,
+              customer: customerData
+            }, String(process.env.ITHINK_PICKUP_LOCATION || 'Office'));
+
+            const ithinkResponse = await ithinkService.createOrder(ithinkOrderData);
             const awb = String(
-              awbResp?.awb_code ||
-                awbResp?.data?.awb_code ||
-                awbResp?.data?.awb ||
-                awbResp?.awb ||
+              ithinkResponse?.awb_code ||
+                ithinkResponse?.data?.awb_code ||
+                ithinkResponse?.data?.awb ||
+                ithinkResponse?.awb ||
                 ""
             ).trim();
-            if (awb) {
+            
+            if (awb && awb !== 'null' && awb !== 'undefined' && awb !== "") {
               awbNow = awb;
-              await db.update(schema.ordersTable).set({ trackingNumber: awb } as any).where(eq(schema.ordersTable.id, orderIdNum));
+              ithinkOrderId = ithinkResponse.order_id;
+              shipmentId = ithinkResponse.shipment_id || shipmentId;
+              await db.update(schema.ordersTable).set({ 
+                trackingNumber: awb,
+                ithinkOrderId: ithinkOrderId,
+                ithinkShipmentId: shipmentId
+              } as any).where(eq(schema.ordersTable.id, orderIdNum));
+              console.log(`[thermal-invoice] Successfully generated AWB ${awb} via createOrder`);
+            } else {
+              // Final fallback to the old generateAWB if createOrder didn't yield an AWB
+              const awbResp: any = await ithinkService.generateAWB(shipmentId, courierId);
+              const fallbackAwb = String(
+                awbResp?.awb_code ||
+                  awbResp?.data?.awb_code ||
+                  awbResp?.data?.awb ||
+                  awbResp?.awb ||
+                  ""
+              ).trim();
+              if (fallbackAwb) {
+                awbNow = fallbackAwb;
+                await db.update(schema.ordersTable).set({ trackingNumber: fallbackAwb } as any).where(eq(schema.ordersTable.id, orderIdNum));
+              }
             }
           } catch (e: any) {
             const msg = String(e?.message || e);
@@ -3493,18 +3717,24 @@ app.get("/api/admin/stores", async (req, res) => {
         }
 
         // Fallback: if AWB is still missing, try fetching it from iThink order details.
-        if (!awbNow) {
+        if (!awbNow || awbNow === 'null' || awbNow === 'undefined') {
           try {
-            const details: any = await ithinkService.getOrderDetails(String((order as any).ithinkOrderId || (order as any).ithink_order_id));
-            // ... (rest of the code remains the same)
-
-            console.log("[thermal-invoice][ithink] awb after trackOrder fallback=", awbNow || "<empty>");
+            console.log(`[thermal-invoice] AWB still missing, trying getOrderDetails for ${shipmentId}...`);
+            const details: any = await ithinkService.getOrderDetails(String(shipmentId));
+            const row = details?.data?.['1'] ?? details?.data?.[1] ?? details?.data?.[0] ?? details?.data;
+            const awb = String(row?.waybill || row?.awb_no || row?.awb || "").trim();
+            
+            if (awb && awb !== 'null' && awb !== 'undefined' && awb !== "") {
+              awbNow = awb;
+              await db.update(schema.ordersTable).set({ trackingNumber: awb } as any).where(eq(schema.ordersTable.id, orderIdNum));
+              console.log(`[thermal-invoice] Successfully recovered AWB ${awb} from getOrderDetails`);
+            }
           } catch (e) {
-            console.warn("iThink trackOrder AWB fallback failed:", (e as any)?.message || e);
+            console.warn("iThink getOrderDetails AWB fallback failed:", (e as any)?.message || e);
           }
         }
 
-        if (!awbNow) {
+        if (!awbNow || awbNow === 'null' || awbNow === 'undefined' || awbNow === "") {
           return res.status(202).json({
             status: 'pending',
             message: 'AWB not available for this order yet. Please retry in a few minutes.',
@@ -3592,8 +3822,8 @@ app.get("/api/admin/stores", async (req, res) => {
           return res.status(400).json({ error: "iThink shipmentId missing for this order" });
         }
 
-        const existingTracking = String((order as any).trackingNumber || (order as any).tracking_number || "").trim();
-        if (!existingTracking) {
+        let awbNow = String((order as any).trackingNumber || (order as any).tracking_number || "").trim();
+        if (!awbNow) {
           const addrText = String((order as any).shippingAddress || (order as any).shipping_address || "");
           const pincodeMatch = addrText.match(/\b\d{6}\b/);
           const deliveryPincode = pincodeMatch ? String(pincodeMatch[0]) : "";
@@ -3622,14 +3852,19 @@ app.get("/api/admin/stores", async (req, res) => {
             return res.status(400).json({ error: "Invalid courier_company_id returned by iThink" });
           }
 
-          const awbResp: any = await ithinkService.generateAWB(shipmentId, courierId);
-          const awb = String(awbResp?.awb_code || awbResp?.data?.awb_code || awbResp?.data?.awb || awbResp?.awb || "").trim();
-          if (awb) {
-            await db.update(schema.ordersTable).set({ trackingNumber: awb } as any).where(eq(schema.ordersTable.id, orderIdNum));
+          try {
+            const awbResp: any = await ithinkService.generateAWB(shipmentId, courierId);
+            const awb = String(awbResp?.awb_code || awbResp?.data?.awb_code || awbResp?.data?.awb || awbResp?.awb || "").trim();
+            if (awb) {
+              awbNow = awb;
+              await db.update(schema.ordersTable).set({ trackingNumber: awb } as any).where(eq(schema.ordersTable.id, orderIdNum));
+            }
+          } catch (e: any) {
+            console.warn("AWB generation failed for label:", e);
           }
         }
 
-        await ithinkInvoiceService.streamThermalLabelPdf(res, shipmentId, filename);
+        await ithinkInvoiceService.streamThermalLabelPdf(res, shipmentId, filename, awbNow || null);
         return;
       }
 
@@ -5982,7 +6217,10 @@ app.get("/api/admin/stores", async (req, res) => {
         });
       }
 
-      const trackingDetails = await ithinkService.trackOrder(String(orderData.ithinkOrderId));
+      const trackingDetails = await ithinkService.trackOrder(
+        String(orderData.ithinkOrderId || orderData.id),
+        orderData.trackingNumber || null
+      );
       const currentStatus =
         trackingDetails?.tracking_data?.shipment_track?.[0]?.current_status ||
         trackingDetails?.tracking_data?.shipment_track?.[0]?.shipment_status ||
@@ -7590,7 +7828,22 @@ app.get("/api/admin/stores", async (req, res) => {
     // IMPORTANT:
     // Checkout payable total is stored as orders.total_amount. Invoice should follow it
     // (otherwise GST/discounts get double-counted).
-    const shipping = Math.round(Math.max(0, Number(order?.shippingCharge ?? (order as any)?.shipping_charge ?? 0)));
+    let shipping = Math.round(Math.max(0, Number(order?.shippingCharge ?? (order as any)?.shipping_charge ?? 0)));
+
+    // Fallback for older orders where shippingCharge might be 0 in DB but present in shippingAddress JSON
+    if (shipping === 0) {
+      try {
+        const raw = order.shippingAddress;
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        const extractedShipping = Number(parsed?.shippingCharge ?? parsed?.shipping_charge ?? parsed?.shipping ?? parsed?.shipping_cost ?? 0);
+        if (extractedShipping > 0) {
+          shipping = Math.round(extractedShipping);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
     const paidTotal = Math.round(Math.max(0, Number(order?.totalAmount ?? (order as any)?.total_amount ?? 0)));
     const discount = Math.max(0, Math.round(subtotal + shipping - paidTotal));
 

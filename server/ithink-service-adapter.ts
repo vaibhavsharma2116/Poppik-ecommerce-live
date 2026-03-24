@@ -15,8 +15,8 @@ class IthinkServiceAdapter {
     return await this.ithink.createOrder(orderData as any);
   }
 
-  async trackOrder(orderId: string) {
-    return await this.ithink.trackOrder(orderId);
+  async trackOrder(orderId: string, awb?: string | null) {
+    return await this.ithink.trackOrder(orderId, awb);
   }
 
   async trackByAWB(awbCode: string) {
@@ -41,12 +41,12 @@ class IthinkServiceAdapter {
     return await this.ithink.getOrderDetails(orderId);
   }
 
-  async generateInvoicePdfResponse(orderId: string | number) {
-    return await this.ithink.generateInvoicePdfResponse(orderId);
+  async generateInvoicePdfResponse(orderId: string | number, awb?: string | null) {
+    return await this.ithink.generateInvoicePdfResponse(orderId, awb);
   }
 
-  async generateLabelPdfResponse(shipmentId: number) {
-    return await this.ithink.generateLabelPdfResponse(shipmentId);
+  async generateLabelPdfResponse(shipmentId: number, awb?: string | null) {
+    return await this.ithink.generateLabelPdfResponse(shipmentId, awb);
   }
 
   async cancelOrder(orderId: string) {
