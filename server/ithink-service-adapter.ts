@@ -49,8 +49,8 @@ class IthinkServiceAdapter {
     return await this.ithink.generateLabelPdfResponse(shipmentId, awb);
   }
 
-  async cancelOrder(orderId: string) {
-    return await this.ithink.cancelOrder(orderId);
+  async cancelOrder(orderId: string, awb?: string | null) {
+    return await this.ithink.cancelOrder(orderId, awb);
   }
 
   async cancelOrdersByAwb(awbNumbers: string | string[]) {

@@ -93,7 +93,7 @@ pool.on('remove', (client) => {
 });
 
 // Single database instance - don't recreate
-const db = drizzle(pool);
+export const db = drizzle(pool);
 
 // Simple connection test on startup
 (async () => {

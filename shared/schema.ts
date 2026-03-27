@@ -113,8 +113,8 @@ export const ordersTable = pgTable("orders", {
   deliveryInstructions: text("delivery_instructions"),
   saturdayDelivery: boolean("saturday_delivery").default(true),
   sundayDelivery: boolean("sunday_delivery").default(true),
-  ithinkOrderId: integer("ithink_order_id"),
-  ithinkShipmentId: integer("ithink_shipment_id"),
+  ithinkOrderId: text("ithink_order_id"), // Changed to text to handle large numbers safely in JS
+  ithinkShipmentId: text("ithink_shipment_id"), // Changed to text to handle large numbers safely in JS
   paymentSessionId: varchar("payment_session_id", { length: 255 }),
   paymentId: varchar("payment_id", { length: 255 }),
   cashfreeOrderId: varchar("cashfree_order_id", { length: 255 }),
@@ -129,6 +129,10 @@ export const ordersTable = pgTable("orders", {
   notes: text("notes"),
   deliveryPartner: varchar("delivery_partner", { length: 50 }),
   deliveryType: varchar("delivery_type", { length: 50 }),
+  cancelReason: text("cancel_reason"),
+  cancelledAt: timestamp("cancelled_at"),
+  refundId: varchar("refund_id", { length: 255 }),
+  refundStatus: varchar("refund_status", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -13,6 +13,8 @@ import sharp from "sharp";
 import { adminAuthMiddleware as adminMiddleware } from "./admin-middleware";
 import { IthinkInvoiceService } from "./ithink-invoice-service-wrapper";
 import { IndiaPostInvoiceService } from "./india-post-invoice-service";
+import { cancelService } from "./services/cancel-service";
+import { refundService } from "./services/refund-service";
 import nodemailer from 'nodemailer';
 import { createMasterAdminRoutes } from "./master-admin-routes";
 import webpush from 'web-push';
@@ -2494,6 +2496,40 @@ app.get("/api/admin/stores", async (req, res) => {
     }
   });
 
+  // Cashfree Refund Webhook Endpoint
+  app.post('/api/payments/cashfree/refund-webhook', async (req, res) => {
+    try {
+      const webhookData = req.body;
+      console.log('Cashfree refund webhook received:', JSON.stringify(webhookData, null, 2));
+
+      // Type can be REFUND_SUCCESS or REFUND_FAILED
+      const eventType = webhookData.type;
+      const refundData = webhookData.data?.refund;
+      const orderData = webhookData.data?.order;
+
+      if (!eventType || !refundData || !orderData) {
+        return res.status(400).json({ error: 'Invalid refund webhook data' });
+      }
+
+      const cashfreeOrderId = orderData.order_id;
+      const refundId = refundData.refund_id;
+      const refundStatus = refundData.refund_status;
+
+      console.log(`[Webhook] Processing ${eventType} for order ${cashfreeOrderId}, refundId: ${refundId}`);
+
+      if (eventType === 'REFUND_SUCCESS') {
+        await refundService.updateRefundStatus(cashfreeOrderId, refundId, 'success');
+      } else if (eventType === 'REFUND_FAILED') {
+        await refundService.updateRefundStatus(cashfreeOrderId, refundId, 'failed');
+      }
+
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('Cashfree refund webhook error:', error);
+      res.status(500).json({ error: 'Failed to process refund webhook' });
+    }
+  });
+
   // Delivery Address Management Routes
   app.get("/api/delivery-addresses", async (req, res) => {
     try {
@@ -4082,6 +4118,8 @@ app.get("/api/admin/stores", async (req, res) => {
             shippingAddress: formattedShipping,
             paymentMethod: order.paymentMethod,
             userId: order.userId,
+            cancelReason: (order as any).cancelReason,
+            cancelledAt: (order as any).cancelledAt,
           };
         })
       );
@@ -4194,12 +4232,38 @@ app.get("/api/admin/stores", async (req, res) => {
         shippingAddress: formattedShippingForSingle,
         paymentMethod: order[0].paymentMethod,
         userId: order[0].userId,
+        cancelReason: (order[0] as any).cancelReason,
+        cancelledAt: (order[0] as any).cancelledAt,
       };
 
       res.json(orderWithItems);
     } catch (error) {
       console.error("Error fetching order:", error);
       res.status(500).json({ error: "Failed to fetch order" });
+    }
+  });
+
+  // Cancel order endpoint
+  app.post("/api/orders/:id/cancel", async (req, res) => {
+    try {
+      const orderId = req.params.id.replace('ORD-', '');
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ error: "Cancellation reason is required" });
+      }
+
+      console.log(`[API] Cancelling order ${orderId}, reason: ${reason}`);
+      
+      const updatedOrder = await cancelService.cancelOrder(Number(orderId), reason);
+      
+      res.json({
+        message: "Order cancelled successfully",
+        order: updatedOrder
+      });
+    } catch (error: any) {
+      console.error(`[API] Error cancelling order ${req.params.id}:`, error);
+      res.status(400).json({ error: error.message || "Failed to cancel order" });
     }
   });
 
@@ -5918,11 +5982,16 @@ app.get("/api/admin/stores", async (req, res) => {
   app.get("/api/orders/:id/tracking", async (req, res) => {
     try {
       const orderId = req.params.id.replace('ORD-', '');
+      const numericId = BigInt(orderId.replace(/\D/g, ''));
+
+      if (!numericId) {
+        return res.status(400).json({ error: "Invalid order ID" });
+      }
 
       const order = await db
         .select()
         .from(schema.ordersTable)
-        .where(eq(schema.ordersTable.id, Number(orderId)))
+        .where(eq(schema.ordersTable.id, numericId))
         .limit(1);
 
       if (order.length === 0) {
@@ -6187,9 +6256,9 @@ app.get("/api/admin/stores", async (req, res) => {
   app.get("/api/orders/:orderId/track-ithink", async (req, res) => {
     try {
       const orderId = req.params.orderId.replace('ORD-', '');
-      const numericId = parseInt(orderId.replace(/\D/g, ''), 10);
+      const numericId = BigInt(orderId.replace(/\D/g, ''));
 
-      if (isNaN(numericId)) {
+      if (!numericId) {
         return res.status(400).json({ error: "Invalid order ID" });
       }
 

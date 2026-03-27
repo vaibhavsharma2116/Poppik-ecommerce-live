@@ -1174,13 +1174,36 @@ class IthinkService {
     });
   }
 
-  async cancelOrder(orderId: string) {
+  async cancelOrder(orderId: string, awbOverride?: string | null) {
     try {
       if (this.useIthink) {
-        const awb = await this.itlGetAwbForOrder(this.coercePublicOrderNoFromNumeric(orderId));
+        let awb = (awbOverride && awbOverride !== 'null' && awbOverride !== 'undefined' && awbOverride !== '') ? awbOverride : null;
+        
         if (!awb) {
-          throw new Error('AWB not available for this order yet');
+          const orderNo = this.coercePublicOrderNoFromNumeric(orderId);
+          const numericNo = orderId.replace(/\D/g, '');
+          
+          // Try to get AWB using both formats
+          awb = await this.itlGetAwbForOrder(orderNo);
+          if (!awb && numericNo !== orderNo) {
+            awb = await this.itlGetAwbForOrder(numericNo);
+          }
         }
+
+        if (!awb) {
+          // If no AWB, we try to cancel using order_numbers if supported, 
+          // but iThink v3 cancel API primarily uses awb_numbers.
+          // However, we can try sending order_numbers to the same endpoint or another one if known.
+          // For now, if no AWB, we might try a fallback or just log it.
+          console.warn(`[IthinkService] No AWB found for order ${orderId}. Cannot cancel via AWB-based API.`);
+          
+          // Fallback: Some iThink accounts support cancelling by order number in the same field
+          // or we can try the sync/delete approach if applicable.
+          // But usually, if it's not manifested, it might not even be "active".
+          throw new Error('AWB not available for this order yet. If the order is not manifested, it might not need cancellation or must be cancelled manually in the portal.');
+        }
+
+        console.log(`[IthinkService] Cancelling order ${orderId} using AWB ${awb}`);
         return await this.makeIthinkRequest('/api_v3/order/cancel.json', {
           awb_numbers: awb,
         });

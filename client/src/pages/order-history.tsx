@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, Package, Truck, CheckCircle, Clock, Eye, Download, RefreshCw, Search, Filter } from "lucide-react";
+import { ArrowLeft, Package, Truck, CheckCircle, Clock, Eye, Download, RefreshCw, Search, Filter, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,7 +25,7 @@ interface OrderItem {
 interface Order {
   id: string;
   date: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'placed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   total: string;
   items: OrderItem[];
   trackingNumber?: string;
@@ -32,6 +33,8 @@ interface Order {
   shippingAddress: string;
   paymentMethod: string;
   userId?: number;
+  cancelReason?: string;
+  cancelledAt?: string;
 }
 
 export default function OrderHistory() {
@@ -39,6 +42,10 @@ export default function OrderHistory() {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -292,6 +299,60 @@ export default function OrderHistory() {
     setIsDetailsOpen(true);
   };
 
+  const handleOpenCancelDialog = (e: React.MouseEvent, orderId: string) => {
+    e.stopPropagation();
+    setCancellingOrderId(orderId);
+    setCancelReason("");
+    setIsCancelDialogOpen(true);
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancellingOrderId || !cancelReason.trim()) {
+      toast({
+        title: "Reason Required",
+        description: "Please provide a reason for cancellation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsCancelling(true);
+      const response = await fetch(`/api/orders/${cancellingOrderId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason: cancelReason }),
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Order Cancelled",
+          description: "Your order has been cancelled successfully.",
+        });
+        setIsCancelDialogOpen(false);
+        fetchOrders(); // Refresh orders
+        if (selectedOrder && selectedOrder.id === cancellingOrderId) {
+          setIsDetailsOpen(false);
+        }
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to cancel order');
+      }
+    } catch (error: any) {
+      console.error("Error cancelling order:", error);
+      toast({
+        title: "Cancellation Failed",
+        description: error.message || "An error occurred while cancelling your order.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const handleRefresh = () => {
     fetchOrders(true);
   };
@@ -479,14 +540,20 @@ export default function OrderHistory() {
                         </div>
                       </div>
 
-                      {order.estimatedDelivery && (
+                      {order.estimatedDelivery && order.status !== 'cancelled' && (
                         <p className="text-sm text-gray-600">
                           <span className="font-medium">Expected Delivery:</span> {new Date(order.estimatedDelivery).toLocaleDateString('en-IN')}
                         </p>
                       )}
+
+                      {order.status === 'cancelled' && order.cancelReason && (
+                        <p className="text-sm text-red-600 mt-2 italic">
+                          <span className="font-medium">Reason:</span> {order.cancelReason}
+                        </p>
+                      )}
                     </div>
 
-                    <div className="flex space-x-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         variant="outline"
                         size="sm"
@@ -495,6 +562,18 @@ export default function OrderHistory() {
                         <Eye className="h-4 w-4 mr-1" />
                         View Details
                       </Button>
+                      
+                      {(order.status === 'pending' || order.status === 'placed' || order.status === 'processing') && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={(e) => handleOpenCancelDialog(e, order.id)}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Cancel Order
+                        </Button>
+                      )}
+
                       {order.status !== 'delivered' && order.status !== 'cancelled' && (
                         <Link href={`/track-order?orderId=${order.id}`}>
                           <Button size="sm" className="bg-red-600 hover:bg-red-700">
@@ -683,7 +762,16 @@ export default function OrderHistory() {
                         <p className="text-sm text-gray-600 whitespace-pre-line">{selectedOrder.shippingAddress}</p>
                       </div>
 
-                      <div className="flex gap-3 pt-2">
+                      <div className="flex flex-wrap gap-3 pt-2">
+                        {(selectedOrder.status === 'pending' || selectedOrder.status === 'placed' || selectedOrder.status === 'processing') && (
+                          <Button
+                            variant="destructive"
+                            onClick={(e) => handleOpenCancelDialog(e, selectedOrder.id)}
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Cancel Order
+                          </Button>
+                        )}
                         {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && (
                           <Link href={`/track-order?orderId=${selectedOrder.id}`}>
                             <Button className="bg-red-600 hover:bg-red-700">
@@ -717,6 +805,48 @@ export default function OrderHistory() {
             ) : (
               <div className="py-8 text-center text-gray-600">No order selected.</div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Cancellation Reason Dialog */}
+        <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Cancel Order</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to cancel order {cancellingOrderId}? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm">Reason for cancellation</h4>
+                <Textarea
+                  placeholder="Please tell us why you are cancelling this order..."
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="min-h-[100px]"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)} disabled={isCancelling}>
+                Go Back
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleCancelOrder} 
+                disabled={isCancelling || !cancelReason.trim()}
+              >
+                {isCancelling ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  'Confirm Cancellation'
+                )}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
