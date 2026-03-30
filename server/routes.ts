@@ -1583,6 +1583,68 @@ app.get("/api/admin/stores", async (req, res) => {
   // Backward-compatible alias (some clients may still call PUT)
   app.put('/api/auth/reset-password', resetPasswordHandler);
 
+  // User routes
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (Number.isNaN(userId)) {
+        return res.status(400).json({ error: "Invalid user id" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ error: "Failed to fetch user" });
+    }
+  });
+
+  app.put("/api/users/:id", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (Number.isNaN(userId)) {
+        return res.status(400).json({ error: "Invalid user id" });
+      }
+
+      const { firstName, lastName, email, phone, dateOfBirth, address, landmark, city, state, pincode, role } = req.body;
+
+      // Basic validation for name and email if provided
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: "Invalid email format" });
+      }
+
+      const updateData: any = {};
+      if (firstName !== undefined) updateData.firstName = String(firstName).trim();
+      if (lastName !== undefined) updateData.lastName = String(lastName).trim();
+      if (email !== undefined) updateData.email = String(email).trim().toLowerCase();
+      if (phone !== undefined) updateData.phone = String(phone).trim();
+      if (dateOfBirth !== undefined) updateData.dateOfBirth = String(dateOfBirth).trim();
+      if (address !== undefined) updateData.address = String(address).trim();
+      if (landmark !== undefined) updateData.landmark = String(landmark).trim();
+      if (city !== undefined) updateData.city = String(city).trim();
+      if (state !== undefined) updateData.state = String(state).trim();
+      if (pincode !== undefined) updateData.pincode = String(pincode).trim();
+      if (role !== undefined) updateData.role = String(role).trim();
+
+      const updatedUser = await storage.updateUser(userId, updateData);
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { password: _, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+
   // Cashfree Payment Routes
   app.post('/api/payments/cashfree/create-order', async (req, res) => {
     try {

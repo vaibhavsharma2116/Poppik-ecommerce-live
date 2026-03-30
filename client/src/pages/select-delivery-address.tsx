@@ -543,6 +543,16 @@ export default function SelectDeliveryAddress() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate address length (must be at least 10 chars for delivery partner requirements)
+    if (formData.addressLine1.trim().length < 10) {
+      toast({
+        title: "Address Too Short",
+        description: "Please provide a more detailed address (minimum 10 characters) including House No, Street, and Area.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const recipientName = `${nameData.firstName} ${nameData.lastName}`.trim();
 
     try {
@@ -1289,6 +1299,9 @@ export default function SelectDeliveryAddress() {
                         onChange={(e) => setFormData({...formData, addressLine1: e.target.value})}
                         required
                       />
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        Provide detailed address (Flat + Street + Area must be at least 10 characters).
+                      </p>
                     </div>
 
                     <div>

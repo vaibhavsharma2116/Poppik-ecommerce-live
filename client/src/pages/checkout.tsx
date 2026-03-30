@@ -1529,7 +1529,7 @@ export default function CheckoutPage() {
   const isAddressComplete = Boolean(
     ( (formData.firstName && formData.firstName.trim().length > 0) || (formData.lastName && formData.lastName.trim().length > 0) ) &&
     formData.phone && formData.phone.trim().length > 0 &&
-    formData.address && formData.address.trim().length > 0 &&
+    formData.address && formData.address.trim().length >= 10 &&
     formData.city && formData.city.trim().length > 0 &&
     formData.state && formData.state.trim().length > 0 &&
     formData.zipCode && /^\d{6}$/.test(String(formData.zipCode))
@@ -1823,6 +1823,16 @@ export default function CheckoutPage() {
 
     // Build full address
     const fullAddress = `${newAddressData.flat}, ${newAddressData.area}${newAddressData.landmark ? ', ' + newAddressData.landmark : ''}`;
+
+    // Validate full address length for iThink/India Post (must be at least 10 chars)
+    if (fullAddress.trim().length < 10) {
+      toast({
+        title: "Address Too Short",
+        description: "Please provide a more detailed address (minimum 10 characters) including House No, Street, and Area.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Split name into first and last
     const recipientName = `${newAddressData.firstName} ${newAddressData.lastName}`.trim();
@@ -2443,9 +2453,11 @@ export default function CheckoutPage() {
     if (formData.address && formData.address.trim().length < 10) {
       toast({
         title: "Short Address",
-        description: "Address looks short (minimum 10 characters recommended).",
+        description: "Address is too short. Please provide a more detailed address (minimum 10 characters).",
         variant: "destructive",
       });
+      setIsProcessing(false);
+      return;
     }
 
     if (formData.city && formData.city.trim().length < 3) {
@@ -3010,6 +3022,9 @@ export default function CheckoutPage() {
                                   onChange={(e) => setNewAddressData({...newAddressData, area: e.target.value})}
                                   required
                                 />
+                                <p className="text-[10px] text-gray-500 mt-1">
+                                   Provide detailed address (Flat + Area must be at least 10 characters).
+                                 </p>
                               </div>
 
                               <div>
@@ -3287,6 +3302,9 @@ export default function CheckoutPage() {
                                   onChange={(e) => setNewAddressData({...newAddressData, area: e.target.value})}
                                   required
                                 />
+                                <p className="text-[10px] text-gray-500 mt-1">
+                                   Provide detailed address (Flat + Area must be at least 10 characters).
+                                 </p>
                               </div>
 
                               <div>
@@ -3410,7 +3428,7 @@ export default function CheckoutPage() {
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                         {!isAddressComplete && (
-                          <p className="text-xs text-gray-500 mt-1">Please complete address details to continue</p>
+                          <p className="text-xs text-red-500 mt-1 font-medium">Please provide a detailed address (min 10 chars) to continue</p>
                         )}
                       </div>
                     </div>

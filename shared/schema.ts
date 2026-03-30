@@ -220,7 +220,9 @@ export const stores = pgTable("stores", {
 export type Store = typeof stores.$inferSelect;
 export type InsertStore = typeof stores.$inferInsert;
 
-export const insertOrderSchema = createInsertSchema(ordersTable);
+export const insertOrderSchema = createInsertSchema(ordersTable, {
+  shippingAddress: z.string().min(10, "Address must be at least 10 characters long for delivery purposes"),
+});
 export const selectOrderSchema = createSelectSchema(ordersTable);
 
 // Order items table
