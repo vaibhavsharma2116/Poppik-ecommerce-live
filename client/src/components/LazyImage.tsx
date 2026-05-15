@@ -51,16 +51,18 @@ export function LazyImage({
   const defaultFallback = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
   const finalFallback = fallbackSrc || defaultFallback;
   
-  const optimizedSrc = !hasError ? optimizeImageUrl(src, { 
+  const optimizedSrc = optimizeImageUrl(src, { 
     width, 
     height, 
     quality: priority ? 85 : 75,
     fit
-  }) : finalFallback;
+  });
 
   const handleError = () => {
     setHasError(true);
   };
+
+  const displaySrc = hasError ? finalFallback : optimizedSrc;
 
   return (
     <div className="relative" style={{ aspectRatio: `${width}/${height}` }}>
@@ -69,7 +71,7 @@ export function LazyImage({
       )}
       <img
         ref={imgRef}
-        src={isInView ? optimizedSrc : undefined}
+        src={isInView ? displaySrc : undefined}
         alt={alt}
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
