@@ -11,6 +11,14 @@ export function optimizeImageUrl(
   originalUrl?: string, 
   options: ImageOptimizationOptions = {}
 ): string {
+  const {
+    width = 400,
+    height = 400,
+    quality = 70,  // Balanced compression
+    format = 'webp',
+    fit = 'cover'
+  } = options;
+
   // Defensive: if no URL provided, return empty string
   if (!originalUrl || typeof originalUrl !== 'string' || originalUrl.trim() === '') {
     return '';
@@ -19,27 +27,19 @@ export function optimizeImageUrl(
   // Handle Unsplash URLs with aggressive optimization
   if (originalUrl.includes('unsplash.com')) {
     const baseUrl = originalUrl.split('?')[0];
-    return baseUrl;
+    const unsplashFit = fit === 'contain' ? 'max' : fit === 'cover' ? 'crop' : 'crop';
+    return `${baseUrl}?w=${width}&h=${height}&q=${quality}&fit=${unsplashFit}&fm=webp&auto=format,compress&dpr=1`;
   }
 
   // Handle local images through our API
   if (originalUrl.startsWith('/api/images/')) {
-    return `/images/${originalUrl.substring('/api/images/'.length)}`;
+    const newUrl = `/images/${originalUrl.substring('/api/images/'.length)}`;
+    return `${newUrl}?w=${width}&h=${height}&q=${quality}&format=${format}&fit=${fit}`;
   }
 
   // Handle local images through public /images
   if (originalUrl.startsWith('/images/')) {
-    return originalUrl;
-  }
-
-  // Handle local images through /uploads/
-  if (originalUrl.startsWith('/uploads/')) {
-    return originalUrl;
-  }
-
-  // If it's just a filename (no protocol, no leading slash), prefix with /images/
-  if (!originalUrl.startsWith('http://') && !originalUrl.startsWith('https://') && !originalUrl.startsWith('/')) {
-    return `/images/${originalUrl}`;
+    return `${originalUrl}?w=${width}&h=${height}&q=${quality}&format=${format}&fit=${fit}`;
   }
 
   // Return original URL for other sources

@@ -254,18 +254,20 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
   }
 
   // Helper to resolve product primary image from multiple shapes
-  const getPrimaryImage = (p: any) => {
-    if (!p) return '';
+  const getPrimaryImage = (p: any, smallFallback = false) => {
+    const fallback = smallFallback
+      ? 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&h=200&q=60'
+      : 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
+
+    if (!p) return fallback;
 
     // If images is array of strings (server returns imageUrl strings)
     if (p.images && Array.isArray(p.images) && p.images.length > 0) {
       const first = p.images[0];
-      if (first) {
-        if (typeof first === 'string') return first;
-        // first might be object like { url: '', imageUrl: '' }
-        const img = first.url || first.imageUrl || String(first);
-        if (img) return img;
-      }
+      if (!first) return fallback;
+      if (typeof first === 'string') return first;
+      // first might be object like { url: '', imageUrl: '' }
+      return first.url || first.imageUrl || String(first) || fallback;
     }
 
     // Common alternate fields
@@ -273,7 +275,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
     if (p.image) return p.image;
     if (p.thumbnail) return p.thumbnail;
 
-    return '';
+    return fallback;
   };
 
   if (viewMode === 'list') {
@@ -461,7 +463,7 @@ export default function ProductCard({ product, className = "", viewMode = 'grid'
         <Link href={`/product/${product.slug}`}>
           <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
             <LazyImage
-              src={getPrimaryImage(product)}
+              src={getPrimaryImage(product, true)}
               alt={product.name}
               width={cardImageSize}
               height={cardImageSize}

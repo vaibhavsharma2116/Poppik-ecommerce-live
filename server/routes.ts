@@ -12095,18 +12095,15 @@ app.get('/api/influencer-videos', async (req, res) => {
   app.get('/api/testimonials', async (req, res) => {
     try {
       const testimonials = await storage.getActiveTestimonials();
-      // Map customer_image to customerImage and customerImageUrl for frontend compatibility
+      // Map customer_image to customerImageUrl for frontend compatibility
       const formattedTestimonials = testimonials.map(t => ({
         id: t.id,
         customerName: t.customerName,
-        customerImage: t.customerImage,
         customerImageUrl: t.customerImage,
         rating: t.rating,
         content: t.reviewText,
-        reviewText: t.reviewText,
         isActive: t.isActive,
         instagramUrl: t.instagramUrl,
-        sortOrder: t.sortOrder,
         createdAt: t.createdAt,
       }));
       res.json(formattedTestimonials);
