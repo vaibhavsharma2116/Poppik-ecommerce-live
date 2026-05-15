@@ -1118,8 +1118,8 @@ const db = drizzle(pool, { schema: { products, productImages, shades } });
       return next();
     }
 
-    // Skip API routes
-    if (req.path.startsWith('/api/')) {
+    // Skip API routes and images routes
+    if (req.path.startsWith('/api/') || req.path.startsWith('/images/')) {
       return next();
     }
 
