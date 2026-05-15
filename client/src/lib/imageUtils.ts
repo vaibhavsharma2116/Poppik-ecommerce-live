@@ -16,13 +16,21 @@ export function optimizeImageUrl(
     return '';
   }
 
-  // Handle local images through our API (convert to /images path)
-  if (originalUrl.startsWith('/api/images/')) {
-    return `/images/${originalUrl.substring('/api/images/'.length)}`;
+  // Remove any query parameters from the URL
+  let urlWithoutParams = originalUrl.split('?')[0];
+
+  // If it starts with /images/, convert to /api/images/
+  if (urlWithoutParams.startsWith('/images/')) {
+    return `/api/images/${urlWithoutParams.substring('/images/'.length)}`;
+  }
+
+  // If it already starts with /api/images/, keep it as is
+  if (urlWithoutParams.startsWith('/api/images/')) {
+    return urlWithoutParams;
   }
 
   // Return original URL for all other sources (no transformation)
-  return originalUrl;
+  return urlWithoutParams;
 }
 
 export function getResponsiveImageSizes(baseWidth: number = 400) {
