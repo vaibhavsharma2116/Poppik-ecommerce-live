@@ -35,8 +35,15 @@ export async function setupVite(app: Express, server: Server) {
 
   // Vite middleware को configure करते हैं कि वो API routes को skip करे
   app.use((req, res, next) => {
-    // Skip API routes, websocket endpoints and well-known devtools requests from Vite middleware
-    if (req.url.startsWith('/api/') || req.url.startsWith('/.well-known/') || req.url.startsWith('/ws')) {
+    // Skip API routes, websocket endpoints, images, uploads, attached assets and well-known devtools requests from Vite middleware
+    if (
+      req.url.startsWith('/api/') || 
+      req.url.startsWith('/.well-known/') || 
+      req.url.startsWith('/ws') || 
+      req.url.startsWith('/images/') || 
+      req.url.startsWith('/uploads/') || 
+      req.url.startsWith('/attached_assets/')
+    ) {
       return next();
     }
     // Non-API routes के लिए Vite middleware run करते हैं
@@ -47,8 +54,15 @@ export async function setupVite(app: Express, server: Server) {
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
-    // Double check - skip API, websocket and well-known devtools requests here as well
-    if (url.startsWith('/api/') || url.startsWith('/.well-known/') || url.startsWith('/ws')) {
+    // Double check - skip API, websocket, images, uploads, attached assets and well-known devtools requests here as well
+    if (
+      url.startsWith('/api/') || 
+      url.startsWith('/.well-known/') || 
+      url.startsWith('/ws') || 
+      url.startsWith('/images/') || 
+      url.startsWith('/uploads/') || 
+      url.startsWith('/attached_assets/')
+    ) {
       return next();
     }
 
@@ -156,7 +170,13 @@ export function serveStatic(app: Express) {
 
   // Static files को भी API routes के conflict से बचाते हैं
   app.use((req, res, next) => {
-    if (req.url.startsWith('/api/') || req.url.startsWith('/.well-known/')) {
+    if (
+      req.url.startsWith('/api/') || 
+      req.url.startsWith('/.well-known/') || 
+      req.url.startsWith('/images/') || 
+      req.url.startsWith('/uploads/') || 
+      req.url.startsWith('/attached_assets/')
+    ) {
       return next();
     }
     // Never treat build asset URLs as SPA routes
@@ -168,8 +188,14 @@ export function serveStatic(app: Express) {
 
   // HTML fallback केवल non-API routes के लिए
   app.use("*", (req, res, next) => {
-    // API routes को skip करते हैं
-    if (req.originalUrl.startsWith('/api/') || req.originalUrl.startsWith('/.well-known/')) {
+    // API routes, images, uploads, attached assets को skip करते हैं
+    if (
+      req.originalUrl.startsWith('/api/') || 
+      req.originalUrl.startsWith('/.well-known/') || 
+      req.originalUrl.startsWith('/images/') || 
+      req.originalUrl.startsWith('/uploads/') || 
+      req.originalUrl.startsWith('/attached_assets/')
+    ) {
       return next();
     }
     // Never fall back to index.html for build asset URLs

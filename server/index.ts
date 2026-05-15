@@ -216,6 +216,7 @@ const staticImageMiddleware = express.static('uploads', {
   immutable: true,
   etag: true,
   lastModified: true,
+  fallthrough: false,
   setHeaders: (res, p) => {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -226,10 +227,19 @@ const staticImageMiddleware = express.static('uploads', {
   }
 });
 
+const stripQueryParamsForStatic = (req: any, res: any, next: any) => {
+  const originalUrl = req.url;
+  const queryIndex = originalUrl.indexOf('?');
+  if (queryIndex !== -1) {
+    req.url = originalUrl.substring(0, queryIndex);
+  }
+  next();
+};
+
 app.use('/images', imageMiddleware);
-app.use('/images', staticImageMiddleware);
+app.use('/images', stripQueryParamsForStatic, staticImageMiddleware);
 app.use('/api/images', imageMiddleware);
-app.use('/api/images', staticImageMiddleware);
+app.use('/api/images', stripQueryParamsForStatic, staticImageMiddleware);
 
 // Trust proxy for load balancer
 app.set('trust proxy', 1);
