@@ -125,92 +125,7 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-// Serve images from /images and /api/images (no auth, no sessions) with:
-// - query-param optimization via Sharp (w/h/q/format/fit)
-// - express.static fallback for raw file serving
-const imageMiddleware = (req: any, res: any, next: any) => {
-  const { w: width, h: height, q: quality, format, fit } = req.query as any;
-  if (!width && !height && !quality && !format && !fit) return next();
-
-  const rel = (req.path || '/').replace(/^\/+/, '');
-  const imagePath = path.join(process.cwd(), 'uploads', rel);
-
-  if (!fs.existsSync(imagePath)) {
-    return res.status(404).end();
-  }
-
-  const extension = path.extname(imagePath).toLowerCase();
-  let contentType = {
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.webp': 'image/webp',
-  }[extension] || 'image/jpeg';
-
-  if (format === 'webp') contentType = 'image/webp';
-  if (format === 'jpeg') contentType = 'image/jpeg';
-  if (format === 'png') contentType = 'image/png';
-
-  const allowedFits = new Set(['cover', 'contain', 'fill', 'inside', 'outside']);
-  const requestedFit = typeof fit === 'string' && allowedFits.has(fit) ? fit : 'cover';
-
-  const params = `${width || ''}-${height || ''}-${quality || ''}-${format || ''}-${fit || ''}`;
-  const cacheKey = `${req.path}-${params}`;
-  const fileStats = fs.statSync(imagePath);
-
-  res.set({
-    'Content-Type': contentType,
-    'Cache-Control': 'public, max-age=31536000, immutable',
-    'ETag': `"${cacheKey}-${fileStats.mtime.getTime()}"`,
-    'Last-Modified': fileStats.mtime.toUTCString(),
-    'Vary': 'Accept-Encoding',
-    'X-Content-Type-Options': 'nosniff',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,HEAD',
-    'Cross-Origin-Resource-Policy': 'cross-origin',
-  });
-
-  const ifNoneMatch = req.headers['if-none-match'];
-  const ifModifiedSince = req.headers['if-modified-since'];
-  const etag = res.getHeader('ETag');
-  const lastModified = res.getHeader('Last-Modified');
-  if (
-    (ifNoneMatch && ifNoneMatch === etag) ||
-    (ifModifiedSince && new Date(ifModifiedSince) >= new Date(lastModified as any))
-  ) {
-    return res.status(304).end();
-  }
-
-  try {
-    let pipeline = sharp(imagePath);
-    if (width || height) {
-      pipeline = pipeline.resize(
-        width ? parseInt(String(width), 10) : undefined,
-        height ? parseInt(String(height), 10) : undefined,
-        {
-          fit: requestedFit as any,
-          position: 'center',
-          withoutEnlargement: true,
-        }
-      );
-    }
-
-    const qual = quality ? parseInt(String(quality), 10) : 80;
-    if (format === 'webp') {
-      pipeline = pipeline.webp({ quality: qual });
-    } else if (format === 'jpeg' || extension === '.jpg' || extension === '.jpeg') {
-      pipeline = pipeline.jpeg({ quality: qual, progressive: true });
-    } else if (format === 'png' || extension === '.png') {
-      pipeline = pipeline.png({ quality: qual, progressive: true });
-    }
-
-    pipeline.pipe(res);
-  } catch (error) {
-    res.sendFile(imagePath);
-  }
-};
-
+// Serve images from /images and /api/images (no auth, no sessions) - plain static serving only
 const staticImageMiddleware = express.static('uploads', {
   maxAge: '365d',
   immutable: true,
@@ -236,9 +151,7 @@ const stripQueryParamsForStatic = (req: any, res: any, next: any) => {
   next();
 };
 
-app.use('/images', imageMiddleware);
 app.use('/images', stripQueryParamsForStatic, staticImageMiddleware);
-app.use('/api/images', imageMiddleware);
 app.use('/api/images', stripQueryParamsForStatic, staticImageMiddleware);
 
 // Trust proxy for load balancer
