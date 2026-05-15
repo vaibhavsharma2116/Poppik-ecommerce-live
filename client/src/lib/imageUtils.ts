@@ -11,38 +11,17 @@ export function optimizeImageUrl(
   originalUrl?: string, 
   options: ImageOptimizationOptions = {}
 ): string {
-  const {
-    width = 400,
-    height = 400,
-    quality = 70,  // Balanced compression
-    format = 'webp',
-    fit = 'cover'
-  } = options;
-
   // Defensive: if no URL provided, return empty string
   if (!originalUrl || typeof originalUrl !== 'string' || originalUrl.trim() === '') {
     return '';
   }
 
-  // Handle Unsplash URLs with aggressive optimization
-  if (originalUrl.includes('unsplash.com')) {
-    const baseUrl = originalUrl.split('?')[0];
-    const unsplashFit = fit === 'contain' ? 'max' : fit === 'cover' ? 'crop' : 'crop';
-    return `${baseUrl}?w=${width}&h=${height}&q=${quality}&fit=${unsplashFit}&fm=webp&auto=format,compress&dpr=1`;
-  }
-
-  // Handle local images through our API
+  // Handle local images through our API (convert to /images path)
   if (originalUrl.startsWith('/api/images/')) {
-    const newUrl = `/images/${originalUrl.substring('/api/images/'.length)}`;
-    return `${newUrl}?w=${width}&h=${height}&q=${quality}&format=${format}&fit=${fit}`;
+    return `/images/${originalUrl.substring('/api/images/'.length)}`;
   }
 
-  // Handle local images through public /images
-  if (originalUrl.startsWith('/images/')) {
-    return `${originalUrl}?w=${width}&h=${height}&q=${quality}&format=${format}&fit=${fit}`;
-  }
-
-  // Return original URL for other sources
+  // Return original URL for all other sources (no transformation)
   return originalUrl;
 }
 
