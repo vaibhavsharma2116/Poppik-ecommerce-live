@@ -125,10 +125,10 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-// Serve images from /images (no auth, no sessions) with:
+// Serve images from /images and /api/images (no auth, no sessions) with:
 // - query-param optimization via Sharp (w/h/q/format/fit)
 // - express.static fallback for raw file serving
-app.use('/images', (req, res, next) => {
+const imageMiddleware = (req: any, res: any, next: any) => {
   const { w: width, h: height, q: quality, format, fit } = req.query as any;
   if (!width && !height && !quality && !format && !fit) return next();
 
@@ -209,9 +209,9 @@ app.use('/images', (req, res, next) => {
   } catch (error) {
     res.sendFile(imagePath);
   }
-});
+};
 
-app.use('/images', express.static('uploads', {
+const staticImageMiddleware = express.static('uploads', {
   maxAge: '365d',
   immutable: true,
   etag: true,
@@ -224,15 +224,12 @@ app.use('/images', express.static('uploads', {
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Vary', 'Accept-Encoding');
   }
-}));
-
-// Safe 301 redirect: /api/images/* -> /images/* (preserve query params)
-app.get('/api/images/*', (req, res) => {
-  const suffix = req.path.substring('/api/images'.length) || '/';
-  const qsIndex = req.originalUrl.indexOf('?');
-  const qs = qsIndex >= 0 ? req.originalUrl.substring(qsIndex) : '';
-  res.redirect(301, `/images${suffix}${qs}`);
 });
+
+app.use('/images', imageMiddleware);
+app.use('/images', staticImageMiddleware);
+app.use('/api/images', imageMiddleware);
+app.use('/api/images', staticImageMiddleware);
 
 // Trust proxy for load balancer
 app.set('trust proxy', 1);
