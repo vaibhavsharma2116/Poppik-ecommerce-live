@@ -10,6 +10,7 @@ interface LazyImageProps {
   height?: number;
   priority?: boolean;
   fit?: 'crop' | 'contain' | 'cover';
+  fallbackSrc?: string;
 }
 
 export function LazyImage({ 
@@ -19,10 +20,12 @@ export function LazyImage({
   width = 400, 
   height = 400,
   priority = false,
-  fit
+  fit,
+  fallbackSrc
 }: LazyImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(priority);
+  const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -45,16 +48,23 @@ export function LazyImage({
     return () => observer.disconnect();
   }, [priority]);
 
-  const optimizedSrc = optimizeImageUrl(src, { 
+  const defaultFallback = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400&q=80';
+  const finalFallback = fallbackSrc || defaultFallback;
+  
+  const optimizedSrc = !hasError ? optimizeImageUrl(src, { 
     width, 
     height, 
     quality: priority ? 85 : 75,
     fit
-  });
+  }) : finalFallback;
+
+  const handleError = () => {
+    setHasError(true);
+  };
 
   return (
     <div className="relative" style={{ aspectRatio: `${width}/${height}` }}>
-      {!isLoaded && (
+      {!isLoaded && !hasError && (
         <div className="absolute inset-0 bg-gray-200 animate-pulse" />
       )}
       <img
@@ -64,10 +74,11 @@ export function LazyImage({
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
         fetchPriority={priority ? 'high' : 'auto'}
-        className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+        className={`${className} ${isLoaded || hasError ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
         width={width}
         height={height}
         onLoad={() => setIsLoaded(true)}
+        onError={handleError}
       />
     </div>
   );
