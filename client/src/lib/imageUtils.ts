@@ -32,6 +32,16 @@ export function optimizeImageUrl(
     return originalUrl;
   }
 
+  // Handle local images through /uploads/
+  if (originalUrl.startsWith('/uploads/')) {
+    return originalUrl;
+  }
+
+  // If it's just a filename (no protocol, no leading slash), prefix with /images/
+  if (!originalUrl.startsWith('http://') && !originalUrl.startsWith('https://') && !originalUrl.startsWith('/')) {
+    return `/images/${originalUrl}`;
+  }
+
   // Return original URL for other sources
   return originalUrl;
 }
