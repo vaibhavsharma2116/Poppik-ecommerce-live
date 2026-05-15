@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Heart, Star, Loader2, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { LazyImage } from "@/components/LazyImage";
+import { optimizeImageUrl } from "@/lib/imageUtils";
 
 interface ComboProduct {
   id: number;
@@ -433,15 +435,13 @@ export default function ComboPage() {
                   <div className="relative overflow-hidden bg-white">
                     <div className="aspect-square overflow-hidden rounded-t-lg sm:rounded-t-xl bg-gray-100">
                       {getPrimaryImage(combo) ? (
-                        <img
+                        <LazyImage
                           src={getPrimaryImage(combo)!}
                           alt={combo.name}
                           className="h-full w-full object-cover"
-                          loading="lazy"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = 'https://images.unsplash.com/photo-1556228720-195a672e8a03?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=300&q=75';
-                          }}
+                          width={400}
+                          height={400}
+                          priority={false}
                         />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center">
