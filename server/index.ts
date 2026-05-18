@@ -30,12 +30,24 @@ if (process.env.NODE_ENV === 'production') {
 
 // Process optimization
 process.setMaxListeners(15);
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully');
+  try {
+    await pool.end();
+    console.log('Database pool closed successfully');
+  } catch (err) {
+    console.error('Error closing database pool:', err);
+  }
   process.exit(0);
 });
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully');
+  try {
+    await pool.end();
+    console.log('Database pool closed successfully');
+  } catch (err) {
+    console.error('Error closing database pool:', err);
+  }
   process.exit(0);
 });
 

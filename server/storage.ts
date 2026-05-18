@@ -84,14 +84,6 @@ pool.on('error', (err, client) => {
   // Don't exit the process, just log the error
 });
 
-pool.on('connect', (client) => {
-  console.log('New database connection established');
-});
-
-pool.on('remove', (client) => {
-  console.log('Database connection removed from pool');
-});
-
 // Single database instance - don't recreate
 export const db = drizzle(pool, { schema });
 
