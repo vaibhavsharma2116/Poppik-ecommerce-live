@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc, and, gte, lte, like, isNull, asc, or, sql, inArray } from "drizzle-orm";
 import { Pool } from "pg";
-import * as schema from "@shared/schema";
+import * as schema from "../shared/schema";
 
 // Pull commonly used tables from schema (cast to any to avoid strict mismatches)
 const {
@@ -93,7 +93,7 @@ pool.on('remove', (client) => {
 });
 
 // Single database instance - don't recreate
-export const db = drizzle(pool);
+export const db = drizzle(pool, { schema });
 
 // Simple connection test on startup
 (async () => {

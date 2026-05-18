@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
-import { storage } from "./storage";
+import { storage, pool, db } from "./storage";
 import { OTPService } from "./otp-service";
 import path from "path";
 import { createAnnouncementsBroadcaster } from "./announcements-ws";
@@ -107,7 +107,6 @@ function rateLimit(req: any, res: any, next: any) {
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, and, sql, or, like, isNull, asc, inArray } from "drizzle-orm";
 import { desc } from "drizzle-orm";
-import { Pool } from "pg";
 import * as schema from "../shared/schema"; // Import schema module
 import { DatabaseMonitor } from "./db-monitor";
 import IthinkServiceAdapter from "./ithink-service-adapter";
@@ -310,48 +309,7 @@ async function validatePincodeBackend(pincode: string) {
   }
 }
 
-// Database connection with enhanced configuration and error recovery
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://poppikuser:poppikuser@31.97.226.116:5432/poppikdb",
-  ssl: false,  // force disable SSL
-  max: 20,
-  min: 2,
-  idleTimeoutMillis: 300000, // 5 minutes
-  connectionTimeoutMillis: 10000,
-  keepAlive: true,
-  keepAliveInitialDelayMillis: 0,
-  allowExitOnIdle: false,
-});
-
-// Handle pool errors to prevent crashes
-pool.on('error', (err, client) => {
-  console.error('Unexpected error on idle client', err);
-  // Don't exit the process, just log the error
-});
-
-pool.on('connect', (client) => {
-  console.log('New database connection established');
-});
-
-pool.on('remove', (client) => {
-  console.log('Database connection removed from pool');
-});
-
-const db = drizzle(pool, { schema }); // Pass schema to drizzle
 const dbMonitor = new DatabaseMonitor(pool);
-
-// Graceful shutdown handler
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, closing database pool...');
-  await pool.end();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, closing database pool...');
-  await pool.end();
-  process.exit(0);
-});
 
 // Cashfree configuration
 const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID || 'cashfree_app_id';
